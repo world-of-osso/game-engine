@@ -214,3 +214,42 @@ fn professions_art_reagent_count_prefix_and_name_share_availability_color() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+#[test]
+fn professions_gathering_skill_bar_uses_progress_line_not_parent_holder() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (parent, child, name) in [
+            (182, 2556, "Classic Herbalism"),
+            (186, 2572, "Classic Mining"),
+            (393, 2564, "Classic Skinning"),
+        ] {
+            let mut gathering = ProfessionView::default();
+            gathering.book.visible = true;
+            gathering.book.snapshot.lines = vec![
+                ProfessionSkillLine {
+                    skill_line: parent,
+                    step: 4,
+                    rank: 1,
+                    max_rank: if parent == 393 { 75 } else { 0 },
+                },
+                ProfessionSkillLine {
+                    skill_line: child,
+                    step: 1,
+                    rank: 2,
+                    max_rank: 300,
+                },
+            ];
+            gathering
+                .skill_names
+                .insert(parent, "Profession parent".into());
+            gathering.skill_names.insert(child, name.into());
+            gathering.child_skills.insert(child);
+            let registry = render(skin, gathering);
+            assert_eq!(
+                text(&registry, "ProfessionsSkillText").0,
+                format!("{name} 2/300")
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}

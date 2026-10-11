@@ -435,6 +435,10 @@ impl GameClient {
         const DUSK: u32 = 21 * 60;
         let night = !(DAWN..DUSK).contains(&(hour * 60 + minute));
         let view = self.minimap.view(position);
+        // Retail learned spell tracking: Find Herbs2383 / Find Minerals2580.
+        let spells = &self.professions.book.snapshot.spells;
+        self.minimap.tracking.gathering_available =
+            [spells.contains(&2383), spells.contains(&2580)];
         let mut blips = self.tracking_minimap_blips(&view);
         blips.extend(self.quest_blips(&view));
         blips.extend(group_minimap_blips(
@@ -517,7 +521,20 @@ impl GameClient {
             let position = unit.get::<Position>()?;
             Some((unit.server_id, *flags, [position.x, position.z]))
         });
-        tracking_minimap_blips(view, &self.minimap.tracking, units)
+        let mut blips = tracking_minimap_blips(view, &self.minimap.tracking, units);
+        let resources = self.replica.units().filter_map(|unit| {
+            let resource = unit.get::<shared::protocol::GatherableResource>()?;
+            let position = unit.get::<Position>()?;
+            Some((unit.server_id, *resource, [position.x, position.z]))
+        });
+        blips.extend(
+            game_engine_ui_model::minimap::resource_tracking_minimap_blips(
+                view,
+                &self.minimap.tracking,
+                resources,
+            ),
+        );
+        blips
     }
 
     fn target_minimap_blip(&self, view: &MinimapView) -> Option<MinimapBlip> {
@@ -660,8 +677,13 @@ impl GameClient {
         );
         drop(span);
         let composite = self.minimap_composite(position);
-        if let Some(ui) = self.minimap.ui.as_mut() {
-            return ui.bind_mut().set_minimap(state, composite);
+        let tracking_open = state.tracking.open;
+        if let Some(mut ui) = self.minimap.ui.clone() {
+            ui.bind_mut().set_minimap(state, composite)?;
+            if tracking_open {
+                self.raise_above_layer(&ui)?;
+            }
+            return Ok(());
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MinimapUI");
