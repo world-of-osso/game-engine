@@ -15,6 +15,21 @@ use crate::ui::screens::{
 
 /// Retail `StaticPopupDialogs["ABANDON_QUEST"]`.
 pub const ABANDON_QUEST_POPUP: &str = "ABANDON_QUEST";
+pub const QUEST_ACCEPT_POPUP: &str = "QUEST_ACCEPT";
+
+pub fn share_popup(offer: &shared::protocol::QuestShareOffer) -> PopupSpec {
+    PopupSpec {
+        key: QUEST_ACCEPT_POPUP.into(),
+        text: format!(
+            "{} is starting {}\nWould you like to as well?",
+            offer.sender_name, offer.title
+        ),
+        accept_label: "Yes".into(),
+        cancel_label: Some("No".into()),
+        timeout: None,
+        confirm_text: None,
+    }
+}
 
 /// What one quest screen action asks of the host.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,6 +99,12 @@ fn log_action(action: &str, runtime: &QuestRuntime, ui: &mut QuestUiState) -> Ve
         return vec![QuestUiEffect::Send(NpcInteractionRequest::SetWatched {
             quest_id,
             watched,
+        })];
+    } else if action == log::SHARE_ACTION
+        && let Some(quest_id) = selected
+    {
+        return vec![QuestUiEffect::Send(NpcInteractionRequest::Share {
+            quest_id,
         })];
     } else if action == log::ABANDON_ACTION
         && let Some(entry) = selected.and_then(|id| runtime.entry(id))
