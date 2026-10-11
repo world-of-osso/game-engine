@@ -26,9 +26,13 @@ Retail Mainline roll prompts and loot history, transported by `LootChannel` and 
 - `godot/ui-model/src/game/group_state_tests.rs`
 - `godot/network/src/group_loot_wire_tests.rs`
 
+## Current proof
+
+Private UDP54300, two `fb_group_loot2_*` accounts: Modern8 Need90 beats Greed53; Forever9 Need43 beats Greed46. Winner item counts increase by one, other inventories remain unchanged; both clients show authoritative numeric results and completed history. Forever also proves party→raid leader settings. Eleven PNGs inspected at ≤1280px in `/syncthing/AgentShared/2026-10-11/group-loot/`. [Proof ledger and boundaries](../wiki/systems/group-loot.md#bounded-proof--verified-2026-10-11).
+
 ## Known gaps (current cycle)
-- [ ] Native live proof, both skins; screenshot inspection.
 - [ ] Encounter selection/resizing in loot history; main-spec Need animation.
+- [ ] Independent final verification (verifier backend authentication expired).
 
 ## Out of scope
 - Master-loot UI; Forever-only frames or behavior; canonical realm or world-data mutations.
