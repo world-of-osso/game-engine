@@ -21,6 +21,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [ ] `/ginfo` / `/guildinfo` sends a read-only query, but legacy guild records have no creation date for Retail GUILD_INFO_TEMPLATE; the client explicitly reports unavailable data instead of inventing it.
 - [x] Communities exposes Invite Member and Info; MOTD/info editors send authoritative writes, keep displayed text unchanged pending reply, and hide edits without rank permission. Member menu Remove uses strict hierarchy.
 - [x] Native Info editor uses TextEdit for multiline text (499 characters); MOTD uses Enter-to-accept input (255 characters). Native postsetup supplies limits before projection.
+- [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
 - [ ] Inspected authenticated multiline editor proof remains pending.
 - [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
 
@@ -49,6 +50,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 | `godot/ui-model/src/ui/chat_frame.rs` | Officer chat command parsing |
 
 ## Tests asserting this spec
+
+- `godot/tests/guild_profile_live.gd`: private guild master types MOTD, inserts before the final character, accepts and checks the authoritative displayed reply; real Godot input/projection boundary.
 
 - `godot/ui-model/tests/native_guild_ranks.rs`: 5 authoritative model/Officer tests pass.
 - `godot/ui-model/tests/guild_rank_widgets.rs`: 9 tests pass in both skins, including
