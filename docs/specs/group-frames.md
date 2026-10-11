@@ -132,8 +132,9 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Retail has no slash command to leave a party: `/leave` is a chat channel command.
 
 ### Not implemented
-- [ ] Party portraits for members never replicated (roster lacks race/customization/equipment), party-pet data outside replication interest and live acceptance; runtime member portraits and replicated pet health wiring exist above. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
-- [ ] Assistant / main tank / main assist.
+- [ ] Party portraits for members never replicated (roster lacks race/customization/equipment), party-pet data outside replication interest and live acceptance; runtime member portraits and replicated pet health wiring exist above. Remaining `CompactRaidFrameManager` controls (role poll, settings, filters, markers, restrict-ping and bottom controls); ready/countdown shell is implemented in the current cycle.
+- [ ] Native assistant assignment/revocation and leader/assistant ready-check/countdown permissions (current cycle tests/live proof pending).
+- [ ] Main tank / main assist.
 - [ ] Group persistence across server restarts.
 - [ ] Loot method wiring: the Loot Rules window stays client-side.
 - [ ] Features that need data the client does not have:

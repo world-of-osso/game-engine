@@ -73,12 +73,12 @@ use shared::protocol::{
     QuestGiverQuestDetails, QuestGiverQuestList, QuestGiverRequestItems, SetQuestWatched,
 };
 use shared::protocol::{
-    ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
+    ConvertGroupToParty, ConvertGroupToRaid, GroupAssistants, GroupChannel, GroupCommandResponse,
     GroupCountdownRequest, GroupCountdownUpdate, GroupInviteCancelled, GroupInviteIntent,
     GroupInvitePrompt, GroupMemberStates, GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup,
     MinimapPing, MinimapPingRequest, PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate,
-    RespondGroupInvite, RespondReadyCheck, SetGroupRole, SetRaidSubgroup, SetRaidTarget,
-    StartReadyCheck,
+    RespondGroupInvite, RespondReadyCheck, SetGroupAssistant, SetGroupRole, SetRaidSubgroup,
+    SetRaidTarget, StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -1116,6 +1116,9 @@ impl Account {
             GroupCommand::Uninvite(name) => {
                 bridge.send::<_, GroupChannel>(GroupUninviteIntent { name })
             }
+            GroupCommand::SetAssistant { name, assistant } => {
+                bridge.send::<_, GroupChannel>(SetGroupAssistant { name, assistant })
+            }
             GroupCommand::Promote(name) => {
                 bridge.send::<_, GroupChannel>(PromoteGroupLeader { name })
             }
@@ -1501,6 +1504,7 @@ impl Account {
             || message.is::<GroupInviteCancelled>()
             || message.is::<ReadyCheckUpdate>()
             || message.is::<GroupCountdownUpdate>()
+            || message.is::<GroupAssistants>()
             || message.is::<GroupCommandResponse>()
             || message.is::<RaidTargetIcons>()
             || message.is::<MinimapPing>()
@@ -1514,6 +1518,8 @@ impl Account {
     ) -> Result<(), String> {
         if message.is::<GroupRosterSnapshot>() {
             self.group.apply_roster(decode(message)?);
+        } else if message.is::<GroupAssistants>() {
+            self.group.apply_assistants(decode(message)?);
         } else if message.is::<GroupMemberStates>() {
             let states: GroupMemberStates = decode(message)?;
             self.group.apply_member_states(states.members);

@@ -80,6 +80,24 @@ fn ready_update(answers: &[(&str, ReadyCheckAnswer)], finished: bool) -> ReadyCh
 }
 
 #[test]
+fn raid_assistant_menu_permissions_follow_server_assignment_and_revocation() {
+    let mut state = party_of(&[("Ann", true), ("Bob", false)]);
+    state.is_raid = true;
+    assert!(group_menu_entries(&state, "Ann", "Bob").contains(&GroupMenuEntry::SetAssistant(true)));
+    state.apply_assistants(shared::protocol::GroupAssistants {
+        members: vec!["Bob".into()],
+    });
+    assert!(state.can_start_group_checks("Bob"));
+    assert!(group_menu_entries(&state, "Bob", "Bob").contains(&GroupMenuEntry::ReadyCheck));
+    assert!(
+        group_menu_entries(&state, "Ann", "Bob").contains(&GroupMenuEntry::SetAssistant(false))
+    );
+    state.apply_assistants(shared::protocol::GroupAssistants::default());
+    assert!(!state.can_start_group_checks("Bob"));
+    assert!(!group_menu_entries(&state, "Bob", "Bob").contains(&GroupMenuEntry::ReadyCheck));
+}
+
+#[test]
 fn member_states_are_kept_for_roster_members_and_dropped_when_they_go_offline() {
     let mut state = party_of(&[("Ann", true), ("Bob", false)]);
     state.apply_member_states(vec![live("Ann", 900), live("Bob", 412)]);
