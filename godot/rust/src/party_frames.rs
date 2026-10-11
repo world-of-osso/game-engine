@@ -337,6 +337,7 @@ impl GameClient {
         self.dispatch_bag_destroy_results(&results)?;
         self.dispatch_quest_abandon_results(&results)?;
         self.dispatch_bank_popup_results(&results)?;
+        self.dispatch_stable_popup_results(&results);
         self.dispatch_mail_popup_results(&results)?;
         self.dispatch_death_popup_results(&results)?;
         self.dispatch_summon_popup_results(&results)?;

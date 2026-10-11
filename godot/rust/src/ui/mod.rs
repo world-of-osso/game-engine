@@ -1415,6 +1415,27 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_combat_pet_stable(
+        &mut self,
+        state: game_engine_ui_model::pet_stable_component::StableFrameView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::pet_stable_component::pet_stable_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// BankFrame on the metal border; bag slots stay in the standalone Bags UI.
     pub fn show_bank(
         &mut self,
