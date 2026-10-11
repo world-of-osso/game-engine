@@ -10,14 +10,14 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 #[path = "professions_frame_art.rs"]
 mod art;
-#[path = "professions_frame_slots.rs"]
-mod slots;
-#[path = "professions_frame_specializations.rs"]
-mod specializations;
 #[path = "professions_frame_orders.rs"]
 pub mod orders;
 #[path = "professions_frame_recraft.rs"]
 mod recraft;
+#[path = "professions_frame_slots.rs"]
+mod slots;
+#[path = "professions_frame_specializations.rs"]
+mod specializations;
 #[path = "professions_frame_tree.rs"]
 mod tree;
 
