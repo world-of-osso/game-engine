@@ -12,7 +12,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT, SlotItem, WHITE,
-    cropped, item_slot, label, money_display, money_prompt, selected_marker, texture,
+    cropped, item_slot, label, money_display, money_prompt, texture,
 };
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{
@@ -49,6 +49,11 @@ pub const INFO_BOX: &str = "GuildBankTabInfoEditBox";
 
 /// GB.xml:758: native multiline tab text with a 500-character limit.
 pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    apply_guild_bank_info_postsetup(registry);
+    apply_guild_bank_checked_art(registry);
+}
+
+fn apply_guild_bank_info_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     if let Some(id) = registry.get_by_name("GuildBankFrameInfoText")
         && let Some(frame) = registry.get_mut(id)
         && let Some(ui_toolkit::frame::WidgetData::FontString(text)) = frame.widget_data.as_mut()
@@ -67,6 +72,26 @@ pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegi
     }
 }
 
+fn apply_guild_bank_checked_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    let checked: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            frame
+                .name
+                .as_deref()
+                .filter(|name| name.starts_with("GuildBankTab") && name.ends_with("Checked"))
+                .map(|_| frame.id)
+        })
+        .collect();
+    for id in checked {
+        let frame = registry.get_mut(id).expect("registered checked texture");
+        if let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_mut() {
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+            frame.draw_layer = ui_toolkit::frame::DrawLayer::Overlay;
+        }
+    }
+}
+
 /// Retail `MAX_GUILDBANK_SLOTS_PER_TAB`, `NUM_SLOTS_PER_GUILDBANK_GROUP` (GB.lua:1-9).
 pub const SLOTS: usize = 98;
 const SLOTS_PER_COLUMN: usize = 14;
@@ -81,6 +106,8 @@ const TAB_BG: u32 = 132_074;
 const NEW_TAB: u32 = 132_071;
 /// `Interface\GuildBankFrame\UI-TabNameBorder` (GB.xml:171-200).
 const TAB_NAME_BORDER: u32 = 132_076;
+/// GB.xml:156: native checked tab art, not a recoloured quickslot.
+const CHECKED_HIGHLIGHT: u32 = 130_724;
 
 /// GB.xml:31-68, 477-510: Column1 at 18,-59, columns 100 wide 3 apart; Button1 at
 /// 7,-3, 7 below each other, Button8 12 right of Button1. `slot` is 0-based.
@@ -601,7 +628,12 @@ fn side_tab(index: usize, icon: u32, selected: bool, action: &str) -> Element {
         WHITE,
     ));
     if selected {
-        children.extend(selected_marker(format!("{name}Checked"), (2.0, 8.0, 35.0)));
+        children.extend(texture(
+            format!("{name}Checked"),
+            CHECKED_HIGHLIGHT,
+            (2.0, 8.0, 36.0, 34.0),
+            WHITE,
+        ));
     }
     rsx! {
         r#frame {
