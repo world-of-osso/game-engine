@@ -100,14 +100,26 @@ def copy_project(root, bundle, platform):
     write_extension_config(bundle, platform)
 
 
+def copy_windows_native(artifacts, bundle):
+    for source, target in (
+        ('godot.exe', 'runtime/godot.exe'),
+        ('game_engine_godot.dll', 'lib/game_engine_godot.dll'),
+        ('game-engine-windows-x86_64.exe', 'game-engine-windows-x86_64'),
+    ):
+        copy_file(artifacts / source, bundle / target)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--platform', choices=LIBRARIES, required=True)
+    parser.add_argument('--windows-artifacts', type=Path)
     args = parser.parse_args()
     copy_project(args.root, args.bundle, args.platform)
     copy_data(args.root, args.bundle)
+    if args.windows_artifacts:
+        copy_windows_native(args.windows_artifacts, args.bundle)
 
 
 if __name__ == '__main__':
