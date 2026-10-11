@@ -16,7 +16,7 @@ func run_fixture() -> void:
 	if error != "": fail(error); return
 	if not await wait_until(func(): return control("CharCard_0") != null, "roster", 120000): return
 	await checkpoint("roster")
-	await click("CharCard_1" if scenario == "skin" else "CharCard_0")
+	await click("CharCard_" + OS.get_environment("GATHERING_CHARACTER_INDEX"))
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and client.account_state().world_attached, "world", 180000): return
 	if not await wait_until(func():
@@ -52,6 +52,7 @@ func prove_node(resource: Dictionary) -> void:
 	if model.find_children("*", "MeshInstance3D", true, false).is_empty(): fail("resource has no meshes"); return
 	await checkpoint(label + "-position", object)
 	await capture_skill(label + "-skill-before", label)
+	var before := skill_rank()
 	if label == "herb":
 		await click("MinimapClusterTrackingBackground")
 		if not await wait_until(func(): return control("MinimapTrackingChoice9") != null, "learned Find Herbs"): return
@@ -67,6 +68,7 @@ func prove_node(resource: Dictionary) -> void:
 	await checkpoint(label + "-loot", object)
 	if not await wait_until(func(): return control("LootFrame") == null, label + " taken loot"): return
 	await capture_skill(label + "-skill-after", label)
+	if skill_rank() != before + 1: fail(label + " did not raise skill: " + skill_text); return
 	if not await wait_until(func(): return not is_instance_valid(object), label + " despawn", 60000): return
 	await capture(label + "-despawn")
 	await checkpoint(label + "-despawn")
@@ -88,8 +90,13 @@ func capture_skill(label: String, resource: String) -> void:
 		await click("ProfessionRecipe2657")
 		await create_timer(0.5).timeout
 	skill_text = control("ProfessionsSkillText").text
+	var expected: String = {"herb": "Classic Herbalism", "ore": "Classic Mining", "skin": "Classic Skinning"}[resource]
+	if not skill_text.begins_with(expected): fail("wrong progress line: " + skill_text); return
 	await capture(label)
 	await tap(KEY_ESCAPE)
+
+func skill_rank() -> int:
+	return skill_text.get_slice("/", 0).get_slice(" ", 2).to_int()
 
 func prove_skinning() -> void:
 	var resource: Dictionary = JSON.parse_string(OS.get_environment("GATHERING_WOLF"))
@@ -99,6 +106,7 @@ func prove_skinning() -> void:
 	var wolf := wolf_node()
 	await checkpoint("wolf-position", wolf)
 	await capture_skill("skinning-skill-before", "skin")
+	var before := skill_rank()
 	await click_world(wolf)
 	await checkpoint("kill-started", wolf)
 	if not await wait_until(func(): return client.target_state().health_text == "Dead", "own wolf kill", 90000): return
@@ -116,6 +124,7 @@ func prove_skinning() -> void:
 	await checkpoint("skinning-loot", wolf)
 	if not await wait_until(func(): return control("LootFrame") == null, "skinning loot emptied"): return
 	await capture_skill("skinning-skill-after", "skin")
+	if skill_rank() != before + 1: fail("Skinning did not raise skill: " + skill_text); return
 
 func resource_node(entry: int) -> Node3D:
 	var closest: Node3D
