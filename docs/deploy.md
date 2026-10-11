@@ -1,17 +1,21 @@
 # Deploying the client
 
-`./deploy.sh` builds the Linux x86_64 Godot client bundle and publishes it to the public R2 bucket behind `files.worldofosso.com`. `./deploy.sh --dry-run` builds and assembles the same bundle, then prints the publish commands without running them.
+`./deploy.sh` builds one combined Linux/Windows x86_64 Godot player bundle and publishes it to the public R2 bucket behind `files.worldofosso.com`. `./deploy.sh --dry-run` builds and assembles the same bundle, then prints the publish commands without running them.
 
 ## Build
 
 1. `python3 scripts/depot-build.py --root <checkout> --release` builds the optimized extension on Depot into `target/release/libgame_engine_godot.so` (see [remote builds](remote-builds.md)). Release builds default to the live realm, `game.worldofosso.com:5000`.
 2. The runtime is the patched pinned Godot `4.7.2-pr123946-pr123546` from `scripts/godot/pinned.sh`, checksum-verified; build it with `scripts/godot/build-patched-godot.sh` if missing.
-3. The bundle is assembled in `target/deploy/linux-x86_64/` (`BUNDLE_DIR` overrides):
+3. `scripts/windows-release.py --phase build` builds the Windows extension, patched runtime and native entry on desktop and exports them into `target/windows-release/artifacts/`.
+4. The combined bundle is assembled in `target/deploy/player/` (`BUNDLE_DIR` overrides); the shared project/data assembler runs only once:
 
 | Path | Content |
 |---|---|
 | `game-engine-linux-x86_64` | `sh` entry: marks `runtime/godot` executable, runs it on `godot/`; every argument is a client option after Godot's `--` |
-| `runtime/godot` | patched Godot editor build, used as the runtime |
+| `runtime/godot` | patched Linux Godot editor build, used as the runtime |
+| `game-engine-windows-x86_64` | extensionless native PE entry; resolves its own directory and launches `runtime/godot.exe` on `godot/` |
+| `runtime/godot.exe` | patched Windows Win32/Vulkan Godot editor runtime |
+| `lib/game_engine_godot.dll` | native GNU Windows release extension |
 | `lib/libgame_engine_godot.so` | release extension (needs only glibc/libstdc++; built on Debian bookworm) |
 | `godot/` | tracked project files without Rust crates or `tests/`, a bundle `game_engine.gdextension` pointing at `lib/`, and the pre-imported `.godot/` cache (without `.godot/editor/`) |
 | `data/` | runtime data allowlist, below |
@@ -20,9 +24,9 @@ The import runs once at assembly with `.godot/extension_list.cfg` already writte
 
 ### Data
 
-`deploy.sh` uses the shared Linux/Windows assembler `scripts/player_bundle.py`. Its `data/` allowlist includes `cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 gametables glues item-models los minimap models music reference sounds terrain textures ui`, top-level `*.csv`, `*.ron` and `local-listfile-cache.sqlite`. TACT keys, credentials and diagnostics are excluded. It drops `*.missing` extraction markers, `*.lock`, `cache/casc` and `cache/pre-retail-*`. `data/` also holds `auth_token*` files, diagnostics and screenshots, so it is never synced wholesale. On 2026-10-03 the bundle was 38 GB and 93,328 files. Of that, CASC extraction caches (`models`, `textures`, `terrain`, `music`) make up about 29 GB, and `los` 6.3 GB.
+`deploy.sh` uses the shared Linux/Windows assembler `scripts/player_bundle.py`. Its `data/` allowlist includes `cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 gametables glues item-models los minimap models music reference sounds terrain textures ui`, top-level `*.csv`, `*.ron` and `local-listfile-cache.sqlite`. TACT keys, credentials and diagnostics are excluded. It drops `*.missing` extraction markers, `*.lock`, `cache/casc` and `cache/pre-retail-*`. Both player entries set `GAME_ENGINE_ASSET_MODE=extracted-only`. `data/` also holds `auth_token*` files, diagnostics and screenshots, so it is never synced wholesale. On 2026-10-03 the bundle was 38 GB and 93,328 files. Of that, CASC extraction caches (`models`, `textures`, `terrain`, `music`) make up about 29 GB, and `los` 6.3 GB.
 
-The player-bundle direction is extracted-only: players must not need a retail install or runtime CASC extraction. [Shipped assets](specs/shipped-assets.md) owns the runtime policy landed in `b4094d2b2`/`f6b32b79e`; P1 requires `GAME_ENGINE_ASSET_MODE=extracted-only`, while unset still selects development local-CASC mode. P1 did not change deployment. Manifest-qualified packaging and pristine no-install/download acceptance remain later phases; [offline closure](wiki/systems/offline-asset-closure.md) records the incomplete audit, not a release-ready asset set.
+The player-bundle direction is extracted-only: players must not need a retail install or runtime CASC extraction. [Shipped assets](specs/shipped-assets.md) owns the runtime policy landed in `b4094d2b2`/`f6b32b79e`; P1 requires `GAME_ENGINE_ASSET_MODE=extracted-only`, while unset still selects development local-CASC mode. P1 did not change deployment; the combined Linux/Windows bundle now selects extracted-only from both entries. Manifest-qualified packaging and pristine no-install/download acceptance remain later phases; [offline closure](wiki/systems/offline-asset-closure.md) records the incomplete audit, not a release-ready asset set.
 
 ## Proof
 
@@ -44,7 +48,7 @@ The destination is the rclone remote `woo-r2` (`DESTINATION` overrides). It need
 
 game-launcher (`../game-launcher`) fetches `https://files.worldofosso.com/manifest.json` and downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>` with no arguments and the game directory as the working directory. The bundle therefore:
 
-- names its entry `game-engine-linux-x86_64`;
+- names its entries `game-engine-linux-x86_64` and `game-engine-windows-x86_64`;
 - keeps every other path from starting with `game-engine-`;
 - marks the runtime executable from the entry script.
 

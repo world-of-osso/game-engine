@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Linux x86_64 Godot client bundle and publishes it to the public R2 bucket
+# Builds the combined Linux/Windows x86_64 Godot player bundle and publishes it to R2
 # behind https://files.worldofosso.com, where game-launcher reads it.
 # See docs/deploy.md for the bundle layout and the game-launcher contract.
 #
@@ -11,7 +11,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 PLATFORM=linux-x86_64
-BUNDLE=${BUNDLE_DIR:-$ROOT/target/deploy/$PLATFORM}
+BUNDLE=${BUNDLE_DIR:-$ROOT/target/deploy/player}
 FILE_SERVER_DIR=${FILE_SERVER_DIR:-$ROOT/../file-server}
 # rclone remote with write access to the bucket (docs/deploy.md).
 DESTINATION=${DESTINATION:-woo-r2:worldofosso-client}
@@ -51,6 +51,7 @@ set -eu
 here=$(dirname "$(readlink -f "$0")")
 # game-launcher downloads files without their mode bits.
 chmod +x "$here/runtime/godot"
+export GAME_ENGINE_ASSET_MODE=extracted-only
 exec "$here/runtime/godot" --path "$here/godot" -- "$@"
 EOF
     chmod +x "$BUNDLE/game-engine-$PLATFORM"
@@ -76,7 +77,8 @@ assemble() {
     write_launcher
     cp "$(pinned_godot)" "$BUNDLE/runtime/godot"
     install -m 644 "$ROOT/target/release/libgame_engine_godot.so" "$BUNDLE/lib/"
-    python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM"
+    python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" \
+        --windows-artifacts "$ROOT/target/windows-release/artifacts"
     import_project
 }
 
@@ -113,10 +115,12 @@ publish() {
     run rclone sync "$BUNDLE/" "$DESTINATION" "${upload[@]}"
 }
 
-echo "=== Building native extension (release, Depot) ==="
+echo "=== Building Linux native extension (release, bookworm) ==="
 # DEPLOY_BUILD_WRAPPER (optional): a command prefix for the build only, e.g. a host build
 # lock, so uploads never hold it.
-${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release
+${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release --build-host local
+echo "=== Building Windows runtime, extension and entry (native desktop) ==="
+python3 "$ROOT/scripts/windows-release.py" --root "$ROOT" --phase build
 echo "=== Assembling $BUNDLE ==="
 assemble
 echo "Bundle: $(du -sh --apparent-size "$BUNDLE" | cut -f1), $(find "$BUNDLE" -type f | wc -l) files"

@@ -10,7 +10,7 @@ import subprocess
 import tarfile
 from pathlib import Path
 
-from player_bundle import copy_data, copy_project
+from player_bundle import copy_data, copy_project, copy_windows_native
 
 DEFAULT_REMOTE = 'C:/Users/adeia/Projects/woo-windows-build'
 
@@ -114,15 +114,17 @@ def stream_archive(host, archive, destination):
         subprocess.run(['ssh', host, 'powershell.exe -NoProfile -EncodedCommand ' + encoded], stdin=source, check=True)
 
 
+def fetch_artifacts(work, host, remote):
+    artifacts = work / 'artifacts'
+    artifacts.mkdir(parents=True, exist_ok=True)
+    for name in ('game_engine_godot.dll', 'godot.exe', 'game-engine-windows-x86_64.exe', 'godot.sha512'):
+        run('scp', f'{host}:{remote}/artifacts/{name}', str(artifacts / name))
+    return artifacts
+
+
 def finish_bundle(root, work, host, remote):
     bundle = root / 'target/deploy/windows-x86_64'
-    for name, destination in (
-        ('game_engine_godot.dll', bundle / 'lib/game_engine_godot.dll'),
-        ('godot.exe', bundle / 'runtime/godot.exe'),
-        ('game-engine-windows-x86_64.exe', bundle / 'game-engine-windows-x86_64'),
-        ('godot.sha512', work / 'godot.sha512'),
-    ):
-        run('scp', f'{host}:{remote}/artifacts/{name}', str(destination))
+    copy_windows_native(fetch_artifacts(work, host, remote), bundle)
     native = work / 'native.tar'
     with tarfile.open(native, 'w') as output:
         for name in ('runtime', 'lib', 'game-engine-windows-x86_64'):
@@ -147,7 +149,7 @@ def main():
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--host', default='desktop')
     parser.add_argument('--remote-root', default=DEFAULT_REMOTE)
-    parser.add_argument('--phase', choices=('build', 'assemble', 'all'), default='all')
+    parser.add_argument('--phase', choices=('build', 'artifacts', 'assemble', 'all'), default='all')
     args = parser.parse_args()
     root = args.root.resolve()
     work = root / 'target/windows-release'
@@ -157,6 +159,9 @@ def main():
         stage_source(root, work, args.host, args.remote_root)
         worker(args.host, args.remote_root, 'extension')
         worker(args.host, args.remote_root, 'runtime')
+        fetch_artifacts(work, args.host, args.remote_root)
+    if args.phase == 'artifacts':
+        fetch_artifacts(work, args.host, args.remote_root)
     if args.phase in ('assemble', 'all'):
         assemble(root, work, args.host, args.remote_root)
 

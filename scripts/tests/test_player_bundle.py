@@ -57,6 +57,22 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertFalse((target / 'godot/Cargo.toml').exists())
             self.assertEqual((target / 'godot/.godot/extension_list.cfg').read_text(), 'res://game_engine.gdextension\n')
 
+    def test_windows_native_files_join_the_shared_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifacts = root / 'artifacts'
+            artifacts.mkdir()
+            for name in ('godot.exe', 'game_engine_godot.dll', 'game-engine-windows-x86_64.exe'):
+                (artifacts / name).write_bytes(name.encode())
+            target = root / 'player'
+            bundle.copy_windows_native(artifacts, target)
+            for source, destination in (
+                ('godot.exe', 'runtime/godot.exe'),
+                ('game_engine_godot.dll', 'lib/game_engine_godot.dll'),
+                ('game-engine-windows-x86_64.exe', 'game-engine-windows-x86_64'),
+            ):
+                self.assertEqual((target / destination).read_bytes(), source.encode())
+
     def test_platform_extension_contract(self):
         for platform, library in [('linux-x86_64', 'linux.x86_64 = "res://../lib/libgame_engine_godot.so"'),
                                   ('windows-x86_64', 'windows.x86_64 = "res://../lib/game_engine_godot.dll"')]:
