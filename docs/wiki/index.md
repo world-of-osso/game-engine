@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
+
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
 - [Class spell live proof](investigations/class-spell-live-proof.md) — first pass on private54113; batches9–14 continuation on54123 adds twelve new class paths plus a Monk control, four both-skin classes and explicit guardian/numeric gaps.

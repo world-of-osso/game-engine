@@ -1,3 +1,7 @@
+## 2026-10-11 — GO and item-spell quest live proof
+
+[Quest UI](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11): private5496 Modern+Forever26446/28175 native objective credit and real reward turn-ins;12 successful PNGs inspected. Fixture travel/projected picks replace synthetic steering, with full pick bounds and typed objective comparisons. Chest-loot completion remains blocked; server ledger owns attempted maps and typed-invisibility giver diagnosis. No product camera repair, master merge or world.db writes.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
