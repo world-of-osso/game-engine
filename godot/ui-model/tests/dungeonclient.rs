@@ -284,6 +284,12 @@ fn achievements_ui_uses_authored_sheet_regions_for_recent_icons_and_shields() {
             panic!("rendered texture")
         };
         assert_eq!(texture.tex_coords, coords);
+        if name == "Achievement633Shield" {
+            assert_eq!(
+                texture.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(130666)
+            );
+        }
     }
 }
 
