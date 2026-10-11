@@ -1,0 +1,38 @@
+"""Real Windows process-boundary proof for the extensionless launcher contract."""
+
+import shutil
+import subprocess
+from pathlib import Path
+
+
+def compile_fixture(source, destination):
+    subprocess.run(['rustc', '--edition', '2024', '--target', 'x86_64-pc-windows-gnu',
+                    '-', '-o', str(destination)], input=source, text=True, check=True)
+
+
+def prove_entry(root, engine):
+    fixture = root / 'entry proof with spaces'
+    (fixture / 'runtime').mkdir(parents=True, exist_ok=True)
+    subprocess.run(['rustc', '--edition', '2024', '--target', 'x86_64-pc-windows-gnu',
+                    str(engine / 'scripts/windows-entry.rs'), '-o', str(fixture / 'entry.exe')], check=True)
+    shutil.copy2(fixture / 'entry.exe', fixture / 'game-engine-windows-x86_64')
+    compile_fixture('''fn main() {
+        let arguments = std::env::args().skip(1).collect::<Vec<_>>().join("\\n");
+        std::fs::write("arguments.txt", arguments).unwrap();
+        std::fs::write("asset-mode.txt", std::env::var("GAME_ENGINE_ASSET_MODE").unwrap()).unwrap();
+        std::process::exit(7);
+    }''', fixture / 'runtime/godot.exe')
+    compile_fixture('''fn main() {
+        let game_dir = std::path::PathBuf::from(std::env::args_os().nth(1).unwrap());
+        let mut child = std::process::Command::new(game_dir.join("game-engine-windows-x86_64"))
+            .current_dir(&game_dir).spawn().unwrap();
+        assert_eq!(child.wait().unwrap().code(), Some(7));
+    }''', fixture / 'launcher-proof.exe')
+    subprocess.run([str(fixture / 'launcher-proof.exe'), str(fixture)], check=True)
+    expected = ['--path', str(fixture / 'godot'), '--']
+    assert (fixture / 'arguments.txt').read_text(encoding='utf-8').splitlines() == expected
+    result = subprocess.run([str(fixture / 'game-engine-windows-x86_64'), '--char', 'Windows Space Æ'])
+    assert result.returncode == 7
+    assert (fixture / 'arguments.txt').read_text(encoding='utf-8').splitlines() == expected + ['--char', 'Windows Space Æ']
+    assert (fixture / 'asset-mode.txt').read_text() == 'extracted-only'
+    print('PASS: exact launcher Command::new extensionless PE, spaces/Unicode arguments, relative runtime, child status, extracted-only')

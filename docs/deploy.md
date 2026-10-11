@@ -52,12 +52,14 @@ With no `--server`, the release client connects to the live realm.
 
 ## Other platforms
 
-Only `linux-x86_64` exists. `deploy.sh` refuses to run on other hosts.
+### Windows x86_64 (native GNU)
 
-- **Windows x86_64:** the Bevy-era native build (`scripts/windows-dev.ps1`, `docs/windows-development.md`) was removed with the Bevy client. A Godot build would need:
-  - a Depot (or cross) build of `game_engine_godot.dll`, plus a `windows.x86_64` entry in the bundle `.gdextension`;
-  - a patched Godot 4.7.2 Windows runtime;
-  - a `game-engine-windows-x86_64` entry executable, because game-launcher spawns that path directly and cannot run a script.
+`python3 scripts/windows-release.py --root <checkout>` drives native Windows builds through `ssh desktop`, assembles `target/deploy/windows-x86_64/`, transfers it to the desktop's new `C:/Users/adeia/Projects/woo-windows-build/player/` workspace and pre-imports there. It never publishes. `--phase build|assemble` resumes either boundary without rebuilding the other. See [Windows toolchain](remote-builds.md#windows-player-release).
 
-  The 2026-09-11 finding still applies: MSVC failed on bundled QuickJS (`libquickjs-sys 0.9.0`) and the GNU target compiled it. None of this exists yet.
+The bundle uses the shared `scripts/player_bundle.py` project/data allowlist and `.gdextension` containing both Linux and Windows selectors. Windows artifacts are `runtime/godot.exe`, `lib/game_engine_godot.dll` and an extensionless PE entry `game-engine-windows-x86_64`. The entry resolves paths relative to itself, forwards client arguments after Godot's `--`, waits for its child and selects extracted-only assets. The actual launcher's exact `Command::new` call is exercised by `scripts/windows-entry-test.py`; Windows does launch this extensionless PE.
+
+Godot is the same pinned 4.7.2 source commit with PR123546 applied. PR123946 touches only `platform/linuxbsd/wayland` and is not built or needed on Windows. The Windows runtime's SHA-512 receipt is exported with build artifacts, separate from Linux's checksum.
+
+For a combined manifest, the launcher filters only exact top-level entry names, not platform-prefixed directories. Thus both platforms download the other platform's runtime/library; the lead must review those measured extra bytes before publishing. Windows-only staging is not a combined-manifest publication or a full offline/world certification. No Windows bundle has been published by this workflow.
+
 - **macOS:** no extension build, Godot runtime, signing or entry exists.
