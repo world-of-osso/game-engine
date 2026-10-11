@@ -76,5 +76,5 @@ fn follower_wire_sends_selected_role_and_receives_authoritative_lfg_rejection() 
         thread::sleep(Duration::from_millis(5));
     }
     assert_eq!(received, Some(refusal));
-    bridge.shutdown().unwrap();
+    bridge.stop().unwrap();
 }
