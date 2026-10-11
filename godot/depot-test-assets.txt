@@ -1,4 +1,11 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Retail cooldown categories and assisted rotation: local CASC exact-layout exports.
+db2/12.1.0.69933/CooldownSet.csv
+db2/12.1.0.69933/CooldownSetSpell.csv
+db2/12.1.0.69933/CooldownSetLinkedSpell.csv
+db2/12.1.0.69933/AssistedCombat.csv
+db2/12.1.0.69933/AssistedCombatStep.csv
+db2/12.1.0.69933/AssistedCombatRule.csv
 # Retail GroupLootFrame XML raw toast sheet and named Need/Greed/Transmog/Pass icons.
 textures/609618.blp
 textures/5148876.blp
