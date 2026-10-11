@@ -141,7 +141,7 @@ impl GameClient {
                 InteractionKind::Role(NpcRole::FlightMaster) => {
                     session.close();
                 }
-                InteractionKind::Role(NpcRole::Trainer) => {
+                InteractionKind::Role(NpcRole::Trainer | NpcRole::Transmogrifier) => {
                     session.close();
                 }
                 // The vendor list follows the vendor role (`VendorInventory`).
@@ -288,7 +288,7 @@ impl GameClient {
             self.account.send_use_game_object(id)?;
             return Ok(true);
         }
-        Ok(self.use_meeting_stone(id)?
+        Ok(self.use_spell_or_quest_object(id)?
             || self.use_guild_vault(id)?
             || self.use_mailbox(id)?
             || self.use_chair(id)?)

@@ -284,6 +284,7 @@ fn forevergaps_chat_body_and_timestamp_use_arial_narrow_12() {
                     x: 0.0,
                     width: 100.0,
                     spell_id: None,
+                    achievement_id: None,
                 }],
             }],
         }],

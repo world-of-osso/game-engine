@@ -42,6 +42,7 @@ fn mounted(session: &GuildRanksSession) -> FrameRegistry {
     shared.insert(session.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(guild_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::guild_rank_frame::apply_guild_postsetup(session, &mut registry);
     registry
 }
 fn text(reg: &FrameRegistry, name: &str) -> String {
@@ -59,6 +60,161 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
         .onclick
         .clone()
         .unwrap_or_default()
+}
+
+#[test]
+fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both_skins() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            motd: "Meeting tonight".into(),
+            info_text: "Raid Tuesdays".into(),
+            members: vec![],
+        });
+        let registry = mounted(&session);
+        assert_eq!(
+            action(&registry, "GuildRosterInviteButton"),
+            "guild:invite_open"
+        );
+        session.click("guild:invite_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            action(&registry, "GuildInviteMemberAccept"),
+            "guild:invite_send"
+        );
+        session.click(
+            "guild:invite_send",
+            &[("GuildInviteMemberName".into(), "Cara".into())]
+                .into_iter()
+                .collect(),
+        );
+        assert_eq!(session.commands, vec![GuildCommand::Invite("Cara".into())]);
+        session.commands.clear();
+        session.click("guild:info_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "GuildMOTDText"), "Meeting tonight");
+        assert_eq!(text(&registry, "GuildInfoText"), "Raid Tuesdays");
+        session.click("guild:edit_motd", &Default::default());
+        session.click(
+            "guild:profile_accept",
+            &[("GuildProfileEditText".into(), "Meeting tomorrow".into())]
+                .into_iter()
+                .collect(),
+        );
+        assert_eq!(
+            session.commands,
+            vec![GuildCommand::SetMotd("Meeting tomorrow".into())]
+        );
+        assert_eq!(session.profile.as_ref().unwrap().motd, "Meeting tonight");
+    }
+}
+
+#[test]
+fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() {
+    use game_engine_ui_model::guild_ranks::{GuildCommand, GuildProfileField};
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            motd: "Meeting".into(),
+            info_text: "Tuesday raid\nThursday dungeon".into(),
+            members: vec![],
+        });
+        session.click("guild:edit_info", &Default::default());
+        assert_eq!(session.profile_editor, Some(GuildProfileField::Info));
+        let registry = mounted(&session);
+        let frame = registry
+            .get(registry.get_by_name("GuildProfileEditText").unwrap())
+            .unwrap();
+        let Some(WidgetData::EditBox(editor)) = &frame.widget_data else {
+            panic!("missing editor");
+        };
+        assert!(editor.multi_line);
+        assert_eq!(editor.max_letters, Some(499));
+        assert_eq!(editor.text, "Tuesday raid\nThursday dungeon");
+        let texts = [(
+            "GuildProfileEditText".into(),
+            "Friday raid\nSunday dungeon".into(),
+        )]
+        .into_iter()
+        .collect();
+        session.click("guild:profile_accept", &texts);
+        session.click("guild:edit_info", &Default::default());
+        session.click("guild:profile_accept", &texts);
+        assert_eq!(
+            session.commands,
+            vec![GuildCommand::SetInfo("Friday raid\nSunday dungeon".into())]
+        );
+        assert_eq!(
+            session.profile.as_ref().unwrap().info_text,
+            "Tuesday raid\nThursday dungeon"
+        );
+        session.apply_profile(GuildStateUpdate {
+            guild: None,
+            message: None,
+            error: Some("You don't have permission to do that.".into()),
+        });
+        assert!(!session.profile_waiting);
+        assert_eq!(
+            session.profile.as_ref().unwrap().info_text,
+            "Tuesday raid\nThursday dungeon"
+        );
+        session.apply(state(2));
+        session.click("guild:edit_info", &Default::default());
+        assert!(session.profile_editor.is_none());
+    }
+}
+
+#[test]
+fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+        });
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Raid Team");
+        assert_eq!(
+            action(&registry, "GuildInviteFrameJoinButton"),
+            "guild:accept_invite"
+        );
+        assert_eq!(
+            action(&registry, "GuildInviteFrameDeclineButton"),
+            "guild:decline_invite"
+        );
+        session.click("guild:accept_invite", &Default::default());
+        session.click("guild:accept_invite", &Default::default());
+        assert_eq!(
+            session.commands,
+            vec![game_engine_ui_model::guild_ranks::GuildCommand::AcceptInvite]
+        );
+        let mut declined = GuildRanksSession::default();
+        declined.invitation = session.invitation.clone();
+        declined.click("guild:decline_invite", &Default::default());
+        assert_eq!(
+            declined.commands,
+            vec![game_engine_ui_model::guild_ranks::GuildCommand::DeclineInvite]
+        );
+    }
 }
 
 #[test]
@@ -401,4 +557,17 @@ fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
         assert!(reg.get_by_name("GuildMemberDemote").is_none());
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn guild_info_reports_actual_creation_date_without_backdating_legacy_records() {
+    use game_engine_ui_model::guild_ranks::guild_creation_notice;
+    assert_eq!(
+        guild_creation_notice(None),
+        "Guild creation date is unavailable."
+    );
+    assert_eq!(
+        guild_creation_notice(Some(1728600000)),
+        "Guild created on October 10, 2024 (UTC)."
+    );
 }
