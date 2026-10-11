@@ -42,6 +42,7 @@ pub mod ui {
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod adventure_guide;
 pub mod battleground;
+pub mod challenge;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
 #[path = "ui/chat_frame.rs"]
