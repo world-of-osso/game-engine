@@ -16,7 +16,13 @@ pub struct CooldownEntry {
     pub spell_category_id: u32,
     pub equip_slot: u32,
     pub field_12_1_0_68209_009: u32,
-    pub linked_spells: Vec<u32>,
+    pub linked_spells: Vec<CooldownLinkedSpell>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CooldownLinkedSpell {
+    pub spell_id: u32,
+    pub field_11_1_5_59571_001: u32,
 }
 
 impl CooldownEntry {
@@ -144,7 +150,13 @@ impl CooldownAssistCatalog {
     }
 
     fn load_cooldowns(&mut self, dir: &Path) -> Result<(), String> {
-        for [id, spec, field, player_condition] in columns(
+        self.load_sets(dir)?;
+        self.load_entries(dir)?;
+        self.load_links(dir)
+    }
+
+    fn load_sets(&mut self, dir: &Path) -> Result<(), String> {
+        for [id, spec, field, player_condition] in read_columns(
             dir,
             "CooldownSet",
             [
@@ -166,6 +178,10 @@ impl CooldownAssistCatalog {
                 },
             );
         }
+        Ok(())
+    }
+
+    fn load_entries(&mut self, dir: &Path) -> Result<(), String> {
         for [
             id,
             set_id,
@@ -177,7 +193,7 @@ impl CooldownAssistCatalog {
             spell_category_id,
             equip_slot,
             field,
-        ] in columns(
+        ] in read_columns(
             dir,
             "CooldownSetSpell",
             [
@@ -214,7 +230,11 @@ impl CooldownAssistCatalog {
                 },
             );
         }
-        for [id, spell, _field, entry_id] in columns(
+        Ok(())
+    }
+
+    fn load_links(&mut self, dir: &Path) -> Result<(), String> {
+        for [id, spell, field, entry_id] in read_columns(
             dir,
             "CooldownSetLinkedSpell",
             [
@@ -228,18 +248,35 @@ impl CooldownAssistCatalog {
                 .entries
                 .get_mut(&entry_id)
                 .ok_or_else(|| format!("CooldownSetLinkedSpell {id}: missing entry {entry_id}"))?;
-            entry.linked_spells.push(spell);
+            entry.linked_spells.push(CooldownLinkedSpell {
+                spell_id: spell,
+                field_11_1_5_59571_001: field,
+            });
         }
         Ok(())
     }
 
     fn load_rotations(&mut self, dir: &Path) -> Result<(), String> {
-        let combat: BTreeMap<_, _> = columns(dir, "AssistedCombat", ["ID", "ChrSpecializationID"])?
-            .into_iter()
-            .map(|[id, spec]| (id, spec))
-            .collect();
+        let mut steps = Self::read_steps(dir)?;
+        Self::load_rules(dir, &mut steps)?;
+        for (_, (spec, mut step)) in steps {
+            step.rules.sort_by_key(|(order, rule)| (*order, rule.id));
+            self.rotations.entry(spec).or_default().push(step);
+        }
+        for steps in self.rotations.values_mut() {
+            steps.sort_by_key(|step| (step.order, step.id));
+        }
+        Ok(())
+    }
+
+    fn read_steps(dir: &Path) -> Result<BTreeMap<u32, (u32, AssistedStep)>, String> {
+        let combat: BTreeMap<_, _> =
+            read_columns(dir, "AssistedCombat", ["ID", "ChrSpecializationID"])?
+                .into_iter()
+                .map(|[id, spec]| (id, spec))
+                .collect();
         let mut steps = BTreeMap::new();
-        for [id, spell, combat_id, order] in columns(
+        for [id, spell, combat_id, order] in read_columns(
             dir,
             "AssistedCombatStep",
             ["ID", "SpellID", "AssistedCombatID", "OrderIndex"],
@@ -260,7 +297,14 @@ impl CooldownAssistCatalog {
                 ),
             );
         }
-        for [id, order, field, condition_type, v1, v2, v3, step_id] in columns(
+        Ok(steps)
+    }
+
+    fn load_rules(
+        dir: &Path,
+        steps: &mut BTreeMap<u32, (u32, AssistedStep)>,
+    ) -> Result<(), String> {
+        for [id, order, field, condition_type, v1, v2, v3, step_id] in read_columns(
             dir,
             "AssistedCombatRule",
             [
@@ -287,13 +331,6 @@ impl CooldownAssistCatalog {
                     field_11_1_7_60520_002: field,
                 },
             ));
-        }
-        for (_, (spec, mut step)) in steps {
-            step.rules.sort_by_key(|(order, rule)| (*order, rule.id));
-            self.rotations.entry(spec).or_default().push(step);
-        }
-        for steps in self.rotations.values_mut() {
-            steps.sort_by_key(|step| (step.order, step.id));
         }
         Ok(())
     }
@@ -339,7 +376,7 @@ fn passes_step(
     }
 }
 
-fn columns<const N: usize>(
+fn read_columns<const N: usize>(
     dir: &Path,
     table: &str,
     names: [&str; N],

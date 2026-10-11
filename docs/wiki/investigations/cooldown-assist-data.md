@@ -33,4 +33,6 @@ Keep unidentified DB2 fields under their WoWDBDefs names. Rule field `Field_11_1
 Retail Assisted Highlight targets action buttons. Optional matching Cooldown Viewer icon highlighting is an explicit World of Osso extension; not Retail parity. Forever must re-skin the same behavior, not introduce another UI inventory.
 
 ## Status
-Export/data audit only. Viewer UI, settings/Edit Mode, live timers, single-button execution and highlights are not implemented by this audit. Native both-skin/private combat proof remains outstanding.
+Export and pure model mechanisms are implemented; [contract](../../specs/cooldown-assist.md) owns acceptance. Core joins and orders authored categories/steps/rules, excludes automation-only steps, and takes explicit predicate evaluators. Unknown predicates block a potentially eligible higher-priority step, but a known false conjunction permits later steps. UI model stores per-spec selection/order and projects cooldown/charge/aura samples, with active aura precedence and independent bar/viewer highlight switches.
+
+Proof: two local WDC5 export tests, four authentic-catalog core tests and two UI-model projection tests pass. Test compile failures demonstrated the missing core/model APIs before implementation; these were compile REDs, not runtime REDs. No concrete rotation predicate evaluator, native mounted viewer/settings/Edit Mode, live-state adapter, single-button execution or rendered highlights exist yet. Native both-skin/private combat proof remains outstanding.

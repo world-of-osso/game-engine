@@ -108,7 +108,7 @@ impl CooldownViewerModel {
             let linked_aura = entry
                 .linked_spells
                 .iter()
-                .filter_map(|id| sample(*id))
+                .filter_map(|link| sample(link.spell_id))
                 .find(|sample| sample.aura_active);
             let aura = if state.aura_active {
                 Some(&state)
