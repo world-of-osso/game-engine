@@ -9,3 +9,5 @@ The tracker appears before quests, replacing the generic dungeon objective list 
 Chosen local scenario: Gnomeregan649/map90/difficulty1, authored one main stage1176. No fabricated stage splitting. Imported four bonus steps are not main-stage transitions; separate bonus-objective tracker, scenario reward quests, transition animation/sound and widget-driven scenarios remain unimplemented. Source: local Retail Blizzard_ObjectiveTracker/Blizzard_ScenarioObjectiveTracker.lua and .xml; GlobalStrings.csv. Data/import contract lives in game-server docs/specs/scenarios.md.
 
 Acceptance: targeted both-skin registry test, owner account message dispatch and actual private UDP5810 entry/kill/completion with inspected PNGs. Registry/model evidence is not a live playthrough.
+
+Native acceptance evidence, HP-primed fixture boundary and remaining content/render limits are recorded in the [system page](../wiki/systems/scenarios.md#coverage-boundary). Do not equate that bounded death-credit proof with full-health solo combat or an authored multi-main-stage playthrough.
