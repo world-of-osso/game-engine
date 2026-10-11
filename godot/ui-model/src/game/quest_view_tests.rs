@@ -21,6 +21,9 @@ fn entry(quest_id: u32, title: &str, sort_id: i32) -> QuestEntrySnapshot {
         title: title.into(),
         zone: String::new(),
         completed: false,
+        expires_at: None,
+        timer_sampled_at: None,
+        failed: false,
         repeatability: QuestRepeatability::Normal,
         objectives: vec![QuestObjectiveSnapshot {
             text: "Kobold Vermin slain".into(),
@@ -188,6 +191,8 @@ fn greeting_maps_quest_states_and_options() {
 
 #[test]
 fn reward_page_carries_the_selected_choice_and_resolved_icons() {
+    // Runtime lookup is nonblocking; this test asserts the loaded-catalog state.
+    crate::item_catalog::wait_for_item_catalog();
     let mut rewards = QuestRewards {
         money: 25,
         ..QuestRewards::default()

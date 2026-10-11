@@ -21,6 +21,33 @@ impl crate::GameClient {
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
             Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
+            Request::PvpStatus => self
+                .account
+                .send_pvp(game_engine_ui_model::battleground::PvpAction::Query)
+                .map_err(|e| e.to_string())
+                .and_then(|()| {
+                    serde_json::to_string(&self.battleground.view.snapshot)
+                        .map_err(|e| e.to_string())
+                }),
+            Request::PvpOpen => self
+                .toggle_pvp()
+                .map(|()| "PvP window toggled".into())
+                .map_err(|e| e.to_string()),
+            Request::PvpQueueBattleground { battleground_id } => self.pvp_ipc(
+                game_engine_ui_model::battleground::PvpAction::Queue(battleground_id),
+            ),
+            Request::PvpDequeue => {
+                self.pvp_ipc(game_engine_ui_model::battleground::PvpAction::Dequeue)
+            }
+            Request::PvpRespond { match_id, accepted } => {
+                self.pvp_ipc(game_engine_ui_model::battleground::PvpAction::Respond {
+                    match_id,
+                    accepted,
+                })
+            }
+            Request::PvpLeave { match_id } => self.pvp_ipc(
+                game_engine_ui_model::battleground::PvpAction::Leave(match_id),
+            ),
             Request::CollectionPets { missing } => Ok(self.pet_journal_text(missing)),
             Request::CollectionSummonPet { pet_id } => self
                 .account
@@ -74,6 +101,16 @@ impl crate::GameClient {
             Ok(text) => Response::Text(text),
             Err(error) => Response::Error(error),
         })
+    }
+
+    fn pvp_ipc(
+        &self,
+        action: game_engine_ui_model::battleground::PvpAction,
+    ) -> Result<String, String> {
+        self.account
+            .send_pvp(action)
+            .map(|()| "PvP request submitted".into())
+            .map_err(|e| e.to_string())
     }
 
     fn pet_journal_text(&self, missing: bool) -> String {

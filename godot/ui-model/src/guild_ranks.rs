@@ -3,6 +3,31 @@ use shared::protocol::*;
 
 pub const ROSTER_PAGE_SIZE: usize = 9;
 
+pub fn guild_creation_notice(created_at: Option<u64>) -> String {
+    let Some(seconds) = created_at else {
+        return "Guild creation date is unavailable.".into();
+    };
+    let seconds = i64::try_from(seconds).expect("guild creation time fits Unix seconds");
+    let date = chrono::DateTime::from_timestamp(seconds, 0).expect("valid guild creation date");
+    format!("Guild created on {} (UTC).", date.format("%B %-d, %Y"))
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GuildCommand {
+    Invite(String),
+    AcceptInvite,
+    DeclineInvite,
+    SetMotd(String),
+    SetInfo(String),
+    Query,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuildProfileField {
+    Motd,
+    Info,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GuildRanksSession {
     pub visible: bool,
@@ -10,6 +35,14 @@ pub struct GuildRanksSession {
     pub settings_open: bool,
     pub member_menu: Option<String>,
     pub error: Option<String>,
+    pub invitation: Option<GuildInvitation>,
+    pub invitation_waiting: bool,
+    pub profile: Option<GuildSnapshot>,
+    pub commands: Vec<GuildCommand>,
+    pub info_open: bool,
+    pub invite_open: bool,
+    pub profile_editor: Option<GuildProfileField>,
+    pub profile_waiting: bool,
     state: Option<GuildRanksState>,
     selected_rank: usize,
     roster_page: usize,
@@ -34,6 +67,72 @@ impl GuildRanksSession {
 
     pub fn state(&self) -> Option<&GuildRanksState> {
         self.state.as_ref()
+    }
+
+    pub fn can(&self, right: u32) -> bool {
+        self.state.as_ref().is_some_and(|state| {
+            state
+                .ranks
+                .get(usize::from(state.own_rank))
+                .is_some_and(|rank| state.own_rank == 0 || rank.rights & right == right)
+        })
+    }
+    pub fn apply_profile(&mut self, update: GuildStateUpdate) {
+        self.profile_waiting = false;
+        if update.error.is_none() {
+            self.profile = update.guild;
+        }
+    }
+    fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
+        match action {
+            "guild:info_open" => self.info_open = true,
+            "guild:roster_open" => self.info_open = false,
+            "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
+            "guild:invite_close" => self.invite_open = false,
+            "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {
+                if let Some(name) = texts
+                    .get(crate::guild_rank_frame::INVITE_BOX)
+                    .filter(|text| !text.trim().is_empty())
+                {
+                    self.commands.push(GuildCommand::Invite(name.trim().into()));
+                    self.invite_open = false;
+                }
+            }
+            "guild:edit_motd" if self.can(GUILD_RIGHT_EDIT_MOTD) && !self.profile_waiting => {
+                self.profile_editor = Some(GuildProfileField::Motd)
+            }
+            "guild:edit_info" if self.can(GUILD_RIGHT_EDIT_INFO) && !self.profile_waiting => {
+                self.profile_editor = Some(GuildProfileField::Info)
+            }
+            "guild:profile_close" => self.profile_editor = None,
+            "guild:profile_accept" => self.queue_profile_edit(texts),
+            _ => {}
+        }
+    }
+    fn queue_profile_edit(&mut self, texts: &crate::bank::InputTexts) {
+        let Some(field) = self.profile_editor else {
+            return;
+        };
+        let (right, limit) = match field {
+            GuildProfileField::Motd => (GUILD_RIGHT_EDIT_MOTD, 255),
+            GuildProfileField::Info => (GUILD_RIGHT_EDIT_INFO, 499),
+        };
+        if self.profile_waiting || !self.can(right) {
+            return;
+        }
+        let Some(text) = texts.get(crate::guild_rank_frame::PROFILE_BOX) else {
+            return;
+        };
+        if text.chars().count() > limit {
+            return;
+        }
+        let command = match field {
+            GuildProfileField::Motd => GuildCommand::SetMotd(text.clone()),
+            GuildProfileField::Info => GuildCommand::SetInfo(text.clone()),
+        };
+        self.commands.push(command);
+        self.profile_waiting = true;
+        self.profile_editor = None;
     }
 
     pub fn select_rank(&mut self, rank: usize) {
@@ -66,8 +165,20 @@ impl GuildRanksSession {
         action: &str,
         texts: &crate::bank::InputTexts,
     ) -> Option<GuildRankRequest> {
+        self.click_profile(action, texts);
         let input = |name: &str| texts.get(name).map(String::as_str).unwrap_or_default();
         let request = match action {
+            "guild:accept_invite" | "guild:decline_invite" => {
+                if self.invitation.is_some() && !self.invitation_waiting {
+                    self.invitation_waiting = true;
+                    self.commands.push(if action == "guild:accept_invite" {
+                        GuildCommand::AcceptInvite
+                    } else {
+                        GuildCommand::DeclineInvite
+                    });
+                }
+                None
+            }
             "guild:close" => {
                 self.visible = false;
                 self.settings_open = false;
@@ -101,6 +212,7 @@ impl GuildRanksSession {
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
+            "guild:remove_member" => self.remove_member(self.member_menu.as_deref()?),
             _ => self.indexed_click(action, texts),
         };
         if request.is_some() {
@@ -257,6 +369,23 @@ impl GuildRanksSession {
             return None;
         }
         Some(GuildRankRequest::Move { rank, up })
+    }
+
+    pub fn remove_member(&self, name: &str) -> Option<GuildRankRequest> {
+        if self.awaiting_state || !self.can(GUILD_RIGHT_REMOVE) {
+            return None;
+        }
+        let state = self.state.as_ref()?;
+        let member = state
+            .members
+            .iter()
+            .find(|member| member.character_name.eq_ignore_ascii_case(name))?;
+        if member.rank <= state.own_rank {
+            return None;
+        }
+        Some(GuildRankRequest::RemoveMember {
+            character_name: member.character_name.clone(),
+        })
     }
 
     pub fn promote(&self, name: &str) -> Option<GuildRankRequest> {

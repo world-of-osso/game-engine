@@ -27,7 +27,23 @@ fn roster(is_raid: bool, members: Vec<GroupMemberSnapshot>) -> GroupRosterSnapsh
         total_count: 0,
         members,
         loot_method: LootMode::PersonalLoot,
+        loot_threshold: 2,
     }
+}
+
+#[test]
+fn group_leader_menu_offers_mainline_loot_methods_and_thresholds() {
+    let group = party_of(&[("Alice", true), ("Bob", false)]);
+    let entries = group_menu_entries(&group, "Alice", "Alice");
+    assert!(entries.iter().any(|entry| entry.label() == "Group Loot"));
+    assert!(entries.iter().any(|entry| entry.label() == "Personal Loot"));
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry.label() == "Loot Threshold: Uncommon")
+    );
+    let other = group_menu_entries(&group, "Bob", "Bob");
+    assert!(!other.iter().any(|entry| entry.label() == "Group Loot"));
 }
 
 fn live(name: &str, health: u32) -> GroupMemberState {
@@ -77,6 +93,24 @@ fn ready_update(answers: &[(&str, ReadyCheckAnswer)], finished: bool) -> ReadyCh
             .collect(),
         finished,
     }
+}
+
+#[test]
+fn raid_assistant_menu_permissions_follow_server_assignment_and_revocation() {
+    let mut state = party_of(&[("Ann", true), ("Bob", false)]);
+    state.is_raid = true;
+    assert!(group_menu_entries(&state, "Ann", "Bob").contains(&GroupMenuEntry::SetAssistant(true)));
+    state.apply_assistants(shared::protocol::GroupAssistants {
+        members: vec!["Bob".into()],
+    });
+    assert!(state.can_start_group_checks("Bob"));
+    assert!(group_menu_entries(&state, "Bob", "Bob").contains(&GroupMenuEntry::ReadyCheck));
+    assert!(
+        group_menu_entries(&state, "Ann", "Bob").contains(&GroupMenuEntry::SetAssistant(false))
+    );
+    state.apply_assistants(shared::protocol::GroupAssistants::default());
+    assert!(!state.can_start_group_checks("Bob"));
+    assert!(!group_menu_entries(&state, "Bob", "Bob").contains(&GroupMenuEntry::ReadyCheck));
 }
 
 #[test]

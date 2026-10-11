@@ -106,6 +106,36 @@ impl ObjectiveTrackerState {
         Self::from_watched(runtime.watched_entries(), collapsed, quests_collapsed)
     }
 
+    pub fn from_runtime_at(
+        runtime: &QuestRuntime,
+        collapsed: bool,
+        quests_collapsed: bool,
+        now: i64,
+    ) -> Self {
+        let mut state = Self::from_runtime(runtime, collapsed, quests_collapsed);
+        let now = now + runtime.server_clock_offset;
+        for (block, entry) in state.quests.iter_mut().zip(runtime.watched_entries()) {
+            if entry.failed {
+                block.title = format!("{} - Failed", entry.title);
+                block.complete = false;
+                block.lines = vec![ObjectiveLine {
+                    text: "Quest completion failed.".into(),
+                    style: ObjectiveLineStyle::InProgress,
+                }];
+            } else if let Some(end) = entry.expires_at {
+                let remaining = (end - now).max(0);
+                block.lines.insert(
+                    0,
+                    ObjectiveLine {
+                        text: format!("Time Remaining: {}:{:02}", remaining / 60, remaining % 60),
+                        style: ObjectiveLineStyle::InProgress,
+                    },
+                );
+            }
+        }
+        state
+    }
+
     /// Blocks for `watched` entries in watch order.
     pub fn from_watched<'a>(
         watched: impl IntoIterator<Item = &'a QuestEntrySnapshot>,
@@ -190,6 +220,9 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
         }
         if !state.quests.is_empty() {
             contents.extend(quests_module(state, &mut height, scale));
+        }
+        if let Some(window) = ctx.get::<crate::achievements::AchievementWindow>() {
+            contents.extend(achievements_module(window, &mut height, scale));
         }
     }
     // `SetScale` also scales the frame's own `SetPoint` offsets.
@@ -339,6 +372,70 @@ fn dungeon_module(dungeon: &DungeonBlock, height: &mut f32, scale: f32) -> Eleme
             ));
         }
         y += wrapped_text_height(&boss.text, BLOCK_W - DASH_W, LINE_FONT) + LINE_SPACING;
+    }
+    *height = y;
+    elements
+}
+
+/// Retail AchievementObjectiveTracker.lua:97-193; module follows quests.
+fn achievements_module(
+    window: &crate::achievements::AchievementWindow,
+    height: &mut f32,
+    scale: f32,
+) -> Element {
+    if window.tracked.is_empty() {
+        return Vec::new();
+    }
+    let top = TOP_MODULE_PADDING.max(*height + 6.0);
+    let mut elements = atlas_texture(
+        "AchievementObjectiveTrackerHeaderBackground".into(),
+        &TRACKER_SECONDARY_HEADER,
+        scaled((-20.0, top - 2.0, 300.0, 30.0), scale),
+    );
+    elements.extend(header_text(
+        "AchievementObjectiveTrackerHeaderText",
+        "Achievements",
+        top + 5.0,
+        scale,
+    ));
+    let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
+    for entry in &window.tracked {
+        let block = format!("TrackedAchievement{}", entry.achievement_id);
+        elements.extend(block_title(
+            &block,
+            &entry.name,
+            &format!("achievement:open:{}", entry.achievement_id),
+            y,
+            scale,
+        ));
+        y += wrapped_text_height(&entry.name, BLOCK_W, LINE_FONT);
+        for (index, criterion) in entry.criteria.iter().enumerate() {
+            let line = ObjectiveLine {
+                text: if criterion.progress_supported {
+                    format!(
+                        "{}/{} {}",
+                        criterion.current, criterion.required, criterion.description
+                    )
+                } else {
+                    format!("Unevaluated: {}", criterion.description)
+                },
+                style: if criterion.completed {
+                    ObjectiveLineStyle::Completed
+                } else {
+                    ObjectiveLineStyle::InProgress
+                },
+            };
+            y += LINE_SPACING;
+            elements.extend(objective_line(
+                &format!("{block}Criterion{index}"),
+                &line,
+                y,
+                scale,
+                false,
+            ));
+            y += wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT);
+        }
+        y += FROM_BLOCK_OFFSET_Y;
     }
     *height = y;
     elements

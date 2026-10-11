@@ -26,7 +26,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [x] Money bar: `Available Amount:` shows the withdraw allowance, or `Unlimited`. The guild money sits at BOTTOMRIGHT, with Deposit and Withdraw buttons (100×21). Withdraw is disabled without an allowance.
 - [x] Buy screen (Guild Master, buy tab selected): "Do you wish to purchase this tab?", "(n/6 tabs purchased)", the price and a Purchase button (124×21). Purchase opens `CONFIRM_BUY_GUILDBANK_TAB`, and accepting sends `GuildBankBuyTab`. Non-leaders see `NO_GUILDBANK_TABS`.
 - [x] Log and Money Log modes query their log. They list Retail lines: "X deposited Linen Cloth x 20 ( 1 min ago )", "withdrew", "purchased a guild bank tab for", and guild repairs "X withdrew 1g 50s 16c for repairs" (`GUILDBANK_REPAIR_MONEY_FORMAT`, GB.lua:797-798).
-- [x] Info mode shows the tab text. The Guild Master gets an edit box and Save, which sends `GuildBankSetTabText`.
+- [x] Info mode shows the tab text. The Guild Master gets an edit box and Save, which sends `GuildBankSetTabText`. Read-only, locked and unpurchased tabs never queue writes to an editor that is not rendered. Read-only text starts at the same top edge as editable text; `guild_bank_info_readonly_live.gd` checks the first rendered glyph's position.
 
 ### Actions
 - [x] Right-clicking a filled slot sends `GuildBankWithdraw`. Right-clicking a bag item sends `GuildBankDeposit` into the selected tab.
@@ -62,6 +62,8 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 | `godot/ui-model/src/ui/screens/guild_bank_frame_component.rs` | Retail GuildBankFrame layout |
 
 ## Tests asserting this spec
+- `godot/tests/guild_bank_log_live.gd`: real private 25-transaction money log, clicks native scroll controls and reaches the oldest retained transaction; covers GameClient input routing as well as the portable screen.
+- `godot/tests/guild_vault_live.gd`: private guild master right-clicks an authentic vault and waits for both vault and embedded backpack. The combined native canvas registers plain vault and portrait backpack borders before projection.
 - `src/game/networking/game_objects.rs` (tests)
 - `src/network_runtime/replication.rs` (`game_objects_mirror_with_their_position`)
 - `src/game/networking/quests_tests.rs` (`using_a_mirrored_game_object_sends_use_game_object_and_its_role_opens_a_frame`)
@@ -71,10 +73,10 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - `godot/ui-model/src/ui/screens/guild_bank_frame_component_tests.rs`
 
 ## Known gaps (current cycle)
-- [ ] The selected tab uses the same gold marker as the bank frame, because there is no additive blending.
+- [x] Selected tabs use authentic `CheckButtonHilight` (local FDID130724), 36×34 and additive blending, as GB.xml:156 specifies. The recoloured quickslot marker is removed; native additive texture rendering already exists.
 - [ ] Emblem, outer and inner corner tiling of the Retail frame are not drawn (the metal_frame chrome replaces BasicFrameTemplate).
-- [ ] The info edit box is single-line: the ui-toolkit edit box has no multi-line attribute.
-- [ ] The log is not a scrolling message frame: only the last 21 lines show.
+- [x] Native tab Info uses TextEdit, preserves newlines and enforces Retail's 500-character limit (GB.xml:758). `godot/tests/guild_bank_info_live.gd` types two lines, saves, switches modes and checks server-rehydrated text.
+- [x] Logs retain Retail's latest 128 lines, newest first, with wheel/stepper/thumb scrolling. Scroll position survives authoritative view refreshes on the combined vault/backpack canvas. A wheel notch or stepper press advances one transaction line, not one pixel. The current server retains 25 transactions per log; the client scrolls every supplied record.
 
 ## Out of scope
 - Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank and search. Guild Control UI is tracked separately in [guild ranks](guild-ranks.md). Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); player-managed repair rights use the same daily allowance as gold withdrawals. Native rank settings integration remains pending.
