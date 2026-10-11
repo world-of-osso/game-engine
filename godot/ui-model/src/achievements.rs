@@ -40,7 +40,6 @@ const ALERT_NO_POINTS: AtlasArt = AtlasArt {
 const ROWS: usize = 3;
 const STATISTIC_ROWS: usize = 11;
 const STATISTIC_ROW_HEIGHT: f32 = 24.0;
-const CATEGORIES: usize = 17;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
 pub const ART: &[u32] = &[
@@ -49,6 +48,8 @@ pub const ART: &[u32] = &[
     130666,
     TOAST_ATLAS_FDID,
     137012,
+    130751,
+    130755,
     130656,
     130657,
     130658,
@@ -89,7 +90,6 @@ pub struct AchievementWindow {
     pub selected_category: Option<u32>,
     pub selected_achievement: Option<u32>,
     pub row_offset: usize,
-    pub category_offset: usize,
     pub criterion_offset: usize,
     pub scope: AchievementScope,
     pub summary: Option<AchievementSummary>,
@@ -129,13 +129,6 @@ impl AchievementWindow {
             "achievement:scope:character" => {
                 self.change_scope(AchievementScope::Character, &mut requests)
             }
-            "achievement:categories_next" => {
-                self.category_offset =
-                    (self.category_offset + CATEGORIES).min(self.categories.len().saturating_sub(1))
-            }
-            "achievement:categories_prev" => {
-                self.category_offset = self.category_offset.saturating_sub(CATEGORIES)
-            }
             "achievement:rows_prev" => {
                 self.row_offset = self.row_offset.saturating_sub(self.visible_row_count());
                 self.select_first();
@@ -154,7 +147,7 @@ impl AchievementWindow {
             return;
         }
         self.statistics = statistics;
-        self.category_offset = 0;
+        self.expanded_category = None;
         self.pages.clear();
         self.selected_category = None;
         self.selected_achievement = None;
@@ -343,7 +336,7 @@ impl AchievementWindow {
     fn open_achievement(&mut self, id: u32, requests: &mut Vec<QueryAchievementCatalog>) {
         self.visible = true;
         self.statistics = false;
-        self.category_offset = 0;
+        self.expanded_category = None;
         self.selected_category = None;
         self.selected_achievement = Some(id);
         self.expanded_achievement = Some(id);
@@ -843,7 +836,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     content.extend(points_header(
         window.summary.as_ref().map(|summary| summary.points),
     ));
-    content.extend(category_panel(window));
+    content.extend(category_panel(ctx, window));
     content.extend(scope_tabs(window));
     content.extend(browse_controls(window));
     if window.selected_category.is_none()
@@ -888,76 +881,37 @@ fn points_header(points: Option<u32>) -> Element {
     content
 }
 
-fn category_panel(window: &AchievementWindow) -> Element {
-    let mut content = Vec::new();
+fn category_panel(ctx: &SharedContext, window: &AchievementWindow) -> Element {
+    let mut rows = Vec::new();
     if !window.statistics {
-        content.extend(label(
-            "AchievementCategorySummary".into(),
+        rows.extend(artwork::category_row(
+            "AchievementCategorySummary",
             "Summary",
-            (37.0, 24.0, 150.0, 24.0),
-            GOLD,
             "achievement:summary",
+            0.0,
+            0,
+            window.selected_category.is_none(),
         ));
     }
-    for (index, (category, depth)) in window
-        .category_tree()
-        .into_iter()
-        .skip(window.category_offset)
-        .take(CATEGORIES)
-        .enumerate()
-    {
-        let x = 21.0 + depth as f32 * 12.0;
-        let color = if Some(category.category_id) == window.selected_category {
-            GOLD
-        } else {
-            WHITE
-        };
-        let y = 48.0 + index as f32 * 24.0;
-        content.extend(art(
-            format!("AchievementCategory{}Background", category.category_id),
-            130652,
-            (x, y, 170.0 - depth as f32 * 12.0, 32.0),
-        ));
-        if window
-            .categories
-            .values()
-            .any(|child| child.parent_id == category.category_id as i32)
-        {
-            let uv = if window.expanded_category == Some(category.category_id) {
-                "0,0.5,0.5,1"
-            } else {
-                "0,0.5,0,0.5"
-            };
-            content.extend(artwork::texture(
-                &format!("AchievementCategory{}Toggle", category.category_id),
-                235404,
-                uv,
-                (x + 1.0, y + 4.0, 16.0, 16.0),
-            ));
-        }
-        content.extend(label(
-            format!("AchievementCategory{}", category.category_id),
+    let first_y = if window.statistics { 0.0 } else { 24.0 };
+    let tree = window.category_tree();
+    for (index, (category, depth)) in tree.iter().enumerate() {
+        rows.extend(artwork::category_row(
+            &format!("AchievementCategory{}", category.category_id),
             &category.name,
-            (x + 16.0, y + 1.0, 150.0 - depth as f32 * 12.0, 22.0),
-            color,
             &format!("achievement:category:{}", category.category_id),
+            first_y + index as f32 * 24.0,
+            *depth,
+            Some(category.category_id) == window.selected_category,
         ));
     }
-    content.extend(panel_button(
-        "AchievementCategoriesPrev".into(),
-        "Previous",
-        "achievement:categories_prev",
-        window.category_offset > 0,
-        (25.0, 454.0, 72.0, 22.0),
-    ));
-    content.extend(panel_button(
-        "AchievementCategoriesNext".into(),
-        "Next",
-        "achievement:categories_next",
-        window.category_offset + CATEGORIES < window.category_tree().len(),
-        (104.0, 454.0, 72.0, 22.0),
-    ));
-    content
+    artwork::scroll_pane(
+        ctx,
+        "AchievementCategoriesScrollBox",
+        rows,
+        (21.0, 24.0, 175.0, 448.0),
+        first_y + tree.len() as f32 * 24.0,
+    )
 }
 
 // Retail AchievementUI.lua:28,2334-2512: latest three, overall progress, authored summary categories.
@@ -984,12 +938,10 @@ fn summary_panel(window: &AchievementWindow) -> Element {
             "",
         ),
     );
-    content.extend(label(
-        "AchievementSummaryRecentHeader".into(),
+    content.extend(artwork::section_header(
+        "AchievementSummaryRecentHeader",
         "Recent Achievements",
-        (234.0, 70.0, 470.0, 22.0),
-        GOLD,
-        "",
+        70.0,
     ));
     for (index, row) in summary.recent.iter().enumerate() {
         content.extend(summary_achievement_row(row, 104.0 + index as f32 * 56.0));
@@ -1009,12 +961,10 @@ fn summary_panel(window: &AchievementWindow) -> Element {
 
 fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSummary) -> Element {
     const SUMMARY_CATEGORIES: [u32; 11] = [92, 96, 97, 15522, 95, 168, 169, 201, 155, 15117, 15246];
-    let mut content = label(
-        "AchievementSummaryCategoriesHeader".into(),
+    let mut content = artwork::section_header(
+        "AchievementSummaryCategoriesHeader",
         "Progress Overview",
-        (234.0, 264.0, 470.0, 22.0),
-        GOLD,
-        "",
+        264.0,
     );
     for (index, id) in SUMMARY_CATEGORIES.into_iter().enumerate() {
         let Some(category) = window.categories.get(&id) else {
@@ -1136,23 +1086,48 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         139.0,
         115.0,
     ));
-    content.extend(crate::quest_art::named_atlas_texture(
-        "AchievementSearchArt".into(),
-        "_search-rowbg",
-        (550.0, 29.0, 170.0, 22.0),
-    ));
-    content.extend(rsx! { editbox { name: "AchievementSearchBox", text: {window.search_text.as_str()}, width: 160.0, height: 22.0, left: 555.0, top: 29.0, pos_type: "absolute", max_letters:ACHIEVEMENT_SEARCH_MAX_CHARS, auto_focus:false, } });
+    content.extend(artwork::search_box(&window.search_text));
     content
 }
 
-fn statistic_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
+/// Mainline AchievementStatTemplateMixin:Init uses additive half-alpha on every second row.
+pub fn apply_achievement_postsetup(
+    window: &AchievementWindow,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::texture::BlendMode;
+    for (index, entry) in window
+        .displayed_entries()
+        .into_iter()
+        .skip(window.row_offset)
+        .take(window.visible_row_count())
+        .enumerate()
+    {
+        if entry.flags & 1 == 0 || index % 2 == 0 {
+            continue;
+        }
+        let name = format!("Achievement{}Stripe", entry.achievement_id);
+        let id = registry
+            .get_by_name(&name)
+            .expect("rendered statistic stripe");
+        let frame = registry.get_mut(id).expect("statistic stripe frame");
+        frame.alpha = 0.5;
+        let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
+            panic!("statistic stripe texture");
+        };
+        texture.blend_mode = BlendMode::Additive;
+    }
+}
+
+fn statistic_row(entry: &AchievementCatalogEntry, y: f32, index: usize) -> Element {
     let prefix = format!("Achievement{}", entry.achievement_id);
     let action = format!("achievement:row:{}", entry.achievement_id);
-    let stripe = ((y - 60.0) / STATISTIC_ROW_HEIGHT) as usize % 2;
+    let stripe = index % 2;
     let uv = if stripe == 0 {
-        "0.08984375,0.91015625,0,0.1796875"
+        "0,1,0.1875,0.3671875"
     } else {
-        "0.08984375,0.91015625,0.1796875,0.359375"
+        "0,1,0.375,0.5390625"
     };
     let mut content = artwork::texture(
         &format!("{prefix}Stripe"),
@@ -1175,23 +1150,33 @@ fn statistic_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
         format!("{prefix}Statistic"),
         &value,
         (610.0, y, 106.0, STATISTIC_ROW_HEIGHT),
-        GOLD,
+        WHITE,
         &action,
     ));
     content
 }
 
+fn achievement_row_height(entry: &AchievementCatalogEntry, expanded: bool, offset: usize) -> f32 {
+    if !expanded {
+        return 84.0;
+    }
+    let lines = entry.criteria.len().saturating_sub(offset).min(CRITERIA);
+    let paging = entry.criteria.len() > CRITERIA || entry.next_criteria_id.is_some();
+    88.0 + lines as f32 * 18.0 + if paging { 22.0 } else { 6.0 }
+}
+
 fn achievement_rows(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     let mut y = 60.0;
-    for entry in window
+    for (index, entry) in window
         .displayed_entries()
         .into_iter()
         .skip(window.row_offset)
         .take(window.visible_row_count())
+        .enumerate()
     {
         if entry.flags & 1 != 0 {
-            content.extend(statistic_row(entry, y));
+            content.extend(statistic_row(entry, y, index));
             y += STATISTIC_ROW_HEIGHT;
         } else {
             let expanded = Some(entry.achievement_id) == window.expanded_achievement;
@@ -1200,14 +1185,10 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
             } else {
                 Vec::new()
             };
-            let height = if expanded {
-                124.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0
-            } else {
-                84.0
-            };
-            let children = achievement_row(entry, 0.0, expanded);
+            let height = achievement_row_height(entry, expanded, window.criterion_offset);
+            let children = achievement_row(entry, 0.0, expanded, height);
             content.extend(rsx! { button { name:{DynName(format!("Achievement{}Row",entry.achievement_id))},
-                onclick:{format!("achievement:row:{}",entry.achievement_id)}, width:504.0, height,
+                onclick:{format!("achievement:row:{}",entry.achievement_id)}, button_default_skin:false, width:504.0, height,
                 left:218.0, top:y, pos_type:"absolute", {children} {criteria}
             } });
             y += height + 1.0;
@@ -1277,13 +1258,6 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
 fn criteria_panel(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     if let Some(entry) = window.selected().filter(|entry| entry.flags & 1 == 0) {
-        content.extend(label(
-            "AchievementCriteriaTitle".into(),
-            &format!("Criteria — {}", entry.name),
-            (78.0, 83.0, 285.0, 20.0),
-            GOLD,
-            "",
-        ));
         for (index, line) in entry
             .criteria
             .iter()
@@ -1310,7 +1284,7 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
                 "Achievement{}Criterion{}",
                 entry.achievement_id, line.tree_id
             );
-            let y = 104.0 + index as f32 * 18.0;
+            let y = 88.0 + index as f32 * 18.0;
             let caption = label(name.clone(), &text, (4.0, 0.0, 396.0, 18.0), WHITE, "");
             if line.progress_supported && line.required > 1 {
                 let fraction = line.current.min(line.required) as f32 / line.required as f32;
@@ -1330,13 +1304,9 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
             .tracked
             .iter()
             .any(|row| row.achievement_id == entry.achievement_id);
-        content.extend(panel_button(
-            "AchievementTrack".into(),
-            if tracked { "Stop tracking" } else { "Track" },
-            &format!("achievement:track:{}", entry.achievement_id),
-            !entry.earned && entry.flags & 1 == 0,
-            (370.0, 82.0, 124.0, 20.0),
-        ));
+        if !entry.earned {
+            content.extend(artwork::track_check(entry.achievement_id, tracked));
+        }
         if let Some(error) = &window.tracking_error {
             content.extend(label(
                 "AchievementTrackingError".into(),
@@ -1346,36 +1316,53 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
                 "",
             ));
         }
-        content.extend(panel_button(
-            "AchievementCriteriaPrev".into(),
-            "Previous criteria",
-            "achievement:criteria_prev",
-            window.criterion_offset > 0,
-            (
-                80.0,
-                104.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0,
-                150.0,
-                18.0,
-            ),
-        ));
-        content.extend(panel_button(
-            "AchievementCriteriaNext".into(),
-            "More criteria",
-            "achievement:more_criteria",
-            window.criterion_offset + CRITERIA < entry.criteria.len()
-                || entry.next_criteria_id.is_some(),
-            (
-                336.0,
-                104.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0,
-                150.0,
-                18.0,
-            ),
-        ));
+        if entry.criteria.len() > CRITERIA || entry.next_criteria_id.is_some() {
+            content.extend(panel_button(
+                "AchievementCriteriaPrev".into(),
+                "Previous criteria",
+                "achievement:criteria_prev",
+                window.criterion_offset > 0,
+                (
+                    80.0,
+                    88.0 + entry
+                        .criteria
+                        .len()
+                        .saturating_sub(window.criterion_offset)
+                        .min(CRITERIA) as f32
+                        * 18.0,
+                    150.0,
+                    18.0,
+                ),
+            ));
+            content.extend(panel_button(
+                "AchievementCriteriaNext".into(),
+                "More criteria",
+                "achievement:more_criteria",
+                window.criterion_offset + CRITERIA < entry.criteria.len()
+                    || entry.next_criteria_id.is_some(),
+                (
+                    336.0,
+                    88.0 + entry
+                        .criteria
+                        .len()
+                        .saturating_sub(window.criterion_offset)
+                        .min(CRITERIA) as f32
+                        * 18.0,
+                    150.0,
+                    18.0,
+                ),
+            ));
+        }
     }
     content
 }
 
-fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> Element {
+fn achievement_row(
+    entry: &AchievementCatalogEntry,
+    y: f32,
+    expanded: bool,
+    height: f32,
+) -> Element {
     let prefix = format!("Achievement{}", entry.achievement_id);
     let action = format!("achievement:row:{}", entry.achievement_id);
     let modern = thread_skin() == ActiveSkin::Modern;
@@ -1383,11 +1370,6 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     // Mainline AchievementTemplate Label uses GameFontHighlightMedium on its red title band.
     let title_color = WHITE;
     let date_color = if modern { ink } else { GREY };
-    let height = if selected {
-        124.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0
-    } else {
-        84.0
-    };
     let mut content = art(
         format!("{prefix}Background"),
         if entry.earned { 130661 } else { 130660 },
@@ -1402,17 +1384,17 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     content.extend(art(
         format!("{prefix}Icon"),
         entry.icon_fdid,
-        (12.0, y + 22.0, 50.0, 50.0),
+        (13.0, y + 11.0, 50.0, 50.0),
     ));
     content.extend(art(
         format!("{prefix}IconFrame"),
         130656,
-        (0.0, y + 12.0, 72.0, 72.0),
+        (1.0, y + 1.0, 72.0, 72.0),
     ));
     content.extend(label(
         format!("{prefix}Name"),
         &entry.name,
-        (80.0, y + 6.0, 350.0, 20.0),
+        (92.0, y + 6.0, 338.0, 20.0),
         title_color,
         &action,
     ));
@@ -1426,12 +1408,12 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     content.extend(art(
         format!("{prefix}Shield"),
         130666,
-        (440.0, y + 18.0, 56.0, 56.0),
+        (432.0, y + 6.0, 66.0, 64.0),
     ));
     content.extend(label(
         format!("{prefix}Points"),
         &entry.points.to_string(),
-        (458.0, y + 36.0, 28.0, 20.0),
+        (446.0, y + 26.0, 42.0, 16.0),
         GOLD,
         &action,
     ));
@@ -1447,13 +1429,24 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     } else {
         "Not earned".into()
     };
-    content.extend(label(
-        format!("{prefix}Date"),
-        &date,
-        (80.0, y + 66.0, 350.0, 18.0),
-        date_color,
-        &action,
-    ));
+    content.extend(rsx! {fontstring {name:{DynName(format!("{prefix}Date"))},text:date.as_str(),
+        width:190.0,height:14.0,left:300.0,top:{y+64.0},pos_type:"absolute",font:GameFont::FrizQuadrata,
+        font_size:10.0,font_color:date_color,justify_h:"RIGHT",onclick:action.as_str(),
+    }});
+    if !entry.criteria.is_empty() || entry.next_criteria_id.is_some() {
+        let uv = match (expanded, entry.earned) {
+            (false, true) => "0,0.5,0,0.25",
+            (false, false) => "0.5,1,0,0.25",
+            (true, true) => "0,0.5,0.25,0.5",
+            (true, false) => "0.5,1,0.25,0.5",
+        };
+        content.extend(artwork::texture(
+            &format!("{prefix}PlusMinus"),
+            235404,
+            uv,
+            (72.0, y + 9.0, 15.0, 15.0),
+        ));
+    }
     content
 }
 

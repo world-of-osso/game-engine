@@ -4652,6 +4652,26 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
+# Mainline AchievementFrame chrome, row templates, Summary and Statistics sheets.
+textures/130652.blp
+textures/130656.blp
+textures/130657.blp
+textures/130658.blp
+textures/130659.blp
+textures/130660.blp
+textures/130661.blp
+textures/130662.blp
+textures/130671.blp
+textures/130755.blp
+textures/235397.blp
+textures/235400.blp
+textures/235402.blp
+textures/235404.blp
+textures/235405.blp
+textures/235408.blp
+textures/235411.blp
+textures/235415.blp
+textures/452109.blp
 # Mainline achievement earned-alert plate, icon frame and shield atlas.
 textures/4035524.blp
 textures/130666.blp
