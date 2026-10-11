@@ -142,6 +142,7 @@ impl GameClient {
         }
         self.select_queued_journal_encounter()?;
         self.update_journal_lockouts();
+        self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;

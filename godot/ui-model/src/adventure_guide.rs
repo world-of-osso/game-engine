@@ -58,6 +58,7 @@ pub struct View {
     pub search: String,
     pub collapsed: BTreeSet<u32>,
     pub lockouts: Vec<(u32, String)>,
+    pub challenge: Option<shared::protocol::ChallengeRun>,
 }
 impl Default for View {
     fn default() -> Self {
@@ -82,10 +83,25 @@ impl Default for View {
             search: String::new(),
             collapsed: BTreeSet::new(),
             lockouts: Vec::new(),
+            challenge: None,
         }
     }
 }
 impl View {
+    pub fn challenge_text(&self) -> Option<String> {
+        let instance = self.catalog.instance(self.instance?)?;
+        let run = self
+            .challenge
+            .as_ref()
+            .filter(|run| run.map_id == instance.map)?;
+        let block = crate::challenge::tracker_block(run)?;
+        Some(
+            std::iter::once(block.name)
+                .chain(block.bosses.into_iter().map(|line| line.text))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
     pub fn instances(&self) -> Vec<&Instance> {
         let search = self.search.to_lowercase();
         self.catalog
@@ -529,10 +545,26 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         ));
     }
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
+        if let Some(challenge) = view.challenge_text() {
+            out.extend(text(
+                "EncounterJournalKeystone",
+                &challenge,
+                (205., 295., 550., 175.),
+            ));
+        }
         out.extend(text(
             "EncounterJournalInstanceLore",
             &instance.description,
-            (205., 105., 550., 340.),
+            (
+                205.,
+                105.,
+                550.,
+                if view.challenge_text().is_some() {
+                    175.
+                } else {
+                    340.
+                },
+            ),
         ));
         return out;
     };
