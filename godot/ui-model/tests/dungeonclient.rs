@@ -105,6 +105,37 @@ fn dungeonclient_stockade_checks_three_bosses_in_order_then_clears_both_skins() 
         );
     }
 }
+#[test]
+fn achievements_ui_summary_opens_by_default_and_uses_authoritative_points_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        let requests = window.action("micro:AchievementMicroButton");
+        assert!(requests.contains(&QueryAchievementCatalog::Summary {
+            scope: AchievementScope::All
+        }));
+        window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+            scope: AchievementScope::All,
+            points: 120,
+            total: 100,
+            completed: 12,
+            categories: vec![AchievementCategoryTotals {
+                category_id: 14808,
+                total: 10,
+                completed: 1,
+            }],
+            recent: vec![achievement()],
+        }));
+        let mut shared = SharedContext::new();
+        shared.insert(window);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(achievement_screen).sync(&shared, &mut registry);
+        assert_eq!(text(&registry, "AchievementFrameHeaderPoints"), "120");
+        assert_eq!(text(&registry, "AchievementSummaryTotalText"), "12 / 100");
+        assert_eq!(text(&registry, "Achievement633Name"), "Stormwind Stockade");
+    }
+}
+
 fn category() -> AchievementCategoryEntry {
     AchievementCategoryEntry {
         category_id: 14808,
@@ -132,6 +163,7 @@ fn achievement() -> AchievementCatalogEntry {
         description: "Defeat Hogger in the Stormwind Stockade.".into(),
         points: 10,
         icon_fdid: 136363,
+        flags: 0,
         earned: true,
         earned_at: Some(1791244800),
         progress_supported: true,
@@ -155,10 +187,15 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
             message: None,
             error: None
         }),
-        vec![QueryAchievementCatalog::Category {
-            category_id: 14808,
-            after_id: 0
-        }]
+        vec![
+            QueryAchievementCatalog::Summary {
+                scope: AchievementScope::All
+            },
+            QueryAchievementCatalog::Category {
+                category_id: 14808,
+                after_id: 0
+            }
+        ]
     );
     let mut stale = achievement();
     stale.earned = false;
@@ -306,7 +343,12 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         let mut window = AchievementWindow::default();
         assert_eq!(
             window.action(&destination),
-            vec![QueryAchievementCatalog::Categories { after_id: 0 }]
+            vec![
+                QueryAchievementCatalog::Categories { after_id: 0 },
+                QueryAchievementCatalog::Summary {
+                    scope: AchievementScope::All
+                }
+            ]
         );
         assert_eq!(
             window.apply(AchievementCatalogPage::Categories {
@@ -359,6 +401,14 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
             criteria: vec![criterion(2)],
             next_id: None,
         });
+        window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+            scope: AchievementScope::All,
+            points: 10,
+            total: 100,
+            completed: 1,
+            categories: vec![],
+            recent: vec![achievement()],
+        }));
         let mut shared = SharedContext::new();
         shared.insert(skin);
         shared.insert(window.clone());

@@ -64,6 +64,7 @@ pub(super) fn window() -> AchievementWindow {
             description: "Defeat Hogger.".into(),
             points: 10,
             icon_fdid: 134163,
+            flags: 0,
             earned: true,
             earned_at: Some(1791244800),
             progress_supported: true,
@@ -81,6 +82,18 @@ pub(super) fn window() -> AchievementWindow {
         }],
         next_id: None,
     });
+    window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+        scope: AchievementScope::All,
+        points: 10,
+        total: 1,
+        completed: 1,
+        categories: vec![AchievementCategoryTotals {
+            category_id: 168,
+            total: 1,
+            completed: 1,
+        }],
+        recent: window.entries().to_vec(),
+    }));
     window
 }
 pub(super) fn cache_art() -> Result<(), String> {

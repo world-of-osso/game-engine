@@ -8,7 +8,9 @@
 - Browse authored category parents/order, achievement icons/names/descriptions/points/earned dates and criterion progress. Preserve unknown dates and unevaluated criteria.
 - Request cursor pages only on opening or browsing; cache received pages in SharedContext. Refresh the visible category on live achievement updates and show earned toasts.
 - Show earned points as a bare, thousands-separated number with Retail's adjacent shield in the window header in both skins.
-- Use local Retail achievement art in Modern and the Forever panel family in Forever. No search or comparison.
+- Use local Retail achievement art in Modern and the Forever panel family in Forever.
+- [ ] Open Summary by default: full authoritative earned points and completion totals, latest three earned rows, and Retail-authored summary-category progress bars. Never present loaded-page sums as account totals.
+- [ ] Provide account/character scope tabs, criterion progress, earned toast/chat links, tracking, Statistics and full-catalog search in that order. Comparison is excluded unless server-backed.
 
 ## Tests
 
