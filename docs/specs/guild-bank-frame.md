@@ -74,7 +74,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 ## Known gaps (current cycle)
 - [ ] The selected tab uses the same gold marker as the bank frame, because there is no additive blending.
 - [ ] Emblem, outer and inner corner tiling of the Retail frame are not drawn (the metal_frame chrome replaces BasicFrameTemplate).
-- [ ] The info edit box is single-line: the ui-toolkit edit box has no multi-line attribute.
+- [x] Native tab Info uses TextEdit, preserves newlines and enforces Retail's 500-character limit (GB.xml:758). `godot/tests/guild_bank_info_live.gd` types two lines, saves, switches modes and checks server-rehydrated text.
 - [ ] The log is not a scrolling message frame: only the last 21 lines show.
 
 ## Out of scope

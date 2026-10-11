@@ -47,6 +47,20 @@ pub const MONEY_BOXES: MoneyBoxNames = MoneyBoxNames {
 };
 pub const INFO_BOX: &str = "GuildBankTabInfoEditBox";
 
+/// GB.xml:758: native multiline tab text with a 500-character limit.
+pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    let Some(id) = registry.get_by_name(INFO_BOX) else {
+        return;
+    };
+    if let Some(ui_toolkit::frame::WidgetData::EditBox(edit)) = registry
+        .get_mut(id)
+        .and_then(|frame| frame.widget_data.as_mut())
+    {
+        edit.multi_line = true;
+        edit.max_letters = Some(500);
+    }
+}
+
 /// Retail `MAX_GUILDBANK_SLOTS_PER_TAB`, `NUM_SLOTS_PER_GUILDBANK_GROUP` (GB.lua:1-9).
 pub const SLOTS: usize = 98;
 const SLOTS_PER_COLUMN: usize = 14;
