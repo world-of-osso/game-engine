@@ -73,7 +73,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - `godot/ui-model/src/ui/screens/guild_bank_frame_component_tests.rs`
 
 ## Known gaps (current cycle)
-- [ ] The selected tab uses the same gold marker as the bank frame, because there is no additive blending.
+- [x] Selected tabs use authentic `CheckButtonHilight` (local FDID130724), 36×34 and additive blending, as GB.xml:156 specifies. The recoloured quickslot marker is removed; native additive texture rendering already exists.
 - [ ] Emblem, outer and inner corner tiling of the Retail frame are not drawn (the metal_frame chrome replaces BasicFrameTemplate).
 - [x] Native tab Info uses TextEdit, preserves newlines and enforces Retail's 500-character limit (GB.xml:758). `godot/tests/guild_bank_info_live.gd` types two lines, saves, switches modes and checks server-rehydrated text.
 - [x] Logs retain Retail's latest 128 lines, newest first, with wheel/stepper/thumb scrolling. Scroll position survives authoritative view refreshes on the combined vault/backpack canvas. A wheel notch or stepper press advances one transaction line, not one pixel. The current server retains 25 transactions per log; the client scrolls every supplied record.
