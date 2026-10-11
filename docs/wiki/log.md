@@ -3187,3 +3187,8 @@ Updated [battle pets](systems/battle-pets.md#pvp-queue--partial-2026-10-10) and 
 ## 2026-10-10 — Cache import source pinning
 
 Added [cache source policy](systems/cache-import-sources.md) and [contract](../specs/cache-import-sources.md): local-CASC exports, pinned Retail imports, explicit Forever selection, runtime race/requirement inputs and root-absent CharStartOutfit workaround.
+
+
+## 2026-10-11 — Gathering branch (acceptance incomplete)
+
+[Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.
