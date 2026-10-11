@@ -227,7 +227,7 @@ fn history_panel(ctx: &SharedContext, state: &GroupLootUiState) -> Element {
         "1,0.82,0,1",
     ));
     children.extend(
-        rsx! { r#frame { name: HISTORY_LIST, width: 250.0, height: visible_h,
+        rsx! { r#frame { name: {DynName(HISTORY_LIST.into())}, width: 250.0, height: visible_h,
             mouse_enabled: true, scroll_list: config, pos_type: "absolute", left: 6.0, top: 90.0,
             r#frame { name: "GroupLootHistoryFrameScrollChild", width: 232.0, height: content_h,
                 pos_type: "absolute", left: 0.0, top: {-(offset as f32)}, {entries}
