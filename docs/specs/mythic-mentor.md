@@ -7,4 +7,6 @@
 - Retail Mainline UI assets only, extracted from local CASC. Forever changes the same flat-frame chrome's art, not elements, layout or behaviour. Azure icon: local listfile `interface/lfgframe/ui-lfg-background-azurevaults.blp` (4880614); leader crown132062; no-key icon134400. This icon is explicitly selected local dungeon art, not a claimed C_ChallengeMode icon mapping.
 - Dungeon icon teleport mapping matches the installed `UI/MythicTeleport.lua`. No teleport is assigned to Azure401. Casts use normal server authority; unknown spells are not learned by opening the panel.
 
-Excludes addon messaging, seasonal-key fabrication, addon settings/start-page cards and new Group Finder services.
+Excludes addon messaging, seasonal-key fabrication, addon settings/start-page cards and new Group Finder services. Current server qualification is Azure Vault; this panel does not invent acquisition/catalog data for other dungeons.
+
+Proof: [native runtime and final both-skin private5811 evidence](../wiki/systems/mythic-mentor.md).
