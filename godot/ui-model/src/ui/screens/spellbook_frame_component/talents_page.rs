@@ -51,15 +51,19 @@ fn page_contents(view: &TalentView, scale: f32) -> Element {
         [0.0, 0.0, BOOK_W, BOOK_H - FOOTER_HEIGHT],
         scale,
     );
-    children.extend(heading(
-        "TalentClassName",
-        &currency_text(view, 4, &graph.class.name),
+    children.extend(currency_header(
+        view,
+        4,
+        "TalentClass",
+        &graph.class.name,
         [372.0, 45.0],
         scale,
     ));
-    children.extend(heading(
-        "TalentSpecName",
-        &currency_text(view, 8, &graph.spec.name),
+    children.extend(currency_header(
+        view,
+        8,
+        "TalentSpec",
+        &graph.spec.name,
         [BOOK_W - 401.0, 45.0],
         scale,
     ));
@@ -278,16 +282,32 @@ fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> 
     } else {
         (13.0, 12.0, 36.0, 24.0, 16.0)
     };
-    let color = if view.node_rank(node) > 0 {
-        TAB_TEXT
-    } else {
-        TAB_TEXT_SELECTED
+    let color = match view.visual_state(node) {
+        TalentVisualState::Selectable => "0.0,1.0,0.0,1.0",
+        TalentVisualState::Maxed | TalentVisualState::Purchased => "1.0,0.82,0.0,1.0",
+        TalentVisualState::Gated | TalentVisualState::Locked => "0.5,0.5,0.5,1.0",
     };
-    rsx! {fontstring {name:{DynName(format!("TalentNode{}Ranks",node.id))},text:ranks,
+    let mut children = if ui_toolkit::atlas::thread_skin() == ActiveSkin::Forever {
+        let rect = if is_capstone(node) {
+            [22.0, 54.0, 24.0, 20.0]
+        } else {
+            [19.0, 16.0, 24.0, 20.0]
+        };
+        retail_atlas(
+            &format!("TalentNode{}SpendArt", node.id),
+            "talents-main-ring-box-c60",
+            rect,
+            scale,
+        )
+    } else {
+        Vec::new()
+    };
+    children.extend(rsx! {fontstring {name:{DynName(format!("TalentNode{}Ranks",node.id))},text:ranks,
         width:{width*scale},height:{height*scale},font:GameFont::ArialNarrow,font_size:{font_size*scale},
         font_color:color,outline:"THICKOUTLINE",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
         justify_h:"CENTER",pos_type:"absolute",pos_x:{x*scale},pos_y:{y*scale},
-    }}
+    }});
+    children
 }
 fn node_entries(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     let choice = node.node_type == 2 && node.flags & 1 != 0;
@@ -616,7 +636,48 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     }
     children
 }
-fn currency_text(view: &TalentView, flags: u32, name: &str) -> String {
+fn currency_header(
+    view: &TalentView,
+    flags: u32,
+    prefix: &str,
+    name: &str,
+    center: [f32; 2],
+    scale: f32,
+) -> Element {
+    let points = currency_amount(view, flags);
+    let amount_color = if points != "0" && points != "—" {
+        "0.0,1.0,0.0,1.0"
+    } else {
+        "0.5,0.5,0.5,1.0"
+    };
+    let (width, _) =
+        measure_text(name, GameFont::FrizQuadrata, 18.0).expect("currency header font");
+    let left = center[0] - (width + 3.0 + 54.0) / 2.0;
+    let mut children = label(
+        Label {
+            name: format!("{prefix}Name"),
+            text: name,
+            rect: [left, center[1] - 12.0, width, 24.0],
+            size: 18.0,
+            color: TAB_TEXT_SELECTED,
+            justify: "CENTER",
+        },
+        scale,
+    );
+    children.extend(label(
+        Label {
+            name: format!("{prefix}Points"),
+            text: &points,
+            rect: [left + width + 3.0, center[1] - 20.0, 54.0, 40.0],
+            size: 32.0,
+            color: amount_color,
+            justify: "LEFT",
+        },
+        scale,
+    ));
+    children
+}
+fn currency_amount(view: &TalentView, flags: u32) -> String {
     let currency = view.rules.as_ref().and_then(|tree| {
         tree.currencies
             .iter()
@@ -630,8 +691,8 @@ fn currency_text(view: &TalentView, flags: u32, name: &str) -> String {
             .map(|(_, amount)| amount)
     });
     match points {
-        Some(amount) => format!("{name} Points Available: {amount}"),
-        None => format!("{name} Points Available: —"),
+        Some(amount) => amount.to_string(),
+        None => "—".to_string(),
     }
 }
 fn choice_flyout(view: &TalentView, scale: f32) -> Element {
@@ -772,7 +833,11 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
     }
     children.extend(retail_atlas(
         "HeroSpecBorder",
-        "talents-heroclass-ring-mainpane",
+        if ui_toolkit::atlas::thread_skin() == ActiveSkin::Forever {
+            "talents-main-ring-c60"
+        } else {
+            "talents-heroclass-ring-mainpane"
+        },
         [BOOK_W / 2.0 - 96.0, 62.0, 192.0, 192.0],
         scale,
     ));
