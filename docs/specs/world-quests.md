@@ -25,7 +25,7 @@ None. Existing `world_quest_flow.gd` and `world_quest_progress.gd` fixtures exer
 
 ## Known gaps (current cycle)
 
-- [ ] Authentic active-set/window source: inspected TDB quest pools and event relations contain no world quests; local exports do not establish activation windows.
+- [ ] Authentic active-set/window source: inspected TDB quest pools and event relations contain no world quests. Local CASC supplies four managed-state duration definitions but no current-stage default/activation epoch was found; these do not establish an active quest.
 - [ ] Server lifecycle, protocol availability payload, both-skin map/tracker/reward integration and private completion proof remain missing.
 
 ## Out of scope
