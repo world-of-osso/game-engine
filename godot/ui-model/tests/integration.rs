@@ -37,6 +37,7 @@ mod forever_quest_windows;
 mod forever_small_windows;
 mod forever_unit_reference;
 mod game_menu;
+mod guild_charters;
 mod guild_rank_widgets;
 mod item_catalog_pending;
 mod item_tooltip;
