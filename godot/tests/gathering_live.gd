@@ -62,13 +62,7 @@ func prove_node(resource: Dictionary) -> void:
 	await checkpoint(label + "-position", object)
 	await capture_skill(label + "-skill-before", label)
 	var before := skill_rank()
-	if label == "herb":
-		await click("MinimapClusterTrackingBackground")
-		if not await wait_until(func(): return control("MinimapTrackingChoice9") != null, "learned Find Herbs"): return
-		await click("MinimapTrackingRow9")
-		await click("MinimapTrackingRow10")
-		await capture("tracking")
-		await click("MinimapClusterTrackingBackground")
+	await capture_tracking(resource, object)
 	await click_world(object)
 	if not await wait_until(func(): return int(client.spells_state().casting) == int(resource.spell), label + " cast", 5000): return
 	await capture(label + "-cast")
@@ -87,6 +81,24 @@ func prove_node(resource: Dictionary) -> void:
 		return respawn != null and respawn.global_position.distance_to(position) < 0.1, label + " respawn", 240000): return
 	await capture(label + "-respawn")
 	await checkpoint(label + "-respawn", resource_node(int(resource.entry)))
+
+func capture_tracking(resource: Dictionary, object: Node3D) -> void:
+	var far_x := float(resource.x) - 60.0
+	if not admin(["set-position", character, str(far_x), str(resource.y), str(resource.z)]): return
+	if not await wait_until(func(): return absf(actor.global_position.x - far_x) < 1.0, "tracking position"): return
+	await click("MinimapClusterTrackingBackground")
+	if not await wait_until(func(): return control("MinimapTrackingChoice9") != null and control("MinimapTrackingChoice10") != null, "learned tracking filters"): return
+	for index in [9, 10]:
+		if not client.minimap_state().tracking_enabled[index]: await click("MinimapTrackingRow%d" % index)
+	var tracked := "MinimapTrackedUnit%d" % int(object.get_meta("game_object_server_id"))
+	if not await wait_until(func(): return control(tracked) != null, "authored " + str(resource.label) + " minimap marker"): return
+	await capture(str(resource.label) + "-tracking")
+	await click("MinimapClusterTrackingBackground")
+	await capture(str(resource.label) + "-tracked-map")
+	var near_x := float(resource.x) - 3.0
+	if not admin(["set-position", character, str(near_x), str(resource.y), str(resource.z)]): return
+	if not await wait_until(func(): return absf(actor.global_position.x - near_x) < 1.0, "gather reach position"): return
+	await create_timer(1.0).timeout
 
 func capture_skill(label: String, resource: String) -> void:
 	await tap(KEY_K)
