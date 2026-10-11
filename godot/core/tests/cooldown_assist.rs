@@ -118,6 +118,25 @@ fn cooldown_assist_full_referenced_condition_load_handles_signed_mask_words() {
     assert_eq!(conditions.evaluate(66693, &actor), Ok(false));
 }
 
+#[test]
+fn cooldown_assist_race_only_condition_accepts_inactive_content_tuning_flag() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let conditions = CooldownConditions::load(&dir, &[104496].into_iter().collect()).unwrap();
+    let auras = BTreeMap::new();
+    let mut actor = ConditionActor {
+        race_bit: 16,
+        class: 2,
+        spec_index: 2,
+        known: &[],
+        auras: &auras,
+    };
+    assert_eq!(conditions.evaluate(104496, &actor), Ok(true));
+    actor.race_bit = 17;
+    assert_eq!(conditions.evaluate(104496, &actor), Ok(true));
+    actor.race_bit = 0;
+    assert_eq!(conditions.evaluate(104496, &actor), Ok(false));
+}
+
 fn catalog() -> CooldownAssistCatalog {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
     CooldownAssistCatalog::load(&dir).expect("authentic exported Retail tables")
