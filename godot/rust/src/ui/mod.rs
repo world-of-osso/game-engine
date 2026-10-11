@@ -398,6 +398,12 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::transmog_frame::TransmogView>()
+        {
+            game_engine_ui_model::transmog_frame::apply_transmog_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::toybox_component::ToyBoxView>()
         {
             game_engine_ui_model::toybox_component::apply_toybox_postsetup(

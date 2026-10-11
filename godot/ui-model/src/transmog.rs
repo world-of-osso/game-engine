@@ -5,7 +5,8 @@ use shared::protocol::{
 };
 use std::collections::BTreeMap;
 
-pub const SOURCES_PER_PAGE: usize = 12;
+/// Blizzard_Wardrobe.lua:566–568: three rows of six DressUpModel cells.
+pub const SOURCES_PER_PAGE: usize = 18;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct TransmogBook {
@@ -16,6 +17,7 @@ pub struct TransmogBook {
     pub applying: bool,
     pub error: String,
     pub page: usize,
+    pub search: String,
 }
 
 impl TransmogBook {
@@ -24,6 +26,9 @@ impl TransmogBook {
             .state
             .as_ref()
             .is_none_or(|previous| previous.npc != state.npc);
+        if new_service {
+            self.search.clear();
+        }
         if new_service || self.applying {
             self.pending.clear();
             self.error.clear();
@@ -48,6 +53,7 @@ impl TransmogBook {
         }
         self.applying = false;
         self.state = Some(state);
+        self.page = self.page.min(self.pages() - 1);
     }
 
     pub fn selected_slot(&self) -> Option<&TransmogSlot> {
@@ -179,13 +185,46 @@ impl TransmogBook {
         *self = Self::default();
     }
 
-    pub fn page_sources(&self) -> &[TransmogSource] {
-        let Some(slot) = self.selected_slot() else {
-            return &[];
-        };
-        let start = (self.page * SOURCES_PER_PAGE).min(slot.sources.len());
-        let end = (start + SOURCES_PER_PAGE).min(slot.sources.len());
-        &slot.sources[start..end]
+    pub fn set_search(&mut self, search: String) {
+        self.search = search;
+        self.page = 0;
+    }
+
+    fn matching_sources(&self) -> impl Iterator<Item = &TransmogSource> {
+        let query = self.search.trim().to_lowercase();
+        self.selected_slot()
+            .into_iter()
+            .flat_map(|slot| &slot.sources)
+            .filter(move |source| query.is_empty() || source.name.to_lowercase().contains(&query))
+    }
+
+    pub fn page_sources(&self) -> Vec<&TransmogSource> {
+        self.matching_sources()
+            .skip(self.page * SOURCES_PER_PAGE)
+            .take(SOURCES_PER_PAGE)
+            .collect()
+    }
+
+    /// A collection cell dresses only its offered source, not other pending choices.
+    pub fn collection_equipment(
+        &self,
+        source_id: u32,
+    ) -> Option<shared::components::EquipmentAppearance> {
+        let slot = self.selected_slot()?;
+        let source = slot
+            .sources
+            .iter()
+            .find(|source| source.source_id == source_id)?;
+        Some(shared::components::EquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: slot.slot.visual_slot()?,
+                item_id: Some(slot.item_id),
+                definition_source: Some(slot.definition_source),
+                display_info_id: Some(source.display_id),
+                inventory_type: source.inventory_type,
+                hidden: false,
+            }],
+        })
     }
 
     pub fn preview_equipment(
@@ -225,9 +264,10 @@ impl TransmogBook {
     }
 
     pub fn pages(&self) -> usize {
-        self.selected_slot().map_or(1, |slot| {
-            slot.sources.len().div_ceil(SOURCES_PER_PAGE).max(1)
-        })
+        self.matching_sources()
+            .count()
+            .div_ceil(SOURCES_PER_PAGE)
+            .max(1)
     }
 }
 
