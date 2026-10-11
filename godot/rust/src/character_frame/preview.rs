@@ -232,6 +232,14 @@ impl Scene {
         self.model = Some(model);
     }
 
+    /// Publish one independently completed child and frame the arrived models.
+    pub(crate) fn add_model_child(&mut self, child: &Gd<Node3D>) {
+        let mut model = self.model.clone().expect("preview model group installed");
+        model.add_child(child);
+        self.fit_viewport();
+        self.frame_camera(&model);
+    }
+
     /// Face the model and fit its height into the frame.
     fn frame_camera(&mut self, model: &Gd<Node3D>) {
         let bounds = model
