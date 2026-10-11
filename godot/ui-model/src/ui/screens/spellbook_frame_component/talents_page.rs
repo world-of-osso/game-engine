@@ -291,9 +291,21 @@ fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> 
 }
 fn node_entries(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     let choice = node.node_type == 2 && node.flags & 1 != 0;
-    let count = if choice { node.entries.len() } else { 1 };
+    let selected = choice
+        .then(|| {
+            node.entries
+                .iter()
+                .find(|entry| view.entry_rank(node, entry.id) > 0)
+        })
+        .flatten();
+    let entries: Vec<_> = match selected {
+        Some(entry) => vec![entry],
+        None if choice => node.entries.iter().collect(),
+        None => vec![&node.entries[0]],
+    };
+    let count = entries.len();
     let mut children = Vec::new();
-    for (index, entry) in node.entries.iter().take(count).enumerate() {
+    for (index, entry) in entries.into_iter().enumerate() {
         let layout = EntryLayout {
             index,
             count,
@@ -317,16 +329,12 @@ fn entry_icon(
     layout: EntryLayout,
 ) -> Element {
     use ui_toolkit::widget_def::{Attr, WidgetChild};
-    let EntryLayout {
-        index,
-        count,
-        scale,
-    } = layout;
+    let scale = layout.scale;
     let icon_size = if is_capstone(node) { 61.0 } else { ICON_SIZE };
     let inset = (node_size(node) - icon_size) / 2.0;
-    let width = icon_size / count as f32;
-    let left = index as f32 / count as f32;
-    let coords = format!("{},{},0.0,1.0", left, left + 1.0 / count as f32);
+    // Retail overlays two full36px icons with complementary authored masks,
+    // rather than squeezing/cropping each spell into an18px rectangular half.
+    let width = icon_size;
     let tint = if matches!(
         view.visual_state(node),
         TalentVisualState::Locked | TalentVisualState::Gated
@@ -336,9 +344,9 @@ fn entry_icon(
         "1.0,1.0,1.0,1.0"
     };
     let mut icon = rsx! { texture {
-        name: {DynName(icon_name(node,entry.id))}, tex_coords: {coords.as_str()},
+        name: {DynName(icon_name(node,entry.id,view))},
         vertex_color: tint, width: {width*scale}, height: {icon_size*scale},
-        pos_type: "absolute", pos_x: {(inset+index as f32*width)*scale}, pos_y: {inset*scale},
+        pos_type: "absolute", pos_x: {inset*scale}, pos_y: {inset*scale},
     } };
     let fdid = view.icons[&entry.id];
     if fdid != 0 && !view.missing_icons.contains(&fdid) {
@@ -431,13 +439,21 @@ fn is_capstone(node: &TalentNode) -> bool {
 fn node_size(node: &TalentNode) -> f32 {
     if is_capstone(node) { 64.0 } else { BUTTON_SIZE }
 }
-fn icon_name(node: &TalentNode, entry: u32) -> String {
-    let round = node.node_type != 2 && matches!(node.entries[0].entry_type, 2 | 3 | 13);
-    format!(
-        "TalentNode{}Entry{entry}{}",
-        node.id,
-        if round { "RoundIcon" } else { "Icon" }
-    )
+fn icon_name(node: &TalentNode, entry: u32, view: &TalentView) -> String {
+    let suffix = if node.node_type == 2 && node.flags & 1 != 0 {
+        if view.node_rank(node) > 0 {
+            "ChoiceIcon"
+        } else if node.entries[0].id == entry {
+            "ChoiceLeftIcon"
+        } else {
+            "ChoiceRightIcon"
+        }
+    } else if matches!(node.entries[0].entry_type, 2 | 3 | 13) {
+        "RoundIcon"
+    } else {
+        "Icon"
+    };
+    format!("TalentNode{}Entry{entry}{suffix}", node.id)
 }
 pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
     let Some(view) = &state.talents else {
@@ -454,7 +470,7 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
             text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Bottom;
         }
         for entry in &node.entries {
-            let name = icon_name(node, entry.id);
+            let name = icon_name(node, entry.id, view);
             if let Some(id) = registry.get_by_name(&name)
                 && let Some(frame) = registry.get_mut(id)
                 && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
@@ -618,7 +634,6 @@ fn currency_text(view: &TalentView, flags: u32, name: &str) -> String {
     }
 }
 fn choice_flyout(view: &TalentView, scale: f32) -> Element {
-    use crate::ui::screens::quest_art::panel_button;
     let Some(node) = view
         .editor
         .choice_node
@@ -629,56 +644,83 @@ fn choice_flyout(view: &TalentView, scale: f32) -> Element {
     if node.node_type == 3 {
         return hero_choice_dialog(node, view, scale);
     }
-    let mut choices = Vec::new();
-    for (index, entry) in node.entries.iter().enumerate() {
-        let action = format!("talent:choice:{}:{}", node.id, entry.id);
-        let name = format!(
-            "TalentChoiceNode{}Entry{}Spell{}Button",
-            node.id, entry.id, entry.spell_id
-        );
-        let enabled = view
-            .editor
-            .can_purchase(view, view.level, node.id, entry.id);
-        let text = view.names.get(&entry.id).map(String::as_str).unwrap_or("");
-        choices.extend(panel_button(
-            name,
-            text,
-            &action,
-            enabled,
-            (
-                20.0 * scale,
-                (20.0 + index as f32 * 42.0) * scale,
-                280.0 * scale,
-                32.0 * scale,
-            ),
-        ));
-        let fdid = view.icons[&entry.id];
-        if fdid != 0 && !view.missing_icons.contains(&fdid) {
-            choices.extend(file_texture(
-                format!("TalentChoiceEntry{}Icon", entry.id),
-                fdid,
-                [24.0, 23.0 + index as f32 * 42.0, 26.0, 26.0],
-                scale,
-            ));
-        }
-    }
-    let height = 62.0 + node.entries.len() as f32 * 42.0;
-    choices.extend(panel_button(
-        "TalentCloseChoice".into(),
-        "Close",
-        "talent:close_choice",
-        true,
-        (
-            110.0 * scale,
-            (height - 32.0) * scale,
-            100.0 * scale,
-            22.0 * scale,
-        ),
-    ));
-    rsx! {r#frame {name:"TalentChoiceFlyout",width:{320.0*scale},height:{height*scale},
-        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(BOOK_W/2.0-160.0)*scale},pos_y:{100.0*scale},frame_level:200,
+    let width = node.entries.len() as f32 * 64.0 + (node.entries.len() - 1) as f32 * 5.0;
+    let (center, node_scale) = choice_node_center(view, node);
+    let choices: Element = node
+        .entries
+        .iter()
+        .enumerate()
+        .flat_map(|(index, entry)| choice_option(node, entry, view, index as f32 * 69.0, scale))
+        .collect();
+    // SharedTalentFrame ShowSelections: BOTTOM to node TOP with y-up -10.
+    rsx! {r#frame {name:"TalentChoiceFlyout",width:{width*scale},height:{64.0*scale},
+        strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(center[0]-width/2.0)*scale},
+        pos_y:{(center[1]-node_size(node)*node_scale/2.0-64.0+10.0)*scale},frame_level:200,
         {choices}
     }}
+}
+fn choice_node_center(view: &TalentView, node: &TalentNode) -> ([f32; 2], f32) {
+    for tree in [&view.graph.class, &view.graph.spec] {
+        if tree.nodes.iter().any(|candidate| candidate.id == node.id) {
+            let zoom = main_tree_zoom(view);
+            return (main_tree_layout(tree, zoom).centers[&node.id], zoom);
+        }
+    }
+    let hero = active_hero(view).expect("choice belongs to active subtree");
+    (
+        hero_tree_layout(
+            hero,
+            [BOOK_W / 2.0, HERO_TOP - 8.0 * HERO_SCALE],
+            HERO_SCALE,
+        )
+        .centers[&node.id],
+        HERO_SCALE,
+    )
+}
+fn choice_option(
+    node: &TalentNode,
+    entry: &game_engine_core::talent_data::TalentEntry,
+    view: &TalentView,
+    x: f32,
+    scale: f32,
+) -> Element {
+    let fdid = view.icons[&entry.id];
+    let enabled = view
+        .editor
+        .can_purchase(view, view.level, node.id, entry.id);
+    let selected = view.entry_rank(node, entry.id) > 0;
+    let shape = if matches!(entry.entry_type, 2 | 3 | 13) {
+        "circle"
+    } else {
+        "square"
+    };
+    let color = if selected {
+        "yellow"
+    } else if enabled {
+        "green"
+    } else {
+        "gray"
+    };
+    let atlas = format!("talents-node-choiceflyout-{shape}-{color}");
+    let mut children = file_texture(
+        format!("TalentChoiceEntry{}Icon", entry.id),
+        fdid,
+        [x, 0.0, 64.0, 64.0],
+        scale,
+    );
+    children.extend(retail_atlas(
+        &format!("TalentChoiceEntry{}Border", entry.id),
+        &atlas,
+        [x - 8.0, -8.0, 80.0, 80.0],
+        scale,
+    ));
+    let action = format!("talent:choice:{}:{}", node.id, entry.id);
+    children.extend(rsx! {button {
+        name:{DynName(format!("TalentChoiceNode{}Entry{}Spell{}Button",node.id,entry.id,entry.spell_id))},
+        onclick:{action.as_str()},enabled,button_default_skin:false,button_atlas_highlight:{atlas.as_str()},button_highlight_alpha:0.25,
+        width:{64.0*scale},height:{64.0*scale},pos_type:"absolute",pos_x:{x*scale},pos_y:0.0,
+    }});
+    children
 }
 
 fn active_hero(view: &TalentView) -> Option<&TalentTree> {
