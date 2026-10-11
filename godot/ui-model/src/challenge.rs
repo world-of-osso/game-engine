@@ -163,7 +163,7 @@ mod tests {
 
 use crate::bank_art::label;
 use crate::quest_art::{named_atlas_texture, panel_button};
-use ui_toolkit::frame::FrameStrata;
+use ui_toolkit::strata::FrameStrata;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChallengeView {
