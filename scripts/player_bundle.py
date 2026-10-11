@@ -13,7 +13,7 @@ from pathlib import Path
 DATA_DIRS = (
     'cache', 'campsite-ui', 'db2', 'dbfilesclient', 'fogs', 'fonts',
     'forever-1.60.1.70205', 'gametables', 'glues', 'item-models', 'los',
-    'minimap', 'models', 'music', 'reference', 'sounds', 'terrain', 'textures', 'ui',
+    'minimap', 'models', 'music', 'products', 'reference', 'sounds', 'terrain', 'textures', 'ui',
 )
 DATA_FILE_GLOBS = ('*.csv', '*.ron', 'local-listfile-cache.sqlite')
 LIBRARIES = {

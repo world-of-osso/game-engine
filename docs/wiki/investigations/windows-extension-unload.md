@@ -14,7 +14,11 @@ The shutdown barrier must wait for thread exit, not a task-completed flag: threa
 
 ## Proof boundary
 
-RED: real staged full-asset Windows import and LLDB exception above. GREEN and private login/in-world acceptance remain pending at implementation commit. NativeSound's non-tree node leak is separate and was not changed.
+RED: real staged Windows import and LLDB exception above. Native DLL build and full player import GREEN at5ea978206. Warm-cache imports also let the old DLL exit0, so `unload-regression-2.log` tests early-quit Login instead: old DLL exits3221225477 in2.11s, fixed DLL exits0 in2.42s. Native shutdown unit test1/1 passes via the worker helper; other core unit fixtures cannot compile on Windows because12 references assume Unix symlinks/inodes. NativeSound's non-tree node leak is separate and was not changed.
+
+## Product-directory packaging omission
+
+Private Windows UDP54392 authenticated fb_winrelease, projected character30 Winrelease, and reached authoritative InWorld (zone12,117 remote entities,1 local player). PNGs show missing character/NPC visuals; errors name `data/products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2` and other build-qualified paths. Those files exist in canonical data but `player_bundle.py` omitted the whole `products` directory. Add it to the shared allowlist, preserving byte-identical assets and receipts. Observed addition:10146 files /3166762580 bytes. Package selection RED reproduces omission; visual recheck remains pending. No world.db writes: private server mounts canonical inputs read-only with bwrap.
 
 ## Sources
 

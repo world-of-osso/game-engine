@@ -1,6 +1,6 @@
 ## 2026-10-11 — Windows extension unload race
 
-[Investigation](investigations/windows-extension-unload.md): LLDB first exception confirms native import teardown races detached item/spell catalog workers while main thread unloads the DLL. Add Core-stage join barrier preserving nonblocking owner drops. Native GREEN/private login remains pending; no sound leak workaround or publication.
+[Investigation](investigations/windows-extension-unload.md): LLDB first exception confirms native import teardown races detached item/spell catalog workers while main thread unloads the DLL. Add Core-stage join barrier preserving nonblocking owner drops. Native early-quit RED→GREEN proves unload fix, shutdown unit1/1 passes. Private Windows login/world reaches authoritative InWorld but PNGs expose missing player/NPC visuals: product-qualified assets were omitted by the shared bundle allowlist. Add products and receipts (3.17GB); visual recheck pending. No sound leak workaround, world.db writes or publication.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
