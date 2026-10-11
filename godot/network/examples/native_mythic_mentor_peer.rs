@@ -61,7 +61,7 @@ fn run() -> Result<(), String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos() as u64;
-    let bridge = BridgeConfig::new()
+    let mut bridge = BridgeConfig::new()
         .receive::<LoginResponse>()
         .receive::<EnterWorldResponse>()
         .receive::<NewWorld>()
