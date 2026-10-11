@@ -58,6 +58,9 @@ mod customization_query_data;
 #[path = "game/db2_cache.rs"]
 pub mod db2_cache;
 pub mod elastic_tree;
+pub mod housing;
+#[cfg(test)]
+mod housing_tests;
 #[path = "sound/footstep_data.rs"]
 pub mod footstep_data;
 #[cfg(test)]
