@@ -32,6 +32,8 @@ func run_fixture() -> void:
 	if client.account_state().ui_skin != skin: fail("requested skin not applied: " + str(client.account_state())); return
 	await capture("world-baseline")
 	await checkpoint("world")
+	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private actor restored"): return
+	await create_timer(1.0).timeout
 	if scenario == "skin": await prove_skinning()
 	else:
 		for resource in JSON.parse_string(OS.get_environment("GATHERING_NODES")):
