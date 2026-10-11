@@ -195,8 +195,9 @@ func take_chest_item() -> bool:
 		fail("Opening a chest awarded item credit before the item entered bags")
 		return false
 	await capture(shot_prefix + "-loot-before-credit.png")
+	var count_before := bag_count(scenario.item)
 	await click_control(client.find_child("LootFrameElement1", true, false) as Control)
-	return await wait_frames(func(): return bag_count(scenario.item) >= 1, "authored chest item stored")
+	return await wait_frames(func(): return bag_count(scenario.item) > count_before, "authored chest item stored")
 
 func credit_item_spell() -> bool:
 	await click_control(client.find_child("MainMenuBarBackpackButton", true, false) as Control)
