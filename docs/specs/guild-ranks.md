@@ -14,11 +14,23 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Requests leave selected-rank data unchanged until the authoritative reply arrives.
 - [x] Mutating controls wait for authoritative state before sending another write; queued clicks cannot overwrite a prior permission edit using stale flags.
 
+### Invitation and guild profile
+- [x] `/ginvite` / `/guildinvite`, `/gquit` / `/guildquit`, `/gremove` / `/guildremove` send authoritative guild actions, not help.
+- [x] AuthChannel invitation delivery mounts GuildInviteFrame independently of Communities. Join waits for authoritative acceptance; Decline sends the pending-invite refusal. Both skins share controls and mechanics.
+- [x] `/gmotd` / `/guildmotd` sends SetGuildMotd; authoritative profile replies update MOTD and info.
+- [x] `/ginfo` / `/guildinfo` sends a read-only query and reports the persisted creation date for charter-created guilds; legacy guilds remain explicitly unknown, never backdated.
+- [x] Communities exposes Invite Member and Info; MOTD/info editors send authoritative writes, keep displayed text unchanged pending reply, and hide edits without rank permission. Member menu Remove uses strict hierarchy.
+- [x] Native Info editor uses TextEdit for multiline text (499 characters); MOTD uses Enter-to-accept input (255 characters). Native postsetup supplies limits before projection.
+- [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
+- [x] Authenticated native multiline editor and authoritative readback inspected; both-skin profile and restart preserve both lines.
+- [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
+
 ### Permissions and members
 - [x] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
 - [x] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.
 - [x] Whole-gold input sends copper/day, sharing the allowance with guild repairs.
-- [x] Member context menu shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
+- [x] Right-click member context menu stays on screen and shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
+- [x] `/gpromote` / `/guildpromote` and `/gdemote` / `/guilddemote` send the same authoritative rank requests (Retail SlashCommands.lua GUILD_PROMOTE/GUILD_DEMOTE), not generic help.
 - [x] Server refusals display Retail GlobalStrings. `/o` and `/officer` use the Officer channel and its styling.
 
 ## How it works
@@ -39,6 +51,9 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 
 ## Tests asserting this spec
 
+- `godot/tests/guild_member_controls_live.gd`: native right-click menu is inside the viewport; Promote/Demote alter and restore the authoritative roster label.
+- `godot/tests/guild_profile_live.gd`: private guild master types MOTD, inserts before the final character, accepts and checks the authoritative displayed reply; real Godot input/projection boundary.
+
 - `godot/ui-model/tests/native_guild_ranks.rs`: 5 authoritative model/Officer tests pass.
 - `godot/ui-model/tests/guild_rank_widgets.rs`: 9 tests pass in both skins, including
   mounted state, exact click requests, disabled controls, hierarchy, pacing and purchased tabs.
@@ -52,10 +67,7 @@ Exact names, commands, revisions and exclusions: `data/diagnostics/guildranks-20
 
 ## Proof boundaries
 
-No requested native rank UI feature remains unimplemented. No live authenticated
-server smoke was run; the server slot was read-only. Both capture processes exit 0,
-but logs retain texture/font shutdown leaks. Full communities/social functionality,
-pixel-perfect Retail parity and clean-resource acceptance are not claimed.
+Private UDP54381 authenticated lifecycle, profile, strict member controls and bank proof now cover Modern and Forever. Charter-created guilds survive restart with five founders; member leave/kick → decline/reinvite/Join passes in both skins. Native UI guild gate37/37 and native guild gate6/6 pass; the later registrar-portrait boundary additionally passes both-skin control and real NPC portrait checks. Evidence: canonical `data/diagnostics/guilds{3,4}-2026-10-11/` and inspected AgentShared PNGs. Tabard/achievement payloads remain absent; no emblem or points are fabricated. Full unrelated Communities/social features and resource-leak acceptance are not claimed.
 
 ## Out of scope
 

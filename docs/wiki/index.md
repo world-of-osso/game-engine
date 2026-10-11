@@ -1,6 +1,12 @@
 # Wiki Index
 
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
+- [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
+- [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
+- [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
+- [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
+- [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
+- [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
@@ -43,13 +49,14 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-10.
+Last updated: 2026-10-11.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
 
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
+- [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
 
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 
@@ -107,7 +114,7 @@ Engine subsystems and how they work.
 - [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame plus native Godot auction session: global bid/buyout confirmations, active-skin commodity dialog art, six1920×1080 captures with explicit missing border/alert payloads; NPC/gossip entry, Buy/Sell/Auctions, server-global browse and bounded saved trading/paging proof.
 - [trade-and-mail](systems/trade-and-mail.md) — preserved Bevy trade/full mail; bounded native receiving mail with actual replicated mailbox M2/picking, authored inbox/letter/backpack, server claims, 8 focused CPU tests and saved CLI-first receiving run 6; authoritative claims/quiet reopen proved, broader conversion open
 - [banks](systems/banks.md) — character/Warband bank and Guild Vault lifecycle/actions; native character-bank cursor, model-owned ADD overlays and cropped-member tiling, with bounded1920×1080 art proof and explicit bag/asset gaps; native guild-rank controls and hierarchy-gated member menus
-- [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
+- [group-frames](systems/group-frames.md) — native party/raid frames, ready-check AFK summaries, authoritative deadline pull timers and raid-assistant controls; both-skin private acceptance
 - [portrait-party-frames](systems/portrait-party-frames.md) — roster-bound masked runtime heads built from roster appearance (never-replicated and offline members included), sparse authored HD camera keys with frontal portrait lights, four-race/two-sex head proof and visible Modern chat/player pixel overlap; compact-default zero renders, Retail offline/death rules and resource lifecycle; Retail/Camelot art and c60 relations. October 7 audit confirms existing offline health/tinted power and refutes TOPLEFT crown placement; fresh both-skin previews pass. Live acceptance remains open
 - [party-edit-mode-settings](systems/party-edit-mode-settings.md) — Retail Party inventory, both-skin HUD settings, compact-preserving defaults and layout persistence; big-defensive classification remains a data boundary
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning

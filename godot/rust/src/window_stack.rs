@@ -164,11 +164,14 @@ impl GameClient {
         closed |= self.close_quest_windows()?;
         closed |= self.close_character_window();
         closed |= self.close_guild_ranks();
+        closed |= self.close_guild_charter()?;
         closed |= self.close_professions();
         closed |= self.close_pet_journal();
         closed |= self.close_trainer_window()?;
+        closed |= self.close_transmog_window()?;
         closed |= self.close_achievements();
         closed |= self.close_raid_info();
+        closed |= self.close_combat_stable()?;
         closed |= self.close_bank_window()?;
         closed |= self.close_guild_bank_window()?;
         Ok(closed)
