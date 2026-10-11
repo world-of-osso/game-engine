@@ -10,6 +10,9 @@
 ## 2026-10-11 — Native transmog application
 
 [System](systems/transmog-apply.md): private55087 Hashom gossip, target2850 GUID123, native sources821/1181;1500copper per paid apply, detached pending character, self/observer visual rebuilds, both-skin process relog and private-redb server restart. Bag metadata race RED→GREEN1/1; wrong Use opcode replaced by explicit unresolved-definition error, native ready right-click equips. Engine d66aa8e59 native build/check clean. Inspected PNGs shared; observer framing weaker than attachment logs. No world.db writes/master merge/5000. Saved outfits,3D thumbnails and linked data/policy gaps remain. Independent verifier unavailable (expired OAuth).
+## 2026-10-11 — Native WSG lifecycle
+
+[Native battlegrounds](systems/battlegrounds.md): both-skin ten-account private UDP5710 queue/invite, source flag pickup/three captures, roster/score/results and origin return. Type36 dispatch and closed-scoreboard/end-transition RED→GREEN fixes; two UI and six object tests pass. Sixteen inspected PNGs; private source-position travel acceleration, no injected objective state, canonical DB write or master merge. Timing/honor and exact PvP-specific texture parity remain uncertified; lead owns the full merge gate.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
