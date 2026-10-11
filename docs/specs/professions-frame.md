@@ -57,7 +57,7 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Native gathering rank display
 
-- With no recipe selected, display a learned progress line with a positive maximum, not the parent skill holder (`1/0`). Selected recipes retain their authored skill line. Both skins show Classic Herbalism, Mining and Skinning ranks.
+- With no recipe selected, display a learned profession child (`SkillLine.ParentSkillLineID`), not its parent skill holder (including capped parents such as Skinning `1/75`). Selected recipes retain their authored skill line. Both skins show Classic Herbalism, Mining and Skinning ranks.
 - Regression: `godot/ui-model/tests/professions_art.rs::professions_gathering_skill_bar_uses_progress_line_not_parent_holder` uses concrete parent/Classic child snapshots.
 
 ## Tests asserting this spec

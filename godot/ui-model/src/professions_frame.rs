@@ -32,6 +32,7 @@ pub struct ItemDisplay {
 pub struct ProfessionView {
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
+    pub child_skills: BTreeSet<u32>,
     pub profession_name: String,
     pub profession_icon: u32,
     pub items: BTreeMap<u32, ItemDisplay>,
@@ -90,7 +91,7 @@ fn selected_line(view: &ProfessionView) -> Option<&shared::profession::Professio
                 .snapshot
                 .lines
                 .iter()
-                .find(|line| line.max_rank > 0)
+                .find(|line| view.child_skills.contains(&line.skill_line))
         })
 }
 
