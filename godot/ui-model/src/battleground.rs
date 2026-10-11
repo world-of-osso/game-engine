@@ -10,6 +10,7 @@ use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::El
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PvpAction {
     Query,
+    WarMode(bool),
     Queue(u32),
     Dequeue,
     Respond { match_id: u64, accepted: bool },
@@ -103,6 +104,18 @@ impl PvpView {
         }
         let request = match action {
             "pvp:query" => PvpAction::Query,
+            "pvp:warmode" => {
+                let mode = self.snapshot.as_ref()?.war_mode.as_ref()?;
+                let permitted = if mode.desired {
+                    mode.can_disable
+                } else {
+                    mode.can_enable
+                };
+                if !permitted {
+                    return None;
+                }
+                PvpAction::WarMode(!mode.desired)
+            }
             "pvp:queue"
                 if self.battleground().is_none()
                     && self.snapshot.as_ref().is_none_or(|s| s.queue.is_none()) =>

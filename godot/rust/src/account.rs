@@ -719,6 +719,9 @@ impl Account {
         let bridge = self.bridge()?;
         let result = match action {
             PvpAction::Query => bridge.send::<_, PvpChannel>(QueryPvpStatus),
+            PvpAction::WarMode(enabled) => {
+                bridge.send::<_, PvpChannel>(SetWarModeDesired { enabled })
+            }
             PvpAction::Queue(battleground_id) => {
                 bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
             }

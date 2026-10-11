@@ -14,6 +14,8 @@ pub struct TalentView {
     pub graph: TalentPage,
     pub editor: TalentEditor,
     pub level: u8,
+    pub war_mode: Option<shared::protocol::WarModeSnapshot>,
+    pub pvp_pending: bool,
     pub names: BTreeMap<u32, String>,
     pub descriptions: BTreeMap<u32, String>,
     pub replaced_names: BTreeMap<u32, String>,
