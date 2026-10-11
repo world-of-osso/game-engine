@@ -1026,7 +1026,8 @@ fn apply_hud_toggle(
         }
         "soft_target_interact" => hud.soft_target_interact = !hud.soft_target_interact,
         "encounter_timeline" => hud.encounter_timeline = !hud.encounter_timeline,
-        "encounter_bars" => hud.encounter_bars = !hud.encounter_bars,
+        "encounter_view:1" => hud.encounter_bars = false,
+        "encounter_view:2" => hud.encounter_bars = true,
         "encounter_warnings" => hud.encounter_warnings = !hud.encounter_warnings,
         "encounter_sounds" => hud.encounter_sounds = !hud.encounter_sounds,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
