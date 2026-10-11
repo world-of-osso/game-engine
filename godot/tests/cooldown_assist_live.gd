@@ -148,16 +148,16 @@ func run_fixture() -> void:
 		write_json("assisted-blocker", {"assisted": client.assisted_combat_state(), "target": client.target_state()})
 		await capture("assistant-unresolved")
 		var before_blocked: int = client.spells_state().sent.size()
-		await click("ActionButton12")
+		await click("ActionButton6")
 		if client.spells_state().sent.size() != before_blocked:
 			fail("Unresolved rotation sent an invented spell")
 			return
-		print("PARTIAL: native manager/settings/timers and assistant button; exact rotation blocked: ", client.assisted_combat_state().failure_reason)
+		print("PARTIAL: native manager/settings/timers and assistant button; recommendation unavailable: ", client.assisted_combat_state(), "; target: ", client.target_state())
 		quit(2)
 		return
 	var expected: int = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
-	await click("ActionButton12")
+	await click("ActionButton6")
 	await create_timer(0.6).timeout
 	var after: Dictionary = client.spells_state()
 	if after.sent.size() != before + 1 or int(after.sent[after.sent.size() - 1]) != expected:
@@ -245,9 +245,9 @@ func place_assistant() -> void:
 		for page in range(16):
 			var source := control("SpellBookItem1229376Button")
 			if source != null and source.is_visible_in_tree():
-				var destination := control("ActionButton12")
+				var destination := control("ActionButton6")
 				if destination == null:
-					fail("ActionButton12 absent")
+					fail("ActionButton6 absent")
 					return
 				await capture("assistant-spellbook")
 				await mouse(source.get_global_rect().get_center(), true)
@@ -258,10 +258,10 @@ func place_assistant() -> void:
 				await process_frame
 				await mouse(event.position, false)
 				var deadline := Time.get_ticks_msec() + 5000
-				while client.spells_state().bar[11] != 1229376 and Time.get_ticks_msec() < deadline:
+				while client.spells_state().bar[5] != 1229376 and Time.get_ticks_msec() < deadline:
 					await process_frame
-				if client.spells_state().bar[11] != 1229376:
-					fail("Assistant spellbook drag did not persist to action button12")
+				if client.spells_state().bar[5] != 1229376:
+					fail("Assistant spellbook drag did not persist to action button6")
 					return
 				await key(KEY_P)
 				return
