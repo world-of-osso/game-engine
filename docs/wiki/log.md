@@ -1,6 +1,6 @@
 ## 2026-10-11 — AchievementFrame art
 
-[Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Both-skin draft native proof retained; final revised art captures and focused gates pending. No master merge or shared realm changes.
+[Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.
 
 ## 2026-10-11 — Quest sharing, resets and timers
 

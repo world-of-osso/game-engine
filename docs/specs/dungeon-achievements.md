@@ -62,7 +62,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
-- Native draft appearance and transport preservation require private live proof in both skins; unit-model proof alone is not native certification.
+- Native art/draft proof: private UDP5730, `fb_achievementsui`/Fbachui, both skins at082d6ffa6. Label-only drafts send clickable real633 links; native stepper scroll loads24→25 statistic rows. Evidence and exact scope live in the linked wiki; no full-suite/CI/comparison certification.
 
 ## Out of scope
 
