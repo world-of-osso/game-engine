@@ -196,8 +196,7 @@ func open_chest(target: Dictionary) -> bool:
 		var deadline := Time.get_ticks_msec() + 2500
 		while Time.get_ticks_msec() < deadline:
 			await process_frame
-			var frame = client.find_child("LootFrame", true, false)
-			if frame != null and frame.is_visible_in_tree():
+			if visible_loot_frame() != null:
 				return true
 		print("FIXTURE CHEST_RETRY ", target)
 		target = await find_unit(target.name)
@@ -208,17 +207,21 @@ func open_chest(target: Dictionary) -> bool:
 	fail("Native chest click did not open loot")
 	return false
 
+func visible_loot_frame() -> Control:
+	for frame in client.find_children("LootFrame", "Control", true, false):
+		if frame.is_visible_in_tree():
+			return frame
+	return null
+
 func take_chest_item() -> bool:
-	if not await wait_frames(func():
-		var frame = client.find_child("LootFrame", true, false)
-		return frame != null and frame.is_visible_in_tree(), "chest loot window"):
+	if not await wait_frames(func(): return visible_loot_frame() != null, "chest loot window"):
 		return false
 	if log_entry(client.quest_state(), scenario.quest).get("completed", false):
 		fail("Opening a chest awarded item credit before the item entered bags")
 		return false
 	await capture(shot_prefix + "-loot-before-credit.png")
 	var count_before := bag_count(scenario.item)
-	await click_control(client.find_child("LootFrameElement1", true, false) as Control)
+	await click_control(visible_loot_frame().find_child("LootFrameElement1", true, false) as Control)
 	return await wait_frames(func(): return bag_count(scenario.item) > count_before, "authored chest item stored")
 
 func credit_item_spell() -> bool:
