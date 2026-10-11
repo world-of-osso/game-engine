@@ -13,6 +13,7 @@ import subprocess
 
 SPELL_BUILD = "12.1.0.69933"
 MANIFEST = Path("cache/required-ui-icons.json")
+EXCEPTIONS = Path("scripts/ui-icon-exceptions.json")
 
 
 def hash_file(path: Path) -> str:
@@ -103,7 +104,15 @@ def normalize_extracted_icon_names(data: Path, fdids: list[int]) -> None:
                 source.rename(destination)
 
 
-def record_icon_provenance(data: Path, manifest: dict, missing: list[int]) -> None:
+def load_icon_exceptions(root: Path) -> dict[int, str]:
+    """User-approved (2026-10-11) icons unobtainable from local CASC; each needs a concrete reason."""
+    document = json.loads((root / EXCEPTIONS).read_text())
+    if document["spell_db2_build"] != SPELL_BUILD:
+        raise ValueError(f"{root / EXCEPTIONS}: spell_db2_build {document['spell_db2_build']} != {SPELL_BUILD}")
+    return {entry["fdid"]: entry["reason"] for entry in document["exceptions"]}
+
+
+def record_icon_provenance(data: Path, manifest: dict, missing: list[int], excepted: dict[int, str]) -> None:
     absent = set(missing)
     records = []
     for entry in manifest["icons"]:
@@ -112,8 +121,9 @@ def record_icon_provenance(data: Path, manifest: dict, missing: list[int]) -> No
             path = data / "textures" / f"{fdid}.blp"
             records.append({"fdid": fdid, "sha256": hash_file(path), "bytes": path.stat().st_size})
     write_json_if_changed(data / "cache/ui-icon-provenance.json", {
-        "status": "incomplete" if missing else "complete",
+        "status": "incomplete" if absent - set(excepted) else "complete-with-exceptions" if missing else "complete",
         "missing_fdids": missing,
+        "excepted": [{"fdid": fdid, "reason": excepted[fdid]} for fdid in missing if fdid in excepted],
         "extractor": "casc-local (local WoW archives only; developer build step)",
         "source_tables": manifest["source_tables"],
         "icons": records,
@@ -135,21 +145,25 @@ def extract_missing_icons(root: Path, extractor: Path, missing: list[int], evide
 
 def prepare_ui_icons(root: Path, extractor: Path) -> dict:
     data = root / "data"
+    excepted = load_icon_exceptions(root)
     manifest = collect_required_icons(data)
     write_json_if_changed(data / MANIFEST, manifest)
     missing = missing_required_icons(manifest, data)
-    record_icon_provenance(data, manifest, missing)
+    record_icon_provenance(data, manifest, missing, excepted)
     evidence = data / "diagnostics/ui-icon-preparation"
     evidence.mkdir(parents=True, exist_ok=True)
     if missing:
+        # Always retry extraction, including excepted icons, so a newly recoverable icon ships.
         status = extract_missing_icons(root, extractor, missing, evidence)
         missing = missing_required_icons(manifest, data)
-        record_icon_provenance(data, manifest, missing)
-        if status or missing:
-            write_json_if_changed(evidence / "missing.json", {"fdids": missing, "extract_exit": status})
-            raise ValueError(f"UI asset preparation failed: {len(missing)} required icons absent/invalid: {missing[:32]}; complete list/log: {evidence}")
+        record_icon_provenance(data, manifest, missing, excepted)
+        unexcepted = [fdid for fdid in missing if fdid not in excepted]
+        if unexcepted:
+            write_json_if_changed(evidence / "missing.json", {"fdids": unexcepted, "extract_exit": status})
+            raise ValueError(f"UI asset preparation failed: {len(unexcepted)} required icons absent/invalid without an exception in {EXCEPTIONS}: {unexcepted[:32]}; complete list/log: {evidence}")
     (evidence / "missing.json").unlink(missing_ok=True)
-    print(f"Prepared {len(manifest['icons'])} required UI icon BLPs; manifest/provenance ship in data/cache/", flush=True)
+    shipped_missing = f"; {len(missing)} listed exceptions ship absent" if missing else ""
+    print(f"Prepared {len(manifest['icons']) - len(missing)} required UI icon BLPs{shipped_missing}; manifest/provenance ship in data/cache/", flush=True)
     return manifest
 
 
