@@ -2,9 +2,13 @@ use game_engine_core::cooldown_assist::{CooldownAssistCatalog, Recommendation};
 use game_engine_ui_model::cooldown_assist::{
     CooldownIconView, CooldownViewerModel, CooldownViewerView, SpellSample,
 };
+use game_engine_ui_model::cooldown_settings_component::{
+    CooldownSettingEntry, CooldownSettingsView,
+};
 use game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen;
 use std::path::Path;
 use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -48,6 +52,42 @@ fn cooldown_assist_native_rows_and_highlights_share_both_skin_inventory() {
             .unwrap();
         assert!(registry.get(glow).unwrap().hidden);
     }
+}
+
+#[test]
+fn cooldown_assist_settings_display_the_active_spec_selection() {
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    let mut view = CooldownViewerView::default();
+    view.settings = CooldownSettingsView {
+        open: true,
+        entries: vec![CooldownSettingEntry {
+            id: 27,
+            category: 0,
+            label: "Mortal Strike".into(),
+            selected: true,
+        }],
+        ..Default::default()
+    };
+    shared.insert(view.clone());
+    let mut screen = Screen::new(cooldown_viewer_screen);
+    screen.sync(&shared, &mut registry);
+    let button = registry.get_by_name("CooldownSettingsSelect27").unwrap();
+    let Some(WidgetData::Button(button)) = registry.get(button).unwrap().widget_data.as_ref()
+    else {
+        panic!("selection button")
+    };
+    assert_eq!(button.text, "[x] Mortal Strike");
+    view.settings.entries[0].selected = false;
+    shared.insert(view);
+    screen.sync(&shared, &mut registry);
+    let button = registry.get_by_name("CooldownSettingsSelect27").unwrap();
+    let Some(WidgetData::Button(button)) = registry.get(button).unwrap().widget_data.as_ref()
+    else {
+        panic!("selection button")
+    };
+    assert_eq!(button.text, "[ ] Mortal Strike");
 }
 
 fn catalog() -> CooldownAssistCatalog {
