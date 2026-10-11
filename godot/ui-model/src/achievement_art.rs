@@ -6,9 +6,18 @@ use ui_toolkit::rsx;
 
 pub(super) fn texture(name: &str, fdid: u32, uv: &str, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, width, height) = rect;
+    let tint = skin_tint(fdid);
     rsx! { texture { name: {DynName(name.into())}, texture_fdid: fdid, tex_coords: uv,
-        width, height, left: x, top: y, pos_type: "absolute",
+        vertex_color:tint, width, height, left: x, top: y, pos_type: "absolute",
     } }
+}
+
+pub(super) fn skin_tint(fdid: u32) -> &'static str {
+    match (thread_skin(), fdid) {
+        (ActiveSkin::Forever, 130660 | 130661 | 130662 | 235397) => "0.22,0.20,0.18,1",
+        (ActiveSkin::Forever, 130657 | 130658 | 130659 | 130671 | 235402) => "0.85,0.72,0.52,1",
+        _ => WHITE,
+    }
 }
 
 /// XML:1505-1660: 768x500 wood/metal frame, 175-wide categories, 504-wide content.
@@ -154,10 +163,47 @@ pub(super) fn tab(
         title,
         (6.0, 3.0, width - 12.0, 24.0),
         if selected { WHITE } else { GOLD },
-        "",
+        action,
     ));
     rsx! { button { name: {DynName(name.into())}, onclick:action, width, height:32.0,
-        left:x, top:493.0, pos_type:"absolute", {content}
+        left:x, top:497.0, pos_type:"absolute", {content}
+    } }
+}
+
+/// XML:510-569: criteria use the thin ProgressBar-Border, not Summary's carved caps.
+pub(super) fn criterion_progress(
+    name: &str,
+    fraction: f32,
+    rect: (f32, f32, f32, f32),
+    caption: Element,
+) -> Element {
+    let (x, y, width, height) = rect;
+    let fill = width * fraction.clamp(0.0, 1.0);
+    let mut content = rsx! { texture { name:{DynName(format!("{name}Fill"))},texture_fdid:137012,
+        width:fill,height,vertex_color:"0,0.6,0,1",left:0.0,top:0.0,pos_type:"absolute",
+    } };
+    for (part, uv, rect) in [
+        (
+            "BorderLeft",
+            "0,0.0625,0,0.75",
+            (-6.0, -5.0, 16.0, height + 10.0),
+        ),
+        (
+            "BorderCenter",
+            "0.0625,0.812,0,0.75",
+            (10.0, -5.0, width - 20.0, height + 10.0),
+        ),
+        (
+            "BorderRight",
+            "0.812,0.8745,0,0.75",
+            (width - 10.0, -5.0, 16.0, height + 10.0),
+        ),
+    ] {
+        content.extend(texture(&format!("{name}{part}"), 235405, uv, rect));
+    }
+    content.extend(caption);
+    rsx! { r#frame { name:{DynName(format!("{name}Bar"))},width,height,left:x,top:y,pos_type:"absolute",
+        background_color:"0,0,0,0.4", {content}
     } }
 }
 
