@@ -46,7 +46,7 @@ The destination is the rclone remote `woo-r2` (`DESTINATION` overrides). It need
 
 ## game-launcher contract
 
-game-launcher (`../game-launcher`) fetches `https://files.worldofosso.com/manifest.json` and downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>` with no arguments and the game directory as the working directory. The bundle therefore:
+game-launcher (`../game-launcher`) fetches `https://files.worldofosso.com/manifest.json` and downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>` with no arguments. Linux retains the game-directory working directory; Windows uses the volume root because `CreateProcessW` rejects an overlong current directory. Both Windows entry and Godot project/runtime resolve through absolute executable-relative paths; external script-file arguments should be absolute. The bundle therefore:
 
 - names its entries `game-engine-linux-x86_64` and `game-engine-windows-x86_64`;
 - keeps every other path from starting with `game-engine-`;
@@ -60,7 +60,7 @@ With no `--server`, the release client connects to the live realm.
 
 `python3 scripts/windows-release.py --root <checkout>` drives native Windows builds through `ssh desktop`, assembles `target/deploy/windows-x86_64/`, transfers it to the desktop's new `C:/Users/adeia/Projects/woo-windows-build/player/` workspace and pre-imports there. It never publishes. `--phase build|assemble` resumes either boundary without rebuilding the other. See [Windows toolchain](remote-builds.md#windows-player-release).
 
-The bundle uses the shared `scripts/player_bundle.py` project/data allowlist and `.gdextension` containing both Linux and Windows selectors. Windows artifacts are `runtime/godot.exe`, `lib/game_engine_godot.dll` and an extensionless PE entry `game-engine-windows-x86_64`. The entry resolves paths relative to itself, forwards client arguments after Godot's `--`, waits for its child and selects extracted-only assets. The actual launcher's exact `Command::new` call is exercised by `scripts/windows-entry-test.py`; Windows does launch this extensionless PE.
+The bundle uses the shared `scripts/player_bundle.py` project/data allowlist and `.gdextension` containing both Linux and Windows selectors. Windows artifacts are `runtime/godot.exe`, `lib/game_engine_godot.dll` and an extensionless PE entry `game-engine-windows-x86_64`. The entry resolves paths relative to itself, forwards client arguments after Godot's `--`, waits for its child and selects extracted-only assets. The actual launcher's exact `Command::new` call is exercised by `scripts/windows-entry-test.py`; Windows does launch this extensionless PE. The launcher and entry keep child CWD at the volume root to support installation paths beyond260 characters, rather than changing registry settings.
 
 Godot is the same pinned 4.7.2 source commit with PR123546 applied. PR123946 touches only `platform/linuxbsd/wayland` and is not built or needed on Windows. The Windows runtime's SHA-512 receipt is exported with build artifacts, separate from Linux's checksum.
 
