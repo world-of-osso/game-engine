@@ -402,7 +402,7 @@ fn buy_info(buy: &BuyTabView) -> Element {
 
 pub const LOG_LIST: &str = "GuildBankMessageFrame";
 const LOG_HEIGHT: f32 = 304.0;
-const LOG_LINE_HEIGHT: f32 = 14.0;
+pub const LOG_LINE_HEIGHT: f32 = 14.0;
 const LOG_MAX_LINES: usize = 128;
 
 /// GB.xml:682-695: 688×304, max128, insert at TOP, with a MinimalScrollBar.
