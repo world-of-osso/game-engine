@@ -66,6 +66,7 @@ pub struct QuestRuntime {
     /// Quest giver marker per NPC (server entity bits).
     pub giver_status: HashMap<u64, QuestGiverStatus>,
     pub dialog: Option<QuestDialog>,
+    pub server_clock_offset: i64,
 }
 
 /// A role frame (auction house, vendor, ...) the server opened for an NPC interaction,
@@ -183,6 +184,13 @@ fn objective_progress_notices(
 }
 
 impl QuestRuntime {
+    /// Sample the authoritative clock at receipt; injected realm clocks still count down locally.
+    pub fn observe_timer_clock(&mut self, entries: &[QuestEntrySnapshot], local_now: i64) {
+        if let Some(sample) = entries.iter().find_map(|entry| entry.timer_sampled_at) {
+            self.server_clock_offset = sample - local_now;
+        }
+    }
+
     pub fn entry(&self, quest_id: u32) -> Option<&QuestEntrySnapshot> {
         self.log.iter().find(|entry| entry.quest_id == quest_id)
     }

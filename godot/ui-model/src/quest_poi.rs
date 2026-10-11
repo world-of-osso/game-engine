@@ -182,6 +182,7 @@ mod tests {
             zone: String::new(),
             completed,
             expires_at: None,
+            timer_sampled_at: None,
             failed: false,
             repeatability: shared::protocol::QuestRepeatability::Normal,
             level: 1,

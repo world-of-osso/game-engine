@@ -508,6 +508,7 @@ fn seed_items_and_quests(app: &mut App) {
                 zone: "Elwynn Forest".into(),
                 completed: false,
                 expires_at: None,
+                timer_sampled_at: None,
                 failed: false,
                 repeatability: QuestRepeatability::Normal,
                 objectives: vec![QuestObjectiveSnapshot {

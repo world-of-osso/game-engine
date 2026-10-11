@@ -1461,11 +1461,17 @@ impl Account {
             return Ok(());
         }
         if message.is::<QuestLogSnapshot>() {
-            self.quests.apply_snapshot(decode(message)?);
+            let snapshot: QuestLogSnapshot = decode(message)?;
+            self.quests
+                .observe_timer_clock(&snapshot.entries, quest_local_unix());
+            self.quests.apply_snapshot(snapshot);
             return Ok(());
         }
         if message.is::<QuestLogUpdate>() {
-            let notices = self.quests.apply_update(decode(message)?);
+            let update: QuestLogUpdate = decode(message)?;
+            self.quests
+                .observe_timer_clock(&update.changed, quest_local_unix());
+            let notices = self.quests.apply_update(update);
             output.extend(notices.into_iter().map(AccountEvent::QuestNotice));
             return Ok(());
         }
@@ -1992,6 +1998,13 @@ pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, Stri
 }
 
 /// The quest giver dialog message, or the message back (`QuestChannel`).
+fn quest_local_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after Unix epoch")
+        .as_secs() as i64
+}
+
 fn quest_message(
     message: ProtocolMessage,
 ) -> Result<Result<QuestMessage, ProtocolMessage>, String> {

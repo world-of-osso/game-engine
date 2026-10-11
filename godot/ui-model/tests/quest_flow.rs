@@ -44,6 +44,7 @@ fn worgs(current: u32) -> QuestEntrySnapshot {
         zone: String::new(),
         completed: current >= 6,
         expires_at: None,
+        timer_sampled_at: None,
         failed: false,
         repeatability: QuestRepeatability::Normal,
         objectives: vec![QuestObjectiveSnapshot {
@@ -439,7 +440,9 @@ fn quest_share_popup_and_selected_log_button_use_authoritative_offer() {
 fn quest_tracker_countdown_changes_each_second_and_failed_quest_replaces_objectives() {
     let mut runtime = QuestRuntime::default();
     let mut entry = worgs(2);
-    entry.expires_at = Some(2800);
+    entry.expires_at = Some(2800 + 86400);
+    entry.timer_sampled_at = Some(1000 + 86400);
+    runtime.observe_timer_clock(&[entry.clone()], 1000);
     runtime.apply_snapshot(QuestLogSnapshot {
         entries: vec![entry.clone()],
         watched_quest_ids: vec![BEATING_THEM_BACK],
