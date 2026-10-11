@@ -1,6 +1,6 @@
 ## 2026-10-11 — NPC chunk-authentication receipts
 
-[Chunk authentication](systems/offline-asset-closure.md#npc-chunk-authentication): version-2 NPC metadata sidecar checks header EKey and encoded chunk MD5s, maps record dependencies, and separates unknown encrypted child membership from known missing records. Backed-up publication cannot add coverage for unresolved profiles. Nine targeted behavioral tests pass; real-cache application tracked separately.
+[Chunk authentication](systems/offline-asset-closure.md#npc-chunk-authentication): version-2 NPC metadata sidecar checks header EKey and encoded chunk MD5s, maps record dependencies, and separates unknown encrypted child membership from known missing records. Backed-up publication cannot add coverage for unresolved profiles. Eleven targeted behavioral tests pass. All50 chunk checksums pass;244 selected records authenticate. Backed-up canonical publication adds15 appearances/216 choices and0 runtime coverage.252 gathering/demon/giver/Cobrahn asset receipts rehash against current authenticated roots. No known-required encrypted profile records;36 profile memberships remain unprovable because encrypted geoset parent relationships are unavailable. Full certification remains FAIL.
 
 ## 2026-10-11 — Priority no-install receipt closure
 

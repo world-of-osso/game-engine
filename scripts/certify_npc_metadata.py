@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Record-scoped local-CASC NPC metadata authentication; no missing-key recovery.
 
 A complete profile also needs proof of child membership. An encrypted relationship
@@ -8,8 +7,8 @@ block with unknown parents cannot prove either relevance or irrelevance to a dis
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import struct
+from pathlib import Path
 
 import closure_casc as casc
 import import_npc_appearance as npc
@@ -75,9 +74,10 @@ def map_table(data, kind, receipt, *, wanted=None, parents=None):
     records, section_map, blocked = {}, [], []
     omitted_by_section = {s["section"]: s for s in omitted}
     for section in range(sections):
-        key, start, n, strings, sparse, ids, relation, offsets, copies = npc.unpack(
-            data, "Q8I", 204 + section * 40
-        )
+        section_header = npc.unpack(data, "Q8I", 204 + section * 40)
+        key, start, n, strings = section_header[:4]
+        ids, relation = section_header[5:7]
+        copies = section_header[8]
         id_start = start + n * record_size + strings
         copy_start = id_start + ids
         relation_start = copy_start + copies * 8
