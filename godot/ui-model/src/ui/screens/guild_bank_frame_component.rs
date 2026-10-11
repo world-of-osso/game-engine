@@ -149,6 +149,10 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<GuildBankFrameState>()
         .expect("GuildBankFrameState must be in SharedContext");
+    guild_bank_frame(ctx, state)
+}
+
+pub fn guild_bank_frame(ctx: &SharedContext, state: &GuildBankFrameState) -> Element {
     let hide = !state.visible;
     // GB.xml:167 inherits BasicFrameTemplate, not PortraitFrameTemplate.
     let mut children =
@@ -174,7 +178,7 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
     match state.mode {
         GuildBankModeView::Bank => children.extend(bank_mode(state)),
         GuildBankModeView::Log | GuildBankModeView::MoneyLog => {
-            children.extend(log_lines(&state.log_lines))
+            children.extend(log_lines(ctx, &state.log_lines))
         }
         GuildBankModeView::Info => children.extend(info(state.info.as_ref())),
     }
@@ -396,19 +400,53 @@ fn buy_info(buy: &BuyTabView) -> Element {
     children
 }
 
-/// `GuildBankMessageFrame` 688×304 at 24,-64 (GB.xml:682-695), oldest line first.
-fn log_lines(lines: &[String]) -> Element {
-    let line_h = 14.0;
-    let visible = (304.0 / line_h) as usize;
-    let start = lines.len().saturating_sub(visible);
-    lines[start..]
-        .iter()
-        .enumerate()
+pub const LOG_LIST: &str = "GuildBankMessageFrame";
+const LOG_HEIGHT: f32 = 304.0;
+const LOG_LINE_HEIGHT: f32 = 14.0;
+const LOG_MAX_LINES: usize = 128;
+
+/// GB.xml:682-695: 688×304, max128, insert at TOP, with a MinimalScrollBar.
+fn log_lines(ctx: &SharedContext, lines: &[String]) -> Element {
+    use crate::minimal_scroll_bar::{
+        MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+    };
+    let content_height = lines.len().min(LOG_MAX_LINES) as f32 * LOG_LINE_HEIGHT;
+    let geometry = pixel_geometry(LOG_HEIGHT, content_height, LOG_HEIGHT);
+    let offset = geometry.clamp(ctx.scroll_first_row(LOG_LIST));
+    let config = scroll_list_attr(&geometry);
+    let rows = log_rows(lines, offset);
+    let bar = MinimalScrollBar {
+        list: LOG_LIST,
+        left: 694.0,
+        top: 0.0,
+        height: LOG_HEIGHT,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    rsx! { r#frame {
+        name: {DynName(LOG_LIST.into())}, width: 710.0, height: LOG_HEIGHT,
+        left: 24.0, top: 64.0, pos_type: "absolute", mouse_enabled: true,
+        scroll_list: {config}, {rows} {bar.element()}
+    } }
+}
+
+fn log_rows(lines: &[String], offset: usize) -> Element {
+    let first = offset / LOG_LINE_HEIGHT as usize;
+    let count = (LOG_HEIGHT / LOG_LINE_HEIGHT).ceil() as usize + 1;
+    let recent = lines.iter().rev().take(LOG_MAX_LINES);
+    let visible = recent.enumerate().skip(first).take(count);
+    visible
         .flat_map(|(index, line)| {
             label(
                 format!("{FRAME_NAME}LogLine{}", index + 1),
                 line,
-                (24.0, 64.0 + index as f32 * line_h, 688.0, line_h),
+                (
+                    0.0,
+                    index as f32 * LOG_LINE_HEIGHT - offset as f32,
+                    688.0,
+                    LOG_LINE_HEIGHT,
+                ),
                 (12.0, HIGHLIGHT_FONT_COLOR, "LEFT"),
             )
         })

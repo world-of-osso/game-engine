@@ -17,7 +17,6 @@ use crate::bank::{
 use crate::bank_data::{BankPrompt, GuildBankMode, GuildBankRequest, GuildBankState, log_line};
 use crate::guild_bank_frame_component::{
     self as frame, BuyTabView, GuildBankFrameState, GuildBankModeView, GuildSideTab,
-    guild_bank_frame_screen,
 };
 use crate::merchant::Click;
 use crate::popup::PopupSpec;
@@ -38,9 +37,8 @@ pub fn native_guild_bank_screen(
         .get::<NativeGuildBankView>()
         .expect("NativeGuildBankView must be in SharedContext");
     let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert(view.frame.clone());
     shared.insert(view.bags.clone());
-    let mut elements = guild_bank_frame_screen(&shared);
+    let mut elements = frame::guild_bank_frame(ctx, &view.frame);
     elements.extend(bag_frame_screen(&shared));
     elements
 }

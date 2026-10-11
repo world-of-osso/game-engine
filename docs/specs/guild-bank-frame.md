@@ -75,7 +75,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [ ] The selected tab uses the same gold marker as the bank frame, because there is no additive blending.
 - [ ] Emblem, outer and inner corner tiling of the Retail frame are not drawn (the metal_frame chrome replaces BasicFrameTemplate).
 - [x] Native tab Info uses TextEdit, preserves newlines and enforces Retail's 500-character limit (GB.xml:758). `godot/tests/guild_bank_info_live.gd` types two lines, saves, switches modes and checks server-rehydrated text.
-- [ ] The log is not a scrolling message frame: only the last 21 lines show.
+- [x] Logs retain Retail's latest 128 lines, newest first, with wheel/stepper/thumb scrolling. Scroll position survives authoritative view refreshes on the combined vault/backpack canvas.
 
 ## Out of scope
 - Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank and search. Guild Control UI is tracked separately in [guild ranks](guild-ranks.md). Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); player-managed repair rights use the same daily allowance as gold withdrawals. Native rank settings integration remains pending.

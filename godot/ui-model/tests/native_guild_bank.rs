@@ -391,3 +391,66 @@ fn guild_bank_info_does_not_target_nonexistent_or_read_only_editors() {
         vec![("GuildBankTabInfoEditBox", "Raid supplies".into())]
     );
 }
+
+#[test]
+fn guild_bank_log_scroll_reaches_oldest_transaction_and_retains_position() {
+    use game_engine_ui_model::bag_frame_component::BagFrameState;
+    use game_engine_ui_model::guild_bank::{NativeGuildBankView, native_guild_bank_screen};
+    use game_engine_ui_model::guild_bank_frame_component::{
+        GuildBankFrameState, GuildBankModeView,
+    };
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let view = NativeGuildBankView {
+        frame: GuildBankFrameState {
+            visible: true,
+            mode: GuildBankModeView::Log,
+            log_lines: (0..40)
+                .map(|i| format!("Cara deposited Linen Cloth x {}", i + 1))
+                .collect(),
+            ..Default::default()
+        },
+        bags: BagFrameState::default(),
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(view.clone());
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut screen = Screen::new(native_guild_bank_screen);
+    screen.sync(&shared, &mut registry);
+    let texts = |registry: &FrameRegistry| -> Vec<String> {
+        registry
+            .frames_iter()
+            .filter_map(|frame| {
+                if !frame
+                    .name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with("GuildBankFrameLogLine"))
+                {
+                    return None;
+                }
+                match &frame.widget_data {
+                    Some(WidgetData::FontString(text)) => Some(text.text.clone()),
+                    _ => None,
+                }
+            })
+            .collect()
+    };
+    assert!(texts(&registry).contains(&"Cara deposited Linen Cloth x 40".into()));
+    assert!(!texts(&registry).contains(&"Cara deposited Linen Cloth x 1".into()));
+    assert!(
+        registry
+            .scroll_lists
+            .scroll_to("GuildBankMessageFrame", usize::MAX)
+    );
+    screen.sync(&shared, &mut registry);
+    assert!(texts(&registry).contains(&"Cara deposited Linen Cloth x 1".into()));
+    assert!(!texts(&registry).contains(&"Cara deposited Linen Cloth x 40".into()));
+    shared.insert(view);
+    screen.sync(&shared, &mut registry);
+    assert!(texts(&registry).contains(&"Cara deposited Linen Cloth x 1".into()));
+}
