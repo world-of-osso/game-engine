@@ -75,6 +75,30 @@ impl TalentEditor {
             .map(|entry| u32::from(entry.rank))
             .sum()
     }
+    pub fn hero_dirty(&self, view: &TalentView) -> bool {
+        let Some(snapshot) = &self.snapshot else {
+            return false;
+        };
+        let ids: BTreeSet<_> = view
+            .graph
+            .heroes
+            .iter()
+            .flat_map(|tree| &tree.nodes)
+            .chain(view.graph.hero_selection.iter())
+            .map(|node| node.id)
+            .collect();
+        let committed: Vec<_> = snapshot
+            .entries
+            .iter()
+            .filter(|entry| ids.contains(&entry.node_id))
+            .collect();
+        let pending: Vec<_> = self
+            .pending
+            .iter()
+            .filter(|entry| ids.contains(&entry.node_id))
+            .collect();
+        committed != pending
+    }
     pub fn dirty(&self) -> bool {
         self.snapshot
             .as_ref()
@@ -299,7 +323,14 @@ impl TalentEditor {
         }
         self.pending = entries;
         self.level = level;
-        self.choice_node = None;
+        // Ordinary selections dismiss their flyout; the hero dialog retains
+        // its staged allocation/Apply controls until closed or replaced.
+        self.choice_node = self.choice_node.filter(|&id| {
+            view.graph
+                .hero_selection
+                .as_ref()
+                .is_some_and(|selector| selector.id == id)
+        });
         self.error_text = None;
         true
     }

@@ -359,6 +359,63 @@ fn talent_tree3_hero_dialog_anchors_to_ui_parent_and_covers_the_underlying_windo
 }
 
 #[test]
+fn talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+        let view = state.talents.as_mut().unwrap();
+        let selector = view.graph.hero_selection.as_ref().unwrap();
+        let (node, entry, subtree) = (
+            selector.id,
+            selector.entries[0].id,
+            selector.entries[0].subtree_id,
+        );
+        let mut editor = view.editor.clone();
+        assert!(editor.click(view, 80, node, false));
+        assert!(editor.purchase(view, 80, node, entry));
+        assert_eq!(
+            editor.choice_node,
+            Some(node),
+            "staged activation stays in the hero dialog"
+        );
+        view.editor = editor;
+        let mut shared = SharedContext::new();
+        shared.insert(state.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        apply_spellbook_postsetup(&state, &mut registry);
+        let apply = registry
+            .get(
+                registry
+                    .get_by_name(&format!("TalentHero{subtree}Apply"))
+                    .expect("dialog Apply Changes"),
+            )
+            .unwrap();
+        assert_eq!(apply.onclick.as_deref(), Some("talent:apply"));
+        let close = registry
+            .get(registry.get_by_name("TalentCloseChoice").unwrap())
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &close.widget_data else {
+            panic!("close button")
+        };
+        assert_eq!(
+            button.normal_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "RedButton-Exit".into()
+            ))
+        );
+        assert_eq!(
+            button.pushed_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "RedButton-Exit-Pressed".into()
+            ))
+        );
+    }
+}
+
+#[test]
 fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
