@@ -24,6 +24,13 @@ impl GuildRanks {
         }
         Ok(())
     }
+    fn synchronize_session_screen(&mut self, screen: SessionScreen) {
+        if !matches!(screen, SessionScreen::InWorld | SessionScreen::Loading) {
+            self.session = GuildRanksSession::default();
+            self.invite_targets.clear();
+            self.query_info = false;
+        }
+    }
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
@@ -166,7 +173,8 @@ impl GameClient {
     pub(super) fn update_guild_ranks(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_guild_ranks();
-            self.guild_ranks.session = GuildRanksSession::default();
+            self.guild_ranks
+                .synchronize_session_screen(self.account.session.screen);
             return Ok(());
         }
         if !self.guild_ranks.session.visible && self.guild_ranks.session.invitation.is_none() {
@@ -256,4 +264,26 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
             (name, text)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn guild_pending_invitation_survives_loading_but_not_logout() {
+        let invitation = shared::protocol::GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+        };
+        let mut guild = GuildRanks::default();
+        guild.session.invitation = Some(invitation.clone());
+        // Server delivers Added<InWorld> while the native client still loads terrain.
+        guild.synchronize_session_screen(SessionScreen::Loading);
+        assert_eq!(guild.session.invitation, Some(invitation.clone()));
+        guild.synchronize_session_screen(SessionScreen::InWorld);
+        assert_eq!(guild.session.invitation, Some(invitation));
+        guild.synchronize_session_screen(SessionScreen::Login);
+        assert!(guild.session.invitation.is_none());
+    }
 }
