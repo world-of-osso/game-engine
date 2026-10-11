@@ -1,3 +1,7 @@
+## 2026-10-11 — Native ready checks and pull countdowns
+
+[Group frames](systems/group-frames.md#native-ready-checks-and-pull-countdowns): server-authoritative assistant permissions and UTC countdown deadlines prevent stale reliable delivery from restarting timers. Both skins' party/raid native ready responses, AFK summaries and Retail timer stages proved with fresh private-redb two-account runs; three-account assistant proof retained. [Contract](../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11) owns test counts, inspected PNGs and Dummy-audio limitation.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.

@@ -102,6 +102,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Group frames also offer Target and Inspect when the member's unit is replicated.
 
 ### Leadership and conversion
+- [x] Native assistant assignment/revocation and leader/assistant ready-check/countdown permissions are server-authoritative; raid members cannot initiate either.
 - The leader can move a raid member to subgroup 1–8 with `game-engine-cli group subgroup --name <member> --subgroup <1..8>` (`SetRaidSubgroup`). Frames follow the authoritative roster; permissions and full-group rejection remain server-owned.
 - [x] Promote sends `PromoteGroupLeader`. The roster moves the leader, and "%s is now the group leader." is shown.
 - [x] Convert to raid sends `ConvertGroupToRaid` ("Party converted to Raid"). Convert to party sends `ConvertGroupToParty`: all members go to subgroup 1, "Raid converted to Party".
@@ -120,12 +121,12 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] "Everyone is Ready" / "Ready check finished" go to chat.
 
 ### Pull countdown (Retail PlayerCountdown)
-- [ ] `/countdown N` requests a server-authoritative group countdown; `/countdown 0` cancels. No duration is invented when N is absent.
-- [ ] Server start/replacement/cancellation/expiry messages reach every online group member; leaving clears the countdown. Use the authoritative UTC deadline on receipt, not a new duration from receipt time. Client/server wall clocks must be synchronized; no alternate timing path.
-- [ ] Both skins use Timer.lua's player countdown: bar above 30 seconds, medium numbers 11–30, large centred numbers 1–10; Timer.xml's digit pulse and native sound kits.
-- [ ] Raid Manager Countdown requests 10 seconds (`Blizzard_CompactRaidFrameManager.lua:1262`).
-- [ ] Leader/assistant permissions remain server-owned.
-- [ ] Timeout reports `RAID_MEMBERS_AFK` and `READY_CHECK_YOU_WERE_AFK` for unanswered participants, not explicit Not Ready responses.
+- [x] `/countdown N` requests a server-authoritative group countdown; `/countdown 0` cancels. No duration is invented when N is absent.
+- [x] Server start/replacement/cancellation/expiry messages reach every online group member; leaving clears the countdown. Use the authoritative UTC deadline on receipt, not a new duration from receipt time. Client/server wall clocks must be synchronized; no alternate timing path.
+- [x] Both skins use Timer.lua's player countdown: bar above 30 seconds, medium numbers 11–30, large centred numbers 1–10; Timer.xml's digit pulse and native sound kits.
+- [x] Raid Manager Countdown requests 10 seconds (`Blizzard_CompactRaidFrameManager.lua:1262`).
+- [x] Leader/assistant permissions remain server-owned.
+- [x] Timeout reports `RAID_MEMBERS_AFK` and `READY_CHECK_YOU_WERE_AFK` for unanswered participants, not explicit Not Ready responses.
 
 ### Chat commands
 - [x] `/invite` `/inv`, `/uninvite` `/un` `/u` `/kick`, `/promote` `/pr`, `/readycheck` `/rc`.
@@ -133,7 +134,6 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ### Not implemented
 - [ ] Party portraits for members never replicated (roster lacks race/customization/equipment), party-pet data outside replication interest and live acceptance; runtime member portraits and replicated pet health wiring exist above. Remaining `CompactRaidFrameManager` controls (role poll, settings, filters, markers, restrict-ping and bottom controls); ready/countdown shell is implemented in the current cycle.
-- [ ] Native assistant assignment/revocation and leader/assistant ready-check/countdown permissions (current cycle tests/live proof pending).
 - [ ] Main tank / main assist.
 - [ ] Group persistence across server restarts.
 - [ ] Loot method wiring: the Loot Rules window stays client-side.
@@ -191,6 +191,15 @@ The native process regression first failed on `79fe67663` with the live `Unconve
 - [x] Godot client, live (2026-09-30), two headless clients on a private server (UDP 5103); captures in `data/diagnostics/showbugs-2026-09-30/group/`: Fbshowbugs types `/invite Fbshowwar`; Fbshowwar's `PARTY_INVITE` popup (invitee-00) is clicked Accept; both show the party at the top left, the player first, with live health and mana (`inviter-01`, `invitee-01`); `/leave` removes it on both (`*-02`). Not covered live in Godot: target highlight, offline/dead, member menus, raid frames, ready check frame, frame clicks.
 
 ## Tests asserting this spec
+
+### Native countdown and ready-check acceptance — 2026-10-11
+
+- Behavioral proof on protocol `dbc2134`, server `12935c9`, engine `d23b56c4d`: protocol countdown wire 1/1; server group 41/41; native UI countdown 4/4, AFK 1/1, assistant permissions 1/1; native party projection 5/5. Logs: `data/diagnostics/readycheck2-2026-10-11/`. The zero-match `raid_manager` invocation is not evidence.
+- Fresh empty redb, private UDP54200, two newly created `fb_readycheck3_*` accounts: both skins' party/raid native input proved ready popups, Ready/Not Ready responses, all-ready/mixed/AFK summaries and unanswered-recipient chat, slash countdown bar/medium/large stages, manager10, cancellation and expiry. All 27 `rc3-*.png` captures individually inspected at 1280×720 in `/syncthing/AgentShared/2026-10-11/readycheck/`; paired JSON/input/audio observations in `data/diagnostics/readycheck3-2026-10-11/`.
+- Earlier three-account assistant initiation/manager/countdown/cancellation proof: `data/diagnostics/readycheck2-2026-10-11/`, `forever-raid-assistant-*` / `modern-raid-assistant-*` captures in the same PNG directory. Both skins' assistant popup and mixed-response captures inspected again.
+- Native audio events prove both clients playing tick file567474 and finish file567438. Sound-kit158565/158566 identifiers are not stream file IDs. Dummy output proves playback state, not human audibility; physical speaker/listening proof remains unclaimed.
+- Backing tests: shared-protocol `src/protocol_group_tests.rs`; server `crates/server/src/group/tests.rs`; engine `godot/ui-model/tests/group_countdown.rs`, `godot/ui-model/tests/readycheck_afk.rs`, `godot/ui-model/src/game/group_state_tests.rs`, `godot/rust/src/party_frames.rs`.
+
 
 - shared-protocol:
   - `src/group_tests.rs`: `Raid::new`, `collapse_to_party` including its 6-member rejection.
