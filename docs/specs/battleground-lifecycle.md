@@ -1,23 +1,42 @@
 # Native battleground lifecycle
 
-## Contract
+Native Retail Mainline Warsong Gulch PvP UI, backed by existing shared PvP messages and the [server lifecycle contract](../../../game-server/docs/specs/battleground-lifecycle.md). Source UI lives under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_PVPUI/Mainline`, `Blizzard_GroupFinder/Mainline/PVPHelper.*` and `Blizzard_PVPMatch`. [Implementation and proof](../wiki/systems/battlegrounds.md).
 
-Retail Mainline defines PvP UI and behavior; Forever changes art only. Implement Warsong Gulch (BattlemasterList1014, map2106): specific queue, invitation with Enter Battle/Leave Queue, source-position entry, flag pickup/capture world-state HUD, retained-roster scoreboard, match results and explicit origin return. Server owns identity, phase, scores, flags, outcome and return coordinates. UI requests echo match identity and remain pending until server response. Errors clear pending without discarding retained authoritative state. Match-end results open on the authoritative Ended transition even when the live scoreboard was previously closed. Authored type36 flag gameobjects use the normal display-ID model resolution and native interaction path.
+## What it must do
 
-## Source
+- [x] Expose the source-backed WSG specific queue, leave queue and server refusals. Requests remain pending until authority responds; errors preserve the retained snapshot and release pending.
+- [x] Show an invitation independently of queue-window visibility. Enter Battle/Leave Queue echo match identity; accepted invitations stop offering another acceptance.
+- [x] Render usable authored type36 flags and display server flag/score updates after entry. No locally invented objective outcome.
+- [x] Display retained roster/objective columns, All/Alliance/Horde filters and winner/defeat results. Ended opens results even after closing the live scoreboard; unknown honor is absent and uninstrumented combat columns are explicitly unknown.
+- [x] Leave through the existing authoritative match/origin transfer. Modern and Forever share the same native behavior.
 
-Local Retail export `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
-- `Blizzard_PVPUI/Mainline/Blizzard_PVPUI.xml`: PVPUIFrame563×428, specific battleground selection and HonorFrame queue button.
-- `Blizzard_GroupFinder/Mainline/PVPHelper.xml`: PVPReadyDialog306×210; EnterBattle/LeaveQueue buttons115×22. Lua uses accept/decline rather than starting a local match.
-- `Blizzard_PVPMatch/PVPMatchScoreboard.xml`:1024×420, All/Alliance/Horde tabs and roster table.
-- `Blizzard_PVPMatch/PVPMatchResults.xml`:1024×620 and end results/leave.
+Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 accept/leave buttons, PVPMatchScoreboard1024×420, PVPMatchResults1024×620. WSG is the only exposed selectable mode; unsupported queue modes are not fabricated.
 
-[Server lifecycle contract](../../../game-server/docs/specs/battleground-lifecycle.md) owns source content and policy. Source WSG capture limit3; team flags and score update from typed PvpStateUpdate. The source-backed WSG selection is the only selectable mode here; no unsupported queue modes are fabricated.
+## How it works
 
-## Explicit parity gaps
+- [Native battleground system and bounded proof](../wiki/systems/battlegrounds.md).
+- [Server source/content/transfer authority](../../../game-server/docs/specs/battleground-lifecycle.md).
 
-Preparation, invitation, match, drop/reset and exit timers are unsourced. No fabricated countdown. Honor awards/levels/honorable kills remain absent unless sent by server. Current server combat counters are not instrumented; native table displays em dashes, not false measured zeros. Results omit unknown rewards. Native chrome uses existing skin-aware metal/button art; full PvP-specific texture parity remains separate from functional proof.
+## Implementation inventory
 
-## Verification
+- `godot/ui-model/src/battleground.rs` — view, pending/actions, native panels/HUD, filters and results.
+- `godot/rust/src/battleground.rs`, `account.rs`, `lib.rs` — mounted native canvas, transport event dispatch and lifecycle.
+- `godot/rust/src/game_objects.rs` — normal source-display flag rendering and interaction.
+- `godot/network/src/lib.rs`, `ipc/wire.rs`, `godot/cli/src/{main,requests}.rs` — PvP receipt and typed diagnostic access.
+- `godot/network/examples/native_battleground_peers.rs`, `godot/tests/battleground_live.gd` — real-UDP support accounts and native-pointer driver.
 
-Behavioral tests exercise both skins, invitation independent of queue-window visibility, identity echo/pending/error recovery, authoritative HUD/roster/outcome and absent fabricated honor. Live multi-account/private UDP proof and inspected PNGs are required before completion; no UDP5000 or canonical DB writes.
+## Tests asserting this spec
+
+- `godot/ui-model/tests/battleground.rs` — identity/pending/refusal behavior; both-skin invitation, HUD, roster filters, rewards and closed-scoreboard/end transition.
+- `godot/rust/src/game_objects.rs::tests::battleground_flags_render_and_offer_object_use` — source flag type remains visible/usable; six related object tests pass.
+- Server `crates/server/src/maps/tests.rs::ten_warsong_players_accept_over_the_channel_then_ack_one_reserved_map` — retained ten-player typed-channel entry, physical source objectives, outcome and origin return.
+- Native private UDP5710 runs,2026-10-11: Modern and Forever, ten real accounts each; source-position travel acceleration, native object use, three captures, complete roster/outcome and all-player origin-map returns. Native invite decline in both skins; Modern automatic end-results regression. [Receipt boundaries](../wiki/systems/battlegrounds.md#bounded-live-proof).
+
+## Known gaps (current cycle)
+
+- [ ] Full merge acceptance remains lead-owned: protocol/server/engine suites and PNG inspection. Scoped UI/object tests and native builds pass; no master merge performed.
+- [ ] Exact PvP-specific textures/icons/chrome parity is not certified; current native panels reuse existing skin-aware frame/button art.
+
+## Out of scope
+
+Numeric preparation/invitation/match/drop/reset/exit timers and honor rewards lack source policy; never fabricate countdowns or grants. Current server combat counters are not instrumented; native columns do not claim measured zero. Other battleground/rated modes, durable reconnect/origin recovery and Retail dropped-flag visual parity are not implemented by this UI scope. See the server contract for those boundaries.

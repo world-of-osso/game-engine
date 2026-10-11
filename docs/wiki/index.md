@@ -47,6 +47,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
+
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 
 - [Toy-live2](systems/toy-box.md#toy-live2-catalog-lifetime-and-later-effects-2026-10-10) — catalog-before-world lifetime RED/GREEN; both-skin learning/account reset,15 sampled identities per skin and explicit visual/audio/mortar limits.

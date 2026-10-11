@@ -47,6 +47,11 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
         }),
     }
 }
+fn assert_size(registry: &FrameRegistry, name: &str, width: f32, height: f32) {
+    let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    assert_eq!(frame.width, ui_toolkit::frame::Dimension::Fixed(width));
+    assert_eq!(frame.height, ui_toolkit::frame::Dimension::Fixed(height));
+}
 fn receive(view: &mut PvpView, state: PvpSnapshot) {
     view.receive(PvpStateUpdate {
         snapshot: Some(state),
@@ -107,12 +112,14 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
                 .is_some()
         );
         assert!(registry.get_by_name("PVPUIFrame").is_none());
+        assert_size(&registry, "PVPReadyDialog", 306.0, 210.0);
         receive(&mut view, snapshot(BgPhase::InProgress, true));
         view.scoreboard = true;
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
         assert!(registry.get_by_name("PVPReadyDialog").is_none());
         assert!(registry.get_by_name("WorldStateAlwaysUpFrame").is_some());
+        assert_size(&registry, "PVPMatchScoreboard", 1024.0, 420.0);
         let row = registry.get_by_name("PVPMatchPlayer81").unwrap();
         let WidgetData::FontString(label) =
             registry.get(row).unwrap().widget_data.as_ref().unwrap()
@@ -137,8 +144,28 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
         context.insert(view);
         screen.sync(&context, &mut registry);
         assert!(registry.get_by_name("PVPMatchResults").is_some());
+        assert_size(&registry, "PVPMatchResults", 1024.0, 620.0);
         assert!(registry.get_by_name("PVPMatchLeaveButton").is_some());
         assert!(registry.get_by_name("PVPMatchHonorReward").is_none());
+        let mut losing_view = context.get::<PvpView>().unwrap().clone();
+        let mut losing_snapshot = snapshot(BgPhase::Ended, true);
+        losing_snapshot.battleground.as_mut().unwrap().team = BgTeam::B;
+        receive(&mut losing_view, losing_snapshot);
+        context.insert(losing_view);
+        screen.sync(&context, &mut registry);
+        let outcome = registry
+            .get(registry.get_by_name("PVPMatchOutcome").unwrap())
+            .unwrap();
+        let WidgetData::FontString(label) = outcome.widget_data.as_ref().unwrap() else {
+            panic!("outcome text missing")
+        };
+        assert_eq!(label.text, "Defeat");
+        context.insert(PvpView {
+            visible: true,
+            ..Default::default()
+        });
+        screen.sync(&context, &mut registry);
+        assert_size(&registry, "PVPUIFrame", 563.0, 428.0);
     }
     set_thread_skin(ActiveSkin::Modern);
 }
