@@ -9,7 +9,7 @@ publish = false
 path = "../../godot/rust/src/ipc/windows.rs"
 
 [dependencies]
-tokio = { version = "1", features = ["rt", "macros", "sync", "net", "io-util", "time"] }
+tokio = { version = "=1.53.1", features = ["rt", "macros", "sync", "net", "io-util", "time"] }
 serde = { version = "1", features = ["derive"] }
 rmp-serde = "1"
 

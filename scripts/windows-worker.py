@@ -72,13 +72,17 @@ def build_extension(root, engine):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
-    parser.add_argument('--phase', choices=('extension', 'runtime', 'import', 'entry-test', 'ipc-test', 'launcher-test', 'launcher'), required=True)
+    parser.add_argument('--phase', choices=('extension', 'runtime', 'import', 'entry-test', 'ipc-test', 'launcher-test', 'launcher', 'launcher-lock'), required=True)
     args = parser.parse_args()
     root = args.root.resolve()
     engine = root / 'source/game-engine'
     uv = root / 'tools/uv/uv.exe'
     configure(root)
-    if args.phase in ('launcher', 'launcher-test'):
+    if args.phase == 'launcher-lock':
+        launcher = root / 'source/game-launcher'
+        run('cargo', 'update', '--package', 'game-launcher',
+            '--manifest-path', str(launcher / 'Cargo.toml'), cwd=launcher)
+    elif args.phase in ('launcher', 'launcher-test'):
         launcher = root / 'source/game-launcher'
         command = 'test' if args.phase == 'launcher-test' else 'build'
         arguments = ['--lib'] if command == 'test' else ['--features', 'desktop']
