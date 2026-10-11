@@ -71,6 +71,35 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Retail 12.1.0.69933 local CASC; exact wowdev/WoWDBDefs layouts.
+    "CooldownSet": (
+        0xAA6C140C,
+        [("ID", "id"), ("ChrSpecializationID", 1), ("Field_11_1_5_59571_002", 2), ("PlayerConditionID", 3)],
+    ),
+    "CooldownSetSpell": (
+        0x0AC7B8F5,
+        [("ID", "id"), ("CooldownSetID", 1), ("SpellID", 2), ("Category", ("u8", 3)),
+         ("PlayerConditionID", 4), ("OrderIndex", 5), ("Flags", 6),
+         ("SpellCategoryID", 7), ("EquipSlot", 8), ("Field_12_1_0_68209_009", 9)],
+    ),
+    "CooldownSetLinkedSpell": (
+        0x11E4972F,
+        [("ID", "id"), ("SpellID", 0), ("Field_11_1_5_59571_001", 1), ("CooldownSetSpellID", "parent")],
+    ),
+    "AssistedCombat": (
+        0x5A49E0BC,
+        [("ID", "id"), ("ChrSpecializationID", 1)],
+    ),
+    "AssistedCombatStep": (
+        0x89C93557,
+        [("ID", "id"), ("SpellID", 1), ("AssistedCombatID", 2), ("OrderIndex", 3)],
+    ),
+    "AssistedCombatRule": (
+        0x43CDA4C0,
+        [("ID", "id"), ("OrderIndex", 1), ("Field_11_1_7_60520_002", 2), ("ConditionType", 3),
+         ("ConditionValue1", 4), ("ConditionValue2", 5), ("ConditionValue3", 6),
+         ("AssistedCombatStepID", "parent")],
+    ),
     # Local Retail build dcfc90fffd79ba00406ae46f5f657592 (12.1.0.69933).
     # Exact field orders from wowdev/WoWDBDefs at these layout hashes.
     "CraftingQuality": (

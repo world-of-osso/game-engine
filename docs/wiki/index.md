@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — local Retail CooldownSet and AssistedCombat extraction/layouts; rotation is authored, UI/live integration remains outstanding.
+
 - [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
 - [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
 
