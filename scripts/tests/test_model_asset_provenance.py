@@ -115,6 +115,30 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             for row in result["assets"]:
                 self.assertEqual(hashlib.md5((data / row["path"]).read_bytes()).hexdigest(), row["content_key"])
 
+    def test_additive_fragment_preserves_existing_index_and_rejects_conflicts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            identity = {"product": "wow", "build_key": "dcfc90fffd79ba00406ae46f5f657592", "build": "12.1.0.69933"}
+            def asset(fdid, raw):
+                receipt = chains.create_asset_receipt(identity, fdid, "m2", f"models/{fdid}.m2", raw, hashlib.md5(raw).hexdigest())
+                return receipt, raw
+            squirrel = asset(1129448, b"fixture squirrel")
+            soul = asset(574802, b"fixture soul")
+            chains.write_asset_index(data, identity, {"dependencies": {}, "metadata": []}, [squirrel], [])
+            base = data / "cache/model-asset-index.json"
+            original, inode = base.read_bytes(), base.stat().st_ino
+            staged = {"dependencies": {"574802.m2": {}}, "metadata": []}
+            fragment = chains.write_asset_fragment(data, identity, staged, [squirrel, soul], [], "petbattle")
+            self.assertEqual([r["fdid"] for r in fragment["assets"]], [574802])
+            self.assertEqual((base.read_bytes(), base.stat().st_ino), (original, inode))
+            path = data / "cache/model-asset-index-petbattle.json"
+            self.assertEqual(json.loads(path.read_text()), fragment)
+            with self.assertRaisesRegex(ValueError, "conflicting existing receipt"):
+                chains.write_asset_fragment(data, identity, staged, [asset(1129448, b"wrong squirrel")], [], "conflict")
+            self.assertFalse((data / "cache/model-asset-index-conflict.json").exists())
+            with self.assertRaisesRegex(ValueError, "fragment name"):
+                chains.write_asset_fragment(data, identity, staged, [soul], [], "../escape")
+
     def test_existing_different_scoped_bytes_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory)

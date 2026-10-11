@@ -7,6 +7,7 @@
 Approved acceptance criteria:
 
 - [x] A model request carries its authored product/build identity; identical FDIDs from Retail and Forever coexist without overwriting or borrowing bytes.
+- [x] Additive `cache/model-asset-index-<name>.json` receipt fragments permit authenticated offline publication without replacing existing data files. Runtime validates every fragment and rejects duplicate product/FDID/kind mappings; no fragment can override the base index.
 - [x] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
 - [x] SFID skins, SKID skeletons and external animations inherit their model's identity. Referenced textures retain source identity through decoding/material publication too.
 - [x] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
