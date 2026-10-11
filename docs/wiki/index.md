@@ -59,6 +59,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal cache, shared both-skin pages, genuine spec/difficulty filters, strict boss-model preparation and explicit realm-backed gaps.
+
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
 - [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
 

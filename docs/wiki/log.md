@@ -3234,3 +3234,8 @@ Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy 
 ## 2026-10-11 — raid-entry
 
 Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
+
+
+## 2026-10-11 — Adventure Guide continuation
+
+[Native Adventure Guide](systems/adventure-guide.md): genuine ItemSpec and legacy MapDifficulty filters, authored RPE tutorial content, strict all1889 Journal appearance coverage import and bounded authenticated Ozruk/Lucifron asset chains. Targeted CPU RED→GREEN retained; native pixel acceptance recorded separately, with unsupported realm-backed activity/keystone services explicit.
