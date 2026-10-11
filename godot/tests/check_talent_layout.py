@@ -53,8 +53,9 @@ def check_capture(directory, capture):
             failures.append(f"{name} painted bottom{y + height + outline:.2f} > footer{footer[1]}")
     pixels = decode_png(directory / capture["filename"])
     counts = {}
+    hero_color = 255 if capture.get("hero_selected") else (0, 255, 0)
     for name, color in [("TalentClassName", 255), ("TalentSpecName", 255),
-                        ("TalentHeroSelectionLabel", 255), ("TalentApplyText", 128),
+                        ("TalentHeroSelectionLabel", hero_color), ("TalentApplyText", 128),
                         ("TalentClassPoints", (0, 255, 0)), ("TalentSpecPoints", (0, 255, 0))]:
         counts[name] = count_ink(pixels, geometry[name], color)
         if counts[name] < 40:

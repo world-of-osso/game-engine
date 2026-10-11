@@ -234,7 +234,7 @@ fn talent_tree3_headers_separate_spec_name_and_green32px_points_and_forever_skin
         let expected = if skin == ActiveSkin::Forever {
             8116735
         } else {
-            5740021
+            5740409
         };
         assert_eq!(
             art.source,
@@ -247,6 +247,73 @@ fn talent_tree3_headers_separate_spec_name_and_green32px_points_and_forever_skin
             "Forever rank-box reskin only"
         );
     }
+}
+
+#[test]
+fn talent_tree3_edges_and_node_hover_use_authored_atlases() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    apply_spellbook_postsetup(&state, &mut registry);
+    let edge = registry
+        .get(registry.get_by_name("TalentEdge127166").unwrap())
+        .unwrap();
+    let Some(WidgetData::Texture(texture)) = &edge.widget_data else {
+        panic!("edge")
+    };
+    assert_eq!(
+        texture.source,
+        ui_toolkit::widgets::texture::TextureSource::FileDataId(4636998)
+    );
+    assert!(registry.get_by_name("TalentEdge127166Head").is_some());
+    let button = registry
+        .get(
+            registry
+                .get_by_name("TalentNode62121Entry80180Spell235450Button")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &button.widget_data else {
+        panic!("node button")
+    };
+    assert!(
+        button.highlight_texture.is_some(),
+        "Retail state-border hover"
+    );
+}
+
+#[test]
+fn talent_tree3_hero_selector_has_retail_headline_and_available_currency() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    apply_spellbook_postsetup(&state, &mut registry);
+    let label = registry
+        .get(registry.get_by_name("TalentHeroSelectionLabel").unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(text)) = &label.widget_data else {
+        panic!("hero heading")
+    };
+    assert_eq!(text.text, "HERO TALENTS");
+    let points = registry
+        .get(
+            registry
+                .get_by_name("TalentHeroPoints")
+                .expect("real hero currency"),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(text)) = &points.widget_data else {
+        panic!("hero points")
+    };
+    assert_eq!(text.text, "10");
 }
 
 #[test]

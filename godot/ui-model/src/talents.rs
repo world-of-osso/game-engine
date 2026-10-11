@@ -111,6 +111,48 @@ impl TalentView {
         }
         gates.into_values().collect()
     }
+    /// Retail shows the selected subtree's currency, or the highest eligible
+    /// subtree amount before selection. Currency identity comes from real costs.
+    pub fn hero_points(&self) -> i32 {
+        let Some(rules) = &self.rules else { return 0 };
+        let unspent = self.editor.unspent(self);
+        let selected = self.graph.hero_selection.as_ref().and_then(|node| {
+            node.entries
+                .iter()
+                .find(|entry| self.entry_rank(node, entry.id) > 0)
+                .map(|entry| entry.subtree_id)
+        });
+        self.graph
+            .heroes
+            .iter()
+            .filter(|tree| selected.is_none_or(|id| id == tree.id))
+            .map(|tree| {
+                let currencies: BTreeSet<_> = tree
+                    .nodes
+                    .iter()
+                    .filter_map(|node| rules.node(node.id))
+                    .flat_map(|node| {
+                        node.costs
+                            .iter()
+                            .chain(node.entries.iter().flat_map(|entry| &entry.costs))
+                            .chain(
+                                node.groups
+                                    .iter()
+                                    .filter_map(|&id| rules.group(id))
+                                    .flat_map(|group| &group.costs),
+                            )
+                    })
+                    .map(|cost| cost.currency_id)
+                    .collect();
+                unspent
+                    .iter()
+                    .filter(|(id, _)| currencies.contains(id))
+                    .map(|(_, amount)| amount)
+                    .sum()
+            })
+            .max()
+            .unwrap_or(0)
+    }
     pub fn node_rank(&self, node: &TalentNode) -> u32 {
         if self.editor.snapshot.is_some() {
             self.editor.node_rank(node.id)
