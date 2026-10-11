@@ -96,9 +96,9 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
         &window_portrait_slot("ProfessionsPortrait"),
         view.profession_icon,
     ));
-    if view.page != ProfessionPage::Specializations {
+    if matches!(view.page, ProfessionPage::Recipes | ProfessionPage::Recraft) {
         children.extend(skill_bar(view));
-    } else {
+    } else if view.page == ProfessionPage::Specializations {
         children.extend(specializations::page(view));
     }
     match view.page {

@@ -92,6 +92,52 @@ fn text(r: &FrameRegistry, n: &str) -> String {
     }
 }
 #[test]
+fn orders_scroll_reaches_second_page_with_forty_concrete_rows() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(ActiveSkin::Modern);
+    let mut v = view();
+    v.orders.selected = None;
+    let template = v.orders.snapshot.as_ref().unwrap().orders[0].clone();
+    v.orders.snapshot.as_mut().unwrap().orders = (1..=40)
+        .map(|id| {
+            let mut order = template.clone();
+            order.id = id;
+            order.customer = format!("Customer{id}");
+            order
+        })
+        .collect();
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(v);
+    let mut screen = Screen::new(professions_screen);
+    let mut registry = FrameRegistry::new(1280.0, 900.0);
+    screen.sync(&shared, &mut registry);
+    assert_eq!(text(&registry, "CraftingOrder1Customer"), "Customer1");
+    assert!(registry.scroll_lists.scroll_to("CraftingOrderList", 10_000));
+    screen.sync(&shared, &mut registry);
+    let offset = registry
+        .scroll_lists
+        .get("CraftingOrderList")
+        .unwrap()
+        .first_row;
+    assert!(offset > 300);
+    assert_eq!(
+        frame(&registry, "CraftingOrderListChild").position.top,
+        ui_toolkit::layout_values::Val::Px(-(offset as f32))
+    );
+    assert_eq!(text(&registry, "CraftingOrder40Customer"), "Customer40");
+    let ui_toolkit::layout_values::Val::Px(row_top) =
+        frame(&registry, "CraftingOrderRow40").position.top
+    else {
+        panic!("Expected pixel row position");
+    };
+    assert!(row_top - (offset as f32) < 469.0);
+}
+
+#[test]
 fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
     use game_engine_ui_model::professions_orders::OrderMenu;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
