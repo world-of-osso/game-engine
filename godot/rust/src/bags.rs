@@ -384,7 +384,6 @@ impl GameClient {
         action: &str,
         click: game_engine_ui_model::merchant::Click,
     ) -> Result<(), FrameError> {
-        godot_print!("TRANSMOG_SETUP_BAG_ACTION action={action} click={click:?}");
         if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
             if click.right && self.bank_bag_right_click(action)? {
                 return Ok(());
