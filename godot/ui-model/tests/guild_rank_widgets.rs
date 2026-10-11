@@ -117,6 +117,67 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
 }
 
 #[test]
+fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() {
+    use game_engine_ui_model::guild_ranks::{GuildCommand, GuildProfileField};
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            motd: "Meeting".into(),
+            info_text: "Tuesday raid\nThursday dungeon".into(),
+            members: vec![],
+        });
+        session.click("guild:edit_info", &Default::default());
+        assert_eq!(session.profile_editor, Some(GuildProfileField::Info));
+        let registry = mounted(&session);
+        let frame = registry
+            .get(registry.get_by_name("GuildProfileEditText").unwrap())
+            .unwrap();
+        let Some(WidgetData::EditBox(editor)) = &frame.widget_data else {
+            panic!("missing editor");
+        };
+        assert!(editor.multi_line);
+        assert_eq!(editor.max_letters, Some(499));
+        assert_eq!(editor.text, "Tuesday raid\nThursday dungeon");
+        let texts = [(
+            "GuildProfileEditText".into(),
+            "Friday raid\nSunday dungeon".into(),
+        )]
+        .into_iter()
+        .collect();
+        session.click("guild:profile_accept", &texts);
+        session.click("guild:edit_info", &Default::default());
+        session.click("guild:profile_accept", &texts);
+        assert_eq!(
+            session.commands,
+            vec![GuildCommand::SetInfo("Friday raid\nSunday dungeon".into())]
+        );
+        assert_eq!(
+            session.profile.as_ref().unwrap().info_text,
+            "Tuesday raid\nThursday dungeon"
+        );
+        session.apply_profile(GuildStateUpdate {
+            guild: None,
+            message: None,
+            error: Some("You don't have permission to do that.".into()),
+        });
+        assert!(!session.profile_waiting);
+        assert_eq!(
+            session.profile.as_ref().unwrap().info_text,
+            "Tuesday raid\nThursday dungeon"
+        );
+        session.apply(state(2));
+        session.click("guild:edit_info", &Default::default());
+        assert!(session.profile_editor.is_none());
+    }
+}
+
+#[test]
 fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
