@@ -62,6 +62,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 | `godot/ui-model/src/ui/screens/guild_bank_frame_component.rs` | Retail GuildBankFrame layout |
 
 ## Tests asserting this spec
+- `godot/tests/guild_vault_live.gd`: private guild master right-clicks an authentic vault and waits for both vault and embedded backpack. The combined native canvas registers plain vault and portrait backpack borders before projection.
 - `src/game/networking/game_objects.rs` (tests)
 - `src/network_runtime/replication.rs` (`game_objects_mirror_with_their_position`)
 - `src/game/networking/quests_tests.rs` (`using_a_mirrored_game_object_sends_use_game_object_and_its_role_opens_a_frame`)
