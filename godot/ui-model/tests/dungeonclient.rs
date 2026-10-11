@@ -139,6 +139,70 @@ fn achievements_art_statistics_never_reuses_recent_achievement_rows() {
     );
 }
 
+#[test]
+fn achievements_art_rows_scroll_and_cursor_append_preserves_expansion_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![category()],
+            next_id: None,
+        });
+        window.action("achievement:category:14808");
+        let entries = (633..=650)
+            .map(|id| AchievementCatalogEntry {
+                achievement_id: id,
+                name: format!("Dungeon achievement {id}"),
+                ..achievement()
+            })
+            .collect();
+        window.apply(AchievementCatalogPage::Category {
+            category_id: 14808,
+            achievements: entries,
+            next_id: Some(650),
+        });
+        window.action("achievement:row:633");
+        assert_eq!(
+            window.action("achievement:more_rows"),
+            vec![QueryAchievementCatalog::Category {
+                category_id: 14808,
+                after_id: 650
+            }]
+        );
+        window.apply(AchievementCatalogPage::Category {
+            category_id: 14808,
+            achievements: vec![AchievementCatalogEntry {
+                achievement_id: 651,
+                ..achievement()
+            }],
+            next_id: None,
+        });
+        assert_eq!(
+            window.expanded_achievement,
+            Some(633),
+            "appending a cursor page must not collapse the selected row"
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(window);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(achievement_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(
+            registry
+                .scroll_lists
+                .scroll_by("AchievementRowsScrollBox", 10000)
+        );
+        screen.sync(&shared, &mut registry);
+        assert_eq!(text(&registry, "Achievement651Name"), "Stormwind Stockade");
+        let state = registry
+            .scroll_lists
+            .get("AchievementRowsScrollBox")
+            .unwrap();
+        assert_eq!(state.first_row, state.geometry.max_first_row());
+    }
+}
+
 fn assets(skin: ActiveSkin) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -839,14 +903,16 @@ fn dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable() {
         achievements: entries,
         next_id: Some(632),
     });
-    window.action("achievement:more_rows");
-    window.action("achievement:more_rows");
     assert_eq!(
         window.action("achievement:more_rows"),
         vec![QueryAchievementCatalog::Category {
             category_id: 14808,
             after_id: 632
         }]
+    );
+    assert!(
+        window.action("achievement:more_rows").is_empty(),
+        "a cursor already in flight is not sent twice"
     );
     let mut stockade = achievement();
     stockade.criteria = (1..=16).map(criterion).collect();
