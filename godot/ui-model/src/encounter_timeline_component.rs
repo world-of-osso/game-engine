@@ -20,6 +20,98 @@ pub struct EncounterTimelineScreen {
 }
 struct DynName(String);
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::protocol::{EncounterTimelineEvent, EncounterTimer};
+    use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, screen::Screen};
+    #[test]
+    fn timeline_screen_both_skins_countdown_text_track_and_warning_visibility() {
+        for skin in [
+            ui_toolkit::atlas::ActiveSkin::Modern,
+            ui_toolkit::atlas::ActiveSkin::Forever,
+        ] {
+            ui_toolkit::atlas::set_thread_skin(skin);
+            let mut timeline = EncounterTimeline::default();
+            let spell = |_: u32| ("Lightning Bolt".into(), 136048);
+            timeline.receive(
+                EncounterTimelineEvent::Timers {
+                    caster: 3669,
+                    timers: vec![EncounterTimer {
+                        event_id: 2,
+                        spell_id: 20805,
+                        remaining_ms: 7312,
+                        duration_ms: 7312,
+                        conditional: true,
+                    }],
+                },
+                spell,
+            );
+            timeline.advance(2.0);
+            timeline.receive(
+                EncounterTimelineEvent::Cast {
+                    caster: 3669,
+                    spell_id: 20805,
+                    severity: EncounterSeverity::Low,
+                },
+                spell,
+            );
+            let mut state = EncounterTimelineScreen {
+                timeline,
+                enabled: true,
+                bars: true,
+                warnings: true,
+                preview: false,
+            };
+            let mut ctx = SharedContext::new();
+            ctx.insert(state.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            let mut screen = Screen::new(encounter_timeline_screen);
+            screen.sync(&ctx, &mut registry);
+            let label = registry
+                .get(registry.get_by_name("EncounterTimer1Duration").unwrap())
+                .unwrap();
+            let Some(WidgetData::FontString(label)) = &label.widget_data else {
+                panic!("countdown text");
+            };
+            assert_eq!(label.text, "5.3");
+            assert!(
+                !registry
+                    .get(registry.get_by_name("MinorEncounterWarnings").unwrap())
+                    .unwrap()
+                    .hidden
+            );
+            assert!(
+                registry
+                    .get(registry.get_by_name("CriticalEncounterWarnings").unwrap())
+                    .unwrap()
+                    .hidden
+            );
+            state.bars = false;
+            ctx.insert(state.clone());
+            screen.sync(&ctx, &mut registry);
+            assert!(registry.get_by_name("EncounterTrackEvent1").is_some());
+            state.enabled = false;
+            state.warnings = false;
+            ctx.insert(state);
+            screen.sync(&ctx, &mut registry);
+            assert!(
+                registry
+                    .get(registry.get_by_name("EncounterTimeline").unwrap())
+                    .unwrap()
+                    .hidden
+            );
+            assert!(
+                registry
+                    .get(registry.get_by_name("MinorEncounterWarnings").unwrap())
+                    .unwrap()
+                    .hidden
+            );
+        }
+        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
+    }
+}
+
 pub fn encounter_timeline_screen(ctx: &SharedContext) -> Element {
     let view = ctx
         .get::<EncounterTimelineScreen>()
