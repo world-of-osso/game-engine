@@ -73,7 +73,8 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
         GAMEOBJECT_TYPE_GUILD_BANK
         | GAMEOBJECT_TYPE_CHAIR
         | GAMEOBJECT_TYPE_MEETINGSTONE
-        | GAMEOBJECT_TYPE_RITUAL => Some(ActiveWowCursor::Interact),
+        | GAMEOBJECT_TYPE_RITUAL
+        | shared::protocol::GAMEOBJECT_TYPE_KEYSTONE_RECEPTACLE => Some(ActiveWowCursor::Interact),
         _ => None,
     }
 }
@@ -303,6 +304,12 @@ mod tests {
         );
         // GAMEOBJECT_TYPE_GENERIC decoration is not shown as usable.
         assert_eq!(game_object_cursor(5), None);
+    }
+
+    #[test]
+    fn mythic_font_renders_and_has_interaction_cursor() {
+        assert_eq!(game_object_cursor(49), Some(ActiveWowCursor::Interact));
+        assert!(game_object_is_renderable(49));
     }
 
     #[test]
