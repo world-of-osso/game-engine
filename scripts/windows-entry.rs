@@ -22,8 +22,11 @@ fn launch() -> std::io::Result<i32> {
     let directory = entry
         .parent()
         .expect("entry executable has a parent directory");
+    // CreateProcessW cannot use a current directory beyond MAX_PATH. Both runtime
+    // and project are absolute; launching from the volume root supports long installs.
+    let working_dir = directory.ancestors().last().expect("entry path is rooted");
     let status = Command::new(directory.join("runtime/godot.exe"))
-        .current_dir(directory)
+        .current_dir(working_dir)
         .arg("--path")
         .arg(directory.join("godot"))
         .arg("--")
