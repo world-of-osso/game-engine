@@ -5,7 +5,7 @@ Retail Mainline roll prompts and loot history, transported by `LootChannel` and 
 ## What it must do
 - [ ] Show up to four 277×67 prompts; queue additional rolls. Need is disabled with the server's reason; Greed is replaced by Transmog where eligible; Pass remains available.
 - [ ] Send only roll identity and choice; server supplies RNG, eligibility, timeout, resolution and delivery. Confirmation removes the local prompt; expired prompts cannot submit.
-- [ ] Announce new choices and winners once in chat. `/loot` and `/lootrolls` toggle the 261×590 loot-history panel with shared native scrolling and participant-roll tooltips.
+- [ ] Announce new choices, authoritative numeric roll results on completion, and winners once in chat. `/loot` and `/lootrolls` toggle the 261×590 loot-history panel with shared native scrolling and participant-roll tooltips.
 - [ ] Replay history on world entry; no invented winner or local inventory grant.
 - [ ] Leader-only Group Loot/Personal and Uncommon/Rare/Epic threshold actions in the existing unit menu.
 - [ ] Same elements, dimensions and behaviors in Modern and Forever; product-local atlas art only.

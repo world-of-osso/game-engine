@@ -84,6 +84,33 @@ fn transmog_replaces_greed_and_receiving_same_winner_twice_does_not_repeat_chat(
 }
 
 #[test]
+fn completed_roll_prints_numeric_results_once_before_winner() {
+    let mut state = GroupLootState::default();
+    let mut roll = snapshot(3);
+    state.apply(roll.clone());
+    roll.players[0].response = Some(shared::loot::LootRollEntry {
+        player_id: 11,
+        choice: LootRollChoice::Greed,
+        roll_value: 73,
+    });
+    assert_eq!(
+        state.apply(roll.clone()),
+        ["Alice has selected Greed for: Moss Agate"]
+    );
+    roll.complete = true;
+    roll.winner = Some(11);
+    roll.delivered = true;
+    assert_eq!(
+        state.apply(roll.clone()),
+        [
+            "Greed Roll - 73 for Moss Agate by Alice",
+            "Alice won: Moss Agate"
+        ]
+    );
+    assert!(state.apply(roll).is_empty());
+}
+
+#[test]
 fn countdown_hides_expired_prompt_but_keeps_history_and_cannot_submit_for_other_player() {
     let mut state = GroupLootState::default();
     state.apply(snapshot(1));

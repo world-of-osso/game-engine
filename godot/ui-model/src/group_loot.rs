@@ -142,6 +142,21 @@ fn chat_changes(previous: &GroupLootRoll, current: &GroupLootRoll) -> Vec<String
         lines.push(line);
     }
     if current.complete && !previous.complete {
+        // GlobalStrings LOOT_ROLL_ROLLED_NEED/GREED: announce server RNG only
+        // on resolution, not on selection or history replay.
+        for player in &current.players {
+            if let Some(response) = player.response
+                && response.choice != LootRollChoice::Pass
+            {
+                lines.push(format!(
+                    "{} Roll - {} for {} by {}",
+                    choice_name(response.choice),
+                    response.roll_value,
+                    item_name(current),
+                    player.name
+                ));
+            }
+        }
         lines.push(result_text(current));
     }
     lines
