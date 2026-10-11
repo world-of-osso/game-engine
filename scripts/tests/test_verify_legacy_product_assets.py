@@ -142,6 +142,14 @@ class LegacyProductTests(unittest.TestCase):
         self.assertEqual(row['status'], 'parent_content_mismatch')
         self.assertFalse((data / 'cache/model-asset-index.json').exists())
 
+    def test_scoped_texture_miss_publishes_only_authenticated_texture(self):
+        raw = b'BLP2 authentic'
+        data, _, target, identity, asset, roots = self.fixture(content=hashlib.md5(raw).digest())
+        asset.update(kind='missing_scoped_bytes', actual_build='a' * 32)
+        row = verifier.publish_miss(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual(target.read_bytes(), raw)
+
     def test_missing_bytes_do_not_publish(self):
         data, source, target, identity, asset, keys = self.fixture(content=hashlib.md5(b'BLP2 authentic').digest())
         source.unlink()
