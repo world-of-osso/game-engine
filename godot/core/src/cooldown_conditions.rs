@@ -182,8 +182,10 @@ fn read_condition(cells: &Cells) -> Result<ConditionRow, String> {
         aura_logic: number(cells, "AuraSpellLogic")?,
         unsupported,
     };
-    // The referenced local rows all carry ClientExecutable=1. No other flag is assumed.
-    if number::<u32>(cells, "Flags")? != 1 {
+    // ClientExecutable selects the execution context. WithinOrAboveRecord only
+    // changes ContentTuning bounds (ConditionMgr::IsPlayerMeetingCondition);
+    // nonzero ContentTuningID is already rejected as an unsupported field.
+    if number::<u32>(cells, "Flags")? & !(0x01 | 0x20) != 0 {
         row.unsupported.push("Flags".into());
     }
     Ok(row)
