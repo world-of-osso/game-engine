@@ -1,3 +1,7 @@
+## 2026-10-11 — Native group loot
+
+[Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
