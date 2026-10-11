@@ -49,6 +49,7 @@ pub mod chat_frame_component;
 pub mod collections_component;
 #[path = "game/group_state.rs"]
 pub mod group_state;
+pub mod guild_charters;
 pub mod pet_journal;
 pub mod professions;
 pub mod professions_catalog;
