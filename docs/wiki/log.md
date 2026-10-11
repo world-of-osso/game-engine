@@ -3235,3 +3235,6 @@ Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy 
 ## 2026-10-11 — PvP progression bounded proof
 
 Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--verified-2026-10-11) with real-login combat-state and terrain-before-instance RED/GREEN, actual-aura talent activation, both-skin private5790 selection/toggle/relog/wallet evidence, and links to source/import and unresolved-policy contracts.
+## 2026-10-11 — raid-entry
+
+Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
