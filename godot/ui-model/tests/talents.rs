@@ -269,7 +269,13 @@ fn talent_tree3_edges_and_node_hover_use_authored_atlases() {
         texture.source,
         ui_toolkit::widgets::texture::TextureSource::FileDataId(4636998)
     );
-    assert!(registry.get_by_name("TalentEdge127166Head").is_some());
+    let head = registry
+        .get(registry.get_by_name("TalentEdge127166Head").unwrap())
+        .unwrap();
+    assert_eq!(
+        (head.resolved_width(), head.resolved_height()),
+        (14.0, 12.0)
+    );
     let button = registry
         .get(
             registry
@@ -314,6 +320,7 @@ fn talent_tree3_hero_selector_has_retail_headline_and_available_currency() {
         panic!("hero points")
     };
     assert_eq!(text.text, "10");
+    assert_eq!(text.font_size, 24.0); // SystemFont_Huge2 Roman.
     let selector = registry
         .get(registry.get_by_name("HeroSpecButton").unwrap())
         .unwrap();

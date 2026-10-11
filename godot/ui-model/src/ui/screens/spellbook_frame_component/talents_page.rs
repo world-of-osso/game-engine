@@ -291,10 +291,17 @@ fn render_edge(
         rotation,
         scale,
     );
+    let head_atlas = format!("talents-arrow-head-{color}");
+    let head = resolve_region(&head_atlas, ActiveSkin::Modern).expect("authored arrow head");
     children.extend(rotated_atlas(
         &format!("TalentEdge{}Head", edge.id),
-        &format!("talents-arrow-head-{color}"),
-        [end[0] - 9.0, end[1] - 9.0, 18.0, 18.0],
+        &head_atlas,
+        [
+            end[0] - head.width / 2.0,
+            end[1] - head.height / 2.0,
+            head.width,
+            head.height,
+        ],
         rotation + std::f32::consts::FRAC_PI_2,
         scale,
     ));
@@ -973,7 +980,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
                 name: "TalentHeroSelectionLabel".into(),
                 text: "HERO TALENTS",
                 rect: [center_x - 180.0, 60.0, 360.0, 24.0],
-                size: 22.0,
+                size: 24.0,
                 color: "0.0,1.0,0.0,1.0",
                 justify: "CENTER",
             },
@@ -989,13 +996,15 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
             scale,
         ));
         let text = points.to_string();
-        let x = center_x - 15.0 - if text.starts_with('1') { 2.0 } else { 0.0 };
+        let (width, _) =
+            measure_text(&text, GameFont::FrizQuadrata, 24.0).expect("hero currency font");
+        let x = center_x - width / 2.0 - if text.starts_with('1') { 2.0 } else { 0.0 };
         children.extend(label(
             Label {
                 name: "TalentHeroPoints".into(),
                 text: &text,
-                rect: [x, 197.0, 30.0, 30.0],
-                size: 22.0,
+                rect: [x, 197.0, width, 30.0],
+                size: 24.0,
                 color: "0.0,1.0,0.0,1.0",
                 justify: "CENTER",
             },
