@@ -411,6 +411,13 @@ fn talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control() {
         let close = registry
             .get(registry.get_by_name("TalentCloseChoice").unwrap())
             .unwrap();
+        let dialog = registry
+            .get(registry.get_by_name("TalentChoiceFlyout").unwrap())
+            .unwrap();
+        assert!(
+            close.frame_level > dialog.frame_level,
+            "close art must paint above the modal background"
+        );
         let Some(WidgetData::Button(button)) = &close.widget_data else {
             panic!("close button")
         };
