@@ -121,7 +121,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ### Pull countdown (Retail PlayerCountdown)
 - [ ] `/countdown N` requests a server-authoritative group countdown; `/countdown 0` cancels. No duration is invented when N is absent.
-- [ ] Server start/replacement/cancellation/expiry messages reach every online group member; leaving clears the countdown.
+- [ ] Server start/replacement/cancellation/expiry messages reach every online group member; leaving clears the countdown. Use the authoritative UTC deadline on receipt, not a new duration from receipt time. Client/server wall clocks must be synchronized; no alternate timing path.
 - [ ] Both skins use Timer.lua's player countdown: bar above 30 seconds, medium numbers 11–30, large centred numbers 1–10; Timer.xml's digit pulse and native sound kits.
 - [ ] Raid Manager Countdown requests 10 seconds (`Blizzard_CompactRaidFrameManager.lua:1262`).
 - [ ] Leader/assistant permissions remain server-owned.
