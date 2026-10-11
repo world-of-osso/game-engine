@@ -1,6 +1,6 @@
 ## 2026-10-11 — Priority no-install receipt closure
 
-[Receipt closure](systems/offline-asset-closure.md#priority-receipt-closure--verified-2026-10-11):1,111 numeric assets/195 authenticated owner aliases rehashed against frozen local-CASC roots;42 correct payloads staged without overwriting legacy bytes. Gathering, dungeon, demon, giver and regional roots authenticated;32 authored NPC profiles restored via backed-up cache replacement. All31 saved both-skin body meshes inspected; fresh seven-race recheck pending. Retail8203433 root absence and broader catalog acceptance keep certification FAIL.
+[Receipt closure](systems/offline-asset-closure.md#priority-receipt-closure--verified-2026-10-11):1,111 numeric assets/195 authenticated owner aliases rehashed against frozen local-CASC roots;42 correct payloads staged without overwriting legacy bytes. Gathering, dungeon, demon, giver and regional asset roots authenticated.32 staged NPC profiles rejected: Extra/Geoset zero-filled unknown-key chunks fail full root hashes; original cache restored.31 both-skin race bodies inspected, fresh seven-race14/14 proof retained (whole-scene zero-error result predates NPC rollback). Metadata gaps and Retail8203433 root absence keep certification FAIL.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
