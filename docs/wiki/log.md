@@ -1,3 +1,7 @@
+## 2026-10-11 — Cooldown/assist authored-data audit
+
+[Audit](investigations/cooldown-assist-data.md): all six local Retail DB2 tables extracted with no dropped records; authored categories/step priorities and explicit predicate gaps, five core and four registry/projection tests. Runtime viewer/settings/clock adapter is under verification; assistant casting/highlights and private combat proof remain open. No shared realm/5000 changes.
+
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
