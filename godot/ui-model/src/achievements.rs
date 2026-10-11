@@ -49,6 +49,8 @@ pub struct AchievementWindow {
     pub scope: AchievementScope,
     pub summary: Option<AchievementSummary>,
     pub detail: Option<AchievementCatalogEntry>,
+    pub tracked: Vec<AchievementCatalogEntry>,
+    pub tracking_error: Option<String>,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
 }
@@ -132,6 +134,11 @@ impl AchievementWindow {
     }
     fn select_action(&mut self, action: &str, requests: &mut Vec<QueryAchievementCatalog>) {
         if let Some(id) = action
+            .strip_prefix("achievement:track:")
+            .and_then(|id| id.parse().ok())
+        {
+            self.toggle_tracking(id);
+        } else if let Some(id) = action
             .strip_prefix("achievement:open:")
             .and_then(|id| id.parse().ok())
         {
@@ -169,6 +176,29 @@ impl AchievementWindow {
             }
         }
     }
+    /// Retail AchievementUI.lua:1616-1643: manual tracking, ten-entry cap, no earned rows.
+    fn toggle_tracking(&mut self, id: u32) {
+        self.tracking_error = None;
+        if self.tracked.iter().any(|entry| entry.achievement_id == id) {
+            self.tracked.retain(|entry| entry.achievement_id != id);
+            return;
+        }
+        let Some(entry) = self
+            .entries()
+            .iter()
+            .find(|entry| entry.achievement_id == id)
+        else {
+            return;
+        };
+        if entry.earned || entry.flags & 1 != 0 {
+            self.tracking_error = Some("Completed achievements cannot be tracked".into());
+        } else if self.tracked.len() == 10 {
+            self.tracking_error = Some("You can track at most 10 achievements".into());
+        } else {
+            self.tracked.push(entry.clone());
+        }
+    }
+
     fn open_achievement(&mut self, id: u32, requests: &mut Vec<QueryAchievementCatalog>) {
         self.visible = true;
         self.selected_category = None;
@@ -245,6 +275,24 @@ impl AchievementWindow {
                 achievement_id,
                 entry,
             } => {
+                if self
+                    .tracked
+                    .iter()
+                    .any(|row| row.achievement_id == achievement_id)
+                {
+                    if let Some(row) = entry.as_ref().filter(|row| !row.earned) {
+                        if let Some(tracked) = self
+                            .tracked
+                            .iter_mut()
+                            .find(|row| row.achievement_id == achievement_id)
+                        {
+                            *tracked = row.clone();
+                        }
+                    } else {
+                        self.tracked
+                            .retain(|row| row.achievement_id != achievement_id);
+                    }
+                }
                 if self.selected_category.is_none()
                     && self.selected_achievement == Some(achievement_id)
                 {
@@ -339,6 +387,7 @@ impl AchievementWindow {
         for entry in category_rows
             .chain(recent_rows)
             .chain(self.detail.iter_mut())
+            .chain(self.tracked.iter_mut())
             .filter(|entry| entry.achievement_id == achievement_id)
         {
             merge_criteria(&mut entry.criteria, &criteria);
@@ -360,6 +409,14 @@ impl AchievementWindow {
                 });
             } else if let Some(achievement_id) = self.selected_achievement {
                 requests.push(QueryAchievementCatalog::Achievement { achievement_id });
+            }
+        }
+        for entry in &self.tracked {
+            let request = QueryAchievementCatalog::Achievement {
+                achievement_id: entry.achievement_id,
+            };
+            if !requests.contains(&request) {
+                requests.push(request);
             }
         }
         // A live change needs a post-change response even if an older first page is
@@ -903,6 +960,26 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
                 ),
                 &text,
                 (240.0, 425.0 + index as f32 * 20.0, 546.0, 20.0),
+                WHITE,
+                "",
+            ));
+        }
+        let tracked = window
+            .tracked
+            .iter()
+            .any(|row| row.achievement_id == entry.achievement_id);
+        content.extend(panel_button(
+            "AchievementTrack".into(),
+            if tracked { "Stop tracking" } else { "Track" },
+            &format!("achievement:track:{}", entry.achievement_id),
+            !entry.earned && entry.flags & 1 == 0,
+            (640.0, 397.0, 146.0, 24.0),
+        ));
+        if let Some(error) = &window.tracking_error {
+            content.extend(label(
+                "AchievementTrackingError".into(),
+                error,
+                (240.0, 577.0, 546.0, 20.0),
                 WHITE,
                 "",
             ));
