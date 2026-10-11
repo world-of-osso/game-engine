@@ -32,6 +32,40 @@ fn connect(server: &mut App, bridge: &mut NetworkBridge) {
         thread::sleep(Duration::from_millis(5));
     }
 }
+#[test]
+fn guild_charter_registrar_crosses_real_udp() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 8264).unwrap();
+    connect(&mut server, &mut bridge);
+    let reply = GuildCharterReply::Registrar(GuildRegistrarSnapshot {
+        npc: 810,
+        npc_name: "Aldwin".into(),
+        charter_cost: 1000,
+        charter_guid: None,
+    });
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<GuildCharterReply>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<GuildChannel>(reply.clone());
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut received = None;
+    while received.is_none() && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event {
+                if message.is::<GuildCharterReply>() {
+                    received = Some(message.downcast::<GuildCharterReply>().ok().unwrap());
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    assert_eq!(received, Some(reply));
+}
+
 #[derive(Resource, Default)]
 struct Declines(usize);
 fn capture_declines(
