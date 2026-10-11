@@ -69,6 +69,7 @@ pub(crate) struct QuestHud {
     log_ui: Option<Gd<RegistryUi>>,
     /// The quest the open `ABANDON_QUEST` popup is about.
     pending_abandon: Option<u32>,
+    pending_share: Option<u64>,
     /// Quest givers already sent in a `QuestGiverStatusQuery`; the server re-sends
     /// their status after every quest change.
     queried: HashSet<u64>,
@@ -209,6 +210,17 @@ impl GameClient {
                 for line in self.account.quests.complete_quest(&complete) {
                     self.add_quest_notice(&line);
                 }
+            }
+            QuestMessage::ShareOffer(offer) => {
+                self.quests.pending_share = Some(offer.offer_id);
+                self.group_frames
+                    .popups
+                    .push(game_engine_ui_model::quest_actions::share_popup(&offer));
+            }
+            QuestMessage::PushResult(result) => {
+                self.add_quest_notice(&game_engine_ui_model::quest_runtime::quest_push_text(
+                    &result,
+                ));
             }
             QuestMessage::Failed(failed) => {
                 self.add_world_error(quest_failed_text(failed.reason))?;
@@ -427,6 +439,18 @@ impl GameClient {
         &mut self,
         results: &[PopupResult],
     ) -> Result<(), FrameError> {
+        for result in results
+            .iter()
+            .filter(|result| result.key == game_engine_ui_model::quest_actions::QUEST_ACCEPT_POPUP)
+        {
+            if let Some(offer_id) = self.quests.pending_share.take() {
+                self.account
+                    .send_quest_request(NpcInteractionRequest::RespondShare {
+                        offer_id,
+                        accepted: result.outcome == PopupOutcome::Accepted,
+                    })?;
+            }
+        }
         for result in results
             .iter()
             .filter(|result| result.key == ABANDON_QUEST_POPUP)

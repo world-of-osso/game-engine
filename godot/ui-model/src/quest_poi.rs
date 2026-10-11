@@ -181,6 +181,8 @@ mod tests {
             title: "Beating Them Back!".into(),
             zone: String::new(),
             completed,
+            expires_at: None,
+            failed: false,
             repeatability: shared::protocol::QuestRepeatability::Normal,
             level: 1,
             sort_id: 6170,
