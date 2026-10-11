@@ -25,7 +25,7 @@ fn journal_text_uses_explicit_spell_references_without_a_section_spell() {
             &SpellTextContext::default(),
         )
         .unwrap();
-    assert_eq!(text, "The plates reflect spells for 10 seconds.");
+    assert_eq!(text, "The plates reflect spells for 10 sec.");
 }
 
 #[test]

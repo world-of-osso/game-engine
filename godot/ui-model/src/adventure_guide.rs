@@ -24,6 +24,12 @@ pub enum Page {
     Loot,
     Model,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LootFilter {
+    Class,
+    Spec,
+    Slot,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct View {
     pub visible: bool,
@@ -40,6 +46,7 @@ pub struct View {
     pub class: u32,
     pub spec: u32,
     pub slot: u32,
+    pub filter_menu: Option<LootFilter>,
     pub search: String,
     pub collapsed: BTreeSet<u32>,
     pub lockouts: Vec<(u32, String)>,
@@ -61,6 +68,7 @@ impl Default for View {
             class: 0,
             spec: 0,
             slot: 0,
+            filter_menu: None,
             search: String::new(),
             collapsed: BTreeSet::new(),
             lockouts: Vec::new(),
@@ -167,15 +175,26 @@ impl View {
                     && (self.class == 0
                         || i.class_mask == -1
                         || i.class_mask & (1 << (self.class - 1)) != 0)
-                    && (self.spec == 0
-                        || self
-                            .catalog
-                            .item_specs
-                            .get(&i.id)
-                            .is_some_and(|specs| specs.contains(&self.spec)))
+                    && self.matches_specialization(i.id)
                     && i.name.to_lowercase().contains(&search)
             })
             .collect()
+    }
+    fn matches_specialization(&self, item: u32) -> bool {
+        if self.class == 0 && self.spec == 0 {
+            return true;
+        }
+        // ObjectMgr::LoadItemTemplates: no authored specialization means unrestricted.
+        let Some(specs) = self.catalog.item_specs.get(&item) else {
+            return true;
+        };
+        if self.spec != 0 {
+            return specs.contains(&self.spec);
+        }
+        self.catalog
+            .specs
+            .iter()
+            .any(|spec| spec.class == self.class && specs.contains(&spec.id))
     }
     pub fn apply(&mut self, action: &str) -> Result<(), String> {
         let mut parts = action.split(':');
@@ -241,12 +260,32 @@ impl View {
             }
             "difficulty" => self.difficulty = number()?,
             "role" => self.role = number()?,
+            "filter" => {
+                let menu = match value {
+                    Some("class") => LootFilter::Class,
+                    Some("spec") => LootFilter::Spec,
+                    Some("slot") => LootFilter::Slot,
+                    _ => return Err("Unknown loot filter".into()),
+                };
+                self.filter_menu = if self.filter_menu == Some(menu) {
+                    None
+                } else {
+                    Some(menu)
+                };
+            }
             "class" => {
                 self.class = number()?;
                 self.spec = 0;
+                self.filter_menu = None;
             }
-            "spec" => self.spec = number()?,
-            "slot" => self.slot = number()?,
+            "spec" => {
+                self.spec = number()?;
+                self.filter_menu = None;
+            }
+            "slot" => {
+                self.slot = number()?;
+                self.filter_menu = None;
+            }
             "section" => {
                 let id = number()?;
                 if !self.collapsed.remove(&id) {
@@ -303,7 +342,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         ));
     }
     body.extend(match view.tab {
-        Tab::Tutorials => tutorials(),
+        Tab::Tutorials => tutorials(view),
         Tab::ItemSets => sets(ctx, view),
         _ => {
             if view.instance.is_some() {
@@ -530,92 +569,27 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     out
 }
 fn loot_page(ctx: &SharedContext, view: &View) -> Element {
-    let mut out = Vec::new();
-    let mut filters = Vec::new();
-    filters.extend(button(
-        "JournalAllClasses".into(),
-        "All classes",
-        "journal:class:0",
-        (0., 0., 92., 22.),
-    ));
-    for (index, class) in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-        .into_iter()
-        .enumerate()
-    {
-        filters.extend(button(
-            format!("JournalClass{class}"),
-            &class.to_string(),
-            &format!("journal:class:{class}"),
-            (94. + index as f32 * 34., 0., 32., 22.),
-        ));
-    }
-    filters.extend(button(
-        "JournalAllSpecs".into(),
-        "All specs",
-        "journal:spec:0",
-        (0., 25., 92., 22.),
-    ));
-    for (index, spec) in view
-        .catalog
-        .specs
-        .iter()
-        .filter(|s| s.class == view.class)
-        .enumerate()
-    {
-        filters.extend(button(
-            format!("JournalSpec{}", spec.id),
-            &spec.name,
-            &format!("journal:spec:{}", spec.id),
-            (94. + index as f32 * 106., 25., 104., 22.),
-        ));
-    }
-    filters.extend(button(
-        "JournalAllSlots".into(),
-        "All slots",
-        "journal:slot:0",
-        (0., 50., 92., 22.),
-    ));
-    for (index, (id, name)) in [
-        (1, "Head"),
-        (3, "Shoulder"),
-        (5, "Chest"),
-        (7, "Legs"),
-        (10, "Hands"),
-        (11, "Ring"),
-        (12, "Trinket"),
-        (21, "Weapon"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        filters.extend(button(
-            format!("JournalSlot{id}"),
-            name,
-            &format!("journal:slot:{id}"),
-            (94. + index as f32 * 57., 50., 55., 22.),
-        ));
-    }
-    out.extend(rsx!{r#frame {name:"EncounterJournalLootFilters",left:202.0,top:149.0,width:575.0,height:74.0,pos_type:"absolute",{filters}}});
+    let mut out = loot_filter_buttons(view);
     let items = view.loot();
     let content = items
         .iter()
         .enumerate()
-        .flat_map(|(index, i)| {
+        .flat_map(|(index, item)| {
             let y = index as f32 * 44.;
             let mut row = texture(
-                format!("JournalLoot{}Icon", i.id),
-                i.icon,
+                format!("JournalLoot{}Icon", item.id),
+                item.icon,
                 (2., y + 2., 36., 36.),
                 WHITE,
             );
             row.extend(text(
-                &format!("JournalLoot{}Name", i.id),
-                &i.name,
+                &format!("JournalLoot{}Name", item.id),
+                &item.name,
                 (46., y + 2., 475., 22.),
             ));
             row.extend(text(
-                &format!("JournalLoot{}Slot", i.id),
-                &format!("Item level {} · Slot {}", i.level, i.slot),
+                &format!("JournalLoot{}Slot", item.id),
+                &format!("Item level {} · {}", item.level, slot_name(item.slot)),
                 (46., y + 24., 475., 16.),
             ));
             row
@@ -624,10 +598,136 @@ fn loot_page(ctx: &SharedContext, view: &View) -> Element {
     out.extend(scroll(
         ctx,
         content,
-        (202., 230., 575., 249.),
-        (items.len() as f32 * 44.).max(249.),
+        (202., 185., 575., 294.),
+        (items.len() as f32 * 44.).max(294.),
     ));
+    if let Some(menu) = view.filter_menu {
+        out.extend(loot_filter_menu(ctx, view, menu));
+    }
     out
+}
+fn slot_name(id: u32) -> &'static str {
+    match id {
+        1 => "Head",
+        2 => "Neck",
+        3 => "Shoulder",
+        4 => "Shirt",
+        5 | 20 => "Chest",
+        6 => "Waist",
+        7 => "Legs",
+        8 => "Feet",
+        9 => "Wrist",
+        10 => "Hands",
+        11 => "Finger",
+        12 => "Trinket",
+        13 => "One-Hand",
+        14 => "Shield",
+        15 | 26 => "Ranged",
+        16 => "Back",
+        17 => "Two-Hand",
+        19 => "Tabard",
+        21 => "Main Hand",
+        22 => "Off Hand",
+        23 => "Held in Off Hand",
+        25 => "Thrown",
+        28 => "Relic",
+        _ => "Other",
+    }
+}
+fn loot_filter_buttons(view: &View) -> Element {
+    let class = view
+        .catalog
+        .classes
+        .get(&view.class)
+        .map(String::as_str)
+        .unwrap_or("All classes");
+    let spec = view
+        .catalog
+        .specs
+        .iter()
+        .find(|s| s.id == view.spec)
+        .map(|s| s.name.as_str())
+        .unwrap_or("All specs");
+    let slot = if view.slot == 0 {
+        "All slots"
+    } else {
+        slot_name(view.slot)
+    };
+    [
+        ("Class", class, "class"),
+        ("Spec", spec, "spec"),
+        ("Slot", slot, "slot"),
+    ]
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, (name, title, filter))| {
+        button(
+            format!("Journal{name}Filter"),
+            title,
+            &format!("journal:filter:{filter}"),
+            (202. + index as f32 * 190., 149., 184., 24.),
+        )
+    })
+    .collect()
+}
+fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, String)> {
+    match menu {
+        LootFilter::Class => std::iter::once((0, "All classes".into()))
+            .chain(
+                view.catalog
+                    .classes
+                    .iter()
+                    .map(|(id, name)| (*id, name.clone())),
+            )
+            .collect(),
+        LootFilter::Spec => std::iter::once((0, "All specs".into()))
+            .chain(
+                view.catalog
+                    .specs
+                    .iter()
+                    .filter(|s| s.class == view.class && s.name != "Initial")
+                    .map(|s| (s.id, s.name.clone())),
+            )
+            .collect(),
+        LootFilter::Slot => {
+            let mut unfiltered = view.clone();
+            unfiltered.slot = 0;
+            let slots: BTreeSet<_> = unfiltered.loot().iter().map(|item| item.slot).collect();
+            std::iter::once((0, "All slots".into()))
+                .chain(slots.into_iter().map(|id| (id, slot_name(id).into())))
+                .collect()
+        }
+    }
+}
+fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Element {
+    let (name, key, index) = match menu {
+        LootFilter::Class => ("Class", "class", 0),
+        LootFilter::Spec => ("Spec", "spec", 1),
+        LootFilter::Slot => ("Slot", "slot", 2),
+    };
+    let entries = loot_filter_entries(view, menu);
+    let height = (entries.len() as f32 * 24.).min(300.);
+    let children = entries
+        .iter()
+        .enumerate()
+        .flat_map(|(row, (id, title))| {
+            button(
+                format!("Journal{name}{id}"),
+                title,
+                &format!("journal:{key}:{id}"),
+                (0., row as f32 * 24., 174., 23.),
+            )
+        })
+        .collect();
+    let content = scroll_in(
+        ctx,
+        children,
+        (0., 0., 188., height),
+        entries.len() as f32 * 24.,
+        "EncounterJournalFilterList",
+    );
+    let left = 202. + index as f32 * 190.;
+    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top:175.0,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{content}}}
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
     let search = view.search.to_lowercase();
@@ -707,12 +807,35 @@ fn search_results(ctx: &SharedContext, view: &View) -> Element {
     rsx! {r#frame {name:"EncounterJournalSearchResults",left:210.0,top:62.0,width:568.0,height:334.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,background_color:"0.08,0.07,0.06,1.0",{list}}}
 }
 
-fn tutorials() -> Element {
-    text(
+fn tutorials(view: &View) -> Element {
+    let title = view
+        .catalog
+        .text
+        .get("RPE_TITLE")
+        .map(String::as_str)
+        .unwrap_or("");
+    let body = view
+        .catalog
+        .text
+        .get("RPE_TUTORIAL_TEXT")
+        .map(String::as_str)
+        .unwrap_or("");
+    let mut out = text(
+        "EncounterJournalTutorialTitle",
+        title,
+        (330., 110., 380., 60.),
+    );
+    out.extend(text(
         "EncounterJournalTutorials",
-        "Adventure Guide\n\nSelect an expansion, then Dungeons or Raids. Select an instance to read its story and choose a boss.\n\nOverview summarizes the encounter. Abilities lists expandable spell sections. Choose your role and difficulty.\n\nLoot lists authored boss drops. Filter by class, specialization or equipment slot. Model displays the boss in 3D.\n\nJourneys and Traveler's Log require server-backed activity state; unavailable on this realm.",
-        (24., 76., 745., 370.),
-    )
+        body,
+        (330., 190., 380., 210.),
+    ));
+    out.extend(text(
+        "EncounterJournalTutorialUnavailable",
+        "Catch Up Experience is not available on this realm.",
+        (330., 420., 380., 44.),
+    ));
+    out
 }
 fn scroll(
     ctx: &SharedContext,

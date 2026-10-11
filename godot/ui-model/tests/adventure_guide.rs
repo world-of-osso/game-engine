@@ -40,6 +40,17 @@ fn authentic_dungeon_sections_and_loot_are_selectable() {
     let slot = loot[0].slot;
     view.apply(&format!("journal:slot:{slot}")).unwrap();
     assert!(view.loot().iter().all(|i| i.slot == slot));
+    view.apply("journal:slot:0").unwrap();
+    view.apply("journal:class:2").unwrap();
+    view.apply("journal:spec:70").unwrap();
+    assert!(
+        view.loot().iter().any(|i| i.id == 56342),
+        "Retribution must include the authored two-handed sword"
+    );
+    assert!(
+        view.loot().iter().all(|i| i.id != 56340),
+        "Paladin filter excludes mail bracers"
+    );
 }
 #[test]
 fn both_skins_render_authored_ability_loot_and_raid_text() {
@@ -118,6 +129,10 @@ fn raid_selection_search_and_back_preserve_authored_identity() {
     );
     view.apply("journal:encounter:1519").unwrap();
     assert_eq!(view.instance, Some(741));
+    assert_eq!(
+        view.difficulty, 9,
+        "Molten Core uses its authored 40-player difficulty"
+    );
     assert_eq!(view.catalog.display(1519), Some(13031));
     view.apply("journal:back").unwrap();
     assert_eq!(view.encounter, None);
