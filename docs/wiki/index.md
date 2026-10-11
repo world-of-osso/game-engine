@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
+- [Native transmog application](systems/transmog-apply.md) — shared Wardrobe slot/layout/search,3Dmodel pages, visible weapon profiles and authored additive state borders; both-skin native composited-pixel/paidApply proof, inherited self/observer/relog proof; server-backed outfits/camera-data gaps explicit.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 

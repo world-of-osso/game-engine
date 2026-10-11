@@ -10,9 +10,9 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 - [x] Show original appearance restoration and hide choices only for server-authorized slots.
 - [x] Preserve pending-state safety across item replacement, interaction closure and character/session changes.
 - [x] Native self and observer displays update after successful application and remain after relog, in both skins.
-- [ ] Collection uses paged 3D appearance models (3 rows × 6 columns), collected/applied/pending art, native name search, and icon slot buttons in two fixed columns around the character preview. Filtering must preserve pending choices and exact quotes; clearing it restores model cells.
-- [ ] Outfits dropdown/Save belong above the preview; authoritative cost/Apply belong below it. Outfits remain disabled with an explicit gap when not server-backed.
-- [ ] Preview shows the equipped and pending main-hand weapon, independently of world equipment, with rotation and Sheathe/Draw controls. Weapon-cell camera fitting must show the blade profile rather than its end.
+- [x] Collection uses paged 3D appearance models (3 rows × 6 columns), collected/applied/pending art, native name search, and icon slot buttons in two fixed columns around the character preview. Filtering must preserve pending choices and exact quotes; clearing it restores model cells.
+- [x] Outfits dropdown/Save belong above the preview; authoritative cost/Apply belong below it. Outfits remain disabled with an explicit gap when not server-backed.
+- [x] Preview shows the equipped and pending main-hand weapon, independently of world equipment, with rotation and Sheathe/Draw controls. Weapon-cell camera fitting must show the blade profile rather than its end.
 - [ ] Saved outfits follow the working core apply path; illusion UI requires authentic local illusion data.
 
 ## How it works
@@ -30,12 +30,12 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 
 - `godot/ui-model/src/transmog_tests.rs` — pending versus applied state, exact prices, refusals, stale GUIDs,18-cell paging and independent source preview equipment.
 - `godot/ui-model/tests/transmog_wardrobe.rs` — both-skin slot/model controls and collected/applied/pending labels.
-- `godot/tests/transmog_wardrobe_live.gd` — native main-hand pixel contribution, loaded collection meshes, staging, paid Apply and Escape teardown on private55087.
+- `godot/tests/transmog_wardrobe_live.gd` — actual skin/layout, main-hand profile pixels, composited collection pixels through applied/pending overlays, rotate/Sheathe, native search/restore, staging, exact paid Apply and Escape teardown on private55087.
 
 ## Known gaps (current cycle)
 
 - [x] Native host/network integration: private55087, Hashom gossip, target2850 GUID123, sources821/1181, exact1500copper applications, self/observer rebuilds and relog in both configured art skins. Private-server restart preserved the same redb modifiers. [Bounded proof and evidence](../wiki/systems/transmog-apply.md#native-proof--verified-2026-10-11); this is not every-slot/product certification.
-- [ ] Native source cells own 3D model scenes; weapon cells frame the weapon alone. Both-skin native acceptance remains pending.
+- [x] Both actual skins: isolated weapon models remain visible through pending/applied additive borders, character main-hand profile visible, native search/restore and exact1500copper Apply pass. [UI proof](../wiki/systems/transmog-apply.md#wardrobe-ui-proof--verified-2026-10-11). Paging is behaviorally verified with37sources/3pages; native accounts have5eligible weapon sources, not a native second-page census.
 - [ ] Saved outfits remain unimplemented; core live application proof is available.
 - [ ] Dynamic pricing, conditional source policies and illusion availability remain the linked server contract's explicit local-data gaps.
 
