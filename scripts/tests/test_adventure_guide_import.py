@@ -17,7 +17,7 @@ class JournalImportTests(unittest.TestCase):
         source = Path(os.environ['ADVENTURE_GUIDE_SOURCE'])
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / 'journal.sqlite'
-            module.import_cache(source / 'db2', source, output)
+            module.import_cache(source / 'db2', source, output, Path(os.environ['ADVENTURE_GUIDE_ITEMS']))
             with sqlite3.connect(output) as conn:
                 encounter = conn.execute('SELECT ID,Name_lang,JournalInstanceID,FirstSectionID FROM JournalEncounter WHERE ID=663').fetchone()
                 self.assertEqual(encounter[1], 'Jandice Barov')
