@@ -831,7 +831,8 @@ fn art(name: String, fdid: u32, rect: (f32, f32, f32, f32)) -> Element {
         235397 => "0,1,0,0.5",
         _ => "0,1,0,1",
     };
-    rsx! { texture { name: {DynName(name)}, texture_fdid: fdid, tex_coords:coords, width: w, height: h, pos_type: "absolute", left: x, top: y, } }
+    let tint = artwork::skin_tint(fdid);
+    rsx! { texture { name: {DynName(name)}, texture_fdid: fdid, tex_coords:coords, vertex_color:tint, width: w, height: h, pos_type: "absolute", left: x, top: y, } }
 }
 pub fn achievement_screen(ctx: &SharedContext) -> Element {
     let window = ctx
@@ -1200,7 +1201,7 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
                 Vec::new()
             };
             let height = if expanded {
-                120.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0
+                124.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0
             } else {
                 84.0
             };
@@ -1313,7 +1314,7 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
             let caption = label(name.clone(), &text, (4.0, 0.0, 396.0, 18.0), WHITE, "");
             if line.progress_supported && line.required > 1 {
                 let fraction = line.current.min(line.required) as f32 / line.required as f32;
-                content.extend(artwork::progress(
+                content.extend(artwork::criterion_progress(
                     &name,
                     fraction,
                     (80.0, y, 398.0, 16.0),
@@ -1379,16 +1380,11 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     let action = format!("achievement:row:{}", entry.achievement_id);
     let modern = thread_skin() == ActiveSkin::Modern;
     let ink = if modern { "0.1,0.08,0.05,1.0" } else { WHITE };
-    let title_color = if modern {
-        ink
-    } else if selected {
-        GOLD
-    } else {
-        WHITE
-    };
+    // Mainline AchievementTemplate Label uses GameFontHighlightMedium on its red title band.
+    let title_color = WHITE;
     let date_color = if modern { ink } else { GREY };
     let height = if selected {
-        120.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0
+        124.0 + entry.criteria.len().min(CRITERIA) as f32 * 18.0
     } else {
         84.0
     };
