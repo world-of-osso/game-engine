@@ -1,9 +1,9 @@
 extends "res://tests/bank_live.gd"
 # Real private realm, authentic vendor purchase and native paperdoll input.
 const ENDPOINT := "127.0.0.1:5821"
-const VENDOR_NAME := "Krom Stoutarm"
-const PURCHASE := "Swift Hand of Justice"
-const PURCHASE_ID := 122361
+const VENDOR_NAME := "Lhara"
+const PURCHASE := "Darkmoon Ring"
+const PURCHASE_ID := 19302
 var character := ""
 var receipt: Dictionary = {}
 
@@ -54,7 +54,7 @@ func run_test() -> void:
 		await capture("authentic-vendor-purchase")
 		await tap(KEY_ESCAPE)
 		await press("MainMenuBarBackpackButton")
-		for item_id in [4112, 1116, 1319, 1490, PURCHASE_ID]:
+		for item_id in [4112, PURCHASE_ID, 1319, 1490, 2820]:
 			var bag_button := ""
 			for item in client.merchant_state().bags:
 				if int(item.item_id) == item_id:
@@ -75,13 +75,13 @@ func run_test() -> void:
 		await capture("filled-paperdoll-stats")
 		var source := control("CharacterFinger0Slot").get_global_rect().get_center()
 		await hover_point(source)
-		if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == "Ring of Pure Silver", "ring tooltip"): return
+		if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == PURCHASE, "ring tooltip"): return
 		await capture("ring-tooltip")
 		var before: Array = client.merchant_state().equipment.duplicate(true)
 		await drag_slot(source, control("CharacterFinger1Slot").get_global_rect().get_center())
 		if not await wait_until(func():
 			for item in client.merchant_state().equipment:
-				if item.slot == "Finger2" and int(item.item_id) == 1116: return true
+				if item.slot == "Finger2" and int(item.item_id) == PURCHASE_ID: return true
 			return false, "native finger drag swap"): return
 		await capture("finger-drag-swap")
 		receipt = {"baseline": baseline, "equipped": equipped, "before_swap": before, "equipment": client.merchant_state().equipment, "purchase_id": PURCHASE_ID}
