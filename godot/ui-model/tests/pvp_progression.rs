@@ -28,10 +28,12 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
         let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
             panic!("War Mode must be a button")
         };
-        assert!(
-            !button.enabled,
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled,
             "No optimistic permission without a server snapshot"
         );
+        assert_eq!(frame.onclick.as_deref(), Some(""));
         let mode = shared::protocol::WarModeSnapshot {
             desired: false,
             active: false,
@@ -48,7 +50,10 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
         let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
             panic!("War Mode button")
         };
-        assert!(button.enabled);
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Normal
+        );
         assert_eq!(frame.onclick.as_deref(), Some("pvp:warmode"));
         let mut pvp = game_engine_ui_model::battleground::PvpView::default();
         pvp.snapshot = Some(shared::protocol::PvpSnapshot {
