@@ -2078,6 +2078,8 @@ impl GameClient {
                 self.close_pet_journal();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
+                self.close_toybox();
+                self.toybox.model = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
