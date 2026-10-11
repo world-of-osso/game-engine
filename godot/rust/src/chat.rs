@@ -42,6 +42,8 @@ pub(crate) enum ChatRequest {
     Emote(EmoteKind),
     /// `/invite`, `/uninvite`, `/promote`, `/leave`, `/readycheck`.
     Group(GroupCommand),
+    GuildRank(shared::protocol::GuildRankRequest),
+    Guild(game_engine_ui_model::guild_ranks::GuildCommand),
     /// `/trade`: `InitiateTrade("target")` (SlashCommands.lua:911-913).
     TradeTarget,
 }
@@ -169,6 +171,8 @@ impl ChatModel {
             ChatCommand::Emote(emote) => Some(ChatRequest::Emote(emote)),
             ChatCommand::Who(_) => self.system(WHO_UNAVAILABLE_TEXT),
             ChatCommand::Group(command) => Some(ChatRequest::Group(command)),
+            ChatCommand::GuildRank(request) => Some(ChatRequest::GuildRank(request)),
+            ChatCommand::Guild(request) => Some(ChatRequest::Guild(request)),
             ChatCommand::System(lines) => {
                 for line in lines {
                     add_system_line(&mut self.log, &line);
@@ -404,6 +408,12 @@ impl crate::GameClient {
             if action.is_empty() {
                 return Ok(());
             }
+            if action.starts_with("achievement:open:") {
+                let requests = self.account.achievements.action(&action);
+                self.send_achievement_requests(requests)
+                    .map_err(|error| error.to_string())?;
+                continue;
+            }
             let copied = self
                 .chat
                 .model
@@ -455,6 +465,28 @@ impl crate::GameClient {
         bound.set_state(view)?;
         bound.set_editbox_text(CHAT_EDITBOX.0, prefill)?;
         bound.focus_frame_named(CHAT_EDITBOX.0)
+    }
+
+    pub(super) fn insert_achievement_chat_link(
+        &mut self,
+        id: u32,
+        name: &str,
+    ) -> Result<(), String> {
+        let link = game_engine_ui_model::achievements::achievement_link(id, name);
+        if !self.chat.model.state.input_open {
+            return self.open_chat_input(&link);
+        }
+        let ui = self.chat.ui.as_ref().ok_or("Chat frame is not shown")?;
+        let node = ui
+            .find_child_ex(CHAT_EDITBOX.0)
+            .owned(false)
+            .done()
+            .ok_or("Chat edit box is not mounted")?;
+        let mut edit = node
+            .try_cast::<godot::classes::LineEdit>()
+            .map_err(|_| "Chat edit box is not a LineEdit")?;
+        edit.insert_text_at_caret(&link);
+        Ok(())
     }
 
     fn close_chat_input(&mut self) -> Result<(), String> {
@@ -538,6 +570,12 @@ impl crate::GameClient {
             }),
             ChatRequest::Emote(emote) => self.send_emote(emote),
             ChatRequest::Group(command) => self.account.send_group(command),
+            ChatRequest::GuildRank(request) => self.account.send_guild_rank_request(request),
+            ChatRequest::Guild(command) => {
+                return self
+                    .send_guild_command(command)
+                    .map_err(|error| error.to_string());
+            }
             ChatRequest::TradeTarget => return self.trade_with_target(),
         }
         .map_err(|error| error.0)

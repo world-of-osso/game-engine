@@ -1,6 +1,6 @@
 //! Native guild roster and GuildControlUI. Retail mechanics, active-skin panel art.
 use crate::bank_art::{edit_box, label, texture};
-use crate::guild_ranks::GuildRanksSession;
+use crate::guild_ranks::{GuildProfileField, GuildRanksSession};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, flat_panel_chrome, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::*;
@@ -8,6 +8,34 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const NAME_BOX: &str = "GuildRankName";
 pub const GOLD_BOX: &str = "GuildRankGold";
+pub const INVITE_BOX: &str = "GuildInviteMemberName";
+pub const PROFILE_BOX: &str = "GuildProfileEditText";
+
+/// Match Retail GuildInfo.lua text limits; the Info editor is a native TextEdit.
+pub fn apply_guild_postsetup(
+    session: &GuildRanksSession,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    use ui_toolkit::frame::WidgetData;
+    let Some(field) = session.profile_editor else {
+        return;
+    };
+    let Some(id) = registry.get_by_name(PROFILE_BOX) else {
+        return;
+    };
+    if let Some(WidgetData::EditBox(edit)) = &mut registry
+        .get_mut(id)
+        .expect("registered profile input")
+        .widget_data
+    {
+        edit.multi_line = field == GuildProfileField::Info;
+        edit.max_letters = Some(if field == GuildProfileField::Motd {
+            255
+        } else {
+            499
+        });
+    }
+}
 const WIDTH: f32 = 940.0;
 const HEIGHT: f32 = 740.0;
 pub const PERMISSIONS: [&str; 14] = [
@@ -31,14 +59,62 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
     let Some(session) = shared.get::<GuildRanksSession>() else {
         return vec![];
     };
-    if !session.visible {
-        return vec![];
-    }
-    let mut children = roster(session);
-    if session.settings_open {
+    let mut children = if session.visible {
+        roster(session)
+    } else {
+        vec![]
+    };
+    if session.visible && session.settings_open {
         children.extend(settings(session));
     }
+    children.extend(invitation_popup(session));
+    if session.visible {
+        children.extend(invite_member_dialog(session));
+        children.extend(profile_editor(session));
+    }
     children
+}
+
+/// Retail GuildInviteFrame.xml: centered 310×188, inviter, invitation, guild, Join/Decline.
+fn invitation_popup(session: &GuildRanksSession) -> Element {
+    let Some(invite) = &session.invitation else {
+        return vec![];
+    };
+    let mut children = label(
+        "GuildInviteFrameInviterName".into(),
+        &invite.inviter_name,
+        (40.0, 28.0, 230.0, 16.0),
+        (12.0, "1,1,1,1", "CENTER"),
+    );
+    children.extend(label(
+        "GuildInviteFrameInviteText".into(),
+        "invites you to join the guild:",
+        (40.0, 48.0, 230.0, 16.0),
+        (12.0, "1,1,1,1", "CENTER"),
+    ));
+    children.extend(label(
+        "GuildInviteFrameGuildName".into(),
+        &invite.guild_name,
+        (24.0, 70.0, 262.0, 28.0),
+        (14.0, NORMAL_FONT_COLOR, "CENTER"),
+    ));
+    children.extend(panel_button(
+        "GuildInviteFrameJoinButton".into(),
+        "Join Guild",
+        "guild:accept_invite",
+        !session.invitation_waiting,
+        (24.0, 142.0, 110.0, 22.0),
+    ));
+    children.extend(panel_button(
+        "GuildInviteFrameDeclineButton".into(),
+        "Decline Invitation",
+        "guild:decline_invite",
+        !session.invitation_waiting,
+        (176.0, 142.0, 110.0, 22.0),
+    ));
+    rsx! { r#frame { name: {DynName("GuildInviteFrame".into())}, width: 310.0, height: 188.0,
+    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute",
+    mouse_enabled: true, strata: FrameStrata::Dialog, style: "static_popup", {children} } }
 }
 
 fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {
@@ -56,14 +132,22 @@ fn roster(session: &GuildRanksSession) -> Element {
         "Guild & Communities",
         "guild:close",
     );
-    children.extend(title(
-        "GuildRosterHeading",
-        "Guild Members",
-        20.0,
-        38.0,
-        340.0,
+    children.extend(panel_button(
+        "GuildRosterTab".into(),
+        "Roster",
+        "guild:roster_open",
+        session.info_open,
+        (20.0, 38.0, 100.0, 24.0),
     ));
-    if let Some(state) = session.state() {
+    children.extend(panel_button(
+        "GuildInfoTab".into(),
+        "Info",
+        "guild:info_open",
+        !session.info_open,
+        (130.0, 38.0, 100.0, 24.0),
+    ));
+    children.extend(guild_profile(session));
+    if let Some(state) = session.state().filter(|_| !session.info_open) {
         let offset = session.roster_page() * crate::guild_ranks::ROSTER_PAGE_SIZE;
         for (index, member) in state
             .members
@@ -85,7 +169,7 @@ fn roster(session: &GuildRanksSession) -> Element {
                 (20.0, 72.0 + (index - offset) as f32 * 30.0, 340.0, 26.0),
             ));
         }
-    } else {
+    } else if !session.info_open {
         children.extend(title(
             "GuildRosterLoading",
             "Loading guild ranks…",
@@ -116,16 +200,141 @@ fn roster(session: &GuildRanksSession) -> Element {
         (260.0, 460.0, 100.0, 24.0),
     ));
     children.extend(panel_button(
+        "GuildRosterInviteButton".into(),
+        "Invite Member",
+        "guild:invite_open",
+        session.can(GUILD_RIGHT_INVITE),
+        (20.0, 500.0, 120.0, 24.0),
+    ));
+    children.extend(panel_button(
         "GuildControlButton".into(),
         "Guild Settings",
         "guild:settings",
-        session.state().is_some(),
+        session.state().is_some_and(|state| !state.ranks.is_empty()),
         (230.0, 500.0, 130.0, 24.0),
     ));
     children.extend(member_menu(session));
     rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 380.0, height: 540.0,
     left: 30.0, top: 130.0, pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }
+fn guild_profile(session: &GuildRanksSession) -> Element {
+    if !session.info_open {
+        return vec![];
+    }
+    let Some(profile) = &session.profile else {
+        return title(
+            "GuildInfoUnavailable",
+            "You are not in a guild.",
+            20.0,
+            80.0,
+            340.0,
+        );
+    };
+    let mut children = title("GuildMOTDHeading", "Message of the Day", 20.0, 80.0, 230.0);
+    children.extend(label(
+        "GuildMOTDText".into(),
+        &profile.motd,
+        (20.0, 110.0, 340.0, 110.0),
+        (13.0, "1,1,1,1", "LEFT"),
+    ));
+    children.extend(title(
+        "GuildInfoHeading",
+        "Guild Information",
+        20.0,
+        238.0,
+        230.0,
+    ));
+    children.extend(label(
+        "GuildInfoText".into(),
+        &profile.info_text,
+        (20.0, 268.0, 340.0, 170.0),
+        (13.0, "1,1,1,1", "LEFT"),
+    ));
+    if session.can(GUILD_RIGHT_EDIT_MOTD) {
+        children.extend(panel_button(
+            "GuildEditMOTDButton".into(),
+            "Edit",
+            "guild:edit_motd",
+            !session.profile_waiting,
+            (270.0, 80.0, 90.0, 22.0),
+        ));
+    }
+    if session.can(GUILD_RIGHT_EDIT_INFO) {
+        children.extend(panel_button(
+            "GuildEditInfoButton".into(),
+            "Edit",
+            "guild:edit_info",
+            !session.profile_waiting,
+            (270.0, 238.0, 90.0, 22.0),
+        ));
+    }
+    children
+}
+
+fn invite_member_dialog(session: &GuildRanksSession) -> Element {
+    if !session.invite_open {
+        return vec![];
+    }
+    let mut children = flat_panel_chrome(
+        "GuildInviteMember",
+        (310.0, 150.0),
+        "Invite Member",
+        "guild:invite_close",
+    );
+    children.extend(edit_box(INVITE_BOX, (24.0, 60.0, 262.0, 24.0)));
+    children.extend(panel_button(
+        "GuildInviteMemberAccept".into(),
+        "Invite",
+        "guild:invite_send",
+        session.can(GUILD_RIGHT_INVITE),
+        (24.0, 108.0, 110.0, 22.0),
+    ));
+    children.extend(panel_button(
+        "GuildInviteMemberCancel".into(),
+        "Cancel",
+        "guild:invite_close",
+        true,
+        (176.0, 108.0, 110.0, 22.0),
+    ));
+    rsx! { r#frame { name: {DynName("GuildInviteMember".into())}, width: 310.0, height: 150.0,
+    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+}
+fn profile_editor(session: &GuildRanksSession) -> Element {
+    let Some(field) = session.profile_editor else {
+        return vec![];
+    };
+    let Some(profile) = &session.profile else {
+        return vec![];
+    };
+    let (heading, height, text) = match field {
+        GuildProfileField::Motd => ("Message of the Day", 200.0, profile.motd.as_str()),
+        GuildProfileField::Info => ("Guild Information", 295.0, profile.info_text.as_str()),
+    };
+    let mut children = flat_panel_chrome(
+        "CommunitiesGuildTextEditFrame",
+        (310.0, height),
+        heading,
+        "guild:profile_close",
+    );
+    children.extend(rsx! { editbox { name: {DynName(PROFILE_BOX.into())}, text, width: 262.0, height: {height - 100.0}, left: 24.0, top: 44.0, pos_type: "absolute", font_size: 14.0 } });
+    children.extend(panel_button(
+        "GuildProfileAcceptButton".into(),
+        "Accept",
+        "guild:profile_accept",
+        !session.profile_waiting,
+        (24.0, height - 38.0, 90.0, 22.0),
+    ));
+    children.extend(panel_button(
+        "GuildProfileCloseButton".into(),
+        "Close",
+        "guild:profile_close",
+        true,
+        (196.0, height - 38.0, 90.0, 22.0),
+    ));
+    rsx! { r#frame { name: {DynName("CommunitiesGuildTextEditFrame".into())}, width: 310.0, height,
+    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+}
+
 fn member_menu(session: &GuildRanksSession) -> Element {
     let Some(name) = session.member_menu.as_deref() else {
         return vec![];
@@ -137,6 +346,12 @@ fn member_menu(session: &GuildRanksSession) -> Element {
             "GuildMemberPromote",
             "Promote",
             "guild:promote",
+        ),
+        (
+            session.remove_member(name).is_some(),
+            "GuildMemberRemove",
+            "Remove",
+            "guild:remove_member",
         ),
         (
             session.demote(name).is_some(),
@@ -164,7 +379,7 @@ fn member_menu(session: &GuildRanksSession) -> Element {
         title: name,
         width: 200.0,
         x: 20.0,
-        y: -365.0,
+        y: 365.0,
         items: &items,
     })
 }

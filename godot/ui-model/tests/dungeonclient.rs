@@ -105,6 +105,285 @@ fn dungeonclient_stockade_checks_three_bosses_in_order_then_clears_both_skins() 
         );
     }
 }
+#[test]
+fn achievements_ui_summary_opens_by_default_and_uses_authoritative_points_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        let requests = window.action("micro:AchievementMicroButton");
+        assert!(requests.contains(&QueryAchievementCatalog::Summary {
+            scope: AchievementScope::All
+        }));
+        window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+            scope: AchievementScope::All,
+            points: 120,
+            total: 100,
+            completed: 12,
+            categories: vec![AchievementCategoryTotals {
+                category_id: 14808,
+                total: 10,
+                completed: 1,
+            }],
+            recent: vec![achievement()],
+        }));
+        let mut shared = SharedContext::new();
+        shared.insert(window);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(achievement_screen).sync(&shared, &mut registry);
+        assert_eq!(text(&registry, "AchievementFrameHeaderPoints"), "120");
+        assert_eq!(text(&registry, "AchievementSummaryTotalText"), "12 / 100");
+        assert_eq!(text(&registry, "Achievement633Name"), "Stormwind Stockade");
+    }
+}
+
+#[test]
+fn achievements_ui_scope_tabs_filter_authored_account_flag_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![category()],
+            next_id: None,
+        });
+        window.action("achievement:category:14808");
+        let mut account = achievement();
+        account.achievement_id = 646;
+        account.name = "Stratholme".into();
+        account.description = "Defeat the evil masterminds inhabiting Stratholme.".into();
+        account.icon_fdid = 237511;
+        account.flags = 0x20000;
+        account.criteria.clear();
+        window.apply(AchievementCatalogPage::Category {
+            category_id: 14808,
+            achievements: vec![achievement(), account],
+            next_id: None,
+        });
+        assert_eq!(
+            window.action("achievement:scope:account"),
+            vec![QueryAchievementCatalog::Summary {
+                scope: AchievementScope::Account
+            }]
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(window.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(achievement_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("Achievement633Name").is_none());
+        assert_eq!(text(&registry, "Achievement646Name"), "Stratholme");
+        assert_eq!(
+            window.action("achievement:scope:character"),
+            vec![QueryAchievementCatalog::Summary {
+                scope: AchievementScope::Character
+            }]
+        );
+        shared.insert(window);
+        screen.sync(&shared, &mut registry);
+        assert_eq!(text(&registry, "Achievement633Name"), "Stormwind Stockade");
+        assert!(registry.get_by_name("Achievement646Name").is_none());
+    }
+}
+
+#[test]
+fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row() {
+    // Authentic pinned DB2: achievement1676, tree65059; server's first page is16 IDs.
+    let rows = [
+        (65060, "Arathi Highlands Quests", 0, 15204),
+        (65061, "Badlands Quests", 0, 15205),
+        (65062, "Blasted Lands Quests", 0, 15206),
+        (65063, "Burning Steppes Quests", 0, 15207),
+        (65064, "Cape of Stranglethorn Quests", 0, 15208),
+        (65066, "Eastern Plaguelands Quests", 0, 15209),
+        (65067, "Hinterlands Quests", 0, 15212),
+        (65069, "Northern Stranglethorn Quests", 0, 15213),
+        (65070, "Redridge Mountains Quests", 32, 15198),
+        (65071, "Searing Gorge Quests", 0, 15214),
+        (65072, "Swamp of Sorrows Quests", 0, 15216),
+        (65073, "Western Plaguelands Quests", 0, 15217),
+        (65074, "Westfall Quests & Duskwood Quests", 32, 39734),
+        (65077, "", 2, 22229),
+        (65081, "Silverpine Forest Quests", 32, 15215),
+        (65083, "Hillsbrad Foothills Quests", 32, 15211),
+        (65087, "Ghostlands Quests", 32, 15210),
+        (65292, "Ghostlands Quests", 32, 39733),
+    ]
+    .map(
+        |(tree_id, description, order_index, criteria_id)| AchievementCriterionLine {
+            tree_id,
+            description: description.into(),
+            order_index,
+            criteria_id,
+            current: 0,
+            required: 0,
+            completed: false,
+            progress_supported: true,
+        },
+    );
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    let mut recent = achievement();
+    recent.achievement_id = 1676;
+    recent.name = "Loremaster of Eastern Kingdoms".into();
+    recent.description = "Complete the Eastern Kingdoms quest achievements listed below.".into();
+    recent.icon_fdid = 236759;
+    recent.flags = 0x20000;
+    recent.criteria = rows[..16].to_vec();
+    recent.next_criteria_id = Some(65083);
+    window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+        scope: AchievementScope::All,
+        points: 10,
+        total: 100,
+        completed: 1,
+        categories: vec![],
+        recent: vec![recent],
+    }));
+    window.action("achievement:row:1676");
+    window.action("achievement:more_criteria");
+    window.action("achievement:more_criteria");
+    assert_eq!(
+        window.action("achievement:more_criteria"),
+        vec![QueryAchievementCatalog::Criteria {
+            achievement_id: 1676,
+            after_id: 65083
+        }]
+    );
+    window.apply(AchievementCatalogPage::Criteria {
+        achievement_id: 1676,
+        criteria: rows[16..].to_vec(),
+        next_id: None,
+    });
+    assert_eq!(window.selected().unwrap().criteria.len(), 18);
+    assert!(window.selected().unwrap().next_criteria_id.is_none());
+    assert_eq!(
+        window.selected().unwrap().criteria.last().unwrap().tree_id,
+        65292
+    );
+}
+
+#[test]
+fn achievements_ui_uses_authored_sheet_regions_for_recent_icons_and_shields() {
+    assets(ActiveSkin::Modern);
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+        scope: AchievementScope::All,
+        points: 10,
+        total: 8078,
+        completed: 1,
+        categories: vec![],
+        recent: vec![achievement()],
+    }));
+    let registry = achievement_registry(&window, ActiveSkin::Modern);
+    for (name, coords) in [
+        ("Achievement633IconFrame", [0.0, 0.5625, 0.0, 0.5625]),
+        ("Achievement633Shield", [0.0, 0.5, 0.0, 0.5]),
+    ] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(texture)) = frame.widget_data.as_ref() else {
+            panic!("rendered texture")
+        };
+        assert_eq!(texture.tex_coords, coords);
+        if name == "Achievement633Shield" {
+            assert_eq!(
+                texture.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(130666)
+            );
+        }
+    }
+}
+
+#[test]
+fn achievementlinks_toast_uses_mainline_icon_shield_and_plate_layout_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(AchievementToastSnapshot {
+            achievement_id: 9,
+            name: "Level 40".into(),
+            points: 10,
+            icon_fdid: 236565,
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(game_engine_ui_model::achievements::achievement_toast_screen)
+            .sync(&shared, &mut registry);
+        assert!(registry.get_by_name("AchievementToastIcon").is_some());
+        assert!(registry.get_by_name("AchievementToastShield").is_some());
+        assert_eq!(text(&registry, "AchievementToastPoints"), "10");
+        let frame = registry
+            .get(registry.get_by_name("AchievementToast").unwrap())
+            .unwrap();
+        assert_eq!((frame.width.value(), frame.height.value()), (300.0, 101.0));
+    }
+}
+
+#[test]
+fn achievementlinks_open_unloaded_achievement_and_keep_server_earned_state() {
+    let mut window = AchievementWindow::default();
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![
+            AchievementCategoryEntry {
+                category_id: 92,
+                parent_id: -1,
+                order_index: 1,
+                name: "Characters".into(),
+            },
+            AchievementCategoryEntry {
+                category_id: 130,
+                parent_id: 1,
+                order_index: 1,
+                name: "Character".into(),
+            },
+        ],
+        next_id: None,
+    });
+    window.action("achievement:statistics");
+    assert!(window.action("achievement:open:633").contains(
+        &QueryAchievementCatalog::Achievement {
+            achievement_id: 633
+        }
+    ));
+    window.apply(AchievementCatalogPage::Achievement {
+        achievement_id: 633,
+        entry: Some(achievement()),
+    });
+    assert!(window.visible);
+    assert_eq!(window.selected().unwrap().achievement_id, 633);
+    assert!(window.selected().unwrap().earned);
+    assert_eq!(
+        window
+            .category_tree()
+            .iter()
+            .map(|(row, _)| row.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Characters"]
+    );
+}
+
+#[test]
+fn achievementlinks_chat_displays_one_clickable_name_without_transport_markup() {
+    use game_engine_ui_model::chat_frame::{chat_message_line, wrap_chat_line};
+    let message = game_engine_ui_model::chat_data::ChatMessage {
+        channel_type: game_engine_ui_model::chat_data::ChatChannelType::System,
+        channel_name: String::new(),
+        sender: String::new(),
+        timestamp: 0.0,
+        text: "You have earned the achievement |Hachievement:633|h[Stormwind Stockade]|h.".into(),
+    };
+    let line = chat_message_line(&message);
+    assert_eq!(
+        line.plain_text(|_| String::new()),
+        "You have earned the achievement [Stormwind Stockade]."
+    );
+    let rows = wrap_chat_line(&line, |_| String::new(), 1000.0, |text| text.len() as f32);
+    assert!(
+        rows.iter()
+            .flat_map(|row| &row.runs)
+            .any(|run| run.text == "[Stormwind Stockade]")
+    );
+}
+
 fn category() -> AchievementCategoryEntry {
     AchievementCategoryEntry {
         category_id: 14808,
@@ -132,6 +411,8 @@ fn achievement() -> AchievementCatalogEntry {
         description: "Defeat Hogger in the Stormwind Stockade.".into(),
         points: 10,
         icon_fdid: 136363,
+        flags: 0,
+        statistic_value: None,
         earned: true,
         earned_at: Some(1791244800),
         progress_supported: true,
@@ -155,10 +436,15 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
             message: None,
             error: None
         }),
-        vec![QueryAchievementCatalog::Category {
-            category_id: 14808,
-            after_id: 0
-        }]
+        vec![
+            QueryAchievementCatalog::Summary {
+                scope: AchievementScope::All
+            },
+            QueryAchievementCatalog::Category {
+                category_id: 14808,
+                after_id: 0
+            }
+        ]
     );
     let mut stale = achievement();
     stale.earned = false;
@@ -175,6 +461,174 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
         next_id: None,
     });
     assert!(window.selected().unwrap().earned);
+}
+
+#[test]
+fn achievements_ui_tracking_restores_authoritative_rows_after_new_session() {
+    let mut window = AchievementWindow::default();
+    assert_eq!(
+        window.action("achievement:restore:633"),
+        vec![QueryAchievementCatalog::Achievement {
+            achievement_id: 633
+        }]
+    );
+    let mut row = achievement();
+    row.earned = false;
+    window.apply(AchievementCatalogPage::Achievement {
+        achievement_id: 633,
+        entry: Some(row),
+    });
+    assets(ActiveSkin::Modern);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(ObjectiveTrackerState::default());
+    shared.insert(window);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(objective_tracker_screen).sync(&shared, &mut registry);
+    assert_eq!(
+        text(&registry, "TrackedAchievement633HeaderText"),
+        "Stormwind Stockade"
+    );
+}
+
+#[test]
+fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![AchievementCategoryEntry {
+                category_id: 14822,
+                parent_id: -1,
+                order_index: 1,
+                name: "The Burning Crusade".into(),
+            }],
+            next_id: None,
+        });
+        window.action("achievement:statistics");
+        assert_eq!(
+            window.action("achievement:category:14822"),
+            vec![QueryAchievementCatalog::Statistics {
+                category_id: 14822,
+                after_id: 0
+            }]
+        );
+        let row = AchievementCatalogEntry {
+            achievement_id: 1068,
+            name: "Keli'dan the Breaker kills (The Blood Furnace)".into(),
+            flags: 1,
+            statistic_value: Some(7),
+            earned: false,
+            criteria: vec![],
+            ..achievement()
+        };
+        window.apply(AchievementCatalogPage::Statistics {
+            category_id: 14822,
+            achievements: vec![row],
+            next_id: None,
+        });
+        let statistics = achievement_registry(&window, skin);
+        assert_eq!(text(&statistics, "Achievement1068Statistic"), "7");
+        assert!(statistics.get_by_name("AchievementCriteriaTitle").is_none());
+        assert!(statistics.get_by_name("AchievementTrack").is_none());
+        assert_eq!(
+            window.action("achievement:search:stockade"),
+            vec![QueryAchievementCatalog::Search {
+                text: "stockade".into(),
+                scope: AchievementScope::All,
+                after_id: 0
+            }]
+        );
+        // A prior term must not replace current search results.
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![],
+            next_id: None,
+        });
+        window.apply(AchievementCatalogPage::Search {
+            text: "stockade".into(),
+            scope: AchievementScope::All,
+            achievements: vec![achievement()],
+            next_id: None,
+        });
+        assert_eq!(
+            text(&achievement_registry(&window, skin), "Achievement633Name"),
+            "Stormwind Stockade"
+        );
+        assert!(window.action("achievement:row:633").contains(
+            &QueryAchievementCatalog::Achievement {
+                achievement_id: 633
+            }
+        ));
+    }
+}
+
+fn achievement_registry(window: &AchievementWindow, skin: ActiveSkin) -> FrameRegistry {
+    let mut shared = SharedContext::new();
+    shared.insert(skin);
+    shared.insert(window.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(achievement_screen).sync(&shared, &mut registry);
+    registry
+}
+
+#[test]
+fn achievements_ui_tracking_survives_close_refreshes_and_clears_on_earn_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("achievement:open:633");
+        let mut row = achievement();
+        row.earned = false;
+        row.earned_at = None;
+        row.criteria[0].current = 0;
+        row.criteria[0].completed = false;
+        window.apply(AchievementCatalogPage::Achievement {
+            achievement_id: 633,
+            entry: Some(row.clone()),
+        });
+        window.action("achievement:track:633");
+        window.action("achievement:close");
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(ObjectiveTrackerState::default());
+        shared.insert(window.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(objective_tracker_screen);
+        screen.sync(&shared, &mut registry);
+        assert_eq!(
+            text(&registry, "TrackedAchievement633HeaderText"),
+            "Stormwind Stockade"
+        );
+        assert!(text(&registry, "TrackedAchievement633Criterion0Text").contains("0/1"));
+        assert_eq!(
+            window.refresh(&AchievementStateUpdate {
+                snapshot: None,
+                completed: None,
+                message: None,
+                error: None,
+            }),
+            vec![QueryAchievementCatalog::Achievement {
+                achievement_id: 633
+            }]
+        );
+        row.earned = true;
+        row.criteria[0].current = 1;
+        row.criteria[0].completed = true;
+        window.apply(AchievementCatalogPage::Achievement {
+            achievement_id: 633,
+            entry: Some(row),
+        });
+        shared.insert(window);
+        screen.sync(&shared, &mut registry);
+        assert!(
+            registry
+                .get_by_name("TrackedAchievement633HeaderText")
+                .is_none()
+        );
+    }
 }
 
 #[test]
@@ -306,7 +760,12 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         let mut window = AchievementWindow::default();
         assert_eq!(
             window.action(&destination),
-            vec![QueryAchievementCatalog::Categories { after_id: 0 }]
+            vec![
+                QueryAchievementCatalog::Categories { after_id: 0 },
+                QueryAchievementCatalog::Summary {
+                    scope: AchievementScope::All
+                }
+            ]
         );
         assert_eq!(
             window.apply(AchievementCatalogPage::Categories {
@@ -359,6 +818,14 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
             criteria: vec![criterion(2)],
             next_id: None,
         });
+        window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+            scope: AchievementScope::All,
+            points: 10,
+            total: 100,
+            completed: 1,
+            categories: vec![],
+            recent: vec![achievement()],
+        }));
         let mut shared = SharedContext::new();
         shared.insert(skin);
         shared.insert(window.clone());

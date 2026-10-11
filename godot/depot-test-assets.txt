@@ -1,4 +1,6 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Retail PetitionFrame GuildCharter-Icon, extracted from local CASC.
+textures/136583.blp
 # Northshire spell10848/kit989 owner: real attachment19, delayed visual regression.
 models/124640.m2
 models/12464000.skin
@@ -4650,3 +4652,6 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
+# Mainline achievement earned-alert plate, icon frame and shield atlas.
+textures/4035524.blp
+textures/130666.blp

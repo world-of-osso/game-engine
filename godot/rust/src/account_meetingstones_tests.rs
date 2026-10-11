@@ -1,6 +1,6 @@
 //! Real UDP → Account → native StaticPopup registry → wire response proof.
 use super::*;
-use crate::meeting_stones::meeting_stone_request;
+use crate::meeting_stones::spell_or_quest_object_request;
 use game_engine_network::meetingstones_fixture::{MeetingStoneRequest, MeetingStoneServerFixture};
 use game_engine_ui_model::static_popup_component::{
     StaticPopupState, parse_popup_action, static_popup_screen,
@@ -102,7 +102,7 @@ fn click_popup(stack: &mut PopupStack, button: &str, expected: &str) {
 }
 
 #[test]
-fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skins() {
+fn quest_objects_and_meetingstones_udp_use_and_combat_answers_both_skins() {
     for (index, skin) in [ActiveSkin::Modern, ActiveSkin::Forever]
         .into_iter()
         .enumerate()
@@ -113,7 +113,7 @@ fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skin
         account.bridge =
             Some(NetworkBridge::connect(server.address(), 49301 + index as u64).unwrap());
         await_connected(&mut account, &mut server);
-        for kind in [GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL] {
+        for kind in [GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, 3, 10] {
             let info = GameObjectInfo {
                 entry: 178834,
                 go_type: kind,
@@ -121,7 +121,7 @@ fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skin
                 name: "Meeting Stone".into(),
                 scale: 1.0,
             };
-            let request = meeting_stone_request(517, &info).unwrap();
+            let request = spell_or_quest_object_request(517, &info).unwrap();
             account.send_use_game_object(request.object).unwrap();
             assert_eq!(
                 await_request(&mut server),

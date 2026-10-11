@@ -61,7 +61,9 @@ fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages()
         },
     ];
     for request in &requests {
-        bridge.send::<_, AchievementChannel>(*request).unwrap();
+        bridge
+            .send::<_, AchievementChannel>(request.clone())
+            .unwrap();
     }
     let deadline = Instant::now() + Duration::from_secs(10);
     while server.world().resource::<Requests>().0.len() < requests.len()
@@ -86,6 +88,7 @@ fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages()
             achievement_id: 633,
             name: "Stormwind Stockade".into(),
             points: 10,
+            icon_fdid: 134163,
         }),
         message: None,
         error: None,

@@ -59,6 +59,9 @@ fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
         .collect()
 }
 
+pub(crate) const GAMEOBJECT_TYPE_CHEST: u8 = 3;
+pub(crate) const GAMEOBJECT_TYPE_GOOBER: u8 = 10;
+
 /// The model's yaw inside its object node.
 const MODEL_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 
@@ -75,6 +78,8 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
         | GAMEOBJECT_TYPE_CHAIR
         | GAMEOBJECT_TYPE_MEETINGSTONE
         | GAMEOBJECT_TYPE_RITUAL
+        | GAMEOBJECT_TYPE_CHEST
+        | GAMEOBJECT_TYPE_GOOBER
         | GAMEOBJECT_TYPE_BATTLEGROUND_FLAG => Some(ActiveWowCursor::Interact),
         _ => None,
     }
@@ -324,6 +329,23 @@ mod tests {
         assert!(game_object_is_renderable(GAMEOBJECT_TYPE_MAILBOX));
         // Unsupported spell-focus objects are not silently admitted by this fix.
         assert!(!game_object_is_renderable(8));
+    }
+
+    #[test]
+    fn quest_objects_show_interact_cursor_and_render_without_changing_decoration_cursor() {
+        // Retail Netherwing Egg (chest) and Nerub'ar Egg Sac (goober).
+        for kind in [3, 10] {
+            assert_eq!(game_object_cursor(kind), Some(ActiveWowCursor::Interact));
+            assert!(game_object_is_renderable(kind));
+        }
+        let decoration = GameObjectInfo {
+            entry: 194274,
+            go_type: GAMEOBJECT_TYPE_GENERIC,
+            display_id: 10483,
+            name: "Stormwind banner".into(),
+            scale: 1.0,
+        };
+        assert_eq!(game_object_cursor(decoration.go_type), None);
     }
 
     #[test]
