@@ -26,7 +26,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [x] Money bar: `Available Amount:` shows the withdraw allowance, or `Unlimited`. The guild money sits at BOTTOMRIGHT, with Deposit and Withdraw buttons (100×21). Withdraw is disabled without an allowance.
 - [x] Buy screen (Guild Master, buy tab selected): "Do you wish to purchase this tab?", "(n/6 tabs purchased)", the price and a Purchase button (124×21). Purchase opens `CONFIRM_BUY_GUILDBANK_TAB`, and accepting sends `GuildBankBuyTab`. Non-leaders see `NO_GUILDBANK_TABS`.
 - [x] Log and Money Log modes query their log. They list Retail lines: "X deposited Linen Cloth x 20 ( 1 min ago )", "withdrew", "purchased a guild bank tab for", and guild repairs "X withdrew 1g 50s 16c for repairs" (`GUILDBANK_REPAIR_MONEY_FORMAT`, GB.lua:797-798).
-- [x] Info mode shows the tab text. The Guild Master gets an edit box and Save, which sends `GuildBankSetTabText`.
+- [x] Info mode shows the tab text. The Guild Master gets an edit box and Save, which sends `GuildBankSetTabText`. Read-only, locked and unpurchased tabs never queue writes to an editor that is not rendered.
 
 ### Actions
 - [x] Right-clicking a filled slot sends `GuildBankWithdraw`. Right-clicking a bag item sends `GuildBankDeposit` into the selected tab.
