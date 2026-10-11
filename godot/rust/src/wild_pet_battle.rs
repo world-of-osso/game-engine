@@ -16,8 +16,7 @@ pub(crate) struct WildBattleHud {
     ui: Option<Gd<RegistryUi>>,
     wild_creatures: Option<BTreeSet<u32>>,
     scene: Option<Scene>,
-    pending: Option<([u64; 2], [u32; 2])>,
-    loaded: [Option<Gd<Node3D>>; 2],
+    pending: Option<([Option<u64>; 2], [u32; 2])>,
     shown: [u32; 2],
     hidden_layers: BTreeMap<InstanceId, bool>,
 }
@@ -138,13 +137,8 @@ impl GameClient {
     }
     fn clear_battle_scene(&mut self) {
         if let Some((ids, _)) = self.wild_pet_battle.pending.take() {
-            for id in ids {
+            for id in ids.into_iter().flatten() {
                 self.world.cancel_detached_visual(id);
-            }
-        }
-        for model in &mut self.wild_pet_battle.loaded {
-            if let Some(model) = model.take() {
-                model.free();
             }
         }
         if let Some(scene) = self.wild_pet_battle.scene.take() {
@@ -214,38 +208,42 @@ impl GameClient {
                         items: Default::default(),
                     })
             });
-            self.wild_pet_battle.pending = Some((requests, displays));
+            let host = self
+                .wild_pet_battle
+                .ui
+                .as_ref()
+                .expect("battle UI")
+                .bind()
+                .frame_control(MODEL_SCENE)
+                .ok_or("PetBattleModelScene control missing")?;
+            let mut group = Node3D::new_alloc();
+            group.set_name("PetBattleActiveModels");
+            let mut scene = Scene::new(host);
+            scene.replace_model(group);
+            self.wild_pet_battle.scene = Some(scene);
+            self.wild_pet_battle.pending = Some((requests.map(Some), displays));
         }
-        let Some((ids, displays)) = self.wild_pet_battle.pending else {
+        let Some((mut ids, displays)) = self.wild_pet_battle.pending else {
             if let Some(scene) = &mut self.wild_pet_battle.scene {
                 scene.fit_viewport();
             }
             return Ok(());
         };
-        for (team, id) in ids.iter().enumerate() {
-            if self.wild_pet_battle.loaded[team].is_none() {
-                if let Some(model) = self.world.take_detached_visual(*id) {
-                    self.wild_pet_battle.loaded[team] = Some(model?);
+        for (team, request) in ids.iter_mut().enumerate() {
+            let Some(id) = *request else {
+                continue;
+            };
+            let Some(result) = self.world.take_detached_visual(id) else {
+                continue;
+            };
+            *request = None;
+            let mut model = match result {
+                Ok(model) => model,
+                Err(error) => {
+                    godot_error!("Pet battle team {team} display {}: {error}", displays[team]);
+                    continue;
                 }
-            }
-        }
-        if self.wild_pet_battle.loaded.iter().any(Option::is_none) {
-            return Ok(());
-        }
-        let host = self
-            .wild_pet_battle
-            .ui
-            .as_ref()
-            .expect("battle UI")
-            .bind()
-            .frame_control(MODEL_SCENE)
-            .ok_or("PetBattleModelScene control missing")?;
-        let mut group = Node3D::new_alloc();
-        group.set_name("PetBattleActiveModels");
-        for team in 0..2 {
-            let mut model = self.wild_pet_battle.loaded[team]
-                .take()
-                .expect("both pets loaded");
+            };
             bind_sheet_light(&model);
             model.set_name(if team == 0 { "AllyPet" } else { "EnemyPet" });
             model.set_position(Vector3::new(0.0, 0.0, if team == 0 { 1.5 } else { -1.5 }));
@@ -258,13 +256,18 @@ impl GameClient {
                 },
                 0.0,
             ));
-            group.add_child(&model);
+            self.wild_pet_battle
+                .scene
+                .as_mut()
+                .expect("battle scene created with requests")
+                .add_model_child(&model);
         }
-        let mut scene = Scene::new(host);
-        scene.replace_model(group);
-        self.wild_pet_battle.scene = Some(scene);
-        self.wild_pet_battle.shown = displays;
-        self.wild_pet_battle.pending = None;
+        if ids.iter().all(Option::is_none) {
+            self.wild_pet_battle.shown = displays;
+            self.wild_pet_battle.pending = None;
+        } else {
+            self.wild_pet_battle.pending = Some((ids, displays));
+        }
         Ok(())
     }
 }
