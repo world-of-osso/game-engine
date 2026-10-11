@@ -51,7 +51,7 @@ def build_runtime(root, uv, engine):
         run('git', '-C', str(source), 'apply', str(patch))
     run(str(uv), 'run', '--python', '3.12.12', '--with', 'scons==4.10.1', 'scons',
         '-j4', 'platform=windows', 'arch=x86_64', 'target=editor',
-        'use_mingw=yes', 'production=yes', 'accesskit=no', cwd=source)
+        'use_mingw=yes', 'production=yes', 'accesskit=no', 'd3d12=no', 'winrt=no', cwd=source)
     runtime = root / 'artifacts/godot.exe'
     runtime.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source / 'bin/godot.windows.editor.x86_64.exe', runtime)
