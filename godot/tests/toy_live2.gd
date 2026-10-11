@@ -37,10 +37,7 @@ func run_fixture() -> void:
 				return true
 		return false, "player model", 120000): return
 	await create_timer(2.0).timeout
-	await click("CollectionsMicroButton")
-	await click("CollectionsJournalTab3")
-	if not await wait_until(func(): return client.toybox_state().catalog_count > 0, "initial journal query"): return
-	await click("CollectionsMicroButton")
+	if not await wait_until(func(): return client.toybox_state().catalog_count > 0, "initial catalog without query"): return
 	for zoom in range(5):
 		var event := InputEventMouseButton.new()
 		event.position = Vector2(960, 540)
@@ -101,26 +98,8 @@ func sample_toy(sample: Array) -> void:
 	await create_timer(1.0).timeout
 
 func learn_sample(item: int) -> void:
-	if learned_toy(item): return
-	await click("MainMenuBarBackpackButton")
-	if not await wait_until(func(): return control("ContainerFrame0") != null, "backpack"): return
-	var slot_name := ""
-	for bag_item in client.merchant_state().bags:
-		if int(bag_item.item_id) == item: slot_name = "ContainerFrame%dSlot%d" % [bag_item.bag, bag_item.slot]
-	if slot_name != "": await click(slot_name, MOUSE_BUTTON_RIGHT)
-	await tap(KEY_ESCAPE)
-	# Read the authoritative journal through its normal opening/query action.
-	await click("CollectionsMicroButton")
-	await click("CollectionsJournalTab3")
-	var deadline := Time.get_ticks_msec() + 10000
-	while not learned_toy(item) and Time.get_ticks_msec() < deadline: await process_frame
-	if not learned_toy(item):
-		await RenderingServer.frame_post_draw
-		var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-learning.png" % [skin, item])
-		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
-		receipts.append({"item": item, "skin": skin, "phase": "learning-refused", "slot": slot_name, "inventory": client.merchant_state(), "toybox": client.toybox_state(), "image": path})
-		write_receipts()
-	await click("CollectionsMicroButton")
+	# Observe the learning notification before opening Collections.
+	await learn_toy(item)
 
 func select_mortar_target() -> bool:
 	# TDB Northshire spawn:42937 (-9029.03,-274.965,74.4195).
