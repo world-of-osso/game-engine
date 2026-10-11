@@ -106,6 +106,36 @@ impl ObjectiveTrackerState {
         Self::from_watched(runtime.watched_entries(), collapsed, quests_collapsed)
     }
 
+    pub fn from_runtime_at(
+        runtime: &QuestRuntime,
+        collapsed: bool,
+        quests_collapsed: bool,
+        now: i64,
+    ) -> Self {
+        let mut state = Self::from_runtime(runtime, collapsed, quests_collapsed);
+        let now = now + runtime.server_clock_offset;
+        for (block, entry) in state.quests.iter_mut().zip(runtime.watched_entries()) {
+            if entry.failed {
+                block.title = format!("{} - Failed", entry.title);
+                block.complete = false;
+                block.lines = vec![ObjectiveLine {
+                    text: "Quest completion failed.".into(),
+                    style: ObjectiveLineStyle::InProgress,
+                }];
+            } else if let Some(end) = entry.expires_at {
+                let remaining = (end - now).max(0);
+                block.lines.insert(
+                    0,
+                    ObjectiveLine {
+                        text: format!("Time Remaining: {}:{:02}", remaining / 60, remaining % 60),
+                        style: ObjectiveLineStyle::InProgress,
+                    },
+                );
+            }
+        }
+        state
+    }
+
     /// Blocks for `watched` entries in watch order.
     pub fn from_watched<'a>(
         watched: impl IntoIterator<Item = &'a QuestEntrySnapshot>,
