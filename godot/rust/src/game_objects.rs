@@ -74,6 +74,7 @@ const MODEL_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
     match go_type {
         GAMEOBJECT_TYPE_MAILBOX => Some(ActiveWowCursor::Mail),
+        shared::protocol::GAMEOBJECT_TYPE_GATHERING_NODE => Some(ActiveWowCursor::Interact),
         GAMEOBJECT_TYPE_GUILD_BANK
         | GAMEOBJECT_TYPE_CHAIR
         | GAMEOBJECT_TYPE_MEETINGSTONE

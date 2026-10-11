@@ -55,6 +55,11 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [ ] Filter dropdown, expansion dropdown on the rank bar, favourites, unlearned recipes, tooltips, recipe description, Specializations and Crafting Orders tabs, minimized mode, the cast bar moved onto the page (PC.lua:1282-1296), variable-quality outcomes/concentration (operation formulas remain gaps; fixed reagent crafting-tier overlays are covered by [modern crafting](modern-crafting.md)).
 - [ ] Rank-bar `BarAnimation` flipbook playback and the `Skillbar_Flare_<kit>` fade (PRB.xml:94-99); the fill shows the first frame. The Tailoring kit fill is unit-tested only; the live proof showed DefaultBlue before this change.
 
+## Native gathering rank display
+
+- With no recipe selected, display a learned profession child (`SkillLine.ParentSkillLineID`), not its parent skill holder (including capped parents such as Skinning `1/75`). Selected recipes retain their authored skill line. Both skins show Classic Herbalism, Mining and Skinning ranks.
+- Regression: `godot/ui-model/tests/professions_art.rs::professions_gathering_skill_bar_uses_progress_line_not_parent_holder` uses concrete parent/Classic child snapshots.
+
 ## Tests asserting this spec
 
 - `src/game/professions_data_tests.rs`: Bolt of Linen Cloth reagents/output/trivial ranks/category, Tailoring and its Classic tier from the pinned CSVs.
