@@ -104,6 +104,42 @@ class LegacyProductTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unexpected actual build'):
             verifier.authenticate_root(Path('unused'), {'Product': 'wow', 'Version': '12.1.1.70000'}, {42}, {}, Path('unused'))
 
+    def skin_fixture(self, reference=43, corrupt_parent=False):
+        raw = b'SKIN authentic'
+        data, _, _, identity, _, _ = self.fixture()
+        parent = b'MD21' + struct.pack('<I', 0) + b'SFID' + struct.pack('<II', 4, reference)
+        (data / 'models').mkdir()
+        (data / 'models/42.m2').write_bytes(parent)
+        (data / 'models/4200.skin').write_bytes(raw)
+        asset = {'product': 'wow', 'fdid': 43, 'extension': 'skin',
+                 'actual_build': 'a' * 32, 'legacy_candidate_path': 'models/4200.skin'}
+        roots = {42: hashlib.md5(b'other' if corrupt_parent else parent).digest(),
+                 43: hashlib.md5(raw).digest()}
+        return data, identity, asset, roots, raw
+
+    def test_authenticated_sfid_companion_publishes_alias_and_canonical_receipt(self):
+        data, identity, asset, roots, raw = self.skin_fixture()
+        row = verifier.publish_skin_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        index = json.loads((data / 'cache/model-asset-index.json').read_text())
+        alias = index['aliases'][0]
+        self.assertEqual(alias['fdid'], 43)
+        self.assertEqual((data / alias['path']).read_bytes(), raw)
+        self.assertEqual((data / index['assets'][0]['path']).read_bytes(), raw)
+        self.assertEqual(index['chains'][0]['dependencies']['42.m2'], {'skin': [43]})
+
+    def test_unrelated_skin_never_publishes_alias_or_receipt(self):
+        data, identity, asset, roots, _ = self.skin_fixture(reference=44)
+        row = verifier.publish_skin_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'companion_mismatch')
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
+    def test_unauthenticated_parent_never_publishes_alias_or_receipt(self):
+        data, identity, asset, roots, _ = self.skin_fixture(corrupt_parent=True)
+        row = verifier.publish_skin_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'parent_content_mismatch')
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
     def test_missing_bytes_do_not_publish(self):
         data, source, target, identity, asset, keys = self.fixture(content=hashlib.md5(b'BLP2 authentic').digest())
         source.unlink()
