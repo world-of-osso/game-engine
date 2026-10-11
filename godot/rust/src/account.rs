@@ -2598,3 +2598,18 @@ fn auction_message(
     };
     Ok(Ok(reply))
 }
+
+/// Terrain messages refresh tiles; NewWorld owns changing an initialized world map.
+pub(crate) fn validate_terrain_refresh(
+    current: Option<&str>,
+    requested: &str,
+) -> Result<(), String> {
+    if let Some(current) = current
+        && current != requested
+    {
+        return Err(format!(
+            "Stale terrain refresh for {requested}; NewWorld selected {current}"
+        ));
+    }
+    Ok(())
+}

@@ -26,3 +26,6 @@ Retail Mainline raid entry uses the [server raid contract](../../../game-server/
 
 ## Out of scope
 Raid encounter mechanics and rewards.
+
+## Portal terrain ownership
+`NewWorld` selects the destination map; `LoadTerrain` only bootstraps an empty world or refreshes tiles of the selected map. Late terrain hints from the departure map must not replace the destination. Native portal replay reproduced Loading(409) with fully loaded Azeroth terrain, no pending assets, and no failures after a back-to-back portal transfer. The stale map hint is rejected explicitly at the client protocol boundary, not substituted with another map.
