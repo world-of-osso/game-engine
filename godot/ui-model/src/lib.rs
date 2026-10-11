@@ -40,6 +40,7 @@ pub mod ui {
 }
 
 // In-world chat frame (docs/specs/chat-frame.md).
+pub mod battleground;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
 #[path = "ui/chat_frame.rs"]
@@ -47,12 +48,22 @@ pub mod chat_frame;
 #[path = "ui/screens/chat_frame_component.rs"]
 pub mod chat_frame_component;
 pub mod collections_component;
+pub mod countdown_component;
+pub mod group_countdown;
+pub mod group_loot;
+pub mod group_loot_component;
 #[path = "game/group_state.rs"]
 pub mod group_state;
+pub mod guild_charter_frame;
+pub mod guild_charters;
 pub mod pet_journal;
+pub mod pet_stable;
+#[path = "ui/screens/pet_stable_component.rs"]
+pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;
+pub mod raid_manager_component;
 pub mod raid_warning;
 pub mod spell_overrides;
 pub mod spell_targeting;
@@ -62,6 +73,8 @@ pub mod toybox;
 pub mod toybox_component;
 pub mod trainer;
 pub mod trainer_frame;
+pub mod transmog;
+pub mod transmog_frame;
 pub mod wild_pet_battle;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).

@@ -1,8 +1,8 @@
 use super::*;
 use shared::protocol::{
     AchievementCatalogEntry, AchievementCatalogPage, AchievementCategoryEntry,
-    AchievementCriterionLine, AchievementStateUpdate, DungeonEncounterProgress, DungeonProgress,
-    QueryAchievementCatalog,
+    AchievementCriterionLine, AchievementScope, AchievementStateUpdate, DungeonEncounterProgress,
+    DungeonProgress, QueryAchievementCatalog,
 };
 
 fn account() -> Account {
@@ -89,7 +89,12 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
     let mut output = Vec::new();
     assert_eq!(
         account.achievements.action("micro:AchievementMicroButton"),
-        vec![QueryAchievementCatalog::Categories { after_id: 0 }]
+        vec![
+            QueryAchievementCatalog::Categories { after_id: 0 },
+            QueryAchievementCatalog::Summary {
+                scope: AchievementScope::All
+            }
+        ]
     );
     account
         .dispatch_message(
@@ -120,6 +125,8 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
                     description: "Defeat Hogger".into(),
                     points: 10,
                     icon_fdid: 136363,
+                    flags: 0,
+                    statistic_value: None,
                     earned: false,
                     earned_at: None,
                     progress_supported: true,
@@ -145,6 +152,7 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
         achievement_id: 633,
         name: "Stormwind Stockade".into(),
         points: 10,
+        icon_fdid: 134163,
     };
     account
         .dispatch_message(
@@ -159,10 +167,15 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
         .unwrap();
     assert_eq!(
         account.achievement_requests,
-        vec![QueryAchievementCatalog::Category {
-            category_id: 14808,
-            after_id: 0
-        }]
+        vec![
+            QueryAchievementCatalog::Summary {
+                scope: AchievementScope::All
+            },
+            QueryAchievementCatalog::Category {
+                category_id: 14808,
+                after_id: 0
+            }
+        ]
     );
     assert!(
         matches!(output.as_slice(),[AccountEvent::Achievement(update)] if update.completed.as_ref()==Some(&toast))

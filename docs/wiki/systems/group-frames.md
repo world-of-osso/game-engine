@@ -1,8 +1,18 @@
 # Group Frames
 
-Party and raid play runs through one client resource, `GroupState` (`src/game/group_state.rs`). The server fills it with the roster, live member states, invite prompts and ready checks. The party and raid frames, the `PARTY_INVITE` popup, the `ReadyCheckFrame`, the unit frame menus and IPC all read it. Player actions become `GroupCommand` messages, which `src/game/networking/group.rs` sends on `GroupChannel`.
+Native party and raid play share `GroupState` in `godot/ui-model/src/game/group_state.rs`. The server fills the roster, live member states, invites, ready checks and pull countdowns; native frames, menus and IPC read that state. [Acceptance and remaining gaps](../../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11) live in the contract.
 
 ## Content
+
+### Native ready checks and pull countdowns
+
+Verified: 2026-10-11.
+
+- `godot/ui-model/src/countdown_component.rs` projects Retail TimerTracker stages; `group_countdown.rs` owns remaining time, number transitions and sound requests. `godot/rust/src/party_frames.rs` projects the group/manager/ready-check controls; both skins share elements and behavior.
+- Countdown updates carry a server UTC deadline. Applying receipt-relative duration revived reliable messages delivered up to18s late in the first three-client run; the authoritative deadline rejects expired starts. Client/server wall clocks must be synchronized.
+- Server group authority validates leader/raid-assistant initiation, replaces/cancels timers and clears them on leave. Assistant changes arrive in authoritative roster snapshots.
+- Ready-check completion names only unanswered members as AFK and emits the unanswered-recipient message; explicit Not Ready responses are not AFK.
+- Countdown sound-kit requests use native playback. Inspect stream file IDs rather than sound-kit IDs: the tick/finish observations used files567474/567438, corresponding to kits158565/158566. Audio driver capability limits are recorded with the [acceptance evidence](../../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11).
 
 ### Data flow
 
@@ -15,7 +25,7 @@ Party and raid play runs through one client resource, `GroupState` (`src/game/gr
 - **Range fading:** compares the local player's state position with the member's (server coordinates on both sides), 40 yd.
 - **Stale invites:** the registry cancels a pending invite at the source whenever the inviter joins another group, leaves, loses leadership, logs out, or the invite times out. Each cancel sends `GroupInviteCancelled` to the invitee.
 
-### Client pieces
+### Historical Bevy client pieces (retired)
 
 | Piece | File |
 |---|---|
