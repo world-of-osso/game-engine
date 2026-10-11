@@ -9,7 +9,10 @@ pub struct CreatureDisplay {
     pub source_product: crate::asset_product::AssetProduct,
     pub model_fdid: u32,
     pub skin_fdids: [u32; 4],
+    /// CreatureDisplayInfo.CreatureModelScale × CreatureModelData.ModelScale.
     pub scale_milli: u32,
+    /// Additional CreatureDisplayInfo.PetInstanceScale, applied only to battle instances.
+    pub pet_instance_scale_milli: u32,
 }
 
 /// Read one imported creature display without hiding catalog errors.
@@ -18,7 +21,7 @@ pub fn query_display(
     display_id: u32,
 ) -> rusqlite::Result<Option<CreatureDisplay>> {
     let mut stmt = conn.prepare(
-        "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product
+        "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli
          FROM creature_displays WHERE display_id = ?1",
     )?;
     stmt.query_row([display_id], |row| {
@@ -27,6 +30,7 @@ pub fn query_display(
             skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?],
             scale_milli: row.get(5)?,
             source_product: row.get(6)?,
+            pet_instance_scale_milli: row.get(7)?,
         })
     })
     .optional()

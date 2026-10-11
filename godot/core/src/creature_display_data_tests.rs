@@ -13,9 +13,10 @@ fn query_display_reads_model_all_skins_and_scale() {
             skin_fdid_2 INTEGER NOT NULL,
             skin_fdid_3 INTEGER NOT NULL,
             scale_milli INTEGER NOT NULL,
-            source_product TEXT NOT NULL
+            source_product TEXT NOT NULL,
+            pet_instance_scale_milli INTEGER NOT NULL
         );
-        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow');",
+        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow', 700);",
     )
     .unwrap();
 
@@ -26,6 +27,7 @@ fn query_display_reads_model_all_skins_and_scale() {
             model_fdid: 1234,
             skin_fdids: [567, 890, 123, 456],
             scale_milli: 1750,
+            pet_instance_scale_milli: 700,
         })
     );
     assert_eq!(query_display(&conn, 43).unwrap(), None);

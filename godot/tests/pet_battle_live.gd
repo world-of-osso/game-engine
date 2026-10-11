@@ -77,7 +77,10 @@ func live_run() -> void:
 								bounds = transformed if visible_meshes == 0 else bounds.merge(transformed)
 								visible_meshes += 1
 						var origin = view_rect.position + model_camera.unproject_position(model.global_position)
-						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "framed": framed, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z], "origin_px": [origin.x, origin.y], "projected_px": [projected.position.x + view_rect.position.x, projected.position.y + view_rect.position.y, projected.size.x, projected.size.y], "posed_projected_px": [posed_projected.position.x + view_rect.position.x, posed_projected.position.y + view_rect.position.y, posed_projected.size.x, posed_projected.size.y], "position": [model.position.x, model.position.y, model.position.z], "scale": [model.scale.x, model.scale.y, model.scale.z]})
+						var visual = model.get_child(0)
+						var instance_scale = visual.get_meta("pet_instance_scale")
+						var display_id = visual.get_meta("creature_display_id")
+						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "framed": framed, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z], "origin_px": [origin.x, origin.y], "projected_px": [projected.position.x + view_rect.position.x, projected.position.y + view_rect.position.y, projected.size.x, projected.size.y], "posed_projected_px": [posed_projected.position.x + view_rect.position.x, posed_projected.position.y + view_rect.position.y, posed_projected.size.x, posed_projected.size.y], "position": [model.position.x, model.position.y, model.position.z], "scale": [model.scale.x, model.scale.y, model.scale.z], "display_id": display_id, "pet_instance_scale": instance_scale, "visual_scale": [visual.scale.x, visual.scale.y, visual.scale.z], "visual_position": [visual.position.x, visual.position.y, visual.position.z]})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw

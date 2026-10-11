@@ -4,6 +4,7 @@ PETBATTLE_MODELS_DIR selects an owned running driver. Default case requires
 Soul of the Aspects versus Rabbit with Soul's receipt deliberately absent.
 PETBATTLE_EXPECT_ALLY selects the authentic complete-pair acceptance case.
 """
+import csv
 import json
 import os
 from pathlib import Path
@@ -35,6 +36,12 @@ class PetBattleModelVisibility(unittest.TestCase):
     def test_active_pair_visibility(self):
         directory = Path(os.environ["PETBATTLE_MODELS_DIR"])
         ally = os.environ.get("PETBATTLE_EXPECT_ALLY")
+        data = Path(os.environ.get("PETBATTLE_DATA_DIR", Path(__file__).resolve().parents[2] / "data"))
+        with (data / "CreatureDisplayInfo.csv").open() as source:
+            displays = {int(row["ID"]): row for row in csv.DictReader(source)}
+        with (data / "CreatureModelData.csv").open() as source:
+            model_scales = {int(row["ID"]): float(row["ModelScale"]) for row in csv.DictReader(source)}
+        poses = {"AllyPet": set(), "EnemyPet": set()}
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
             response = snapshot(directory)
@@ -48,23 +55,40 @@ class PetBattleModelVisibility(unittest.TestCase):
                 self.assertTrue(model["framed"], f"authored animation bounds clipped: {model}")
                 self.assertTrue(all(extent > 0 for extent in model["bounds"]), model)
                 if ally:
-                    # Mesh existence/full-frustum containment alone accepts tiny,
-                    # centrally collapsed pets. Check both battlefield pads and size.
+                    # Fixed pads and authentic data, not equal projected heights.
                     x, y, width, height = model["posed_projected_px"]
-                    center_x, center_y = x + width / 2, y + height / 2
+                    center_x = x + width / 2
                     pad_x = (230, 520) if model["name"] == "AllyPet" else (760, 1050)
                     self.assertGreaterEqual(center_x, pad_x[0], model)
                     self.assertLessEqual(center_x, pad_x[1], model)
-                    self.assertGreaterEqual(center_y, 260, model)
-                    self.assertLessEqual(center_y, 440, model)
-                    self.assertGreaterEqual(height, 80, model)
-                    self.assertLessEqual(height, 200, model)
-                    self.assertGreaterEqual(y + height, 370, model)
-                    self.assertLessEqual(y + height, 450, model)
+                    self.assertGreater(height, 0, model)
+                    display = displays[model["display_id"]]
+                    instance_scale = float(display["PetInstanceScale"])
+                    world_scale = float(display["CreatureModelScale"]) * model_scales[int(display["ModelID"])]
+                    for axis in range(3):
+                        self.assertAlmostEqual(model["scale"][axis], instance_scale, places=3, msg=str(model))
+                        self.assertAlmostEqual(model["visual_scale"][axis], world_scale, places=3, msg=str(model))
+                        self.assertAlmostEqual(model["visual_position"][axis], 0, places=4, msg=str(model))
+                    expected_z = 2.2 if model["name"] == "AllyPet" else -2.2
+                    self.assertAlmostEqual(model["position"][2], expected_z, places=4, msg=str(model))
+                    self.assertAlmostEqual(model["position"][0], 0, places=4, msg=str(model))
+                    self.assertAlmostEqual(model["position"][1], 0, places=4, msg=str(model))
+                    poses[model["name"]].add(tuple(round(value, 2) for value in model["posed_projected_px"]))
+            if ally:
+                pair = {model["name"]: model for model in response["battle_models"]}
+                actual_ratio = pair["AllyPet"]["visual_scale"][0] * pair["AllyPet"]["scale"][0] / (pair["EnemyPet"]["visual_scale"][0] * pair["EnemyPet"]["scale"][0])
+                expected = []
+                for name in ("AllyPet", "EnemyPet"):
+                    row = displays[pair[name]["display_id"]]
+                    expected.append(float(row["CreatureModelScale"]) * model_scales[int(row["ModelID"])] * float(row["PetInstanceScale"]))
+                self.assertAlmostEqual(actual_ratio, expected[0] / expected[1], places=3)
             skin = os.environ.get("PETBATTLE_EXPECT_SKIN")
             if skin:
                 self.assertEqual(response["account"]["ui_skin"], skin)
             time.sleep(.5)
+        if ally:
+            for name, observed in poses.items():
+                self.assertGreater(len(observed), 1, f"{name} never changed its posed geometry")
 
 
 if __name__ == "__main__":

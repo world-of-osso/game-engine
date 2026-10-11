@@ -232,12 +232,12 @@ impl Scene {
         self.model = Some(model);
     }
 
-    /// Publish one independently completed child and frame the arrived models.
+    /// Publish one independently completed pet using the fixed battlefield camera.
     pub(crate) fn add_model_child(&mut self, child: &Gd<Node3D>) {
         let mut model = self.model.clone().expect("preview model group installed");
         model.add_child(child);
         self.fit_viewport();
-        self.frame_camera(&model);
+        self.frame_battlefield();
     }
 
     /// Battle pads use a fixed projection, never the combined pets' idle envelope.

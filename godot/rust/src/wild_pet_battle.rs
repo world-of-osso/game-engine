@@ -5,15 +5,13 @@ use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wild_pet_battle::{MODEL_SCENE, WildBattleView, wild_battle_screen};
-use godot::classes::{CanvasLayer, MeshInstance3D, Node3D, Skeleton3D};
+use godot::classes::{CanvasLayer, Node3D};
 use godot::prelude::*;
 use shared::components::Npc;
 use shared::protocol::WildPetBattleUpdate;
 use std::collections::{BTreeMap, BTreeSet};
 
-const BATTLE_PET_HEIGHT: f32 = 1.3;
 const BATTLE_PAD_OFFSET: f32 = 2.2;
-const BATTLE_IDLE_SAMPLES: usize = 16;
 
 #[derive(Default)]
 pub(crate) struct WildBattleHud {
@@ -304,88 +302,8 @@ fn stage_battle_pet(scene: &mut Scene, mut model: Gd<Node3D>, team: usize) -> Re
     pad.set_name(if team == 0 { "AllyPet" } else { "EnemyPet" });
     pad.add_child(&model);
     scene.add_model_child(&pad);
-    normalize_battle_pad(&mut model, &mut pad, team)?;
-    scene.frame_battlefield();
-    Ok(())
-}
-
-/// Sample the base idle's posed geometry, not its conservative culling/rest envelope.
-fn posed_battle_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
-    let skeletons = model
-        .find_children_ex("*")
-        .type_("Skeleton3D")
-        .owned(false)
-        .done();
-    for node in skeletons.iter_shared() {
-        node.cast::<Skeleton3D>().force_update_all_bone_transforms();
-    }
-    let meshes = model
-        .find_children_ex("*")
-        .type_("MeshInstance3D")
-        .owned(false)
-        .done();
-    let mut bounds: Option<Aabb> = None;
-    for node in meshes.iter_shared() {
-        let mut mesh = node.cast::<MeshInstance3D>();
-        if !mesh.is_visible_in_tree() {
-            continue;
-        }
-        let local = if mesh.get_skin().is_some() {
-            mesh.bake_mesh_from_current_skeleton_pose()
-                .ok_or("Battle mesh has no baked skeleton pose")?
-                .get_aabb()
-        } else {
-            mesh.get_mesh()
-                .ok_or("Battle batch has no mesh")?
-                .get_aabb()
-        };
-        let posed = mesh.get_global_transform() * local;
-        bounds = Some(bounds.map_or(posed, |previous| previous.merge(posed)));
-    }
-    bounds.ok_or_else(|| "Battle pet has no visible geometry".into())
-}
-
-/// Fit the complete base loop: e.g. Tickbird's raised wings exceed its first pose.
-fn battle_idle_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
-    let animations = model
-        .find_children_ex("*")
-        .type_("WowAnimationPlayer")
-        .owned(false)
-        .done();
-    let mut bounds: Option<Aabb> = None;
-    for sample in 0..=BATTLE_IDLE_SAMPLES {
-        let phase = (sample % BATTLE_IDLE_SAMPLES) as f64 / BATTLE_IDLE_SAMPLES as f64;
-        for node in animations.iter_shared() {
-            let mut player = node.cast::<WowAnimationPlayer>();
-            let mut player = player.bind_mut();
-            let (_, _, duration, _) = player.footstep_phase().ok_or("Battle idle has no clip")?;
-            player.seek_fixed_time_ms(f64::from(duration) * phase)?;
-        }
-        let posed = posed_battle_bounds(model)?;
-        bounds = Some(bounds.map_or(posed, |previous| previous.merge(posed)));
-    }
-    bounds.ok_or_else(|| "Battle idle has no posed bounds".into())
-}
-
-fn normalize_battle_pad(
-    model: &mut Gd<Node3D>,
-    pad: &mut Gd<Node3D>,
-    team: usize,
-) -> Result<(), String> {
-    let bounds = battle_idle_bounds(model)?;
-    if !bounds.size.y.is_finite() || bounds.size.y <= 0.0 {
-        return Err(format!(
-            "Battle team {team} has invalid model height {}",
-            bounds.size.y
-        ));
-    }
-    // Presentation scale belongs to the pad, preserving the nested authored display scale.
-    model.set_position(Vector3::new(
-        -bounds.center().x,
-        -bounds.position.y,
-        -bounds.center().z,
-    ));
-    pad.set_scale(Vector3::ONE * (BATTLE_PET_HEIGHT / bounds.size.y));
+    let pet_instance_scale = model.get_meta("pet_instance_scale").to::<f32>();
+    pad.set_scale(Vector3::ONE * pet_instance_scale);
     let side = if team == 0 { 1.0 } else { -1.0 };
     pad.set_position(Vector3::new(0.0, 0.0, side * BATTLE_PAD_OFFSET));
     Ok(())
