@@ -4,6 +4,7 @@ var skin := OS.get_environment("GATHERING_SKIN")
 var scenario := OS.get_environment("GATHERING_SCENARIO")
 var shots := OS.get_environment("GATHERING_SHOTS")
 var failed := false
+var skill_text := ""
 
 func run_fixture() -> void:
 	if OS.get_environment("GAME_SERVER_ADMIN_SOCKET") != "/tmp/game-server-admin-5720.sock": fail("private socket required"); return
@@ -38,7 +39,7 @@ func run_fixture() -> void:
 	quit(0)
 
 func admin(arguments: Array) -> bool:
-	return command(OS.get_environment("GATHERING_AGENT_RUN"), ["gathering-nodes", OS.get_environment("GATHERING_ADMIN")] + arguments)
+	return command(OS.get_environment("GATHERING_AGENT_RUN"), ["gathering-live", OS.get_environment("GATHERING_ADMIN")] + arguments)
 
 func prove_node(resource: Dictionary) -> void:
 	var label: String = resource.label
@@ -50,13 +51,14 @@ func prove_node(resource: Dictionary) -> void:
 	if int(object.get_meta("game_object_display_id")) != int(resource.display): fail("authored resource display mismatch"); return
 	if model.find_children("*", "MeshInstance3D", true, false).is_empty(): fail("resource has no meshes"); return
 	await checkpoint(label + "-position", object)
+	await capture_skill(label + "-skill-before", label)
 	if label == "herb":
-		await click("MinimapLauncherButton")
+		await click("MinimapClusterTrackingBackground")
 		if not await wait_until(func(): return control("MinimapTrackingChoice9") != null, "learned Find Herbs"): return
 		await click("MinimapTrackingRow9")
 		await click("MinimapTrackingRow10")
 		await capture("tracking")
-		await click("MinimapLauncherButton")
+		await click("MinimapClusterTrackingBackground")
 	await click_world(object)
 	if not await wait_until(func(): return int(client.spells_state().casting) == int(resource.spell), label + " cast", 5000): return
 	await capture(label + "-cast")
@@ -64,6 +66,28 @@ func prove_node(resource: Dictionary) -> void:
 	await capture(label + "-loot")
 	await checkpoint(label + "-loot", object)
 	if not await wait_until(func(): return control("LootFrame") == null, label + " taken loot"): return
+	await capture_skill(label + "-skill-after", label)
+	if not await wait_until(func(): return not is_instance_valid(object), label + " despawn", 60000): return
+	await capture(label + "-despawn")
+	await checkpoint(label + "-despawn")
+	var position := Vector3(float(resource.x), float(resource.z), -float(resource.y))
+	if not await wait_until(func():
+		var respawn := resource_node(int(resource.entry))
+		return respawn != null and respawn.global_position.distance_to(position) < 0.1, label + " respawn", 240000): return
+	await capture(label + "-respawn")
+	await checkpoint(label + "-respawn", resource_node(int(resource.entry)))
+
+func capture_skill(label: String, resource: String) -> void:
+	await tap(KEY_K)
+	if not await wait_until(func(): return control("ProfessionsSkillText") != null, label + " skill display"): return
+	if resource == "ore":
+		if not admin(["learn-spell", character, "2657"]): return
+		if not await wait_until(func(): return control("ProfessionRecipe2657") != null, "learned Smelt Copper"): return
+		await click("ProfessionRecipe2657")
+		await create_timer(0.5).timeout
+	skill_text = control("ProfessionsSkillText").text
+	await capture(label)
+	await tap(KEY_ESCAPE)
 
 func prove_skinning() -> void:
 	var resource: Dictionary = JSON.parse_string(OS.get_environment("GATHERING_WOLF"))
@@ -72,6 +96,7 @@ func prove_skinning() -> void:
 	await create_timer(2.0).timeout
 	var wolf := wolf_node()
 	await checkpoint("wolf-position", wolf)
+	await capture_skill("skinning-skill-before", "skin")
 	await click_world(wolf)
 	await checkpoint("kill-started", wolf)
 	if not await wait_until(func(): return client.target_state().health_text == "Dead", "own wolf kill", 90000): return
@@ -87,6 +112,8 @@ func prove_skinning() -> void:
 	if not await wait_until(func(): return control("LootFrame") != null, "skinning loot"): return
 	await capture("skinning-loot")
 	await checkpoint("skinning-loot", wolf)
+	if not await wait_until(func(): return control("LootFrame") == null, "skinning loot emptied"): return
+	await capture_skill("skinning-skill-after", "skin")
 
 func resource_node(entry: int) -> Node3D:
 	var closest: Node3D
@@ -135,14 +162,15 @@ func checkpoint(label: String, object: Node3D = null) -> void:
 	file.store_string(JSON.stringify(record))
 	file.close()
 	var ack := output.path_join(skin + "-" + scenario + "-" + label + ".ack")
-	await wait_until(func(): return FileAccess.file_exists(ack), "external proof " + label, 120000)
+	await wait_until(func(): return FileAccess.file_exists(ack), "external proof " + label, 240000)
 
 func capture(label: String) -> void:
 	await RenderingServer.frame_post_draw
 	var path := shots.path_join(skin.to_lower() + "-" + scenario + "-" + label + ".png")
 	if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
 	receipts.append({"skin": skin, "scenario": scenario, "label": label, "png": path,
-		"account": client.account_state(), "spells": client.spells_state(), "target": client.target_state()})
+		"account": client.account_state(), "spells": client.spells_state(), "target": client.target_state(),
+		"minimap": client.minimap_state(), "bags": client.merchant_state().bags, "skill_text": skill_text})
 	write_receipts()
 
 func write_receipts() -> void:
