@@ -150,7 +150,10 @@ impl GameClient {
         let Some((rect, _)) = host.frame_rect(model::FRAME) else {
             return false;
         };
-        if !handle.get_global_rect().has_point(button.get_position()) {
+        if !handle
+            .get_global_rect()
+            .contains_point(button.get_position())
+        {
             return false;
         }
         drop(host);
@@ -215,8 +218,8 @@ impl GameClient {
 impl GameClient {
     #[func]
     fn party_keystone_state(&self) -> GString {
-        serde_json::to_string(&self.account.party_keystones)
-            .expect("serialize party keys")
-            .into()
+        GString::from(
+            &serde_json::to_string(&self.account.party_keystones).expect("serialize party keys"),
+        )
     }
 }
