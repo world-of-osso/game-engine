@@ -1,4 +1,8 @@
-## 2026-10-10 — Battlefield pet model correction
+## 2026-10-10 — Battlefield staging continuation, incomplete
+
+[Staging correction](systems/battle-pets.md#battlefield-staging-correction--2026-10-10) supersedes the original eight-mesh proof as composition acceptance: Soul's idle envelope collapsed both pads. Both-pet projected geometry/position checks now pass six of eight native cases; Tickbird's pose-sampling boundary still fails both skins. Eight inspected v2 captures include two explicitly rejected cases. No asset overwrite, world.db write, shared-realm mutation or master merge; branch is not ready to merge.
+
+## 2026-10-10 — Battlefield pet model correction (historical visibility proof)
 
 [Model availability](systems/battle-pets.md#battlefield-model-availability--verified-2026-10-10): missing ally receipts stranded the ready Rabbit; independent arrivals, authenticated additive no-clobber publication and authored idle-variation framing fix the roots. Native RED/GREEN and eight inspected both-skin four-pair PNGs; no raw fallback, existing asset overwrite, world.db write or master merge.
 
