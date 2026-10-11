@@ -49,6 +49,17 @@ func live_run() -> void:
 						result.units.append({"name": str(unit.name), "position": [unit.global_position.x, unit.global_position.y, unit.global_position.z], "meshes": unit.find_children("*", "MeshInstance3D", true, false).size()})
 				var scene = root.find_child("PetBattleActiveModels", true, false)
 				result.battle_meshes = scene.find_children("*", "MeshInstance3D", true, false).size() if scene != null else 0
+				result.battle_models = []
+				if scene != null:
+					for model in scene.get_children():
+						var bounds := AABB()
+						var visible_meshes := 0
+						for mesh in model.find_children("*", "MeshInstance3D", true, false):
+							if mesh.is_visible_in_tree():
+								var transformed: AABB = mesh.global_transform * mesh.get_aabb()
+								bounds = transformed if visible_meshes == 0 else bounds.merge(transformed)
+								visible_meshes += 1
+						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z]})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
