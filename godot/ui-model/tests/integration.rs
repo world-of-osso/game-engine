@@ -23,6 +23,7 @@ mod classbook_preview;
 mod cursor_icon;
 mod damage_meter_types;
 mod dungeonclient;
+mod raid_entry;
 mod extra_action_bars;
 mod focus_frame;
 mod forever_action_bars;
