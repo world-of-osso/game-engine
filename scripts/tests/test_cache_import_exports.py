@@ -17,10 +17,10 @@ CASES = [
      {"ID": "890", "Name_lang": "", "ChrModelID": "1", "OrderIndex": "10", "ChrCustomizationCategoryID": "3", "OptionType": "0", "Requirement": "12"}),
     ("ChrCustomizationChoice", 0x9559C358, [0, 90001, 890, 19, 23, 2, 0, 0, 0, 0, 0xFF000001 | (0xFF000002 << 32)],
      {"ID": "90001", "Name_lang": "", "ChrCustomizationOptionID": "890", "ChrCustomizationReqID": "19", "ChrCustomizationVisReqID": "23", "OrderIndex": "2", "SwatchColor_0": "-16777215", "SwatchColor_1": "-16777214"}),
-    ("ChrCustomizationGeoset", 0xBF55F2FB, [32, 2, 0],
-     {"ID": "1", "GeosetType": "32", "GeosetID": "2"}),
-    ("CharHairGeosets", 0x5B2ACAEF, [1, 0, 0, 7, 1, 0, 2, 0, 0, 0, 0],
-     {"ID": "1", "RaceID": "1", "SexID": "0", "GeosetID": "7", "Showscalp": "1", "GeosetType": "2"}),
+    ("ChrCustomizationGeoset", 0xBF55F2FB, [17, 0xFFFFFFFF, 0],
+     {"ID": "1", "GeosetType": "17", "GeosetID": "-1"}),
+    ("CharHairGeosets", 0x5B2ACAEF, [1, 0, 0, 0xFF, 1, 0, 2, 0, 0, 0, 0],
+     {"ID": "1", "RaceID": "1", "SexID": "0", "GeosetID": "-1", "Showscalp": "1", "GeosetType": "2"}),
     ("ChrCustomizationCategory", 0x1605B68A, [0, 11985, 11984, 3, 0, 0, 0, 0],
      {"ID": "1", "CategoryName_lang": "", "CustomizeIcon": "11985", "CustomizeIconSelected": "11984", "OrderIndex": "3"}),
     ("CharComponentTextureLayouts", 0x0B9AF134, [2048, 1024],
@@ -39,17 +39,18 @@ def fixture(layout, values):
     raw = bytearray(start)
     raw[:4] = b"WDC5"
     struct.pack_into("<6I", raw, 136, 1, len(values), size, 0, 0, layout)
-    struct.pack_into("<HH7I", raw, 172, 4, 0, len(values), 0, len(values) * 24, 0, 0, 0, 1)
+    inline_id = layout in (0x03FAB755, 0xDCC2A86E, 0x9559C358)
+    ids = b"" if inline_id else struct.pack("<I", 1)
+    struct.pack_into("<HH7I", raw, 172, 0 if inline_id else 4, 0, len(values), 0, len(values) * 24, 0, 0, 0, 1)
     relation = struct.pack("<5I", 1, 700, 700, 700, 0)
-    struct.pack_into("<Q8I", raw, 204, 0, start, 1, 0, start + size, 4, len(relation), 0, 0)
+    struct.pack_into("<Q8I", raw, 204, 0, start, 1, 0, start + size, len(ids), len(relation), 0, 0)
     offset = 0
     record = bytearray()
     for index, (value, width) in enumerate(zip(values, widths)):
         struct.pack_into("<HH5I", raw, 244 + len(values) * 4 + index * 24, offset, width, 0, 0, 0, 0, 0)
         record += value.to_bytes(width // 8, "little")
         offset += width
-    row_id = values[1] if layout in (0xDCC2A86E, 0x9559C358) else 1
-    return raw + record + struct.pack("<I", row_id) + relation
+    return raw + record + ids + relation
 
 
 class CacheImportExportTests(unittest.TestCase):

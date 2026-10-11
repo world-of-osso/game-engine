@@ -88,13 +88,13 @@ TABLES = {
     ),
     "ChrCustomizationGeoset": (
         0xBF55F2FB,
-        [("ID", "id"), ("GeosetType", ("u8", 0)), ("GeosetID", 1)],
+        [("ID", "id"), ("GeosetType", ("i8", 0)), ("GeosetID", ("int", 1, 0))],
     ),
     "CharHairGeosets": (
         0x5B2ACAEF,
-        [("ID", "id"), ("RaceID", ("u8", 0)), ("SexID", ("u8", 1)),
-         ("GeosetID", ("u8", 3)), ("Showscalp", ("u8", 4)),
-         ("GeosetType", ("u8", 6))],
+        [("ID", "id"), ("RaceID", ("i8", 0)), ("SexID", ("i8", 1)),
+         ("GeosetID", ("i8", 3)), ("Showscalp", ("u8", 4)),
+         ("GeosetType", ("i8", 6))],
     ),
     "ChrCustomizationCategory": (
         0x1605B68A,
@@ -1021,6 +1021,7 @@ NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 1
 # Tables whose inline ID is not their first field.
 INLINE_ID_FIELD = {
     "SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2, "ModelFileData": 1,
+    "ChrCustomizationOption": 1, "ChrCustomizationChoice": 1,
 }
 
 
