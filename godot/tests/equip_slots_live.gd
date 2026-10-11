@@ -40,6 +40,9 @@ func run_test() -> void:
 		await capture("baseline-paperdoll")
 		await tap(KEY_ESCAPE)
 		if not await click_pickable(func(node): return str(node.name) == VENDOR_NAME, "unit_server_id"): return
+		if not await wait_until(func(): return client.merchant_state().open or shown("GossipOption0Text"), "vendor greeting"): return
+		if not client.merchant_state().open:
+			await press("GossipOption0Text")
 		if not await wait_until(func(): return client.merchant_state().open, "authentic vendor"): return
 		var index: int = Array(client.merchant_state().items).find(PURCHASE)
 		if index < 0:
