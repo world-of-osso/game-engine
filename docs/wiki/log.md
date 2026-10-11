@@ -1,3 +1,7 @@
+## 2026-10-11 — Encounter timeline/warnings
+
+[Boss encounters](systems/boss-encounters.md#scheduler-timeline--verified-2026-10-11): actual SmartAI/EventMap timers, ordered accepted-cast/phase events, bars/track and severity text/icons/audio, saved view choices and four Edit Mode movers. Native offscreen warning/covered timer text/unregistered sound failures reproduced and corrected. Modern Cobrahn countdown→actual cast and warning/audio/mover proof inspected; [acceptance](../specs/encounter-timeline.md#sources--acceptance) owns remaining Forever/data-bound cases. Private5850 only; no invented timers or realm5000 changes.
+
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
