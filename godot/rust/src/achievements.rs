@@ -42,6 +42,30 @@ fn free(ui: &mut Option<Gd<RegistryUi>>) {
     }
 }
 impl GameClient {
+    /// AchievementUI's ScrollBoxes use the same host-routed wheel/thumb/stepper input as QuestFrame.
+    pub(super) fn achievement_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() {
+            return false;
+        }
+        let Some(ui) = self.achievements.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(false) => false,
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                true
+            }
+            Err(error) => {
+                crate::frame_error::report_once(&format!("Achievement scroll input: {error}"));
+                false
+            }
+        }
+    }
+
     pub(super) fn close_achievements(&mut self) -> bool {
         let visible = self.account.achievements.visible;
         self.account.achievements.visible = false;
