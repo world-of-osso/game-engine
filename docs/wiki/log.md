@@ -3231,3 +3231,7 @@ Local CASC Scenario/ScenarioStep and existing criteria/TDB join; copy-scoped ach
 ### 2026-10-11 — Scenario native proof
 
 Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy re-entry verified;13 PNGs inspected. HP-primed fixture, one authored main stage and asset/LOS limits documented in [system SSOT](systems/scenarios.md).
+
+## 2026-10-11 — PvP progression bounded proof
+
+Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--verified-2026-10-11) with real-login combat-state and terrain-before-instance RED/GREEN, actual-aura talent activation, both-skin private5790 selection/toggle/relog/wallet evidence, and links to source/import and unresolved-policy contracts.
