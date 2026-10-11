@@ -45,13 +45,14 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-10.
+Last updated: 2026-10-11.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
 
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
+- [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
 
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 
