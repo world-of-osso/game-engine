@@ -5,6 +5,9 @@
 ## 2026-10-10 — Battlefield pet model correction (historical visibility proof)
 
 [Model availability](systems/battle-pets.md#battlefield-model-availability--verified-2026-10-10): missing ally receipts stranded the ready Rabbit; independent arrivals, authenticated additive no-clobber publication and authored idle-variation framing fix the roots. Native RED/GREEN and eight inspected both-skin four-pair PNGs; no raw fallback, existing asset overwrite, world.db write or master merge.
+## 2026-10-10 — No-install receipt recovery
+
+[Recovery and bounded recheck](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10): authenticated legacy tooling, preserved byte conflicts, pinned display-cache regeneration, and remaining newly exposed receipt/skin gaps. No ownership bypass or whole-catalog certification.
 
 ## 2026-10-10 — Class spell private live proof
 
