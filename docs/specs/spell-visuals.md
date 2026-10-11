@@ -17,6 +17,14 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 
 Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura`. Actual journal Spitzy kits/models were captured in both configured skins; precise rear-view attachment alignment and live present-aura exclusion are not certified. Mortar live acceptance remains pending; see the [toy evidence boundary](../wiki/systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10).
 
+## Owner attachment ordering (2026-10-10)
+
+- An available type2 kit model waits while its target unit's visual request is pending. Readiness requires the authored start delay and owner completion; DB2's explicit -1/unit-origin placement does not require a model.
+- Owner completion never restarts a kit: held effects join their elapsed phase; expired one-shots remain expired. Cast/aura end still removes pending held effects.
+- Distinguish an unavailable owner visual after loading from a loaded model missing its authored attachment. Never invent attachment points or reinterpret model load failure as an attachment-ID mapping gap.
+
+Regression: `spell_effects::tests::spell_kit_attach_waits_for_owner_without_restarting_its_timeline`, using local spell10848/kit989 and display5233/model124640, attachment19/bone4. [Investigation and evidence](../wiki/investigations/spell-kit-attach.md).
+
 ## How it works
 
 - [Spell visual resolution, DB2 rows and references](../wiki/systems/spell-visuals.md#local-specialization-selection-2026-10-07)

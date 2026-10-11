@@ -1,0 +1,158 @@
+extends "res://tests/toy_objects_live.gd"
+# Real bag learning and Toy Box input on an isolated realm. No injected visuals.
+var failed := false
+const SAMPLES := [
+	[156871, 261981, "Spitzy"],
+	[45057, 62949, "Wind-Up Train Wrecker"],
+	[194056, 383065, "Duck-Stuffed Duck Lovie"],
+	[147838, 239560, "Akazamzarak's Spare Hat"],
+	[153183, 254513, "Barrier Generator"],
+	[204675, 405634, "A Drake's Big Basket of Eggs"],
+	[88381, 127771, "Silversage Incense"],
+	[88584, 128180, "Totem of Harmony"],
+	[165791, 286277, "Worn Cloak"],
+	[221964, 455023, "Filmless Camera"],
+	[228413, 462145, "Lampyridae Lure"],
+	[263198, 1269949, "Valdekar's Special"],
+	[267456, 1280563, "Lil' Scoots' Pillow"],
+	[88580, 128328, "Ken-Ken's Mask"],
+	[204818, 406870, "Mallard Mortar"],
+]
+
+func run_fixture() -> void:
+	root.size = Vector2i(1920, 1080)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	if not await wait_until(func(): return not client.account_state().assets_starting, "assets", 180000): return
+	var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("TOYFX_ACCOUNT"), "fbtest", false)
+	if error != "": fail(error); return
+	if not await wait_until(func(): return control("CharCard_0") != null, "roster", 120000): return
+	await click("CharCard_0")
+	await click("EnterWorld")
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("CollectionsMicroButton") != null, "world", 180000): return
+	if not await wait_until(func():
+		for node in client.find_children(character, "Node3D", true, false):
+			if node.get_node_or_null("PlayerModel") != null:
+				actor = node
+				return true
+		return false, "player model", 120000): return
+	await create_timer(2.0).timeout
+	if not await wait_until(func(): return client.toybox_state().catalog_count > 0, "initial catalog without query"): return
+	for zoom in range(5):
+		var event := InputEventMouseButton.new()
+		event.position = Vector2(960, 540)
+		event.button_index = MOUSE_BUTTON_WHEEL_UP
+		event.pressed = true
+		root.push_input(event, true)
+		await process_frame
+	for sample in SAMPLES:
+		var requested := OS.get_environment("TOYFX_ITEM")
+		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "scenery" and int(sample[0]) not in [88381, 88584]) or (requested == "remaining" and int(sample[0]) not in [88584, 165791, 221964, 228413, 263198, 267456, 88580]): continue
+		await sample_toy(sample)
+		if failed: return
+	write_receipts()
+	print("PASS: completed real Toy Box sampling; per-toy render verdicts require receipts/PNG inspection ", skin)
+	client.free()
+	quit(0)
+
+func sample_toy(sample: Array) -> void:
+	var item := int(sample[0])
+	var spell := int(sample[1])
+	await learn_sample(item)
+	if failed or not learned_toy(item): return
+	# Learning uses Escape; select the mortar target only AFTER learning.
+	if item == 204818:
+		if not await select_mortar_target(): return
+	if item == 88580:
+		await click("PlayerFrame")
+	await click("CollectionsMicroButton")
+	await click("CollectionsJournalTab3")
+	if not await wait_until(func(): return control("ToyBoxSearchBox") != null, "Toy Box"): return
+	await click("ToyBoxSearchBox")
+	var edit := control("ToyBoxSearchBox") as LineEdit
+	edit.select_all()
+	await type_text(str(sample[2]))
+	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == str(sample[2]), "search " + str(item)): return
+	var result := {"skin": skin, "item": item, "spell": spell, "account": client.account_state(), "before": client.spell_visuals_state(), "target_before": client.target_state(), "disabled": control("ToySpellButton1").get("disabled"), "frames": []}
+	var start_ms := Time.get_ticks_msec()
+	await click("ToySpellButton1")
+	# Closing Collections via its toggle preserves unit selection during casts.
+	await click("CollectionsMicroButton")
+	var frame_count := 20 if item == 204818 else (12 if item == 153183 else 7)
+	for frame in range(frame_count):
+		await create_timer(0.1 if item == 204818 or frame < 3 else 1.0).timeout
+		if frame == 3 and item in [88381, 88584]:
+			var destination := actor.position + Vector3(3.0, 0.0, 0.0)
+			if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return
+			if not await wait_until(func(): return actor.position.distance_to(destination) < 1.0, "leave stationary toy visible"): return
+		await RenderingServer.frame_post_draw
+		var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-%d.png" % [skin, item, frame])
+		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
+		var summons: Array = []
+		for node in client.find_children("*", "Node3D", true, false):
+			if node.get_node_or_null("NpcVisualRoot") != null:
+				summons.append({"name": str(node.name), "position": str(node.position), "meshes": node.find_children("*", "MeshInstance3D", true, false).size()})
+		result.frames.append({"ms": Time.get_ticks_msec() - start_ms, "visuals": client.spell_visuals_state(), "auras": client.aura_state(), "position": str(actor.position), "target": client.target_state(), "summons": summons, "image": path})
+	result["after"] = client.toybox_state()
+	receipts.append(result)
+	write_receipts()
+	print("TOYLIVE2_SAMPLE ", skin, " item=", item, " spell=", spell)
+	if item == 204818:
+		var succeeded := false
+		for frame in result.frames:
+			for cast in frame.visuals.casts:
+				if int(cast.spell) == spell and bool(cast.go): succeeded = true
+		if not succeeded: fail("valid-range selected Invader mortar did not receive SpellGo"); return
+	if has_aura(spell): await cancel_aura(spell)
+	if item == 153183: await tap(KEY_W)
+	await create_timer(1.0).timeout
+
+func learn_sample(item: int) -> void:
+	# Observe the learning notification before opening Collections.
+	await learn_toy(item)
+
+func select_mortar_target() -> bool:
+	# TDB Northshire spawn:42937 (-9029.03,-274.965,74.4195).
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-9029.03", "-294.965", "74.4195"]): return false
+	var destination := Vector3(-9029.03, 74.4195, 294.965)
+	if not await wait_until(func(): return actor.position.distance_to(destination) < 4.0, "Northshire20yd positioning"): return false
+	await create_timer(3.0).timeout
+	var spawn := Vector3(-9029.03, 74.4195, 274.965)
+	var closest_position := Vector3.ZERO
+	var closest_distance := INF
+	var source_id := 0
+	for node in client.find_children("*", "Node3D", true, false):
+		if str(node.get_meta("unit_name", "")) != "Blackrock Invader" or node.get_node_or_null("NpcVisualRoot") == null: continue
+		var distance: float = node.position.distance_to(spawn)
+		if distance >= closest_distance: continue
+		for area in node.find_children("*", "Area3D", true, false):
+			if area.has_meta("unit_server_id"):
+				source_id = int(area.get_meta("unit_server_id"))
+				closest_position = node.position
+				closest_distance = distance
+	if source_id == 0: fail("source-spawn Invader has no native pick model"); return false
+	# The source NPC wanders ten yards. Copy its position/ID, never hold a model
+	# across teleport/replication; reposition BEFORE selecting it.
+	destination = closest_position + Vector3(0.0, 0.0, 20.0)
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return false
+	if not await wait_until(func(): return actor.position.distance_to(destination) < 4.0, "current source Invader20yd positioning"): return false
+	receipts.append({"phase": "mortar-source-spawn", "unit": source_id, "source_position": str(spawn), "observed_position": str(closest_position), "source_distance": closest_distance})
+	for attempt in range(40):
+		await tap(KEY_TAB)
+		var selected = client.target_state().target
+		if selected == null or int(selected) != source_id or str(client.target_state().target_name) != "Blackrock Invader": continue
+		var rules: Dictionary = client.nameplate_rules(int(selected))
+		var distance := float(rules.get("distance", 0.0))
+		if str(rules.get("reaction", "")) != "Hostile" or not bool(rules.get("alive", false)) or distance < 8.0 or distance > 30.0: continue
+		var target_id := int(selected)
+		if not await wait_until(func(): return client.target_state().server_target == target_id, "authoritative target"): return false
+		receipts.append({"phase": "mortar-target", "rules": rules, "target": client.target_state(), "position": str(actor.position)})
+		return true
+	fail("no valid living hostile in Northshire Tab cycle")
+	return false
+
+func fail(message: String) -> void:
+	failed = true
+	push_error("toy-live2: " + message)
+	write_receipts()
+	quit(1)
