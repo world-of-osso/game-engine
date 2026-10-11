@@ -73,7 +73,13 @@ impl GameClient {
             ui.quests_collapsed,
             now,
         );
-        state.dungeon = self.account.dungeon_objectives.block.clone();
+        state.dungeon = self
+            .account
+            .challenge
+            .run
+            .as_ref()
+            .and_then(game_engine_ui_model::challenge::tracker_block)
+            .or_else(|| self.account.dungeon_objectives.block.clone());
         state
     }
 

@@ -234,6 +234,7 @@ impl NetworkBridge {
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
+            .receive::<protocol::ChallengeSnapshot>()
             .receive_encounters()
             .receive_achievements()
             // Server-driven breath, fatigue and feign-death bars.
