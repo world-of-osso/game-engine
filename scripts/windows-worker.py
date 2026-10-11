@@ -72,13 +72,20 @@ def build_extension(root, engine):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
-    parser.add_argument('--phase', choices=('extension', 'runtime', 'import', 'entry-test', 'ipc-test'), required=True)
+    parser.add_argument('--phase', choices=('extension', 'runtime', 'import', 'entry-test', 'ipc-test', 'launcher-test', 'launcher'), required=True)
     args = parser.parse_args()
     root = args.root.resolve()
     engine = root / 'source/game-engine'
     uv = root / 'tools/uv/uv.exe'
     configure(root)
-    if args.phase == 'entry-test':
+    if args.phase in ('launcher', 'launcher-test'):
+        launcher = root / 'source/game-launcher'
+        command = 'test' if args.phase == 'launcher-test' else 'build'
+        arguments = ['--lib'] if command == 'test' else ['--features', 'desktop']
+        run('cargo', command, '--locked', '--release', '--no-default-features',
+            '--target', 'x86_64-pc-windows-msvc', '--manifest-path', str(launcher / 'Cargo.toml'),
+            '--target-dir', str(root / 'target-launcher'), *arguments, cwd=launcher)
+    elif args.phase == 'entry-test':
         runpy.run_path(str(engine / 'scripts/windows-entry-test.py'))['prove_entry'](root, engine)
     elif args.phase == 'ipc-test':
         run('cargo', 'test', '--release', '--target', 'x86_64-pc-windows-gnu',

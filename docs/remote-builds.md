@@ -16,7 +16,7 @@ The KTX cache is `~/.woo-ktx`: its compiler-keyed directory names plus CMake scr
 
 The Linux caller also needs existing `tar` and `zstd`. Bundle staging streams a zstd-compressed tar directly to Windows' native tar, into the owned NTFS-compressed `player/` directory. A second archive copy on desktop is deliberately avoided: the October11 allowlist exceeds172GB, while desktop free space after builds is below160GB. This does not change runtime files or the downloadable player format. `player/` is replaced during assembly; never assemble while its client is running.
 
-The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\game-engine-<pid>` named pipes. `--phase ipc-test` on the worker runs the real Windows framing/process fixture independently of Godot. The Linux IPC CLI is not built for Windows. [Deployment](deploy.md#windows-x86_64-native-gnu) owns the bundle and publication boundary.
+The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\game-engine-<pid>` named pipes. `--phase ipc-test` on the worker runs the real Windows framing/process fixture independently of Godot. The Linux IPC CLI is not built for Windows. `windows-release.py --phase launcher-test|launcher` snapshots the sibling game-launcher and tests/builds it with native MSVC (launcher has neither QuickJS nor KTX); `DEPOT_SIBLING_GAME_LAUNCHER` selects an explicit checkout. Launcher publishing/releasing remains separate from player deployment. [Deployment](deploy.md#windows-x86_64-native-gnu) owns the bundle and publication boundary.
 
 ## Requirements
 
