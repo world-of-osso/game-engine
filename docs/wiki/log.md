@@ -13,6 +13,9 @@
 ## 2026-10-11 — Native guild lifecycle and Retail charters
 
 [Guilds](systems/guilds.md): private54381, both-skin Aldwin registrar/purchase5863/rename/target offer/four signatures/registration, consumption and durable five-founder roster/date. Profile multiline editor/readback/restart and invite decline/reinvite/Join inspected. Native guild6/6, UI guild37/37; later registrar portrait control1/1 plus live M2 NPC portrait. [Banks](systems/banks.md#guild-lifecycle-and-charters) retains inspected tab info/item transfer/log proof. No world.db writes or master merge; tabard/achievement payloads and expired independent verifier are explicit gaps.
+## 2026-10-11 — GO and item-spell quest live proof
+
+[Quest UI](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11): private5496 Modern+Forever26446/28175 native objective credit and real reward turn-ins;12 successful PNGs inspected. Fixture travel/projected picks replace synthetic steering, with full pick bounds and typed objective comparisons. Chest-loot completion remains blocked; server ledger owns attempted maps and typed-invisibility giver diagnosis. No product camera repair, master merge or world.db writes.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
