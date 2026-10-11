@@ -142,7 +142,10 @@ impl GameClient {
             _ => {}
         }
         if let EncounterMessage::Timeline(event) = message {
-            let cast = matches!(event, EncounterTimelineEvent::Cast { .. });
+            let play_warning_sound = matches!(
+                event,
+                EncounterTimelineEvent::Cast { .. } | EncounterTimelineEvent::Phase { .. }
+            );
             let Some(catalog) = self.spells.catalog() else {
                 godot_error!("Encounter timeline arrived before spell catalog readiness");
                 return;
@@ -162,7 +165,7 @@ impl GameClient {
                 let spell = catalog.get(id).expect("validated encounter spell");
                 (spell.name.to_string(), spell.icon_fdid)
             });
-            if cast
+            if play_warning_sound
                 && self.client_options.hud.encounter_warnings
                 && self.client_options.hud.encounter_sounds
                 && let Err(error) =

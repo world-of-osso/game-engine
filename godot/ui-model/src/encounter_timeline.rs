@@ -54,7 +54,18 @@ impl EncounterTimeline {
                     remaining: 3.0,
                 });
             }
-            EncounterTimelineEvent::Phase { phase, .. } => self.phase = Some(phase),
+            EncounterTimelineEvent::Phase { phase, .. } => {
+                self.phase = Some(phase);
+                self.warnings
+                    .retain(|warning| warning.severity != EncounterSeverity::Low);
+                self.warnings.push(WarningView {
+                    spell_id: 0,
+                    severity: EncounterSeverity::Low,
+                    name: format!("Phase {phase}"),
+                    icon: 0,
+                    remaining: 3.0,
+                });
+            }
         }
     }
     pub fn advance(&mut self, delta: f32) {
@@ -134,6 +145,7 @@ mod tests {
             spell,
         );
         assert_eq!(view.phase, Some(2));
+        assert_eq!(view.warnings.last().unwrap().name, "Phase 2");
         view.advance(10.0);
         assert!(view.warnings.is_empty());
         view.clear();
