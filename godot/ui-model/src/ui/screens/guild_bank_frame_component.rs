@@ -49,6 +49,12 @@ pub const INFO_BOX: &str = "GuildBankTabInfoEditBox";
 
 /// GB.xml:758: native multiline tab text with a 500-character limit.
 pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    if let Some(id) = registry.get_by_name("GuildBankFrameInfoText")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(ui_toolkit::frame::WidgetData::FontString(text)) = frame.widget_data.as_mut()
+    {
+        text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Top;
+    }
     let Some(id) = registry.get_by_name(INFO_BOX) else {
         return;
     };
