@@ -1,3 +1,7 @@
+## 2026-10-10 — Class spell live2 continuation
+
+[Continuation proof](investigations/class-spell-live-proof.md#batches914-continuation--spell-live2): private54123/prebuilt615fb90, twelve new bounded class paths plus a prior-batch Monk control; four both-skin classes, forty inspected PNGs. Damage sharing, actual owned-pet child, combo-duration and stealth snapshots, mana payment and Maelstrom spender admission have receipts. Guardian numeric/crit/inheritance, Deathmark80 total and Eye Beam facing remain uncertified. No production fix, world.db write or master merge.
+
 ## 2026-10-10 — Authentic battlefield pet scales
 
 [Authentic sizing](systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10) removes invented pose-bound normalization, preserves world scale and adds PetInstanceScale through the importer. Eight catalog tests and all eight both-skin native four-pair cases pass; eight v3 PNGs individually inspected. Fixed pads/camera, no world.db writes or master merge. Supersedes the rejected v2 composition acceptance below.

@@ -18,11 +18,28 @@ This does **not** certify complete talents, damage formulas across stats/levels,
 - Chain Lightning's direct power mutation produces no Energize log entry. Ten three-hit casts admitted the real 60-Maelstrom Earth Shock; zero casts and nine casts refused with `Maelstrom`. This proves the resource path behaviorally without inventing a resource value in the client diagnostic.
 - Select Devourer1480 before Reap. The earlier Havoc sample hit for zero; the authoritative specialization change yielded five positive child hits. Do not call a wrong-spec coefficient sample a script regression.
 
+## Batches9–14 continuation — spell-live2
+
+Verified: 2026-10-10. Private UDP54123 used the prebuilt server615fb90 and a native extension/CLI built from the `spell-live2` base recorded in `data/diagnostics/spell-live2-2026-10-10/revision.txt`. Twelve classes have new bounded script-path evidence; Monk has a Renewing Mist control only, because the supplied batches introduce no source-bound Monk path. This is not thirteen new-script passes.
+
+The continuation covers Sacrifice's real damage split, an owned Hunter wolf's Kill Command, Rupture's paid-resource duration, Rake's persistent stealth snapshot, Surge's optional mana payment, Bolt-funded Earth Shock, and named damage/heal/aura children. Warrior, Rogue, Priest and Mage were observed in both authenticated skins. Generic Imp/Gargoyle cast presentation and two temporary Spirit Wolf actors were sampled separately; guardian damage amounts, guaranteed critical flags and non-demon inheritance remain uncertified.
+
+Exact per-spell outcomes and exclusions live in `/home/osso/.worktrees/handoff-spell-live2.md`. Durable receipts, observer/action scripts, artifact assertions and the inspection/hash manifest live in `data/diagnostics/spell-live2-2026-10-10/`; forty inspected PNGs live in `/syncthing/AgentShared/2026-10-10/spell-live2/`. No production fix or confirmed server-script defect was established.
+
+Reproduction corrections:
+
+- Relearn selected fixture spells **after** changing specialization; the native known-spell synchronization can remove prior admin grants.
+- `game-engine-cli spell cast` submits the network intent directly. Native `use_spell` establishes autoattack for melee paths; without that, training-dummy evade can clear otherwise long-lived bleeds after five seconds. Do not mistake evade for authored expiry.
+- `game-server-admin damage` without an explicit entity damages the selected target. Use the observer's actual player entity when preparing injured-self healing; the first healthy Blossom casts correctly produced no injured-target heal.
+- Sacrifice against Wilhelm Strang required a same-room teleport and waiting for the received aura before applying damage. Outside-LOS and premature samples are setup failures, not transfer defects.
+
 ## Sources
 
 - `/home/osso/.worktrees/handoff-spell-dummy-scripts.md` and `handoff-spell-dummy2.md` through `handoff-spell-dummy8.md` — tested script contracts and exclusions.
 - `/home/osso/.worktrees/handoff-spell-live.md` — per-spell live outcome table and publication/cleanup receipts.
 - `data/diagnostics/spell-live-2026-10-10/` — native builds, private admin setup, actual IPC logs, GDScript observations and artifact acceptance ledger.
+- `/home/osso/.worktrees/handoff-spell-dummy9.md` through `handoff-spell-dummy14.md`, `handoff-spell-mechanics.md`, `handoff-spell-guardians.md` — continuation contracts and explicit unimplemented boundaries.
+- `/home/osso/.worktrees/handoff-spell-live2.md` and `data/diagnostics/spell-live2-2026-10-10/` — continuation live receipts, inspected PNG inventory and artifact assertions.
 - [Private live-run recipe](../../headless-live-run.md) — isolation and native observation conventions.
 
 ## See Also
