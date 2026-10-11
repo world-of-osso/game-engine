@@ -66,6 +66,9 @@ impl GameClient {
         Ok(true)
     }
     pub(super) fn receive_wild_pet_battle(&mut self, update: WildPetBattleUpdate) {
+        if let WildPetBattleUpdate::Rejected(error) = &update {
+            godot_warn!("Pet battle request rejected: {error}");
+        }
         if matches!(update, WildPetBattleUpdate::Start(_)) {
             self.close_pet_journal();
             self.close_toybox();

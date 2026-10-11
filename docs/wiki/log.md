@@ -1,6 +1,9 @@
 ## 2026-10-10 — Class spell private live proof
 
 [Class spell proof](investigations/class-spell-live-proof.md) records thirteen bounded native client paths, four classes in both skins, received damage/heal/aura/resource receipts and inspected screenshots on private54113. Setup/skin migration/cast-time/resource/spec mistakes remain distinct from script defects; supplemental contracts and full class parity remain unproved. No production code, world.db, shared realm or master changes.
+## 2026-10-10 — Pet-battle effect HUD
+
+[Effect HUD scopes](systems/battle-pets.md#effect-hud-scopes--verified-2026-10-10): separate weather/team pads/pet auras, Retail duration/polarity/row placement and max(cooldown, lockdown) overlays; retained temporary combat log. Private5598 fb_pbhud3 native Sunlight/Cyclone/Tranquility shows both skins, damage/heal floats and close restoration; six individually inspected PNGs,95/98/98 matching static rectangles. Authentic private level2 journal fixture, not acquisition or detached-model coverage. Nonzero lockdown handlers remain gated; turn-lock/continuation availability has separate server tests. No master merge or world.db writes.
 
 ## 2026-10-10 — PvP pet battles continuation
 

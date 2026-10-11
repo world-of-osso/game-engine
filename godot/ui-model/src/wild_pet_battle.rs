@@ -5,6 +5,8 @@ use crate::quest_art::{DynName, panel_button};
 use shared::protocol::*;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
+mod effect_hud;
+
 pub const MODEL_SCENE: &str = "PetBattleModelScene";
 const HUD_TEXTURE: u32 = 603587;
 const HORIZONTAL_TILE: u32 = 603600;
@@ -16,6 +18,7 @@ pub struct WildBattleView {
     pub state: Option<WildPetBattleSnapshot>,
     pub pending: bool,
     pub combat_text: Vec<String>,
+    pub log_scroll: usize,
     pub result: Option<WildPetBattleOutcome>,
     pub confirm_forfeit: bool,
     pub show_swap: bool,
@@ -29,6 +32,7 @@ impl Default for WildBattleView {
             state: None,
             pending: false,
             combat_text: vec![],
+            log_scroll: 0,
             result: None,
             confirm_forfeit: false,
             show_swap: false,
@@ -46,6 +50,7 @@ impl WildBattleView {
                 self.state = Some(state);
                 self.result = None;
                 self.combat_text.clear();
+                self.log_scroll = 0;
             }
             WildPetBattleUpdate::State(state) => {
                 if !state.feedback.is_empty() {
@@ -56,7 +61,8 @@ impl WildBattleView {
             WildPetBattleUpdate::Round { state, combat_text } => {
                 self.feedback_seconds = 2.0;
                 self.state = Some(state);
-                self.combat_text = combat_text;
+                self.combat_text.extend(combat_text);
+                self.log_scroll = 0;
             }
             WildPetBattleUpdate::End {
                 battle_id,
@@ -84,7 +90,8 @@ impl WildBattleView {
                         pet.next_level_xp = reward.next_level_xp;
                     }
                 }
-                self.combat_text = combat_text;
+                self.combat_text.extend(combat_text);
+                self.log_scroll = 0;
                 self.combat_text.extend(
                     rewards
                         .iter()
@@ -99,6 +106,14 @@ impl WildBattleView {
         }
     }
     pub fn action(&mut self, action: &str) -> Option<WildPetBattleActionRequest> {
+        if action == "pb:log-up" {
+            self.log_scroll = (self.log_scroll + 1).min(self.combat_text.len().saturating_sub(7));
+            return None;
+        }
+        if action == "pb:log-down" {
+            self.log_scroll = self.log_scroll.saturating_sub(1);
+            return None;
+        }
         if action == "pb:close" {
             self.state = None;
             return None;
@@ -202,6 +217,8 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
             if team == 0 { 65.0 } else { width - 103.0 },
         ));
     }
+    children.extend(effect_hud::effects(state, width));
+    children.extend(effect_hud::combat_log(view));
     children.extend(action_bar(view, state));
     children.extend(label(
         "PetBattleError".into(),
@@ -340,21 +357,6 @@ fn unit_frame(side: &str, pet: &BattlePetSnapshot, left: f32, top: f32) -> Eleme
         "0.49218750,0.79687500,0.50390625,0.65625000",
         (if enemy { 0.0 } else { 234.0 }, 32.0, 34.0, 34.0),
     ));
-    for (index, aura) in pet.auras.iter().enumerate() {
-        let x = index as f32 * 60.0;
-        children.extend(texture(
-            format!("PetBattle{side}Aura{index}"),
-            aura.icon,
-            (x + 15.0, 90.0, 30.0, 30.0),
-            WHITE,
-        ));
-        children.extend(label(
-            format!("PetBattle{side}Aura{index}Duration"),
-            &aura.rounds_remaining.to_string(),
-            (x, 122.0, 60.0, 17.0),
-            (11.0, WHITE, "CENTER"),
-        ));
-    }
     rsx! { r#frame { name: {DynName(format!("PetBattleActive{side}"))}, width: 270.0, height: 80.0, left, top, pos_type: "absolute", mouse_enabled: false, {children} } }
 }
 fn quality_color(quality: u8) -> &'static str {
@@ -537,19 +539,22 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
                 ));
             }
         }
-        if ability.cooldown > 0 {
+        let countdown = ability.cooldown.max(ability.lockout);
+        if countdown > 0 || ability.id != 0 && !ability.usable {
             out.extend(cropped(
                 format!("PetBattleAbility{number}CooldownShadow"),
                 HUD_TEXTURE,
                 "0.71679688,0.76855469,0.85351563,0.95507813",
                 (x, top, 53.0, 52.0),
             ));
-            out.extend(label(
-                format!("PetBattleAbility{number}Cooldown"),
-                &ability.cooldown.to_string(),
-                (x, top, 52.0, 52.0),
-                (24.0, WHITE, "CENTER"),
-            ));
+            if countdown > 0 {
+                out.extend(label(
+                    format!("PetBattleAbility{number}Cooldown"),
+                    &countdown.to_string(),
+                    (x, top, 52.0, 52.0),
+                    (24.0, WHITE, "CENTER"),
+                ));
+            }
         }
     }
     for (offset, name, icon, action, usable) in [
