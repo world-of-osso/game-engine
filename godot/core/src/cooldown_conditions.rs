@@ -185,7 +185,10 @@ fn read_condition(cells: &Cells) -> Result<ConditionRow, String> {
     // ClientExecutable selects the execution context. WithinOrAboveRecord only
     // changes ContentTuning bounds (ConditionMgr::IsPlayerMeetingCondition);
     // nonzero ContentTuningID is already rejected as an unsupported field.
-    if number::<u32>(cells, "Flags")? & !(0x01 | 0x20) != 0 {
+    const CLIENT_EXECUTABLE: u32 = 0x01;
+    const WITHIN_OR_ABOVE_RECORD: u32 = 0x20;
+    let supported_flags = CLIENT_EXECUTABLE | WITHIN_OR_ABOVE_RECORD;
+    if number::<u32>(cells, "Flags")? & !supported_flags != 0 {
         row.unsupported.push("Flags".into());
     }
     Ok(row)
