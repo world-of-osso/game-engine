@@ -48,7 +48,7 @@ impl GameClient {
         self.send_achievement_requests(requests)?;
         Ok(())
     }
-    fn send_achievement_requests(
+    pub(super) fn send_achievement_requests(
         &mut self,
         requests: Vec<QueryAchievementCatalog>,
     ) -> Result<(), FrameError> {
@@ -68,6 +68,11 @@ impl GameClient {
             self.add_world_error(&error)?;
         }
         if let Some(toast) = update.completed {
+            let link = model::achievement_link(toast.achievement_id, &toast.name);
+            game_engine_ui_model::chat_frame::add_system_line(
+                &mut self.chat.model.log,
+                &format!("You have earned the achievement {link}!"),
+            );
             self.achievements.toasts.push_back(toast);
         }
         Ok(())
@@ -98,11 +103,44 @@ impl GameClient {
                 let requests = self.account.achievements.action(&action);
                 self.send_achievement_requests(requests)?;
             }
+            self.apply_achievement_shift_clicks(&mut ui)?;
+        }
+        if let Some(mut ui) = self.achievements.toast_ui.clone() {
+            let action = ui.bind_mut().pop_action().to_string();
+            if !action.is_empty() {
+                let requests = self.account.achievements.action(&action);
+                self.send_achievement_requests(requests)?;
+            }
         }
         self.sync_achievements()?;
         self.advance_achievement_toast(delta)?;
         Ok(())
     }
+    fn apply_achievement_shift_clicks(&mut self, ui: &mut Gd<RegistryUi>) -> Result<(), String> {
+        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
+            if right || !shift {
+                continue;
+            }
+            let Some(id) = action
+                .strip_prefix("achievement:row:")
+                .and_then(|id| id.parse::<u32>().ok())
+            else {
+                continue;
+            };
+            let name = self
+                .account
+                .achievements
+                .entries()
+                .iter()
+                .find(|entry| entry.achievement_id == id)
+                .map(|entry| entry.name.clone());
+            if let Some(name) = name {
+                self.insert_achievement_chat_link(id, &name)?;
+            }
+        }
+        Ok(())
+    }
+
     fn sync_achievements(&mut self) -> Result<(), String> {
         if !self.account.achievements.visible {
             free(&mut self.achievements.ui);

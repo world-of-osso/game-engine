@@ -48,6 +48,7 @@ pub struct AchievementWindow {
     pub criterion_offset: usize,
     pub scope: AchievementScope,
     pub summary: Option<AchievementSummary>,
+    pub detail: Option<AchievementCatalogEntry>,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
 }
@@ -131,6 +132,11 @@ impl AchievementWindow {
     }
     fn select_action(&mut self, action: &str, requests: &mut Vec<QueryAchievementCatalog>) {
         if let Some(id) = action
+            .strip_prefix("achievement:open:")
+            .and_then(|id| id.parse().ok())
+        {
+            self.open_achievement(id, requests);
+        } else if let Some(id) = action
             .strip_prefix("achievement:category:")
             .and_then(|id| id.parse().ok())
         {
@@ -163,6 +169,26 @@ impl AchievementWindow {
             }
         }
     }
+    fn open_achievement(&mut self, id: u32, requests: &mut Vec<QueryAchievementCatalog>) {
+        self.visible = true;
+        self.selected_category = None;
+        self.selected_achievement = Some(id);
+        self.detail = None;
+        self.row_offset = 0;
+        self.criterion_offset = 0;
+        if self.scope != AchievementScope::All {
+            self.scope = AchievementScope::All;
+            self.summary = None;
+        }
+        if !self.categories_loaded {
+            requests.push(QueryAchievementCatalog::Categories { after_id: 0 });
+        }
+        if self.summary.is_none() {
+            requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
+        }
+        requests.push(QueryAchievementCatalog::Achievement { achievement_id: id });
+    }
+
     fn advance_rows(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
         let Some(category_id) = self.selected_category else {
             return;
@@ -215,6 +241,17 @@ impl AchievementWindow {
             .position(|request| reply_matches(request, &page))
             .map(|index| self.pending.remove(index));
         let requests = match page {
+            AchievementCatalogPage::Achievement {
+                achievement_id,
+                entry,
+            } => {
+                if self.selected_category.is_none()
+                    && self.selected_achievement == Some(achievement_id)
+                {
+                    self.detail = entry;
+                }
+                Vec::new()
+            }
             AchievementCatalogPage::Summary(summary) => {
                 if summary.scope == self.scope {
                     self.summary = Some(summary);
@@ -301,6 +338,7 @@ impl AchievementWindow {
             .flat_map(|summary| summary.recent.iter_mut());
         for entry in category_rows
             .chain(recent_rows)
+            .chain(self.detail.iter_mut())
             .filter(|entry| entry.achievement_id == achievement_id)
         {
             merge_criteria(&mut entry.criteria, &criteria);
@@ -320,6 +358,8 @@ impl AchievementWindow {
                     category_id,
                     after_id: 0,
                 });
+            } else if let Some(achievement_id) = self.selected_achievement {
+                requests.push(QueryAchievementCatalog::Achievement { achievement_id });
             }
         }
         // A live change needs a post-change response even if an older first page is
@@ -338,16 +378,31 @@ impl AchievementWindow {
         self.criterion_offset = 0;
     }
     pub fn entries(&self) -> &[AchievementCatalogEntry] {
+        if self.selected_category.is_none() {
+            if let Some(entry) = self
+                .detail
+                .as_ref()
+                .filter(|entry| Some(entry.achievement_id) == self.selected_achievement)
+            {
+                return std::slice::from_ref(entry);
+            }
+            let recent = self
+                .summary
+                .as_ref()
+                .map_or(&[][..], |summary| summary.recent.as_slice());
+            return if self.selected_achievement.is_none()
+                || recent
+                    .iter()
+                    .any(|entry| Some(entry.achievement_id) == self.selected_achievement)
+            {
+                recent
+            } else {
+                &[]
+            };
+        }
         self.selected_category
             .and_then(|id| self.pages.get(&id))
-            .map_or_else(
-                || {
-                    self.summary
-                        .as_ref()
-                        .map_or(&[][..], |summary| summary.recent.as_slice())
-                },
-                |page| page.entries.as_slice(),
-            )
+            .map_or(&[][..], |page| page.entries.as_slice())
     }
     pub fn displayed_entries(&self) -> Vec<&AchievementCatalogEntry> {
         self.entries()
@@ -403,6 +458,12 @@ fn update_achievement(entries: &mut Vec<AchievementCatalogEntry>, entry: Achieve
 
 fn reply_matches(request: &QueryAchievementCatalog, page: &AchievementCatalogPage) -> bool {
     match (request, page) {
+        (
+            QueryAchievementCatalog::Achievement {
+                achievement_id: requested,
+            },
+            AchievementCatalogPage::Achievement { achievement_id, .. },
+        ) => requested == achievement_id,
         (QueryAchievementCatalog::Summary { scope }, AchievementCatalogPage::Summary(summary)) => {
             *scope == summary.scope
         }
@@ -750,7 +811,19 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
         ));
     }
     if window.displayed_entries().is_empty() {
-        let message = if window.selected_category.is_none() {
+        let message = if let Some(achievement_id) = window
+            .selected_achievement
+            .filter(|_| window.selected_category.is_none())
+        {
+            if window
+                .pending
+                .contains(&QueryAchievementCatalog::Achievement { achievement_id })
+            {
+                "Loading achievement..."
+            } else {
+                "Achievement unavailable"
+            }
+        } else if window.selected_category.is_none() {
             "Select a category"
         } else if window
             .pages
@@ -928,11 +1001,17 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     content
 }
 
+/// Own-context chat links carry only a real catalog ID; no fabricated GUID/comparison facts.
+pub fn achievement_link(id: u32, name: &str) -> String {
+    format!("|Hachievement:{id}|h[{name}]|h")
+}
+
 /// Existing wire toast payload; the native Godot host did not previously subscribe to it.
 pub fn achievement_toast_screen(ctx: &SharedContext) -> Element {
     let toast = ctx
         .get::<shared::protocol::AchievementToastSnapshot>()
         .expect("toast payload");
+    let action = format!("achievement:open:{}", toast.achievement_id);
     let mut content = art(
         "AchievementToastBackground".into(),
         130650,
@@ -950,7 +1029,7 @@ pub fn achievement_toast_screen(ctx: &SharedContext) -> Element {
         &toast.name,
         (64.0, 33.0, 280.0, 22.0),
         WHITE,
-        "",
+        &action,
     ));
     content.extend(label(
         "AchievementToastPoints".into(),

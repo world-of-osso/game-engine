@@ -11,6 +11,7 @@
 - Use local Retail achievement art in Modern and the Forever panel family in Forever.
 - [ ] Open Summary by default: full authoritative earned points and completion totals, latest three earned rows, and Retail-authored summary-category progress bars. Never present loaded-page sums as account totals.
 - [ ] Provide account/character scope tabs, criterion progress, earned toast/chat links, tracking, Statistics and full-catalog search in that order. Comparison is excluded unless server-backed.
+- [ ] Show a local earned chat line with a clickable achievement name; open authoritative own-state details from chat and toast. Shift-click a row inserts its ID/name link at the chat caret. Native links carry no fabricated GUID, date or comparison facts.
 
 ## Tests
 

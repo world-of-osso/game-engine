@@ -261,6 +261,46 @@ fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row
     );
 }
 
+#[test]
+fn achievementlinks_open_unloaded_achievement_and_keep_server_earned_state() {
+    let mut window = AchievementWindow::default();
+    assert!(window.action("achievement:open:633").contains(
+        &QueryAchievementCatalog::Achievement {
+            achievement_id: 633
+        }
+    ));
+    window.apply(AchievementCatalogPage::Achievement {
+        achievement_id: 633,
+        entry: Some(achievement()),
+    });
+    assert!(window.visible);
+    assert_eq!(window.selected().unwrap().achievement_id, 633);
+    assert!(window.selected().unwrap().earned);
+}
+
+#[test]
+fn achievementlinks_chat_displays_one_clickable_name_without_transport_markup() {
+    use game_engine_ui_model::chat_frame::{chat_message_line, wrap_chat_line};
+    let message = game_engine_ui_model::chat_data::ChatMessage {
+        channel_type: game_engine_ui_model::chat_data::ChatChannelType::System,
+        channel_name: String::new(),
+        sender: String::new(),
+        timestamp: 0.0,
+        text: "You have earned the achievement |Hachievement:633|h[Stormwind Stockade]|h.".into(),
+    };
+    let line = chat_message_line(&message);
+    assert_eq!(
+        line.plain_text(|_| String::new()),
+        "You have earned the achievement [Stormwind Stockade]."
+    );
+    let rows = wrap_chat_line(&line, |_| String::new(), 1000.0, |text| text.len() as f32);
+    assert!(
+        rows.iter()
+            .flat_map(|row| &row.runs)
+            .any(|run| run.text == "[Stormwind Stockade]")
+    );
+}
+
 fn category() -> AchievementCategoryEntry {
     AchievementCategoryEntry {
         category_id: 14808,
