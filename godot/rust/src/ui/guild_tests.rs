@@ -7,6 +7,10 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
 fn guild_native_popup_projects_visible_registered_art_and_info_editor_preserves_newlines() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     super::register_guild_panel_styles(&mut registry).unwrap();
     let mut session = GuildRanksSession::default();
