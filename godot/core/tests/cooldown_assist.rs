@@ -100,6 +100,24 @@ fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
     );
 }
 
+#[test]
+fn cooldown_assist_full_referenced_condition_load_handles_signed_mask_words() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let data = catalog();
+    let conditions = CooldownConditions::load(&dir, &data.player_condition_ids()).unwrap();
+    let auras = BTreeMap::new();
+    let mut actor = ConditionActor {
+        race_bit: 31,
+        class: 1,
+        spec_index: 0,
+        known: &[],
+        auras: &auras,
+    };
+    assert_eq!(conditions.evaluate(66693, &actor), Ok(true));
+    actor.race_bit = 63;
+    assert_eq!(conditions.evaluate(66693, &actor), Ok(false));
+}
+
 fn catalog() -> CooldownAssistCatalog {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
     CooldownAssistCatalog::load(&dir).expect("authentic exported Retail tables")
