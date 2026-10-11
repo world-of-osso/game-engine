@@ -228,6 +228,7 @@ pub mod mail_frame_component;
 pub mod achievements;
 pub mod death_flow;
 pub mod dungeon_progress;
+pub mod raid_info;
 pub mod scenario_progress;
 pub mod trade;
 #[path = "ui/screens/trade_frame_component.rs"]

@@ -123,12 +123,14 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
     /// Saved instances of the last `InstanceInfo`.
     pub instance_locks: Vec<InstanceLockInfo>,
+    pub instance_info_at: std::time::Instant,
     /// Known spells, action bar and cooldowns from the server.
     pub spells: PlayerSpells,
     pub talents: game_engine_ui_model::talents::TalentEditor,
@@ -339,11 +341,13 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            raid_difficulty: None,
             dungeon_objectives: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
+            instance_info_at: std::time::Instant::now(),
             spells: PlayerSpells::default(),
             talents: Default::default(),
             combat_log: std::collections::VecDeque::new(),
@@ -395,6 +399,7 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
         self.scenario_objectives = Default::default();
         self.achievements = Default::default();
@@ -652,6 +657,28 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_raid_difficulty(
+        &self,
+        difficulty_id: u32,
+        legacy: bool,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(shared::protocol::SetRaidDifficulty {
+                difficulty_id,
+                legacy,
+            })
+            .map_err(SessionError)
+    }
+
+    pub fn send_saved_instance_extend(
+        &self,
+        request: shared::protocol::SetSavedInstanceExtend,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
     pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
         self.bridge()?
@@ -728,6 +755,12 @@ impl Account {
         let bridge = self.bridge()?;
         let result = match action {
             PvpAction::Query => bridge.send::<_, PvpChannel>(QueryPvpStatus),
+            PvpAction::SelectTalent { slot, talent_id } => {
+                bridge.send::<_, PvpChannel>(SelectPvpTalent { slot, talent_id })
+            }
+            PvpAction::WarMode(enabled) => {
+                bridge.send::<_, PvpChannel>(SetWarModeDesired { enabled })
+            }
             PvpAction::Queue(battleground_id) => {
                 bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
             }
@@ -1559,6 +1592,7 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
+            || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ScenarioProgress>()
@@ -1637,6 +1671,10 @@ impl Account {
             self.damage_meter = Some(decode(message)?);
             return Ok(());
         }
+        if message.is::<shared::protocol::RaidDifficultySet>() {
+            self.raid_difficulty = Some(decode(message)?);
+            return Ok(());
+        }
         if message.is::<DungeonDifficultySet>() {
             let set: DungeonDifficultySet = decode(message)?;
             self.dungeon_difficulty = Some(set.difficulty_id);
@@ -1644,6 +1682,7 @@ impl Account {
         }
         let info: InstanceInfo = decode(message)?;
         self.instance_locks = info.locks;
+        self.instance_info_at = std::time::Instant::now();
         Ok(())
     }
 
@@ -2779,4 +2818,19 @@ fn auction_message(
         return Ok(Err(message));
     };
     Ok(Ok(reply))
+}
+
+/// Terrain messages refresh tiles; NewWorld owns changing an initialized world map.
+pub(crate) fn validate_terrain_refresh(
+    current: Option<&str>,
+    requested: &str,
+) -> Result<(), String> {
+    if let Some(current) = current
+        && current != requested
+    {
+        return Err(format!(
+            "Stale terrain refresh for {requested}; NewWorld selected {current}"
+        ));
+    }
+    Ok(())
 }
