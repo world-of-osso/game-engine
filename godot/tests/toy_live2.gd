@@ -113,10 +113,30 @@ func select_mortar_target() -> bool:
 	var destination := Vector3(-9029.03, 74.4195, 294.965)
 	if not await wait_until(func(): return actor.position.distance_to(destination) < 4.0, "Northshire20yd positioning"): return false
 	await create_timer(3.0).timeout
+	var spawn := Vector3(-9029.03, 74.4195, 274.965)
+	var closest_position := Vector3.ZERO
+	var closest_distance := INF
+	var source_id := 0
+	for node in client.find_children("*", "Node3D", true, false):
+		if str(node.get_meta("unit_name", "")) != "Blackrock Invader" or node.get_node_or_null("NpcVisualRoot") == null: continue
+		var distance := node.position.distance_to(spawn)
+		if distance >= closest_distance: continue
+		for area in node.find_children("*", "Area3D", true, false):
+			if area.has_meta("unit_server_id"):
+				source_id = int(area.get_meta("unit_server_id"))
+				closest_position = node.position
+				closest_distance = distance
+	if source_id == 0: fail("source-spawn Invader has no native pick model"); return false
+	# The source NPC wanders ten yards. Copy its position/ID, never hold a model
+	# across teleport/replication; reposition BEFORE selecting it.
+	destination = closest_position + Vector3(0.0, 0.0, 20.0)
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return false
+	if not await wait_until(func(): return actor.position.distance_to(destination) < 4.0, "current source Invader20yd positioning"): return false
+	receipts.append({"phase": "mortar-source-spawn", "unit": source_id, "source_position": str(spawn), "observed_position": str(closest_position), "source_distance": closest_distance})
 	for attempt in range(40):
 		await tap(KEY_TAB)
 		var selected = client.target_state().target
-		if selected == null or str(client.target_state().target_name) != "Blackrock Invader": continue
+		if selected == null or int(selected) != source_id or str(client.target_state().target_name) != "Blackrock Invader": continue
 		var rules: Dictionary = client.nameplate_rules(int(selected))
 		var distance := float(rules.get("distance", 0.0))
 		if str(rules.get("reaction", "")) != "Hostile" or not bool(rules.get("alive", false)) or distance < 8.0 or distance > 30.0: continue
