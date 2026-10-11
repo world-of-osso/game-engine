@@ -209,6 +209,44 @@ receipt errors recur. Four new absent texture candidates:7484430,7485185,
 full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json`,
 `world-sweep.json`, `proof-ledger.json` and `summary.md` retain exact boundaries.
 
+## Priority receipt closure — verified 2026-10-11
+
+Continuation evidence: `data/diagnostics/noinstall-receipts3-2026-10-11/`.
+The existing offline publisher authenticated **1,111 unique numeric assets and
+195 owner aliases** against content-key-checked local Retail/Forever metadata;
+all 1,306 published payloads were rehashed against their frozen root keys.
+The runtime's base-plus-five-fragments discovery reports 9,268 numeric receipts,
+zero duplicate mappings. These are scoped receipt proofs, not whole-catalog
+certification.
+
+Priority roots include gathering model219514, SFID509861 and texture219513;
+Lord Cobrahn4213; all14 recorded dungeon receipt gaps; warlock demon displays
+4449/850/1132/4162/14255 and the authored TDB counterparts; giver35579; and
+previous regional/nearby ambient misses. Forty-two authenticated local-CASC
+payloads were staged to resolve absent or wrong-product legacy candidates;
+original legacy bytes remained untouched. Parent SFID/SKID checks authorized
+owner aliases through the existing publisher, never filename inference.
+
+The tracked NPC importer added **32 previously uncovered displays**, covering
+all24 recorded dungeon appearance misses and36 requested priority displays.
+It used pinned Retail69933 CreatureDisplayInfo and the existing local WDC5
+Extra/Option/Geoset inputs. Lord Cobrahn resolves authored bake1060054; giver35579
+retains bake920408. Unreadable unrelated encrypted sections stay recorded in
+`npc-import.log`; no invented appearance or server-table writes.
+
+Canonical cache replacements preserve originals as
+`cache/model-asset-index.json.pre-noinstall-receipts3-20261011` and
+`cache/npc_appearance.sqlite.pre-noinstall-receipts3-20261011`.
+Exact runtime publication paths and hashes are recorded in the evidence and
+`/home/osso/.worktrees/handoff-noinstall-receipts2.md`.
+
+Saved race images from rounds11/12/16/19 were independently inspected using
+62 labelled center crops: all31 race body meshes are visible in both skins.
+This does not certify both sexes, every customization, item, zone or spell.
+A fresh sandbox recheck of the seven previously failed race bodies is running.
+Retail8203433 remains authenticated-root-absent; no Forever substitution is
+allowed. **Full no-install certification remains FAIL.**
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).
