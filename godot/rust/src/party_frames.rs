@@ -698,6 +698,7 @@ mod tests {
                 member("Dee", 4, false),
             ],
             loot_method: shared::loot::LootMode::PersonalLoot,
+            loot_threshold: 2,
         });
         group.apply_member_states(vec![
             live("Ann", 300, DeathState::Alive, 10.0),
@@ -733,6 +734,7 @@ mod tests {
             total_count: 0,
             members: Vec::new(),
             loot_method: shared::loot::LootMode::PersonalLoot,
+            loot_threshold: 2,
         });
         assert!(group_frames_state(&group, &viewer, &|_| 0).party.is_empty());
     }
@@ -832,6 +834,7 @@ mod tests {
             total_count: members.len() as u16,
             members,
             loot_method: shared::loot::LootMode::PersonalLoot,
+            loot_threshold: 2,
         };
         group.apply_roster(roster(vec![member("Bob", 8, true), member("Ann", 1, true)]));
         group.apply_member_states(vec![live("Ann", 300, DeathState::Alive, 10.0)]);

@@ -556,6 +556,7 @@ fn native_bridge_receives_group_messages_in_channel_order() {
             })
             .to_vec(),
         loot_method: shared::loot::LootMode::PersonalLoot,
+        loot_threshold: 2,
     };
     let states = GroupMemberStates {
         members: vec![GroupMemberState {

@@ -398,6 +398,12 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::transmog_frame::TransmogView>()
+        {
+            game_engine_ui_model::transmog_frame::apply_transmog_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::toybox_component::ToyBoxView>()
         {
             game_engine_ui_model::toybox_component::apply_toybox_postsetup(
@@ -1189,6 +1195,25 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::loot_frame_component::loot_frame_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
+    pub fn show_group_loot(
+        &mut self,
+        state: game_engine_ui_model::group_loot_component::GroupLootUiState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::group_loot_component::group_loot_screen,
             ScreenPostsetup::None,
             registry,
             parent,

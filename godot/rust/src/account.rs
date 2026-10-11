@@ -124,6 +124,7 @@ pub struct Account {
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
+    pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
     /// Saved instances of the last `InstanceInfo`.
@@ -275,13 +276,14 @@ pub(crate) enum MailMessage {
 }
 
 /// Authoritative loot traffic, retained in `LootChannel` send order.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum LootMessage {
     Lootable(CorpseLootable),
     Opened(LootResponse),
     Removed(LootSlotRemoved),
     Closed(LootClosed),
     Failed(LootFailed),
+    GroupRoll(shared::protocol::GroupLootRoll),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -338,6 +340,7 @@ impl Account {
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
             dungeon_objectives: Default::default(),
+            scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
@@ -393,6 +396,7 @@ impl Account {
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
         self.dungeon_objectives = Default::default();
+        self.scenario_objectives = Default::default();
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -1020,6 +1024,21 @@ impl Account {
         .map_err(SessionError)
     }
 
+    pub fn send_group_loot_choice(
+        &self,
+        choice: shared::protocol::GroupLootChoice,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(choice)
+            .map_err(SessionError)
+    }
+
+    pub fn request_group_loot_history(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(shared::protocol::GroupLootHistoryRequest)
+            .map_err(SessionError)
+    }
+
     pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, LootChannel>(LootUnit { corpse, auto })
@@ -1238,6 +1257,12 @@ impl Account {
             GroupCommand::SetRole { name, role } => {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
             }
+            GroupCommand::SetLootMethod(method) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootMethod { method })
+            }
+            GroupCommand::SetLootThreshold(quality) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootThreshold { quality })
+            }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
             GroupCommand::Countdown(seconds) => {
                 bridge.send::<_, GroupChannel>(GroupCountdownRequest { seconds })
@@ -1346,6 +1371,7 @@ impl Account {
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.set_link_connected(false);
@@ -1541,6 +1567,7 @@ impl Account {
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
+            || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
             || message.is::<DamageMeterSnapshot>()
@@ -1553,6 +1580,10 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::ScenarioProgress>() {
+            self.scenario_objectives.apply(decode(message)?);
+            return Ok(());
+        }
         if message.is::<shared::protocol::DungeonProgress>() {
             let progress: shared::protocol::DungeonProgress = decode(message)?;
             let name = if progress.encounters.is_empty() {
@@ -1823,6 +1854,7 @@ impl Account {
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
             self.dungeon_objectives.begin_map(new_world.map_id);
+            self.scenario_objectives.begin_map(new_world.map_id);
             self.session.begin_world_port(new_world.map_id);
             output.push(AccountEvent::NewWorld(new_world));
             output.push(AccountEvent::Screen(SessionScreen::Loading));
@@ -2000,6 +2032,7 @@ impl Account {
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.stop_bridge()?;
@@ -2698,9 +2731,13 @@ fn is_loot_message(message: &ProtocolMessage) -> bool {
         || message.is::<LootSlotRemoved>()
         || message.is::<LootClosed>()
         || message.is::<LootFailed>()
+        || message.is::<shared::protocol::GroupLootRoll>()
 }
 
 fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String> {
+    if message.is::<shared::protocol::GroupLootRoll>() {
+        return Ok(LootMessage::GroupRoll(decode(message)?));
+    }
     if message.is::<CorpseLootable>() {
         return Ok(LootMessage::Lootable(decode(message)?));
     }
