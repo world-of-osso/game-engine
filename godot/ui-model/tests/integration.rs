@@ -1,6 +1,7 @@
 //! UI integration suites share one harness to avoid repeated dependency linking.
 //! Keep suites as modules; their fixture paths stay relative to the original files.
 
+mod adventure_guide;
 mod ahportrait;
 mod atlas_skins;
 mod auction_dialogs;
@@ -21,6 +22,7 @@ mod character_select;
 mod classbook_catalog_audit;
 mod classbook_icons;
 mod classbook_preview;
+mod cooldown_assist;
 mod cursor_icon;
 mod damage_meter_types;
 mod dungeonclient;
@@ -90,6 +92,7 @@ mod spellbook_preview;
 mod status_text_bars;
 mod talent_footer;
 mod talent_icons;
+mod talent_layout;
 mod talent_loadouts;
 mod talents;
 mod talentwire;

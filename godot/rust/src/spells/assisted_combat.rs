@@ -1,0 +1,247 @@
+//! One action resolves the authored next spell, then uses ordinary server-validated casting.
+use std::collections::BTreeSet;
+
+use game_engine_core::assisted_combat::{
+    AssistedFacts, SINGLE_BUTTON_ASSISTANT, evaluate_rule, is_spell_usable,
+};
+use game_engine_core::cooldown_assist::Recommendation;
+use game_engine_core::spell_catalog::CatalogSpell;
+use godot::prelude::*;
+use shared::components::{CombatStatus, Health, Position};
+
+use super::cooldown_viewer::ViewerLoad;
+use crate::GameClient;
+use crate::faction_reaction::Reaction;
+use crate::frame_error::report_once;
+
+impl GameClient {
+    pub(super) fn update_assisted_combat(&mut self) {
+        if let Err(error) = self.spells.cooldowns.poll_data(&self.data_root) {
+            report_once(&format!("Assisted Combat data: {error}"));
+        }
+        self.spells.cooldowns.assisted_available = self.authored_rotation_available();
+        let decision = self.read_assisted_recommendation();
+        let hud = &mut self.spells.cooldowns;
+        match decision {
+            Ok(recommendation) => {
+                hud.recommendation = recommendation;
+                hud.assisted_failure.clear();
+            }
+            Err(error) => {
+                hud.recommendation = Recommendation::None;
+                hud.assisted_failure = error;
+            }
+        }
+    }
+
+    pub(crate) fn assisted_in_combat(&self) -> bool {
+        self.world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.get::<CombatStatus>())
+            .is_some_and(|combat| combat.0)
+    }
+
+    fn authored_rotation_available(&self) -> bool {
+        let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
+            return false;
+        };
+        self.account
+            .spells
+            .spec()
+            .is_some_and(|spec| !data.catalog.rotation_spells(spec).is_empty())
+    }
+
+    fn read_assisted_recommendation(&mut self) -> Result<Recommendation, String> {
+        if !self.spells.cooldowns.assisted_available {
+            return Ok(Recommendation::Unavailable);
+        }
+        let Some(target) = self.targeting_target() else {
+            return Ok(Recommendation::None);
+        };
+        let hostile = self.reaction_to(target) != Reaction::Friendly;
+        let Some(target_unit) = self.replica.unit(target) else {
+            return Err("Assisted target not replicated".into());
+        };
+        if target_unit
+            .get::<Health>()
+            .is_some_and(|health| health.current <= 0.0)
+        {
+            return Ok(Recommendation::None);
+        }
+        let spec = self
+            .account
+            .spells
+            .spec()
+            .ok_or("Assisted specialization not received")?;
+        let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
+            return Err("Assisted data not loaded".into());
+        };
+        let known = self.account.spells.known();
+        let mut needed: BTreeSet<_> = data
+            .catalog
+            .rotation_spells(spec)
+            .into_iter()
+            .filter(|id| known.contains(id) || known.contains(&self.effective_spell(*id)))
+            .collect();
+        for rule in data.catalog.rotation_rules(spec) {
+            if needed.contains(&rule.step_spell)
+                && matches!(rule.condition_type, 1 | 2 | 14 | 56)
+                && rule.values[0] != 0
+            {
+                needed.insert(rule.values[0]);
+            }
+        }
+        let mut facts = self.read_assisted_facts(&needed, target)?;
+        facts.target_hostile = Some(hostile);
+        data.catalog
+            .recommend(
+                spec,
+                |id| facts.known.contains(&id),
+                |id| is_spell_usable(id, &facts),
+                |rule| evaluate_rule(rule, &facts),
+            )
+            .map(|recommendation| match recommendation {
+                Recommendation::Spell(id) => Recommendation::Spell(self.effective_spell(id)),
+                other => other,
+            })
+    }
+
+    fn read_assisted_facts(
+        &self,
+        needed: &BTreeSet<u32>,
+        target: u64,
+    ) -> Result<AssistedFacts, String> {
+        let player = self
+            .world
+            .local_player_id()
+            .ok_or("Assisted player not replicated")?;
+        let catalog = self
+            .spells
+            .catalog()
+            .ok_or("Assisted spell metadata not loaded")?;
+        let player_position = self
+            .replica
+            .unit(player)
+            .and_then(|unit| unit.get::<Position>())
+            .ok_or("Assisted player position not received")?;
+        let target_position = self
+            .replica
+            .unit(target)
+            .and_then(|unit| unit.get::<Position>())
+            .ok_or("Assisted target position not received")?;
+        let distance = position_distance(player_position, target_position);
+        let mut facts = AssistedFacts {
+            known: self.account.spells.known().iter().copied().collect(),
+            player_auras: self
+                .unit_aura_views_now(player)
+                .iter()
+                .map(|aura| aura.spell_id)
+                .collect(),
+            target_auras: self
+                .unit_aura_views_now(target)
+                .iter()
+                .map(|aura| aura.spell_id)
+                .collect(),
+            ..Default::default()
+        };
+        for id in needed {
+            let effective = self.effective_spell(*id);
+            if facts.known.contains(&effective) {
+                facts.known.insert(*id);
+            }
+            let spell = catalog
+                .get(effective)
+                .ok_or_else(|| format!("Assisted spell metadata {effective} absent"))?;
+            facts
+                .ready
+                .insert(*id, self.read_assisted_readiness(effective, spell));
+            facts.affordable.insert(
+                *id,
+                read_zero_cost_affordability(spell, &facts.player_auras),
+            );
+            let in_range = distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0];
+            facts.in_range.insert(*id, Ok(in_range));
+        }
+        Ok(facts)
+    }
+
+    fn read_assisted_readiness(&self, id: u32, spell: &CatalogSpell) -> Result<bool, String> {
+        if self.account.spells.button_cooldown(id, false).is_some() {
+            return Ok(false);
+        }
+        if spell.charges.is_none() {
+            return Ok(true);
+        }
+        let ViewerLoad::Ready(data) = &self.spells.cooldowns.load else {
+            return Err("Assisted charge categories not loaded".into());
+        };
+        let category = data
+            .catalog
+            .charge_category(id)
+            .ok_or_else(|| format!("Assisted spell {id}: charge category absent"))?;
+        let charges = self.account.spells.charges(category).ok_or_else(|| {
+            format!("Assisted spell {id}: server charges category {category} not received")
+        })?;
+        Ok(charges.current > 0)
+    }
+
+    pub(crate) fn assisted_snapshot(&self) -> VarDictionary {
+        let hud = &self.spells.cooldowns;
+        let mut state = VarDictionary::new();
+        state.set("available", hud.assisted_available);
+        state.set("in_combat", self.assisted_in_combat());
+        state.set("failure_reason", hud.assisted_failure.as_str());
+        state.set(
+            "action_spell",
+            if hud.assisted_available {
+                SINGLE_BUTTON_ASSISTANT
+            } else {
+                0
+            },
+        );
+        state.set(
+            "next_spell",
+            match hud.recommendation {
+                Recommendation::Spell(id) => id,
+                _ => 0,
+            },
+        );
+        let rotation: Vec<_> = match &hud.load {
+            ViewerLoad::Ready(data) => self
+                .account
+                .spells
+                .spec()
+                .map(|spec| data.catalog.rotation_spells(spec))
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        let mut spells = Array::<u32>::new();
+        for id in rotation {
+            spells.push(id);
+        }
+        state.set("rotation_spells", &spells);
+        state
+    }
+}
+
+fn read_zero_cost_affordability(
+    spell: &CatalogSpell,
+    auras: &BTreeSet<u32>,
+) -> Result<bool, String> {
+    for cost in &spell.powers {
+        if cost.required_aura_spell_id != 0 && !auras.contains(&cost.required_aura_spell_id) {
+            continue;
+        }
+        if cost.flat != 0 || cost.pct != 0.0 {
+            return Err(format!(
+                "Assisted spell {}: effective nonzero caster cost/modifiers are not replicated",
+                spell.id
+            ));
+        }
+    }
+    Ok(true)
+}
+
+fn position_distance(a: &Position, b: &Position) -> f32 {
+    ((a.x - b.x).powi(2) + (a.y - b.y).powi(2) + (a.z - b.z).powi(2)).sqrt()
+}

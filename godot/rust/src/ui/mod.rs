@@ -27,6 +27,7 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
+mod mentor_host;
 mod meter_preview;
 mod minimap_preview;
 mod options_keybindings;
@@ -1102,6 +1103,17 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    pub fn show_cooldown_viewer(
+        &mut self,
+        state: game_engine_ui_model::cooldown_assist::CooldownViewerView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Skyriding vigor widget.
     pub fn show_vigor_bar(
         &mut self,
@@ -1348,6 +1360,17 @@ impl RegistryUi {
         self.show_viewport_screen(
             state,
             game_engine_ui_model::raid_warning::raid_warning_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
+    pub(crate) fn show_encounter_timeline(
+        &mut self,
+        state: game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::encounter_timeline_component::encounter_timeline_screen,
             ScreenPostsetup::None,
         )
     }
@@ -1616,6 +1639,27 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::battleground::pvp_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_adventure_guide(
+        &mut self,
+        state: game_engine_ui_model::adventure_guide::View,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::adventure_guide::adventure_guide_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -2936,6 +2980,8 @@ fn apply_login_art(registry: &mut FrameRegistry) -> Result<(), String> {
 #[cfg(test)]
 #[path = "button_style_tests.rs"]
 mod button_style_tests;
+#[cfg(test)]
+mod encounter_timeline_tests;
 #[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;

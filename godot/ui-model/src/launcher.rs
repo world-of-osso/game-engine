@@ -47,7 +47,7 @@ fn entry_glyph(id: &str) -> &'static str {
         "AchievementMicroButton" => "achievements",
         "HousingMicroButton" => "housing",
         "GuildMicroButton" => "guild",
-        "LFDMicroButton" => "group",
+        "LFDMicroButton" | "MythicMentor" => "group",
         "CollectionsMicroButton" => "collections",
         "EJMicroButton" => "adventure",
         "StoreMicroButton" => "shop",
@@ -81,6 +81,11 @@ pub fn entries() -> Vec<LauncherEntry> {
         })
         .collect();
     let shortcuts = [
+        (
+            "MythicMentor",
+            "Mythic Mentor",
+            crate::mythic_mentor::OPEN_ACTION,
+        ),
         ("Help", "Help", crate::game_menu_main::ACTION_SUPPORT),
         ("Bags", "Bags", "bag_toggle:0"),
         (
