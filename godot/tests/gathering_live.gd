@@ -16,7 +16,12 @@ func run_fixture() -> void:
 	if error != "": fail(error); return
 	if not await wait_until(func(): return control("CharCard_0") != null, "roster", 120000): return
 	await checkpoint("roster")
-	await click("CharCard_" + OS.get_environment("GATHERING_CHARACTER_INDEX"))
+	var card := ""
+	for index in range(int(client.account_state().character_count)):
+		var title := control("CharCard_%dName" % index)
+		if title != null and title.text == character: card = "CharCard_%d" % index; break
+	if card.is_empty(): fail("requested roster character absent: " + character); return
+	await click(card)
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and client.account_state().world_attached, "world", 180000): return
 	if not await wait_until(func():
