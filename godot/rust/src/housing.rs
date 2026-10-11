@@ -30,7 +30,8 @@ impl GameClient {
         ui.set_name("HousingDashboardUI");
         ui.set_layer(6);
         self.base_mut().add_child(&ui);
-        if let Err(error) = ui.bind_mut().show_housing(view) {
+        let mounted = ui.bind_mut().show_housing(view);
+        if let Err(error) = mounted {
             ui.free();
             return Err(error);
         }
