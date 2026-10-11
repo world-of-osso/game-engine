@@ -5,9 +5,10 @@ Offline diagnostic in `tools/src/bin/d4_triangle_count.rs`, accepting extracted 
 ## What it must do
 
 - [x] Decode explicit chunk/LOD/subobject/segment records; return each segment's declared vertices and validated triangle-list count separately, without adding alternative LODs or appearance variants together.
-- [x] Validate metadata/payload identity, record sizes, buffer references, byte ranges, segment-local index bounds, and complete triangles; reject malformed data explicitly.
+- [x] Validate metadata magic and matching metadata/payload SNO IDs, consumed record-array sizes, buffer references, byte ranges, segment-local index bounds, and complete triangles; reject malformed consumed data explicitly.
 - [x] Interpret segment vertex offsets as bytes and index offsets as 16-bit elements.
-- [x] Reject unknown vertex formats and externally referenced buffers rather than scanning for plausible byte patterns.
+- [x] Support only vertex format 6, stride 44, inline little-endian u16 triangle lists; reject other format/stride values and external buffer IDs rather than scanning for plausible byte patterns.
+- [x] Reject negative segment counts/offsets and buffer indices, nonzero serialized-array padding, misaligned vertex offsets and empty geometry results.
 - [ ] Accept two input paths and emit TSV columns `chunk`, `lod`, `subobject`, `segment`, `flags`, `hash`, `vertices`, `triangles`; errors use stderr and a failing exit status.
 - [ ] Verify current installed-build Druid data through the command-line binary against an independent schema-based count.
 
@@ -25,7 +26,8 @@ Offline diagnostic in `tools/src/bin/d4_triangle_count.rs`, accepting extracted 
 ## Tests asserting this spec
 
 - Unit tests in `tools/src/bin/d4_triangle_count/appearance.rs`: concrete paired-file fixtures; separate LODs/segments, nonzero offsets, invalid indices/ranges/arrays, asset mismatch and unsupported buffers/formats.
-- `tools/tests/d4_triangle_count_cli.rs`: help, argument validation and path errors.
+- `tools/tests/d4_triangle_count_cli.rs`: planned process-level CLI proof; final evidence pending.
+- Parser `2eb8a9261`: 13 synthetic tests reported GREEN before commit; this documentation audit does not rerun them or certify CLI/real-file integration.
 
 ## Known gaps (current cycle)
 

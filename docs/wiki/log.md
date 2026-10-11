@@ -635,6 +635,10 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 
 [Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11): full authoritative Summary/scopes, own-state links, persisted tracking, raw Statistics and correlated full-catalog search. Real hidden39958 and Unicode failures reproduced/fixed; authored alert/sheet/point-shield and progress caption corrections. Filtered client19/server13 cases across scoped runs, checks/builds/formats, inspected current Modern/Forever private PNGs. Comparison and unevaluated server quantities remain explicit; no world.db writes, shared realm changes or master merge.
 
+## 2026-10-11 — Bounded Diablo IV documentation audit
+
+[Appearance layout](formats/d4-appearance.md) and [contract](../specs/d4-triangle-count.md) reconciled against parser `2eb8a9261` and locally saved d4data schema/license. Narrow format 6/stride 44/inline u16 scope, negative/unknown rejection boundaries and exact synthetic-test coverage recorded; broken CASC cross-reference corrected. MIT notice matches local source. No tests/builds run; reported pre-commit parser GREEN remains separate from pending CLI/real-fixture verification. No rendered-model aggregate claimed.
+
 ## 2026-10-11 — Diablo IV offline triangle counter
 
 [Appearance layout](formats/d4-appearance.md): explicit MIT-licensed d4data record layout replaces AppToOBJ sentinel guessing. One extracted male-Druid appearance has five LODs and154 stored segments; independent byte-range/index traversal validates all154. Thirteen synthetic parser tests pass after RED. Active-look/visibility selection, other formats and final CLI verification remain separate.
