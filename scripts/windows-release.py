@@ -174,6 +174,15 @@ def main():
         bootstrap(args.host, args.remote_root)
         stage_launcher(root, work, args.host, args.remote_root)
         worker(args.host, args.remote_root, args.phase)
+        if args.phase == 'launcher-lock':
+            launcher = load_builder().sibling_repo(root, 'game-launcher')
+            run('scp', f'{args.host}:{args.remote_root}/source/game-launcher/Cargo.lock',
+                str(launcher / 'Cargo.lock'))
+        elif args.phase == 'launcher':
+            artifacts = work / 'artifacts'
+            artifacts.mkdir(exist_ok=True)
+            run('scp', f'{args.host}:{args.remote_root}/target-launcher/x86_64-pc-windows-msvc/release/game-launcher.exe',
+                str(artifacts / 'game-launcher-windows-x86_64.exe'))
     if args.phase in ('build', 'all'):
         bootstrap(args.host, args.remote_root)
         stage_source(root, work, args.host, args.remote_root)
