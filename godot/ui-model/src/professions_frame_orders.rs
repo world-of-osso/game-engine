@@ -57,7 +57,7 @@ pub(super) fn crafter_page(ctx: &SharedContext, view: &ProfessionView) -> Elemen
     }
     let mut out = order_type_tabs(view);
     out.extend(recipe_list(ctx, view, false));
-    out.extend(order_list(ctx, view, 286.0, 112.0, 630.0, 474.0));
+    out.extend(order_list(ctx, view, 286.0, 92.0, 630.0, 494.0));
     out.extend(panel_button(
         "CraftingOrderSearchButton".into(),
         "Search",
@@ -74,14 +74,15 @@ pub(super) fn crafter_page(ctx: &SharedContext, view: &ProfessionView) -> Elemen
 }
 fn order_type_tabs(view: &ProfessionView) -> Element {
     [
-        ("public", "Public", CraftingOrderKind::Public),
-        ("guild", "Guild", CraftingOrderKind::Guild),
-        ("personal", "Personal", CraftingOrderKind::Personal),
+        ("public", "Public", Some(CraftingOrderKind::Public)),
+        ("guild", "Guild", Some(CraftingOrderKind::Guild)),
+        ("npc", "NPC", None),
+        ("personal", "Personal", Some(CraftingOrderKind::Personal)),
     ]
     .into_iter()
     .enumerate()
     .flat_map(|(index, (key, title, kind))| {
-        let action = if view.orders.pending {
+        let action = if view.orders.pending || kind.is_none() {
             String::new()
         } else {
             format!("profession:order:kind:{key}")
@@ -90,8 +91,8 @@ fn order_type_tabs(view: &ProfessionView) -> Element {
             &format!("CraftingOrderType{key}"),
             title,
             &action,
-            view.orders.kind == kind,
-            (290.0 + index as f32 * 185.0, 75.0, 180.0, 30.0),
+            Some(view.orders.kind) == kind,
+            (166.0 + index as f32 * 180.0, 62.0, 180.0, 30.0),
         )
     })
     .collect()
@@ -126,14 +127,15 @@ fn order_list(
             (left + 20.0, top + 45.0, width - 40.0, 60.0),
         ));
     }
-    let content_height = orders.len() as f32 * 22.0;
+    // Retail CreateScrollBoxListLinearView: 5px padding, 1px row spacing.
+    let content_height = orders.len() as f32 * 21.0 + 10.0;
     let geometry = pixel_geometry(height - 25.0, content_height, height - 25.0);
     let offset = geometry.clamp(ctx.scroll_first_row("CraftingOrderList"));
     let config = scroll_list_attr(&geometry);
     let rows = orders
         .iter()
         .enumerate()
-        .flat_map(|(i, order)| order_row(view, order, i as f32 * 22.0, width - 24.0))
+        .flat_map(|(i, order)| order_row(view, order, 5.0 + i as f32 * 21.0, width - 24.0))
         .collect::<Element>();
     let bar = MinimalScrollBar {
         list: "CraftingOrderList",
