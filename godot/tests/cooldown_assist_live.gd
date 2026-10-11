@@ -117,6 +117,9 @@ func run_fixture() -> void:
 	if control("CooldownViewer19389") == null:
 		fail("Essential Crusader Strike viewer not mounted")
 		return
+	await prove_edit_mode()
+	if failed:
+		return
 	await place_assistant()
 	if failed:
 		return
@@ -225,6 +228,51 @@ func configure_options() -> void:
 	# Done returns to the menu; Escape closes its remaining owner.
 	if control("MenuBtnResume") != null:
 		await click("MenuBtnResume")
+
+func prove_edit_mode() -> void:
+	var before := control("EssentialCooldownViewer").get_global_rect()
+	await key(KEY_F10)
+	for name in ["essential_cooldowns", "utility_cooldowns", "tracked_buffs", "tracked_buff_bars"]:
+		if control("EditModeSelection_" + name + "Label") == null:
+			fail("Viewer Edit Mode mover absent: " + name)
+			return
+	await capture("viewer-edit-mode")
+	var start := before.position + Vector2(20, 20)
+	var motion := InputEventMouseMotion.new()
+	motion.position = start
+	motion.global_position = start
+	root.push_input(motion, true)
+	await process_frame
+	await mouse(start, true)
+	for step in range(1, 9):
+		var event := InputEventMouseMotion.new()
+		event.position = start + Vector2(-120, -80) * float(step) / 8.0
+		event.global_position = event.position
+		event.relative = Vector2(-120, -80) / 8.0
+		event.button_mask = MOUSE_BUTTON_MASK_LEFT
+		root.push_input(event, true)
+		await process_frame
+	await mouse(start + Vector2(-120, -80), false)
+	var moved := control("EssentialCooldownViewer").get_global_rect()
+	if moved.position.distance_to(before.position) < 100:
+		fail("Viewer Edit Mode drag did not move Essential root")
+		return
+	await key(KEY_ESCAPE)
+	for frame in range(3):
+		await process_frame
+	if control("EssentialCooldownViewer").get_global_rect().position.distance_to(moved.position) > 1:
+		fail("Viewer Edit Mode exit lost placement")
+		return
+	var account_directory := "world-of-osso/accounts/" + "127.0.0.1:5860".to_utf8_buffer().hex_encode() + "/" + "fb_cooldown_assist".to_utf8_buffer().hex_encode()
+	var path := OS.get_environment("XDG_CONFIG_HOME").path_join(account_directory).path_join("ui_layout.ron")
+	if not FileAccess.file_exists(path):
+		fail("Viewer Edit Mode did not persist account layout")
+		return
+	var file := FileAccess.open(directory.path_join("saved-layout.ron"), FileAccess.WRITE)
+	file.store_string(FileAccess.get_file_as_string(path))
+	file.close()
+	write_json("viewer-placement", {"before": str(before), "saved": str(moved)})
+	await capture("viewer-layout-saved")
 
 func mouse(at: Vector2, pressed: bool) -> void:
 	var event := InputEventMouseButton.new()
