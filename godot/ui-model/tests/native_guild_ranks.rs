@@ -41,22 +41,44 @@ fn guild_rank_slashes_do_not_fall_through_to_help() {
 #[test]
 fn guild_lifecycle_slashes_do_not_fall_through_to_help() {
     use game_engine_ui_model::chat_frame::{ChatCommand, parse_chat_input};
-    for line in [
-        "/ginvite Cara",
-        "/guildinvite Cara",
-        "/gquit",
-        "/guildquit",
-        "/gremove Cara",
-        "/guildremove Cara",
-        "/gmotd Meeting tonight",
-        "/ginfo ignored arguments",
-        "/guildinfo",
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    for (line, expected) in [
+        (
+            "/ginvite Cara",
+            ChatCommand::Guild(GuildCommand::Invite("Cara".into())),
+        ),
+        (
+            "/guildinvite Cara",
+            ChatCommand::Guild(GuildCommand::Invite("Cara".into())),
+        ),
+        ("/gquit", ChatCommand::GuildRank(GuildRankRequest::Leave)),
+        (
+            "/guildquit",
+            ChatCommand::GuildRank(GuildRankRequest::Leave),
+        ),
+        (
+            "/gremove Cara",
+            ChatCommand::GuildRank(GuildRankRequest::RemoveMember {
+                character_name: "Cara".into(),
+            }),
+        ),
+        (
+            "/guildremove Cara",
+            ChatCommand::GuildRank(GuildRankRequest::RemoveMember {
+                character_name: "Cara".into(),
+            }),
+        ),
+        (
+            "/gmotd Meeting tonight",
+            ChatCommand::Guild(GuildCommand::SetMotd("Meeting tonight".into())),
+        ),
+        (
+            "/ginfo ignored arguments",
+            ChatCommand::Guild(GuildCommand::Query),
+        ),
+        ("/guildinfo", ChatCommand::Guild(GuildCommand::Query)),
     ] {
-        let command = parse_chat_input(line, None);
-        assert!(
-            !matches!(command, ChatCommand::System(_) | ChatCommand::None),
-            "{line}: {command:?}"
-        );
+        assert_eq!(parse_chat_input(line, None), expected, "{line}");
     }
 }
 

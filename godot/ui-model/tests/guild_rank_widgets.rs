@@ -62,6 +62,60 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both_skins() {
+    use game_engine_ui_model::guild_ranks::GuildCommand;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            motd: "Meeting tonight".into(),
+            info_text: "Raid Tuesdays".into(),
+            members: vec![],
+        });
+        let registry = mounted(&session);
+        assert_eq!(
+            action(&registry, "GuildRosterInviteButton"),
+            "guild:invite_open"
+        );
+        session.click("guild:invite_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(
+            action(&registry, "GuildInviteMemberAccept"),
+            "guild:invite_send"
+        );
+        session.click(
+            "guild:invite_send",
+            &[("GuildInviteMemberName".into(), "Cara".into())]
+                .into_iter()
+                .collect(),
+        );
+        assert_eq!(session.commands, vec![GuildCommand::Invite("Cara".into())]);
+        session.commands.clear();
+        session.click("guild:info_open", &Default::default());
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "GuildMOTDText"), "Meeting tonight");
+        assert_eq!(text(&registry, "GuildInfoText"), "Raid Tuesdays");
+        session.click("guild:edit_motd", &Default::default());
+        session.click(
+            "guild:profile_accept",
+            &[("GuildProfileEditText".into(), "Meeting tomorrow".into())]
+                .into_iter()
+                .collect(),
+        );
+        assert_eq!(
+            session.commands,
+            vec![GuildCommand::SetMotd("Meeting tomorrow".into())]
+        );
+        assert_eq!(session.profile.as_ref().unwrap().motd, "Meeting tonight");
+    }
+}
+
+#[test]
 fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

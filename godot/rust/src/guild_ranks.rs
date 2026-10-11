@@ -2,7 +2,7 @@
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bank::InputTexts;
-use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, NAME_BOX};
+use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, INVITE_BOX, NAME_BOX, PROFILE_BOX};
 use game_engine_ui_model::guild_ranks::{GuildCommand, GuildRanksSession};
 use godot::prelude::*;
 use shared::protocol::{GuildRankRequest, GuildRanksState};
@@ -87,6 +87,7 @@ impl GameClient {
         &mut self,
         update: shared::protocol::GuildStateUpdate,
     ) -> Result<(), FrameError> {
+        self.guild_ranks.session.profile_waiting = false;
         if let Some(error) = update.error {
             self.guild_ranks.query_info = false;
             self.guild_notice(&error, true)?;
@@ -143,6 +144,8 @@ impl GameClient {
         let visible = self.guild_ranks.session.visible;
         self.guild_ranks.session.visible = false;
         self.guild_ranks.session.settings_open = false;
+        self.guild_ranks.session.invite_open = false;
+        self.guild_ranks.session.profile_editor = None;
         self.guild_ranks.session.member_menu = None;
         self.guild_ranks.free_ui();
         visible
@@ -236,9 +239,14 @@ impl GameClient {
 }
 fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTexts {
     let tabs = session.state().map_or(0, |state| state.tab_names.len());
-    let names = [NAME_BOX.to_owned(), GOLD_BOX.to_owned()]
-        .into_iter()
-        .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
+    let names = [
+        NAME_BOX.to_owned(),
+        GOLD_BOX.to_owned(),
+        INVITE_BOX.to_owned(),
+        PROFILE_BOX.to_owned(),
+    ]
+    .into_iter()
+    .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
     names
         .map(|name| {
             let text = ui

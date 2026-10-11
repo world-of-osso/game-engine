@@ -19,7 +19,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] AuthChannel invitation delivery mounts GuildInviteFrame independently of Communities. Join waits for authoritative acceptance; Decline sends the pending-invite refusal. Both skins share controls and mechanics.
 - [x] `/gmotd` / `/guildmotd` sends SetGuildMotd; authoritative profile replies update MOTD and info.
 - [ ] `/ginfo` / `/guildinfo` sends a read-only query, but legacy guild records have no creation date for Retail GUILD_INFO_TEMPLATE; the client explicitly reports unavailable data instead of inventing it.
-- [ ] Communities invite/MOTD/info editing controls remain pending.
+- [x] Communities exposes Invite Member and Info; MOTD/info editors send authoritative writes, keep displayed text unchanged pending reply, and hide edits without rank permission. Member menu Remove uses strict hierarchy.
+- [ ] Info's Retail multiline editing/scrolling still requires native proof; the portable editor currently mounts an editbox.
 - [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
 
 ### Permissions and members
