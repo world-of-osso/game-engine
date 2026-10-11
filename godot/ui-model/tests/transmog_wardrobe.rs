@@ -58,13 +58,15 @@ fn build(skin: ActiveSkin, book: TransmogBook) -> FrameRegistry {
     set_thread_skin(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
-    shared.insert(TransmogView {
+    let view = TransmogView {
         book,
         viewport_width: 1920.0,
         race_id: 1,
-    });
+    };
+    shared.insert(view.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(transmog_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::transmog_frame::apply_transmog_art(&view, &mut registry);
     registry
 }
 
@@ -76,6 +78,20 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         panic!("{name}")
     };
     text.text.clone()
+}
+
+fn assert_additive(registry: &FrameRegistry, name: &str) {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+        panic!("{name}")
+    };
+    assert_eq!(
+        texture.blend_mode,
+        ui_toolkit::widgets::texture::BlendMode::Additive,
+        "{name}: black authored overlay centers must not cover model pixels"
+    );
 }
 
 #[test]
@@ -103,11 +119,13 @@ fn transmog_wardrobe_exposes_model_cells_fixed_slots_and_outfit_gap_in_both_skin
         }
         assert!(registry.get_by_name("TransmogSource821Icon").is_none());
         assert_eq!(text(&registry, "TransmogSource821Status"), "Applied");
+        assert_additive(&registry, "TransmogSource821Applied");
         assert_eq!(text(&registry, "TransmogSource1181Status"), "Collected");
         let mut pending = book();
         pending.stage(TransmogChoice::Source(1181));
         let registry = build(skin, pending);
         assert_eq!(text(&registry, "TransmogSource1181Status"), "Pending");
+        assert_additive(&registry, "TransmogSource1181Pending");
         assert_eq!(
             text(&registry, "TransmogPendingChanges"),
             "1 pending changes"

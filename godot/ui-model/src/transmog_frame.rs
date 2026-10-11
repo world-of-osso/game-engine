@@ -344,6 +344,24 @@ fn wardrobe_region(book: &TransmogBook) -> Element {
     out
 }
 
+/// Blizzard_Wardrobe.xml TransmogStateTexture uses ADD: its black center is not opaque.
+pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    for source in view.book.page_sources() {
+        for state in ["Applied", "Pending"] {
+            let name = format!("TransmogSource{}{state}", source.source_id);
+            let Some(id) = registry.get_by_name(&name) else {
+                continue;
+            };
+            let frame = registry.get_mut(id).expect("registered transmog overlay");
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
+            else {
+                panic!("Transmog overlay {name} is not a texture");
+            };
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+        }
+    }
+}
+
 pub fn source_model_scene(source_id: u32) -> String {
     format!("TransmogSource{source_id}ModelScene")
 }
