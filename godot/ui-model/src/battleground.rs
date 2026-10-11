@@ -116,11 +116,7 @@ impl PvpView {
                 match_id: self.battleground()?.match_id,
                 accepted: action == "pvp:accept",
             },
-            "pvp:leave"
-                if self
-                    .battleground()
-                    .is_some_and(|b| b.accepted && b.phase != BgPhase::Waiting) =>
-            {
+            "pvp:leave" if self.battleground().is_some_and(|b| b.accepted) => {
                 PvpAction::Leave(self.battleground()?.match_id)
             }
             _ => return None,
@@ -361,7 +357,7 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         "PVPMatchLeaveButton".into(),
         "Leave Battleground",
         "pvp:leave",
-        !view.pending && bg.phase != BgPhase::Waiting,
+        !view.pending,
         (804.0, height - 62.0, 190.0, 22.0),
     ));
     children.extend(text(

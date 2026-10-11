@@ -8,7 +8,7 @@ Native Retail Mainline Warsong Gulch PvP UI, backed by existing shared PvP messa
 - [x] Show an invitation independently of queue-window visibility. Enter Battle/Leave Queue echo match identity; accepted invitations stop offering another acceptance.
 - [x] Render usable authored type36 flags and display server flag/score updates after entry. No locally invented objective outcome.
 - [x] Display retained roster/objective columns, All/Alliance/Horde filters and winner/defeat results. Ended opens results even after closing the live scoreboard; unknown honor is absent and uninstrumented combat columns are explicitly unknown.
-- [x] Leave through the existing authoritative match/origin transfer. Modern and Forever share the same native behavior.
+- [x] Submit leave for an accepted match, including Waiting; the server decides whether arrival is complete and performs the authoritative origin transfer. Modern and Forever share the same native behavior.
 
 Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 accept/leave buttons, PVPMatchScoreboard1024×420, PVPMatchResults1024×620. WSG is the only exposed selectable mode; unsupported queue modes are not fabricated.
 
