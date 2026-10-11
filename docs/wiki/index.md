@@ -13,6 +13,8 @@
 
 - [Spell kit attachment ordering](investigations/spell-kit-attach.md) — authored anchors present in all165 baseline failures; asynchronous owner readiness, explicit asset/anchor diagnostic separation and real-data regression.
 
+- [Black unit-frame portraits](investigations/portrait-black.md) —49 authentic starter-cloth/Imp receipts restore Human/Orc Modern portraits, private RED→GREEN and10 inspected PNGs; Forever HUD portrait slots are absent, both-skin world proof retained.
+
 ## October 9 reconciliation
 
 - [Player cast spark](../specs/player-cast-feedback.md) — `397c20803` skin fill-height fix; `427e5a814` owns scoped native proof.
