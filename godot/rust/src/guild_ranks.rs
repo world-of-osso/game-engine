@@ -115,7 +115,7 @@ impl GameClient {
         Ok(())
     }
     fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
-        game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.log, text);
+        game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.model.log, text);
         if error {
             self.add_world_error(text)?;
         }
