@@ -173,20 +173,41 @@ fn categories(model: &HousingDashboard) -> Element {
         .enumerate()
         .flat_map(|(index, category)| {
             let action = format!("housing:category:{}", category.id);
-            let selected = model.category == Some(category.id);
-            let top = 65.0 + index as f32 * 47.0;
-            let color = if selected {
-                "1.0,0.82,0.0,1.0"
-            } else {
-                "0.9,0.9,0.9,1.0"
-            };
+            let selected = model.category == Some(category.id)
+                || (category.id == crate::housing::ALL_CATEGORY && model.category.is_none());
+            let top = 65.0 + index as f32 * 48.0;
+            let atlas = category_icon(category.id);
+            let art = named_atlas_texture(
+                format!("HousingCategory{}Icon", category.id),
+                atlas,
+                (0.0, 0.0, 48.0, 48.0),
+            );
+            let alpha = if selected { 1.0 } else { 0.7 };
             rsx! { button { name: {DynName(format!("HousingCategory{}", category.id))},
-                text: {category.name.as_str()}, width: 70.0, height: 44.0,
-                pos_type: "absolute", left: 0.0, top, onclick: {action.as_str()},
-                font_size: 9.0, font_color: color
+                width: 48.0, height: 48.0,
+                pos_type: "absolute", left: 11.0, top, onclick: {action.as_str()},
+                button_default_skin: false, alpha, {art}
             } }
         })
         .collect()
+}
+
+/// DecorCategory.UiTextureAtlasElementID -> UiTextureAtlasElement.Name,
+/// authenticated local Retail 12.1.0.69933. No invented category artwork.
+fn category_icon(id: u32) -> &'static str {
+    match id {
+        1 => "category-icons_furnishings_active",
+        2 => "category-icons_structural_active",
+        3 => "category-icons_accents_active",
+        4 => "category-icons_lighting_active",
+        5 => "category-icons_interactive_active",
+        6 => "category-icons_plants_active",
+        8 => "category-icons_misc_active",
+        9 => "category-icons_rooms_active",
+        17 => "category-icons_featured_active",
+        18 => "category-icons_all_active",
+        _ => panic!("Unsupported pinned housing category {id}"),
+    }
 }
 
 fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
