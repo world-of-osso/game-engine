@@ -3191,3 +3191,7 @@ Updated [battle pets](systems/battle-pets.md#pvp-queue--partial-2026-10-10) and 
 ## 2026-10-10 — Cache import source pinning
 
 Added [cache source policy](systems/cache-import-sources.md) and [contract](../specs/cache-import-sources.md): local-CASC exports, pinned Retail imports, explicit Forever selection, runtime race/requirement inputs and root-absent CharStartOutfit workaround.
+
+## 2026-10-11 — raid-entry
+
+Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.

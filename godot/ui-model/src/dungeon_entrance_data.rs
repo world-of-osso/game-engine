@@ -4,7 +4,7 @@
 //!
 //! Entrances are `JournalInstanceEntrance.db2` world positions of `JournalInstance.db2`
 //! instances (`C_EncounterJournal.GetDungeonEntrancesForMap`); only dungeon
-//! (`Map.InstanceType` 1) entrances are kept, the server has no raids. The choices are
+//! (`Map.InstanceType` 1) entrances are kept; raids use the Retail unit menu instead. The choices are
 //! Plumber's dungeon difficulties the map has a `MapDifficulty.db2` row for
 //! (`EJ_IsValidInstanceDifficulty`), labelled `ENCOUNTER_JOURNAL_DIFF_TEXT` "(%s) %s" from
 //! `Difficulty.db2`, with the `DungeonEncounter.db2` bosses killed on the player's lock.
