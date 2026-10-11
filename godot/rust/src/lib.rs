@@ -2181,12 +2181,10 @@ impl GameClient {
                     self.transmog_closed_for(*npc);
                 }
                 let stable_opened = self.stable_npc_message(&message);
-                if !self.receive_quest_npc_message(&message)?
-                    && !self.bank_npc_message(&message)
-                    && !stable_opened
                 if !self.charter_npc_message(&message)?
                     && !self.receive_quest_npc_message(&message)?
                     && !self.bank_npc_message(&message)
+                    && !stable_opened
                 {
                     self.receive_npc_message(message)?;
                 }
