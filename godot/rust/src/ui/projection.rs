@@ -1218,14 +1218,16 @@ fn update_single_line_edit(
     mut node: Gd<LineEdit>,
     data: &ui_toolkit::widgets::edit_box::EditBoxData,
 ) {
+    let max_length = data.max_letters.unwrap_or(0) as i32;
+    if node.get_max_length() != max_length {
+        // Godot's setter rewrites the text and resets the caret, even for the same limit.
+        node.set_max_length(max_length);
+    }
     if node.get_text().to_string() != data.text {
         node.set_text(&data.text);
         node.set_caret_column(data.text.chars().count() as i32);
     }
     node.set_secret(data.password);
-    if let Some(max) = data.max_letters {
-        node.set_max_length(max as i32);
-    }
 }
 
 fn update_multiline_edit(mut node: Gd<TextEdit>, text: &str) {
