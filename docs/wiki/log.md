@@ -1,6 +1,9 @@
 ## 2026-10-11 — Cooldown/assist authored-data audit
 
 [Audit](investigations/cooldown-assist-data.md): six readable local Retail tables; native Flags33 and settings-input routing fixes. Private5860 Modern/Forever prove all four category clocks, settings/reordering, four Edit Mode movers with saved drag, and real assistant spellbook→action-slot placement; inspected1280PNG evidence.10 core/5 model/2 export tests pass. Exact rotation, assistant GCD penalty, Retail ants art, charges and hostile combat acceptance remain open; clients fell below terrain and selected no target. origin/master merged into the feature branch, not landed; shared realm/5000 untouched.
+## 2026-10-11 — Non-visual equipment
+
+[Investigation](investigations/nonvisual-equipment.md): server additive storage/DB2 uniqueness, same-level Forever model/slot picking RED→GREEN; both-skin paid Mood Ring purchase, five filled slots, tooltip/drag and exact GUID/stat preservation across server restart and client relog. Twelve inspected1280px PNGs shared; legacy relic catalog and existing proficiency/equip-trigger limits explicit.
 
 ## 2026-10-11 — Native follower LFG transport
 
