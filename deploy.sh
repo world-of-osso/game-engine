@@ -16,15 +16,7 @@ FILE_SERVER_DIR=${FILE_SERVER_DIR:-$ROOT/../file-server}
 # rclone remote with write access to the bucket (docs/deploy.md).
 DESTINATION=${DESTINATION:-woo-r2:worldofosso-client}
 
-# Runtime data: what the client reads from data/ that a player's WoW install cannot supply.
-# An allowlist, because data/ also holds auth tokens and gigabytes of diagnostics.
-DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 gametables glues item-models
-    los minimap models music reference sounds terrain textures ui)
-# Not tactkeys/: the third-party TACT key list stays off the public bucket; the resolver
-# treats it as optional and falls back to the install's own keyring (casc_resolver.rs).
-DATA_FILE_GLOBS=('*.csv' '*.ron' local-listfile-cache.sqlite)
-# Inside those: negative-extraction markers, lock files, superseded resolver/NPC caches.
-DATA_EXCLUDES=('*.missing' '*.lock' cache/casc 'cache/pre-retail-*')
+# Runtime project/data allowlist is shared with Windows in scripts/player_bundle.py.
 
 dry_run=0
 case "${1:-}" in
@@ -51,15 +43,6 @@ pinned_godot() {
     echo "$GODOT_PINNED"
 }
 
-# project_files: tracked Godot project files, without the Rust crates, tests, and the dev
-# .gdextension that points into target/.
-project_files() {
-    local crates
-    crates=$(git -C "$ROOT" ls-files 'godot/*/Cargo.toml' | sed 's|Cargo.toml$||')
-    git -C "$ROOT" ls-files godot | grep -v -F "$crates" \
-        | grep -v -E '^godot/(tests/|Cargo\.|\.gitignore$|depot-test-assets\.txt$|game_engine\.gdextension)'
-}
-
 write_launcher() {
     cat > "$BUNDLE/game-engine-$PLATFORM" <<'EOF'
 #!/bin/sh
@@ -71,23 +54,6 @@ chmod +x "$here/runtime/godot"
 exec "$here/runtime/godot" --path "$here/godot" -- "$@"
 EOF
     chmod +x "$BUNDLE/game-engine-$PLATFORM"
-}
-
-write_extension_config() {
-    cat > "$BUNDLE/godot/game_engine.gdextension" <<'EOF'
-[configuration]
-entry_symbol = "gdext_rust_init"
-compatibility_minimum = "4.7"
-reloadable = false
-
-[libraries]
-linux.x86_64 = "res://../lib/libgame_engine_godot.so"
-EOF
-}
-
-copy_project() {
-    (cd "$ROOT" && project_files | xargs -d '\n' cp --parents -t "$BUNDLE")
-    write_extension_config
 }
 
 # import_project: run Godot's one-time import in the bundle so players never import.
@@ -104,36 +70,13 @@ import_project() {
     rm -rf "$home" "$BUNDLE/godot/.godot/editor"
 }
 
-# copy_data: -L because a worktree's data/ links into the canonical checkout's.
-copy_data() {
-    local entry pattern
-    mkdir -p "$BUNDLE/data"
-    for entry in "${DATA_DIRS[@]}"; do
-        cp -RLp --reflink=auto "$ROOT/data/$entry" "$BUNDLE/data/"
-    done
-    shopt -s nullglob
-    for pattern in "${DATA_FILE_GLOBS[@]}"; do
-        for entry in "$ROOT"/data/$pattern; do
-            cp -Lp --reflink=auto "$entry" "$BUNDLE/data/"
-        done
-    done
-    shopt -u nullglob
-    for pattern in "${DATA_EXCLUDES[@]}"; do
-        case "$pattern" in
-            */*) rm -rf "$BUNDLE"/data/$pattern ;;
-            *) find "$BUNDLE/data" -name "$pattern" -delete ;;
-        esac
-    done
-}
-
 assemble() {
     rm -rf "$BUNDLE"
     mkdir -p "$BUNDLE/runtime" "$BUNDLE/lib"
     write_launcher
     cp "$(pinned_godot)" "$BUNDLE/runtime/godot"
     install -m 644 "$ROOT/target/release/libgame_engine_godot.so" "$BUNDLE/lib/"
-    copy_project
-    copy_data
+    python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM"
     import_project
 }
 
