@@ -38,6 +38,7 @@ impl GameClient {
             NpcMessage::Opened(opened)
                 if opened.kind == InteractionKind::Role(NpcRole::Petitioner) =>
             {
+                self.auction_interaction_closed(opened.npc);
                 self.close_trainer();
                 self.merchant.session.close();
                 self.account
