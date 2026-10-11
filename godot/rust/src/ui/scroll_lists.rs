@@ -62,6 +62,14 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = reputation_pan_extent();
         return (pan * 2, pan);
     }
+    if [
+        game_engine_ui_model::achievements::ROWS_SCROLLBOX,
+        "AchievementCategoriesScrollBox",
+    ]
+    .contains(&list)
+    {
+        return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
+    }
     if QUEST_SCROLL_FRAMES.contains(&list)
         || list == game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL
     {
