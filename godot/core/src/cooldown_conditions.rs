@@ -17,7 +17,7 @@ pub struct ConditionActor<'a> {
 
 #[derive(Clone, Debug)]
 struct ConditionRow {
-    race_masks: [u64; 2],
+    race_mask: u64,
     class_mask: u32,
     spec_index: i32,
     spells: [u32; 4],
@@ -77,7 +77,7 @@ impl CooldownConditions {
                 row.unsupported.join(", ")
             ));
         }
-        if !matches_mask(row.race_masks, actor.race_bit) {
+        if !matches_mask(row.race_mask, actor.race_bit) {
             return Ok(false);
         }
         let class_bit = u32::from(actor.class)
@@ -102,14 +102,11 @@ impl CooldownConditions {
     }
 }
 
-fn matches_mask(masks: [u64; 2], race_bit: u32) -> bool {
-    if masks == [0, 0] {
-        return true;
-    }
-    let word = (race_bit / 64) as usize;
-    masks
-        .get(word)
-        .is_some_and(|mask| mask & (1u64 << (race_bit % 64)) != 0)
+fn matches_mask(mask: u64, race_bit: u32) -> bool {
+    mask == 0
+        || 1u64
+            .checked_shl(race_bit)
+            .is_some_and(|bit| mask & bit != 0)
 }
 
 fn aura_requirement(spell: u32, stacks: u32, actor: &ConditionActor<'_>) -> bool {
@@ -172,7 +169,10 @@ fn read_condition(cells: &Cells) -> Result<ConditionRow, String> {
         .map(|(name, _)| name.clone())
         .collect();
     let mut row = ConditionRow {
-        race_masks: [number(cells, "RaceMasks_0")?, number(cells, "RaceMasks_1")?],
+        // CSV exposes two signed 32-bit words of one 64-bit mask (as the existing
+        // spell_visual PlayerCondition importer does), not two 64-bit words.
+        race_mask: (number::<i64>(cells, "RaceMasks_0")? as u32 as u64)
+            | ((number::<i64>(cells, "RaceMasks_1")? as u32 as u64) << 32),
         class_mask: number(cells, "ClassMask")?,
         spec_index: number(cells, "ChrSpecializationIndex")?,
         spells: four(cells, "SpellID")?,
