@@ -43,6 +43,7 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         !view.orders.pending,
         (175.0, 568.0, 150.0, 28.0),
     ));
+    children.extend(form_menu(view));
     children.extend(text(
         "CraftingOrdersStatus",
         &view.orders.status,
@@ -347,7 +348,7 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
     out.extend(panel_button(
         "CraftingOrderRecipientDropdown".into(),
         type_text,
-        "profession:order:next-kind",
+        "profession:order:recipient-menu",
         !view.orders.pending,
         (660.0, 71.0, 145.0, 25.0),
     ));
@@ -387,7 +388,7 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
     out.extend(panel_button(
         "CraftingOrderDuration".into(),
         &format!("{} Hours", view.orders.duration_hours),
-        "profession:order:duration",
+        "profession:order:duration-menu",
         !view.orders.pending,
         (650.0, 439.0, 143.0, 22.0),
     ));
@@ -462,4 +463,47 @@ fn money_text(copper: u64) -> String {
         (copper / 100) % 100,
         copper % 100
     )
+}
+
+fn form_menu(view: &ProfessionView) -> Element {
+    use crate::professions_orders::OrderMenu;
+    let Some(menu) = view.orders.menu else {
+        return vec![];
+    };
+    let (left, top, choices) = match menu {
+        OrderMenu::Recipient => (
+            660.0,
+            97.0,
+            vec![
+                ("Public", "Public", "recipient:public"),
+                ("Guild", "Guild", "recipient:guild"),
+                ("Personal", "Personal", "recipient:personal"),
+            ],
+        ),
+        OrderMenu::Duration => (
+            650.0,
+            465.0,
+            vec![
+                ("12", "12 Hours", "duration:12"),
+                ("24", "24 Hours", "duration:24"),
+                ("48", "48 Hours", "duration:48"),
+            ],
+        ),
+    };
+    let children: Element = choices
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, (key, caption, action))| {
+            panel_button(
+                format!("CraftingOrderMenu{key}"),
+                caption,
+                &format!("profession:order:{action}"),
+                true,
+                (0.0, index as f32 * 24.0, 145.0, 24.0),
+            )
+        })
+        .collect();
+    rsx! { r#frame { name: "CraftingOrderMenu", left, top, width: 145.0, height: 72.0,
+        pos_type: "absolute", mouse_enabled: true, frame_level: 500, {children}
+    } }
 }
