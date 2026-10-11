@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; chosen Gnomeregan one-stage boundary, live proof pending.
+
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
 - [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
 

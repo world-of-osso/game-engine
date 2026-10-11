@@ -16,6 +16,82 @@ fn install(app: &mut App) {
         },
     );
 }
+#[test]
+fn scenarios_wire_receives_copy_entry_and_completion_on_instance_channel() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 6491176).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        assert!(Instant::now() < deadline, "scenario connection timeout");
+        server.update();
+        if bridge
+            .drain_events()
+            .unwrap()
+            .iter()
+            .any(|event| matches!(event, Event::Connected))
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let entry = ScenarioProgress {
+        map_id: 90,
+        instance_id: 17,
+        difficulty_id: 1,
+        scenario: Some(ScenarioStage {
+            scenario_id: 649,
+            name: "Gnomeregan".into(),
+            kind: 3,
+            flags: 10,
+            step_id: 1176,
+            stage: 1,
+            num_stages: 1,
+            title: "Gnomeregan".into(),
+            description: "Defeat Mekgineer Thermaplugg.".into(),
+            completed: false,
+            criteria: vec![AchievementCriterionLine {
+                tree_id: 36987,
+                order_index: 0,
+                criteria_id: 18529,
+                description: "Mekgineer Thermaplugg defeated".into(),
+                current: 0,
+                required: 1,
+                completed: false,
+                progress_supported: true,
+            }],
+        }),
+    };
+    let mut complete = entry.clone();
+    let stage = complete.scenario.as_mut().unwrap();
+    stage.stage = 2;
+    stage.step_id = 0;
+    stage.completed = true;
+    stage.criteria.clear();
+    {
+        let world = server.world_mut();
+        let mut sender = world
+            .query::<&mut MessageSender<ScenarioProgress>>()
+            .single_mut(world)
+            .unwrap();
+        sender.send::<InstanceChannel>(entry.clone());
+        sender.send::<InstanceChannel>(complete.clone());
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut snapshots = Vec::new();
+    while snapshots.len() < 2 && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event
+                && message.is::<ScenarioProgress>()
+            {
+                snapshots.push(message.downcast::<ScenarioProgress>().ok().unwrap());
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(snapshots, vec![entry, complete]);
+}
+
 fn flush_server(server: &mut App) {
     for _ in 0..8 {
         server.update();

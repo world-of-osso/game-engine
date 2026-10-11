@@ -3200,3 +3200,7 @@ Updated [battle pets](systems/battle-pets.md#pvp-queue--partial-2026-10-10) and 
 ## 2026-10-10 — Cache import source pinning
 
 Added [cache source policy](systems/cache-import-sources.md) and [contract](../specs/cache-import-sources.md): local-CASC exports, pinned Retail imports, explicit Forever selection, runtime race/requirement inputs and root-absent CharStartOutfit workaround.
+
+## 2026-10-11 — Scenario progression
+
+Local CASC Scenario/ScenarioStep and existing criteria/TDB join; copy-scoped achievement evaluator reuse and both-skin Retail stage block. Added [system](systems/scenarios.md) and [contract](../specs/scenarios.md); live acceptance pending.

@@ -374,7 +374,14 @@ fn scenario_module(scenario: &ScenarioStage, height: &mut f32, scale: f32) -> El
         scaled((0.0, stage_top, 253.0, 80.0), scale),
     ));
     elements.extend(scenario_stage_labels(scenario, stage_top, scale));
-    let mut y = stage_top + 83.0;
+    *height = stage_top + 83.0;
+    elements.extend(scenario_criteria(scenario, height, scale));
+    elements
+}
+
+fn scenario_criteria(scenario: &ScenarioStage, height: &mut f32, scale: f32) -> Element {
+    let mut y = *height;
+    let mut elements = Vec::new();
     for (index, criterion) in scenario.criteria.iter().enumerate() {
         let text = if criterion.required > 1 {
             format!(
