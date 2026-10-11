@@ -47,12 +47,15 @@ pub mod chat_frame;
 #[path = "ui/screens/chat_frame_component.rs"]
 pub mod chat_frame_component;
 pub mod collections_component;
+pub mod countdown_component;
+pub mod group_countdown;
 #[path = "game/group_state.rs"]
 pub mod group_state;
 pub mod pet_journal;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;
+pub mod raid_manager_component;
 pub mod raid_warning;
 pub mod spell_overrides;
 pub mod spell_targeting;

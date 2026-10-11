@@ -10,6 +10,12 @@ pub const IG_CHARACTER_INFO_CLOSE: u32 = 840;
 pub const IG_MAINMENU_OPTION_CHECKBOX_ON: u32 = 856;
 /// `SOUNDKIT.ITEM_REPAIR`.
 pub const ITEM_REPAIR: u32 = 7994;
+/// Retail SoundKitConstants.lua PlayerCountdown kits.
+pub const UI_COUNTDOWN_TIMER: u32 = 158565;
+pub const UI_COUNTDOWN_FINISHED: u32 = 158566;
+pub const UI_COUNTDOWN_BAR_STATE_STARTS: u32 = 158958;
+pub const UI_COUNTDOWN_BAR_STATE_FINISHED: u32 = 158959;
+pub const UI_COUNTDOWN_MEDIUM_NUMBER_FINISHED: u32 = 158960;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UiSoundKit {
@@ -19,7 +25,32 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 4] = [
+const KITS: [UiSoundKit; 9] = [
+    UiSoundKit {
+        id: UI_COUNTDOWN_TIMER,
+        volume: 0.9,
+        files: &[567474],
+    },
+    UiSoundKit {
+        id: UI_COUNTDOWN_FINISHED,
+        volume: 0.8,
+        files: &[567438],
+    },
+    UiSoundKit {
+        id: UI_COUNTDOWN_BAR_STATE_STARTS,
+        volume: 0.9,
+        files: &[566236],
+    },
+    UiSoundKit {
+        id: UI_COUNTDOWN_BAR_STATE_FINISHED,
+        volume: 0.9,
+        files: &[566236],
+    },
+    UiSoundKit {
+        id: UI_COUNTDOWN_MEDIUM_NUMBER_FINISHED,
+        volume: 0.9,
+        files: &[566236],
+    },
     UiSoundKit {
         id: IG_CHARACTER_INFO_OPEN,
         volume: 0.398_107_17,
