@@ -4,7 +4,8 @@ use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
     AchievementCatalogEntry, AchievementCatalogPage, AchievementCategoryEntry,
-    AchievementCriterionLine, AchievementStateUpdate, QueryAchievementCatalog,
+    AchievementCriterionLine, AchievementScope, AchievementStateUpdate, AchievementSummary,
+    QueryAchievementCatalog,
 };
 use std::collections::BTreeMap;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
@@ -14,10 +15,18 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 pub const OPEN_ACTION: &str = "micro:AchievementMicroButton";
 pub const FRAME: &str = "AchievementFrame";
 const ROWS: usize = 3;
-const CATEGORIES: usize = 18;
+const CATEGORIES: usize = 17;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
-pub const ART: &[u32] = &[130652, 235397, 130665, 130650, HEADER_SHIELD_FDID];
+pub const ART: &[u32] = &[
+    130652,
+    235397,
+    130665,
+    130650,
+    137012,
+    130656,
+    HEADER_SHIELD_FDID,
+];
 /// Retail Mainline/Blizzard_AchievementUI.xml:1979-1984, UI-Achievement-TinyShield.
 const HEADER_SHIELD_FDID: u32 = 235_415;
 
@@ -37,6 +46,8 @@ pub struct AchievementWindow {
     pub row_offset: usize,
     pub category_offset: usize,
     pub criterion_offset: usize,
+    pub scope: AchievementScope,
+    pub summary: Option<AchievementSummary>,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
 }
@@ -46,6 +57,15 @@ impl AchievementWindow {
         match action {
             OPEN_ACTION => self.toggle(&mut requests),
             "achievement:close" => self.visible = false,
+            "achievement:summary" => {
+                self.selected_category = None;
+                self.selected_achievement = None;
+                self.criterion_offset = 0;
+                self.row_offset = 0;
+                if self.summary.is_none() {
+                    requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
+                }
+            }
             "achievement:categories_next" => {
                 self.category_offset =
                     (self.category_offset + CATEGORIES).min(self.categories.len().saturating_sub(1))
@@ -73,6 +93,9 @@ impl AchievementWindow {
         }
         if !self.categories_loaded {
             requests.push(QueryAchievementCatalog::Categories { after_id: 0 });
+        }
+        if self.summary.is_none() {
+            requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
         }
         if let Some(category_id) = self.selected_category {
             if !self.pages.get(&category_id).is_some_and(|page| page.loaded) {
@@ -169,6 +192,12 @@ impl AchievementWindow {
             .position(|request| reply_matches(request, &page))
             .map(|index| self.pending.remove(index));
         let requests = match page {
+            AchievementCatalogPage::Summary(summary) => {
+                if summary.scope == self.scope {
+                    self.summary = Some(summary);
+                }
+                Vec::new()
+            }
             AchievementCatalogPage::Categories {
                 categories,
                 next_id,
@@ -254,17 +283,17 @@ impl AchievementWindow {
         for page in self.pages.values_mut() {
             page.loaded = false;
         }
-        let requests = if self.visible {
-            self.selected_category
-                .map(|category_id| QueryAchievementCatalog::Category {
+        self.summary = None;
+        let mut requests = Vec::new();
+        if self.visible {
+            requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
+            if let Some(category_id) = self.selected_category {
+                requests.push(QueryAchievementCatalog::Category {
                     category_id,
                     after_id: 0,
-                })
-                .into_iter()
-                .collect()
-        } else {
-            Vec::new()
-        };
+                });
+            }
+        }
         // A live change needs a post-change response even if an older first page is
         // already in flight. Same-type reliable replies consume these in send order.
         self.pending.extend(requests.iter().copied());
@@ -281,7 +310,14 @@ impl AchievementWindow {
     pub fn entries(&self) -> &[AchievementCatalogEntry] {
         self.selected_category
             .and_then(|id| self.pages.get(&id))
-            .map_or(&[], |page| &page.entries)
+            .map_or_else(
+                || {
+                    self.summary
+                        .as_ref()
+                        .map_or(&[][..], |summary| summary.recent.as_slice())
+                },
+                |page| page.entries.as_slice(),
+            )
     }
     pub fn selected(&self) -> Option<&AchievementCatalogEntry> {
         self.entries()
@@ -324,6 +360,9 @@ fn update_achievement(entries: &mut Vec<AchievementCatalogEntry>, entry: Achieve
 
 fn reply_matches(request: &QueryAchievementCatalog, page: &AchievementCatalogPage) -> bool {
     match (request, page) {
+        (QueryAchievementCatalog::Summary { scope }, AchievementCatalogPage::Summary(summary)) => {
+            *scope == summary.scope
+        }
         (QueryAchievementCatalog::Categories { .. }, AchievementCatalogPage::Categories { .. }) => {
             true
         }
@@ -387,17 +426,16 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         .expect("achievement cache in SharedContext");
     let hide = !window.visible;
     let mut content = flat_panel_chrome(FRAME, (820.0, 600.0), "Achievements", "achievement:close");
-    let points: u32 = window
-        .pages
-        .values()
-        .flat_map(|page| &page.entries)
-        .filter(|entry| entry.earned)
-        .map(|entry| entry.points)
-        .sum();
-    content.extend(points_header(points));
+    content.extend(points_header(
+        window.summary.as_ref().map(|summary| summary.points),
+    ));
     content.extend(category_panel(window));
-    content.extend(achievement_rows(window));
-    content.extend(criteria_panel(window));
+    if window.selected_category.is_none() && window.selected_achievement.is_none() {
+        content.extend(summary_panel(window));
+    } else {
+        content.extend(achievement_rows(window));
+        content.extend(criteria_panel(window));
+    }
     rsx! { r#frame {
         name: {DynName(FRAME.into())}, width: 820.0, height: 600.0, strata: FrameStrata::Dialog,
         hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 32.0, top: 100.0,
@@ -406,8 +444,11 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
 }
 /// Retail Mainline/Blizzard_AchievementUI.lua:298: bare formatted points;
 /// XML:1973-1984: white text with a 20x20 shield three units to its right.
-fn points_header(points: u32) -> Element {
-    let text = crate::damage_meter_data::break_up_large_number(u64::from(points));
+fn points_header(points: Option<u32>) -> Element {
+    let text = points.map_or_else(
+        || "—".into(),
+        |points| crate::damage_meter_data::break_up_large_number(u64::from(points)),
+    );
     let (width, _) = ui_toolkit::text_measure::measure_text(&text, GameFont::FrizQuadrata, 12.0)
         .expect("achievement header font must be loaded");
     let left = (820.0 - width) / 2.0;
@@ -437,6 +478,13 @@ fn category_panel(window: &AchievementWindow) -> Element {
             (12.0, 64.0, 204.0, 478.0),
         ));
     }
+    content.extend(label(
+        "AchievementCategorySummary".into(),
+        "Summary",
+        (20.0, 72.0, 180.0, 22.0),
+        GOLD,
+        "achievement:summary",
+    ));
     for (index, (category, depth)) in window
         .category_tree()
         .into_iter()
@@ -453,7 +501,7 @@ fn category_panel(window: &AchievementWindow) -> Element {
         content.extend(label(
             format!("AchievementCategory{}", category.category_id),
             &category.name,
-            (x, 72.0 + index as f32 * 24.0, 210.0 - x, 22.0),
+            (x, 96.0 + index as f32 * 24.0, 210.0 - x, 22.0),
             color,
             &format!("achievement:category:{}", category.category_id),
         ));
@@ -471,6 +519,154 @@ fn category_panel(window: &AchievementWindow) -> Element {
         "achievement:categories_next",
         window.category_offset + CATEGORIES < window.categories.len(),
         (112.0, 551.0, 90.0, 24.0),
+    ));
+    content
+}
+
+// Retail AchievementUI.lua:28,2334-2512: latest three, overall progress, authored summary categories.
+fn summary_panel(window: &AchievementWindow) -> Element {
+    let Some(summary) = &window.summary else {
+        return label(
+            "AchievementSummaryLoading".into(),
+            "Loading Summary...",
+            (240.0, 90.0, 546.0, 30.0),
+            WHITE,
+            "",
+        );
+    };
+    let mut content = summary_progress_bar(
+        "AchievementSummaryTotal",
+        summary.completed,
+        summary.total,
+        (240.0, 70.0, 546.0, 22.0),
+    );
+    content.extend(label(
+        "AchievementSummaryTotalText".into(),
+        &format!("{} / {}", summary.completed, summary.total),
+        (240.0, 70.0, 546.0, 22.0),
+        WHITE,
+        "",
+    ));
+    content.extend(label(
+        "AchievementSummaryRecentHeader".into(),
+        "Recent Achievements",
+        (240.0, 98.0, 546.0, 22.0),
+        GOLD,
+        "",
+    ));
+    for (index, row) in summary.recent.iter().enumerate() {
+        content.extend(summary_achievement_row(row, 130.0 + index as f32 * 60.0));
+    }
+    if summary.recent.is_empty() {
+        content.extend(label(
+            "AchievementSummaryEmpty".into(),
+            "No achievements earned yet",
+            (240.0, 138.0, 546.0, 30.0),
+            WHITE,
+            "",
+        ));
+    }
+    content.extend(summary_category_counts(window, summary));
+    content
+}
+
+fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSummary) -> Element {
+    const SUMMARY_CATEGORIES: [u32; 11] = [92, 96, 97, 15522, 95, 168, 169, 201, 155, 15117, 15246];
+    let mut content = label(
+        "AchievementSummaryCategoriesHeader".into(),
+        "Progress Overview",
+        (240.0, 330.0, 546.0, 22.0),
+        GOLD,
+        "",
+    );
+    for (index, id) in SUMMARY_CATEGORIES.into_iter().enumerate() {
+        let Some(category) = window.categories.get(&id) else {
+            continue;
+        };
+        let counts = summary.categories.iter().find(|row| row.category_id == id);
+        let (completed, total) = counts.map_or((0, 0), |row| (row.completed, row.total));
+        let text = format!("{}  {completed} / {total}", category.name);
+        let x = 240.0 + (index % 2) as f32 * 274.0;
+        let y = 360.0 + (index / 2) as f32 * 31.0;
+        content.extend(summary_progress_bar(
+            &format!("AchievementSummaryCategory{id}"),
+            completed,
+            total,
+            (x, y, 254.0, 21.0),
+        ));
+        content.extend(label(
+            format!("AchievementSummaryCategory{id}"),
+            &text,
+            (x + 6.0, y, 242.0, 21.0),
+            WHITE,
+            &format!("achievement:category:{id}"),
+        ));
+    }
+    content
+}
+
+fn summary_progress_bar(
+    name: &str,
+    current: u32,
+    total: u32,
+    rect: (f32, f32, f32, f32),
+) -> Element {
+    let (x, y, width, height) = rect;
+    let fill = if total == 0 {
+        0.0
+    } else {
+        width * current.min(total) as f32 / total as f32
+    };
+    rsx! {
+        r#frame { name: {DynName(format!("{name}Bar"))}, width, height, left: x, top: y, pos_type: "absolute",
+            background_color: "0.0,0.0,0.0,0.5",
+            texture { name: {DynName(format!("{name}Fill"))}, texture_fdid: 137012,
+                width: fill, height, pos_type: "absolute", left: 0.0, top: 0.0,
+                vertex_color: "0.0,0.6,0.0,1.0",
+            }
+        }
+    }
+}
+
+// SummaryAchievementTemplate is 48 high (Mainline XML:1138-1139).
+fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
+    let prefix = format!("Achievement{}", entry.achievement_id);
+    let action = format!("achievement:row:{}", entry.achievement_id);
+    let mut content = art(
+        format!("{prefix}Icon"),
+        entry.icon_fdid,
+        (240.0, y, 40.0, 40.0),
+    );
+    content.extend(art(
+        format!("{prefix}IconFrame"),
+        130656,
+        (237.0, y - 3.0, 46.0, 46.0),
+    ));
+    content.extend(label(
+        format!("{prefix}Name"),
+        &entry.name,
+        (292.0, y, 400.0, 20.0),
+        GOLD,
+        &action,
+    ));
+    content.extend(label(
+        format!("{prefix}Description"),
+        &entry.description,
+        (292.0, y + 22.0, 400.0, 26.0),
+        WHITE,
+        &action,
+    ));
+    content.extend(art(
+        format!("{prefix}Shield"),
+        130665,
+        (728.0, y, 40.0, 40.0),
+    ));
+    content.extend(label(
+        format!("{prefix}Points"),
+        &entry.points.to_string(),
+        (740.0, y + 12.0, 35.0, 20.0),
+        GOLD,
+        &action,
     ));
     content
 }

@@ -120,6 +120,7 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
                     description: "Defeat Hogger".into(),
                     points: 10,
                     icon_fdid: 136363,
+                    flags: 0,
                     earned: false,
                     earned_at: None,
                     progress_supported: true,
