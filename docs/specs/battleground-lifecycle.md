@@ -34,7 +34,7 @@ Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 a
 
 ## Known gaps (current cycle)
 
-- [ ] Full merge acceptance remains lead-owned: protocol/server/engine suites and PNG inspection. Scoped UI/object tests and native builds pass; no master merge performed.
+- [ ] Integration review remains lead-owned. Scoped UI/object tests, native builds, helper cargo check and changed-Rust formatting pass; full suites are periodic master gates, not per-agent branch runs. No master merge performed.
 - [ ] Exact PvP-specific textures/icons/chrome parity is not certified; current native panels reuse existing skin-aware frame/button art.
 
 ## Out of scope

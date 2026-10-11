@@ -12,6 +12,7 @@ Native source-named controls: `HonorFrameQueueButton`, `PVPReadyDialogEnterBattl
 
 - Type36 flags were excluded by the native game-object type dispatch, so no visual/usable object existed despite valid replication. `461f17ae0` admits the source flag type through normal display-ID model resolution and interaction. Live object-use succeeds after this fix.
 - Closing the active scoreboard persisted its dismissal into match end. Same-order both-skin RED reproduced missing results; `374ab9647` resets dismissal on the authoritative Ended transition, while permitting later result dismissal.
+- `e90c59497` removes the client-only Waiting-phase leave prohibition. An arrived native player left an accepted Waiting match while nine peers remained unaccepted, returning to the exact retained origin; server eligibility remains authoritative.
 - Support peers initially sent WorldPortAck on S2C TerrainChannel. The fixture now uses source TransferChannel. Waiting-only captures are archived separately; no completed-match claim uses that run.
 
 ## Bounded live proof
@@ -20,7 +21,7 @@ Private UDP5710, diagnostics-owned world.db, ten `fb_bg*` accounts: one rendered
 
 Modern additionally proves automatic results after closing the live scoreboard and native five-row Alliance/Horde filtering. Native invitation decline is proved in both skins. Forever results were opened through the native Scoreboard button before the transition fix; both-skin behavior tests cover the corrected transition. The rendered client's returned server coordinates match its retained origin exactly. Supporting peers prove origin-map NewWorld/WorldPortAck and cleared match state; exact all-player coordinate retention has separate server channel-fixture proof.
 
-Evidence: `data/diagnostics/battleground-lifecycle-2026-10-11/` contains `*-final-*-pvp.json`, per-peer end/return snapshots, pointer ledger and targeted RED/GREEN logs. Six game-object tests and two both-skin UI tests pass; extension builds have no compile warnings. Sixteen personally inspected 1280×720 PNGs reside in `/syncthing/AgentShared/2026-10-11/battleground-lifecycle/`. Numeric timer/reward policy and exact PvP-specific texture parity remain explicit contract gaps; this is not full Retail parity certification. Lead owns the full merge gate; no master merge or canonical DB write was performed.
+Evidence: `data/diagnostics/battleground-lifecycle-2026-10-11/` contains `*-final-*-pvp.json`, per-peer end/return snapshots, pointer ledger and targeted RED/GREEN logs. Six game-object tests and two both-skin UI tests pass; extension builds have no compile warnings. Sixteen personally inspected 1280×720 PNGs reside in `/syncthing/AgentShared/2026-10-11/battleground-lifecycle/`. Numeric timer/reward policy and exact PvP-specific texture parity remain explicit contract gaps; this is not full Retail parity certification. Scoped helper cargo check (Godot extension and CLI) and changed-Rust formatting checks pass at `e90c59497`. Lead owns integration review; full suites run periodically on master, not per-agent branches. No master merge or canonical DB write was performed.
 
 ## Sources
 
