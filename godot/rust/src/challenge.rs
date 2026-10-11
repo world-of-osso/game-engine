@@ -50,7 +50,6 @@ impl GameClient {
             self.challenge_ui.free();
             self.challenge_ui.mentor.free();
             self.challenge_ui = ChallengeUi::default();
-            self.account.party_keystones = Default::default();
             self.account.challenge = Default::default();
             return Ok(());
         }

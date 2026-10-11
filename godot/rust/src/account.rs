@@ -405,6 +405,7 @@ impl Account {
         self.dungeon_difficulty = None;
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
+        self.party_keystones = Default::default();
         self.scenario_objectives = Default::default();
         self.achievements = Default::default();
         self.achievement_requests.clear();
@@ -2303,6 +2304,10 @@ fn quest_message(
 #[cfg(test)]
 #[path = "account_toys_tests.rs"]
 mod toys_tests;
+
+#[cfg(test)]
+#[path = "account_mythic_mentor_tests.rs"]
+mod mythic_mentor_tests;
 
 #[cfg(test)]
 #[path = "account_dungeonclient_tests.rs"]
