@@ -1,6 +1,8 @@
 # Wiki Index
 
 - [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
+- [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
+
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
 - [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
 - [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
