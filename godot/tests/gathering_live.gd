@@ -115,8 +115,11 @@ func prove_skinning() -> void:
 	var wolf := wolf_node()
 	await checkpoint("wolf-position", wolf)
 	await click_world(wolf)
+	if not await wait_until(func(): return client.target_state().target_name == "Mangy Wolf", "wolf selected", 5000): return
+	await capture("wolf-fight")
 	await checkpoint("kill-started", wolf)
-	if not await wait_until(func(): return client.target_state().health_text == "Dead", "own wolf kill", 90000): return
+	if not await wait_until(func(): return float(client.spells_state().target_health) == 0.0, "own wolf kill", 90000): return
+	if client.spells_state().damage_dealt.is_empty(): fail("wolf kill has no owner damage receipt"); return
 	await capture("wolf-kill")
 	await click_world(wolf)
 	if not await wait_until(func(): return control("LootFrame") != null, "corpse loot"): return
@@ -170,7 +173,8 @@ func click_world(node: Node3D) -> void:
 		await process_frame
 
 func checkpoint(label: String, object: Node3D = null) -> void:
-	var record := {"label": label, "pid": OS.get_process_id(), "account": client.account_state()}
+	var record := {"label": label, "pid": OS.get_process_id(), "account": client.account_state(),
+		"target": client.target_state(), "spells": client.spells_state()}
 	if object != null:
 		var delta := object.global_position - actor.global_position
 		record["yaw"] = rad_to_deg(atan2(-delta.x, -delta.z))
