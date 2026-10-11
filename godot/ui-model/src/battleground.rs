@@ -11,6 +11,7 @@ use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::El
 pub enum PvpAction {
     Query,
     WarMode(bool),
+    SelectTalent { slot: u8, talent_id: u32 },
     Queue(u32),
     Dequeue,
     Respond { match_id: u64, accepted: bool },
@@ -26,6 +27,7 @@ pub struct PvpView {
     pub error: String,
     pub filter: Option<BgTeam>,
     pub results_dismissed: bool,
+    pub talent_slot: Option<u8>,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -38,6 +40,7 @@ impl Default for PvpView {
             error: String::new(),
             filter: None,
             results_dismissed: false,
+            talent_slot: None,
         }
     }
 }
@@ -46,6 +49,15 @@ impl PvpView {
         self.pending = false;
         self.error = update.error.unwrap_or_default();
         if let Some(snapshot) = update.snapshot {
+            let previous_spec = self
+                .snapshot
+                .as_ref()
+                .and_then(|s| s.talents.as_ref())
+                .map(|t| t.spec_id);
+            let next_spec = snapshot.talents.as_ref().map(|t| t.spec_id);
+            if previous_spec != next_spec {
+                self.talent_slot = None;
+            }
             let old_match = self.battleground().map(|b| b.match_id);
             let match_changed = old_match != snapshot.battleground.as_ref().map(|b| b.match_id);
             let just_ended = snapshot
@@ -99,8 +111,58 @@ impl PvpView {
             }
             _ => {}
         }
+        if action == "pvp:talents-close" {
+            self.talent_slot = None;
+            return None;
+        }
+        if let Some(slot) = action
+            .strip_prefix("pvp:talent-slot:")
+            .and_then(|s| s.parse::<u8>().ok())
+        {
+            if self
+                .snapshot
+                .as_ref()?
+                .talents
+                .as_ref()?
+                .slots
+                .iter()
+                .any(|s| s.index == slot && s.unlocked)
+            {
+                self.talent_slot = if self.talent_slot == Some(slot) {
+                    None
+                } else {
+                    Some(slot)
+                };
+            }
+            return None;
+        }
         if self.pending {
             return None;
+        }
+        if let Some(id) = action
+            .strip_prefix("pvp:talent-choice:")
+            .and_then(|s| s.parse::<u32>().ok())
+        {
+            let slot = self.talent_slot?;
+            let talents = self.snapshot.as_ref()?.talents.as_ref()?;
+            let target = talents
+                .slots
+                .iter()
+                .find(|s| s.index == slot && s.can_change)?;
+            let choice = talents.choices.iter().find(|c| {
+                c.id == id && c.slot_mask & (1 << slot) != 0 && c.unavailable_reason.is_none()
+            })?;
+            if target.selected == Some(choice.id)
+                || talents.slots.iter().any(|s| s.selected == Some(choice.id))
+            {
+                return None;
+            }
+            self.pending = true;
+            self.talent_slot = None;
+            return Some(PvpAction::SelectTalent {
+                slot,
+                talent_id: id,
+            });
         }
         let request = match action {
             "pvp:query" => PvpAction::Query,

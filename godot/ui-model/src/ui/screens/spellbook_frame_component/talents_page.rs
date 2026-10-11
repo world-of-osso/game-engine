@@ -19,6 +19,8 @@ const HERO_DIALOG_NODES_TOP: f32 = 417.0;
 const EDGE_COLOR: [f32; 4] = [0.35, 0.35, 0.35, 1.0];
 #[path = "talents_footer.rs"]
 mod footer;
+#[path = "pvp_talent_controls.rs"]
+mod pvp_talent_controls;
 
 pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
     let children = match &state.talents {
@@ -542,7 +544,8 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     );
     children.extend(footer::controls(view, scale));
     children.extend(war_mode_control(view, scale));
-    if let Some(reason) = &view.editor.error_text {
+    children.extend(pvp_talent_controls::render(view, scale));
+    if let Some(reason) = view.editor.error_text.as_ref().or(view.pvp_error.as_ref()) {
         children.extend(label(
             Label {
                 name: "TalentError".into(),
