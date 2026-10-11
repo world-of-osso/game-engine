@@ -639,6 +639,10 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 
 [Appearance layout](formats/d4-appearance.md) and [contract](../specs/d4-triangle-count.md) reconciled against parser `2eb8a9261` and locally saved d4data schema/license. Narrow format 6/stride 44/inline u16 scope, negative/unknown rejection boundaries and exact synthetic-test coverage recorded; broken CASC cross-reference corrected. MIT notice matches local source. No tests/builds run; reported pre-commit parser GREEN remains separate from pending CLI/real-fixture verification. No rendered-model aggregate claimed.
 
+## 2026-10-11 — Single Druid character count unresolved
+
+[Appearance selection boundary](formats/d4-appearance.md#druid-investigation): name/hash resolution identifies Human/Wolf/Bear/death looks. LOD0/subobject0's16,368triangles belong to `Human_DeathMesh_mat`, not a proven normal playable-body count. Runtime flag/slot selection and assembled body/head/armor assets remain unknown; no exact single-character total established. Counter's scoped segment proof remains valid.
+
 ## 2026-10-11 — Diablo IV counter scoped acceptance
 
 [Appearance counter](formats/d4-appearance.md), Rust `2413a8b36`: independent18/18unit/process tests, scoped fmt/check without warnings,154/154authentic Druid rows equal schema-based oracle/earlier independent traversal. Five malformed-input processes reject without partial output; semantic diff preserves proof. No aggregate active-character count, assets committed or game deployment. Root fmt remains blocked by unchanged launcher tests.
