@@ -10,8 +10,10 @@ pub struct CooldownViewerModel {
     /// Cooldown IDs, not spell IDs: linked and overridden spells retain the same slot.
     selection: BTreeMap<u32, BTreeMap<u32, bool>>,
     order: BTreeMap<u32, Vec<u32>>,
+    #[serde(skip)]
     pub highlight_action_bar: bool,
     /// World of Osso extension, off by default; not a Retail behavior.
+    #[serde(skip)]
     pub highlight_viewer: bool,
 }
 
@@ -44,11 +46,40 @@ pub struct CooldownIconView {
 pub struct CooldownViewerView {
     /// Essential, Utility, Tracked Buff icons, Tracked Buff bars.
     pub categories: [Vec<CooldownIconView>; 4],
+    pub enabled: bool,
     pub recommended_spell: Option<u32>,
     pub settings: crate::cooldown_settings_component::CooldownSettingsView,
 }
 
 impl CooldownViewerModel {
+    pub fn initialize_order(&mut self, spec: u32, entries: &[CooldownEntry]) {
+        let order = self.order.entry(spec).or_default();
+        let mut existing: std::collections::BTreeSet<_> = order.iter().copied().collect();
+        order.extend(
+            entries
+                .iter()
+                .filter_map(|entry| existing.insert(entry.id).then_some(entry.id)),
+        );
+    }
+
+    pub fn sort_settings(
+        &self,
+        spec: u32,
+        entries: &mut [crate::cooldown_settings_component::CooldownSettingEntry],
+    ) {
+        if let Some(order) = self.order.get(&spec) {
+            entries.sort_by_key(|entry| {
+                (
+                    entry.category,
+                    order
+                        .iter()
+                        .position(|id| *id == entry.id)
+                        .unwrap_or(order.len()),
+                )
+            });
+        }
+    }
+
     pub fn selected(&self, spec: u32, entry: &CooldownEntry) -> bool {
         self.selection
             .get(&spec)

@@ -7,7 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 pub struct ConditionActor<'a> {
-    pub race: u8,
+    /// ChrRaces.PlayableRaceBit, not race ID minus one (allied/product races differ).
+    pub race_bit: u32,
     pub class: u8,
     pub spec_index: u32,
     pub known: &'a [u32],
@@ -76,7 +77,7 @@ impl CooldownConditions {
                 row.unsupported.join(", ")
             ));
         }
-        if !matches_mask(row.race_masks, actor.race) {
+        if !matches_mask(row.race_masks, actor.race_bit) {
             return Ok(false);
         }
         let class_bit = u32::from(actor.class)
@@ -101,17 +102,14 @@ impl CooldownConditions {
     }
 }
 
-fn matches_mask(masks: [u64; 2], race: u8) -> bool {
+fn matches_mask(masks: [u64; 2], race_bit: u32) -> bool {
     if masks == [0, 0] {
         return true;
     }
-    let Some(index) = race.checked_sub(1) else {
-        return false;
-    };
-    let word = usize::from(index / 64);
+    let word = (race_bit / 64) as usize;
     masks
         .get(word)
-        .is_some_and(|mask| mask & (1u64 << (index % 64)) != 0)
+        .is_some_and(|mask| mask & (1u64 << (race_bit % 64)) != 0)
 }
 
 fn aura_requirement(spell: u32, stacks: u32, actor: &ConditionActor<'_>) -> bool {

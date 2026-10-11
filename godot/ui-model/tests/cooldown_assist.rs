@@ -19,6 +19,7 @@ fn cooldown_assist_native_rows_and_highlights_share_both_skin_inventory() {
         let mut shared = SharedContext::new();
         shared.insert(skin);
         let mut view = CooldownViewerView::default();
+        view.enabled = true;
         view.categories[0].push(CooldownIconView {
             cooldown_id: 27,
             spell_id: 12294,
@@ -79,6 +80,11 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
         panic!("selection button")
     };
     assert_eq!(button.text, "[x] Mortal Strike");
+    let select_id = registry.get_by_name("CooldownSettingsSelect27").unwrap();
+    assert_eq!(
+        registry.click_frame(select_id),
+        Some("cooldown_select:27".into())
+    );
     view.settings.entries[0].selected = false;
     shared.insert(view);
     screen.sync(&shared, &mut registry);

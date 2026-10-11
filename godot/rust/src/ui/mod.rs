@@ -1102,6 +1102,17 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    pub fn show_cooldown_viewer(
+        &mut self,
+        state: game_engine_ui_model::cooldown_assist::CooldownViewerView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Skyriding vigor widget.
     pub fn show_vigor_bar(
         &mut self,
