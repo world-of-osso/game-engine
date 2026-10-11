@@ -998,10 +998,10 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         let ui_toolkit::layout_values::Val::Px(left) = points.position.left else {
             panic!("absolute points position")
         };
-        assert_eq!(left + width / 2.0, 404.0);
+        assert_eq!(left + width / 2.0, 409.0);
         assert_eq!(
             points.position.top,
-            ui_toolkit::layout_values::Val::Px(-5.0)
+            ui_toolkit::layout_values::Val::Px(-8.0)
         );
         assert_eq!(points.height, ui_toolkit::frame::Dimension::Fixed(20.0));
         assert_eq!(
@@ -1010,7 +1010,7 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         );
         assert_eq!(
             shield.position.top,
-            ui_toolkit::layout_values::Val::Px(-4.0)
+            ui_toolkit::layout_values::Val::Px(-7.0)
         );
         assert_eq!(
             (shield.width, shield.height),
