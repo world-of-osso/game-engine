@@ -62,6 +62,22 @@ def stage_source(root, work, host, remote):
     shutil.copy2(context / 'revisions.json', work / 'revisions.json')
 
 
+def stage_launcher(root, work, host, remote):
+    launcher = load_builder().sibling_repo(root, 'game-launcher')
+    revision = subprocess.check_output(['git', '-C', str(launcher), 'rev-parse', 'HEAD'], text=True).strip()
+    (work / 'launcher-revision.txt').write_text(revision + '\n')
+    output = subprocess.check_output(['git', '-C', str(launcher), 'ls-files', '-z'])
+    archive = work / 'launcher-source.tar.gz'
+    with tarfile.open(archive, 'w:gz') as target:
+        for name in output.split(b'\0'):
+            if name:
+                relative = name.decode()
+                target.add(launcher / relative, arcname='game-launcher/' + relative)
+    upload(host, archive, remote + '/launcher-source.tar.gz')
+    powershell(host, f"tar -xf '{remote}/launcher-source.tar.gz' -C '{remote}/source'; exit $LASTEXITCODE")
+    upload(host, root / 'scripts/windows-worker.py', remote + '/source/game-engine/scripts/windows-worker.py')
+
+
 def worker(host, remote, phase):
     powershell(host,
         f"$ErrorActionPreference='Stop'; $env:PYTHONUTF8='1'; & '{remote}/tools/uv/uv.exe' run --python 3.12.12 "
@@ -149,11 +165,15 @@ def main():
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--host', default='desktop')
     parser.add_argument('--remote-root', default=DEFAULT_REMOTE)
-    parser.add_argument('--phase', choices=('build', 'artifacts', 'assemble', 'all'), default='all')
+    parser.add_argument('--phase', choices=('build', 'artifacts', 'assemble', 'all', 'launcher', 'launcher-test'), default='all')
     args = parser.parse_args()
     root = args.root.resolve()
     work = root / 'target/windows-release'
     work.mkdir(parents=True, exist_ok=True)
+    if args.phase in ('launcher', 'launcher-test'):
+        bootstrap(args.host, args.remote_root)
+        stage_launcher(root, work, args.host, args.remote_root)
+        worker(args.host, args.remote_root, args.phase)
     if args.phase in ('build', 'all'):
         bootstrap(args.host, args.remote_root)
         stage_source(root, work, args.host, args.remote_root)
