@@ -82,6 +82,10 @@ fn battleground_requests_wait_for_authority_and_echo_match_identity() {
 }
 #[test]
 fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_honor() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut view = PvpView::default();
