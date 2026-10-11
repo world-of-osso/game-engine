@@ -5,6 +5,8 @@ use std::sync::Arc;
 pub const SEARCH_FIELD: &str = "HousingCatalogSearchBox";
 pub const VISIBLE_ENTRIES: usize = 12;
 pub const COLUMNS: usize = 3;
+/// HousingCatalogConstantsDocumentation.lua HOUSING_CATALOG_ALL_CATEGORY_ID.
+pub const ALL_CATEGORY: u32 = 18;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum DashboardTab {
@@ -80,7 +82,7 @@ impl HousingDashboard {
     }
 
     pub fn set_category(&mut self, id: Option<u32>) {
-        self.category = id;
+        self.category = id.filter(|id| *id != ALL_CATEGORY);
         self.subcategory = None;
         self.reset_results();
     }

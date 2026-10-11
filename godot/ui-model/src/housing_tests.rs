@@ -73,6 +73,14 @@ fn housing_search_category_and_selection_follow_catalog_not_starting_quantity() 
 }
 
 #[test]
+fn housing_all_category_is_the_unfiltered_retail_category() {
+    let mut model = dashboard();
+    model.set_category(Some(18));
+    assert_eq!(model.matching().len(), 16);
+    assert_eq!(model.selected().unwrap().id, 80);
+}
+
+#[test]
 fn housing_scroll_reaches_second_row_and_search_resets_scroll_without_stale_preview() {
     let mut model = dashboard();
     assert_eq!(model.visible()[0].id, 80);
