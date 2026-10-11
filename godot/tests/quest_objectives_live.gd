@@ -107,7 +107,8 @@ func find_unit(name: String) -> Dictionary:
 	var forward := -camera().global_basis.z
 	forward.y = 0.0
 	forward = forward.normalized()
-	var stand: Vector3 = unit.global_position - forward * 3.0
+	# Offset sideways so the player model cannot cover a child-sized quest giver.
+	var stand: Vector3 = unit.global_position - forward * 3.0 + camera().global_basis.x * 1.5
 	if not await teleport([stand.x, -stand.z, stand.y]):
 		return {}
 	await frames(30)
