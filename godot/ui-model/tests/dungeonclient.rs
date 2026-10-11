@@ -282,8 +282,7 @@ fn achievementlinks_toast_uses_mainline_icon_shield_and_plate_layout_both_skins(
         let frame = registry
             .get(registry.get_by_name("AchievementToast").unwrap())
             .unwrap();
-        let rect = frame.layout_rect.as_ref().unwrap();
-        assert_eq!((rect.width, rect.height), (300.0, 101.0));
+        assert_eq!((frame.width.value(), frame.height.value()), (300.0, 101.0));
     }
 }
 
