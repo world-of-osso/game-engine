@@ -389,7 +389,7 @@ impl GameClient {
         let contents = self.combat_stable.session.contents.as_ref()?;
         for slot in (0..5).chain(contents.pets.iter().map(|pet| usize::from(pet.slot))) {
             let control = ui.bind().frame_control(&art::slot_name(slot as u16));
-            if control.is_some_and(|control| control.get_global_rect().has_point(point)) {
+            if control.is_some_and(|control| control.get_global_rect().contains_point(point)) {
                 return Some(slot as u16);
             }
         }
@@ -522,7 +522,7 @@ impl GameClient {
         state.set("npc", contents.npc as i64);
         state.set(
             "current",
-            contents
+            &contents
                 .current
                 .map(|slot| i64::from(slot).to_variant())
                 .unwrap_or_default(),
@@ -535,13 +535,13 @@ impl GameClient {
             entry.set("health", pet.health);
             entry.set(
                 "specialization",
-                pet.specialization
+                &pet.specialization
                     .map(|id| i64::from(id).to_variant())
                     .unwrap_or_default(),
             );
             pets.push(&entry.to_variant());
         }
-        state.set("pets", pets);
+        state.set("pets", &pets);
         state
     }
 }
