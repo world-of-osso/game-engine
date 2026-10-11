@@ -18,7 +18,7 @@ References:
   - While it is off there is no soft interact target and no icon.
 - [x] Candidates:
   - living or lootable NPCs whose hover cursor is neither the pointer nor Attack
-  - drawn mailboxes, Guild Vaults and chairs
+  - drawn mailboxes, Guild Vaults, chairs, meeting stones/rituals, chests and goobers
 - [x] Settings, saved under `hud.softTarget` with Retail's CVar names and defaults (wow-ui-sim `cvars.yaml:1316-1330`): `softTargetInteractArc` 0, `softTargetInteractRange` 10, `softTargetIconEnemy` 0, `softTargetIconInteract` 1, `softTargetIconGameObject` 0, `softTargetLowPriorityIcons` 0.
   - A file saved without them reads the defaults. An arc other than 0-2 fails to load, and a negative range fails validation.
   - Arc and range have no Options control, as in Retail (the gamepad preset sets Arc 1, Range 20, Blizzard_Gamepad/Core.lua:20-33; there is no gamepad support).
@@ -44,6 +44,12 @@ References:
   - Pressing it interacts with the soft target through the right-click paths: use the object, loot, attack, or `InteractNpc`.
   - It does not change the hard target.
 - [ ] Enemy and friend soft targets (`softTargetIconEnemy` is saved but nothing reads it), `SoftTargetInteractRangeIsHard`, world text icon distance scaling, soft target tooltips.
+
+## Quest objects
+
+- [x] Replicated Type 3 chests and Type 10 goobers render through build-pinned GameObjectDisplayInfo, show the Interact cursor on hover, and right-click sends `UseGameObject` with the object ID (not `InteractNpc`). The server owns model-box reach and objective/loot validation.
+- [x] Generic decorations remain non-interactive; spell-focus admission is unchanged. Prior chest/goober exclusion was unimplemented type admission, not a documented crash mitigation.
+- [x] Both-skin UDP fixture: `account::meetingstones_tests::quest_objects_and_meetingstones_udp_use_and_combat_answers_both_skins`; cursor contract: `game_objects::tests::quest_objects_show_interact_cursor_and_render_without_changing_decoration_cursor`.
 
 ## Proof
 
