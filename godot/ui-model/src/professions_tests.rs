@@ -19,6 +19,7 @@ fn book() -> ProfessionBook {
                 skill_line: 2540,
                 profession: 197,
                 category: "Bandages".into(),
+                category_order: 0,
                 name: "Linen Bandage".into(),
                 min_rank: 1,
                 trivial_low: 30,
@@ -31,6 +32,7 @@ fn book() -> ProfessionBook {
                 skill_line: 2540,
                 profession: 197,
                 category: "Bandages".into(),
+                category_order: 0,
                 name: "Heavy Linen Bandage".into(),
                 min_rank: 40,
                 trivial_low: 50,
@@ -43,6 +45,7 @@ fn book() -> ProfessionBook {
                 skill_line: 197,
                 profession: 197,
                 category: "Cloth".into(),
+                category_order: 0,
                 name: "Bolt of Linen Cloth".into(),
                 min_rank: 1,
                 trivial_low: 25,
@@ -158,10 +161,13 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
             "SkillLine",
             "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID\n197,Tailoring,3908,11,0\n2540,Classic Tailoring,0,11,197\n",
         ),
-        ("TradeSkillCategory", "ID,Name_lang\n1089,Bandages\n"),
+        (
+            "TradeSkillCategory",
+            "ID,Name_lang,OrderIndex\n1089,Bandages,20\n1090,Weaving,10\n",
+        ),
         (
             "SpellEffect",
-            "SpellID,DifficultyID,Effect,EffectItemType,EffectBasePointsF\n3275,0,24,1251,1\n3908,0,118,0,1\n",
+            "SpellID,DifficultyID,Effect,EffectItemType,EffectBasePointsF\n3275,0,24,1251,1\n2963,0,24,2996,1\n3908,0,118,0,1\n",
         ),
         (
             "SpellReagents",
@@ -169,14 +175,14 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
         ),
         (
             "SkillLineAbility",
-            "Spell,SkillLine,SkillupSkillLineID,TradeSkillCategoryID,MinSkillLineRank,TrivialSkillLineRankLow,TrivialSkillLineRankHigh\n3275,197,2540,1089,1,30,60\n3908,197,0,0,1,0,0\n",
+            "Spell,SkillLine,SkillupSkillLineID,TradeSkillCategoryID,MinSkillLineRank,TrivialSkillLineRankLow,TrivialSkillLineRankHigh\n3275,197,2540,1089,1,30,60\n2963,197,2540,1090,1,25,50\n3908,197,0,0,1,0,0\n",
         ),
     ] {
         std::fs::write(dir.join(format!("{table}.csv")), data).unwrap();
     }
     let catalog = RecipeCatalog::load(&dir).unwrap();
-    assert_eq!(catalog.recipes.len(), 1);
-    let recipe = &catalog.recipes[0];
+    assert_eq!(catalog.recipes.len(), 2);
+    let recipe = catalog.get(3275).unwrap();
     assert_eq!(
         (recipe.spell_id, recipe.skill_line, recipe.output),
         (3275, 2540, (1251, 1))
@@ -186,6 +192,16 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     assert_eq!((recipe.trivial_low, recipe.trivial_high), (30, 60));
     assert_eq!(catalog.openers[&3908], 197);
     assert_eq!(catalog.skill_names[&2540], "Classic Tailoring");
+    let book = ProfessionBook {
+        snapshot: ProfessionSnapshot {
+            spells: vec![3275, 2963],
+            ..Default::default()
+        },
+        recipes: catalog.recipes,
+        ..Default::default()
+    };
+    let categories: Vec<_> = book.groups().into_iter().map(|(name, _)| name).collect();
+    assert_eq!(categories, ["Weaving", "Bandages"]);
     std::fs::remove_dir_all(dir).unwrap();
 }
 

@@ -68,12 +68,17 @@ impl RecipeCatalog {
     }
 }
 
-fn load_categories(dir: &Path) -> Result<BTreeMap<u32, String>, String> {
+fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, u32)>, String> {
     let mut categories = BTreeMap::new();
-    read_rows(dir, "TradeSkillCategory", &["ID", "Name_lang"], |row| {
-        categories.insert(number(row[0])?, row[1].into());
-        Ok(())
-    })?;
+    read_rows(
+        dir,
+        "TradeSkillCategory",
+        &["ID", "Name_lang", "OrderIndex"],
+        |row| {
+            categories.insert(number(row[0])?, (row[1].into(), number(row[2])?));
+            Ok(())
+        },
+    )?;
     Ok(categories)
 }
 
@@ -139,7 +144,7 @@ fn load_reagents(dir: &Path) -> Result<BTreeMap<u32, Vec<(u32, u32)>>, String> {
 fn load_recipes(
     dir: &Path,
     skills: &BTreeMap<u32, String>,
-    categories: &BTreeMap<u32, String>,
+    categories: &BTreeMap<u32, (String, u32)>,
     outputs: &BTreeMap<u32, (u32, u32)>,
     reagents: &BTreeMap<u32, Vec<(u32, u32)>>,
 ) -> Result<Vec<Recipe>, String> {
@@ -162,16 +167,17 @@ fn load_recipes(
             0 => number(row[1])?,
             line => line,
         };
-        let category = categories
+        let (category, category_order) = categories
             .get(&number(row[3])?)
-            .or_else(|| skills.get(&skill_line))
             .cloned()
+            .or_else(|| skills.get(&skill_line).map(|name| (name.clone(), 0)))
             .ok_or_else(|| format!("Recipe {spell_id}: missing category and skill {skill_line}"))?;
         recipes.push(Recipe {
             spell_id,
             skill_line,
             profession: number(row[1])?,
             category,
+            category_order,
             name: String::new(),
             min_rank: rank(row[4])?,
             trivial_low: rank(row[5])?,
