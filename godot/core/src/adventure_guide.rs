@@ -92,6 +92,7 @@ pub struct Catalog {
     pub sets: Vec<ItemSet>,
     pub specs: Vec<Specialization>,
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
+    pub encounter_difficulties: BTreeMap<u32, Vec<u32>>,
     pub loot_difficulties: BTreeMap<u32, Vec<u32>>,
     pub item_specs: BTreeMap<u32, Vec<u32>>,
     pub classes: BTreeMap<u32, String>,
@@ -256,6 +257,10 @@ impl Catalog {
             items,
             sets,
             specs,
+            encounter_difficulties: relations(
+                &db,
+                "SELECT JournalEncounterID,DifficultyID FROM JournalEncounterXDifficulty",
+            )?,
             section_difficulties: relations(
                 &db,
                 "SELECT JournalEncounterSectionID,DifficultyID FROM JournalSectionXDifficulty",
