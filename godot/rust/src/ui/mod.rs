@@ -1587,6 +1587,10 @@ impl RegistryUi {
             game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
         )?;
         register_auction_popup_style(&mut registry);
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::guild_bank::native_guild_bank_screen,
