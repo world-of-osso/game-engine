@@ -37,6 +37,7 @@ pub(crate) struct GroupFramesHud {
     frames: Option<Gd<RegistryUi>>,
     popups_ui: Option<Gd<RegistryUi>>,
     pub(crate) popups: PopupStack,
+    manager_expanded: bool,
 }
 
 impl GroupFramesHud {
@@ -383,6 +384,14 @@ impl GameClient {
                 .map_or(0, |spell| spell.icon_fdid)
         };
         let mut frames = group_frames_state(&self.account.group, &viewer, &icon);
+        let name = local_name.as_deref().unwrap_or("");
+        frames.manager = game_engine_ui_model::raid_manager_component::RaidManagerState {
+            visible: self.account.group.in_group(),
+            expanded: self.group_frames.manager_expanded,
+            is_raid: self.account.group.is_raid,
+            is_leader: self.account.group.is_leader(name),
+            can_check: self.account.group.can_start_group_checks(name),
+        };
         self.populate_party_replica_views(&mut frames);
         game_engine_ui_model::group_frames_component::sorted_party_state(
             &frames,
@@ -493,7 +502,15 @@ impl GameClient {
             if action.is_empty() {
                 return Ok(());
             }
-            let command = ready_check_command(&action)?;
+            if action == game_engine_ui_model::raid_manager_component::ACTION_MANAGER_TOGGLE {
+                self.group_frames.manager_expanded = !self.group_frames.manager_expanded;
+                continue;
+            }
+            let command =
+                match game_engine_ui_model::raid_manager_component::manager_command(&action) {
+                    Some(command) => command,
+                    None => ready_check_command(&action)?,
+                };
             self.account
                 .send_group(command)
                 .map_err(|error| error.to_string())?;
