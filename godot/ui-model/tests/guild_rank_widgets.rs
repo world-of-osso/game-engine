@@ -42,6 +42,7 @@ fn mounted(session: &GuildRanksSession) -> FrameRegistry {
     shared.insert(session.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(guild_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::guild_rank_frame::apply_guild_postsetup(session, &mut registry);
     registry
 }
 fn text(reg: &FrameRegistry, name: &str) -> String {

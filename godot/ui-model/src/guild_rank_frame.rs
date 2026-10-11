@@ -10,6 +10,32 @@ pub const NAME_BOX: &str = "GuildRankName";
 pub const GOLD_BOX: &str = "GuildRankGold";
 pub const INVITE_BOX: &str = "GuildInviteMemberName";
 pub const PROFILE_BOX: &str = "GuildProfileEditText";
+
+/// Match Retail GuildInfo.lua text limits; the Info editor is a native TextEdit.
+pub fn apply_guild_postsetup(
+    session: &GuildRanksSession,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    use ui_toolkit::frame::WidgetData;
+    let Some(field) = session.profile_editor else {
+        return;
+    };
+    let Some(id) = registry.get_by_name(PROFILE_BOX) else {
+        return;
+    };
+    if let Some(WidgetData::EditBox(edit)) = &mut registry
+        .get_mut(id)
+        .expect("registered profile input")
+        .widget_data
+    {
+        edit.multi_line = field == GuildProfileField::Info;
+        edit.max_letters = Some(if field == GuildProfileField::Motd {
+            255
+        } else {
+            499
+        });
+    }
+}
 const WIDTH: f32 = 940.0;
 const HEIGHT: f32 = 740.0;
 pub const PERMISSIONS: [&str; 14] = [
