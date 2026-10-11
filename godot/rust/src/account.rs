@@ -126,6 +126,7 @@ pub struct Account {
     pub lfg: Option<shared::protocol::LfgStateUpdate>,
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
+    pub challenge: shared::protocol::ChallengeSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
@@ -345,6 +346,7 @@ impl Account {
             lfg: None,
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
+            challenge: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
@@ -825,6 +827,15 @@ impl Account {
     pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_challenge_request(
+        &self,
+        request: shared::protocol::ChallengeRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::InstanceChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1615,6 +1626,7 @@ impl Account {
             || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
+            || message.is::<shared::protocol::ChallengeSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
@@ -1628,6 +1640,10 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::ChallengeSnapshot>() {
+            self.challenge = decode(message)?;
+            return Ok(());
+        }
         if message.is::<shared::protocol::ScenarioProgress>() {
             self.scenario_objectives.apply(decode(message)?);
             return Ok(());
@@ -1907,6 +1923,7 @@ impl Account {
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
             self.dungeon_objectives.begin_map(new_world.map_id);
+            self.challenge = Default::default();
             self.scenario_objectives.begin_map(new_world.map_id);
             self.session.begin_world_port(new_world.map_id);
             output.push(AccountEvent::NewWorld(new_world));

@@ -237,6 +237,7 @@ impl NetworkBridge {
             .receive::<shared::protocol::RaidDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
+            .receive::<protocol::ChallengeSnapshot>()
             .receive::<protocol::ScenarioProgress>()
             .receive_encounters()
             .receive_achievements()
