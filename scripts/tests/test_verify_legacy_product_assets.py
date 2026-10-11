@@ -121,7 +121,7 @@ class LegacyProductTests(unittest.TestCase):
 
     def test_authenticated_sfid_companion_publishes_alias_and_canonical_receipt(self):
         data, identity, asset, roots, raw = self.skin_fixture()
-        row = verifier.publish_skin_companion(data, identity, asset, roots)
+        row = verifier.publish_model_companion(data, identity, asset, roots)
         self.assertEqual(row['status'], 'verified')
         index = json.loads((data / 'cache/model-asset-index.json').read_text())
         alias = index['aliases'][0]
@@ -132,15 +132,31 @@ class LegacyProductTests(unittest.TestCase):
 
     def test_unrelated_skin_never_publishes_alias_or_receipt(self):
         data, identity, asset, roots, _ = self.skin_fixture(reference=44)
-        row = verifier.publish_skin_companion(data, identity, asset, roots)
+        row = verifier.publish_model_companion(data, identity, asset, roots)
         self.assertEqual(row['status'], 'companion_mismatch')
         self.assertFalse((data / 'cache/model-asset-index.json').exists())
 
     def test_unauthenticated_parent_never_publishes_alias_or_receipt(self):
         data, identity, asset, roots, _ = self.skin_fixture(corrupt_parent=True)
-        row = verifier.publish_skin_companion(data, identity, asset, roots)
+        row = verifier.publish_model_companion(data, identity, asset, roots)
         self.assertEqual(row['status'], 'parent_content_mismatch')
         self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
+    def test_authenticated_skid_companion_publishes_parent_alias(self):
+        data, identity, asset, roots, _ = self.skin_fixture()
+        parent = b'MD21' + struct.pack('<I', 0) + b'SKID' + struct.pack('<II', 4, 43)
+        (data / ('products/wow/' + 'a' * 32 + '/models/42.m2')).write_bytes(parent)
+        raw = b'SKL1 authentic skeleton'
+        (data / 'models/42.skel').write_bytes(raw)
+        asset.update(kind='missing_scoped_bytes', extension='skel', legacy_candidate_path='models/42.skel')
+        roots.update({42: hashlib.md5(parent).digest(), 43: hashlib.md5(raw).digest()})
+        row = verifier.publish_miss(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        index = json.loads((data / 'cache/model-asset-index.json').read_text())
+        alias = index['aliases'][0]
+        self.assertEqual(alias['fdid'], 43)
+        self.assertEqual(alias['path'], 'products/wow/' + 'a' * 32 + '/models/42.skel')
+        self.assertEqual((data / alias['path']).read_bytes(), raw)
 
     def test_scoped_texture_miss_publishes_only_authenticated_texture(self):
         raw = b'BLP2 authentic'

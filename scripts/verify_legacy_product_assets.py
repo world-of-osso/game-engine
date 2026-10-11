@@ -71,12 +71,14 @@ def publish_legacy(data, identity, asset, roots):
     return dict(row, status='verified', receipt=receipt)
 
 
-def publish_skin_companion(data, identity, asset, roots):
-    """Authenticate the parent SFID relation as well as the skin payload."""
+def publish_model_companion(data, identity, asset, roots):
+    """Authenticate the parent SFID/SKID relation as well as the payload."""
     if asset['actual_build'] != identity['build_key']:
         return dict(asset, status='build_mismatch')
     filename = Path(asset['legacy_candidate_path']).name
-    model, slot = int(filename[:-7]), int(filename[-7:-5])
+    kind = asset['extension']
+    model = int(Path(filename).stem[:-2] if kind == 'skin' else Path(filename).stem)
+    slot = int(Path(filename).stem[-2:]) if kind == 'skin' else 0
     parent = runtime_path(data, f"products/{identity['product']}/{identity['build_key']}/models/{model}.m2")
     if not parent.is_file():
         return dict(asset, status='parent_bytes_absent')
@@ -84,36 +86,41 @@ def publish_skin_companion(data, identity, asset, roots):
     if hashlib.md5(raw).digest() != roots.get(model):
         return dict(asset, status='parent_content_mismatch')
     dependencies = asset_references(raw)
-    references = dependencies.get('skin', [])
+    references = dependencies.get(kind, [])
     if slot >= len(references) or references[slot] != asset['fdid']:
         return dict(asset, status='companion_mismatch')
     row = publish_legacy(data, identity, asset, roots)
     if row['status'] != 'verified':
         return row
     receipt = row['receipt']
-    skin = (data / receipt['path']).read_bytes()
-    alias = chains.create_asset_receipt(identity, asset['fdid'], 'skin',
-                                        f'models/{filename}', skin, receipt['content_key'])
+    payload = (data / receipt['path']).read_bytes()
+    alias = chains.create_asset_receipt(identity, asset['fdid'], kind,
+                                        f'models/{filename}', payload, receipt['content_key'])
     try:
-        chains.write_asset_files(data, [(alias, skin)])
+        chains.write_asset_files(data, [(alias, payload)])
     except ValueError as error:
         return dict(row, status='scoped_conflict', reason=str(error))
     staged = {'dependencies': {f'{model}.m2': dependencies}, 'metadata': []}
-    chains.write_asset_index(data, identity, staged, [], [(alias, skin)])
+    chains.write_asset_index(data, identity, staged, [], [(alias, payload)])
     return dict(row, alias=alias)
 
 
-def is_skin_alias(asset):
-    return (asset['extension'] == 'skin'
-            and Path(asset['legacy_candidate_path']).name != f"{asset['fdid']}.skin")
+def is_model_alias(asset):
+    return (asset['extension'] in ('skin', 'skel')
+            and Path(asset['legacy_candidate_path']).name != f"{asset['fdid']}.{asset['extension']}")
+
+
+def companion_parent(asset):
+    stem = Path(asset['legacy_candidate_path']).stem
+    return int(stem[:-2] if asset['extension'] == 'skin' else stem)
 
 
 def publish_miss(data, identity, asset, roots):
     if asset['kind'] == 'missing_scoped_bytes':
         if asset['actual_build'] != identity['build_key']:
             return dict(asset, status='build_mismatch')
-        if is_skin_alias(asset):
-            return publish_skin_companion(data, identity, asset, roots)
+        if is_model_alias(asset):
+            return publish_model_companion(data, identity, asset, roots)
     return publish_legacy(data, identity, asset, roots)
 
 
@@ -133,8 +140,8 @@ def main():
     products = {p['Product']: p for p in closure_casc.installed_products(args.install)}
     indices, _, sources = closure_casc.load_indices(args.install)
     wanted = {row['fdid'] for row in assets}
-    wanted.update(int(Path(row['legacy_candidate_path']).name[:-7])
-                  for row in assets if row['kind'] == 'missing_scoped_bytes' and is_skin_alias(row))
+    wanted.update(companion_parent(row)
+                  for row in assets if row['kind'] == 'missing_scoped_bytes' and is_model_alias(row))
     authenticated = {name: authenticate_root(args.install, products[name], wanted, indices, args.output)
                      for name in sorted(EXPECTED_BUILDS)}
     results = []
