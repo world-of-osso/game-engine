@@ -74,6 +74,7 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
         session.profile = Some(GuildSnapshot {
             guild_id: 7,
             guild_name: "Raid Team".into(),
+            created_at: None,
             motd: "Meeting tonight".into(),
             info_text: "Raid Tuesdays".into(),
             members: vec![],
@@ -128,6 +129,7 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
         session.profile = Some(GuildSnapshot {
             guild_id: 7,
             guild_name: "Raid Team".into(),
+            created_at: None,
             motd: "Meeting".into(),
             info_text: "Tuesday raid\nThursday dungeon".into(),
             members: vec![],
