@@ -46,14 +46,23 @@ Protocol `7c4c21a`, server `97d589f`, client implementation `2729912df`, branch 
 - Modern `modern-v6-*` and Forever `forever-v7-*` retain authentic50/60 criterion progress, tracker after close, server-triggered earned alert and popup navigation to earned own-state details. Explicit private admin set-level is setup, not gameplay-leveling proof. Modern session relog restored watch8; completion removes saved watches in both skins. Both preferences end with empty ID lists.
 - Evidence: [diagnostics](../../../data/diagnostics/achievements-ui-2026-10-11/), user PNGs `/syncthing/AgentShared/2026-10-11/achievements-ui/`. Full captures1280×720; small review crops/downsized copies (<1MiB, dimensions≤1280) were inspected. Earlier full-file tool reads were truncated and are not pixel-inspection evidence.
 
-Known data boundary: unsupported criterion/statistic types remain unevaluated. Comparison has no authoritative endpoint; InspectSnapshot carries equipment and talents only. The plain native draft edit box displays link markup; sent chat displays a clickable name.
+Known data boundary: unsupported criterion/statistic types remain unevaluated. Comparison has no authoritative endpoint; InspectSnapshot carries equipment and talents only. Draft presentation is replaced by the art pass below.
+
+## AchievementFrame art pass — 2026-10-11
+
+`achievements-art` replaces the generic window with Mainline's768×500 wood/metal frame,175-wide category tree,504-wide achievement area, Header point border/tiny shield, SearchBoxTemplate art and Header-sheet bottom tabs. Category headers start collapsed; one parent opens at a time. Category scrolling uses the existing native ScrollBox/MinimalScrollBar, including thumb/stepper input and registry-owned pixel offsets. Rows are actual buttons: authored parchment/title band,50px icon/72px frame,66×64 point shield, date below the shield, plus/minus indicator and inline expanding criteria. Track uses AchievementCheckButtonTemplate; simple criteria no longer show unrelated pagination controls. Summary uses RecentHeader headings and carved status-bar caps; criteria use the distinct thin ProgressBar-Border. Statistics use the Lua's two stripe regions, including additive half-alpha on alternate lines. Forever changes authentic art tint only; geometry and behavior stay shared.
+
+ChatDraft stores visible Unicode text plus achievement ranges/IDs. The native LineEdit shows labels without transport markup; insertion replaces the real caret/selection. Surrounding edits move unchanged links; editing/deleting a label removes its ID. Sending reconstructs the real payload; recalled history is decoded again. Modern and Forever native42af5dc33 proof retained in [diagnostics](../../../data/diagnostics/achievements-art-2026-10-11/): label-only drafts become clickable sent633 links. Later art/scroll refinements require refreshed native captures before completion.
+
+Local CASC sheets are extracted into canonical textures and listed in `godot/depot-test-assets.txt`; no assets under `data/` are committed. Tests reproduce initial expanded-tree/plain-draft/no-scroll behavior before the fixes. The private harness freezes matching client/server wire dependencies; unrelated GroupLoot changes are not achievement work.
 
 ## Sources
 
 - Retail `Blizzard_ObjectiveTracker/Blizzard_ScenarioObjectiveTracker.lua:202,379–416`: dungeon/stage metadata and complete checks/incomplete nubs; `Blizzard_ObjectiveTrackerManager.lua:196`: Scenario precedes Quests.
 - Retail `Blizzard_AchievementUI/Mainline/Blizzard_AchievementUI.lua:572,1814,1952`: categories, achievement metadata and criterion text/completion/counters.
 - Read-only server `docs/dungeon-achievements-client.md`, protocol `achievement_catalog_messages.rs`, pinned shared-protocol 172fd26.
-- Client `godot/ui-model/src/achievements.rs`, `dungeon_progress.rs`, `godot/rust/src/achievements.rs`.
+- Client `godot/ui-model/src/achievements.rs`, `achievement_art.rs`, `chat_draft.rs`, `dungeon_progress.rs`, `godot/rust/src/achievements.rs` and `chat.rs`.
+- Retail `Blizzard_AchievementUI.xml:114–219,220–338,510–569,622–703,733–1020,1351–1404,1505–1740,1925–2040,2135–2302` — frame/row/category/tab/shield/Summary geometry. `Blizzard_AchievementUI.lua:663–741,1146–1175,2189–2251` — category collapse, plus/minus states and striped statistic art. `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml` — common search border, magnifier, clear button and text insets.
 - Retail `Blizzard_FrameXML/Mainline/AlertFrameSystems.xml:173–330`, `AlertFrameSystems.lua:348–419` — earned plate/icon/shield layout, click navigation and queued duration.
 - Retail `Blizzard_AchievementUI/Mainline/Blizzard_AchievementUI.xml:632,1091,1113,2002` — category-button and row sheet UVs; local community-listfile maps plural Shields to130666.
 - Retail `Blizzard_AchievementUI.lua:1616–1643,2235,3447–3460,3632–3648` and `AchievementObjectiveTracker.lua:97–193` — tracking, statistic quantity and search/navigation.

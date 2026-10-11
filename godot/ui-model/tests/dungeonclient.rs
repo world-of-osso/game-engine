@@ -76,6 +76,50 @@ fn achievements_art_categories_collapse_and_rows_expand_in_place_both_skins() {
     }
 }
 
+#[test]
+fn achievements_art_category_scroll_reaches_last_child_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        let mut categories = vec![category()];
+        for id in 20000..20024 {
+            categories.push(AchievementCategoryEntry {
+                category_id: id,
+                parent_id: 14808,
+                order_index: (id - 20000) as i32,
+                name: format!("Dungeon category {id}"),
+            });
+        }
+        window.apply(AchievementCatalogPage::Categories {
+            categories,
+            next_id: None,
+        });
+        window.action("achievement:category:14808");
+        let mut shared = SharedContext::new();
+        shared.insert(window);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(achievement_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(
+            registry
+                .scroll_lists
+                .scroll_by("AchievementCategoriesScrollBox", 10000),
+            "wheel/thumb scrolling must reach categories beyond the visible tree"
+        );
+        screen.sync(&shared, &mut registry);
+        assert_eq!(
+            text(&registry, "AchievementCategory20023"),
+            "Dungeon category 20023"
+        );
+        let state = registry
+            .scroll_lists
+            .get("AchievementCategoriesScrollBox")
+            .unwrap();
+        assert_eq!(state.first_row, state.geometry.max_first_row());
+    }
+}
+
 fn assets(skin: ActiveSkin) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

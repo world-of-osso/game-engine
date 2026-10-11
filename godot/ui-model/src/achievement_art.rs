@@ -27,85 +27,82 @@ pub(super) fn chrome() -> Element {
         "UI-Background-Rock-Brown",
         (16.0, 16.0, 736.0, 468.0),
     );
-    out.extend(texture(
-        "AchievementFrameCategoriesBG",
-        130662,
-        "0,0.5,0,1",
-        (25.0, 23.0, 171.0, 454.0),
-    ));
-    out.extend(texture(
-        "AchievementFrameContentBG",
-        235397,
-        "0,1,0,0.5",
-        (221.0, 58.0, 498.0, 416.0),
-    ));
-    for (name, uv, rect) in [
-        ("Left", "0,1,0,0.87", (14.0, 32.0, 16.0, 436.0)),
-        ("Right", "1,0,0.87,0", (739.0, 32.0, 16.0, 436.0)),
-    ] {
-        out.extend(texture(
-            &format!("AchievementFrameMetal{name}"),
+    for (name, fdid, uv, rect) in [
+        (
+            "CategoriesBG",
+            130662,
+            "0,0.5,0,1",
+            (25.0, 23.0, 171.0, 454.0),
+        ),
+        (
+            "ContentBG",
+            235397,
+            "0,1,0,0.5",
+            (221.0, 58.0, 498.0, 416.0),
+        ),
+        ("MetalLeft", 130658, "0,1,0,0.87", (14.0, 32.0, 16.0, 436.0)),
+        (
+            "MetalRight",
             130658,
-            uv,
-            rect,
-        ));
-    }
-    for (name, uv, rect) in [
-        ("Top", "0.87,0,0,1", (28.0, 12.0, 712.0, 16.0)),
-        ("Bottom", "0,0.87,1,0", (28.0, 471.0, 712.0, 16.0)),
-    ] {
-        out.extend(texture(
-            &format!("AchievementFrameMetal{name}"),
+            "1,0,0.87,0",
+            (739.0, 32.0, 16.0, 436.0),
+        ),
+        ("MetalTop", 130659, "0.87,0,0,1", (28.0, 12.0, 712.0, 16.0)),
+        (
+            "MetalBottom",
             130659,
-            uv,
-            rect,
-        ));
-    }
-    for (name, uv, rect) in [
-        ("TopLeft", "1,0,1,0", (9.0, 7.0, 32.0, 32.0)),
-        ("TopRight", "0,1,1,0", (728.0, 7.0, 32.0, 32.0)),
-        ("BottomLeft", "1,0,0,1", (9.0, 460.0, 32.0, 32.0)),
-        ("BottomRight", "0,1,0,1", (728.0, 460.0, 32.0, 32.0)),
-    ] {
-        out.extend(texture(
-            &format!("AchievementFrameJoint{name}"),
+            "0,0.87,1,0",
+            (28.0, 471.0, 712.0, 16.0),
+        ),
+        ("JointTopLeft", 130657, "1,0,1,0", (9.0, 7.0, 32.0, 32.0)),
+        ("JointTopRight", 130657, "0,1,1,0", (728.0, 7.0, 32.0, 32.0)),
+        (
+            "JointBottomLeft",
             130657,
-            uv,
-            rect,
-        ));
-    }
-    for (name, uv, rect) in [
-        ("TopLeft", "0,1,0,1", (4.0, 2.0, 64.0, 64.0)),
-        ("TopRight", "1,0,0,1", (700.0, 2.0, 64.0, 64.0)),
-        ("BottomLeft", "0,1,1,0", (4.0, 439.0, 64.0, 64.0)),
-        ("BottomRight", "1,0,1,0", (700.0, 439.0, 64.0, 64.0)),
-    ] {
-        out.extend(texture(
-            &format!("AchievementFrameWood{name}"),
+            "1,0,0,1",
+            (9.0, 460.0, 32.0, 32.0),
+        ),
+        (
+            "JointBottomRight",
+            130657,
+            "0,1,0,1",
+            (728.0, 460.0, 32.0, 32.0),
+        ),
+        ("WoodTopLeft", 130671, "0,1,0,1", (4.0, 2.0, 64.0, 64.0)),
+        ("WoodTopRight", 130671, "1,0,0,1", (700.0, 2.0, 64.0, 64.0)),
+        (
+            "WoodBottomLeft",
             130671,
-            uv,
-            rect,
-        ));
+            "0,1,1,0",
+            (4.0, 439.0, 64.0, 64.0),
+        ),
+        (
+            "WoodBottomRight",
+            130671,
+            "1,0,1,0",
+            (700.0, 439.0, 64.0, 64.0),
+        ),
+        (
+            "HeaderLeft",
+            235402,
+            "0,1,0,0.4140625",
+            (20.0, -69.0, 512.0, 106.0),
+        ),
+        (
+            "HeaderRight",
+            235402,
+            "0,0.419921875,0.4140625,0.8046875",
+            (532.0, -57.0, 215.0, 100.0),
+        ),
+        (
+            "PointBorder",
+            235402,
+            "0.419921875,0.6796875,0.4140625,0.56640625",
+            (337.5, -18.0, 133.0, 39.0),
+        ),
+    ] {
+        out.extend(texture(&format!("AchievementFrame{name}"), fdid, uv, rect));
     }
-    // Header: 512x106 left + 215x100 right, point border anchored bottom + (20,16).
-    out.extend(texture(
-        "AchievementFrameHeaderLeft",
-        235402,
-        "0,1,0,0.4140625",
-        (20.0, -69.0, 512.0, 106.0),
-    ));
-    out.extend(texture(
-        "AchievementFrameHeaderRight",
-        235402,
-        "0,0.419921875,0.4140625,0.8046875",
-        (532.0, -57.0, 215.0, 100.0),
-    ));
-    out.extend(texture(
-        "AchievementFramePointBorder",
-        235402,
-        "0.419921875,0.6796875,0.4140625,0.56640625",
-        (337.5, -18.0, 133.0, 39.0),
-    ));
     out.extend(label(
         "AchievementFrameTitle".into(),
         "Achievements",
@@ -123,6 +120,90 @@ pub(super) fn chrome() -> Element {
             left:741.0,top:-4.0,pos_type:"absolute",onclick:"achievement:close", {close}
         } },
     );
+    out
+}
+
+/// XML:622-665: a full-width category button, cropped background and locked selection.
+pub(super) fn category_row(
+    name: &str,
+    title: &str,
+    action: &str,
+    y: f32,
+    depth: usize,
+    selected: bool,
+) -> Element {
+    let x = depth as f32 * 12.0;
+    let width = 170.0 - x;
+    let mut content = texture(
+        &format!("{name}Background"),
+        130652,
+        "0,0.6640625,0,1",
+        (0.0, 0.0, width, 32.0),
+    );
+    if selected {
+        content.extend(texture(
+            &format!("{name}Highlight"),
+            235400,
+            "0,0.6640625,0,1",
+            (0.0, 0.0, width, 24.0),
+        ));
+    }
+    content.extend(label(
+        name.into(),
+        title,
+        (16.0, 1.0, width - 24.0, 22.0),
+        GOLD,
+        action,
+    ));
+    rsx! { button { name:{DynName(format!("{name}Button"))},width,height:24.0,
+        left:x,top:y,pos_type:"absolute",onclick:action,button_default_skin:false, {content}
+    } }
+}
+
+/// Mainline ScrollBox with its native MinimalScrollBar; input and offsets belong to the registry.
+pub(super) fn scroll_pane(
+    ctx: &ui_toolkit::screen::SharedContext,
+    name: &str,
+    content: Element,
+    rect: (f32, f32, f32, f32),
+    content_height: f32,
+) -> Element {
+    use crate::minimal_scroll_bar::{
+        MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+    };
+    let (x, y, width, height) = rect;
+    let geometry = pixel_geometry(height, content_height, height - 14.0);
+    let offset = geometry.clamp(ctx.scroll_first_row(name));
+    let config = scroll_list_attr(&geometry);
+    let bar = MinimalScrollBar {
+        list: name,
+        left: width + 6.0,
+        top: 7.0,
+        height: height - 14.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    rsx! { r#frame { name:{DynName(name.into())},width:{width+20.0},height,left:x,top:y,
+        pos_type:"absolute",mouse_enabled:true,scroll_list:config,
+        r#frame { name:{DynName(format!("{name}Content"))},width,height:content_height,
+            left:0.0,top:{-(offset as f32)},pos_type:"absolute", {content}
+        }
+        {bar.element()}
+    } }
+}
+
+/// XML:2135-2191: Summary's two centered section headings use RecentHeader art.
+pub(super) fn section_header(name: &str, title: &str, y: f32) -> Element {
+    let mut out = texture(
+        &format!("{name}Art"),
+        235408,
+        "0,1,0,0.71875",
+        (214.0, y, 510.0, 20.0),
+    );
+    out.extend(rsx! {fontstring {name:{DynName(name.into())},text:title,font:ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        font_size:12.0,font_color:GOLD,justify_h:"CENTER",width:470.0,height:20.0,left:234.0,top:y,pos_type:"absolute",
+    }});
     out
 }
 
@@ -165,9 +246,85 @@ pub(super) fn tab(
         if selected { WHITE } else { GOLD },
         action,
     ));
-    rsx! { button { name: {DynName(name.into())}, onclick:action, width, height:32.0,
+    rsx! { button { name: {DynName(name.into())}, onclick:action, button_default_skin:false, width, height:32.0,
         left:x, top:497.0, pos_type:"absolute", {content}
     } }
+}
+
+/// Shared InputBoxTemplates.xml SearchBoxTemplate: three border pieces, magnifier and clear.
+pub(super) fn search_box(text: &str) -> Element {
+    let mut content = Vec::new();
+    for (name, atlas, rect) in [
+        (
+            "Left",
+            "common-search-border-left",
+            (545.0, 29.0, 8.0, 20.0),
+        ),
+        (
+            "Middle",
+            "common-search-border-middle",
+            (553.0, 29.0, 159.0, 20.0),
+        ),
+        (
+            "Right",
+            "common-search-border-right",
+            (712.0, 29.0, 8.0, 20.0),
+        ),
+        (
+            "Icon",
+            "common-search-magnifyingglass",
+            (551.0, 35.0, 10.0, 10.0),
+        ),
+    ] {
+        content.extend(named_atlas_texture(
+            format!("AchievementSearch{name}"),
+            atlas,
+            rect,
+        ));
+    }
+    content.extend(rsx! { editbox { name:"AchievementSearchBox",text,width:133.0,height:20.0,
+        left:566.0,top:29.0,pos_type:"absolute",max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
+    } });
+    if !text.is_empty() {
+        let icon = named_atlas_texture(
+            "AchievementSearchClearIcon".into(),
+            "common-search-clearbutton",
+            (3.0, 3.0, 10.0, 10.0),
+        );
+        content.extend(rsx! {button {name:"AchievementSearchClearButton",width:17.0,height:17.0,
+            left:700.0,top:30.0,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
+        }});
+    }
+    content
+}
+
+/// XML:220-244 and AchievementTemplate.Tracked: 15px checkbox at (12,66).
+pub(super) fn track_check(id: u32, checked: bool) -> Element {
+    let action = format!("achievement:track:{id}");
+    let mut content = texture(
+        "AchievementTrackUp",
+        130755,
+        "0,1,0,1",
+        (0.0, 0.0, 15.0, 15.0),
+    );
+    if checked {
+        content.extend(texture(
+            "AchievementTrackChecked",
+            130751,
+            "0,1,0,1",
+            (0.0, 0.0, 15.0, 15.0),
+        ));
+    }
+    content.extend(label(
+        "AchievementTrackText".into(),
+        "Track",
+        (15.0, 0.0, 100.0, 15.0),
+        "0.8,0.8,0.8,1",
+        &action,
+    ));
+    rsx! {button {name:"AchievementTrack",width:15.0,height:15.0,left:12.0,top:66.0,pos_type:"absolute",
+        hit_rect_insets:"0,-100,0,0",button_default_skin:false,onclick:action.as_str(),{content}
+    }}
 }
 
 /// XML:510-569: criteria use the thin ProgressBar-Border, not Summary's carved caps.

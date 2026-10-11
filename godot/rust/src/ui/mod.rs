@@ -276,6 +276,15 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if let Some(state) = self
+            .shared
+            .get::<game_engine_ui_model::achievements::AchievementWindow>()
+        {
+            game_engine_ui_model::achievements::apply_achievement_postsetup(
+                state,
+                &mut self.registry,
+            );
+        }
         // StackSplitFrame.xml:3. Shared by standalone bag/bank and merchant canvases.
         if let Some(id) = self
             .registry
