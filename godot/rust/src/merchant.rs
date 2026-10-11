@@ -280,6 +280,14 @@ impl GameClient {
     }
 
     fn use_game_object(&mut self, id: u64) -> Result<bool, FrameError> {
+        if self
+            .replica
+            .unit(id)
+            .is_some_and(|unit| unit.has::<shared::protocol::GatherableResource>())
+        {
+            self.account.send_use_game_object(id)?;
+            return Ok(true);
+        }
         Ok(self.use_spell_or_quest_object(id)?
             || self.use_guild_vault(id)?
             || self.use_mailbox(id)?
@@ -327,6 +335,9 @@ impl GameClient {
     /// The cursor a unit shows under the pointer; the pointer for one that is no NPC.
     pub(crate) fn unit_cursor(&mut self, id: u64) -> Option<ActiveWowCursor> {
         let unit = self.replica.unit(id)?;
+        if unit.has::<shared::protocol::GatherableResource>() {
+            return Some(ActiveWowCursor::Interact);
+        }
         if !unit.has::<Npc>() {
             return Some(ActiveWowCursor::Default);
         }
