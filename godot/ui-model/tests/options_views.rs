@@ -61,6 +61,7 @@ fn model() -> GameMenuViewModel {
             hud: HudOptionsView {
                 show_minimap: true,
                 show_action_bars: true,
+                cooldown_assist: Default::default(),
                 extra_action_bars: Default::default(),
                 show_nameplates: true,
                 nameplate_distance: 40.0,
