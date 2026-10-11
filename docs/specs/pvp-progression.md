@@ -4,7 +4,7 @@ Retail Mainline defines behavior/layout in both Modern and Forever art skins.
 
 - Honor1792 and Conquest1602 use the existing currency wallet and durable PvP state. Lifetime honor XP is separate from spendable currency.
 - Honor rewards, PvP talent eligibility/slot unlocks and War Mode buff must come from locally extracted pinned Retail12.1.0.69933 records. No numeric reward or season-cap policy may be invented.
-- Blizzard_PVPUI/Mainline exposes Honor, Rated and War Games tabs; honor-level display uses lifetime XP, badge and next achievement reward. War Mode/PvP talents belong to Blizzard_PlayerSpells/PvPTalents, not new Forever-only frames.
+- Blizzard_PVPUI/Mainline exposes Quick Match, Rated and Premade Groups categories; honor-level display uses lifetime XP, badge and next achievement reward. War Mode/PvP talents belong to Blizzard_PlayerSpells/PvPTalents, not new Forever-only frames.
 - Queue pairing is not a combat result. Pairing alone cannot generate rating, honor or conquest.
 - War Mode changes require authoritative rest-area/combat/instance checks and the authored buff. Talent selection requires specialization, level, slot/category and conditions.
 
@@ -20,4 +20,12 @@ Honor cap15000 is authored. Conquest has MaxQtyWorldStateID31270 and AwardCondit
 
 War Mode occupies the existing ClassTalentsFrame footer's100x100 control (RIGHT BottomBar -6/+2), using authored ring/swords/orb/indent atlases. PvP talent controls use the same Mainline three58x52 slots (tray RIGHT -114) and220x40 flyout rows in both skins. Flyout ordering follows unlocked/required level/selected elsewhere/ID. Selection is immediate, server-owned, and pending mutations cannot be duplicated; absent permissions never enable a mutation. Source PlayerCondition-unavailable choices remain disabled. Existing TalentError carries server refusal. Normal talents/source loadouts stay separate from PvP selections, which are persisted per specialization in existing PvP progress.
 
-Source authorities: Blizzard_PlayerSpells/PvPTalents/Blizzard_PvPTalentSlotTemplates.xml/.lua and Blizzard_PvPTalentListTemplates.xml/.lua, plus ClassTalents/Blizzard_ClassTalentsFrame.xml325–338. No Forever-only rows/slots/layout are added. Tooltip/drag and native live proof remain acceptance work, not implied by registry tests.
+Source authorities: Blizzard_PlayerSpells/PvPTalents/Blizzard_PvPTalentSlotTemplates.xml/.lua and Blizzard_PvPTalentListTemplates.xml/.lua, plus ClassTalents/Blizzard_ClassTalentsFrame.xml325–338. No Forever-only rows/slots/layout are added. Tooltip/drag remain unproved; registry tests do not imply those behaviors.
+
+## Bounded acceptance — 2026-10-11
+
+The landed WSG frame now has Quick Match, Rated and Premade Groups categories in both skins. Quick Match shows authoritative Honor wallet quantity/cap; Rated shows Conquest wallet quantity, not season-earned progress. Unknown rating and season-cap fields are `None`, never fabricated1500/1800. Premade listing and rated-match services remain explicitly unavailable.
+
+Native private UDP5790, `fb_pvp2`/Pvpproof: both skins prove real pointer War Mode toggling in Stormwind rest area5148, Enlisted282559 replication, source Holy talent86/640 selection and wallet display. A process relog proves retained desired mode and talent86. Inspected PNGs: `/syncthing/AgentShared/2026-10-11/pvp-progression/`; receipts: `data/diagnostics/pvp-progression-2026-10-11/`. Fresh-character live balances are0; nonzero750/120 display is separately covered by both-skin registry tests, not a claim of earned live rewards.
+
+Honor-level/badge/next-reward display and lifetime leveling remain blocked by the uncertified XP curve; importing reward identities alone does not establish a character's level. Per-match awards, season policy and rating progression remain data gaps. Enlisted XP/quest-XP amount consumers and talent tooltip/drag have no acceptance proof. This is bounded progression infrastructure, not complete Retail parity.
