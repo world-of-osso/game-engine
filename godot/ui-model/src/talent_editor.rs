@@ -75,6 +75,30 @@ impl TalentEditor {
             .map(|entry| u32::from(entry.rank))
             .sum()
     }
+    pub fn hero_dirty(&self, view: &TalentView) -> bool {
+        let Some(snapshot) = &self.snapshot else {
+            return false;
+        };
+        let ids: BTreeSet<_> = view
+            .graph
+            .heroes
+            .iter()
+            .flat_map(|tree| &tree.nodes)
+            .chain(view.graph.hero_selection.iter())
+            .map(|node| node.id)
+            .collect();
+        let committed: Vec<_> = snapshot
+            .entries
+            .iter()
+            .filter(|entry| ids.contains(&entry.node_id))
+            .collect();
+        let pending: Vec<_> = self
+            .pending
+            .iter()
+            .filter(|entry| ids.contains(&entry.node_id))
+            .collect();
+        committed != pending
+    }
     pub fn dirty(&self) -> bool {
         self.snapshot
             .as_ref()
@@ -205,6 +229,7 @@ impl TalentEditor {
     fn purchased_entries(
         &self,
         view: &TalentView,
+        level: u8,
         node_id: u32,
         entry_id: u32,
     ) -> Option<Vec<TraitEntrySelection>> {
@@ -221,6 +246,13 @@ impl TalentEditor {
             }
         }
         let mut entries = self.pending.clone();
+        if node.kind == TraitNodeType::SubTreeSelection && self.rank(node_id, entry_id) == 0 {
+            let context = TraitContext {
+                spec_id: self.snapshot.as_ref()?.spec_id,
+                level,
+            };
+            entries = refund_inactive_hero_purchases(tree, context, entry.sub_tree_id, entries);
+        }
         if matches!(
             node.kind,
             TraitNodeType::Selection | TraitNodeType::SubTreeSelection
@@ -250,12 +282,48 @@ impl TalentEditor {
         entries.sort_by_key(|entry| (entry.node_id, entry.entry_id));
         Some(entries)
     }
+    /// Staged total ranks separated from grants for the shared gate evaluator.
+    pub fn rule_entries(
+        &self,
+        view: &TalentView,
+    ) -> Vec<game_engine_core::talent_data::rules::ConfigEntry> {
+        let Some(tree) = view.rules.as_ref() else {
+            return Vec::new();
+        };
+        let grants = granted_entries(
+            tree,
+            TraitContext {
+                spec_id: self
+                    .snapshot
+                    .as_ref()
+                    .map_or(0, |snapshot| snapshot.spec_id),
+                level: view.level,
+            },
+        );
+        self.pending
+            .iter()
+            .map(|entry| {
+                let granted = grants
+                    .iter()
+                    .find(|grant| {
+                        grant.node_id == entry.node_id && grant.entry_id == entry.entry_id
+                    })
+                    .map_or(0, |grant| grant.granted);
+                game_engine_core::talent_data::rules::ConfigEntry {
+                    node_id: entry.node_id,
+                    entry_id: entry.entry_id,
+                    granted,
+                    ranks: u32::from(entry.rank).saturating_sub(granted),
+                }
+            })
+            .collect()
+    }
     pub fn can_purchase(&self, view: &TalentView, level: u8, node: u32, entry: u32) -> bool {
-        self.purchased_entries(view, node, entry)
+        self.purchased_entries(view, level, node, entry)
             .is_some_and(|entries| self.valid(view, level, &entries))
     }
     pub fn purchase(&mut self, view: &TalentView, level: u8, node: u32, entry: u32) -> bool {
-        let Some(entries) = self.purchased_entries(view, node, entry) else {
+        let Some(entries) = self.purchased_entries(view, level, node, entry) else {
             return false;
         };
         if !self.valid(view, level, &entries) {
@@ -263,7 +331,14 @@ impl TalentEditor {
         }
         self.pending = entries;
         self.level = level;
-        self.choice_node = None;
+        // Ordinary selections dismiss their flyout; the hero dialog retains
+        // its staged allocation/Apply controls until closed or replaced.
+        self.choice_node = self.choice_node.filter(|&id| {
+            view.graph
+                .hero_selection
+                .as_ref()
+                .is_some_and(|selector| selector.id == id)
+        });
         self.error_text = None;
         true
     }
@@ -481,6 +556,34 @@ fn parse_id(raw: &str) -> Result<u32, String> {
     raw.parse()
         .map_err(|error| format!("Talent ID {raw}: {error}"))
 }
+/// A subtree selection cannot keep purchases in a different hero tree. Stage
+/// their refunds alongside the selection; free/granted entries remain intact.
+fn refund_inactive_hero_purchases(
+    tree: &TraitTree,
+    context: TraitContext,
+    selected: u32,
+    mut entries: Vec<TraitEntrySelection>,
+) -> Vec<TraitEntrySelection> {
+    let inactive: BTreeSet<_> = tree
+        .nodes
+        .iter()
+        .filter(|node| node.sub_tree_id != 0 && node.sub_tree_id != selected)
+        .map(|node| node.id)
+        .collect();
+    entries.retain(|entry| !inactive.contains(&entry.node_id));
+    entries.extend(
+        granted_entries(tree, context)
+            .into_iter()
+            .filter(|entry| inactive.contains(&entry.node_id))
+            .map(|entry| TraitEntrySelection {
+                node_id: entry.node_id,
+                entry_id: entry.entry_id,
+                rank: entry.granted as u8,
+            }),
+    );
+    entries
+}
+
 fn allocation_costs(tree: &TraitTree, entries: &[TraitEntrySelection]) -> BTreeMap<u32, i32> {
     let mut spent = BTreeMap::new();
     for entry in entries {

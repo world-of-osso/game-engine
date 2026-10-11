@@ -238,6 +238,7 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
+            .receive::<protocol::PartyKeystoneSnapshot>()
             .receive::<protocol::ScenarioProgress>()
             .receive_encounters()
             .receive_achievements()
@@ -829,13 +830,17 @@ fn install_merchant_relay(app: &mut App, events: Sender<Event>) {
 }
 
 fn install_encounter_relay(app: &mut App, events: Sender<Event>) {
-    use protocol::{EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart};
+    use protocol::{
+        EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
+        EncounterTimelineEvent,
+    };
     app.add_systems(
         Update,
         (move |mut starts: Query<&mut MessageReceiver<EncounterStart>>,
                mut ends: Query<&mut MessageReceiver<EncounterEnd>>,
                mut engages: Query<&mut MessageReceiver<EncounterEngageUnit>>,
-               mut disengages: Query<&mut MessageReceiver<EncounterDisengageUnit>>| {
+               mut disengages: Query<&mut MessageReceiver<EncounterDisengageUnit>>,
+               mut timeline: Query<&mut MessageReceiver<EncounterTimelineEvent>>| {
             let mut received = Vec::new();
             macro_rules! drain {
                 ($receivers:ident) => {
@@ -850,6 +855,7 @@ fn install_encounter_relay(app: &mut App, events: Sender<Event>) {
             drain!(ends);
             drain!(engages);
             drain!(disengages);
+            drain!(timeline);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

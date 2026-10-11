@@ -228,6 +228,7 @@ impl GameClient {
             return self.micro_button_click(action);
         }
         match action {
+            game_engine_ui_model::mythic_mentor::OPEN_ACTION => self.toggle_mythic_mentor()?,
             "bag_toggle:0" => self.toggle_bag_action(action)?,
             game_engine_ui_model::minimap::ACTION_TOGGLE_WORLD_MAP => self.toggle_world_map()?,
             game_engine_ui_model::game_menu_main::ACTION_OPTIONS => {

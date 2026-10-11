@@ -1,5 +1,13 @@
 # Wiki Index
 
+- [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — authored DB2 joins; both-skin private four-category clocks/settings/Edit Mode/assistant placement proof; exact rotation and hostile combat acceptance remain open.
+- [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
+
+- [Native Mythic Mentor](systems/mythic-mentor.md) — built-in party Keys panel, server bag authority, loading lifetime and icon overlay ordering.
+
+- [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
+- [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
@@ -63,6 +71,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal cache, shared both-skin pages, genuine spec/difficulty filters, strict boss-model preparation and explicit realm-backed gaps.
+
 - [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
 - [Native battleground lifecycle](systems/battlegrounds.md) — WSG lifecycle plus source PvP wallet/talent/War Mode private both-skin proof; lifetime honor and reward/rating policies remain explicit gaps.
@@ -102,7 +112,7 @@ Engine subsystems and how they work.
 
 - [meeting-stones](systems/meeting-stones.md) — native stone/ritual picking and shared summon popup lifecycle; contract owns current proof and gaps.
 
-- [boss-encounters](systems/boss-encounters.md) — native ordered encounter lifecycle, replicated clickable compact boss frames, managed tracker placement and fading center warnings; bounded proof ledger.
+- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/actual scheduler timeline, clickable compact boss frames, managed tracker, severity warnings/audio and Edit Mode; bounded native proof.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; replicated remote corpse/ghost presentation and Dead status labels; stable viewer-relative taps and both-skin health greying.
 - [forever-data](systems/forever-data.md) — [Readable-section correction](systems/forever-data.md#readable-section-correction-2026-10-09): all seven previously missing Extras are readable; encrypted option/geoset parent ownership remains unknown, no deactivation authorized after corrected audit. [Local NPC source/cape investigation](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08): CDI-membership catalog separation and required cape binding; offline source/asset error table, native batches blocked by local data. [Retained native checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.

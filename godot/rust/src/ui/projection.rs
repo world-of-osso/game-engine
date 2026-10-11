@@ -203,6 +203,8 @@ impl UiProjection {
                 .cmp(&a.strata)
                 .then(b.frame_level.cmp(&a.frame_level))
                 .then(b.raise_order.cmp(&a.raise_order))
+                // Same-level siblings are projected in ID order; the last draws on top.
+                .then(b.id.cmp(&a.id))
         });
         candidates
             .into_iter()

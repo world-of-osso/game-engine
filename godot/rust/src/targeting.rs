@@ -597,7 +597,8 @@ impl GameClient {
             return false;
         };
         let left_press = button.is_pressed() && button.get_button_index() == MouseButton::LEFT;
-        if !left_press
+        let journal_press = button.is_pressed() && button.get_button_index() == MouseButton::RIGHT;
+        if !(left_press || journal_press)
             || self.game_menu_ui.is_some()
             || !self.account.session.gameplay_input_allowed()
         {
@@ -605,7 +606,16 @@ impl GameClient {
         }
         match self.boss_under_pointer() {
             Ok(Some(unit)) => {
-                self.set_target(Some(unit));
+                if journal_press {
+                    if let Some(start) = &self.encounter.frames.active {
+                        let encounter_id = start.encounter_id;
+                        if let Err(error) = self.open_adventure_encounter(encounter_id) {
+                            report_once(&format!("Boss journal: {error}"));
+                        }
+                    }
+                } else {
+                    self.set_target(Some(unit));
+                }
                 true
             }
             Ok(None) => false,
