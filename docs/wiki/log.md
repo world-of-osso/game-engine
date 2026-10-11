@@ -4,6 +4,10 @@
 ## 2026-10-11 — Native Mythic Keystone UI
 
 [Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.
+## 2026-10-11 — Talent-tree third pass
+
+[Talents](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11): local-CASC spec backgrounds/masks, purchasability colors, earlier-row gate progress/hover, authored arrows, split choices, separate currency headers, Forever ring/spend art and existing PvP footer. UIParent hero modal/cover/close layering, staged Apply and outgoing-subtree refunds reproduced/fixed. Private UDP5880 fb_* Mage/Ret/Arms × both skins, chosen Sunfury persistence, actual choice/rank/gate hover and hero spend/swap receipts; native checker6/6.42 scoped talent tests plus3 PvP tests/check/native build; no full suites/master landing/5000 or independent review claim.
+
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
