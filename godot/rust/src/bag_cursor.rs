@@ -287,10 +287,16 @@ impl GameClient {
     /// equipped, any other item used (its on-use spell, server-side).
     fn send_bag_use_request(&self, location: ItemLocation) -> Result<(), FrameError> {
         let Some(item) = self.merchant.session.inventory.item_at(location) else {
+            godot_print!("TRANSMOG_SETUP_BAG_USE location={location:?} empty=true");
             return Ok(());
         };
         let can_equip = item_catalog_entry_for(item.definition_source, item.item_id)
             .is_some_and(|entry| entry.inventory_type != 0);
+        godot_print!(
+            "TRANSMOG_SETUP_BAG_USE location={location:?} guid={} item={} can_equip={can_equip}",
+            item.item_guid,
+            item.item_id
+        );
         let request = if can_equip {
             InventoryRequest::Equip(EquipItem { from: location })
         } else {
