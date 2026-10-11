@@ -54,3 +54,56 @@ fn transmog_pending_choice_does_not_change_applied_state_and_apply_quotes_exact_
     assert_eq!(book.pending_cost(), Some(0));
     assert!(book.pending.is_empty());
 }
+
+#[test]
+fn transmog_insufficient_or_unknown_cost_disables_apply_but_not_free_restore() {
+    let mut book = TransmogBook::default();
+    book.receive(state());
+    book.money = 1499;
+    assert!(book.stage(TransmogChoice::Source(821)));
+    assert!(!book.can_apply());
+    let mut unknown = state();
+    unknown.slots[0].cost = None;
+    book.receive(unknown);
+    assert_eq!(book.pending_cost(), None);
+    assert!(book.apply().is_none());
+    let mut applied = state();
+    applied.slots[0].applied = TransmogChoice::Source(821);
+    applied.slots[0].cost = None;
+    book.receive(applied);
+    assert!(book.stage(TransmogChoice::Original));
+    book.money = 0;
+    assert_eq!(book.pending_cost(), Some(0));
+    assert!(book.can_apply());
+}
+
+#[test]
+fn transmog_unoffered_sources_and_weapon_hide_are_not_staged() {
+    let mut book = TransmogBook::default();
+    book.receive(state());
+    assert!(!book.stage(TransmogChoice::Source(730)));
+    assert!(!book.stage(TransmogChoice::Hidden));
+    assert!(book.pending.is_empty());
+}
+
+#[test]
+fn transmog_replacement_guid_cancels_pending_and_server_refusal_unblocks_editor() {
+    let mut book = TransmogBook::default();
+    book.receive(state());
+    book.money = 5000;
+    book.stage(TransmogChoice::Source(821));
+    book.apply().unwrap();
+    book.receive_failure(TransmogFailed {
+        npc: 54442,
+        error: TransmogError::NotEnoughMoney,
+    });
+    assert!(!book.applying);
+    assert!(!book.error.is_empty());
+    let mut replacement = state();
+    replacement.slots[0].item_guid = 91002;
+    book.receive(replacement);
+    assert!(book.pending.is_empty());
+    assert!(!book.error.is_empty());
+    book.close();
+    assert!(book.state.is_none());
+}
