@@ -1,3 +1,7 @@
+## 2026-10-11 — Native Leatherworking crafting
+
+[Native professions crafting](systems/native-professions-crafting.md): signed authored category order, local-CASC crafting-tier/atlas exports, inventory overlays at authored dimensions, and automatic-learning-rank versus trainer-known recipe boundary. Private UDP5770, both skins: trainer→14 crafts→rank15→pants learning/craft→rank16/item2303, then clean persisted-book captures. Targeted tests/checks/fmt pass with the explicitly leased protocol graph; variable-quality operations/concentration/inspiration remain gaps. No world.db writes/master merge/shared realm changes.
+
 ## 2026-10-11 — Quest sharing, resets and timers
 
 [Runtime](systems/quest-share-resets.md): native share offer/results relay repair, sampled server-clock countdown, exact Retail notices. Two private fb_* accounts on UDP5517; both skins share62, daily26153 reward/lock/reset and timed938 countdown/failure;14 inspected PNGs. No world.db writes/master merge/shared realm changes.
