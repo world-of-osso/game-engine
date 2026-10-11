@@ -16,6 +16,9 @@
 ## 2026-10-11 — GO and item-spell quest live proof
 
 [Quest UI](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11): private5496 Modern+Forever26446/28175 native objective credit and real reward turn-ins;12 successful PNGs inspected. Fixture travel/projected picks replace synthetic steering, with full pick bounds and typed objective comparisons. Chest-loot completion remains blocked; server ledger owns attempted maps and typed-invisibility giver diagnosis. No product camera repair, master merge or world.db writes.
+## 2026-10-11 — Native WSG lifecycle
+
+[Native battlegrounds](systems/battlegrounds.md): both-skin ten-account private UDP5710 queue/invite, source flag pickup/three captures, roster/score/results and origin return. Type36 dispatch and closed-scoreboard/end-transition RED→GREEN fixes; two UI and six object tests pass. Sixteen inspected PNGs; private source-position travel acceleration, no injected objective state, canonical DB write or master merge. Timing/honor and exact PvP-specific texture parity remain uncertified; lead owns the full merge gate.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
