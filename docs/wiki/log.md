@@ -4,6 +4,9 @@
 ## 2026-10-10 — Class spell live2 continuation
 
 [Continuation proof](investigations/class-spell-live-proof.md#batches914-continuation--spell-live2): private54123/prebuilt615fb90, twelve new bounded class paths plus a prior-batch Monk control; four both-skin classes, forty inspected PNGs. Damage sharing, actual owned-pet child, combo-duration and stealth snapshots, mana payment and Maelstrom spender admission have receipts. Guardian numeric/crit/inheritance, Deathmark80 total and Eye Beam facing remain uncertified. No production fix, world.db write or master merge.
+## 2026-10-10 — Toy-live2 catalog lifetime and later effects
+
+[Catalog lifetime and effects](systems/toy-box.md#toy-live2-catalog-lifetime-and-later-effects-2026-10-10): received1166-entry catalog was deleted during CharacterSelect; explicit world/account reset replaces per-frame clearing. Real receive-before-world RED,14-toy no-workaround GREEN and both-skin closed/open/next-open/account-switch proof.15 sampled identities per skin;19 source-bound model pairs,23 decoded sound pairs,456 inspected PNGs. Three ordinary appearance rows and11 authenticated assets prepared privately, not promoted. Mortar/precise visual/audio parity remain partial; no world.db writes, master merge or shared realm changes.
 
 ## 2026-10-10 — Authentic battlefield pet scales
 
