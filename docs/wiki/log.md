@@ -1,3 +1,7 @@
+## 2026-10-11 — Private terrain destinations
+
+[Root cause and setup source](../../../game-server/docs/wiki/investigations/private-terrain-destinations.md): old private player Z is below the Retail surface; authority falls before client streaming. Collision unchanged. Maintained private5881 native fixture and four inspected Modern/Forever captures at original map/X/Y; source heights corrected before login, no live lift or canonical write.
+
 ## 2026-10-11 — Native follower LFG transport
 
 [Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
