@@ -119,6 +119,14 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - The marks clear 11 s later (`CUF_READY_CHECK_DECAY_TIME`).
 - [x] "Everyone is Ready" / "Ready check finished" go to chat.
 
+### Pull countdown (Retail PlayerCountdown)
+- [ ] `/countdown N` requests a server-authoritative group countdown; `/countdown 0` cancels. No duration is invented when N is absent.
+- [ ] Server start/replacement/cancellation/expiry messages reach every online group member; leaving clears the countdown.
+- [ ] Both skins use Timer.lua's player countdown: bar above 30 seconds, medium numbers 11–30, large centred numbers 1–10; Timer.xml's digit pulse and native sound kits.
+- [ ] Raid Manager Countdown requests 10 seconds (`Blizzard_CompactRaidFrameManager.lua:1262`).
+- [ ] Leader/assistant permissions remain server-owned.
+- [ ] Timeout reports `RAID_MEMBERS_AFK` and `READY_CHECK_YOU_WERE_AFK` for unanswered participants, not explicit Not Ready responses.
+
 ### Chat commands
 - [x] `/invite` `/inv`, `/uninvite` `/un` `/u` `/kick`, `/promote` `/pr`, `/readycheck` `/rc`.
   - Retail has no slash command to leave a party: `/leave` is a chat channel command.

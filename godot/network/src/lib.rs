@@ -692,8 +692,8 @@ fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
 /// A single relay preserves order across message types sharing `GroupChannel`.
 fn install_group_relay(app: &mut App, events: Sender<Event>) {
     use protocol::{
-        GroupCommandResponse, GroupInviteCancelled, GroupInvitePrompt, GroupMemberStates,
-        GroupRosterSnapshot, MinimapPing, RaidTargetIcons, ReadyCheckUpdate,
+        GroupCommandResponse, GroupCountdownUpdate, GroupInviteCancelled, GroupInvitePrompt,
+        GroupMemberStates, GroupRosterSnapshot, MinimapPing, RaidTargetIcons, ReadyCheckUpdate,
     };
     app.add_systems(
         Update,
@@ -704,7 +704,8 @@ fn install_group_relay(app: &mut App, events: Sender<Event>) {
                mut checks: Query<&mut MessageReceiver<ReadyCheckUpdate>>,
                mut responses: Query<&mut MessageReceiver<GroupCommandResponse>>,
                mut raid_targets: Query<&mut MessageReceiver<RaidTargetIcons>>,
-               mut pings: Query<&mut MessageReceiver<MinimapPing>>| {
+               mut pings: Query<&mut MessageReceiver<MinimapPing>>,
+               mut countdowns: Query<&mut MessageReceiver<GroupCountdownUpdate>>| {
             let mut received = Vec::new();
             macro_rules! drain {
                 ($receivers:ident) => {
@@ -723,6 +724,7 @@ fn install_group_relay(app: &mut App, events: Sender<Event>) {
             drain!(responses);
             drain!(raid_targets);
             drain!(pings);
+            drain!(countdowns);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

@@ -74,10 +74,11 @@ use shared::protocol::{
 };
 use shared::protocol::{
     ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
-    GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
-    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, MinimapPing, MinimapPingRequest,
-    PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck,
-    SetGroupRole, SetRaidSubgroup, SetRaidTarget, StartReadyCheck,
+    GroupCountdownRequest, GroupCountdownUpdate, GroupInviteCancelled, GroupInviteIntent,
+    GroupInvitePrompt, GroupMemberStates, GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup,
+    MinimapPing, MinimapPingRequest, PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate,
+    RespondGroupInvite, RespondReadyCheck, SetGroupRole, SetRaidSubgroup, SetRaidTarget,
+    StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -1128,6 +1129,9 @@ impl Account {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
             }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
+            GroupCommand::Countdown(seconds) => {
+                bridge.send::<_, GroupChannel>(GroupCountdownRequest { seconds })
+            }
             GroupCommand::RespondReadyCheck(ready) => {
                 bridge.send::<_, GroupChannel>(RespondReadyCheck { ready })
             }
@@ -1496,6 +1500,7 @@ impl Account {
             || message.is::<GroupInvitePrompt>()
             || message.is::<GroupInviteCancelled>()
             || message.is::<ReadyCheckUpdate>()
+            || message.is::<GroupCountdownUpdate>()
             || message.is::<GroupCommandResponse>()
             || message.is::<RaidTargetIcons>()
             || message.is::<MinimapPing>()
@@ -1522,6 +1527,20 @@ impl Account {
             }
         } else if message.is::<ReadyCheckUpdate>() {
             self.group.apply_ready_check(decode(message)?);
+        } else if message.is::<GroupCountdownUpdate>() {
+            let update: GroupCountdownUpdate = decode(message)?;
+            if update.time_remaining_secs > 0.0 || update.duration_secs == 0 {
+                let verb = if update.duration_secs == 0 {
+                    "canceled"
+                } else {
+                    "started"
+                };
+                output.push(AccountEvent::GroupNotice(format!(
+                    "[{}] {verb} a countdown timer.",
+                    update.initiator_name
+                )));
+            }
+            self.group.apply_countdown(update);
         } else if message.is::<RaidTargetIcons>() {
             self.raid_targets = decode(message)?;
         } else if message.is::<MinimapPing>() {

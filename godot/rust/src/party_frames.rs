@@ -83,6 +83,7 @@ pub(crate) fn group_frames_state(
 ) -> GroupFramesState {
     let mut state = GroupFramesState {
         raid: vec![Vec::new(); RAID_GROUPS],
+        countdown: group.countdown.clone(),
         ready_check: ReadyCheckFrameState {
             visible: viewer
                 .local_name
@@ -323,6 +324,10 @@ impl GameClient {
             return Ok(());
         }
         self.account.group.tick_ready_check(delta.max(0.0));
+        self.account.group.tick_countdown(delta);
+        for kit in self.account.group.drain_countdown_sounds() {
+            self.play_ui_sound_kit(kit)?;
+        }
         self.poll_group_frame_actions()?;
         self.sync_death_popups();
         self.update_summon_popup(Duration::from_secs_f32(delta.max(0.0)));

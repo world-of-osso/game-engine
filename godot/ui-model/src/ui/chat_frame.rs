@@ -491,6 +491,10 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
         "uninvite" | "un" | "u" | "kick" => named_group_command(rest, GroupCommand::Uninvite),
         "promote" | "pr" => named_group_command(rest, GroupCommand::Promote),
         "readycheck" | "rc" => ChatCommand::Group(GroupCommand::StartReadyCheck),
+        "countdown" => match rest.parse::<u32>() {
+            Ok(seconds) => ChatCommand::Group(GroupCommand::Countdown(seconds)),
+            Err(_) => ChatCommand::None,
+        },
         // Bare `/leave` leaves the party or raid (`C_PartyInfo.LeaveParty`); `/leave <n>`
         // (chat channels) stays unsupported.
         "leave" if rest.is_empty() => ChatCommand::Group(GroupCommand::Leave),
