@@ -85,7 +85,7 @@ fn page_contents(view: &TalentView, scale: f32) -> Element {
     if let Some(hero) = active_hero(view) {
         let layout = hero_tree_layout(
             hero,
-            [BOOK_W / 2.0, HERO_TOP - 8.0 * HERO_SCALE],
+            [hero_center_x(view), HERO_TOP - 8.0 * HERO_SCALE],
             HERO_SCALE,
         );
         children.extend(render_tree(hero, view, layout, scale));
@@ -739,7 +739,7 @@ fn choice_flyout(view: &TalentView, scale: f32) -> Element {
         return Vec::new();
     };
     if node.node_type == 3 {
-        return hero_choice_dialog(node, view, scale);
+        return Vec::new(); // UIParent-owned modal, rendered by dialogs().
     }
     let width = node.entries.len() as f32 * 64.0 + (node.entries.len() - 1) as f32 * 5.0;
     let (center, node_scale) = choice_node_center(view, node);
@@ -767,7 +767,7 @@ fn choice_node_center(view: &TalentView, node: &TalentNode) -> ([f32; 2], f32) {
     (
         hero_tree_layout(
             hero,
-            [BOOK_W / 2.0, HERO_TOP - 8.0 * HERO_SCALE],
+            [hero_center_x(view), HERO_TOP - 8.0 * HERO_SCALE],
             HERO_SCALE,
         )
         .centers[&node.id],
@@ -849,13 +849,33 @@ fn hero_icon(tree: &TalentTree, name: &str, rect: [f32; 4], scale: f32) -> Eleme
         .expect("TraitSubTree authored atlas element");
     retail_atlas(name, atlas, rect, scale)
 }
+fn hero_center_x(view: &TalentView) -> f32 {
+    // ClassTalentUtil.SpecializationVisuals: authored heroContainerOffset.
+    let offset = match (
+        view.graph.class.name.as_str(),
+        view.graph.spec.name.as_str(),
+    ) {
+        ("Demon Hunter", "Devourer") => 0.0,
+        ("Demon Hunter", "Vengeance") | ("Paladin", "Holy" | "Retribution") | ("Rogue", _) => -45.0,
+        ("Druid", "Restoration") => -15.0,
+        ("Druid" | "Priest" | "Shaman", _) => 15.0,
+        (
+            "Death Knight" | "Demon Hunter" | "Evoker" | "Hunter" | "Mage" | "Monk" | "Paladin"
+            | "Warlock" | "Warrior",
+            _,
+        ) => -15.0,
+        (class, spec) => panic!("No Retail hero container position for {class}/{spec}"),
+    };
+    BOOK_W / 2.0 + offset
+}
 fn hero_selector(view: &TalentView, scale: f32) -> Element {
     let Some(selector) = &view.graph.hero_selection else {
         return Vec::new();
     };
     let active = active_hero(view);
     let mut children = Vec::new();
-    let button_x = BOOK_W / 2.0 - 54.0;
+    let center_x = hero_center_x(view);
+    let button_x = center_x - 54.0;
     if let Some(tree) = active {
         children.extend(hero_icon(
             tree,
@@ -866,20 +886,24 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
     } else {
         children.extend(hero_split_icons(view, scale));
     }
+    let ring_atlas = if ui_toolkit::atlas::thread_skin() == ActiveSkin::Forever {
+        "talents-main-ring-c60"
+    } else if active.is_none() {
+        "talents-heroclass-ring-intro"
+    } else {
+        "talents-heroclass-ring-mainpane"
+    };
     children.extend(retail_atlas(
         "HeroSpecBorder",
-        if ui_toolkit::atlas::thread_skin() == ActiveSkin::Forever {
-            "talents-main-ring-c60"
-        } else {
-            "talents-heroclass-ring-mainpane"
-        },
-        [BOOK_W / 2.0 - 96.0, 62.0, 192.0, 192.0],
+        ring_atlas,
+        [center_x - 96.0, 62.0, 192.0, 192.0],
         scale,
     ));
     let action = format!("talent:node:{}", selector.id);
     let enabled = view.editor.snapshot.is_some();
     children.extend(
         rsx! {button { name:"HeroSpecButton",onclick:{action.as_str()},enabled,
+            button_atlas_highlight:ring_atlas,button_highlight_size:"192,192",button_highlight_alpha:0.4,
             width:{108.0*scale},height:{108.0*scale},button_default_skin:false,
             pos_type:"absolute",pos_x:{button_x*scale},pos_y:{102.0*scale},
         }},
@@ -896,7 +920,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
         children.extend(heading(
             "TalentHeroSelectionLabel",
             &tree.name,
-            [BOOK_W / 2.0, 67.0],
+            [center_x, 67.0],
             scale,
         ));
     } else {
@@ -904,7 +928,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
             Label {
                 name: "TalentHeroChooseLabel".into(),
                 text: "CHOOSE YOUR",
-                rect: [BOOK_W / 2.0 - 160.0, 43.0, 320.0, 15.0],
+                rect: [center_x - 160.0, 43.0, 320.0, 15.0],
                 size: 15.0,
                 color: "0.0,1.0,0.0,1.0",
                 justify: "CENTER",
@@ -915,7 +939,7 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
             Label {
                 name: "TalentHeroSelectionLabel".into(),
                 text: "HERO TALENTS",
-                rect: [BOOK_W / 2.0 - 180.0, 60.0, 360.0, 24.0],
+                rect: [center_x - 180.0, 60.0, 360.0, 24.0],
                 size: 22.0,
                 color: "0.0,1.0,0.0,1.0",
                 justify: "CENTER",
@@ -928,11 +952,11 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
         children.extend(retail_atlas(
             "TalentHeroPointsArt",
             "talents-heroclass-ring-pointsavailable",
-            [BOOK_W / 2.0 - 28.0, 185.0, 56.0, 56.0],
+            [center_x - 28.0, 185.0, 56.0, 56.0],
             scale,
         ));
         let text = points.to_string();
-        let x = BOOK_W / 2.0 - 15.0 - if text.starts_with('1') { 2.0 } else { 0.0 };
+        let x = center_x - 15.0 - if text.starts_with('1') { 2.0 } else { 0.0 };
         children.extend(label(
             Label {
                 name: "TalentHeroPoints".into(),
@@ -981,7 +1005,7 @@ fn hero_split_icons(view: &TalentView, scale: f32) -> Element {
                 format!("HeroSpecOption{}Icon", tree.id),
                 &art,
                 [
-                    BOOK_W / 2.0 - 54.0 + index as f32 * 54.0,
+                    hero_center_x(view) - 54.0 + index as f32 * 54.0,
                     102.0,
                     54.0,
                     108.0,
@@ -991,8 +1015,34 @@ fn hero_split_icons(view: &TalentView, scale: f32) -> Element {
         })
         .collect()
 }
-fn hero_choice_dialog(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
-    use crate::ui::screens::quest_art::panel_button;
+pub(super) fn dialogs(state: &SpellbookFrameState, scale: f32) -> Element {
+    if state.tab != PlayerSpellsTab::Talents {
+        return Vec::new();
+    }
+    let Some(view) = &state.talents else {
+        return Vec::new();
+    };
+    let Some(node) = view.editor.choice_node.and_then(|id| {
+        view.nodes()
+            .find(|node| node.id == id && node.node_type == 3)
+    }) else {
+        return Vec::new();
+    };
+    let [width, height] = state.viewport;
+    let mut children = rsx! { button {
+        name:"TalentHeroDialogCover",width,height,mouse_enabled:true,button_default_skin:false,onclick:"talent:close_choice",
+        background_color:"0.0,0.0,0.0,0.5",strata:FrameStrata::Dialog,frame_level:199,
+        pos_type:"absolute",pos_x:0.0,pos_y:0.0,
+    }};
+    children.extend(hero_choice_dialog(node, view, scale, state.viewport));
+    children
+}
+fn hero_choice_dialog(
+    node: &TalentNode,
+    view: &TalentView,
+    scale: f32,
+    viewport: [f32; 2],
+) -> Element {
     let [width, height] = HERO_DIALOG_SIZE;
     let column_width = width / node.entries.len() as f32;
     let mut children = retail_atlas(
@@ -1017,20 +1067,13 @@ fn hero_choice_dialog(node: &TalentNode, view: &TalentView, scale: f32) -> Eleme
             scale,
         ));
     }
-    children.extend(panel_button(
-        "TalentCloseChoice".into(),
-        "Close",
-        "talent:close_choice",
-        true,
-        (
-            (width - 90.0) * scale,
-            8.0 * scale,
-            80.0 * scale,
-            22.0 * scale,
-        ),
-    ));
+    children.extend(rsx! { button { name:"TalentCloseChoice",onclick:"talent:close_choice",
+        width:{24.0*scale},height:{24.0*scale},button_default_skin:false,
+        button_atlas_normal:"RedButton-Exit",button_atlas_pushed:"RedButton-Exit-Pressed",button_atlas_highlight:"RedButton-Highlight",
+        pos_type:"absolute",pos_x:{(width-23.0)*scale},pos_y:0.0,frame_level:1000,
+    }});
     rsx! {r#frame {name:"TalentChoiceFlyout",width:{width*scale},height:{height*scale},
-        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(BOOK_W/2.0-width/2.0)*scale},pos_y:{70.0*scale},frame_level:200,
+        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(viewport[0]-width*scale)/2.0},pos_y:{70.0*scale},frame_level:200,
         {children}
     }}
 }
@@ -1045,10 +1088,15 @@ fn hero_choice_column(
     use crate::ui::screens::quest_art::panel_button;
     let [x, width] = column;
     let height = HERO_DIALOG_SIZE[1];
-    let mut children = heading(
-        &format!("TalentHero{}Name", tree.id),
-        &tree.name,
-        [width / 2.0, 51.0],
+    let mut children = label(
+        Label {
+            name: format!("TalentHero{}Name", tree.id),
+            text: &tree.name,
+            rect: [width / 2.0 - 212.5, 39.0, 425.0, 24.0],
+            size: 24.0,
+            color: TAB_TEXT_SELECTED,
+            justify: "CENTER",
+        },
         scale,
     );
     children.extend(hero_icon(
@@ -1059,7 +1107,11 @@ fn hero_choice_column(
     ));
     children.extend(retail_atlas(
         &format!("TalentHero{}Ring", tree.id),
-        "talents-heroclass-ring-selectionpane-gray",
+        if view.editor.rank(node.id, entry.id) > 0 {
+            "talents-heroclass-ring-selectionpane-yellow"
+        } else {
+            "talents-heroclass-ring-selectionpane-gray"
+        },
         [width / 2.0 - 124.0, 50.0, 248.0, 248.0],
         scale,
     ));
@@ -1074,27 +1126,64 @@ fn hero_choice_column(
         },
         scale,
     ));
+    let points = view.hero_points_for(tree).to_string();
+    children.extend(label(
+        Label {
+            name: format!("TalentHero{}DialogPoints", tree.id),
+            text: &points,
+            rect: [width - 212.0, HERO_DIALOG_NODES_TOP - 12.0, 54.0, 40.0],
+            size: 32.0,
+            color: "0.0,1.0,0.0,1.0",
+            justify: "RIGHT",
+        },
+        scale,
+    ));
+    children.extend(label(
+        Label {
+            name: format!("TalentHero{}DialogPointsLabel", tree.id),
+            text: "Points Available",
+            rect: [width - 153.0, HERO_DIALOG_NODES_TOP - 9.0, 100.0, 40.0],
+            size: 11.0,
+            color: TAB_TEXT_SELECTED,
+            justify: "LEFT",
+        },
+        scale,
+    ));
     let layout = hero_tree_layout(tree, [width / 2.0, HERO_DIALOG_NODES_TOP], 1.0);
     children.extend(render_tree(tree, view, layout, scale));
     let action = format!("talent:choice:{}:{}", node.id, entry.id);
     let enabled = view
         .editor
         .can_purchase(view, view.level, node.id, entry.id);
-    children.extend(panel_button(
-        format!(
-            "TalentChoiceNode{}Entry{}Spell{}Button",
-            node.id, entry.id, entry.spell_id
-        ),
-        "Activate",
-        &action,
-        enabled,
-        (
-            (width / 2.0 - 80.0) * scale,
-            (height - 70.0) * scale,
-            160.0 * scale,
-            22.0 * scale,
-        ),
-    ));
+    if view.editor.rank(node.id, entry.id) > 0 {
+        children.extend(label(
+            Label {
+                name: format!("TalentHero{}Active", tree.id),
+                text: "Active",
+                rect: [width / 2.0 - 80.0, height - 70.0, 160.0, 22.0],
+                size: 18.0,
+                color: "0.0,1.0,0.0,1.0",
+                justify: "CENTER",
+            },
+            scale,
+        ));
+    } else {
+        children.extend(panel_button(
+            format!(
+                "TalentChoiceNode{}Entry{}Spell{}Button",
+                node.id, entry.id, entry.spell_id
+            ),
+            "Activate",
+            &action,
+            enabled,
+            (
+                (width / 2.0 - 80.0) * scale,
+                (height - 70.0) * scale,
+                160.0 * scale,
+                22.0 * scale,
+            ),
+        ));
+    }
     rsx! {r#frame {name:{DynName(format!("TalentHero{}Option",tree.id))},width:{width*scale},height:{height*scale},
         pos_type:"absolute",pos_x:{x*scale},pos_y:0.0,{children}
     }}

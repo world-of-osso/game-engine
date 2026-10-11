@@ -119,8 +119,6 @@ impl TalentView {
     /// Retail shows the selected subtree's currency, or the highest eligible
     /// subtree amount before selection. Currency identity comes from real costs.
     pub fn hero_points(&self) -> i32 {
-        let Some(rules) = &self.rules else { return 0 };
-        let unspent = self.editor.unspent(self);
         let selected = self.graph.hero_selection.as_ref().and_then(|node| {
             node.entries
                 .iter()
@@ -131,32 +129,33 @@ impl TalentView {
             .heroes
             .iter()
             .filter(|tree| selected.is_none_or(|id| id == tree.id))
-            .map(|tree| {
-                let currencies: BTreeSet<_> = tree
-                    .nodes
-                    .iter()
-                    .filter_map(|node| rules.node(node.id))
-                    .flat_map(|node| {
-                        node.costs
-                            .iter()
-                            .chain(node.entries.iter().flat_map(|entry| &entry.costs))
-                            .chain(
-                                node.groups
-                                    .iter()
-                                    .filter_map(|&id| rules.group(id))
-                                    .flat_map(|group| &group.costs),
-                            )
-                    })
-                    .map(|cost| cost.currency_id)
-                    .collect();
-                unspent
-                    .iter()
-                    .filter(|(id, _)| currencies.contains(id))
-                    .map(|(_, amount)| amount)
-                    .sum()
-            })
+            .map(|tree| self.hero_points_for(tree))
             .max()
             .unwrap_or(0)
+    }
+    pub fn hero_points_for(&self, tree: &game_engine_core::talent_data::TalentTree) -> i32 {
+        let Some(rules) = &self.rules else { return 0 };
+        let currencies: BTreeSet<_> = tree
+            .nodes
+            .iter()
+            .filter_map(|node| rules.node(node.id))
+            .flat_map(|node| {
+                let group_costs = node
+                    .groups
+                    .iter()
+                    .filter_map(|&id| rules.group(id))
+                    .flat_map(|group| &group.costs);
+                let entry_costs = node.entries.iter().flat_map(|entry| &entry.costs);
+                node.costs.iter().chain(entry_costs).chain(group_costs)
+            })
+            .map(|cost| cost.currency_id)
+            .collect();
+        self.editor
+            .unspent(self)
+            .into_iter()
+            .filter(|(id, _)| currencies.contains(id))
+            .map(|(_, amount)| amount)
+            .sum()
     }
     pub fn node_rank(&self, node: &TalentNode) -> u32 {
         if self.editor.snapshot.is_some() {

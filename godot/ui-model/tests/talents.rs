@@ -314,6 +314,48 @@ fn talent_tree3_hero_selector_has_retail_headline_and_available_currency() {
         panic!("hero points")
     };
     assert_eq!(text.text, "10");
+    let selector = registry
+        .get(registry.get_by_name("HeroSpecButton").unwrap())
+        .unwrap();
+    assert_eq!(
+        selector.position.left,
+        ui_toolkit::layout_values::Val::Px(737.0),
+        "Mage's source heroContainerOffset is -15px"
+    );
+}
+
+#[test]
+fn talent_tree3_hero_dialog_anchors_to_ui_parent_and_covers_the_underlying_window() {
+    use ui_toolkit::layout_values::Val;
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let mut state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let view = state.talents.as_mut().unwrap();
+    view.editor.choice_node = Some(view.graph.hero_selection.as_ref().unwrap().id);
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    apply_spellbook_postsetup(&state, &mut registry);
+    let dialog = registry
+        .get(registry.get_by_name("TalentChoiceFlyout").unwrap())
+        .unwrap();
+    assert_eq!(dialog.position.left, Val::Px(475.0));
+    assert_eq!(dialog.position.top, Val::Px(70.0));
+    assert_eq!(
+        dialog.parent_id, None,
+        "Retail dialog is owned by UIParent, not draggable Talents"
+    );
+    let cover = registry
+        .get(
+            registry
+                .get_by_name("TalentHeroDialogCover")
+                .expect("Retail modal input cover"),
+        )
+        .unwrap();
+    assert_eq!(cover.resolved_width(), 1920.0);
+    assert_eq!(cover.resolved_height(), 1080.0);
+    assert!(cover.mouse_enabled);
 }
 
 #[test]
