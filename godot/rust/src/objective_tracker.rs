@@ -58,6 +58,10 @@ impl GameClient {
         if action.is_empty() {
             return Ok(());
         }
+        if action.starts_with("achievement:") {
+            let requests = self.account.achievements.action(&action);
+            return self.send_achievement_requests(requests);
+        }
         self.apply_quest_action(&action)
     }
 
@@ -80,6 +84,7 @@ impl GameClient {
             .as_ref()
             .and_then(game_engine_ui_model::challenge::tracker_block)
             .or_else(|| self.account.dungeon_objectives.block.clone());
+        state.scenario = self.account.scenario_objectives.block.clone();
         state
     }
 
@@ -89,6 +94,7 @@ impl GameClient {
         if let Some(ui) = self.objective_tracker.ui.as_mut() {
             let mut ui = ui.bind_mut();
             ui.set_state(bosses)?;
+            ui.set_state(self.account.achievements.clone())?;
             return ui.set_state(state);
         }
         if !self.objective_tracker.textures_cached {
@@ -103,6 +109,7 @@ impl GameClient {
             let mut view = ui.bind_mut();
             view.show_objective_tracker(state)
                 .and_then(|()| view.set_state(bosses))
+                .and_then(|()| view.set_state(self.account.achievements.clone()))
         };
         if let Err(error) = shown {
             ui.free();
@@ -114,7 +121,14 @@ impl GameClient {
 
     fn cache_objective_tracker_textures(&self) {
         let resolver = crate::assets::creature::local_resolver(&self.data_root);
-        for fdid in TRACKER_FDIDS {
+        let skin = ui_toolkit::atlas::thread_skin();
+        let scenario_art =
+            ui_toolkit::atlas::resolve_region("evergreen-scenario-trackerheader", skin)
+                .expect("scenario header atlas is required for the active skin");
+        let ui_toolkit::atlas::AtlasSource::FileDataId(scenario_fdid) = scenario_art.source else {
+            panic!("scenario header must be a FileDataID atlas");
+        };
+        for fdid in TRACKER_FDIDS.into_iter().chain([scenario_fdid]) {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
             if !path.exists() {
                 match resolver.ensure_cached(fdid, &path) {

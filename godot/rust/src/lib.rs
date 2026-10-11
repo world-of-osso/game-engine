@@ -15,6 +15,7 @@ mod bag_cursor;
 mod bag_destroy;
 mod bags;
 mod bank;
+mod battleground;
 mod camera;
 mod challenge;
 mod char_create;
@@ -40,6 +41,7 @@ mod game_menu;
 mod game_objects;
 mod gameplay;
 mod ground;
+mod guild_charters;
 mod guild_ranks;
 mod hud_edit;
 mod input;
@@ -79,6 +81,7 @@ mod process_memory_status;
 mod professions;
 mod profile;
 mod quests;
+mod raid_info;
 mod raid_targets;
 mod replicated;
 mod scene;
@@ -301,6 +304,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     professions: professions::Professions,
     pet_journal: pet_journal::CompanionJournal,
+    battleground: battleground::BattlegroundUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
     transmog: transmog::Transmog,
@@ -319,7 +323,9 @@ pub struct GameClient {
     banks: bank::Banks,
     combat_stable: pet_stable::CombatPetStable,
     guild_ranks: guild_ranks::GuildRanks,
+    guild_charters: guild_charters::GuildCharters,
     achievements: achievements::Achievements,
+    raid_info: raid_info::RaidInfo,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -439,6 +445,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
             pet_journal: pet_journal::CompanionJournal::default(),
+            battleground: battleground::BattlegroundUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
             transmog: transmog::Transmog::default(),
@@ -457,7 +464,9 @@ impl INode3D for GameClient {
             banks: bank::Banks::default(),
             combat_stable: pet_stable::CombatPetStable::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
+            guild_charters: guild_charters::GuildCharters::default(),
             achievements: achievements::Achievements::default(),
+            raid_info: raid_info::RaidInfo::new(&data_root),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -513,6 +522,7 @@ impl INode3D for GameClient {
             || self.spellbook_pointer(&event)
             || self.mentor_pointer(&event)
             || self.merchant_pointer(&event)
+            || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
@@ -894,6 +904,11 @@ impl GameClient {
                 .count() as i64,
         );
         state.set("world_attached", self.world.root().is_some());
+        state.set("world_map_id", self.world_map_id.map_or(-1, i64::from));
+        state.set(
+            "pending_world_port",
+            format!("{:?}", session.pending_world_port()).as_str(),
+        );
         state.set(
             "zone_id",
             &self
@@ -1401,12 +1416,15 @@ impl GameClient {
         self.banks.visit_uis(&mut visit)?;
         self.combat_stable.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
+        self.guild_charters.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
+        self.battleground.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.transmog.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
+        self.raid_info.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1951,6 +1969,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
+            ("Battleground", |c, _| c.update_battleground()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
             ("Transmog", |c, _| c.update_transmog()),
@@ -1970,7 +1989,9 @@ impl GameClient {
             ("Banks", |c, _| c.update_banks()),
             ("CombatPetStable", |c, _| c.update_combat_stable()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild charters", |c, _| c.update_guild_charters()),
             ("Achievements", |c, d| c.update_achievements(d)),
+            ("RaidInfo", |c, d| c.update_raid_info(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -2105,6 +2126,10 @@ impl GameClient {
                 self.close_pet_journal();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
+                if let Some(ui) = self.battleground.ui.take() {
+                    ui.free();
+                }
+                self.battleground = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2149,6 +2174,10 @@ impl GameClient {
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::Pvp(update) => {
+                self.battleground.view.receive(update);
+                self.sync_spellbook()?;
+            }
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::TransmogState(state) => self.receive_transmog_state(state),
@@ -2156,6 +2185,11 @@ impl GameClient {
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
+            AccountEvent::GuildInvitation(invite) => self.receive_guild_invitation(invite),
+            AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
+            AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,
+            AccountEvent::GuildProfile(update) => self.receive_guild_profile(update)?,
+            AccountEvent::GuildCharter(reply) => self.receive_guild_charter(reply)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -2177,7 +2211,8 @@ impl GameClient {
                     self.transmog_closed_for(*npc);
                 }
                 let stable_opened = self.stable_npc_message(&message);
-                if !self.receive_quest_npc_message(&message)?
+                if !self.charter_npc_message(&message)?
+                    && !self.receive_quest_npc_message(&message)?
                     && !self.bank_npc_message(&message)
                     && !stable_opened
                 {
@@ -2286,6 +2321,7 @@ impl GameClient {
     }
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
+        account::validate_terrain_refresh(self.terrain.state().map.as_deref(), &request.map_name)?;
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
             let _span = profile::span(|| "terrain.map_id".to_owned());
@@ -2630,6 +2666,7 @@ impl GameClient {
         self.logout.clear();
         self.loot.reset();
         self.achievements.reset();
+        self.raid_info.reset();
         self.game_objects.reset();
         self.mailbox.reset();
         self.trade.reset();

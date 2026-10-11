@@ -146,6 +146,14 @@ pub enum Request {
     DeathAcceptSpiritHealer,
     DeathStuckEscape,
     PvpStatus,
+    PvpOpen,
+    PvpRespond {
+        match_id: u64,
+        accepted: bool,
+    },
+    PvpLeave {
+        match_id: u64,
+    },
     EncounterJournalStatus,
     PvpQueueBattleground {
         battleground_id: u32,
