@@ -63,8 +63,8 @@ func units_named(name: String) -> Array:
 	if units == null:
 		return []
 	return units.get_children().filter(func(unit):
-		var named := unit.get_meta("unit_name", unit.get_meta("game_object_name", "")) == name
-		var matching_entry := desired_object_entry == 0 or unit.get_meta("game_object_entry", 0) == desired_object_entry
+		var named: bool = unit.get_meta("unit_name", unit.get_meta("game_object_name", "")) == name
+		var matching_entry: bool = desired_object_entry == 0 or unit.get_meta("game_object_entry", 0) == desired_object_entry
 		return named and matching_entry)
 
 func teleport(at: Array) -> bool:
