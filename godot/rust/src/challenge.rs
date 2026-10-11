@@ -128,20 +128,20 @@ impl GameClient {
 impl GameClient {
     #[func]
     fn challenge_state(&self) -> GString {
-        serde_json::to_string(&self.account.challenge)
-            .expect("serialize challenge state")
-            .into()
+        GString::from(
+            &serde_json::to_string(&self.account.challenge).expect("serialize challenge state"),
+        )
     }
     /// Native automation uses the production authenticated request, not local UI injection.
     #[func]
     fn challenge_request(&self, json: GString) -> GString {
         let request = match serde_json::from_str::<ChallengeRequest>(&json.to_string()) {
             Ok(request) => request,
-            Err(error) => return error.to_string().into(),
+            Err(error) => return GString::from(&error.to_string()),
         };
         match self.account.send_challenge_request(request) {
             Ok(()) => "".into(),
-            Err(error) => error.to_string().into(),
+            Err(error) => GString::from(&error.to_string()),
         }
     }
 }
