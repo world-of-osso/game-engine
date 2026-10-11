@@ -33,6 +33,7 @@ func run_test() -> void:
 		await tap(KEY_C)
 		await capture("relog-paperdoll")
 		receipt = {"equipment": client.merchant_state().equipment, "stats": sheet_stats(), "relog": true}
+		if not await prove_paired_slot_input(): return
 	else:
 		await tap(KEY_C)
 		if not await wait_until(func(): return shown("CharacterFrame") and not sheet_stats().is_empty(), "baseline stats"): return
@@ -73,24 +74,36 @@ func run_test() -> void:
 			fail("equipped stamina did not increase: " + str([baseline, equipped]))
 			return
 		await capture("filled-paperdoll-stats")
-		var source := control("CharacterFinger0Slot").get_global_rect().get_center()
-		await hover_point(source)
-		if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == PURCHASE, "ring tooltip"): return
-		await capture("ring-tooltip")
-		var before: Array = client.merchant_state().equipment.duplicate(true)
-		await drag_slot(source, control("CharacterFinger1Slot").get_global_rect().get_center())
-		if not await wait_until(func():
-			for item in client.merchant_state().equipment:
-				if item.slot == "Finger2" and int(item.item_id) == PURCHASE_ID: return true
-			return false, "native finger drag swap"): return
-		await capture("finger-drag-swap")
-		receipt = {"baseline": baseline, "equipped": equipped, "before_swap": before, "equipment": client.merchant_state().equipment, "purchase_id": PURCHASE_ID}
+		receipt = {"baseline": baseline, "equipped": equipped, "purchase_id": PURCHASE_ID}
+		if not await prove_paired_slot_input(): return
 	var file := FileAccess.open(OS.get_environment("EQUIP_RECEIPT"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(receipt, "\t"))
 	file.close()
 	print("PASS equipment live ", role, " ", JSON.stringify(receipt))
 	client.free()
 	quit(0)
+
+func prove_paired_slot_input() -> bool:
+	var source_index := -1
+	for item in client.merchant_state().equipment:
+		if int(item.item_id) == PURCHASE_ID:
+			source_index = 0 if item.slot == "Finger1" else 1
+	if source_index < 0: return fail("purchased ring absent from paperdoll")
+	var target_index := 1 - source_index
+	var source := control("CharacterFinger%dSlot" % source_index).get_global_rect().get_center()
+	await hover_point(source)
+	if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == PURCHASE, "ring tooltip"): return false
+	await capture("ring-tooltip")
+	receipt["before_swap"] = client.merchant_state().equipment.duplicate(true)
+	await drag_slot(source, control("CharacterFinger%dSlot" % target_index).get_global_rect().get_center())
+	var target_slot := "Finger1" if target_index == 0 else "Finger2"
+	if not await wait_until(func():
+		for item in client.merchant_state().equipment:
+			if item.slot == target_slot and int(item.item_id) == PURCHASE_ID: return true
+		return false, "native finger drag swap"): return false
+	await capture("finger-drag-swap")
+	receipt["equipment"] = client.merchant_state().equipment
+	return true
 
 func sheet_stats() -> Dictionary:
 	var values := {}
