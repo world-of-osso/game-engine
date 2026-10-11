@@ -128,6 +128,10 @@ impl GameClient {
         if !self.adventure_guide.view.visible {
             return Ok(());
         }
+        self.poll_adventure_inputs()?;
+        if !self.adventure_guide.view.visible {
+            return Ok(());
+        }
         if !self.adventure_guide.loaded {
             if self.spells.catalog().is_none() {
                 self.sync_adventure_guide()?;
@@ -137,7 +141,6 @@ impl GameClient {
             self.adventure_guide.view.loading = false;
         }
         self.select_queued_journal_encounter()?;
-        self.poll_adventure_inputs()?;
         self.update_journal_lockouts();
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
