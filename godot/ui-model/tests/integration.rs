@@ -77,6 +77,7 @@ mod pet_journal;
 mod player_cast_spark;
 mod portrait_party_frame;
 mod professions_art;
+mod professions_orders;
 mod professions_specializations;
 mod pvp_progression;
 mod quest_flow;

@@ -27,7 +27,10 @@ pub(crate) struct Professions {
     page: ProfessionPage,
     pub(crate) specializations:
         game_engine_ui_model::professions_specializations::SpecializationDraft,
-    pub(crate) order_update: Option<shared::protocol::CraftingOrderStateUpdate>,
+    pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
+    order_search: String,
+    order_form_initialized: bool,
+    order_npc: Option<u64>,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -214,12 +217,16 @@ impl GameClient {
                 .parse()
                 .unwrap_or(0);
         }
+        self.read_order_form(&mut ui)?;
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
                 break;
             }
             if action == "profession:close" {
+                if let Some(npc) = self.professions.order_npc.take() {
+                    self.account.send_close_interaction(npc)?;
+                }
                 self.close_professions();
                 break;
             }
@@ -232,7 +239,14 @@ impl GameClient {
                 };
                 if self.professions.page == ProfessionPage::Specializations {
                     self.query_profession_specializations()?;
+                } else if self.professions.page == ProfessionPage::Orders {
+                    self.professions.orders.customer = false;
+                    self.query_crafting_orders()?;
                 }
+            } else if let Some(action) = action.strip_prefix("profession:order:") {
+                self.apply_crafting_order_action(action)?;
+            } else if action == "profession:recraft" {
+                self.professions.page = ProfessionPage::Recraft;
             } else if let Some(action) = action.strip_prefix("profession:spec:") {
                 self.apply_specialization_action(action)?;
             } else if let Some(raw) = action.strip_prefix("profession:select:") {
@@ -388,6 +402,7 @@ impl GameClient {
             items,
             ..Default::default()
         };
+        self.project_order_view(&mut view);
         self.cache_profession_icons(&mut view);
         view
     }
@@ -429,7 +444,8 @@ impl GameClient {
         ));
         if let Some(ui) = &mut self.professions.ui {
             ui.bind_mut().set_ui_scale(scale)?;
-            return ui.bind_mut().set_state(view);
+            ui.bind_mut().set_state(view)?;
+            return self.initialize_order_form();
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("ProfessionsUI");
@@ -443,11 +459,16 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
-        ui.bind_mut().set_editbox_text(QUANTITY, "1")?;
+        if self.professions.page == ProfessionPage::Recipes {
+            ui.bind_mut().set_editbox_text(QUANTITY, "1")?;
+        }
         self.professions.ui = Some(ui);
-        Ok(())
+        self.initialize_order_form()
     }
 }
+
+#[path = "professions_orders.rs"]
+mod orders;
 
 fn recipe_craftable_counts(
     book: &ProfessionBook,
