@@ -72,13 +72,17 @@ def build_extension(root, engine):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
-    parser.add_argument('--phase', choices=('extension', 'runtime', 'import', 'entry-test', 'ipc-test', 'launcher-test', 'launcher', 'launcher-lock'), required=True)
+    parser.add_argument('--phase', choices=('extension', 'runtime', 'import', 'entry-test', 'ipc-test', 'launcher-test', 'launcher', 'launcher-lock', 'shutdown-test'), required=True)
     args = parser.parse_args()
     root = args.root.resolve()
     engine = root / 'source/game-engine'
     uv = root / 'tools/uv/uv.exe'
     configure(root)
-    if args.phase == 'launcher-lock':
+    if args.phase == 'shutdown-test':
+        run('cargo', 'test', '--locked', '--release', '--target', 'x86_64-pc-windows-gnu',
+            '--manifest-path', str(engine / 'godot/Cargo.toml'), '--target-dir', str(root / 'target'),
+            '-p', 'game-engine-core', '--lib', 'worker_shutdown::tests', cwd=engine)
+    elif args.phase == 'launcher-lock':
         launcher = root / 'source/game-launcher'
         run('cargo', 'update', '--package', 'game-launcher',
             '--manifest-path', str(launcher / 'Cargo.toml'), cwd=launcher)
