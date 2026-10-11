@@ -182,6 +182,10 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
     }
 
     fn on_stage_deinit(stage: godot::init::InitStage) {
+        // Client owners and their request queues are gone before Core deinitializes.
+        if stage == godot::init::InitStage::Core {
+            game_engine_core::worker_shutdown::join_all();
+        }
         // Release cached resources before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             ui::assets::clear_shared_resources();

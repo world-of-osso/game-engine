@@ -15,6 +15,8 @@
 
 - [Black unit-frame portraits](investigations/portrait-black.md) —49 authentic starter-cloth/Imp receipts restore Human/Orc Modern portraits, private RED→GREEN and10 inspected PNGs; Forever HUD portrait slots are absent, both-skin world proof retained.
 
+- [Windows extension unload race](investigations/windows-extension-unload.md) — first-exception LLDB proof of detached catalog execution during DLL unload; shutdown barrier implemented, native GREEN pending.
+
 ## October 9 reconciliation
 
 - [Player cast spark](../specs/player-cast-feedback.md) — `397c20803` skin fill-height fix; `427e5a814` owns scoped native proof.

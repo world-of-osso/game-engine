@@ -1,3 +1,7 @@
+## 2026-10-11 — Windows extension unload race
+
+[Investigation](investigations/windows-extension-unload.md): LLDB first exception confirms native import teardown races detached item/spell catalog workers while main thread unloads the DLL. Add Core-stage join barrier preserving nonblocking owner drops. Native GREEN/private login remains pending; no sound leak workaround or publication.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
