@@ -282,9 +282,18 @@ mod tests {
         // Preserve decoded authentic art for the visual audit, not generated art.
         if let Ok(directory) = std::env::var("TALENT_TREE3_DECODE_DIR") {
             for fdid in [8116735, 4641164, 4633071, 4638369] {
-                texture(fdid)
-                    .save(std::path::Path::new(&directory).join(format!("atlas-{fdid}.png")))
-                    .unwrap();
+                let image = texture(fdid);
+                let header = format!(
+                    "P7\nWIDTH {}\nHEIGHT {}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n",
+                    image.width(),
+                    image.height()
+                );
+                let bytes = [header.as_bytes(), image.as_raw()].concat();
+                std::fs::write(
+                    std::path::Path::new(&directory).join(format!("atlas-{fdid}.pam")),
+                    bytes,
+                )
+                .unwrap();
             }
         }
     }
