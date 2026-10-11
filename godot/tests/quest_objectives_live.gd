@@ -179,6 +179,11 @@ func credit_world_object() -> bool:
 		var before: Array = log_entry(client.quest_state(), scenario.quest).objectives.duplicate()
 		await click(target.point, MOUSE_BUTTON_RIGHT)
 		if scenario.kind == "loot":
+			await frames(20)
+			print("FIXTURE OBJECT_CLICK ", target, " player=", player_position())
+			for node in client.find_children("*Loot*", "Control", true, false):
+				print("FIXTURE LOOT_CONTROL ", node.get_path(), " visible=", node.is_visible_in_tree())
+			await capture(shot_prefix + "-after-object-click.png")
 			if not await take_chest_item():
 				return false
 		elif not await wait_quest(func(s): return Array(log_entry(s, scenario.quest).objectives) != before, "matching object credit"):
