@@ -1,12 +1,20 @@
 ## 2026-10-11 — Windows extension unload race
 
 [Investigation](investigations/windows-extension-unload.md): LLDB first exception confirms native import teardown races detached item/spell catalog workers while main thread unloads the DLL. Add Core-stage join barrier preserving nonblocking owner drops. Native early-quit RED→GREEN proves unload fix, shutdown unit1/1 passes. Private Windows login/world reaches authoritative InWorld but PNGs expose missing player/NPC visuals: product-qualified assets were omitted by the shared bundle allowlist. Add products and receipts (3.17GB); visual recheck pending. No sound leak workaround, world.db writes or publication.
+## 2026-10-11 — Cooldown/assist authored-data audit
+
+[Audit](investigations/cooldown-assist-data.md): six readable local Retail tables; native Flags33 and settings-input routing fixes. Private5860 Modern/Forever prove all four category clocks, settings/reordering, four Edit Mode movers with saved drag, and real assistant spellbook→action-slot placement; inspected1280PNG evidence.10 core/5 model/2 export tests pass. Exact rotation, assistant GCD penalty, Retail ants art, charges and hostile combat acceptance remain open; clients fell below terrain and selected no target. origin/master merged into the feature branch, not landed; shared realm/5000 untouched.
+
 ## 2026-10-11 — Native follower LFG transport
 
 [Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
 ## 2026-10-11 — Native Mythic Keystone UI
 
 [Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.
+## 2026-10-11 — Talent-tree third pass
+
+[Talents](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11): local-CASC spec backgrounds/masks, purchasability colors, earlier-row gate progress/hover, authored arrows, split choices, separate currency headers, Forever ring/spend art and existing PvP footer. UIParent hero modal/cover/close layering, staged Apply and outgoing-subtree refunds reproduced/fixed. Private UDP5880 fb_* Mage/Ret/Arms × both skins, chosen Sunfury persistence, actual choice/rank/gate hover and hero spend/swap receipts; native checker6/6.42 scoped talent tests plus3 PvP tests/check/native build; no full suites/master landing/5000 or independent review claim.
+
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
@@ -3248,6 +3256,10 @@ Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--ve
 
 Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
 
+
+## 2026-10-11 — Adventure Guide continuation
+
+[Native Adventure Guide](systems/adventure-guide.md): genuine ItemSpec and legacy MapDifficulty filters, authored RPE tutorial content, strict all1889 Journal appearance coverage import and bounded authenticated Ozruk/Lucifron asset chains. Targeted CPU RED→GREEN retained; native pixel acceptance recorded separately, with unsupported realm-backed activity/keystone services explicit.
 ## 2026-10-11 — Gathering branch (acceptance incomplete)
 
 [Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.

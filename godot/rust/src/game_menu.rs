@@ -454,6 +454,10 @@ impl GameClient {
     }
 
     fn dispatch_options_action(&mut self, action: &str) -> Result<bool, String> {
+        if action == "cooldown_settings" {
+            self.open_cooldown_settings();
+            return Ok(true);
+        }
         if action == ACTION_RESET_WINDOW_POSITIONS {
             let path = options_path().with_file_name("ui_layout.ron");
             let character_id = self.account.session.selected_character_id;

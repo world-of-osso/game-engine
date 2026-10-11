@@ -188,6 +188,7 @@ pub use crate::nameplate_style::NameplateBarThickness;
 pub struct HudOptionsView {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    pub cooldown_assist: game_engine_core::client_options_data::CooldownAssistOptions,
     pub extra_action_bars: game_engine_core::client_options_data::ExtraActionBars,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,

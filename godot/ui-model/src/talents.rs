@@ -7,6 +7,8 @@ use game_engine_core::spell_catalog::{SPELL_DB2_BUILD, SpellCatalogData};
 use game_engine_core::talent_data::{TalentNode, TalentPage, load_talent_page};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+const HIDE_MAX_RANK: u32 = 64;
+const TALENT_ERROR_COLOR: [f32; 4] = [1.0, 0.1, 0.1, 1.0];
 pub use talent_editor::{LoadoutDialog, TalentEditor};
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -29,7 +31,199 @@ pub struct TalentView {
     /// These retain graph/spell metadata, but never reach the placeholder-art loader.
     pub missing_icons: BTreeSet<u32>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TalentVisualState {
+    Locked,
+    Gated,
+    Selectable,
+    Maxed,
+    Purchased,
+}
+#[derive(Clone, Debug)]
+pub struct TalentGate {
+    pub condition_id: u32,
+    pub node_id: u32,
+    pub required: u32,
+    pub remaining: u32,
+}
 impl TalentView {
+    pub fn visual_state(&self, node: &TalentNode) -> TalentVisualState {
+        let maxed = |entry: &game_engine_core::talent_data::TalentEntry| {
+            self.entry_rank(node, entry.id) >= entry.max_ranks
+        };
+        let filled = if matches!(node.node_type, 2 | 3) {
+            node.entries.iter().any(maxed)
+        } else {
+            node.entries.iter().all(maxed)
+        };
+        if filled {
+            return TalentVisualState::Maxed;
+        }
+        if node.entries.iter().any(|entry| {
+            self.editor
+                .can_purchase(self, self.level, node.id, entry.id)
+        }) {
+            return TalentVisualState::Selectable;
+        }
+        if self.node_rank(node) > 0 {
+            return TalentVisualState::Purchased;
+        }
+        if !self.gates_for_nodes(std::slice::from_ref(node)).is_empty() {
+            return TalentVisualState::Gated;
+        }
+        TalentVisualState::Locked
+    }
+    pub fn gates_for_nodes(&self, nodes: &[TalentNode]) -> Vec<TalentGate> {
+        use game_engine_core::talent_data::{rule_data::COND_FLAG_GATE, rules::gate_progress};
+        let Some(tree) = &self.rules else {
+            return Vec::new();
+        };
+        let entries = self.editor.rule_entries(self);
+        let mut gates = BTreeMap::new();
+        for node in nodes {
+            let Some(rule) = tree.node(node.id) else {
+                continue;
+            };
+            let conditions = rule
+                .conds
+                .iter()
+                .chain(
+                    rule.groups
+                        .iter()
+                        .filter_map(|&id| tree.group(id))
+                        .flat_map(|group| &group.conds),
+                )
+                .chain(rule.entries.iter().flat_map(|entry| &entry.conds));
+            for cond in conditions.filter(|cond| cond.flags & COND_FLAG_GATE != 0) {
+                let remaining = cond
+                    .spent_amount_required
+                    .saturating_sub(gate_progress(tree, &entries, cond));
+                if remaining == 0 {
+                    continue;
+                }
+                let gate = gates.entry(cond.id).or_insert(TalentGate {
+                    condition_id: cond.id,
+                    node_id: node.id,
+                    required: cond.spent_amount_required,
+                    remaining,
+                });
+                let first = nodes
+                    .iter()
+                    .find(|first| first.id == gate.node_id)
+                    .expect("gate node");
+                if (node.position[1], node.position[0]) < (first.position[1], first.position[0]) {
+                    gate.node_id = node.id;
+                }
+            }
+        }
+        gates.into_values().collect()
+    }
+    /// Retail shows the selected subtree's currency, or the highest eligible
+    /// subtree amount before selection. Currency identity comes from real costs.
+    pub fn hero_points(&self) -> i32 {
+        let selected = self.graph.hero_selection.as_ref().and_then(|node| {
+            node.entries
+                .iter()
+                .find(|entry| self.entry_rank(node, entry.id) > 0)
+                .map(|entry| entry.subtree_id)
+        });
+        self.graph
+            .heroes
+            .iter()
+            .filter(|tree| selected.is_none_or(|id| id == tree.id))
+            .map(|tree| self.hero_points_for(tree))
+            .max()
+            .unwrap_or(0)
+    }
+    pub fn hero_points_for(&self, tree: &game_engine_core::talent_data::TalentTree) -> i32 {
+        let Some(rules) = &self.rules else { return 0 };
+        let currencies: BTreeSet<_> = tree
+            .nodes
+            .iter()
+            .filter_map(|node| rules.node(node.id))
+            .flat_map(|node| {
+                let group_costs = node
+                    .groups
+                    .iter()
+                    .filter_map(|&id| rules.group(id))
+                    .flat_map(|group| &group.costs);
+                let entry_costs = node.entries.iter().flat_map(|entry| &entry.costs);
+                node.costs.iter().chain(entry_costs).chain(group_costs)
+            })
+            .map(|cost| cost.currency_id)
+            .collect();
+        self.editor
+            .unspent(self)
+            .into_iter()
+            .filter(|(id, _)| currencies.contains(id))
+            .map(|(_, amount)| amount)
+            .sum()
+    }
+    pub fn gate_tooltip(&self, condition: u32) -> Option<crate::game_tooltip::GameTooltip> {
+        let gate = [&self.graph.class, &self.graph.spec]
+            .into_iter()
+            .chain(&self.graph.heroes)
+            .find_map(|tree| {
+                self.gates_for_nodes(&tree.nodes)
+                    .into_iter()
+                    .find(|gate| gate.condition_id == condition)
+            })?;
+        let noun = if gate.remaining == 1 {
+            "point"
+        } else {
+            "points"
+        };
+        Some(crate::game_tooltip::GameTooltip::new(
+            crate::tooltip_presentation::TooltipPresentation {
+                lines: vec![crate::tooltip_presentation::TooltipLineState::colored(
+                    format!("Spend {} more {noun} to unlock this row", gate.remaining),
+                    TALENT_ERROR_COLOR,
+                )],
+                ..crate::tooltip_presentation::TooltipPresentation::hidden()
+            },
+            None,
+        ))
+    }
+    pub fn entry_tooltip(
+        &self,
+        node_id: u32,
+        entry_id: u32,
+        mut tooltip: crate::game_tooltip::GameTooltip,
+    ) -> Option<crate::game_tooltip::GameTooltip> {
+        let node = self.nodes().find(|node| node.id == node_id)?;
+        let entry = node.entries.iter().find(|entry| entry.id == entry_id)?;
+        let rank = if node.node_type == 2 {
+            self.entry_rank(node, entry_id)
+        } else {
+            self.node_rank(node)
+        };
+        let max = if node.node_type == 1 {
+            node.entries.iter().map(|entry| entry.max_ranks).sum()
+        } else {
+            entry.max_ranks
+        };
+        // TraitNodeFlag.HideMaxRank64 and SharedTalentUI AddTooltipInfo.
+        let text = if node.flags & HIDE_MAX_RANK != 0 {
+            format!("Rank {rank}")
+        } else {
+            format!("Rank {rank}/{max}")
+        };
+        tooltip.content.lines.insert(
+            0,
+            crate::tooltip_presentation::TooltipLineState::colored(text, [1.0; 4]),
+        );
+        if let Some(gate) = self
+            .gates_for_nodes(std::slice::from_ref(node))
+            .into_iter()
+            .max_by_key(|gate| gate.required)
+        {
+            tooltip
+                .content
+                .lines
+                .extend(self.gate_tooltip(gate.condition_id)?.content.lines);
+        }
+        Some(tooltip)
+    }
     pub fn node_rank(&self, node: &TalentNode) -> u32 {
         if self.editor.snapshot.is_some() {
             self.editor.node_rank(node.id)
@@ -200,10 +394,24 @@ pub fn talent_button_node(name: &str) -> Option<u32> {
         .ok()
 }
 
+pub fn talent_button_entry(name: &str) -> Option<u32> {
+    name.strip_prefix("TalentNode")
+        .or_else(|| name.strip_prefix("TalentChoiceNode"))?
+        .split_once("Entry")?
+        .1
+        .split_once("Spell")?
+        .0
+        .parse()
+        .ok()
+}
 pub fn talent_button_spell(name: &str) -> Option<u32> {
     let node = name
         .strip_prefix("TalentNode")
         .or_else(|| name.strip_prefix("TalentChoiceNode"))?;
     let (_, spell) = node.rsplit_once("Spell")?;
-    spell.strip_suffix("Button")?.parse().ok()
+    spell
+        .strip_suffix("Button")?
+        .parse()
+        .ok()
+        .filter(|&spell| spell != 0)
 }
