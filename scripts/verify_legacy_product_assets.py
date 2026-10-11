@@ -44,6 +44,30 @@ def authenticate_root(install, product, wanted, indices, output):
     return identity, roots
 
 
+def find_fragment_receipt(data, receipt, field):
+    mappings = {}
+    for path in sorted((data / 'cache').glob('model-asset-index-*.json')):
+        fragment = json.loads(path.read_text())
+        if fragment['version'] != 1:
+            raise ValueError(f'Unsupported receipt fragment version: {path}')
+        for record in fragment.get(field, []):
+            key = ((record['product'], record['fdid'], record['kind'])
+                   if field == 'assets' else record['path'])
+            if key in mappings:
+                raise ValueError(f'Duplicate fragment mapping: {key}')
+            mappings[key] = record, path
+    key = ((receipt['product'], receipt['fdid'], receipt['kind'])
+           if field == 'assets' else receipt['path'])
+    existing = mappings.get(key)
+    if existing is None:
+        return None
+    record, path = existing
+    fields = ('product', 'build_key', 'build', 'fdid', 'kind', 'path', 'bytes', 'sha256', 'content_key')
+    if any(record[name] != receipt[name] for name in fields):
+        raise ValueError(f'conflicting fragment mapping: {key} in {path}')
+    return record, path
+
+
 def publish_legacy(data, identity, asset, roots):
     if asset['product'] != identity['product']:
         raise ValueError('requested product differs from authenticated root')
@@ -64,9 +88,13 @@ def publish_legacy(data, identity, asset, roots):
     directory = 'textures' if kind == 'blp' else 'models'
     receipt = chains.create_asset_receipt(identity, fdid, kind, f'{directory}/{fdid}.{kind}', raw, content.hex())
     try:
+        fragment = find_fragment_receipt(data, receipt, 'assets')
         chains.write_asset_files(data, [(receipt, raw)])
     except ValueError as error:
         return dict(row, status='scoped_conflict', reason=str(error))
+    if fragment is not None:
+        record, path = fragment
+        return dict(row, status='verified', receipt=record, receipt_location=str(path))
     chains.write_asset_index(data, identity, {'dependencies': {}, 'metadata': []}, [(receipt, raw)], [])
     return dict(row, status='verified', receipt=receipt)
 
@@ -97,9 +125,13 @@ def publish_model_companion(data, identity, asset, roots):
     alias = chains.create_asset_receipt(identity, asset['fdid'], kind,
                                         f'models/{filename}', payload, receipt['content_key'])
     try:
+        fragment = find_fragment_receipt(data, alias, 'aliases')
         chains.write_asset_files(data, [(alias, payload)])
     except ValueError as error:
         return dict(row, status='scoped_conflict', reason=str(error))
+    if fragment is not None:
+        record, path = fragment
+        return dict(row, alias=record, alias_location=str(path))
     staged = {'dependencies': {f'{model}.m2': dependencies}, 'metadata': []}
     chains.write_asset_index(data, identity, staged, [], [(alias, payload)])
     return dict(row, alias=alias)
