@@ -6,6 +6,16 @@ Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The l
 
 Client options `--screen`, `--state`, `--server`, `--char`, and `--run-js-ui-script <path>` are routed after Godot's `--` separator; native Godot options stay before it. Direct Godot invocation must place client options after `--`. The script uses the shared synchronous JS compiler and native frame-driven consumer; see the [native UI automation contract](specs/native-ui-automation.md) and [bounded Login evidence and open gates](wiki/systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail). Routing is not all-action or full-feature acceptance.
 
+## Windows player release
+
+`python3 scripts/windows-release.py --root <checkout>` is a Linux-side driver for the native Windows worker `scripts/windows-worker.py`, not the Linux `desktop`/OssoBuild backend. It uses a fresh `~/Projects/woo-windows-build` directory and uploads the helper's engine/sibling source snapshot. `target/windows-release/revisions.json` records engine, asset-resolver, shared-protocol, ui-toolkit and ui-toolkit-macros revisions. Siblings must be committed; their source overrides match `depot-build.py`.
+
+Desktop prerequisites: SSH, Git, existing MinGW x86_64 GNU/UCRT tools on PATH, and LLVM `libclang.dll` at `C:/Program Files/LLVM/bin`. The driver installs only user-local uv0.9.2, Python3.12.12 and Rust1.98.1 with `x86_64-pc-windows-gnu`; the runtime build uses uv-managed SCons4.10.1. GNU is intentional: bundled QuickJS has the recorded MSVC failure and the KTX compiler-cache probe invokes `--version`, unsupported by MSVC `cl`. No Linux package or Windows system-wide installation is needed.
+
+The KTX cache is `~/.woo-ktx`: its compiler-keyed directory names plus CMake scratch/object paths exceed MinGW's path limit under the long project workspace. The source/archive checksums remain those of the vendored KTX builder. Native Cargo and SCons use four jobs. Godot uses `platform=windows arch=x86_64 target=editor use_mingw=yes production=yes accesskit=no`, the pinned source commit and ClassDB patch; Windows does not compile the Linux-only Wayland code. Python hash seed is0. Windows accessibility-library integration is not included in this runtime.
+
+The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\game-engine-<pid>` named pipes. `--phase ipc-test` on the worker runs the real Windows framing/process fixture independently of Godot. The Linux IPC CLI is not built for Windows. [Deployment](deploy.md#windows-x86_64-native-gnu) owns the bundle and publication boundary.
+
 ## Requirements
 
 - Linux x86_64 caller with Python 3 and Git.

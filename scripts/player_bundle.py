@@ -68,12 +68,14 @@ def project_files(root):
 
 
 def write_extension_config(bundle, platform):
-    selector, library = LIBRARIES[platform]
+    if platform not in LIBRARIES:
+        raise ValueError(f'Unknown player platform: {platform}')
+    libraries = '\n'.join(f'{selector} = "res://../lib/{library}"' for selector, library in LIBRARIES.values())
     project = bundle / 'godot'
     project.mkdir(parents=True, exist_ok=True)
     (project / 'game_engine.gdextension').write_text(
         '[configuration]\nentry_symbol = "gdext_rust_init"\ncompatibility_minimum = "4.7"\nreloadable = false\n\n'
-        f'[libraries]\n{selector} = "res://../lib/{library}"\n'
+        f'[libraries]\n{libraries}\n'
     )
     cache = project / '.godot'
     cache.mkdir(exist_ok=True)

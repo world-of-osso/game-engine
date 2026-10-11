@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Build/stage a Windows GNU player release through ssh desktop. Never publishes."""
+
+import argparse
+import base64
+import importlib.util
+import json
+import shutil
+import subprocess
+import tarfile
+from pathlib import Path
+
+from player_bundle import copy_data, copy_project
+
+DEFAULT_REMOTE = 'C:/Users/adeia/Projects/woo-windows-build'
+
+
+def run(*arguments):
+    subprocess.run(arguments, check=True)
+
+
+def powershell(host, script):
+    encoded = base64.b64encode(script.encode('utf-16-le')).decode()
+    run('ssh', host, 'powershell.exe -NoProfile -EncodedCommand ' + encoded)
+
+
+def upload(host, source, target):
+    run('scp', str(source), f'{host}:{target}')
+
+
+def load_builder():
+    spec = importlib.util.spec_from_file_location('depot_build', Path(__file__).with_name('depot-build.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def stage_source(root, work, host, remote):
+    builder = load_builder()
+    context = work / 'source'
+    if context.exists():
+        shutil.rmtree(context)
+    context.mkdir(parents=True)
+    builder.snapshot(root, context)
+    # Native Cargo path dependencies expect the engine to be a sibling with this name.
+    (context / builder.ROOT_NAME).rename(context / 'game-engine')
+    shutil.copytree(root / 'scripts', context / 'game-engine/scripts', ignore=shutil.ignore_patterns('__pycache__'))
+    revisions = {}
+    for name in ('game-engine', *builder.SIBLINGS):
+        repo = root if name == 'game-engine' else builder.sibling_repo(root, name)
+        revisions[name] = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True).strip()
+        if name != 'game-engine' and subprocess.check_output(['git', '-C', str(repo), 'status', '--porcelain']):
+            raise RuntimeError(f'Commit sibling changes before release: {repo}')
+    (context / 'revisions.json').write_text(json.dumps(revisions, indent=2) + '\n')
+    archive = work / 'source.tar.gz'
+    with tarfile.open(archive, 'w:gz') as output:
+        for path in context.iterdir():
+            output.add(path, arcname=path.name)
+    powershell(host, f"$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Force '{remote}/source' | Out-Null")
+    upload(host, archive, remote + '/source.tar.gz')
+    powershell(host, f"$ErrorActionPreference='Stop'; tar -xf '{remote}/source.tar.gz' -C '{remote}/source'; if ($LASTEXITCODE) {{ exit $LASTEXITCODE }}")
+    shutil.copy2(context / 'revisions.json', work / 'revisions.json')
+
+
+def worker(host, remote, phase):
+    powershell(host,
+        f"$ErrorActionPreference='Stop'; $env:PYTHONUTF8='1'; & '{remote}/tools/uv/uv.exe' run --python 3.12.12 "
+        f"'{remote}/source/game-engine/scripts/windows-worker.py' --root '{remote}' --phase {phase}; exit $LASTEXITCODE")
+
+
+def bootstrap(host, remote):
+    powershell(host,
+        f"$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; "
+        f"New-Item -ItemType Directory -Force '{remote}/tools' | Out-Null; "
+        f"if (!(Test-Path '{remote}/tools/uv/uv.exe')) {{ "
+        f"Invoke-WebRequest 'https://github.com/astral-sh/uv/releases/download/0.9.2/uv-x86_64-pc-windows-msvc.zip' -OutFile '{remote}/tools/uv.zip'; "
+        f"Expand-Archive '{remote}/tools/uv.zip' '{remote}/tools/uv' }}; "
+        f"& '{remote}/tools/uv/uv.exe' python install 3.12.12; if ($LASTEXITCODE) {{ exit $LASTEXITCODE }}; "
+        "rustup toolchain install 1.98.1 --profile minimal --target x86_64-pc-windows-gnu; exit $LASTEXITCODE")
+
+
+def assemble(root, work, host, remote):
+    bundle = root / 'target/deploy/windows-x86_64'
+    if bundle.exists():
+        shutil.rmtree(bundle)
+    (bundle / 'lib').mkdir(parents=True)
+    (bundle / 'runtime').mkdir()
+    for name, destination in (
+        ('game_engine_godot.dll', bundle / 'lib/game_engine_godot.dll'),
+        ('godot.exe', bundle / 'runtime/godot.exe'),
+        ('game-engine-windows-x86_64.exe', bundle / 'game-engine-windows-x86_64'),
+        ('godot.sha512', work / 'godot.sha512'),
+    ):
+        run('scp', f'{host}:{remote}/artifacts/{name}', str(destination))
+    copy_project(root, bundle, 'windows-x86_64')
+    copy_data(root, bundle)
+    archive = work / 'player.tar'
+    with tarfile.open(archive, 'w', dereference=True) as output:
+        for path in bundle.iterdir():
+            output.add(path, arcname=path.name)
+    powershell(host, f"$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Force '{remote}/player' | Out-Null")
+    upload(host, archive, remote + '/player.tar')
+    powershell(host, f"tar -xf '{remote}/player.tar' -C '{remote}/player'; exit $LASTEXITCODE")
+    worker(host, remote, 'import')
+    # Import cache must ship in the bundle assembled on Linux, too.
+    powershell(host, f"tar -cf '{remote}/import.tar' -C '{remote}/player/godot' .godot; exit $LASTEXITCODE")
+    run('scp', f'{host}:{remote}/import.tar', str(work / 'import.tar'))
+    with tarfile.open(work / 'import.tar') as archive_input:
+        archive_input.extractall(bundle / 'godot', filter='data')
+    print(f'Windows player bundle: {bundle}', flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument('--host', default='desktop')
+    parser.add_argument('--remote-root', default=DEFAULT_REMOTE)
+    parser.add_argument('--phase', choices=('build', 'assemble', 'all'), default='all')
+    args = parser.parse_args()
+    root = args.root.resolve()
+    work = root / 'target/windows-release'
+    work.mkdir(parents=True, exist_ok=True)
+    if args.phase in ('build', 'all'):
+        bootstrap(args.host, args.remote_root)
+        stage_source(root, work, args.host, args.remote_root)
+        worker(args.host, args.remote_root, 'extension')
+        worker(args.host, args.remote_root, 'runtime')
+    if args.phase in ('assemble', 'all'):
+        assemble(root, work, args.host, args.remote_root)
+
+
+if __name__ == '__main__':
+    main()
