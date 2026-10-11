@@ -9,6 +9,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - [x] Swap, pass, confirmed forfeit and eligible trap actions carry server battle/round identity.
 - [x] Wild PvE uses the untimed Retail timer mode, not an invented timeout.
 - [x] The camera frames both active 3D pet models on their corresponding health-frame sides, facing each other; swapping updates models.
+- [x] Preview framing includes authored skinned-animation bounds and nearest-face depth, not only rest-pose vertex bounds.
 - [x] Each ready pet renders independently; a missing asset on one side reports that display's error without suppressing the other pet or retrying the consumed completion.
 - [x] End displays outcome/XP/capture and disables further actions. Journal updates remain authoritative.
 - [x] Modern and Forever retain identical geometry and controls.

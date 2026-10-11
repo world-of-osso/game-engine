@@ -43,6 +43,7 @@ class PetBattleModelVisibility(unittest.TestCase):
         self.assertEqual({row["name"] for row in response["battle_models"]}, expected)
         for model in response["battle_models"]:
             self.assertGreater(model["visible_meshes"], 0)
+            self.assertTrue(model["framed"], f"authored animation bounds clipped: {model}")
             self.assertTrue(all(extent > 0 for extent in model["bounds"]), model)
 
 
