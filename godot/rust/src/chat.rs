@@ -46,6 +46,7 @@ pub(crate) enum ChatRequest {
     Guild(game_engine_ui_model::guild_ranks::GuildCommand),
     /// `/trade`: `InitiateTrade("target")` (SlashCommands.lua:911-913).
     TradeTarget,
+    LootHistory,
 }
 
 /// Chat log, whisper partners and frame state. The log outlives the world, as the
@@ -155,6 +156,12 @@ impl ChatModel {
     pub fn submit(&mut self, line: &str) -> Option<ChatRequest> {
         self.close();
         self.state.remember_sent(line);
+        if matches!(
+            line.trim().to_ascii_lowercase().as_str(),
+            "/loot" | "/lootrolls"
+        ) {
+            return Some(ChatRequest::LootHistory);
+        }
         if is_trade_command(line) {
             return Some(ChatRequest::TradeTarget);
         }
@@ -577,6 +584,10 @@ impl crate::GameClient {
                     .map_err(|error| error.to_string());
             }
             ChatRequest::TradeTarget => return self.trade_with_target(),
+            ChatRequest::LootHistory => {
+                self.loot.group.history_open = !self.loot.group.history_open;
+                self.account.request_group_loot_history()
+            }
         }
         .map_err(|error| error.0)
     }
