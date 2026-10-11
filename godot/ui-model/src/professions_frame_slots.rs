@@ -83,10 +83,10 @@ fn reagent_cell(
     };
     let mut children = reagent_slot(item, index);
     if let Some(quality) = view.crafting_quality.get(&item_id) {
-        children.extend(art::atlas(
+        children.extend(art::atlas_at_size(
             &format!("{prefix}QualityOverlay"),
             &quality.inventory_atlas,
-            (-3.0, -2.0, 20.0, 20.0),
+            (-3.0, -2.0),
         ));
     }
     let mut out = rsx! { button { name: {DynName(format!("{prefix}Slot"))}, width: 39.0, height: 39.0,
