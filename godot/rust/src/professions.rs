@@ -7,7 +7,7 @@ use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
 use game_engine_ui_model::professions_catalog::RecipeCatalog;
 use game_engine_ui_model::professions_frame::{
-    ItemDisplay, ProfessionView, QUANTITY, SEARCH, professions_screen,
+    ItemDisplay, ProfessionPage, ProfessionView, QUANTITY, SEARCH, professions_screen,
 };
 use godot::prelude::*;
 use shared::casting::CastState;
@@ -24,6 +24,7 @@ pub(crate) struct Professions {
     ui: Option<Gd<RegistryUi>>,
     pub(crate) error: String,
     collapsed: BTreeSet<String>,
+    page: ProfessionPage,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -201,13 +202,15 @@ impl GameClient {
         let Some(mut ui) = self.professions.ui.clone() else {
             return Ok(());
         };
-        self.professions.book.search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
-        self.professions.book.quantity = ui
-            .bind_mut()
-            .frame_text(QUANTITY.into())
-            .to_string()
-            .parse()
-            .unwrap_or(0);
+        if self.professions.page == ProfessionPage::Recipes {
+            self.professions.book.search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
+            self.professions.book.quantity = ui
+                .bind_mut()
+                .frame_text(QUANTITY.into())
+                .to_string()
+                .parse()
+                .unwrap_or(0);
+        }
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -217,7 +220,14 @@ impl GameClient {
                 self.close_professions();
                 break;
             }
-            if let Some(raw) = action.strip_prefix("profession:select:") {
+            if let Some(tab) = action.strip_prefix("profession:tab:") {
+                self.professions.page = match tab {
+                    "recipes" => ProfessionPage::Recipes,
+                    "specializations" => ProfessionPage::Specializations,
+                    "orders" => ProfessionPage::Orders,
+                    _ => return Err(format!("Unknown profession tab: {tab}").into()),
+                };
+            } else if let Some(raw) = action.strip_prefix("profession:select:") {
                 self.professions.book.selected = Some(
                     raw.parse()
                         .map_err(|_| format!("Invalid recipe selection: {action}"))?,
@@ -282,6 +292,7 @@ impl GameClient {
             })
             .collect();
         let mut view = ProfessionView {
+            page: self.professions.page,
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
