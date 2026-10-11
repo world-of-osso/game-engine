@@ -200,7 +200,7 @@ impl GameClient {
                 .ok()
         })?;
         drop(ui);
-        let tooltip = self.spells.book.talents.as_ref()?.gate_tooltip(condition)?;
+        let tooltip = self.spells.projected_talents()?.gate_tooltip(condition)?;
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
@@ -244,9 +244,7 @@ impl GameClient {
         let tooltip = self.spell_game_tooltip(presented_spell, available_at);
         let tooltip = if let Some((node, entry)) = talent_entry {
             self.spells
-                .book
-                .talents
-                .as_ref()?
+                .projected_talents()?
                 .entry_tooltip(node, entry, tooltip)?
         } else {
             tooltip
