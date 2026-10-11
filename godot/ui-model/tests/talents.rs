@@ -151,6 +151,49 @@ fn talent_tree3_available_icons_and_spec_background_are_authored_in_both_skins()
 }
 
 #[test]
+fn talent_tree3_choice_flyout_is_a_horizontal_authored_icon_row_above_its_node() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let mut state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let view = state.talents.as_mut().unwrap();
+    let mut editor = view.editor.clone();
+    // Project the choice popup independently of its locked-node purchase gate.
+    editor.choice_node = Some(62087);
+    view.editor = editor;
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    apply_spellbook_postsetup(&state, &mut registry);
+    let flyout = registry
+        .get(registry.get_by_name("TalentChoiceFlyout").unwrap())
+        .unwrap();
+    assert_eq!(
+        flyout.resolved_width(),
+        133.0,
+        "two Retail64px options with5px padding"
+    );
+    assert_eq!(flyout.resolved_height(), 64.0);
+    let left = registry
+        .get(
+            registry
+                .get_by_name("TalentChoiceNode62087Entry80143Spell386763Button")
+                .unwrap(),
+        )
+        .unwrap();
+    let right = registry
+        .get(
+            registry
+                .get_by_name("TalentChoiceNode62087Entry134199Spell157997Button")
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(left.position.top, right.position.top);
+    assert_eq!(left.onclick.as_deref(), Some("talent:choice:62087:80143"));
+    assert_eq!(right.onclick.as_deref(), Some("talent:choice:62087:134199"));
+}
+
+#[test]
 fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
