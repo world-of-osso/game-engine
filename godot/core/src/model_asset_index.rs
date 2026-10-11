@@ -1,7 +1,10 @@
 //! Shipped per-asset receipts select actual builds independently of metadata builds.
 use crate::asset_product::AssetProduct;
 use serde::Deserialize;
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Deserialize)]
 pub struct ModelAssetReceipt {
@@ -28,8 +31,23 @@ struct IndexFile {
 
 impl ModelAssetIndex {
     pub fn load(data_root: &Path) -> Result<Self, String> {
-        let path = data_root.join("cache/model-asset-index.json");
-        let json = std::fs::read_to_string(&path)
+        let cache = data_root.join("cache");
+        let mut index = Self::read_index(&cache.join("model-asset-index.json"))?;
+        for path in receipt_fragment_paths(&cache)? {
+            for (key, receipt) in Self::read_index(&path)?.assets {
+                if index.assets.insert(key.clone(), receipt).is_some() {
+                    return Err(format!(
+                        "Duplicate model asset receipt for {key:?} in {}",
+                        path.display()
+                    ));
+                }
+            }
+        }
+        Ok(index)
+    }
+
+    fn read_index(path: &Path) -> Result<Self, String> {
+        let json = std::fs::read_to_string(path)
             .map_err(|error| format!("Read model asset index {}: {error}", path.display()))?;
         Self::from_json(&json)
             .map_err(|error| format!("Model asset index {}: {error}", path.display()))
@@ -70,6 +88,22 @@ impl ModelAssetIndex {
                 )
             })
     }
+}
+
+fn receipt_fragment_paths(cache: &Path) -> Result<Vec<PathBuf>, String> {
+    let entries = std::fs::read_dir(cache)
+        .map_err(|error| format!("List model asset indexes {}: {error}", cache.display()))?;
+    let mut fragments = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("Read model asset index entry: {error}"))?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("model-asset-index-") && name.ends_with(".json") {
+            fragments.push(entry.path());
+        }
+    }
+    fragments.sort();
+    Ok(fragments)
 }
 
 fn is_hex(value: &str, length: usize) -> bool {
@@ -121,6 +155,44 @@ mod tests {
             "fdid": 1100087, "kind": "m2",
             "path": format!("products/{product}/{key}/models/1100087.m2"),
             "bytes": 12, "sha256": "a".repeat(64), "content_key": "b".repeat(32)})
+    }
+
+    #[test]
+    fn model_asset_index_loads_additive_receipts_without_overwriting_base() {
+        let data =
+            std::env::temp_dir().join(format!("petbattle-model-receipts-{}", std::process::id()));
+        let cache = data.join("cache");
+        std::fs::create_dir_all(&cache).unwrap();
+        let key = "dcfc90fffd79ba00406ae46f5f657592";
+        let base =
+            json!({"version": 1, "assets": [receipt("wow", "12.1.0.69933", key)]}).to_string();
+        std::fs::write(cache.join("model-asset-index.json"), &base).unwrap();
+        let mut pet = receipt("wow", "12.1.0.69933", key);
+        pet["fdid"] = json!(574802);
+        pet["path"] = json!(format!("products/wow/{key}/models/574802.m2"));
+        let fragment = json!({"version": 1, "assets": [pet]}).to_string();
+        std::fs::write(cache.join("model-asset-index-petbattle.json"), &fragment).unwrap();
+        let index = ModelAssetIndex::load(&data).unwrap();
+        assert_eq!(
+            index
+                .receipt(AssetProduct::Retail, 574802, "m2")
+                .unwrap()
+                .build_key,
+            key
+        );
+        assert!(index.receipt(AssetProduct::Retail, 1100087, "m2").is_ok());
+        assert_eq!(
+            std::fs::read_to_string(cache.join("model-asset-index.json")).unwrap(),
+            base
+        );
+        std::fs::write(cache.join("model-asset-index-conflict.json"), &fragment).unwrap();
+        assert!(
+            ModelAssetIndex::load(&data)
+                .err()
+                .unwrap()
+                .contains("Duplicate model asset receipt")
+        );
+        std::fs::remove_dir_all(data).unwrap();
     }
 
     #[test]
