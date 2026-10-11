@@ -54,12 +54,19 @@ func live_run() -> void:
 					for model in scene.get_children():
 						var bounds := AABB()
 						var visible_meshes := 0
+						var framed := true
+						var model_viewport = scene.get_viewport()
+						var model_camera = model_viewport.get_camera_3d()
 						for mesh in model.find_children("*", "MeshInstance3D", true, false):
 							if mesh.is_visible_in_tree():
-								var transformed: AABB = mesh.global_transform * mesh.get_aabb()
+								var transformed: AABB = mesh.global_transform * mesh.get_aabb().merge(mesh.get_custom_aabb())
+								for corner in range(8):
+									var world_corner = transformed.get_endpoint(corner)
+									var point = model_camera.unproject_position(world_corner)
+									framed = framed and not model_camera.is_position_behind(world_corner) and model_viewport.get_visible_rect().has_point(point)
 								bounds = transformed if visible_meshes == 0 else bounds.merge(transformed)
 								visible_meshes += 1
-						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z]})
+						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "framed": framed, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z]})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw

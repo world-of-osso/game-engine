@@ -250,7 +250,8 @@ impl Scene {
             .iter_shared()
             .map(|node| {
                 let mesh = node.cast::<MeshInstance3D>();
-                mesh.get_global_transform() * mesh.get_aabb()
+                let bounds = mesh.get_aabb().merge(mesh.get_custom_aabb());
+                mesh.get_global_transform() * bounds
             })
             .reduce(|bounds, next| bounds.merge(next))
             .unwrap_or_default();
@@ -259,7 +260,7 @@ impl Scene {
         let extent = bounds.size.y.max(bounds.size.z / aspect).max(0.1);
         let height = extent * (1.0 + 2.0 * FRAME_MARGIN);
         let center = bounds.center();
-        let distance = height / 2.0 / (CAMERA_FOV.to_radians() / 2.0).tan();
+        let distance = height / 2.0 / (CAMERA_FOV.to_radians() / 2.0).tan() + bounds.size.x / 2.0;
         let eye = center + Vector3::new(distance, 0.0, 0.0);
         self.camera.look_at_from_position(eye, center);
     }
