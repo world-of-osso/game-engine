@@ -251,6 +251,23 @@ impl GameClient {
         self.spells.talent_views[&key].clone().map(|mut view| {
             view.editor = self.account.talents.clone();
             view.level = player.level as u8;
+            view.war_mode = self
+                .battleground
+                .view
+                .snapshot
+                .as_ref()
+                .and_then(|state| state.war_mode.clone());
+            view.pvp_pending = self.battleground.view.pending;
+            view.pvp = self
+                .battleground
+                .view
+                .snapshot
+                .as_ref()
+                .and_then(|s| s.talents.clone())
+                .filter(|t| t.spec_id == spec);
+            view.pvp_slot = self.battleground.view.talent_slot;
+            view.pvp_error = (!self.battleground.view.error.is_empty())
+                .then(|| self.battleground.view.error.clone());
             view.on_action_bar = (0..crate::player_spells::ACTION_SLOT_COUNT)
                 .filter_map(|slot| match self.action_slot(slot) {
                     Some(shared::protocol::ActionRef::Spell(id)) => Some(id),
@@ -288,7 +305,7 @@ impl GameClient {
         Ok(state)
     }
 
-    pub(super) fn sync_spellbook(&mut self) -> Result<(), String> {
+    pub(crate) fn sync_spellbook(&mut self) -> Result<(), String> {
         if self.spells.book_ui.is_none() {
             return Ok(());
         }
@@ -534,6 +551,12 @@ impl GameClient {
     }
 
     pub(super) fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if action.starts_with("pvp:") {
+            if let Some(request) = self.battleground.view.action(action) {
+                self.account.send_pvp(request)?;
+            }
+            return self.sync_spellbook().map_err(FrameError::from);
+        }
         if action.starts_with("talent:") {
             return self.apply_talent_action(action);
         }
