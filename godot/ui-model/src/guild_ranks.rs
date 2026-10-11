@@ -3,6 +3,15 @@ use shared::protocol::*;
 
 pub const ROSTER_PAGE_SIZE: usize = 9;
 
+pub fn guild_creation_notice(created_at: Option<u64>) -> String {
+    let Some(seconds) = created_at else {
+        return "Guild creation date is unavailable.".into();
+    };
+    let seconds = i64::try_from(seconds).expect("guild creation time fits Unix seconds");
+    let date = chrono::DateTime::from_timestamp(seconds, 0).expect("valid guild creation date");
+    format!("Guild created on {} (UTC).", date.format("%B %-d, %Y"))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GuildCommand {
     Invite(String),

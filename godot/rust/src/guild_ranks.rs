@@ -114,8 +114,9 @@ impl GameClient {
                 )?;
             }
             if self.guild_ranks.query_info {
-                // Legacy guild records do not store a creation date; never invent one.
-                self.guild_notice("Guild creation date is unavailable.", false)?;
+                let notice =
+                    game_engine_ui_model::guild_ranks::guild_creation_notice(profile.created_at);
+                self.guild_notice(&notice, false)?;
                 self.guild_ranks.query_info = false;
             }
         }

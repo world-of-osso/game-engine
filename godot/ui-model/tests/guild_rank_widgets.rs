@@ -558,3 +558,16 @@ fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+#[test]
+fn guild_info_reports_actual_creation_date_without_backdating_legacy_records() {
+    use game_engine_ui_model::guild_ranks::guild_creation_notice;
+    assert_eq!(
+        guild_creation_notice(None),
+        "Guild creation date is unavailable."
+    );
+    assert_eq!(
+        guild_creation_notice(Some(1728600000)),
+        "Guild created on October 10, 2024 (UTC)."
+    );
+}
