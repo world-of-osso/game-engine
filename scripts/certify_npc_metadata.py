@@ -207,6 +207,20 @@ def certify_profile(display, extra, tables):
     }
 
 
+def summarize_profiles(profiles):
+    return {
+        "certified_profiles": [
+            p["display"] for p in profiles if p["status"] == "certified"
+        ],
+        "known_required_gaps": [
+            p["display"] for p in profiles if p["status"] == "missing_required_records"
+        ],
+        "membership_unresolved_profiles": [
+            p["display"] for p in profiles if p["status"] == "membership_unresolved"
+        ],
+    }
+
+
 def read_local_table(install, indices, encoding, root_keys, fdid):
     content_key = root_keys[fdid]
     size, keys = casc.encoding_keys(encoding, {content_key})[content_key]
@@ -290,6 +304,7 @@ def certify(args):
         else "GAPS",
         "tables": receipts,
         "profiles": profiles,
+        "summary": summarize_profiles(profiles),
         "limits": [
             "Display/texture/model joins are existing cache inputs, not authenticated DB2 record receipts.",
             "Unknown encrypted child parents do not prove that any requested display needs those records.",
