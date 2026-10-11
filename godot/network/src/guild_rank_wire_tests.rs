@@ -32,6 +32,61 @@ fn connect(server: &mut App, bridge: &mut NetworkBridge) {
         thread::sleep(Duration::from_millis(5));
     }
 }
+#[derive(Resource, Default)]
+struct Declines(usize);
+fn capture_declines(
+    mut receivers: Query<&mut MessageReceiver<GuildDeclineInviteRequest>>,
+    mut declines: ResMut<Declines>,
+) {
+    for mut receiver in &mut receivers {
+        declines.0 += receiver.receive().count();
+    }
+}
+#[test]
+fn guild_invitation_and_decline_cross_real_udp() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|app| {
+        app.init_resource::<Declines>()
+            .add_systems(Update, capture_declines);
+    });
+    let mut bridge = NetworkBridge::connect(address, 8262).unwrap();
+    connect(&mut server, &mut bridge);
+    let invitation = GuildInvitation {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        inviter_name: "Alice".into(),
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<GuildInvitation>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<AuthChannel>(invitation.clone());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut received = None;
+    while received.is_none() && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event {
+                if message.is::<GuildInvitation>() {
+                    received = Some(message.downcast::<GuildInvitation>().ok().unwrap());
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(received, Some(invitation));
+    bridge
+        .send::<_, AuthChannel>(GuildDeclineInviteRequest)
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.world().resource::<Declines>().0 == 0 && Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    assert_eq!(server.world().resource::<Declines>().0, 1);
+}
+
 #[test]
 fn guild_ranks_wire_sends_exact_requests_and_receives_ordered_authority() {
     let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
@@ -66,6 +121,10 @@ fn guild_ranks_wire_sends_exact_requests_and_receives_ordered_authority() {
             character_name: "Cara".into(),
         },
         GuildRankRequest::Remove { rank: 3 },
+        GuildRankRequest::RemoveMember {
+            character_name: "Cara".into(),
+        },
+        GuildRankRequest::Leave,
     ];
     for request in &requests {
         bridge.send::<_, GuildChannel>(request.clone()).unwrap();
