@@ -1,3 +1,7 @@
+## 2026-10-11 — Quest sharing, resets and timers
+
+[Runtime](systems/quest-share-resets.md): native share offer/results relay repair, sampled server-clock countdown, exact Retail notices. Two private fb_* accounts on UDP5517; both skins share62, daily26153 reward/lock/reset and timed938 countdown/failure;14 inspected PNGs. No world.db writes/master merge/shared realm changes.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
