@@ -1,3 +1,7 @@
+## 2026-10-11 — Priority no-install receipt closure
+
+[Receipt closure](systems/offline-asset-closure.md#priority-receipt-closure--verified-2026-10-11):1,111 numeric assets/195 authenticated owner aliases rehashed against frozen local-CASC roots;42 correct payloads staged without overwriting legacy bytes. Gathering, dungeon, demon, giver and regional roots authenticated;32 authored NPC profiles restored via backed-up cache replacement. All31 saved both-skin body meshes inspected; fresh seven-race recheck pending. Retail8203433 root absence and broader catalog acceptance keep certification FAIL.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.

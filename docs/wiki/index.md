@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Priority no-install receipts](systems/offline-asset-closure.md#priority-receipt-closure--verified-2026-10-11) —1,111 authenticated assets/195 owner aliases,32 restored NPC profiles;31 both-skin saved race bodies inspected. Full certification remains open.
+
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
 - [Class spell live proof](investigations/class-spell-live-proof.md) — first pass on private54113; batches9–14 continuation on54123 adds twelve new class paths plus a Monk control, four both-skin classes and explicit guardian/numeric gaps.
