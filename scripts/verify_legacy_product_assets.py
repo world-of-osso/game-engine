@@ -53,19 +53,19 @@ def find_fragment_receipt(data, receipt, field):
         for record in fragment.get(field, []):
             key = ((record['product'], record['fdid'], record['kind'])
                    if field == 'assets' else record['path'])
-            if key in mappings:
+            if field == 'assets' and key in mappings:
                 raise ValueError(f'Duplicate fragment mapping: {key}')
-            mappings[key] = record, path
+            mappings.setdefault(key, []).append((record, path))
     key = ((receipt['product'], receipt['fdid'], receipt['kind'])
            if field == 'assets' else receipt['path'])
     existing = mappings.get(key)
     if existing is None:
         return None
-    record, path = existing
     fields = ('product', 'build_key', 'build', 'fdid', 'kind', 'path', 'bytes', 'sha256', 'content_key')
-    if any(record[name] != receipt[name] for name in fields):
-        raise ValueError(f'conflicting fragment mapping: {key} in {path}')
-    return record, path
+    for record, path in existing:
+        if any(record[name] != receipt[name] for name in fields):
+            raise ValueError(f'conflicting fragment mapping: {key} in {path}')
+    return existing[0]
 
 
 def publish_legacy(data, identity, asset, roots):

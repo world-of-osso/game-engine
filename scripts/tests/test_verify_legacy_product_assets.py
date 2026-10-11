@@ -209,6 +209,17 @@ class LegacyProductTests(unittest.TestCase):
         self.assertFalse(target.exists())
         self.assertFalse((data / 'cache/model-asset-index.json').exists())
 
+    def test_shared_alias_audit_rows_do_not_block_an_unrelated_companion(self):
+        data, identity, asset, roots, raw = self.skin_fixture()
+        shared = verifier.chains.create_asset_receipt(identity, 43, 'skin', 'models/9900.skin', raw, roots[43].hex())
+        (data / 'cache').mkdir()
+        for name in ['one', 'two']:
+            (data / f'cache/model-asset-index-{name}.json').write_text(json.dumps({'version': 1, 'assets': [], 'aliases': [shared]}))
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual((data / row['alias']['path']).read_bytes(), raw)
+        self.assertEqual(json.loads((data / 'cache/model-asset-index.json').read_text())['assets'][0]['fdid'], 43)
+
     def test_missing_bytes_do_not_publish(self):
         data, source, target, identity, asset, keys = self.fixture(content=hashlib.md5(b'BLP2 authentic').digest())
         source.unlink()
