@@ -16,8 +16,6 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
-use super::assets;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Mask {
     Round,
@@ -204,7 +202,10 @@ fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
 }
 
 fn load_rgba(fdid: u32, role: &str) -> Result<RgbaImage, String> {
-    let rgba = assets::decode_blp(&format!("data/textures/{fdid}.blp"))
+    let path = game_engine_ui_model::paths::resolve_data_path(format!("textures/{fdid}.blp"));
+    let bytes =
+        std::fs::read(&path).map_err(|error| format!("{role} {}: {error}", path.display()))?;
+    let rgba = game_engine_core::blp::decode_rgba(&bytes)
         .map_err(|error| format!("{role} FDID {fdid}: {error}"))?;
     if rgba.width == 0 || rgba.height == 0 {
         return Err(format!("{role} FDID {fdid} has zero dimensions"));
