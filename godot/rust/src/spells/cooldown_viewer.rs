@@ -16,12 +16,12 @@ use shared::components::Player;
 use crate::frame_error::report_once;
 use crate::{GameClient, ui::RegistryUi};
 
-struct ViewerData {
-    catalog: CooldownAssistCatalog,
+pub(super) struct ViewerData {
+    pub(super) catalog: CooldownAssistCatalog,
     conditions: CooldownConditions,
 }
 
-enum ViewerLoad {
+pub(super) enum ViewerLoad {
     Idle,
     Loading(Receiver<Result<ViewerData, String>>),
     Ready(Box<ViewerData>),
@@ -29,7 +29,10 @@ enum ViewerLoad {
 }
 
 pub(super) struct CooldownHud {
-    load: ViewerLoad,
+    pub(super) load: ViewerLoad,
+    pub(super) recommendation: Recommendation,
+    pub(super) assisted_failure: String,
+    pub(super) assisted_available: bool,
     pub(super) ui: Option<Gd<RegistryUi>>,
     model: CooldownViewerModel,
     settings: CooldownSettingsView,
@@ -40,6 +43,9 @@ impl Default for CooldownHud {
     fn default() -> Self {
         Self {
             load: ViewerLoad::Idle,
+            recommendation: Recommendation::Unavailable,
+            assisted_failure: String::new(),
+            assisted_available: false,
             ui: None,
             model: Default::default(),
             settings: Default::default(),
@@ -56,7 +62,7 @@ impl CooldownHud {
         self.settings.open = false;
     }
 
-    fn poll_data(&mut self, root: &Path) -> Result<(), String> {
+    pub(super) fn poll_data(&mut self, root: &Path) -> Result<(), String> {
         match &self.load {
             ViewerLoad::Idle => {
                 let dir = root.join("db2/12.1.0.69933");
@@ -163,16 +169,16 @@ impl GameClient {
         self.poll_cooldown_settings(spec, &entries)?;
         self.spells.cooldowns.model.initialize_order(spec, &entries);
         self.spells.cooldowns.model.highlight_action_bar = options.highlight_action_bar;
-        self.spells.cooldowns.model.highlight_viewer = options.highlight_viewer;
+        self.spells.cooldowns.model.highlight_viewer =
+            options.highlight_viewer && self.assisted_in_combat();
         let samples = self.cooldown_samples(&entries);
         let refs: Vec<_> = entries.iter().collect();
-        let mut view =
-            self.spells
-                .cooldowns
-                .model
-                .project(spec, &refs, Recommendation::None, |id| {
-                    samples.get(&id).cloned()
-                });
+        let mut view = self.spells.cooldowns.model.project(
+            spec,
+            &refs,
+            self.spells.cooldowns.recommendation,
+            |id| samples.get(&id).cloned(),
+        );
         view.enabled = options.viewer_enabled;
         self.fill_cooldown_settings(spec, &entries, &mut view);
         self.sync_cooldown_viewer(view)
@@ -190,7 +196,7 @@ impl GameClient {
         let auras: BTreeMap<_, _> = self
             .world
             .local_player_id()
-            .map(|id| self.unit_auras(id))
+            .map(|id| self.unit_aura_views_now(id))
             .unwrap_or_default()
             .into_iter()
             .map(|aura| (aura.spell_id, u32::from(aura.stacks.max(1))))
@@ -237,7 +243,7 @@ impl GameClient {
         let auras = self
             .world
             .local_player_id()
-            .map(|id| self.unit_auras(id))
+            .map(|id| self.unit_aura_views_now(id))
             .unwrap_or_default();
         ids.into_iter()
             .filter_map(|base| {
@@ -272,8 +278,8 @@ impl GameClient {
                     remaining,
                     charges: charges.map(|charges| charges.current),
                     aura_active: aura.is_some(),
-                    aura_duration: aura.map_or(0.0, |aura| aura.duration),
-                    aura_remaining: aura.map_or(0.0, |aura| aura.remaining),
+                    aura_duration: aura.map_or(0.0, |aura| aura.duration_ms as f32 / 1000.0),
+                    aura_remaining: aura.map_or(0.0, |aura| aura.remaining_ms as f32 / 1000.0),
                 };
                 Some((base, sample))
             })
@@ -308,6 +314,7 @@ impl GameClient {
             .model
             .sort_settings(spec, &mut settings_entries);
         self.spells.cooldowns.settings.entries = settings_entries;
+        self.spells.cooldowns.settings.status = self.spells.cooldowns.assisted_failure.clone();
         view.settings = self.spells.cooldowns.settings.clone();
     }
 

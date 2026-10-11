@@ -1,4 +1,4 @@
-use game_engine_core::assisted_combat::{AssistedFacts, evaluate_rule};
+use game_engine_core::assisted_combat::{AssistedFacts, evaluate_rule, is_spell_usable};
 use game_engine_core::cooldown_assist::{CooldownAssistCatalog, Recommendation};
 use game_engine_core::cooldown_conditions::{ConditionActor, CooldownConditions};
 use std::collections::BTreeMap;
@@ -16,6 +16,7 @@ fn cooldown_assist_ret_authored_next_spell_changes_with_server_readiness() {
         data.recommend(
             70,
             |id| facts.known.contains(&id),
+            |id| is_spell_usable(id, &facts),
             |rule| evaluate_rule(rule, &facts)
         ),
         Ok(Recommendation::Spell(35395))
@@ -25,6 +26,7 @@ fn cooldown_assist_ret_authored_next_spell_changes_with_server_readiness() {
         data.recommend(
             70,
             |id| facts.known.contains(&id),
+            |id| is_spell_usable(id, &facts),
             |rule| evaluate_rule(rule, &facts)
         ),
         Ok(Recommendation::None)
@@ -43,6 +45,7 @@ fn cooldown_assist_unconditional_authored_step_still_requires_cast_readiness() {
         data.recommend(
             70,
             |id| facts.known.contains(&id),
+            |id| is_spell_usable(id, &facts),
             |rule| evaluate_rule(rule, &facts)
         ),
         Ok(Recommendation::None)
@@ -62,6 +65,7 @@ fn cooldown_assist_unknown_effective_cost_blocks_instead_of_guessing() {
     let decision = data.recommend(
         70,
         |id| facts.known.contains(&id),
+        |id| is_spell_usable(id, &facts),
         |rule| evaluate_rule(rule, &facts),
     );
     assert!(
@@ -129,7 +133,12 @@ fn cooldown_assist_categories_preserve_authored_order_and_links() {
 #[test]
 fn cooldown_assist_rotation_uses_authored_order_not_known_spell_order() {
     let data = catalog();
-    let decision = data.recommend(70, |spell| spell == 343527 || spell == 255937, |_| Ok(true));
+    let decision = data.recommend(
+        70,
+        |spell| spell == 343527 || spell == 255937,
+        |_| Ok(true),
+        |_| Ok(true),
+    );
     assert_eq!(decision, Ok(Recommendation::Spell(343527)));
 }
 
@@ -139,6 +148,7 @@ fn cooldown_assist_unknown_rule_never_recommends_a_lower_priority_spell() {
     let decision = data.recommend(
         70,
         |_| true,
+        |_| Ok(true),
         |rule| {
             if rule.condition_type == 56 {
                 Err("range unavailable".to_owned())
@@ -154,7 +164,7 @@ fn cooldown_assist_unknown_rule_never_recommends_a_lower_priority_spell() {
 fn cooldown_assist_missing_spec_has_no_invented_rotation() {
     let data = catalog();
     assert_eq!(
-        data.recommend(999999, |_| true, |_| Ok(true)),
+        data.recommend(999999, |_| true, |_| Ok(true), |_| Ok(true)),
         Ok(Recommendation::Unavailable)
     );
 }

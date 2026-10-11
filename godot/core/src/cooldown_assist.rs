@@ -171,6 +171,7 @@ impl CooldownAssistCatalog {
         &self,
         spec: u32,
         mut learned: impl FnMut(u32) -> bool,
+        mut usable: impl FnMut(u32) -> Result<bool, String>,
         mut evaluate: impl FnMut(&AssistedRule) -> Result<bool, String>,
     ) -> Result<Recommendation, String> {
         let Some(steps) = self.rotations.get(&spec) else {
@@ -180,8 +181,12 @@ impl CooldownAssistCatalog {
             if automation_only(step) || !learned(step.spell) {
                 continue;
             }
-            if passes_step(step, &mut evaluate)? {
-                return Ok(Recommendation::Spell(step.spell));
+            let readiness = usable(step.spell);
+            let predicates = passes_step(step, &mut evaluate);
+            match (readiness, predicates) {
+                (Ok(false), _) | (_, Ok(false)) => continue,
+                (Err(error), _) | (_, Err(error)) => return Err(error),
+                (Ok(true), Ok(true)) => return Ok(Recommendation::Spell(step.spell)),
             }
         }
         Ok(Recommendation::None)

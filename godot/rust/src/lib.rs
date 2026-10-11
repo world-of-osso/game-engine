@@ -1150,6 +1150,11 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    #[func]
+    fn assisted_combat_state(&self) -> VarDictionary {
+        self.assisted_snapshot()
+    }
+
     /// Read-only Toy Box and persisted toy-slot state for live process fixtures.
     #[func]
     fn toybox_state(&self) -> VarDictionary {

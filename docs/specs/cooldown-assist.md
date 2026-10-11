@@ -20,11 +20,14 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Nat
 
 ## Implementation inventory
 - `scripts/export_db2_csv.py`: pinned six-table local-CASC export.
-- `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism with explicit predicate input.
+- `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism with explicit predicates and ordinary usability.
+- `godot/core/src/assisted_combat.rs`: source-grounded qualitative predicates; unsupported semantics refuse recommendations.
 - `godot/ui-model/src/cooldown_assist.rs`: selection/order and supplied-sample projection.
 - `godot/ui-model/src/cooldown_viewer_component.rs`: four viewer roots/default anchors and icon/bar presentation. Native icons use the existing radial swipe adapter; highlight art remains provisional mouseover art, not exact Retail ants animation.
 - `godot/ui-model/src/cooldown_settings_component.rs`: category pages and select/up/down controls.
-- `godot/rust/src/spells/cooldown_viewer.rs`: loader, server cooldown/charge and counted-down aura sampling, choice persistence and native mounting (execution proof pending).
+- `godot/rust/src/spells/cooldown_viewer.rs`: loader, server cooldown/charge and counted-down raw aura sampling, choice persistence and native mounting.
+- `godot/rust/src/spells/assisted_combat.rs`: authoritative fact capture, availability/next-spell state and failure reasons.
+- Native casting/action-bar adapters resolve the built-in action and share its recommendation with bar/viewer highlighting (live proof pending).
 - `godot/core/src/client_options_data.rs` and UI Options files: default-off manager/bar highlight/optional icon highlight controls; runtime integration pending.
 
 ## Tests asserting this spec
@@ -35,7 +38,8 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Nat
 
 ## Known gaps (current cycle)
 - [ ] Native renderer/settings/Edit Mode and server-state adapters need build/live proof. Four roots are registered in the shared mover list; recommendation remains explicitly absent until the predicate adapter exists.
-- [ ] Rotation predicate semantics and state capture require integration; two nonzero unidentified rule fields remain unresolved.
+- [ ] Numeric/charge/predictive rotation predicate semantics, effective nonzero caster costs and two unidentified rule fields remain unresolved; never guess them.
+- [ ] Exact Retail ants animation and the dummy spell's25-value semantics remain unverified.
 - [ ] Private both-skin combat proof, inspected screenshots and final checks remain outstanding.
 
 ## Out of scope
