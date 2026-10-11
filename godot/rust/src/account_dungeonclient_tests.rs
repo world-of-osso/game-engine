@@ -126,6 +126,7 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
                     points: 10,
                     icon_fdid: 136363,
                     flags: 0,
+                    statistic_value: None,
                     earned: false,
                     earned_at: None,
                     progress_supported: true,

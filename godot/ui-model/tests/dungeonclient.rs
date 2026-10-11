@@ -329,6 +329,7 @@ fn achievement() -> AchievementCatalogEntry {
         points: 10,
         icon_fdid: 136363,
         flags: 0,
+        statistic_value: None,
         earned: true,
         earned_at: Some(1791244800),
         progress_supported: true,
@@ -380,6 +381,87 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
 }
 
 #[test]
+fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![AchievementCategoryEntry {
+                category_id: 14822,
+                parent_id: -1,
+                order_index: 1,
+                name: "The Burning Crusade".into(),
+            }],
+            next_id: None,
+        });
+        window.action("achievement:statistics");
+        assert_eq!(
+            window.action("achievement:category:14822"),
+            vec![QueryAchievementCatalog::Statistics {
+                category_id: 14822,
+                after_id: 0
+            }]
+        );
+        let row = AchievementCatalogEntry {
+            achievement_id: 1068,
+            name: "Keli'dan the Breaker kills (The Blood Furnace)".into(),
+            flags: 1,
+            statistic_value: Some(7),
+            earned: false,
+            criteria: vec![],
+            ..achievement()
+        };
+        window.apply(AchievementCatalogPage::Statistics {
+            category_id: 14822,
+            achievements: vec![row],
+            next_id: None,
+        });
+        assert_eq!(
+            text(
+                &achievement_registry(&window, skin),
+                "Achievement1068Statistic"
+            ),
+            "7"
+        );
+        assert_eq!(
+            window.action("achievement:search:stockade"),
+            vec![QueryAchievementCatalog::Search {
+                text: "stockade".into(),
+                scope: AchievementScope::All,
+                after_id: 0
+            }]
+        );
+        // A prior term must not replace current search results.
+        window.apply(AchievementCatalogPage::Search {
+            text: "level".into(),
+            scope: AchievementScope::All,
+            achievements: vec![],
+            next_id: None,
+        });
+        window.apply(AchievementCatalogPage::Search {
+            text: "stockade".into(),
+            scope: AchievementScope::All,
+            achievements: vec![achievement()],
+            next_id: None,
+        });
+        assert_eq!(
+            text(&achievement_registry(&window, skin), "Achievement633Name"),
+            "Stormwind Stockade"
+        );
+    }
+}
+
+fn achievement_registry(window: &AchievementWindow, skin: ActiveSkin) -> FrameRegistry {
+    let mut shared = SharedContext::new();
+    shared.insert(skin);
+    shared.insert(window.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(achievement_screen).sync(&shared, &mut registry);
+    registry
+}
+
+#[test]
 fn achievements_ui_tracking_survives_close_refreshes_and_clears_on_earn_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         assets(skin);
@@ -405,7 +487,7 @@ fn achievements_ui_tracking_survives_close_refreshes_and_clears_on_earn_both_ski
         screen.sync(&shared, &mut registry);
         assert_eq!(
             text(&registry, "TrackedAchievement633HeaderText"),
-            "The Stockade"
+            "Stormwind Stockade"
         );
         assert!(text(&registry, "TrackedAchievement633Criterion0Text").contains("0/1"));
         assert_eq!(

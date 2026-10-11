@@ -61,7 +61,9 @@ fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages()
         },
     ];
     for request in &requests {
-        bridge.send::<_, AchievementChannel>(*request).unwrap();
+        bridge
+            .send::<_, AchievementChannel>(request.clone())
+            .unwrap();
     }
     let deadline = Instant::now() + Duration::from_secs(10);
     while server.world().resource::<Requests>().0.len() < requests.len()

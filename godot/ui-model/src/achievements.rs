@@ -51,6 +51,9 @@ pub struct AchievementWindow {
     pub detail: Option<AchievementCatalogEntry>,
     pub tracked: Vec<AchievementCatalogEntry>,
     pub tracking_error: Option<String>,
+    pub statistics: bool,
+    pub search_text: String,
+    pub search_results: CategoryPage,
     categories_loaded: bool,
     pending: Vec<QueryAchievementCatalog>,
 }
@@ -60,9 +63,13 @@ impl AchievementWindow {
         match action {
             OPEN_ACTION => self.toggle(&mut requests),
             "achievement:close" => self.visible = false,
+            "achievement:statistics" => self.change_statistics(true),
+            "achievement:achievements" => self.change_statistics(false),
             "achievement:summary" => {
                 self.selected_category = None;
                 self.selected_achievement = None;
+                self.search_text.clear();
+                self.statistics = false;
                 self.criterion_offset = 0;
                 self.row_offset = 0;
                 if self.summary.is_none() {
@@ -96,6 +103,49 @@ impl AchievementWindow {
         }
         self.enqueue(requests)
     }
+    fn change_statistics(&mut self, statistics: bool) {
+        if self.statistics == statistics {
+            return;
+        }
+        self.statistics = statistics;
+        self.pages.clear();
+        self.selected_category = None;
+        self.selected_achievement = None;
+        self.detail = None;
+        self.search_text.clear();
+        self.row_offset = 0;
+    }
+
+    fn category_request(&self, category_id: u32, after_id: u32) -> QueryAchievementCatalog {
+        if self.statistics {
+            QueryAchievementCatalog::Statistics {
+                category_id,
+                after_id,
+            }
+        } else {
+            QueryAchievementCatalog::Category {
+                category_id,
+                after_id,
+            }
+        }
+    }
+
+    fn search(&mut self, text: &str, requests: &mut Vec<QueryAchievementCatalog>) {
+        self.search_text = text.chars().take(256).collect();
+        self.search_results = CategoryPage::default();
+        self.selected_category = None;
+        self.selected_achievement = None;
+        self.detail = None;
+        self.row_offset = 0;
+        if self.search_text.trim().chars().count() >= 3 {
+            requests.push(QueryAchievementCatalog::Search {
+                text: self.search_text.trim().into(),
+                scope: self.scope,
+                after_id: 0,
+            });
+        }
+    }
+
     fn change_scope(
         &mut self,
         scope: AchievementScope,
@@ -110,6 +160,14 @@ impl AchievementWindow {
         self.selected_achievement = None;
         self.select_first();
         requests.push(QueryAchievementCatalog::Summary { scope });
+        if self.search_text.trim().chars().count() >= 3 {
+            self.search_results = CategoryPage::default();
+            requests.push(QueryAchievementCatalog::Search {
+                text: self.search_text.trim().into(),
+                scope,
+                after_id: 0,
+            });
+        }
     }
 
     fn toggle(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
@@ -125,15 +183,14 @@ impl AchievementWindow {
         }
         if let Some(category_id) = self.selected_category {
             if !self.pages.get(&category_id).is_some_and(|page| page.loaded) {
-                requests.push(QueryAchievementCatalog::Category {
-                    category_id,
-                    after_id: 0,
-                });
+                requests.push(self.category_request(category_id, 0));
             }
         }
     }
     fn select_action(&mut self, action: &str, requests: &mut Vec<QueryAchievementCatalog>) {
-        if let Some(id) = action
+        if let Some(text) = action.strip_prefix("achievement:search:") {
+            self.search(text, requests);
+        } else if let Some(id) = action
             .strip_prefix("achievement:track:")
             .and_then(|id| id.parse().ok())
         {
@@ -151,14 +208,13 @@ impl AchievementWindow {
                 return;
             }
             self.selected_category = Some(id);
+            self.search_text.clear();
+            self.detail = None;
             self.selected_achievement = None;
             self.row_offset = 0;
             self.criterion_offset = 0;
             if !self.pages.get(&id).is_some_and(|page| page.loaded) {
-                requests.push(QueryAchievementCatalog::Category {
-                    category_id: id,
-                    after_id: 0,
-                });
+                requests.push(self.category_request(id, 0));
             } else {
                 self.select_first();
             }
@@ -204,6 +260,7 @@ impl AchievementWindow {
         self.selected_category = None;
         self.selected_achievement = Some(id);
         self.detail = None;
+        self.search_text.clear();
         self.row_offset = 0;
         self.criterion_offset = 0;
         if self.scope != AchievementScope::All {
@@ -220,6 +277,19 @@ impl AchievementWindow {
     }
 
     fn advance_rows(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
+        if self.search_text.trim().chars().count() >= 3 {
+            if self.row_offset + ROWS < self.displayed_entries().len() {
+                self.row_offset += ROWS;
+                self.select_first();
+            } else if let Some(after_id) = self.search_results.next {
+                requests.push(QueryAchievementCatalog::Search {
+                    text: self.search_text.trim().into(),
+                    scope: self.scope,
+                    after_id,
+                });
+            }
+            return;
+        }
         let Some(category_id) = self.selected_category else {
             return;
         };
@@ -230,10 +300,7 @@ impl AchievementWindow {
             self.row_offset += ROWS;
             self.select_first();
         } else if let Some(after_id) = page.next {
-            requests.push(QueryAchievementCatalog::Category {
-                category_id,
-                after_id,
-            });
+            requests.push(self.category_request(category_id, after_id));
         }
     }
     fn advance_criteria(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
@@ -256,7 +323,7 @@ impl AchievementWindow {
                 if self.pending.contains(request) {
                     return false;
                 }
-                self.pending.push(*request);
+                self.pending.push(request.clone());
                 true
             })
             .collect()
@@ -271,6 +338,42 @@ impl AchievementWindow {
             .position(|request| reply_matches(request, &page))
             .map(|index| self.pending.remove(index));
         let requests = match page {
+            AchievementCatalogPage::Search {
+                text,
+                scope,
+                achievements,
+                next_id,
+            } => {
+                if text == self.search_text.trim() && scope == self.scope {
+                    if matches!(
+                        pending,
+                        Some(QueryAchievementCatalog::Search { after_id: 0, .. })
+                    ) {
+                        self.search_results.entries.clear();
+                    }
+                    for entry in achievements {
+                        update_achievement(&mut self.search_results.entries, entry);
+                    }
+                    self.search_results.next = next_id;
+                    self.search_results.loaded = true;
+                    self.select_first();
+                }
+                Vec::new()
+            }
+            AchievementCatalogPage::Statistics {
+                category_id,
+                achievements,
+                next_id,
+            } => {
+                if self.statistics {
+                    let first = matches!(
+                        pending,
+                        Some(QueryAchievementCatalog::Statistics { after_id: 0, .. })
+                    );
+                    self.cache_achievements(category_id, achievements, next_id, first);
+                }
+                Vec::new()
+            }
             AchievementCatalogPage::Achievement {
                 achievement_id,
                 entry,
@@ -319,7 +422,9 @@ impl AchievementWindow {
                     pending,
                     Some(QueryAchievementCatalog::Category { after_id: 0, .. })
                 );
-                self.cache_achievements(category_id, achievements, next_id, first);
+                if !self.statistics {
+                    self.cache_achievements(category_id, achievements, next_id, first);
+                }
                 Vec::new()
             }
             AchievementCatalogPage::Criteria {
@@ -402,11 +507,14 @@ impl AchievementWindow {
         let mut requests = Vec::new();
         if self.visible {
             requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
-            if let Some(category_id) = self.selected_category {
-                requests.push(QueryAchievementCatalog::Category {
-                    category_id,
+            if self.search_text.trim().chars().count() >= 3 {
+                requests.push(QueryAchievementCatalog::Search {
+                    text: self.search_text.trim().into(),
+                    scope: self.scope,
                     after_id: 0,
                 });
+            } else if let Some(category_id) = self.selected_category {
+                requests.push(self.category_request(category_id, 0));
             } else if let Some(achievement_id) = self.selected_achievement {
                 requests.push(QueryAchievementCatalog::Achievement { achievement_id });
             }
@@ -421,7 +529,7 @@ impl AchievementWindow {
         }
         // A live change needs a post-change response even if an older first page is
         // already in flight. Same-type reliable replies consume these in send order.
-        self.pending.extend(requests.iter().copied());
+        self.pending.extend(requests.iter().cloned());
         requests
     }
     fn select_first(&mut self) {
@@ -435,6 +543,9 @@ impl AchievementWindow {
         self.criterion_offset = 0;
     }
     pub fn entries(&self) -> &[AchievementCatalogEntry] {
+        if self.search_text.trim().chars().count() >= 3 {
+            return &self.search_results.entries;
+        }
         if self.selected_category.is_none() {
             if let Some(entry) = self
                 .detail
@@ -481,7 +592,7 @@ impl AchievementWindow {
     }
     pub fn category_tree(&self) -> Vec<(&AchievementCategoryEntry, usize)> {
         let mut rows = Vec::new();
-        self.append_children(-1, 0, &mut rows);
+        self.append_children(if self.statistics { 1 } else { -1 }, 0, &mut rows);
         rows
     }
     fn append_children<'a>(
@@ -493,7 +604,7 @@ impl AchievementWindow {
         let mut children: Vec<_> = self
             .categories
             .values()
-            .filter(|row| row.parent_id == parent)
+            .filter(|row| row.parent_id == parent && (self.statistics || row.category_id != 1))
             .collect();
         children.sort_by_key(|row| (row.order_index, row.category_id));
         for row in children {
@@ -515,6 +626,21 @@ fn update_achievement(entries: &mut Vec<AchievementCatalogEntry>, entry: Achieve
 
 fn reply_matches(request: &QueryAchievementCatalog, page: &AchievementCatalogPage) -> bool {
     match (request, page) {
+        (
+            QueryAchievementCatalog::Statistics {
+                category_id: requested,
+                ..
+            },
+            AchievementCatalogPage::Statistics { category_id, .. },
+        ) => requested == category_id,
+        (
+            QueryAchievementCatalog::Search {
+                text: requested,
+                scope: requested_scope,
+                ..
+            },
+            AchievementCatalogPage::Search { text, scope, .. },
+        ) => requested == text && requested_scope == scope,
         (
             QueryAchievementCatalog::Achievement {
                 achievement_id: requested,
@@ -592,7 +718,12 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     ));
     content.extend(category_panel(window));
     content.extend(scope_tabs(window));
-    if window.selected_category.is_none() && window.selected_achievement.is_none() {
+    content.extend(browse_controls(window));
+    if window.selected_category.is_none()
+        && window.selected_achievement.is_none()
+        && window.search_text.trim().chars().count() < 3
+        && !window.statistics
+    {
         content.extend(summary_panel(window));
     } else {
         content.extend(achievement_rows(window));
@@ -640,13 +771,15 @@ fn category_panel(window: &AchievementWindow) -> Element {
             (12.0, 64.0, 204.0, 478.0),
         ));
     }
-    content.extend(label(
-        "AchievementCategorySummary".into(),
-        "Summary",
-        (20.0, 72.0, 180.0, 22.0),
-        GOLD,
-        "achievement:summary",
-    ));
+    if !window.statistics {
+        content.extend(label(
+            "AchievementCategorySummary".into(),
+            "Summary",
+            (20.0, 72.0, 180.0, 22.0),
+            GOLD,
+            "achievement:summary",
+        ));
+    }
     for (index, (category, depth)) in window
         .category_tree()
         .into_iter()
@@ -852,6 +985,56 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
     content
 }
 
+fn browse_controls(window: &AchievementWindow) -> Element {
+    let mut content = panel_button(
+        "AchievementTabAchievements".into(),
+        "Achievements",
+        "achievement:achievements",
+        window.statistics,
+        (20.0, 578.0, 106.0, 22.0),
+    );
+    content.extend(panel_button(
+        "AchievementTabStatistics".into(),
+        "Statistics",
+        "achievement:statistics",
+        !window.statistics,
+        (130.0, 578.0, 92.0, 22.0),
+    ));
+    content.extend(rsx! { editbox { name: "AchievementSearchBox", text: {window.search_text.as_str()}, width: 160.0, height: 22.0, left: 622.0, top: 32.0, pos_type: "absolute", max_letters:256, auto_focus:false, background_color:"0.0,0.0,0.0,0.8", } });
+    content.extend(label(
+        "AchievementSearchLabel".into(),
+        "Search",
+        (568.0, 32.0, 52.0, 22.0),
+        WHITE,
+        "",
+    ));
+    content
+}
+
+fn statistic_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
+    let prefix = format!("Achievement{}", entry.achievement_id);
+    let action = format!("achievement:row:{}", entry.achievement_id);
+    let mut content = label(
+        format!("{prefix}Name"),
+        &entry.name,
+        (240.0, y, 440.0, 50.0),
+        WHITE,
+        &action,
+    );
+    let value = entry.statistic_value.map_or_else(
+        || "Unevaluated".into(),
+        crate::damage_meter_data::break_up_large_number,
+    );
+    content.extend(label(
+        format!("{prefix}Statistic"),
+        &value,
+        (685.0, y, 110.0, 30.0),
+        GOLD,
+        &action,
+    ));
+    content
+}
+
 fn achievement_rows(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     for (index, entry) in window
@@ -861,14 +1044,25 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
         .take(ROWS)
         .enumerate()
     {
-        content.extend(achievement_row(
-            entry,
-            68.0 + index as f32 * 96.0,
-            Some(entry.achievement_id) == window.selected_achievement,
-        ));
+        let y = 68.0 + index as f32 * 96.0;
+        if entry.flags & 1 != 0 {
+            content.extend(statistic_row(entry, y));
+        } else {
+            content.extend(achievement_row(
+                entry,
+                y,
+                Some(entry.achievement_id) == window.selected_achievement,
+            ));
+        }
     }
     if window.displayed_entries().is_empty() {
-        let message = if let Some(achievement_id) = window
+        let message = if window.search_text.trim().chars().count() >= 3 {
+            if window.search_results.loaded {
+                "No results"
+            } else {
+                "Searching..."
+            }
+        } else if let Some(achievement_id) = window
             .selected_achievement
             .filter(|_| window.selected_category.is_none())
         {
@@ -907,6 +1101,7 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
         (240.0, 358.0, 174.0, 24.0),
     ));
     let more = window.row_offset + ROWS < window.displayed_entries().len()
+        || (window.search_text.trim().chars().count() >= 3 && window.search_results.next.is_some())
         || window
             .selected_category
             .and_then(|id| window.pages.get(&id))
@@ -927,7 +1122,7 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
         content.extend(label(
             "AchievementCriteriaTitle".into(),
             &format!("Criteria — {}", entry.name),
-            (240.0, 397.0, 546.0, 22.0),
+            (240.0, 397.0, 396.0, 22.0),
             GOLD,
             "",
         ));
