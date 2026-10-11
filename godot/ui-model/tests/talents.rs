@@ -349,6 +349,13 @@ fn talent_tree3_hero_dialog_anchors_to_ui_parent_and_covers_the_underlying_windo
         .unwrap();
     assert_eq!(dialog.position.left, Val::Px(475.0));
     assert_eq!(dialog.position.top, Val::Px(70.0));
+    let title = registry
+        .get(registry.get_by_name("SpellBookTitleText").unwrap())
+        .unwrap();
+    assert!(
+        dialog.frame_level > title.frame_level,
+        "underlying title must not paint over hero dialog"
+    );
     assert_eq!(
         dialog.parent_id, None,
         "Retail dialog is owned by UIParent, not draggable Talents"
