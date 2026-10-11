@@ -500,6 +500,11 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
             text(&achievement_registry(&window, skin), "Achievement633Name"),
             "Stormwind Stockade"
         );
+        assert!(window.action("achievement:row:633").contains(
+            &QueryAchievementCatalog::Achievement {
+                achievement_id: 633
+            }
+        ));
     }
 }
 

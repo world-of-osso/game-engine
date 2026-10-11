@@ -247,8 +247,12 @@ impl AchievementWindow {
                 .iter()
                 .any(|entry| entry.achievement_id == id)
             {
-                self.selected_achievement = Some(id);
-                self.criterion_offset = 0;
+                if self.search_text.trim().chars().count() >= 3 {
+                    self.open_achievement(id, requests);
+                } else {
+                    self.selected_achievement = Some(id);
+                    self.criterion_offset = 0;
+                }
             }
         }
     }
