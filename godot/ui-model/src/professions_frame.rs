@@ -28,8 +28,17 @@ pub struct ItemDisplay {
     pub icon_fdid: u32,
     pub quality: u8,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ProfessionPage {
+    #[default]
+    Recipes,
+    Specializations,
+    Orders,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ProfessionView {
+    pub page: ProfessionPage,
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
     pub child_skills: BTreeSet<u32>,
@@ -67,9 +76,11 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
         view.profession_icon,
     ));
     children.extend(skill_bar(view));
-    children.extend(tree::recipe_list(ctx, view));
-    children.extend(slots::schematic(view));
-    children.extend(recipes_tab());
+    if view.page == ProfessionPage::Recipes {
+        children.extend(tree::recipe_list(ctx, view));
+        children.extend(slots::schematic(view));
+    }
+    children.extend(page_tabs(view.page));
     rsx! { r#frame { name: "ProfessionsFrame", width: WIDTH, height: HEIGHT,
         left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
         strata: FrameStrata::Dialog, {children}
@@ -125,36 +136,69 @@ fn skill_bar(view: &ProfessionView) -> Element {
     out
 }
 
-fn recipes_tab() -> Element {
+fn page_tabs(page: ProfessionPage) -> Element {
     let mut out = Vec::new();
-    for (suffix, atlas, rect) in [
+    for (key, caption, selected, left, width, action) in [
         (
-            "Left",
-            "uiframe-activetab-left",
-            (21.0, HEIGHT - 2.0, 35.0, 42.0),
+            "Recipes",
+            "Recipes",
+            page == ProfessionPage::Recipes,
+            21.0,
+            108.0,
+            "profession:tab:recipes",
         ),
         (
-            "Middle",
-            "_uiframe-activetab-center",
-            (56.0, HEIGHT - 2.0, 36.0, 42.0),
+            "Specializations",
+            "Specializations",
+            page == ProfessionPage::Specializations,
+            130.0,
+            148.0,
+            "profession:tab:specializations",
         ),
         (
-            "Right",
-            "uiframe-activetab-right",
-            (92.0, HEIGHT - 2.0, 37.0, 42.0),
+            "Orders",
+            "Crafting Orders",
+            page == ProfessionPage::Orders,
+            279.0,
+            148.0,
+            "profession:tab:orders",
         ),
     ] {
-        out.extend(art::atlas(
-            &format!("ProfessionsRecipesTab{suffix}"),
-            atlas,
-            rect,
+        let mut children = Vec::new();
+        let state = if selected { "active" } else { "inactive" };
+        for (suffix, member, x, w) in [
+            ("Left", format!("uiframe-{state}tab-left"), 0.0, 35.0),
+            (
+                "Middle",
+                format!("_uiframe-{state}tab-center"),
+                35.0,
+                width - 72.0,
+            ),
+            (
+                "Right",
+                format!("uiframe-{state}tab-right"),
+                width - 37.0,
+                37.0,
+            ),
+        ] {
+            children.extend(art::atlas(
+                &format!("Professions{key}Tab{suffix}"),
+                &member,
+                (x, 0.0, w, 42.0),
+            ));
+        }
+        children.extend(label(
+            format!("Professions{key}TabText"),
+            caption,
+            (0.0, 3.0, width, 32.0),
+            (12.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
         ));
+        out.extend(
+            rsx! { button { name: {crate::quest_art::DynName(format!("Professions{key}Tab"))},
+                left, top: {HEIGHT - 2.0}, width, height: 42.0, pos_type: "absolute",
+                onclick: action, button_default_skin: false, {children}
+            } },
+        );
     }
-    out.extend(label(
-        "ProfessionsRecipesTabText".into(),
-        "Recipes",
-        (22.0, HEIGHT + 1.0, 100.0, 32.0),
-        (12.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
-    ));
     out
 }
