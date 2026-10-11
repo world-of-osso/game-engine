@@ -30,7 +30,8 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Nat
 ## Tests asserting this spec
 - `scripts/tests/test_cooldown_assist_export.py`: authentic DB2→CSV values and joins.
 - `godot/core/tests/cooldown_assist.rs`: categories/links, authored rotation order, unknown-rule refusal, missing-spec behavior.
-- `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, highlight option, per-spec selection/order.
+- `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, highlight option, per-spec selection/order and actual registry click emission.
+- `godot/tests/cooldown_assist_live.gd`: private-world/options probe; full feature/combat acceptance is not yet asserted.
 
 ## Known gaps (current cycle)
 - [ ] Native renderer/settings/Edit Mode and server-state adapters need build/live proof. Four roots are registered in the shared mover list; recommendation remains explicitly absent until the predicate adapter exists.
