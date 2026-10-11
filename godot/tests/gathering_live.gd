@@ -5,6 +5,7 @@ var scenario := OS.get_environment("GATHERING_SCENARIO")
 var shots := OS.get_environment("GATHERING_SHOTS")
 var failed := false
 var skill_text := ""
+const POSED_TRIANGLES := preload("res://tests/posed_triangle_points.gd")
 
 func run_fixture() -> void:
 	if OS.get_environment("GAME_SERVER_ADMIN_SOCKET") != "/tmp/game-server-admin-5720.sock": fail("private socket required"); return
@@ -121,12 +122,15 @@ func prove_skinning() -> void:
 	if not await wait_until(func(): return float(client.spells_state().target_health) == 0.0, "own wolf kill", 90000): return
 	if client.spells_state().damage_dealt.is_empty(): fail("wolf kill has no owner damage receipt"); return
 	await capture("wolf-kill")
-	await click_world(wolf)
-	if not await wait_until(func(): return control("LootFrame") != null, "corpse loot"): return
-	await checkpoint("corpse-loot", wolf)
-	if not await wait_until(func(): return control("LootFrame") == null, "corpse emptied"): return
 	await create_timer(1.0).timeout
 	await click_world(wolf)
+	if not await wait_until(func(): return control("LootFrame") != null or int(client.spells_state().casting) == 8613, "corpse interaction", 5000): return
+	if int(client.spells_state().casting) != 8613:
+		await capture("corpse-loot")
+		await checkpoint("corpse-loot", wolf)
+		if not await wait_until(func(): return control("LootFrame") == null, "corpse emptied"): return
+		await create_timer(1.0).timeout
+		await click_world(wolf)
 	if not await wait_until(func(): return int(client.spells_state().casting) == 8613, "skinning cast", 5000): return
 	await capture("skinning-cast")
 	if not await wait_until(func(): return control("LootFrame") != null, "skinning loot"): return
@@ -156,13 +160,13 @@ func wolf_node() -> Node3D:
 
 func click_world(node: Node3D) -> void:
 	var camera := root.get_camera_3d()
-	var aim := node.global_position + Vector3.UP
-	if not node.has_meta("game_object_entry"):
-		var meshes := node.find_children("*", "MeshInstance3D", true, false).filter(func(mesh): return mesh.is_visible_in_tree())
-		if meshes.is_empty(): fail("wolf has no drawn mesh"); return
-		var mesh := meshes[0] as MeshInstance3D
-		aim = mesh.to_global(mesh.get_aabb().get_center())
-	var point := camera.unproject_position(aim)
+	var point: Vector2
+	if node.has_meta("game_object_entry"):
+		point = camera.unproject_position(node.global_position + Vector3.UP)
+	else:
+		var picked = drawn_unit_point(node, camera)
+		if picked == null: fail("wolf has no visible pickable posed triangle"); return
+		point = picked
 	if not Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point): fail("resource outside view " + str(point)); return
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
@@ -177,6 +181,20 @@ func click_world(node: Node3D) -> void:
 		event.pressed = down
 		root.push_input(event, true)
 		await process_frame
+
+func drawn_unit_point(node: Node3D, camera: Camera3D) -> Variant:
+	var area := node.find_child("UnitPick", true, false) as Area3D
+	if area == null: return null
+	var id = area.get_meta("unit_server_id")
+	for candidate in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh := candidate as MeshInstance3D
+		if mesh.mesh == null or not mesh.is_visible_in_tree(): continue
+		for surface in range(mesh.mesh.get_surface_count()):
+			for center in POSED_TRIANGLES.centroids(mesh, surface):
+				var point := camera.unproject_position(center)
+				if Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
+					return point
+	return null
 
 func checkpoint(label: String, object: Node3D = null) -> void:
 	var record := {"label": label, "pid": OS.get_process_id(), "account": client.account_state(),
