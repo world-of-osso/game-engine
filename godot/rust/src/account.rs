@@ -211,6 +211,11 @@ pub enum AccountEvent {
     Bank(BankMessage),
     Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
+    GuildInvitation(shared::protocol::GuildInvitation),
+    GuildInviteResult(shared::protocol::GuildInviteResponse),
+    GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
+    GuildProfile(shared::protocol::GuildStateUpdate),
+    GuildCharter(shared::protocol::GuildCharterReply),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
@@ -870,6 +875,37 @@ impl Account {
         self.bridge()?
             .send::<_, shared::protocol::GuildChannel>(request)
             .map_err(SessionError)
+    }
+
+    pub fn send_guild_charter(
+        &self,
+        request: shared::protocol::GuildCharterRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::GuildChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_guild_command(
+        &self,
+        command: game_engine_ui_model::guild_ranks::GuildCommand,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::guild_ranks::GuildCommand;
+        use shared::protocol::*;
+        let bridge = self.bridge()?;
+        match command {
+            GuildCommand::Invite(target_character_name) => {
+                bridge.send::<_, AuthChannel>(GuildInviteRequest {
+                    target_character_name,
+                })
+            }
+            GuildCommand::AcceptInvite => bridge.send::<_, AuthChannel>(GuildAcceptInviteRequest),
+            GuildCommand::DeclineInvite => bridge.send::<_, AuthChannel>(GuildDeclineInviteRequest),
+            GuildCommand::SetMotd(text) => bridge.send::<_, GuildChannel>(SetGuildMotd { text }),
+            GuildCommand::SetInfo(text) => bridge.send::<_, GuildChannel>(SetGuildInfo { text }),
+            GuildCommand::Query => bridge.send::<_, GuildChannel>(QueryGuild),
+        }
+        .map_err(SessionError)
     }
 
     pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
@@ -1679,6 +1715,26 @@ impl Account {
         if Self::is_roster_message(&message) {
             return self.dispatch_roster_message(message, output);
         }
+        if message.is::<shared::protocol::GuildInvitation>() {
+            output.push(AccountEvent::GuildInvitation(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildInviteResponse>() {
+            output.push(AccountEvent::GuildInviteResult(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildAcceptInviteResponse>() {
+            output.push(AccountEvent::GuildAccepted(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildStateUpdate>() {
+            output.push(AccountEvent::GuildProfile(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildCharterReply>() {
+            output.push(AccountEvent::GuildCharter(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::GuildRanksState>() {
             output.push(AccountEvent::GuildRanks(decode(message)?));
             return Ok(());
@@ -2127,6 +2183,9 @@ mod toys_tests;
 #[cfg(test)]
 #[path = "account_dungeonclient_tests.rs"]
 mod dungeonclient_tests;
+#[cfg(test)]
+#[path = "account_guild_charter_tests.rs"]
+mod guild_charter_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]
