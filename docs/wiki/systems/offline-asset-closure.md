@@ -272,6 +272,23 @@ ranges. A version-2 sidecar records chunk offsets, decoded section ranges,
 selected record dependencies, required-record lists and per-profile gaps.
 Model asset receipts remain version 1.
 
+Verified 2026-10-11: all50 encoded chunks and47 readable plaintext chunks pass;
+16 required Extra and228 Option records authenticate. Gathering, eleven
+legacy/TDB demon displays, giver35579 and Cobrahn4213 have252 current-root
+asset/companion receipts, rehashed with0 failures. Canonical NPC cache publication
+preserves its exclusive pre-receipts4 backup; net additions are15 appearance
+and216 choice rows, with no deleted rows or new display coverage. The sidecar
+binds the installed cache hash; a second certification resolves identical chunks
+and required records. Evidence: `data/diagnostics/noinstall-receipts4-2026-10-11/`.
+
+This supersedes the predecessor's blanket rejection of readable DB2 records,
+not its full-profile acceptance boundary. No selected known record requires the
+unreadable Extra sections. Geoset records127642/127643 occupy an encrypted
+section containing their parent relationships too. Their parent displays are
+unknown: **0 known-required profile gaps,36 membership-unresolved profiles**.
+None can honestly be called complete or known to need those geoset records.
+Full no-install certification remains FAIL; existing runtime coverage is unchanged.
+
 WDC5 field/palette/common/encrypted-ID metadata is a prerequisite to record
 proof. Required child records additionally depend on the authored ID and
 relationship bytes. Unknown child parents block membership completeness rather
@@ -284,7 +301,8 @@ source-authentication limitation; the sidecar states that boundary explicitly.
 Tests: `scripts/tests/test_npc_chunk_certification.py` covers altered headers,
 plain/encrypted checksum corruption, headerless EKeys, size/trailing rejection,
 record boundary crossings, encrypted-section identity/parent mapping and
-backed-up publication without false runtime coverage.
+backed-up publication without false runtime coverage, complete-profile coverage,
+backup collision preservation and known-required versus unknown-membership summaries.
 
 ## Sources
 

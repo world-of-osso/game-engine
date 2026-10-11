@@ -2,11 +2,11 @@
 
 import hashlib
 import importlib.util
-from pathlib import Path
 import struct
 import sys
 import unittest
 import zlib
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import closure_casc
@@ -140,6 +140,7 @@ class ProfileTests(unittest.TestCase):
         self,
     ):
         import tempfile
+
         import import_npc_appearance as npc
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -162,9 +163,10 @@ class ProfileTests(unittest.TestCase):
             self.assertFalse(cache.with_name(cache.name + ".chunk-staged").exists())
 
     def test_gapped_profile_never_adds_runtime_coverage_on_publication(self):
-        import tempfile
         import contextlib
         import sqlite3
+        import tempfile
+
         import import_npc_appearance as npc
 
         with tempfile.TemporaryDirectory() as tmp:
