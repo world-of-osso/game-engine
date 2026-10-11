@@ -77,13 +77,14 @@ def publish_skin_companion(data, identity, asset, roots):
         return dict(asset, status='build_mismatch')
     filename = Path(asset['legacy_candidate_path']).name
     model, slot = int(filename[:-7]), int(filename[-7:-5])
-    parent = runtime_path(data, f'models/{model}.m2')
+    parent = runtime_path(data, f"products/{identity['product']}/{identity['build_key']}/models/{model}.m2")
     if not parent.is_file():
         return dict(asset, status='parent_bytes_absent')
     raw = parent.read_bytes()
     if hashlib.md5(raw).digest() != roots.get(model):
         return dict(asset, status='parent_content_mismatch')
-    references = asset_references(raw).get('skin', [])
+    dependencies = asset_references(raw)
+    references = dependencies.get('skin', [])
     if slot >= len(references) or references[slot] != asset['fdid']:
         return dict(asset, status='companion_mismatch')
     row = publish_legacy(data, identity, asset, roots)
@@ -97,8 +98,8 @@ def publish_skin_companion(data, identity, asset, roots):
         chains.write_asset_files(data, [(alias, skin)])
     except ValueError as error:
         return dict(row, status='scoped_conflict', reason=str(error))
-    dependencies = {f'{model}.m2': {'skin': references}}
-    chains.write_asset_index(data, identity, {'dependencies': dependencies, 'metadata': []}, [], [(alias, skin)])
+    staged = {'dependencies': {f'{model}.m2': dependencies}, 'metadata': []}
+    chains.write_asset_index(data, identity, staged, [], [(alias, skin)])
     return dict(row, alias=alias)
 
 
