@@ -35,6 +35,7 @@ pub(super) struct CooldownHud {
     pub(super) assisted_available: bool,
     pub(super) ui: Option<Gd<RegistryUi>>,
     model: CooldownViewerModel,
+    view: CooldownViewerView,
     settings: CooldownSettingsView,
     loaded_choices: bool,
 }
@@ -48,6 +49,7 @@ impl Default for CooldownHud {
             assisted_available: false,
             ui: None,
             model: Default::default(),
+            view: Default::default(),
             settings: Default::default(),
             loaded_choices: false,
         }
@@ -60,6 +62,7 @@ impl CooldownHud {
             ui.free();
         }
         self.settings.open = false;
+        self.view = CooldownViewerView::default();
     }
 
     pub(super) fn poll_data(&mut self, root: &Path) -> Result<(), String> {
@@ -435,6 +438,31 @@ impl GameClient {
                 icon.fraction,
             )?;
         }
+        drop(host);
+        self.spells.cooldowns.view = view;
         Ok(())
+    }
+
+    pub(crate) fn cooldown_viewer_snapshot(&self) -> VarDictionary {
+        let view = &self.spells.cooldowns.view;
+        let mut state = VarDictionary::new();
+        state.set("enabled", view.enabled);
+        state.set("settings_open", view.settings.open);
+        let mut icons = Array::<VarDictionary>::new();
+        for (category, entries) in view.categories.iter().enumerate() {
+            for entry in entries {
+                let mut icon = VarDictionary::new();
+                icon.set("category", category as i64);
+                icon.set("cooldown_id", i64::from(entry.cooldown_id));
+                icon.set("spell_id", i64::from(entry.spell_id));
+                icon.set("remaining", entry.remaining);
+                icon.set("fraction", entry.fraction);
+                icon.set("charges", entry.charges.map_or(-1, i64::from));
+                icon.set("highlight", entry.assisted_highlight);
+                icons.push(&icon);
+            }
+        }
+        state.set("icons", &icons);
+        state
     }
 }
