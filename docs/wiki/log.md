@@ -2,6 +2,9 @@
 
 [Audit](investigations/cooldown-assist-data.md): all six local Retail DB2 tables extracted with no dropped records; authored categories/step priorities and explicit predicate gaps, five core and four registry/projection tests. Runtime viewer/settings/clock adapter is under verification; assistant casting/highlights and private combat proof remain open. No shared realm/5000 changes.
 
+## 2026-10-11 — Native follower LFG transport
+
+[Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
@@ -3235,3 +3238,18 @@ Local CASC Scenario/ScenarioStep and existing criteria/TDB join; copy-scoped ach
 ### 2026-10-11 — Scenario native proof
 
 Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy re-entry verified;13 PNGs inspected. HP-primed fixture, one authored main stage and asset/LOS limits documented in [system SSOT](systems/scenarios.md).
+
+## 2026-10-11 — PvP progression bounded proof
+
+Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--verified-2026-10-11) with real-login combat-state and terrain-before-instance RED/GREEN, actual-aura talent activation, both-skin private5790 selection/toggle/relog/wallet evidence, and links to source/import and unresolved-policy contracts.
+## 2026-10-11 — raid-entry
+
+Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
+
+## 2026-10-11 — Gathering branch (acceptance incomplete)
+
+[Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.
+
+## 2026-10-11 — integrated native gathering baseline
+
+- [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
