@@ -77,6 +77,19 @@ fn source_fixture(name: &str) -> PathBuf {
         "ItemDisplayInfoMaterialRes",
         "ItemDisplayInfoID,ComponentSection,MaterialResourcesID\n1542,5,8\n",
     );
+    // Owned Retail equipment reads the pinned export; starter outfits keep the root copies.
+    for name in [
+        "ItemModifiedAppearance",
+        "ItemAppearance",
+        "ItemDisplayInfoModelMatRes",
+        "ItemDisplayInfo",
+        "ModelFileData",
+        "TextureFileData",
+        "ItemDisplayInfoMaterialRes",
+    ] {
+        let file = format!("{name}.csv");
+        std::fs::copy(root.join(&file), retail.join(&file)).unwrap();
+    }
     write(
         &forever.join("items"),
         "ItemModifiedAppearance",
@@ -369,7 +382,7 @@ fn owned_item_requires_paired_definition_source_but_display_only_remains_legacy(
 fn owned_retail_missing_material_never_borrows_forever_group() {
     let root = source_fixture("missing-retail-material");
     std::fs::write(
-        root.join("TextureFileData.csv"),
+        root.join("db2/12.1.0.69933/TextureFileData.csv"),
         "FileDataID,UsageType,MaterialResourcesID\n",
     )
     .unwrap();

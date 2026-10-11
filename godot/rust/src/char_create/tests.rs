@@ -100,8 +100,12 @@ fn offered_choice_ids(state: &CharCreateState, option_id: u32) -> Vec<u32> {
 fn requirement_rows() -> &'static HashMap<u32, (u32, i32)> {
     static ROWS: OnceLock<HashMap<u32, (u32, i32)>> = OnceLock::new();
     ROWS.get_or_init(|| {
-        let mut reader = csv::Reader::from_path(data_root().join("ChrCustomizationReq.csv"))
-            .expect("ChrCustomizationReq.csv");
+        let mut reader = csv::Reader::from_path(
+            data_root()
+                .join(game_engine_core::player_model_data::RETAIL_DB2_DIR)
+                .join("ChrCustomizationReq.csv"),
+        )
+        .expect("ChrCustomizationReq.csv");
         let headers = reader.headers().unwrap().clone();
         let column = |name: &str| headers.iter().position(|header| header == name).unwrap();
         let (id, req_type, class_mask) = (column("ID"), column("ReqType"), column("ClassMask"));

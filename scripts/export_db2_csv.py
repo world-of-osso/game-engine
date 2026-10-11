@@ -71,6 +71,50 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Retail 12.1.0.69933 cache inputs; field order from wowdev/WoWDBDefs
+    # definitions/<table>.dbd at the exact layout hashes below. Only consumed columns.
+    "ChrCustomizationOption": (
+        0xDCC2A86E,
+        [("ID", "id"), ("Name_lang", ("string", 0)), ("ChrModelID", 4),
+         ("OrderIndex", 5), ("ChrCustomizationCategoryID", 6),
+         ("OptionType", 7), ("Requirement", 10)],
+    ),
+    "ChrCustomizationChoice": (
+        0x9559C358,
+        [("ID", "id"), ("Name_lang", ("string", 0)),
+         ("ChrCustomizationOptionID", 2), ("ChrCustomizationReqID", 3),
+         ("ChrCustomizationVisReqID", 4), ("OrderIndex", ("u16", 5)),
+         ("SwatchColor_0", ("int", 10, 0)), ("SwatchColor_1", ("int", 10, 1))],
+    ),
+    "ChrCustomizationGeoset": (
+        0xBF55F2FB,
+        [("ID", "id"), ("GeosetType", ("i8", 0)), ("GeosetID", ("int", 1, 0))],
+    ),
+    "CharHairGeosets": (
+        0x5B2ACAEF,
+        [("ID", "id"), ("RaceID", ("i8", 0)), ("SexID", ("i8", 1)),
+         ("GeosetID", ("i8", 3)), ("Showscalp", ("u8", 4)),
+         ("GeosetType", ("i8", 6))],
+    ),
+    "ChrCustomizationCategory": (
+        0x1605B68A,
+        [("ID", "id"), ("CategoryName_lang", ("string", 0)),
+         ("CustomizeIcon", 1), ("CustomizeIconSelected", 2), ("OrderIndex", 3)],
+    ),
+    "CharComponentTextureLayouts": (
+        0x0B9AF134,
+        [("ID", "id"), ("Width", 0), ("Height", 1)],
+    ),
+    "CharComponentTextureSections": (
+        0x2173BA71,
+        [("ID", "id"), ("CharComponentTextureLayoutID", 0), ("SectionType", 1),
+         ("X", 2), ("Y", 3), ("Width", 4), ("Height", 5)],
+    ),
+    "ItemDisplayInfoMaterialRes": (
+        0xAA462C0E,
+        [("ID", "id"), ("ComponentSection", ("u8", 0)),
+         ("MaterialResourcesID", 1), ("ItemDisplayInfoID", "parent")],
+    ),
     # Local Retail 12.1.0.69933: six-float GeoBox precedes inline FileDataID.
     # Resource/flags/LOD ordering checked against 130,311 legacy CSV identities;
     # newly readable local rows include FDIDs 7567115/7567116, resource 85100.
@@ -749,7 +793,12 @@ TABLES = {
         ],
     ),
     # WoWDBDefs layout 03FAB755: the inline ID is field 2.
-    "ChrModel": (0x03FAB755, [("ID", "id"), ("Sex", ("u8", 3)), ("DisplayID", 4)]),
+    "ChrModel": (
+        0x03FAB755,
+        [("ID", "id"), ("Sex", ("u8", 3)), ("DisplayID", 4),
+         ("CharComponentTextureLayoutID", 5), ("CustomizeScale", ("float", 11, 0)),
+         ("CameraDistanceOffset", ("float", 13, 0))],
+    ),
     "ChrRaceXChrModel": (
         0xA203BC29,
         [
@@ -972,6 +1021,7 @@ NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 1
 # Tables whose inline ID is not their first field.
 INLINE_ID_FIELD = {
     "SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2, "ModelFileData": 1,
+    "ChrCustomizationOption": 1, "ChrCustomizationChoice": 1,
 }
 
 

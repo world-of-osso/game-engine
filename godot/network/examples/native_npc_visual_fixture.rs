@@ -269,6 +269,9 @@ fn execute_fixture_sql(path: &Path, sql: &str) -> Result<(), String> {
 }
 
 fn stage_npc_appearance(data: &Path) -> Result<(), String> {
+    let retail = data.join(game_engine_core::player_model_data::RETAIL_DB2_DIR);
+    fs::create_dir_all(&retail)
+        .map_err(|error| format!("Create fixture Retail inputs: {error}"))?;
     write_sqlite_fixture(data, "npc_appearance.sqlite", "
         CREATE TABLE display_coverage (display_id INTEGER PRIMARY KEY, requires_appearance INTEGER NOT NULL);
         CREATE TABLE appearances (display_id INTEGER PRIMARY KEY, race INTEGER NOT NULL, sex INTEGER NOT NULL, class INTEGER NOT NULL, baked_texture_fdid INTEGER NOT NULL);
@@ -324,23 +327,23 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO sections VALUES (910041,10,0,0,2,2),(910043,9,0,0,1024,1024),(910043,10,1024,0,1024,1024);
     ")?;
     fs::write(
-        data.join("ChrRaceXChrModel.csv"),
+        retail.join("ChrRaceXChrModel.csv"),
         "ChrRacesID,Sex,ChrModelID\n1,0,910040\n2,0,910042\n",
     )
     .map_err(|error| format!("Write fixture race-model CSV: {error}"))?;
     fs::write(
-        data.join("ChrRaces.csv"),
+        retail.join("ChrRaces.csv"),
         "ID,UnalteredVisualRaceID\n1,0\n2,0\n",
     )
     .map_err(|error| format!("Write fixture races CSV: {error}"))?;
     // Every fixture option and choice is ungated (requirement 0).
     fs::write(
-        data.join("ChrCustomizationReq.csv"),
+        retail.join("ChrCustomizationReq.csv"),
         "ID,ReqType,ClassMask,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID,RaceMasks_0,RaceMasks_1\n",
     )
     .map_err(|error| format!("Write fixture customization requirement CSV: {error}"))?;
     fs::write(
-        data.join("ChrCustomizationReqChoice.csv"),
+        retail.join("ChrCustomizationReqChoice.csv"),
         "ID,ChrCustomizationChoiceID,ChrCustomizationReqID\n",
     )
     .map_err(|error| format!("Write fixture required-choice CSV: {error}"))

@@ -108,9 +108,7 @@ impl CreationScene {
 
     fn catalog(&mut self) -> Result<&CreationSceneCatalog, String> {
         if self.catalog.is_none() {
-            self.catalog = Some(CreationSceneCatalog::load(
-                &self.data_root.join("ChrRaces.csv"),
-            )?);
+            self.catalog = Some(CreationSceneCatalog::load(&self.data_root)?);
         }
         Ok(self.catalog.as_ref().expect("catalog loaded above"))
     }

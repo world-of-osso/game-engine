@@ -11,8 +11,8 @@ use godot::classes::{
 use godot::prelude::*;
 use shared::components::SheathState;
 
-use crate::GameClient;
 use crate::world_models::{UnitAppearance, mesh_bounds};
+use crate::{GameClient, animation::WowAnimationPlayer};
 
 /// Vertical field of view of the sheet camera, degrees.
 const CAMERA_FOV: f32 = 30.0;
@@ -232,29 +232,68 @@ impl Scene {
         self.model = Some(model);
     }
 
+    /// Publish one independently completed pet using the fixed battlefield camera.
+    pub(crate) fn add_model_child(&mut self, child: &Gd<Node3D>) {
+        let mut model = self.model.clone().expect("preview model group installed");
+        model.add_child(child);
+        self.fit_viewport();
+        self.frame_battlefield();
+    }
+
+    /// Battle pads use a fixed projection, never the combined pets' idle envelope.
+    pub(crate) fn frame_battlefield(&mut self) {
+        self.camera.set_orthogonal(3.0, 0.05, 100.0);
+        let center = Vector3::new(0.0, 0.72, 0.0);
+        self.camera
+            .look_at_from_position(center + Vector3::new(10.0, 0.0, 0.0), center);
+    }
+
     /// Face the model and fit its height into the frame.
     fn frame_camera(&mut self, model: &Gd<Node3D>) {
-        let bounds = model
-            .find_children_ex("*")
-            .type_("MeshInstance3D")
-            .owned(false)
-            .done()
-            .iter_shared()
-            .map(|node| {
-                let mesh = node.cast::<MeshInstance3D>();
-                mesh.get_global_transform() * mesh.get_aabb()
-            })
-            .reduce(|bounds, next| bounds.merge(next))
-            .unwrap_or_default();
+        let bounds = preview_model_bounds(model);
         let size = self.viewport.get_size();
         let aspect = size.x as f32 / size.y as f32;
         let extent = bounds.size.y.max(bounds.size.z / aspect).max(0.1);
         let height = extent * (1.0 + 2.0 * FRAME_MARGIN);
         let center = bounds.center();
-        let distance = height / 2.0 / (CAMERA_FOV.to_radians() / 2.0).tan();
+        let distance = height / 2.0 / (CAMERA_FOV.to_radians() / 2.0).tan() + bounds.size.x / 2.0;
         let eye = center + Vector3::new(distance, 0.0, 0.0);
         self.camera.look_at_from_position(eye, center);
     }
+}
+
+fn preview_model_bounds(model: &Gd<Node3D>) -> Aabb {
+    let meshes = model
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    let mut bounds = meshes
+        .iter_shared()
+        .map(|node| {
+            let mesh = node.cast::<MeshInstance3D>();
+            let local = mesh.get_aabb().merge(mesh.get_custom_aabb());
+            mesh.get_global_transform() * local
+        })
+        .reduce(|bounds, next| bounds.merge(next))
+        .unwrap_or_default();
+    let animations = model
+        .find_children_ex("*")
+        .type_("WowAnimationPlayer")
+        .owned(false)
+        .done();
+    for node in animations.iter_shared() {
+        let animation = node.cast::<WowAnimationPlayer>();
+        let Some(local) = animation.bind().preview_loop_bounds() else {
+            continue;
+        };
+        let parent = animation
+            .get_parent()
+            .expect("M2 animation parent")
+            .cast::<Node3D>();
+        bounds = bounds.merge(parent.get_global_transform() * local);
+    }
+    bounds
 }
 
 /// A transparent own-world viewport with the sheet camera and its light.

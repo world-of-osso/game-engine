@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Northshire spell10848/kit989 owner: real attachment19, delayed visual regression.
+models/124640.m2
+models/12464000.skin
 # Authenticated Ethereal Portal kits: authored zero-scale billboard growth.
 products/wow/dcfc90fffd79ba00406ae46f5f657592/models/192572.m2
 products/wow/dcfc90fffd79ba00406ae46f5f657592/models/19257200.skin
@@ -232,10 +235,10 @@ ZoneLightPoint.csv
 db2/12.1.0.69933/LightParams.csv
 cache/customization-v4.sqlite
 cache/char_texture-v2.sqlite
-ChrRaceXChrModel.csv
-ChrRaces.csv
-ChrCustomizationReq.csv
-ChrCustomizationReqChoice.csv
+db2/12.1.0.69933/ChrRaceXChrModel.csv
+db2/12.1.0.69933/ChrRaces.csv
+db2/12.1.0.69933/ChrCustomizationReq.csv
+db2/12.1.0.69933/ChrCustomizationReqChoice.csv
 WarbandScene.csv
 WarbandScenePlacement.csv
 WarbandScenePlacementOption.csv
@@ -276,7 +279,6 @@ db2/12.1.0.69933/SpellShapeshiftForm.csv
 db2/12.1.0.69933/SpellDescriptionVariables.csv
 db2/12.1.0.69933/SpellXDescriptionVariables.csv
 db2/12.1.0.69933/SpellLevels.csv
-db2/12.1.0.69933/ChrRaces.csv
 db2/12.1.0.69933/ChrClasses.csv
 db2/12.1.0.69933/ChrSpecialization.csv
 db2/12.1.0.69933/SpecializationSpells.csv
@@ -348,23 +350,21 @@ db2/12.1.0.69933/CreatureSoundData.csv
 db2/12.1.0.69933/CreatureDisplayInfo.csv
 db2/12.1.0.69933/CreatureModelData.csv
 db2/12.1.0.69933/ChrModel.csv
-db2/12.1.0.69933/ChrRaceXChrModel.csv
 
 # game-engine-core --lib
 # customization_cache / char_texture_cache importers: their DB2 CSV sources
-ChrModel.csv
-ChrCustomizationOption.csv
-ChrCustomizationChoice.csv
-ChrCustomizationElement.csv
-ChrCustomizationMaterial.csv
-ChrCustomizationGeoset.csv
-CharHairGeosets.csv
-ChrCustomizationCategory.csv
-ChrCustomizationSkinnedModel.csv
-ChrModelTextureLayer.csv
-CharComponentTextureSections.csv
-CharComponentTextureLayouts.csv
-ChrModelMaterial.csv
+db2/12.1.0.69933/ChrCustomizationOption.csv
+db2/12.1.0.69933/ChrCustomizationChoice.csv
+db2/12.1.0.69933/ChrCustomizationElement.csv
+db2/12.1.0.69933/ChrCustomizationMaterial.csv
+db2/12.1.0.69933/ChrCustomizationGeoset.csv
+db2/12.1.0.69933/CharHairGeosets.csv
+db2/12.1.0.69933/ChrCustomizationCategory.csv
+db2/12.1.0.69933/ChrCustomizationSkinnedModel.csv
+db2/12.1.0.69933/ChrModelTextureLayer.csv
+db2/12.1.0.69933/CharComponentTextureSections.csv
+db2/12.1.0.69933/CharComponentTextureLayouts.csv
+db2/12.1.0.69933/ChrModelMaterial.csv
 textures/464811.blp
 textures/1886758.blp
 textures/464043.blp
@@ -574,8 +574,6 @@ models/107202.wmo
 models/107203.wmo
 models/108022.wmo
 models/108023.wmo
-models/108104.wmo
-models/108105.wmo
 models/108106.wmo
 models/108107.wmo
 models/108238.wmo
@@ -1166,7 +1164,6 @@ models/5484842.wmo
 models/5521389.wmo
 models/5533970.wmo
 models/5533971.wmo
-models/5533972.wmo
 models/5533973.wmo
 models/5533974.wmo
 models/5533975.wmo
@@ -2192,12 +2189,6 @@ textures/3636577.blp
 textures/3613861.blp
 textures/3613868.blp
 # Jasperlode Mine (azeroth_33_49): ground and WMO walls of the mine walk
-textures/186770.blp
-textures/187115.blp
-textures/187138.blp
-textures/187127.blp
-textures/187125.blp
-textures/187100.blp
 
 # game-engine-core tests/m2_overhead.rs: Gnombus the X-Terminator and Huntress Jalin
 models/900914.m2

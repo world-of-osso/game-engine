@@ -111,18 +111,14 @@ impl OutfitData {
         let gear_dir = if forever {
             self.data_dir.join("db2/1.60.1.70205")
         } else {
-            self.data_dir.clone()
+            self.data_dir.join(crate::player_model_data::RETAIL_DB2_DIR)
         };
         let items_dir = if forever {
             gear_dir.join("items")
         } else {
             gear_dir.clone()
         };
-        let components_dir = if forever {
-            gear_dir.clone()
-        } else {
-            gear_dir.join("db2/12.1.0.69933")
-        };
+        let components_dir = &gear_dir;
         let product = if forever {
             crate::asset_product::AssetProduct::Forever
         } else {
@@ -137,11 +133,11 @@ impl OutfitData {
         };
         let data = LoadedOutfitData {
             source_connection: Some(Mutex::new(connection)),
-            components: ComponentFileData::load_source(&components_dir)?,
+            components: ComponentFileData::load_source(components_dir)?,
             model_materials: if forever {
                 ModelMaterials::new()
             } else {
-                load_model_materials(&self.data_dir)?
+                load_model_materials(&gear_dir)?
             },
             helmet_geoset_rules,
             ..LoadedOutfitData::default()

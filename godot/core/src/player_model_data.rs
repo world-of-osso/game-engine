@@ -11,6 +11,8 @@ use crate::csv_util::read_numeric_rows;
 /// Retail defines only TBD NPC Race placeholders for these IDs.
 pub(crate) const FOREVER_RACES: [u8; 2] = [95, 96];
 pub(crate) const FOREVER_DB2_DIR: &str = "db2/1.60.1.70205";
+/// Authoritative Retail CSV export used by client cache importers and runtime catalogs.
+pub const RETAIL_DB2_DIR: &str = "db2/12.1.0.69933";
 
 /// Uses the same source-selected race overlay as the body/customization catalogs.
 pub fn player_asset_product(race: u8) -> crate::asset_product::AssetProduct {

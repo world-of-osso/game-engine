@@ -14,10 +14,12 @@ pub struct CreationSceneCatalog {
 }
 
 impl CreationSceneCatalog {
-    pub fn load(path: &Path) -> Result<Self, String> {
-        let file = File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
-        let mut catalog = Self::parse(BufReader::new(file), path)?;
-        let data_root = path.parent().ok_or("ChrRaces path has no data root")?;
+    pub fn load(data_root: &Path) -> Result<Self, String> {
+        let path = data_root
+            .join(crate::player_model_data::RETAIL_DB2_DIR)
+            .join("ChrRaces.csv");
+        let file = File::open(&path).map_err(|err| format!("open {}: {err}", path.display()))?;
+        let mut catalog = Self::parse(BufReader::new(file), &path)?;
         let forever_path = data_root
             .join(crate::player_model_data::FOREVER_DB2_DIR)
             .join("ChrRaces.csv");
@@ -155,20 +157,27 @@ mod tests {
             std::env::temp_dir().join(format!("skyborne-scenes-{}-{nonce}", std::process::id()));
         let forever = root.join(crate::player_model_data::FOREVER_DB2_DIR);
         std::fs::create_dir_all(&forever).unwrap();
-        let path = root.join("ChrRaces.csv");
+        let retail = root.join(crate::player_model_data::RETAIL_DB2_DIR);
+        std::fs::create_dir_all(&retail).unwrap();
+        let path = retail.join("ChrRaces.csv");
+        std::fs::write(
+            root.join("ChrRaces.csv"),
+            "ID,CreateScreenFileDataID\n1,999\n",
+        )
+        .unwrap();
         std::fs::write(&path, "ID,CreateScreenFileDataID\n1,623712\n95,123\n").unwrap();
         std::fs::write(
             forever.join("ChrRaces.csv"),
             "ID,CreateScreenFileDataID\n1,999\n95,8035354\n96,8035354\n",
         )
         .unwrap();
-        let loaded = CreationSceneCatalog::load(&path).unwrap();
+        let loaded = CreationSceneCatalog::load(&root).unwrap();
         std::fs::write(
             forever.join("ChrRaces.csv"),
             "ID,CreateScreenFileDataID\n95,8035354\n",
         )
         .unwrap();
-        let incomplete = CreationSceneCatalog::load(&path).unwrap_err();
+        let incomplete = CreationSceneCatalog::load(&root).unwrap_err();
         std::fs::remove_dir_all(root).unwrap();
         assert_eq!(loaded.lookup(1).unwrap(), 623712);
         assert_eq!(loaded.lookup(95).unwrap(), 8035354);
