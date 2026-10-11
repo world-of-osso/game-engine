@@ -103,6 +103,20 @@ def publish_skin_companion(data, identity, asset, roots):
     return dict(row, alias=alias)
 
 
+def is_skin_alias(asset):
+    return (asset['extension'] == 'skin'
+            and Path(asset['legacy_candidate_path']).name != f"{asset['fdid']}.skin")
+
+
+def publish_miss(data, identity, asset, roots):
+    if asset['kind'] == 'missing_scoped_bytes':
+        if asset['actual_build'] != identity['build_key']:
+            return dict(asset, status='build_mismatch')
+        if is_skin_alias(asset):
+            return publish_skin_companion(data, identity, asset, roots)
+    return publish_legacy(data, identity, asset, roots)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--misses', type=Path, required=True)
@@ -120,14 +134,13 @@ def main():
     indices, _, sources = closure_casc.load_indices(args.install)
     wanted = {row['fdid'] for row in assets}
     wanted.update(int(Path(row['legacy_candidate_path']).name[:-7])
-                  for row in assets if row['kind'] == 'missing_scoped_bytes')
+                  for row in assets if row['kind'] == 'missing_scoped_bytes' and is_skin_alias(row))
     authenticated = {name: authenticate_root(args.install, products[name], wanted, indices, args.output)
                      for name in sorted(EXPECTED_BUILDS)}
     results = []
     for asset in assets:
         identity, roots = authenticated[asset['product']]
-        publish = publish_skin_companion if asset['kind'] == 'missing_scoped_bytes' else publish_legacy
-        row = publish(args.data, identity, asset, roots)
+        row = publish_miss(args.data, identity, asset, roots)
         if row['status'] == 'content_mismatch':
             row['other_authenticated_matches'] = [name for name, (_, keys) in authenticated.items()
                                                   if keys.get(asset['fdid'], b'').hex() == row['legacy_content_key']]
