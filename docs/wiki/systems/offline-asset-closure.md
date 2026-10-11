@@ -196,7 +196,9 @@ extracted-only bubblewrap hides the configured install/CASC paths. Character
 select authentication,62 representative race/body selections and both-skin
 Northshire/Skyborne/mount scenarios completed. Glue screens stay Modern by
 contract; no alternate skin forced. All139 original PNGs were inspected in
-labeled sheets; missing/incomplete models remain visible, not rendering PASS.
+labeled sheets, with mount/roster detail crops. Textured horse+rider renders in
+both skins after own458 cast/go (bounded one-mount PASS). The roster preview and
+many creation/NPC chains remain missing/incomplete; no general rendering PASS.
 
 **Certification still fails.** The480 earlier broad-sweep identities become170
 emitted identities in this narrower2-zone recheck:130 newly exposed receipt
