@@ -355,6 +355,9 @@ impl RegistryModel {
                 game_engine_ui_model::mail_frame_component::apply_mail_body_postsetup(
                     &mut self.registry,
                 );
+                game_engine_ui_model::guild_bank_frame_component::apply_guild_bank_postsetup(
+                    &mut self.registry,
+                );
                 // The NPC canvas's own backpack portrait.
                 self.icon_masks.apply(&mut self.registry);
             }
