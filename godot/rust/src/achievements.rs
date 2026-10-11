@@ -6,6 +6,7 @@ use game_engine_ui_model::achievements::{self as model};
 use godot::prelude::*;
 use shared::protocol::{AchievementStateUpdate, AchievementToastSnapshot, QueryAchievementCatalog};
 use std::collections::VecDeque;
+use std::path::{Path, PathBuf};
 
 #[derive(Default)]
 pub(crate) struct Achievements {
@@ -13,6 +14,8 @@ pub(crate) struct Achievements {
     toast_ui: Option<Gd<RegistryUi>>,
     toasts: VecDeque<AchievementToastSnapshot>,
     toast_remaining: f32,
+    tracking_path: Option<PathBuf>,
+    saved_tracking: Vec<u32>,
 }
 impl Achievements {
     pub(crate) fn visit_uis(
@@ -29,6 +32,8 @@ impl Achievements {
         free(&mut self.toast_ui);
         self.toasts.clear();
         self.toast_remaining = 0.0;
+        self.tracking_path = None;
+        self.saved_tracking.clear();
     }
 }
 fn free(ui: &mut Option<Gd<RegistryUi>>) {
@@ -82,6 +87,7 @@ impl GameClient {
             free(&mut self.achievements.ui);
             return Ok(());
         }
+        self.load_achievement_tracking()?;
         if self.account.session.gameplay_input_allowed() && self.keyboard_free() {
             let input = self.physical_input.gameplay_state(true);
             if self
@@ -113,10 +119,54 @@ impl GameClient {
                 self.send_achievement_requests(requests)?;
             }
         }
+        self.persist_achievement_tracking()?;
         self.sync_achievements()?;
         self.advance_achievement_toast(delta)?;
         Ok(())
     }
+    fn load_achievement_tracking(&mut self) -> Result<(), FrameError> {
+        let character = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or("Achievement tracking requires a selected character")?;
+        let path = self
+            .account
+            .hud_layout_path()?
+            .with_extension(format!("achievements-{character}.json"));
+        if self.achievements.tracking_path.as_ref() == Some(&path) {
+            return Ok(());
+        }
+        let ids = read_tracking_ids(&path)?;
+        self.achievements.tracking_path = Some(path);
+        self.achievements.saved_tracking = ids.clone();
+        self.account.achievements.tracked.clear();
+        self.account.achievements.tracked_ids.clear();
+        for id in ids {
+            let requests = self
+                .account
+                .achievements
+                .action(&format!("achievement:restore:{id}"));
+            self.send_achievement_requests(requests)?;
+        }
+        Ok(())
+    }
+
+    fn persist_achievement_tracking(&mut self) -> Result<(), String> {
+        let ids = &self.account.achievements.tracked_ids;
+        if *ids == self.achievements.saved_tracking {
+            return Ok(());
+        }
+        let path = self
+            .achievements
+            .tracking_path
+            .as_ref()
+            .ok_or("Achievement tracking path was not initialized")?;
+        write_tracking_ids(path, ids)?;
+        self.achievements.saved_tracking = ids.clone();
+        Ok(())
+    }
+
     fn apply_achievement_search_input(&mut self, ui: &Gd<RegistryUi>) -> Result<(), FrameError> {
         let search = {
             let host = ui.bind();
@@ -222,5 +272,62 @@ impl GameClient {
         self.achievements.toast_ui = Some(ui);
         self.achievements.toast_remaining = 5.0;
         Ok(())
+    }
+}
+
+fn read_tracking_ids(path: &Path) -> Result<Vec<u32>, String> {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            return Err(format!(
+                "Read achievement tracking {}: {error}",
+                path.display()
+            ));
+        }
+    };
+    let ids: Vec<u32> = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Decode achievement tracking {}: {error}", path.display()))?;
+    let distinct: std::collections::BTreeSet<_> = ids.iter().copied().collect();
+    if ids.len() > 10 || distinct.len() != ids.len() || ids.contains(&0) {
+        return Err(format!(
+            "Invalid achievement tracking IDs in {}",
+            path.display()
+        ));
+    }
+    Ok(ids)
+}
+
+fn write_tracking_ids(path: &Path, ids: &[u32]) -> Result<(), String> {
+    let bytes =
+        serde_json::to_vec(ids).map_err(|error| format!("Encode achievement tracking: {error}"))?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Create achievement tracking directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+    std::fs::write(path, bytes)
+        .map_err(|error| format!("Write achievement tracking {}: {error}", path.display()))
+}
+
+#[cfg(test)]
+mod tracking_tests {
+    use super::*;
+    #[test]
+    fn dungeonclient_tracking_preferences_roundtrip_and_reject_corrupt_ids() {
+        let path =
+            std::env::temp_dir().join(format!("achievement-tracking-{}.json", std::process::id()));
+        write_tracking_ids(&path, &[633, 1068]).unwrap();
+        assert_eq!(read_tracking_ids(&path).unwrap(), vec![633, 1068]);
+        std::fs::write(&path, "[633,633]").unwrap();
+        assert!(
+            read_tracking_ids(&path)
+                .unwrap_err()
+                .contains("Invalid achievement tracking IDs")
+        );
+        std::fs::remove_file(&path).unwrap();
     }
 }
