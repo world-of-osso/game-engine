@@ -49,6 +49,16 @@ pub(crate) fn decode_message(message: ProtocolMessage) -> Result<EncounterMessag
     decode(message).map(EncounterMessage::Disengage)
 }
 
+fn timeline_spell_ids(event: &EncounterTimelineEvent) -> Vec<u32> {
+    match event {
+        EncounterTimelineEvent::Timers { timers, .. } => {
+            timers.iter().map(|timer| timer.spell_id).collect()
+        }
+        EncounterTimelineEvent::Cast { spell_id, .. } => vec![*spell_id],
+        EncounterTimelineEvent::Phase { .. } => Vec::new(),
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct EncounterFrames {
     pub active: Option<EncounterStart>,
@@ -142,44 +152,48 @@ impl GameClient {
             _ => {}
         }
         if let EncounterMessage::Timeline(event) = message {
-            let play_warning_sound = matches!(
-                event,
-                EncounterTimelineEvent::Cast { .. } | EncounterTimelineEvent::Phase { .. }
-            );
-            let Some(catalog) = self.spells.catalog() else {
-                godot_error!("Encounter timeline arrived before spell catalog readiness");
-                return;
-            };
-            let spell_ids: Vec<u32> = match &event {
-                EncounterTimelineEvent::Timers { timers, .. } => {
-                    timers.iter().map(|t| t.spell_id).collect()
-                }
-                EncounterTimelineEvent::Cast { spell_id, .. } => vec![*spell_id],
-                EncounterTimelineEvent::Phase { .. } => Vec::new(),
-            };
-            if let Some(id) = spell_ids.iter().find(|id| catalog.get(**id).is_none()) {
-                godot_error!("Encounter spell {id} absent from shipped catalog");
-                return;
-            }
-            self.encounter.timeline.receive(
-                event,
-                shared::protocol::read_encounter_unix_ms(),
-                |id| {
-                    let spell = catalog.get(id).expect("validated encounter spell");
-                    (spell.name.to_string(), spell.icon_fdid)
-                },
-            );
-            if play_warning_sound
-                && self.client_options.hud.encounter_warnings
-                && self.client_options.hud.encounter_sounds
-                && let Err(error) =
-                    self.play_ui_sound_kit(game_engine_core::ui_sound_kits::RAID_BOSS_EMOTE_WARNING)
-            {
-                godot_error!("Encounter warning sound: {error}");
-            }
+            self.receive_timeline(event);
+        } else {
+            self.encounter.frames.receive(message);
+        }
+    }
+
+    fn receive_timeline(&mut self, event: EncounterTimelineEvent) {
+        let Some(catalog) = self.spells.catalog() else {
+            godot_error!("Encounter timeline arrived before spell catalog readiness");
+            return;
+        };
+        if let Some(id) = timeline_spell_ids(&event)
+            .into_iter()
+            .find(|id| catalog.get(*id).is_none())
+        {
+            godot_error!("Encounter spell {id} absent from shipped catalog");
             return;
         }
-        self.encounter.frames.receive(message);
+        let play_sound = matches!(
+            event,
+            EncounterTimelineEvent::Cast { .. } | EncounterTimelineEvent::Phase { .. }
+        );
+        self.encounter
+            .timeline
+            .receive(event, shared::protocol::read_encounter_unix_ms(), |id| {
+                let spell = catalog.get(id).expect("validated encounter spell");
+                (spell.name.to_string(), spell.icon_fdid)
+            });
+        if play_sound {
+            self.play_encounter_warning_sound();
+        }
+    }
+
+    fn play_encounter_warning_sound(&mut self) {
+        let enabled =
+            self.client_options.hud.encounter_warnings && self.client_options.hud.encounter_sounds;
+        if enabled
+            && let Err(error) =
+                self.play_ui_sound_kit(game_engine_core::ui_sound_kits::RAID_BOSS_EMOTE_WARNING)
+        {
+            godot_error!("Encounter warning sound: {error}");
+        }
     }
 
     pub(crate) fn update_encounter(&mut self, delta: f32) -> Result<(), FrameError> {
@@ -197,6 +211,11 @@ impl GameClient {
             ui.set_visible(in_world);
             ui.bind_mut().set_state(self.encounter.warnings.clone())?;
         }
+        self.update_timeline_screen(in_world)?;
+        Ok(())
+    }
+
+    fn update_timeline_screen(&mut self, in_world: bool) -> Result<(), FrameError> {
         let state = EncounterTimelineScreen {
             timeline: self.encounter.timeline.clone(),
             enabled: self.client_options.hud.encounter_timeline,
@@ -205,16 +224,25 @@ impl GameClient {
             preview: self.hud_editor.draft.active,
         };
         if in_world && self.encounter.timeline_ui.is_none() {
-            let mut ui = RegistryUi::new_alloc();
-            ui.set_name("EncounterTimelineUI");
-            self.base_mut().add_child(&ui);
-            ui.bind_mut().show_encounter_timeline(state.clone())?;
-            self.encounter.timeline_ui = Some(ui);
+            self.attach_timeline_screen(state.clone())?;
         }
         if let Some(ui) = &mut self.encounter.timeline_ui {
             ui.set_visible(in_world);
             ui.bind_mut().set_state(state)?;
         }
+        Ok(())
+    }
+
+    fn attach_timeline_screen(&mut self, state: EncounterTimelineScreen) -> Result<(), String> {
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("EncounterTimelineUI");
+        self.base_mut().add_child(&ui);
+        let result = ui.bind_mut().show_encounter_timeline(state);
+        if let Err(error) = result {
+            ui.free();
+            return Err(error);
+        }
+        self.encounter.timeline_ui = Some(ui);
         Ok(())
     }
 
