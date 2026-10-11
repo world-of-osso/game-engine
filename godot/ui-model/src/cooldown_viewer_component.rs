@@ -22,12 +22,16 @@ pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<CooldownViewerView>()
         .expect("CooldownViewerView in SharedContext");
-    state
+    let mut rows: Element = state
         .categories
         .iter()
         .enumerate()
         .flat_map(|(category, icons)| viewer(category, icons))
-        .collect()
+        .collect();
+    rows.extend(crate::cooldown_settings_component::settings_panel(
+        &state.settings,
+    ));
+    rows
 }
 
 fn viewer(category: usize, icons: &[CooldownIconView]) -> Element {
