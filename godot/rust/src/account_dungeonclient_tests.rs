@@ -5,6 +5,32 @@ use shared::protocol::{
     QueryAchievementCatalog,
 };
 
+#[test]
+fn follower_queue_native_account_retains_server_rejection_and_match_state() {
+    let mut account = account();
+    let mut output = Vec::new();
+    for error in [Some("follower map not imported".to_owned()), None] {
+        let update = shared::protocol::LfgStateUpdate {
+            snapshot: Some(shared::protocol::LfgSnapshot {
+                queued: false,
+                selected_role: Some(shared::protocol::GroupRoleSnapshot::Damage),
+                dungeon_ids: vec![2436],
+                queue_size: 0,
+                average_wait_secs: 0,
+                in_demand_roles: vec![],
+                role_check: None,
+                match_found: None,
+            }),
+            message: None,
+            error,
+        };
+        account
+            .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut output)
+            .unwrap();
+        assert_eq!(account.lfg, Some(update));
+    }
+}
+
 fn account() -> Account {
     Account::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))
 }
