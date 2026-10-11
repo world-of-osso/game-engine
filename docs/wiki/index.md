@@ -61,8 +61,9 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Native Adventure Guide](systems/adventure-guide.md) — authored Journal cache, shared both-skin pages, genuine spec/difficulty filters, strict boss-model preparation and explicit realm-backed gaps.
 
+- [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
-- [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
+- [Native battleground lifecycle](systems/battlegrounds.md) — WSG lifecycle plus source PvP wallet/talent/War Mode private both-skin proof; lifetime honor and reward/rating policies remain explicit gaps.
 
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 
