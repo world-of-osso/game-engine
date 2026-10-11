@@ -447,7 +447,7 @@ fn entry_button(
     rsx! { button {
         name: {DynName(format!("TalentNode{}Entry{}Spell{}Button",node.id,entry.id,entry.spell_id))},
         onclick: {action.as_str()}, enabled,button_atlas_highlight:{atlas.as_str()},button_highlight_alpha:hover_alpha,
-        button_atlas_pushed:{atlas.as_str()},
+        button_atlas_pressed:{atlas.as_str()},
         width: {node_size(node)/count as f32*scale}, height: {node_size(node)*scale}, button_default_skin:false,
         pos_type: "absolute", pos_x: {index as f32*node_size(node)/count as f32*scale}, pos_y:0.0,
     } }
@@ -535,7 +535,7 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
     let Some(view) = &state.talents else {
         return;
     };
-    apply_mainline_panel_buttons(registry);
+    apply_mainline_panel_buttons(registry, view);
     for node in view.nodes() {
         // RSX has no justify_v attribute; set the actual FontString property.
         let rank_name = format!("TalentNode{}Ranks", node.id);
@@ -564,7 +564,7 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
     }
 }
 
-fn apply_mainline_panel_buttons(registry: &mut FrameRegistry) {
+fn apply_mainline_panel_buttons(registry: &mut FrameRegistry, view: &TalentView) {
     if ui_toolkit::atlas::thread_skin() != ActiveSkin::Modern {
         return;
     }
@@ -574,8 +574,16 @@ fn apply_mainline_panel_buttons(registry: &mut FrameRegistry) {
         "TalentLoadoutSave",
         "TalentLoadoutDelete",
         "TalentLoadoutCancel",
-    ] {
-        if let Some(id) = registry.get_by_name(name)
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .chain(
+        view.graph
+            .heroes
+            .iter()
+            .map(|tree| format!("TalentHero{}Apply", tree.id)),
+    ) {
+        if let Some(id) = registry.get_by_name(&name)
             && let Some(frame) = registry.get_mut(id)
             && let Some(WidgetData::Button(button)) = frame.widget_data.as_mut()
         {
@@ -1069,7 +1077,7 @@ fn hero_choice_dialog(
     }
     children.extend(rsx! { button { name:"TalentCloseChoice",onclick:"talent:close_choice",
         width:{24.0*scale},height:{24.0*scale},button_default_skin:false,
-        button_atlas_normal:"RedButton-Exit",button_atlas_pushed:"RedButton-Exit-Pressed",button_atlas_highlight:"RedButton-Highlight",
+        button_atlas_up:"RedButton-Exit",button_atlas_pressed:"RedButton-Exit-Pressed",button_atlas_highlight:"RedButton-Highlight",
         pos_type:"absolute",pos_x:{(width-23.0)*scale},pos_y:0.0,frame_level:1000,
     }});
     rsx! {r#frame {name:"TalentChoiceFlyout",width:{width*scale},height:{height*scale},
@@ -1155,7 +1163,20 @@ fn hero_choice_column(
     let enabled = view
         .editor
         .can_purchase(view, view.level, node.id, entry.id);
-    if view.editor.rank(node.id, entry.id) > 0 {
+    if view.editor.rank(node.id, entry.id) > 0 && view.editor.hero_dirty(view) {
+        children.extend(panel_button(
+            format!("TalentHero{}Apply", tree.id),
+            "Apply Changes",
+            "talent:apply",
+            view.editor.apply().is_some(),
+            (
+                (width / 2.0 - 80.0) * scale,
+                (height - 70.0) * scale,
+                160.0 * scale,
+                22.0 * scale,
+            ),
+        ));
+    } else if view.editor.rank(node.id, entry.id) > 0 {
         children.extend(label(
             Label {
                 name: format!("TalentHero{}Active", tree.id),

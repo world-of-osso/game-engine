@@ -139,7 +139,7 @@ fn talents_choice_flyout_selects_one_entry_and_switches() {
     assert_eq!(editor.node_rank(node.id), 0);
     assert!(editor.purchase(&view, 80, node.id, node.entries[0].id));
     assert_eq!(editor.rank(node.id, node.entries[0].id), 1);
-    assert!(editor.choice_node.is_none());
+    assert_eq!(editor.choice_node, Some(node.id)); // Hero dialog retains staged Apply.
     assert!(editor.click(&view, 80, node.id, false));
     assert!(editor.purchase(&view, 80, node.id, node.entries[1].id));
     assert_eq!(editor.rank(node.id, node.entries[0].id), 0);
