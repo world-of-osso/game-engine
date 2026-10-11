@@ -19,6 +19,7 @@ fn book() -> ProfessionBook {
                 skill_line: 2540,
                 profession: 197,
                 category: "Bandages".into(),
+                category_order: 0,
                 name: "Linen Bandage".into(),
                 min_rank: 1,
                 trivial_low: 30,
@@ -31,6 +32,7 @@ fn book() -> ProfessionBook {
                 skill_line: 2540,
                 profession: 197,
                 category: "Bandages".into(),
+                category_order: 0,
                 name: "Heavy Linen Bandage".into(),
                 min_rank: 40,
                 trivial_low: 50,
@@ -43,6 +45,7 @@ fn book() -> ProfessionBook {
                 skill_line: 197,
                 profession: 197,
                 category: "Cloth".into(),
+                category_order: 0,
                 name: "Bolt of Linen Cloth".into(),
                 min_rank: 1,
                 trivial_low: 25,
@@ -123,6 +126,58 @@ fn professions_create_emits_spell_id_and_cast_quantity() {
     assert_eq!(book().craft_request(&bags(), true).unwrap().casts, 5);
 }
 #[test]
+fn professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn_rank() {
+    let dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    let recipe = catalog.get(2153).unwrap().clone();
+    assert_eq!(recipe.min_rank, 30);
+    let book = ProfessionBook {
+        recipes: vec![recipe],
+        snapshot: ProfessionSnapshot {
+            lines: vec![ProfessionSkillLine {
+                skill_line: 2532,
+                step: 1,
+                rank: 15,
+                max_rank: 300,
+            }],
+            spells: vec![2108, 2153],
+        },
+        selected: Some(2153),
+        quantity: 1,
+        ..Default::default()
+    };
+    let bags = InventoryState {
+        slots: vec![vec![
+            InventorySlot {
+                item_guid: 128,
+                item_id: 2318,
+                count: 14,
+                ..Default::default()
+            },
+            InventorySlot {
+                item_guid: 102,
+                item_id: 2320,
+                count: 1,
+                ..Default::default()
+            },
+        ]],
+        ..Default::default()
+    };
+    assert_eq!(book.craftable_count(&bags), 1);
+    assert_eq!(
+        book.craft_request(&bags, false),
+        Some(CraftRecipe {
+            spell_id: 2153,
+            casts: 1
+        })
+    );
+    let mut unlearned = book;
+    unlearned.snapshot.spells.retain(|spell| *spell != 2153);
+    assert!(unlearned.craft_request(&bags, false).is_none());
+}
+
+#[test]
 fn professions_missing_reagents_disable_create() {
     assert!(
         book()
@@ -155,13 +210,26 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     std::fs::create_dir_all(&dir).unwrap();
     for (table, data) in [
         (
+            "CraftingQuality",
+            "ID,QualityTier,CraftingQualityAtlasSetID\n14,2,7\n",
+        ),
+        ("CraftingQualityAtlasSet", "ID,IconInv\n7,20209\n"),
+        (
+            "UiTextureAtlasElement",
+            "ID,Name\n20209,Professions-Icon-Quality-Tier1-Inv\n",
+        ),
+        ("Item", "ID,CraftingQualityID\n244634,14\n2589,0\n"),
+        (
             "SkillLine",
             "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID\n197,Tailoring,3908,11,0\n2540,Classic Tailoring,0,11,197\n",
         ),
-        ("TradeSkillCategory", "ID,Name_lang\n1089,Bandages\n"),
+        (
+            "TradeSkillCategory",
+            "ID,Name_lang,OrderIndex\n1089,Bandages,20\n1090,Weaving,10\n",
+        ),
         (
             "SpellEffect",
-            "SpellID,DifficultyID,Effect,EffectItemType,EffectBasePointsF\n3275,0,24,1251,1\n3908,0,118,0,1\n",
+            "SpellID,DifficultyID,Effect,EffectItemType,EffectBasePointsF\n3275,0,24,1251,1\n2963,0,24,2996,1\n3908,0,118,0,1\n",
         ),
         (
             "SpellReagents",
@@ -169,14 +237,14 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
         ),
         (
             "SkillLineAbility",
-            "Spell,SkillLine,SkillupSkillLineID,TradeSkillCategoryID,MinSkillLineRank,TrivialSkillLineRankLow,TrivialSkillLineRankHigh\n3275,197,2540,1089,1,30,60\n3908,197,0,0,1,0,0\n",
+            "Spell,SkillLine,SkillupSkillLineID,TradeSkillCategoryID,MinSkillLineRank,TrivialSkillLineRankLow,TrivialSkillLineRankHigh\n3275,197,2540,1089,1,30,60\n2963,197,2540,1090,1,25,50\n3908,197,0,0,1,0,0\n",
         ),
     ] {
         std::fs::write(dir.join(format!("{table}.csv")), data).unwrap();
     }
     let catalog = RecipeCatalog::load(&dir).unwrap();
-    assert_eq!(catalog.recipes.len(), 1);
-    let recipe = &catalog.recipes[0];
+    assert_eq!(catalog.recipes.len(), 2);
+    let recipe = catalog.get(3275).unwrap();
     assert_eq!(
         (recipe.spell_id, recipe.skill_line, recipe.output),
         (3275, 2540, (1251, 1))
@@ -186,6 +254,18 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     assert_eq!((recipe.trivial_low, recipe.trivial_high), (30, 60));
     assert_eq!(catalog.openers[&3908], 197);
     assert_eq!(catalog.skill_names[&2540], "Classic Tailoring");
+    assert_eq!(catalog.crafting_quality[&244634].tier, 2);
+    assert!(!catalog.crafting_quality.contains_key(&2589));
+    let book = ProfessionBook {
+        snapshot: ProfessionSnapshot {
+            spells: vec![3275, 2963],
+            ..Default::default()
+        },
+        recipes: catalog.recipes,
+        ..Default::default()
+    };
+    let categories: Vec<_> = book.groups().into_iter().map(|(name, _)| name).collect();
+    assert_eq!(categories, ["Weaving", "Bandages"]);
     std::fs::remove_dir_all(dir).unwrap();
 }
 
