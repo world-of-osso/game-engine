@@ -15,6 +15,7 @@ mod bag_cursor;
 mod bag_destroy;
 mod bags;
 mod bank;
+mod battleground;
 mod camera;
 mod char_create;
 mod character_frame;
@@ -298,6 +299,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     professions: professions::Professions,
     pet_journal: pet_journal::CompanionJournal,
+    battleground: battleground::BattlegroundUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
     transmog: transmog::Transmog,
@@ -435,6 +437,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
             pet_journal: pet_journal::CompanionJournal::default(),
+            battleground: battleground::BattlegroundUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
             transmog: transmog::Transmog::default(),
@@ -1398,6 +1401,7 @@ impl GameClient {
         self.guild_ranks.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
+        self.battleground.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.transmog.visit_uis(&mut visit)?;
@@ -1945,6 +1949,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
+            ("Battleground", |c, _| c.update_battleground()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
             ("Transmog", |c, _| c.update_transmog()),
@@ -2098,6 +2103,10 @@ impl GameClient {
                 self.close_pet_journal();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
+                if let Some(ui) = self.battleground.ui.take() {
+                    ui.free();
+                }
+                self.battleground = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2142,6 +2151,7 @@ impl GameClient {
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::Pvp(update) => self.battleground.view.receive(update),
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::TransmogState(state) => self.receive_transmog_state(state),

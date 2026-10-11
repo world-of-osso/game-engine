@@ -8,6 +8,7 @@ mod auction_layout;
 mod bag_window;
 mod bag_windows;
 mod bags_bar;
+mod battleground;
 mod bossframes_warnings;
 mod buff_frame_textures;
 mod buffcancel;

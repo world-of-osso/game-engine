@@ -40,6 +40,7 @@ pub mod ui {
 }
 
 // In-world chat frame (docs/specs/chat-frame.md).
+pub mod battleground;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
 #[path = "ui/chat_frame.rs"]

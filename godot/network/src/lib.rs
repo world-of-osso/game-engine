@@ -250,6 +250,7 @@ impl NetworkBridge {
             .receive::<protocol::CollectionStateUpdate>()
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()
+            .receive::<protocol::PvpStateUpdate>()
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
             // Spellbook, action bar and casting.
