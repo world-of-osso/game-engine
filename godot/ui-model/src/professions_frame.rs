@@ -48,7 +48,7 @@ pub struct ProfessionView {
     pub page: ProfessionPage,
     pub specializations: crate::professions_specializations::SpecializationDraft,
     pub orders: crate::professions_orders::CraftingOrders,
-    pub order_recipes: Vec<crate::professions::Recipe>,
+    pub order_recipes: Vec<shared::protocol::CraftingOrderRecipeSnapshot>,
     pub order_can_place: bool,
     pub bag_counts: BTreeMap<u32, u32>,
     pub book: ProfessionBook,

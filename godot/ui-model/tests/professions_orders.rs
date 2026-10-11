@@ -31,6 +31,7 @@ fn view() -> ProfessionView {
                 skill_line: 2532,
                 kind: CraftingOrderKind::Public,
                 mine: false,
+                recipes: vec![],
                 orders: vec![CraftingOrderSnapshot {
                     id: 17,
                     spell_id: 2153,
@@ -51,6 +52,7 @@ fn view() -> ProfessionView {
                     status: CraftingOrderStatus::Open,
                     can_claim: true,
                     can_fulfill: false,
+                    can_release: false,
                     can_cancel: false,
                 }],
             }),

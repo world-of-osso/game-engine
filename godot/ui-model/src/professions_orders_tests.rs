@@ -1,18 +1,24 @@
 use super::*;
 use crate::bag_data::InventorySlot;
-fn recipe() -> Recipe {
-    Recipe {
+fn recipe() -> CraftingOrderRecipeSnapshot {
+    CraftingOrderRecipeSnapshot {
         spell_id: 2153,
         skill_line: 2532,
-        profession: 165,
-        category: "Leather Armor".into(),
-        category_order: 0,
+        item_id: 2303,
+        count: 1,
         name: "Handstitched Leather Pants".into(),
-        min_rank: 30,
-        trivial_low: 45,
-        trivial_high: 75,
-        output: (2303, 1),
-        reagents: vec![(2318, 4), (2320, 1)],
+        reagents: vec![
+            CraftingOrderReagent {
+                item_id: 2318,
+                quantity: 4,
+                supplied: 0,
+            },
+            CraftingOrderReagent {
+                item_id: 2320,
+                quantity: 1,
+                supplied: 0,
+            },
+        ],
     }
 }
 fn bags() -> InventoryState {
@@ -99,6 +105,7 @@ fn order_crafter_actions_require_server_eligibility_and_exact_selected_order() {
             skill_line: 2532,
             kind: CraftingOrderKind::Public,
             mine: false,
+            recipes: vec![recipe()],
             orders: vec![CraftingOrderSnapshot {
                 id: 17,
                 spell_id: 2153,
@@ -115,6 +122,7 @@ fn order_crafter_actions_require_server_eligibility_and_exact_selected_order() {
                 status: CraftingOrderStatus::Open,
                 can_claim: true,
                 can_fulfill: false,
+                can_release: false,
                 can_cancel: false,
             }],
         }),
