@@ -1073,7 +1073,7 @@ pub(super) fn dialogs(state: &SpellbookFrameState, scale: f32) -> Element {
     let [width, height] = state.viewport;
     let mut children = rsx! { button {
         name:"TalentHeroDialogCover",width,height,mouse_enabled:true,button_default_skin:false,onclick:"talent:close_choice",
-        background_color:"0.0,0.0,0.0,0.5",strata:FrameStrata::Dialog,frame_level:199,
+        background_color:"0.0,0.0,0.0,0.5",strata:FrameStrata::Dialog,frame_level:2000,
         pos_type:"absolute",pos_x:0.0,pos_y:0.0,
     }};
     children.extend(hero_choice_dialog(node, view, scale, state.viewport));
@@ -1115,7 +1115,7 @@ fn hero_choice_dialog(
         pos_type:"absolute",pos_x:{(width-23.0)*scale},pos_y:0.0,frame_level:1000,
     }});
     rsx! {r#frame {name:"TalentChoiceFlyout",width:{width*scale},height:{height*scale},
-        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(viewport[0]-width*scale)/2.0},pos_y:{70.0*scale},frame_level:200,
+        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(viewport[0]-width*scale)/2.0},pos_y:{70.0*scale},frame_level:2001,
         {children}
     }}
 }
