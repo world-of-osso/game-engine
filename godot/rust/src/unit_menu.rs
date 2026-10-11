@@ -76,6 +76,22 @@ pub(crate) fn player_items(
             action: entry.action().into(),
         })
         .collect();
+    if unit.eq_ignore_ascii_case(local) {
+        for (key, label, action) in [
+            (
+                "DungeonDifficulty",
+                "Dungeon Difficulty",
+                "unit_menu_dungeon_open",
+            ),
+            ("RaidDifficulty", "Raid Difficulty", "unit_menu_raid_open"),
+        ] {
+            items.push(UnitMenuItem {
+                name: format!("UnitFrameContextMenu{key}"),
+                label: label.into(),
+                action: action.into(),
+            });
+        }
+    }
     if !unit.eq_ignore_ascii_case(local) {
         items.push(UnitMenuItem {
             name: "UnitFrameContextMenuTrade".into(),
@@ -245,7 +261,9 @@ impl GameClient {
                 .unit(id)
                 .is_some_and(crate::replicated::is_unit)
         });
-        let selected = if on_frame("PetFrame") {
+        let selected = if on_frame("PlayerFrame") {
+            self.world.local_player_id().map(|id| (id, false))
+        } else if on_frame("PetFrame") {
             self.local_pet_id().map(|pet| (pet, false))
         } else {
             menu_unit(
@@ -350,6 +368,7 @@ impl GameClient {
             self.targeting_target(),
             self.targeting.focus,
             self.local_pet_id(),
+            self.world.local_player_id(),
         ]
         .contains(&Some(unit));
         if !still_available {
@@ -396,6 +415,82 @@ impl GameClient {
     }
 
     /// The menu at the pointer, kept on screen (Bevy `UnitFrameClick::menu_for`).
+    fn open_difficulty_submenu(&mut self, raid: bool) {
+        use game_engine_ui_model::inworld_unit_frames_component::{
+            DifficultyMenuEntry, DifficultyMenuState,
+        };
+        if !self.unit_menu.state.visible {
+            return;
+        }
+        let local = self
+            .account
+            .session
+            .selected_character_name
+            .as_deref()
+            .unwrap_or("");
+        let leader = !self.account.group.in_group() || self.account.group.is_leader(local);
+        let outside = self.world_map_id.is_some_and(|id| {
+            self.raid_info
+                .catalog
+                .loaded()
+                .and_then(|c| c.as_ref().ok())
+                .is_some_and(|c| !c.is_instance(id))
+        });
+        let enabled = leader && outside;
+        let selected = self.account.raid_difficulty;
+        let normalized = selected.map(|s| match s.legacy_difficulty_id {
+            5 => 3,
+            6 => 4,
+            id => id,
+        });
+        let ids: &[(u32, &str)] = if raid {
+            &[
+                (14, "Normal"),
+                (15, "Heroic"),
+                (16, "Mythic"),
+                (3, "10 Player"),
+                (4, "25 Player"),
+            ]
+        } else {
+            &[(1, "Normal"), (2, "Heroic"), (23, "Mythic")]
+        };
+        let entries = ids
+            .iter()
+            .map(|&(id, label)| DifficultyMenuEntry {
+                difficulty_id: id,
+                label: label.into(),
+                checked: if raid {
+                    if id <= 4 {
+                        normalized == Some(id)
+                    } else {
+                        selected.is_some_and(|s| s.difficulty_id == id)
+                    }
+                } else {
+                    self.account.dungeon_difficulty == Some(id)
+                },
+                enabled: enabled
+                    && if raid {
+                        selected.is_some()
+                            && (id > 4 || selected.is_some_and(|s| s.difficulty_id != 16))
+                    } else {
+                        self.account.dungeon_difficulty.is_some()
+                    },
+            })
+            .collect();
+        let menu = DifficultyMenuState {
+            x: self.unit_menu.state.x + UNIT_MENU_W,
+            y: self.unit_menu.state.y,
+            entries,
+        };
+        self.unit_menu.state.difficulty_menu = None;
+        self.unit_menu.state.raid_difficulty_menu = None;
+        if raid {
+            self.unit_menu.state.raid_difficulty_menu = Some(menu)
+        } else {
+            self.unit_menu.state.difficulty_menu = Some(menu)
+        }
+    }
+
     fn unit_menu_state(
         &self,
         title: String,
@@ -417,6 +512,7 @@ impl GameClient {
             y: (point.y / scale).clamp(0.0, max_y),
             player_items: items,
             difficulty_menu: None,
+            raid_difficulty_menu: None,
         }
     }
 
@@ -435,6 +531,14 @@ impl GameClient {
                 .get_name()
                 .to_string()
                 .starts_with("UnitFrameContextMenu")
+                || current
+                    .get_name()
+                    .to_string()
+                    .starts_with("UnitFrameRaidDifficultyMenu")
+                || current
+                    .get_name()
+                    .to_string()
+                    .starts_with("UnitFrameDifficultyMenu")
             {
                 return true;
             }
@@ -462,6 +566,53 @@ impl GameClient {
     }
 
     fn run_unit_menu_action(&mut self, action: &str) -> Result<(), SessionError> {
+        if action == "unit_menu_raid_open" || action == "unit_menu_dungeon_open" {
+            self.open_difficulty_submenu(action == "unit_menu_raid_open");
+            return Ok(());
+        }
+        if let Some(id) = action.strip_prefix("unit_menu_raid_difficulty:") {
+            let id: u32 = id
+                .parse()
+                .map_err(|e| SessionError(format!("Raid difficulty: {e}")))?;
+            if self
+                .unit_menu
+                .state
+                .raid_difficulty_menu
+                .as_ref()
+                .is_some_and(|m| m.entries.iter().any(|e| e.difficulty_id == id && e.enabled))
+            {
+                let selection = self
+                    .account
+                    .raid_difficulty
+                    .ok_or_else(|| SessionError("Raid selection unavailable".into()))?;
+                for request in game_engine_ui_model::raid_info::raid_selection_requests(
+                    selection,
+                    id,
+                    id == 3 || id == 4,
+                ) {
+                    self.account
+                        .send_raid_difficulty(request.difficulty_id, request.legacy)?;
+                }
+                self.unit_menu = UnitMenu::default();
+            }
+            return Ok(());
+        }
+        if let Some(id) = action.strip_prefix("unit_menu_dungeon_difficulty:") {
+            let id: u32 = id
+                .parse()
+                .map_err(|e| SessionError(format!("Dungeon difficulty: {e}")))?;
+            if self
+                .unit_menu
+                .state
+                .difficulty_menu
+                .as_ref()
+                .is_some_and(|m| m.entries.iter().any(|e| e.difficulty_id == id && e.enabled))
+            {
+                self.account.send_set_dungeon_difficulty(id)?;
+                self.unit_menu = UnitMenu::default();
+            }
+            return Ok(());
+        }
         let menu = std::mem::take(&mut self.unit_menu);
         if !menu.state.visible {
             return Ok(());

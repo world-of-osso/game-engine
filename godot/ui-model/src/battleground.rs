@@ -10,10 +10,19 @@ use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::El
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PvpAction {
     Query,
+    WarMode(bool),
+    SelectTalent { slot: u8, talent_id: u32 },
     Queue(u32),
     Dequeue,
     Respond { match_id: u64, accepted: bool },
     Leave(u64),
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PvpCategory {
+    #[default]
+    QuickMatch,
+    Rated,
+    PremadeGroups,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct PvpView {
@@ -25,6 +34,8 @@ pub struct PvpView {
     pub error: String,
     pub filter: Option<BgTeam>,
     pub results_dismissed: bool,
+    pub talent_slot: Option<u8>,
+    pub category: PvpCategory,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -37,6 +48,8 @@ impl Default for PvpView {
             error: String::new(),
             filter: None,
             results_dismissed: false,
+            talent_slot: None,
+            category: PvpCategory::QuickMatch,
         }
     }
 }
@@ -45,6 +58,15 @@ impl PvpView {
         self.pending = false;
         self.error = update.error.unwrap_or_default();
         if let Some(snapshot) = update.snapshot {
+            let previous_spec = self
+                .snapshot
+                .as_ref()
+                .and_then(|s| s.talents.as_ref())
+                .map(|t| t.spec_id);
+            let next_spec = snapshot.talents.as_ref().map(|t| t.spec_id);
+            if previous_spec != next_spec {
+                self.talent_slot = None;
+            }
             let old_match = self.battleground().map(|b| b.match_id);
             let match_changed = old_match != snapshot.battleground.as_ref().map(|b| b.match_id);
             let just_ended = snapshot
@@ -70,6 +92,14 @@ impl PvpView {
     }
     pub fn action(&mut self, action: &str) -> Option<PvpAction> {
         match action {
+            "pvp:category:quick" | "pvp:category:rated" | "pvp:category:groups" => {
+                self.category = match action {
+                    "pvp:category:rated" => PvpCategory::Rated,
+                    "pvp:category:groups" => PvpCategory::PremadeGroups,
+                    _ => PvpCategory::QuickMatch,
+                };
+                return None;
+            }
             "pvp:close" => {
                 self.visible = false;
                 return None;
@@ -98,11 +128,73 @@ impl PvpView {
             }
             _ => {}
         }
+        if action == "pvp:talents-close" {
+            self.talent_slot = None;
+            return None;
+        }
+        if let Some(slot) = action
+            .strip_prefix("pvp:talent-slot:")
+            .and_then(|s| s.parse::<u8>().ok())
+        {
+            if self
+                .snapshot
+                .as_ref()?
+                .talents
+                .as_ref()?
+                .slots
+                .iter()
+                .any(|s| s.index == slot && s.unlocked)
+            {
+                self.talent_slot = if self.talent_slot == Some(slot) {
+                    None
+                } else {
+                    Some(slot)
+                };
+            }
+            return None;
+        }
         if self.pending {
             return None;
         }
+        if let Some(id) = action
+            .strip_prefix("pvp:talent-choice:")
+            .and_then(|s| s.parse::<u32>().ok())
+        {
+            let slot = self.talent_slot?;
+            let talents = self.snapshot.as_ref()?.talents.as_ref()?;
+            let target = talents
+                .slots
+                .iter()
+                .find(|s| s.index == slot && s.can_change)?;
+            let choice = talents.choices.iter().find(|c| {
+                c.id == id && c.slot_mask & (1 << slot) != 0 && c.unavailable_reason.is_none()
+            })?;
+            if target.selected == Some(choice.id)
+                || talents.slots.iter().any(|s| s.selected == Some(choice.id))
+            {
+                return None;
+            }
+            self.pending = true;
+            self.talent_slot = None;
+            return Some(PvpAction::SelectTalent {
+                slot,
+                talent_id: id,
+            });
+        }
         let request = match action {
             "pvp:query" => PvpAction::Query,
+            "pvp:warmode" => {
+                let mode = self.snapshot.as_ref()?.war_mode.as_ref()?;
+                let permitted = if mode.desired {
+                    mode.can_disable
+                } else {
+                    mode.can_enable
+                };
+                if !permitted {
+                    return None;
+                }
+                PvpAction::WarMode(!mode.desired)
+            }
             "pvp:queue"
                 if self.battleground().is_none()
                     && self.snapshot.as_ref().is_none_or(|s| s.queue.is_none()) =>
@@ -144,11 +236,33 @@ fn queue(view: &PvpView) -> Element {
         "Player vs. Player",
         "pvp:close",
     );
-    children.extend(text(
-        "PVPQueueCategory",
-        "Unrated",
-        (24.0, 52.0, 150.0, 22.0),
-    ));
+    for (index, (title, action)) in [
+        ("Quick Match", "pvp:category:quick"),
+        ("Rated", "pvp:category:rated"),
+        ("Premade Groups", "pvp:category:groups"),
+    ]
+    .iter()
+    .enumerate()
+    {
+        children.extend(panel_button(
+            format!("PVPQueueFrameCategoryButton{}", index + 1),
+            title,
+            action,
+            true,
+            (10.0, 66.0 + index as f32 * 80.0, 168.0, 50.0),
+        ));
+    }
+    if view.category != PvpCategory::QuickMatch {
+        children.extend(category_panel(view));
+        return frame("PVPUIFrame", (563.0, 428.0), (24.0, 90.0), children);
+    }
+    if let Some(wallet) = &view.snapshot {
+        children.extend(text(
+            "PVPUIHonorCurrency",
+            &format!("Honor: {} / {}", wallet.honor, wallet.honor_max),
+            (194.0, 260.0, 340.0, 22.0),
+        ));
+    }
     children.extend(text(
         "HonorFrameTitle",
         "Battlegrounds",
@@ -193,6 +307,34 @@ fn queue(view: &PvpView) -> Element {
         (365.0, 388.0, 170.0, 22.0),
     ));
     frame("PVPUIFrame", (563.0, 428.0), (24.0, 90.0), children)
+}
+fn category_panel(view: &PvpView) -> Element {
+    if view.category == PvpCategory::PremadeGroups {
+        return text(
+            "LFGListPVPStub",
+            "Premade Groups\nGroup listing service unavailable",
+            (194.0, 52.0, 340.0, 100.0),
+        );
+    }
+    let mut children = text("ConquestFrameTitle", "Rated", (194.0, 52.0, 340.0, 22.0));
+    if let Some(wallet) = &view.snapshot {
+        children.extend(text(
+            "ConquestFrameBalance",
+            &format!("Conquest: {}", wallet.conquest),
+            (194.0, 90.0, 340.0, 22.0),
+        ));
+    }
+    children.extend(text(
+        "ConquestFramePolicy",
+        "Season progress and rating policy unavailable",
+        (194.0, 128.0, 340.0, 44.0),
+    ));
+    children.extend(text(
+        "ConquestFrameBrackets",
+        "2v2\n3v3\nRated Battlegrounds\nPlayed-match rating service unavailable",
+        (194.0, 190.0, 340.0, 120.0),
+    ));
+    children
 }
 fn invite(view: &PvpView) -> Element {
     if !view.invitation() {

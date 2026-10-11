@@ -29,7 +29,9 @@ mod units;
 pub use units::{edge_offset, group_minimap_blips, target_minimap_blip};
 #[path = "minimap_tracking.rs"]
 mod tracking;
-pub use tracking::{TrackingFilter, TrackingState, tracking_minimap_blips};
+pub use tracking::{
+    TrackingFilter, TrackingState, resource_tracking_minimap_blips, tracking_minimap_blips,
+};
 #[path = "minimap_ping.rs"]
 mod ping;
 pub use ping::{

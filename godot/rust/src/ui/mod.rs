@@ -1487,6 +1487,22 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_challenge(
+        &mut self,
+        state: game_engine_ui_model::challenge::ChallengeView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let registry = parent.registry();
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::challenge::challenge_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     pub fn show_combat_pet_stable(
         &mut self,
         state: game_engine_ui_model::pet_stable_component::StableFrameView,
@@ -1535,6 +1551,26 @@ impl RegistryUi {
         // BankFrame.xml:673 `toplevel="true"`.
         self.toplevel = true;
         Ok(())
+    }
+
+    pub fn show_raid_info(
+        &mut self,
+        state: game_engine_ui_model::raid_info::RaidInfoState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::raid_info::screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
     }
 
     pub fn show_achievement_window(
