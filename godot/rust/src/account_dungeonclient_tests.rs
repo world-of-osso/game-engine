@@ -1,8 +1,8 @@
 use super::*;
 use shared::protocol::{
     AchievementCatalogEntry, AchievementCatalogPage, AchievementCategoryEntry,
-    AchievementCriterionLine, AchievementStateUpdate, DungeonEncounterProgress, DungeonProgress,
-    QueryAchievementCatalog,
+    AchievementCriterionLine, AchievementScope, AchievementStateUpdate, DungeonEncounterProgress,
+    DungeonProgress, QueryAchievementCatalog,
 };
 
 fn account() -> Account {
