@@ -18,6 +18,14 @@ use shared::protocol::{
 pub fn quest_push_text(result: &shared::protocol::QuestPushResult) -> String {
     use shared::protocol::QuestPushReason as R;
     let name = &result.player_name;
+    if result.recipient
+        && let Some(text) = recipient_push_text(result.reason)
+    {
+        return format!(
+            "{name}'s attempt to share quest \"{}\" failed. {text}",
+            result.quest_title
+        );
+    }
     match result.reason {
         R::Success => format!("Sharing quest with {name}..."),
         R::Accepted => format!("{name} has accepted your quest."),
@@ -39,6 +47,23 @@ pub fn quest_push_text(result: &shared::protocol::QuestPushResult) -> String {
         R::Invalid => format!("{name} is not eligible for that quest."),
         R::TimerExpired => "Quest sharing timer has expired.".into(),
         R::CrossFactionRestricted => "Quests can't be shared in cross-faction groups.".into(),
+    }
+}
+
+fn recipient_push_text(reason: shared::protocol::QuestPushReason) -> Option<&'static str> {
+    use shared::protocol::QuestPushReason as R;
+    match reason {
+        R::Invalid => Some("You are not eligible for that quest."),
+        R::Dead => Some("You are dead."),
+        R::LogFull => Some("Your quest log is full."),
+        R::OnQuest => Some("You are already on that quest."),
+        R::AlreadyDone => Some("You have completed that quest."),
+        R::LowLevel => Some("You are too low level for that quest."),
+        R::HighLevel => Some("You are too high level for that quest."),
+        R::Class => Some("You are the wrong class for that quest."),
+        R::Race => Some("You are the wrong race for that quest."),
+        R::Prerequisite => Some("You must complete all of the prerequisite quests first."),
+        _ => None,
     }
 }
 

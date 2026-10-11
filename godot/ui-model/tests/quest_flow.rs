@@ -437,6 +437,26 @@ fn quest_share_popup_and_selected_log_button_use_authoritative_offer() {
 }
 
 #[test]
+fn quest_share_rejection_uses_retail_sender_and_recipient_strings() {
+    let mut result = shared::protocol::QuestPushResult {
+        quest_id: 62,
+        quest_title: "The Fargodeep Mine".into(),
+        player_name: "ShareA".into(),
+        reason: shared::protocol::QuestPushReason::OnQuest,
+        recipient: false,
+    };
+    assert_eq!(
+        game_engine_ui_model::quest_runtime::quest_push_text(&result),
+        "ShareA is already on that quest."
+    );
+    result.recipient = true;
+    assert_eq!(
+        game_engine_ui_model::quest_runtime::quest_push_text(&result),
+        "ShareA's attempt to share quest \"The Fargodeep Mine\" failed. You are already on that quest."
+    );
+}
+
+#[test]
 fn quest_tracker_countdown_changes_each_second_and_failed_quest_replaces_objectives() {
     let mut runtime = QuestRuntime::default();
     let mut entry = worgs(2);
