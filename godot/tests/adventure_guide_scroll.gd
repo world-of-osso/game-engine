@@ -62,6 +62,19 @@ func run() -> void:
 		root.push_input(event, true)
 		await process_frame
 	await settle()
+	if not client.adventure_guide_state().loaded:
+		await click("EncounterJournalCloseButton")
+		if client.adventure_guide_state().visible:
+			stop("Pending guide ignored its close button")
+			return
+		for pressed in [true, false]:
+			var reopen := InputEventKey.new()
+			reopen.keycode = KEY_J
+			reopen.physical_keycode = KEY_J
+			reopen.pressed = pressed
+			root.push_input(reopen, true)
+			await process_frame
+		await settle()
 	var open_deadline := Time.get_ticks_msec() + 60000
 	while not client.adventure_guide_state().loaded and Time.get_ticks_msec() < open_deadline:
 		await process_frame
