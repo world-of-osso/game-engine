@@ -369,6 +369,13 @@ impl WorldUnits {
         self.units.get(&id)?.main_hand_subclass
     }
 
+    /// Whether unit `id`'s requested owner visual is still loading.
+    pub(crate) fn unit_visual_loading(&self, id: u64) -> bool {
+        self.units
+            .get(&id)
+            .is_some_and(|unit| unit.loading.is_some())
+    }
+
     /// The model node of unit `id` that carries its M2 attachments.
     pub fn unit_model_node(&self, id: u64) -> Option<Gd<Node3D>> {
         self.units.get(&id)?.model_node()

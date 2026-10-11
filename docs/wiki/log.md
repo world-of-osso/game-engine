@@ -1,3 +1,7 @@
+## 2026-10-10 — Spell kit owner attachment ordering
+
+[Investigation](investigations/spell-kit-attach.md) classifies41 baseline non-asset lines:165 kit attachment occurrences all have authored anchors, but owner chains failed. Receipt recovery proves an additional ready-effect/late-owner race for spell10848. Scheduling now waits for the requested owner without restarting the kit timeline. Real-data RED recorded; GREEN/live pending.
+
 ## 2026-10-10 — Authentic battlefield pet scales
 
 [Authentic sizing](systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10) removes invented pose-bound normalization, preserves world scale and adds PetInstanceScale through the importer. Eight catalog tests and all eight both-skin native four-pair cases pass; eight v3 PNGs individually inspected. Fixed pads/camera, no world.db writes or master merge. Supersedes the rejected v2 composition acceptance below.

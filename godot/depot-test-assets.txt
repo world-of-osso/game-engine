@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Northshire spell10848/kit989 owner: real attachment19, delayed visual regression.
+models/124640.m2
+models/12464000.skin
 # Authenticated Ethereal Portal kits: authored zero-scale billboard growth.
 products/wow/dcfc90fffd79ba00406ae46f5f657592/models/192572.m2
 products/wow/dcfc90fffd79ba00406ae46f5f657592/models/19257200.skin
