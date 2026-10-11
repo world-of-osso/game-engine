@@ -216,8 +216,13 @@ The existing offline publisher authenticated **1,111 unique numeric assets and
 195 owner aliases** against content-key-checked local Retail/Forever metadata;
 all 1,306 published payloads were rehashed against their frozen root keys.
 The runtime's base-plus-five-fragments discovery reports 9,268 numeric receipts,
-zero duplicate mappings. These are scoped receipt proofs, not whole-catalog
-certification.
+zero duplicate mappings. A complete published-receipt recheck authenticates
+10,100 numeric/alias records against the two current installed roots and their
+payload hashes.208 historical Forever receipt records use build
+`e8dd824cf6c3d96cd01f804ca2ea5a63`; its local build config is absent, so this run
+does not re-authenticate them or silently substitute the active build.
+`all-receipt-root-proof.json` separates those cases. These are receipt proofs,
+not whole-catalog certification.
 
 Priority roots include gathering model219514, SFID509861 and texture219513;
 Lord Cobrahn4213; all14 recorded dungeon receipt gaps; warlock demon displays
