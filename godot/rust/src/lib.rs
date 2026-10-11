@@ -5,6 +5,7 @@ pub mod appearance_options;
 pub(crate) use game_engine_core::asset;
 pub use game_engine_core::{customization_data, outfit_data};
 mod achievements;
+mod adventure_guide;
 mod asset_startup;
 mod assets;
 mod auction;
@@ -72,7 +73,6 @@ mod particles;
 mod party_frames;
 mod pet_bar;
 mod pet_journal;
-mod adventure_guide;
 mod pet_stable;
 mod player_spells;
 #[path = "process_memory_status.rs"]
