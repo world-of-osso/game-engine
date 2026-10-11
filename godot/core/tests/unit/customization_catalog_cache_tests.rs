@@ -119,7 +119,7 @@ fn pinned_customization_tracks_race_model_inputs_and_ignores_root_csvs() {
     import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
     let conn = Connection::open(&path).unwrap();
     let model: u32 = conn
-        .query_row("SELECT chr_model_id FROM hair_geosets", [], |r| r.get(0))
+        .query_row("SELECT model_id FROM hair_geosets", [], |r| r.get(0))
         .unwrap();
     assert_eq!(model, 20);
     drop(conn);
