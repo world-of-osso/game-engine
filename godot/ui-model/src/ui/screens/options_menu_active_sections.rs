@@ -359,6 +359,28 @@ pub fn hud_body(hud: &HudOptionsView, layout: &LayoutOptionsView) -> OptionsPage
             layout_section::layout_settings_rows(layout),
             toggle_row("show_minimap", "Show Minimap", hud.show_minimap),
             toggle_row("show_action_bars", "Show Action Bars", hud.show_action_bars),
+            toggle_row(
+                "cooldown_viewer_enabled",
+                "Enable Cooldown Manager",
+                hud.cooldown_assist.viewer_enabled,
+            ),
+            toggle_row(
+                "assisted_highlight",
+                "Assisted Highlight",
+                hud.cooldown_assist.highlight_action_bar,
+            ),
+            toggle_row(
+                "cooldown_assisted_highlight",
+                "Highlight Cooldown Icons (World of Osso)",
+                hud.cooldown_assist.highlight_viewer,
+            ),
+            options_menu_sections::action_button_row(
+                "cooldown_settings",
+                "Cooldown Manager Settings",
+                "Choose and reorder specialization spells",
+                "Open",
+                "cooldown_settings",
+            ),
             toggle_row("show_nameplates", "Show Nameplates", hud.show_nameplates),
             slider_row(
                 "nameplate_distance",

@@ -467,7 +467,7 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
         ACTION_SPELLBOOK_CLOSE,
     );
     let content = frame_content(state, s);
-    rsx! {
+    let mut elements = rsx! {
         r#frame {
             name: SPELLBOOK_FRAME,
             width: {FRAME_W * s},
@@ -482,7 +482,9 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
             {player_spells_pages::bottom_tabs(state, s)}
             {frame_portrait(state, s)}
         }
-    }
+    };
+    elements.extend(talents_page::dialogs(state, s));
+    elements
 }
 
 fn frame_content(state: &SpellbookFrameState, s: f32) -> Element {

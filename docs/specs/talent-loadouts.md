@@ -28,7 +28,7 @@ Named trait configurations per specialization in the Talents footer. Mainline de
 - [ ] Native/private UDP proof, independent gate and current-revision test results.
 - [ ] Import/export: `Blizzard_ClassTalentImportExport.lua:172,200` calls `C_Traits.GetLoadoutSerializationVersion`; local generated API documentation declares only a number return. No verified numeric version exists in the supplied Lua/API contract. Do not infer it from Internet example strings or select a value by popularity.
 - [ ] Starter Build: authentic `TraitTreeLoadout`/entries exist; availability, activation and automatic next-purchase/deviation semantics are C APIs not represented by current server rules. No fake named Starter row.
-- [ ] PvP talents/Warmode: no authoritative slot eligibility/selection/activation or realm Warmode state/change contract. No fabricated slots or booleans.
+- [x] PvP tray/War Mode are supplied by the existing owner-backed [PvP progression](pvp-progression.md) implementation. [Talent rendering/live proof](../wiki/systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) covers their footer integration; PvP policy/runtime acceptance stays in its own contract.
 
 ## Out of scope
 Per-loadout action bar policies are not implemented by this trait-only task; existing server bar rewrite/pruning remains. No schema/world-data writes, master merge or default-realm mutation.

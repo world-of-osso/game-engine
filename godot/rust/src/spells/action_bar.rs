@@ -203,6 +203,21 @@ impl GameClient {
         let Some(ActionRef::Spell(spell_id)) = action else {
             return button;
         };
+        let assistant_action =
+            spell_id == game_engine_core::assisted_combat::SINGLE_BUTTON_ASSISTANT;
+        let recommended = self.spells.cooldowns.recommendation;
+        let spell_id = if assistant_action {
+            match recommended {
+                game_engine_core::cooldown_assist::Recommendation::Spell(id) => id,
+                _ => spell_id,
+            }
+        } else {
+            spell_id
+        };
+        button.assisted_highlight = !assistant_action
+            && self.client_options.hud.cooldown_assist.highlight_action_bar
+            && self.assisted_in_combat()
+            && recommended == game_engine_core::cooldown_assist::Recommendation::Spell(spell_id);
         let icon = self
             .spells
             .catalog()

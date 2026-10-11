@@ -1,4 +1,11 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Retail cooldown categories and assisted rotation: local CASC exact-layout exports.
+db2/12.1.0.69933/CooldownSet.csv
+db2/12.1.0.69933/CooldownSetSpell.csv
+db2/12.1.0.69933/CooldownSetLinkedSpell.csv
+db2/12.1.0.69933/AssistedCombat.csv
+db2/12.1.0.69933/AssistedCombatStep.csv
+db2/12.1.0.69933/AssistedCombatRule.csv
 # Retail GroupLootFrame XML raw toast sheet and named Need/Greed/Transmog/Pass icons.
 textures/609618.blp
 textures/5148876.blp
@@ -4664,3 +4671,36 @@ textures/407337.blp
 # Mainline achievement earned-alert plate, icon frame and shield atlas.
 textures/4035524.blp
 textures/130666.blp
+# Mainline talent spec backgrounds and authored node masks.
+textures/4631290.blp
+textures/4631293.blp
+textures/4631296.blp
+textures/4631299.blp
+textures/4631304.blp
+textures/4631307.blp
+textures/4631310.blp
+textures/4631313.blp
+textures/4631318.blp
+textures/4631321.blp
+textures/4631324.blp
+textures/4631329.blp
+textures/4631337.blp
+textures/4631340.blp
+textures/4631348.blp
+textures/4631371.blp
+textures/4631374.blp
+textures/4631377.blp
+textures/4631381.blp
+textures/4631383.blp
+textures/4631386.blp
+textures/4631389.blp
+textures/4631392.blp
+textures/4631395.blp
+textures/4633068.blp
+textures/4633071.blp
+textures/4638369.blp
+textures/4641164.blp
+textures/5179179.blp
+textures/7323575.blp
+# Adventure Guide cache from pinned local Retail Journal DB2s.
+cache/adventure_guide.sqlite
