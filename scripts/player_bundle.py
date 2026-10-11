@@ -3,6 +3,7 @@
 
 import argparse
 import fnmatch
+import itertools
 import os
 import shutil
 import subprocess
@@ -48,17 +49,28 @@ def copy_file(source, target):
         shutil.copy2(source, target)
 
 
+def copy_selected(root, destination, files):
+    if sys.platform != 'linux':
+        for relative in files:
+            copy_file(root / relative, destination / relative)
+        return
+    # Batch argv, not one cp process per asset (the shipped set exceeds a million files).
+    files = iter(files)
+    while batch := list(itertools.islice(files, 512)):
+        subprocess.run(['cp', '-Lp', '--parents', '--reflink=auto', '-t', str(destination),
+                        *map(str, batch)], cwd=root, check=True)
+
+
 def copy_data(root, bundle):
     for name in DATA_DIRS:
         (bundle / 'data' / name).mkdir(parents=True, exist_ok=True)
-    for relative in data_files(root):
-        copy_file(root / 'data' / relative, bundle / 'data' / relative)
+    copy_selected(root / 'data', bundle / 'data', data_files(root))
 
 
 def project_files(root):
     output = subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z', 'godot'])
     files = [Path(p.decode()) for p in output.split(b'\0') if p]
-    crates = {p.parent for p in files if p.name == 'Cargo.toml'}
+    crates = {p.parent for p in files if p.name == 'Cargo.toml' and p.parent != Path('godot')}
     for path in files:
         if any(parent in crates for parent in path.parents):
             continue
@@ -83,8 +95,8 @@ def write_extension_config(bundle, platform):
 
 
 def copy_project(root, bundle, platform):
-    for relative in project_files(root):
-        copy_file(root / relative, bundle / relative)
+    bundle.mkdir(parents=True, exist_ok=True)
+    copy_selected(root, bundle, project_files(root))
     write_extension_config(bundle, platform)
 
 
