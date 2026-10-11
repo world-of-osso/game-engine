@@ -405,7 +405,8 @@ impl GameClient {
             ui.set_name("CooldownViewerUI");
             ui.set_layer(2);
             self.base_mut().add_child(&ui);
-            if let Err(error) = ui.bind_mut().show_cooldown_viewer(view.clone()) {
+            let shown = ui.bind_mut().show_cooldown_viewer(view.clone());
+            if let Err(error) = shown {
                 ui.free();
                 return Err(error);
             }
