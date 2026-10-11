@@ -34,7 +34,7 @@ func run_test() -> void:
 	if character_name() != scenario.character:
 		fail("Wrong fixture character: " + character_name())
 		return
-	if not await take_quest(scenario.giver.at, scenario.giver.name, scenario.quest, scenario.title):
+	if not in_log(client.quest_state(), scenario.quest) and not await take_quest(scenario.giver.at, scenario.giver.name, scenario.quest, scenario.title):
 		return
 	await tap(KEY_ESCAPE)
 	if scenario.kind == "spell":
