@@ -32,6 +32,8 @@ class RequiredUiIconManifestTests(unittest.TestCase):
             data = root / "data"
             data.mkdir()
             (data / "db2").symlink_to(ROOT / "data/db2", target_is_directory=True)
+            (root / "scripts").mkdir()
+            (root / "scripts/ui-icon-exceptions.json").symlink_to(ROOT / "scripts/ui-icon-exceptions.json")
             with self.assertRaises(ValueError):
                 icons.prepare_ui_icons(root, root / "no-extractor")
             path = data / "cache/ui-icon-provenance.json"
