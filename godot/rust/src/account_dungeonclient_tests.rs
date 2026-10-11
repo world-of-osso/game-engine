@@ -10,6 +10,27 @@ fn follower_queue_native_account_retains_server_rejection_and_match_state() {
     let mut account = account();
     let mut output = Vec::new();
     for error in [Some("follower map not imported".to_owned()), None] {
+        use shared::protocol::{
+            GroupRoleSnapshot as Role, LfgMatchFoundSnapshot, LfgMatchMemberSnapshot,
+        };
+        let match_found = error.is_none().then(|| LfgMatchFoundSnapshot {
+            dungeon_id: 2436,
+            dungeon_name: "Ruby Life Pools".into(),
+            assigned_role: Role::Damage,
+            members: [
+                ("Alice", Role::Damage),
+                ("Captain Garrick", Role::Tank),
+                ("Crenna Earth-Daughter", Role::Healer),
+                ("Meredy Huntswell", Role::Damage),
+                ("Shuja Grimaxe", Role::Damage),
+            ]
+            .into_iter()
+            .map(|(name, role)| LfgMatchMemberSnapshot {
+                name: name.into(),
+                role,
+            })
+            .collect(),
+        });
         let update = shared::protocol::LfgStateUpdate {
             snapshot: Some(shared::protocol::LfgSnapshot {
                 queued: false,
@@ -19,7 +40,7 @@ fn follower_queue_native_account_retains_server_rejection_and_match_state() {
                 average_wait_secs: 0,
                 in_demand_roles: vec![],
                 role_check: None,
-                match_found: None,
+                match_found,
             }),
             message: None,
             error,
