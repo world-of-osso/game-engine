@@ -62,7 +62,9 @@ func units_named(name: String) -> Array:
 	var units := client.get_node_or_null("WorldUnits")
 	if units == null:
 		return []
-	var matches: Array = units.get_children().filter(func(unit):
+	# Replicated game objects are direct client children; creatures live in WorldUnits.
+	var candidates: Array = units.get_children() + client.get_children()
+	var matches: Array = candidates.filter(func(unit):
 		var named: bool = unit.get_meta("unit_name", unit.get_meta("game_object_name", "")) == name
 		var matching_entry: bool = desired_object_entry == 0 or unit.get_meta("game_object_entry", 0) == desired_object_entry
 		return named and matching_entry)
