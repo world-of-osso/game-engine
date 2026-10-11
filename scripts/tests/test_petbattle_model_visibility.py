@@ -50,7 +50,7 @@ class PetBattleModelVisibility(unittest.TestCase):
                 if ally:
                     # Mesh existence/full-frustum containment alone accepts tiny,
                     # centrally collapsed pets. Check both battlefield pads and size.
-                    x, y, width, height = model["rest_projected_px"]
+                    x, y, width, height = model["posed_projected_px"]
                     center_x, center_y = x + width / 2, y + height / 2
                     pad_x = (230, 520) if model["name"] == "AllyPet" else (760, 1050)
                     self.assertGreaterEqual(center_x, pad_x[0], model)
@@ -59,6 +59,8 @@ class PetBattleModelVisibility(unittest.TestCase):
                     self.assertLessEqual(center_y, 440, model)
                     self.assertGreaterEqual(height, 80, model)
                     self.assertLessEqual(height, 200, model)
+                    self.assertGreaterEqual(y + height, 370, model)
+                    self.assertLessEqual(y + height, 450, model)
             skin = os.environ.get("PETBATTLE_EXPECT_SKIN")
             if skin:
                 self.assertEqual(response["account"]["ui_skin"], skin)

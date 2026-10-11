@@ -1,17 +1,17 @@
 //! Native wild PvE battle HUD and a single camera framing the two active pet models.
 use crate::animation::WowAnimationPlayer;
-use crate::character_frame::preview::{Scene, bind_sheet_light, preview_model_bounds};
+use crate::character_frame::preview::{Scene, bind_sheet_light};
 use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wild_pet_battle::{MODEL_SCENE, WildBattleView, wild_battle_screen};
-use godot::classes::{CanvasLayer, Node3D};
+use godot::classes::{CanvasLayer, MeshInstance3D, Node3D, Skeleton3D};
 use godot::prelude::*;
 use shared::components::Npc;
 use shared::protocol::WildPetBattleUpdate;
 use std::collections::{BTreeMap, BTreeSet};
 
-const BATTLE_PET_HEIGHT: f32 = 1.2;
+const BATTLE_PET_HEIGHT: f32 = 1.0;
 const BATTLE_PAD_OFFSET: f32 = 2.2;
 
 #[derive(Default)]
@@ -308,12 +308,48 @@ fn stage_battle_pet(scene: &mut Scene, mut model: Gd<Node3D>, team: usize) -> Re
     Ok(())
 }
 
+/// Sample the base idle's posed geometry, not its conservative culling/rest envelope.
+fn posed_battle_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
+    let skeletons = model
+        .find_children_ex("*")
+        .type_("Skeleton3D")
+        .owned(false)
+        .done();
+    for node in skeletons.iter_shared() {
+        node.cast::<Skeleton3D>().force_update_all_bone_transforms();
+    }
+    let meshes = model
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    let mut bounds: Option<Aabb> = None;
+    for node in meshes.iter_shared() {
+        let mut mesh = node.cast::<MeshInstance3D>();
+        if !mesh.is_visible_in_tree() {
+            continue;
+        }
+        let local = if mesh.get_skin().is_some() {
+            mesh.bake_mesh_from_current_skeleton_pose()
+                .ok_or("Battle mesh has no baked skeleton pose")?
+                .get_aabb()
+        } else {
+            mesh.get_mesh()
+                .ok_or("Battle batch has no mesh")?
+                .get_aabb()
+        };
+        let posed = mesh.get_global_transform() * local;
+        bounds = Some(bounds.map_or(posed, |previous| previous.merge(posed)));
+    }
+    bounds.ok_or_else(|| "Battle pet has no visible geometry".into())
+}
+
 fn normalize_battle_pad(
     model: &mut Gd<Node3D>,
     pad: &mut Gd<Node3D>,
     team: usize,
 ) -> Result<(), String> {
-    let bounds = preview_model_bounds(model);
+    let bounds = posed_battle_bounds(model)?;
     if !bounds.size.y.is_finite() || bounds.size.y <= 0.0 {
         return Err(format!(
             "Battle team {team} has invalid model height {}",

@@ -262,7 +262,7 @@ impl Scene {
     }
 }
 
-pub(crate) fn preview_model_bounds(model: &Gd<Node3D>) -> Aabb {
+fn preview_model_bounds(model: &Gd<Node3D>) -> Aabb {
     let meshes = model
         .find_children_ex("*")
         .type_("MeshInstance3D")
