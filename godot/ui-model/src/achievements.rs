@@ -291,15 +291,20 @@ impl AchievementWindow {
         criteria: Vec<AchievementCriterionLine>,
         next: Option<u32>,
     ) {
-        for cache in self.pages.values_mut() {
-            if let Some(entry) = cache
-                .entries
-                .iter_mut()
-                .find(|entry| entry.achievement_id == achievement_id)
-            {
-                merge_criteria(&mut entry.criteria, &criteria);
-                entry.next_criteria_id = next;
-            }
+        let category_rows = self
+            .pages
+            .values_mut()
+            .flat_map(|page| page.entries.iter_mut());
+        let recent_rows = self
+            .summary
+            .iter_mut()
+            .flat_map(|summary| summary.recent.iter_mut());
+        for entry in category_rows
+            .chain(recent_rows)
+            .filter(|entry| entry.achievement_id == achievement_id)
+        {
+            merge_criteria(&mut entry.criteria, &criteria);
+            entry.next_criteria_id = next;
         }
     }
     pub fn refresh(&mut self, _update: &AchievementStateUpdate) -> Vec<QueryAchievementCatalog> {

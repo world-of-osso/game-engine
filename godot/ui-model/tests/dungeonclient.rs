@@ -185,6 +185,82 @@ fn achievements_ui_scope_tabs_filter_authored_account_flag_both_skins() {
     }
 }
 
+#[test]
+fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row() {
+    // Authentic pinned DB2: achievement1676, tree65059; server's first page is16 IDs.
+    let rows = [
+        (65060, "Arathi Highlands Quests", 0, 15204),
+        (65061, "Badlands Quests", 0, 15205),
+        (65062, "Blasted Lands Quests", 0, 15206),
+        (65063, "Burning Steppes Quests", 0, 15207),
+        (65064, "Cape of Stranglethorn Quests", 0, 15208),
+        (65066, "Eastern Plaguelands Quests", 0, 15209),
+        (65067, "Hinterlands Quests", 0, 15212),
+        (65069, "Northern Stranglethorn Quests", 0, 15213),
+        (65070, "Redridge Mountains Quests", 32, 15198),
+        (65071, "Searing Gorge Quests", 0, 15214),
+        (65072, "Swamp of Sorrows Quests", 0, 15216),
+        (65073, "Western Plaguelands Quests", 0, 15217),
+        (65074, "Westfall Quests & Duskwood Quests", 32, 39734),
+        (65077, "", 2, 22229),
+        (65081, "Silverpine Forest Quests", 32, 15215),
+        (65083, "Hillsbrad Foothills Quests", 32, 15211),
+        (65087, "Ghostlands Quests", 32, 15210),
+        (65292, "Ghostlands Quests", 32, 39733),
+    ]
+    .map(
+        |(tree_id, description, order_index, criteria_id)| AchievementCriterionLine {
+            tree_id,
+            description: description.into(),
+            order_index,
+            criteria_id,
+            current: 0,
+            required: 0,
+            completed: false,
+            progress_supported: true,
+        },
+    );
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    let mut recent = achievement();
+    recent.achievement_id = 1676;
+    recent.name = "Loremaster of Eastern Kingdoms".into();
+    recent.description = "Complete the Eastern Kingdoms quest achievements listed below.".into();
+    recent.icon_fdid = 236759;
+    recent.flags = 0x20000;
+    recent.criteria = rows[..16].to_vec();
+    recent.next_criteria_id = Some(65083);
+    window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+        scope: AchievementScope::All,
+        points: 10,
+        total: 100,
+        completed: 1,
+        categories: vec![],
+        recent: vec![recent],
+    }));
+    window.action("achievement:row:1676");
+    window.action("achievement:more_criteria");
+    window.action("achievement:more_criteria");
+    assert_eq!(
+        window.action("achievement:more_criteria"),
+        vec![QueryAchievementCatalog::Criteria {
+            achievement_id: 1676,
+            after_id: 65083
+        }]
+    );
+    window.apply(AchievementCatalogPage::Criteria {
+        achievement_id: 1676,
+        criteria: rows[16..].to_vec(),
+        next_id: None,
+    });
+    assert_eq!(window.selected().unwrap().criteria.len(), 18);
+    assert!(window.selected().unwrap().next_criteria_id.is_none());
+    assert_eq!(
+        window.selected().unwrap().criteria.last().unwrap().tree_id,
+        65292
+    );
+}
+
 fn category() -> AchievementCategoryEntry {
     AchievementCategoryEntry {
         category_id: 14808,
