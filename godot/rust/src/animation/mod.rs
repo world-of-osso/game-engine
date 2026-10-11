@@ -995,6 +995,18 @@ impl WowAnimationPlayer {
         self.apply_sequence_bounds();
     }
 
+    /// A preview's camera must also fit later loop variations of the current animation.
+    pub(crate) fn preview_loop_bounds(&self) -> Option<Aabb> {
+        let animation = self.animation.as_ref()?;
+        let id = animation.sequences[animation.current].id;
+        animation
+            .sequences
+            .iter()
+            .filter(|sequence| sequence.id == id)
+            .filter_map(sequence_bounds)
+            .reduce(|bounds, next| bounds.merge(next))
+    }
+
     /// Sibling skinned batches cull by the playing sequence's `M2Sequence.bounds`, set on
     /// every sequence change like WebWowViewerCpp `M2Object` (`isNeedUpdateBB`,
     /// `getAnimatinonBB`); an empty box keeps the previous one.
