@@ -33,6 +33,7 @@ pub enum LootFilter {
 #[derive(Clone, Debug, PartialEq)]
 pub struct View {
     pub visible: bool,
+    pub loading: bool,
     pub viewport: [f32; 2],
     pub catalog: Arc<Catalog>,
     pub tab: Tab,
@@ -56,6 +57,7 @@ impl Default for View {
     fn default() -> Self {
         Self {
             visible: false,
+            loading: false,
             viewport: [1280., 720.],
             catalog: Arc::new(Catalog::default()),
             tab: Tab::Dungeons,
@@ -389,18 +391,26 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             (12. + index as f32 * 120., 496., 117., 24.),
         ));
     }
-    body.extend(match view.tab {
-        Tab::Tutorials => tutorials(view),
-        Tab::ItemSets => sets(ctx, view),
-        _ => {
-            if view.instance.is_some() {
-                encounter_page(ctx, view)
-            } else {
-                instance_list(ctx, view)
+    body.extend(if view.loading {
+        text(
+            "EncounterJournalLoading",
+            "Loading Adventure Guide…",
+            (24., 100., 740., 40.),
+        )
+    } else {
+        match view.tab {
+            Tab::Tutorials => tutorials(view),
+            Tab::ItemSets => sets(ctx, view),
+            _ => {
+                if view.instance.is_some() {
+                    encounter_page(ctx, view)
+                } else {
+                    instance_list(ctx, view)
+                }
             }
         }
     });
-    if view.search.chars().count() >= 3 && view.page != Page::Loot {
+    if !view.loading && view.search.chars().count() >= 3 && view.page != Page::Loot {
         body.extend(search_results(ctx, view));
     }
     let left = (view.viewport[0] - 800.) / 2.;

@@ -8,7 +8,7 @@ Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern
 - Encounter: existing 3D model renderer; Overview and expandable Abilities from JournalEncounterSection, role/difficulty filters. Collapse on one page must not hide sections on another page whose parent is not rendered there. JournalEncounterXDifficulty restricts boss visibility and choices.
 - Loot from JournalEncounterItem with difficulty/class/spec and Retail slot categories (robes share Chest; weapon variants map to MainHand/OffHand; other drops have an Other category).
 - Item Sets; Tutorials uses the authored Catch Up Experience text/art, not invented journal help. Show its unavailable realm service explicitly until RPE is backed.
-- Search across encounters, sections and instances; micro-menu/keybind and boss-frame openers. Opening during ENCOUNTER_START selects that encounter without automatically opening a window during combat.
+- Search across encounters, sections and instances; micro-menu/keybind and boss-frame openers. First-open input remains queued while its real spell-text dependency loads, with loading feedback rather than an error/raw-text fallback. Native wheel, stepper and thumb events must scroll instance, ability, loot, set and search lists. Opening during ENCOUNTER_START selects that encounter without automatically opening a window during combat.
 - Display authoritative per-instance lockouts from raid-entry InstanceInfo, with expiry relative to the snapshot. Journeys/Traveler's Log only with authentic local data and server-backed state; missing backing is a documented gap, never invented progress.
 
 ## Sources

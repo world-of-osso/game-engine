@@ -8,7 +8,7 @@ Verified: 2026-10-11. The [contract](../../specs/adventure-guide.md) owns Retail
 
 The core Catalog loads immutable rows; the UI View owns selection, expandable sections, filters and global search. MapDifficulty selects genuine legacy difficulties (Molten Core9), rather than assuming modern raid14; JournalEncounterXDifficulty further restricts boss lists and choices (Vanessa is Heroic-only). Loot menus group robes with Chest and weapon types into Retail MainHand/OffHand categories. A collapsed ability parent remains traversable on Overview when that parent has no visible control there. Item Sets build only viewport-intersecting text rows. Tutorials uses Retail's authored RPE Catch Up Experience strings/art, not invented journal help; the realm lacks the start service.
 
-The native host opens from the existing J binding, micro menu and active boss-frame right-click. Opening during an active ENCOUNTER_START selects that encounter without opening a window automatically in combat. Raid-entry's InstanceInfo supplies saved status, completed-mask count and snapshot-relative reset time. A detached creature preview hosts the selected JournalEncounterCreature display. `adventure_guide_state` exposes read-only displayed selection/filter/model readiness for native automation.
+The native host opens from the existing J binding, micro menu and active boss-frame right-click. First-open requests stay queued behind the existing asynchronous spell catalog, with explicit loading chrome and no raw-token fallback. Its pointer handler routes real wheel/stepper/thumb input through RegistryUi; registry enumeration alone does not wire scrolling. Opening during an active ENCOUNTER_START selects that encounter without opening a window automatically in combat. Raid-entry's InstanceInfo supplies saved status, completed-mask count and snapshot-relative reset time. A detached creature preview hosts the selected JournalEncounterCreature display. `adventure_guide_state` exposes read-only displayed selection/filter/model readiness for native automation.
 
 ## Journal model preparation
 
@@ -18,7 +18,7 @@ The October11 import covers all1889 positive Journal display IDs and retains eve
 
 ## Proof and boundaries
 
-Evidence lives in canonical `data/diagnostics/adventure-guide-2026-10-11/`. Initial native mouse harness captures were one frame behind; settle after injected motion/down/up and assert the observed journal state before accepting pixels. The file-command driver also retries the observed truncate/write response boundary; this is test-harness synchronization, not product fallback.
+Evidence lives in canonical `data/diagnostics/adventure-guide-2026-10-11/`. The rendered `godot/tests/adventure_guide_scroll.gd` fixture exercises first J open and model→Classic raids→wheel→Molten Core/Lucifron selection against an explicit private fb_* session. Initial native mouse harness captures were one frame behind; settle after injected motion/down/up and assert the observed journal state before accepting pixels. The file-command driver also retries the observed truncate/write response boundary; this is test-harness synchronization, not product fallback.
 
 - CPU proof: targeted both-skin Registry tests, authored sword/spec exclusion and Molten Core9 RED→GREEN; explicit spell-reference text rendering RED→GREEN.
 - Native proof is recorded separately in the task's durable proof ledger; passing Registry tests alone does not certify a model, assets or interaction.

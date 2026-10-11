@@ -17,6 +17,7 @@ pub(crate) struct AdventureGuide {
     pub view: View,
     ui: Option<Gd<RegistryUi>>,
     loaded: bool,
+    queued_encounter: Option<u32>,
     scene: Option<Scene>,
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
@@ -37,15 +38,17 @@ impl GameClient {
         if self.adventure_guide.view.visible {
             self.close_adventure_guide();
         } else {
-            self.load_adventure_guide()?;
             self.adventure_guide.view.visible = true;
+            self.adventure_guide.view.loading = !self.adventure_guide.loaded;
+            self.adventure_guide.queued_encounter = self
+                .encounter
+                .frames
+                .active
+                .as_ref()
+                .map(|start| start.encounter_id);
             self.account
                 .send_request_raid_info()
                 .map_err(|e| e.to_string())?;
-            if let Some(start) = &self.encounter.frames.active {
-                let encounter = start.encounter_id;
-                self.open_adventure_encounter(encounter)?;
-            }
         }
         Ok(())
     }
@@ -71,7 +74,15 @@ impl GameClient {
         &mut self,
         dungeon_encounter: u32,
     ) -> Result<(), String> {
-        self.load_adventure_guide()?;
+        self.adventure_guide.view.visible = true;
+        self.adventure_guide.view.loading = !self.adventure_guide.loaded;
+        self.adventure_guide.queued_encounter = Some(dungeon_encounter);
+        Ok(())
+    }
+    fn select_queued_journal_encounter(&mut self) -> Result<(), String> {
+        let Some(dungeon_encounter) = self.adventure_guide.queued_encounter.take() else {
+            return Ok(());
+        };
         let id = self
             .adventure_guide
             .view
@@ -86,6 +97,8 @@ impl GameClient {
     pub(super) fn close_adventure_guide(&mut self) -> bool {
         let shown = self.adventure_guide.view.visible;
         self.adventure_guide.view.visible = false;
+        self.adventure_guide.view.loading = false;
+        self.adventure_guide.queued_encounter = None;
         self.clear_journal_model();
         if let Some(ui) = self.adventure_guide.ui.take() {
             ui.free();
@@ -115,6 +128,15 @@ impl GameClient {
         if !self.adventure_guide.view.visible {
             return Ok(());
         }
+        if !self.adventure_guide.loaded {
+            if self.spells.catalog().is_none() {
+                self.sync_adventure_guide()?;
+                return Ok(());
+            }
+            self.load_adventure_guide()?;
+            self.adventure_guide.view.loading = false;
+        }
+        self.select_queued_journal_encounter()?;
         self.poll_adventure_inputs()?;
         self.update_journal_lockouts();
         if self.adventure_guide.view.visible {
@@ -122,6 +144,26 @@ impl GameClient {
             self.sync_journal_model()?;
         }
         Ok(())
+    }
+    pub(super) fn adventure_guide_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() || !self.adventure_guide.view.visible {
+            return false;
+        }
+        let Some(ui) = self.adventure_guide.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(false) => false,
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Err(error) => {
+                self.handle_frame_error("Adventure Guide scroll", error.into());
+                true
+            }
+        }
     }
     fn update_journal_lockouts(&mut self) {
         let elapsed = self.account.instance_info_at.elapsed().as_secs();
@@ -283,6 +325,7 @@ impl GameClient {
         let view = &self.adventure_guide.view;
         let mut state = VarDictionary::new();
         state.set("visible", view.visible);
+        state.set("loaded", self.adventure_guide.loaded);
         state.set("tab", format!("{:?}", view.tab));
         state.set("page", format!("{:?}", view.page));
         state.set("tier", view.tier);
