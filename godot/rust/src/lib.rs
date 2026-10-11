@@ -2258,11 +2258,6 @@ impl GameClient {
     }
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
-        eprintln!(
-            "RAID_TERRAIN_RECEIVED directory={} pending_port={:?}",
-            request.map_name,
-            self.account.session.pending_world_port()
-        );
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
             let _span = profile::span(|| "terrain.map_id".to_owned());
@@ -2301,12 +2296,6 @@ impl GameClient {
     }
 
     fn transfer_world(&mut self, destination: shared::protocol::NewWorld) -> Result<(), String> {
-        eprintln!(
-            "RAID_TRANSFER_RECEIVED map={} directory={} prior_terrain={:?}",
-            destination.map_id,
-            destination.map_directory,
-            self.terrain.state().map
-        );
         self.terrain.reset()?;
         self.world_camera.reset();
         self.terrain_materials.reset();
