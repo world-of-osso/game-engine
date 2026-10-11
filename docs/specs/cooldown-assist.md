@@ -1,46 +1,50 @@
 # Cooldown Manager and Assisted Combat
 
-Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Native client sources live in `godot/core/src/cooldown_assist.rs` and `godot/ui-model/src/cooldown_assist.rs`; [authored-data audit](../wiki/investigations/cooldown-assist-data.md) records provenance and current boundaries.
+Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. [Authored-data audit](../wiki/investigations/cooldown-assist-data.md) owns provenance, implementation boundaries and proof.
 
 ## What it must do
 - [x] Read authored per-specialization cooldown categories, order and linked spells from local Retail DB2 exports.
 - [x] Preserve authored rotation step/rule order; never substitute known-spell order or an invented rotation for an absent specialization.
 - [x] Propagate unavailable rule evaluation on a potentially eligible higher-priority step instead of recommending a lower step as though it were false.
-- [x] Model per-spec selection/reordering and cooldown fractions/charges from supplied authoritative samples.
-- [x] Keep the optional matching Cooldown Viewer highlight disabled by default; document it as a World of Osso extension, not Retail parity.
-- [ ] Render Essential/Utility cooldown icon rows and Tracked Buff icons/Bars for the active specialization.
-- [ ] Settings allow choosing and reordering spells; Edit Mode persists viewer layouts.
-- [ ] Swipes, charge counts and aura durations tick from real server state.
-- [ ] Single-Button Assistant appears in the spellbook and casts the authored recommended next spell through normal server validation.
-- [ ] Assisted Highlight marks matching action buttons and, when enabled, matching viewer icons.
-- [ ] Both skins demonstrate all above behavior in private UDP5860 combat with an fb_* account, with inspected PNGs in AgentShared.
+- [x] Render Essential/Utility cooldown icon rows and Tracked Buff icons/Bars for the active specialization.
+- [x] Settings allow choosing and reordering spells; Edit Mode persists viewer layouts.
+- [x] Sample authoritative cooldowns and raw aura clocks; active tracked auras expire without hiding the ordinary spell cooldown.
+- [ ] Show authoritative current charge counts and recharge clocks. Category joins and projection tests pass; native charge snapshots need live proof.
+- [x] Keep matching Cooldown Viewer highlighting independently configurable and disabled by default; this extends Retail action-button highlighting.
+- [ ] Single-Button Assistant appears in the spellbook and casts the exact authored recommended next spell through normal server validation. Spellbook/button placement is proved; full evaluation/execution is not.
+- [ ] Assisted Highlight marks matching action buttons and, when enabled, matching viewer icons. Both consume the same recommendation; rendered combat acceptance remains blocked.
+- [ ] Both skins demonstrate all above behavior in private combat with an fb_* account, with inspected PNGs in AgentShared.
 
 ## How it works
-- [Local data and decision boundaries](../wiki/investigations/cooldown-assist-data.md)
+- [Authored-data audit, native integration and proof boundaries](../wiki/investigations/cooldown-assist-data.md)
 
 ## Implementation inventory
-- `scripts/export_db2_csv.py`: pinned six-table local-CASC export.
-- `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism with explicit predicates and ordinary usability.
-- `godot/core/src/assisted_combat.rs`: source-grounded qualitative predicates; unsupported semantics refuse recommendations.
-- `godot/ui-model/src/cooldown_assist.rs`: selection/order and supplied-sample projection.
-- `godot/ui-model/src/cooldown_viewer_component.rs`: four viewer roots/default anchors and icon/bar presentation. Native icons use the existing radial swipe adapter; highlight art remains provisional mouseover art, not exact Retail ants animation.
-- `godot/ui-model/src/cooldown_settings_component.rs`: category pages and select/up/down controls.
-- `godot/rust/src/spells/cooldown_viewer.rs`: loader, server cooldown/charge and counted-down raw aura sampling, choice persistence and native mounting.
-- `godot/rust/src/spells/assisted_combat.rs`: authoritative fact capture, availability/next-spell state and failure reasons.
-- Native casting/action-bar adapters resolve the built-in action and share its recommendation with bar/viewer highlighting (live proof pending).
-- `godot/core/src/client_options_data.rs` and UI Options files: default-off manager/bar highlight/optional icon highlight controls; runtime integration pending.
+- `scripts/export_db2_csv.py`: six-table local-CASC export.
+- `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism.
+- `godot/core/src/assisted_combat.rs`: qualitative predicates; unsupported semantics refuse recommendations.
+- `godot/core/src/cooldown_conditions.rs`: referenced PlayerCondition masks/spell/aura/spec predicates; unsupported fields fail explicitly.
+- `godot/ui-model/src/cooldown_assist.rs`: per-spec choice/order and supplied-sample projection.
+- `godot/ui-model/src/cooldown_viewer_component.rs` and `cooldown_settings_component.rs`: four viewer roots and category/select/reorder controls.
+- `godot/rust/src/spells/cooldown_viewer.rs`: native loading/mounting, cooldown/charge/raw-aura sampling, choice persistence and ordinary settings actions.
+- `godot/rust/src/spells/assisted_combat.rs`: native facts, availability/recommendation/error state. Casting/action-bar adapters resolve the assistant and share its recommendation with both highlight surfaces.
+- HUD Options enable the manager, action highlight and matching-icon highlight. Four viewer roots participate in the existing Edit Mode system.
 
 ## Tests asserting this spec
-- `scripts/tests/test_cooldown_assist_export.py`: authentic DB2→CSV values and joins.
-- `godot/core/tests/cooldown_assist.rs`: categories/links, authored rotation order, unknown-rule refusal, missing-spec behavior.
-- `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, highlight option, per-spec selection/order and actual registry click emission.
-- `godot/tests/cooldown_assist_live.gd`: private-world/options probe; full feature/combat acceptance is not yet asserted.
+- `scripts/tests/test_cooldown_assist_export.py`: authentic DB2 values and joins; no encrypted rows dropped.
+- `godot/core/tests/cooldown_assist.rs`: categories/links, authored order, unknown-rule refusal, readiness, missing specs, all referenced condition loading, signed masks and inactive ContentTuning flags.
+- `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, aura precedence/expiry, both-skin frame inventory/highlight visibility, per-spec selection/order and registry click emission.
+- `godot/tests/cooldown_assist_live.gd`: real private authentication; options/settings/reorder; four Edit Mode movers, native drag and account layout persistence; assistant spellbook drag; real Divine Shield and Avenging Wrath clocks. Partial runs exit2, never PASS full acceptance.
 
 ## Known gaps (current cycle)
-- [ ] Native renderer/settings/Edit Mode and server-state adapters need build/live proof. Four roots are registered in the shared mover list; recommendation remains explicitly absent until the predicate adapter exists.
-- [ ] Numeric/charge/predictive rotation predicate semantics, effective nonzero caster costs and two unidentified rule fields remain unresolved; never guess them.
-- [ ] Exact Retail ants animation and the dummy spell's25-value semantics remain unverified.
-- [ ] Private both-skin combat proof, inspected screenshots and final checks remain outstanding.
+
+Verified: 2026-10-11.
+Private UDP5860, `fb_cooldown_assist`/Coolproof, specialization70. Modern run10 and Forever run9 show all four viewer categories, settings, saved Edit Mode placement, spellbook and the actual assistant action on visible slot6. Screenshots are bounded UI proof, **not combat or full rotation certification**.
+
+- [ ] Exact numeric/charge/predictive rotation predicates and two unidentified DB2 rule fields remain unresolved. The tables exist and are readable; neither their layouts nor Blizzard Lua expose comparator implementation. Never guess it.
+- [ ] Effective nonzero caster costs/modifiers are not supplied to this adapter; potentially eligible steps report an explicit error.
+- [ ] Private clients fall below loaded terrain and have no selected/server-echoed hostile target despite private revive/teleport setup. No live assisted cast or rendered highlights were proved. No movement remediation is included in this feature branch.
+- [ ] Highlight art currently uses mouseover art, not the Retail `rotationhelper_ants_flipbook` animation. Live charge counts and fresh-process layout restoration are not certified.
+- [ ] The assistant spellbook description states a25% longer global cooldown. The existing actual-spell interception does not yet preserve that authoritative assistant-cast penalty; this remains an execution gap, not a guessed Dummy-effect interpretation.
 
 ## Out of scope
-None beyond the user's named built-ins; no Forever-only behavior or invented spell priorities.
+Boss timelines/warnings belong to the boss-timeline agent. PLAN.md is read-only. No invented priorities, no Forever-only UI inventory, no shared UDP5000 operations.

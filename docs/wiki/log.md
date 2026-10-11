@@ -1,6 +1,6 @@
 ## 2026-10-11 — Cooldown/assist authored-data audit
 
-[Audit](investigations/cooldown-assist-data.md): all six local Retail DB2 tables extracted with no dropped records; authored categories/step priorities and explicit predicate gaps, five core and four registry/projection tests. Runtime viewer/settings/clock adapter is under verification; assistant casting/highlights and private combat proof remain open. No shared realm/5000 changes.
+[Audit](investigations/cooldown-assist-data.md): six readable local Retail tables; native Flags33 and settings-input routing fixes. Private5860 Modern/Forever prove all four category clocks, settings/reordering, four Edit Mode movers with saved drag, and real assistant spellbook→action-slot placement; inspected1280PNG evidence.10 core/5 model/2 export tests pass. Exact rotation, assistant GCD penalty, Retail ants art, charges and hostile combat acceptance remain open; clients fell below terrain and selected no target. origin/master merged into the feature branch, not landed; shared realm/5000 untouched.
 
 ## 2026-10-11 — Native follower LFG transport
 
