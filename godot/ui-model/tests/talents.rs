@@ -80,6 +80,108 @@ fn arcane_talents_render_real_icons_positions_edges_and_staged_choices_in_both_s
 }
 
 #[test]
+fn talent_tree3_available_icons_and_spec_background_are_authored_in_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+        let view = state.talents.as_ref().unwrap();
+        let (node, entry) = view
+            .graph
+            .class
+            .nodes
+            .iter()
+            .flat_map(|node| node.entries.iter().map(move |entry| (node, entry)))
+            .find(|(node, entry)| {
+                view.editor
+                    .can_purchase(view, view.level, node.id, entry.id)
+            })
+            .unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(state.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        apply_spellbook_postsetup(&state, &mut registry);
+        let name = format!(
+            "TalentNode{}Entry{}{}",
+            node.id,
+            entry.id,
+            if matches!(entry.entry_type, 2 | 3 | 13) {
+                "RoundIcon"
+            } else {
+                "Icon"
+            }
+        );
+        let icon = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(texture)) = &icon.widget_data else {
+            panic!("icon")
+        };
+        assert!(
+            !texture.desaturated,
+            "available talent {} is not locked",
+            node.id
+        );
+        assert_eq!(
+            texture.vertex_color, [1.0; 4],
+            "available icons retain full color"
+        );
+        let bg = registry
+            .get(
+                registry
+                    .get_by_name("TalentSpecBackground")
+                    .expect("Retail spec background"),
+            )
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &bg.widget_data else {
+            panic!("background")
+        };
+        let region =
+            ui_toolkit::atlas::resolve_region("talents-background-mage-arcane", skin).unwrap();
+        let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+            panic!("authored background")
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+        assert!(
+            data.join(format!("textures/{fdid}.blp")).exists(),
+            "background must ship"
+        );
+    }
+}
+
+#[test]
+fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    apply_spellbook_postsetup(&state, &mut registry);
+    let texts: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                return None;
+            };
+            text.text
+                .contains("more points to unlock")
+                .then(|| text.text.clone())
+        })
+        .collect();
+    assert!(
+        texts.contains(&"8 more points to unlock".to_string()),
+        "actual Mage gate at eight earlier-row purchases: {texts:?}"
+    );
+    assert!(
+        texts.contains(&"20 more points to unlock".to_string()),
+        "actual Mage gate at twenty earlier-row purchases: {texts:?}"
+    );
+}
+
+#[test]
 fn talents_pending_ranks_counters_apply_and_choice_elements_match_both_skins() {
     use game_engine_ui_model::spellbook_preview::stage_talent_preview;
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
