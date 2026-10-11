@@ -62,6 +62,10 @@ func run_test() -> void:
 	if not await wait_quest(func(s): return not in_log(s, scenario.quest) and Array(s.system_lines).has(scenario.title + " completed."), "real quest turned in"):
 		return
 	await capture(shot_prefix + "-turned-in.png")
+	if scenario.get("hidden_after_reward", false):
+		if not await wait_frames(func(): return units_named(scenario.giver.name).is_empty(), "rewarded quest no longer detects giver"):
+			return
+		await capture(shot_prefix + "-ineligible-after-reward.png")
 	print("FIXTURE QUEST_OBJECTIVES_DONE ", scenario.quest, " ", scenario.kind, " ", scenario.skin, " ", client.quest_state().system_lines)
 	client.free()
 	quit(0)
@@ -103,7 +107,8 @@ func find_unit(name: String) -> Dictionary:
 	var forward := -camera().global_basis.z
 	forward.y = 0.0
 	forward = forward.normalized()
-	var stand: Vector3 = unit.global_position - forward * 3.0
+	# Offset sideways so the player model cannot cover a child-sized quest giver.
+	var stand: Vector3 = unit.global_position - forward * 3.0 + camera().global_basis.x * 1.5
 	if not await teleport([stand.x, -stand.z, stand.y]):
 		return {}
 	await frames(30)
@@ -138,8 +143,9 @@ func find_unit_point(unit: Node, id: int) -> Vector2:
 		print("FIXTURE CAMERA_INSIDE_PICK_BOUNDS ", unit.name, " half=", half)
 		low = Vector2.ZERO
 		high = Vector2(root.size)
-	low = low.max(Vector2.ZERO)
-	high = high.min(Vector2(root.size))
+	# Native HUD occupies the viewport edges; choose a real world pick below it.
+	low = low.max(Vector2(32, 96))
+	high = high.min(Vector2(root.size) - Vector2(32, 160))
 	var stride := 16 if crosses_camera else 4
 	for y in range(int(low.y), int(high.y) + 1, stride):
 		for x in range(int(low.x), int(high.x) + 1, stride):
@@ -179,24 +185,44 @@ func credit_world_object() -> bool:
 		var before: Array = log_entry(client.quest_state(), scenario.quest).objectives.duplicate()
 		await click(target.point, MOUSE_BUTTON_RIGHT)
 		if scenario.kind == "loot":
-			if not await take_chest_item():
+			if not await open_chest(target) or not await take_chest_item():
 				return false
 		elif not await wait_quest(func(s): return Array(log_entry(s, scenario.quest).objectives) != before, "matching object credit"):
 			return false
 		index += 1
 	return true
 
+func open_chest(target: Dictionary) -> bool:
+	for attempt in range(3):
+		var deadline := Time.get_ticks_msec() + 2500
+		while Time.get_ticks_msec() < deadline:
+			await process_frame
+			if visible_loot_frame() != null:
+				return true
+		print("FIXTURE CHEST_RETRY ", target)
+		target = await find_unit(target.name)
+		if target.is_empty():
+			return false
+		await click(target.point, MOUSE_BUTTON_RIGHT)
+	await capture(shot_prefix + "-failed-chest.png")
+	fail("Native chest click did not open loot")
+	return false
+
+func visible_loot_frame() -> Control:
+	for frame in client.find_children("LootFrame", "Control", true, false):
+		if frame.is_visible_in_tree():
+			return frame
+	return null
+
 func take_chest_item() -> bool:
-	if not await wait_frames(func():
-		var frame = client.find_child("LootFrame", true, false)
-		return frame != null and frame.is_visible_in_tree(), "chest loot window"):
+	if not await wait_frames(func(): return visible_loot_frame() != null, "chest loot window"):
 		return false
 	if log_entry(client.quest_state(), scenario.quest).get("completed", false):
 		fail("Opening a chest awarded item credit before the item entered bags")
 		return false
 	await capture(shot_prefix + "-loot-before-credit.png")
 	var count_before := bag_count(scenario.item)
-	await click_control(client.find_child("LootFrameElement1", true, false) as Control)
+	await click_control(visible_loot_frame().find_child("LootFrameElement1", true, false) as Control)
 	return await wait_frames(func(): return bag_count(scenario.item) > count_before, "authored chest item stored")
 
 func credit_item_spell() -> bool:
