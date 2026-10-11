@@ -75,6 +75,7 @@ fn battleground_requests_wait_for_authority_and_echo_match_identity() {
     assert_eq!(view.action("pvp:decline"), None);
     receive(&mut view, snapshot(BgPhase::Waiting, true));
     assert_eq!(view.action("pvp:accept"), None);
+    assert_eq!(view.action("pvp:leave"), Some(PvpAction::Leave(71)));
     receive(&mut view, snapshot(BgPhase::InProgress, true));
     assert_eq!(view.action("pvp:leave"), Some(PvpAction::Leave(71)));
     view.receive(PvpStateUpdate {
