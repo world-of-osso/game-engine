@@ -156,7 +156,13 @@ func wolf_node() -> Node3D:
 
 func click_world(node: Node3D) -> void:
 	var camera := root.get_camera_3d()
-	var point := camera.unproject_position(node.global_position + Vector3.UP)
+	var aim := node.global_position + Vector3.UP
+	if not node.has_meta("game_object_entry"):
+		var meshes := node.find_children("*", "MeshInstance3D", true, false).filter(func(mesh): return mesh.is_visible_in_tree())
+		if meshes.is_empty(): fail("wolf has no drawn mesh"); return
+		var mesh := meshes[0] as MeshInstance3D
+		aim = mesh.to_global(mesh.get_aabb().get_center())
+	var point := camera.unproject_position(aim)
 	if not Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point): fail("resource outside view " + str(point)); return
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
