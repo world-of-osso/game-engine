@@ -1578,6 +1578,28 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_guild_charter(
+        &mut self,
+        state: game_engine_ui_model::guild_charters::GuildCharters,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::guild_charter_frame::charter_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
     /// GuildBankFrame with the backpack it deposits from.
     pub fn show_guild_bank(
         &mut self,

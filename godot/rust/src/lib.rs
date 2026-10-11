@@ -39,6 +39,7 @@ mod game_menu;
 mod game_objects;
 mod gameplay;
 mod ground;
+mod guild_charters;
 mod guild_ranks;
 mod hud_edit;
 mod input;
@@ -312,6 +313,7 @@ pub struct GameClient {
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     guild_ranks: guild_ranks::GuildRanks,
+    guild_charters: guild_charters::GuildCharters,
     achievements: achievements::Achievements,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -447,6 +449,7 @@ impl INode3D for GameClient {
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
+            guild_charters: guild_charters::GuildCharters::default(),
             achievements: achievements::Achievements::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -1380,6 +1383,7 @@ impl GameClient {
         }
         self.banks.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
+        self.guild_charters.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
@@ -1945,6 +1949,7 @@ impl GameClient {
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild charters", |c, _| c.update_guild_charters()),
             ("Achievements", |c, d| c.update_achievements(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
@@ -2131,6 +2136,7 @@ impl GameClient {
             AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
             AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,
             AccountEvent::GuildProfile(update) => self.receive_guild_profile(update)?,
+            AccountEvent::GuildCharter(reply) => self.receive_guild_charter(reply)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -2150,7 +2156,10 @@ impl GameClient {
                     self.flight_map.session.close_for(*npc);
                     self.trainer_closed_for(*npc);
                 }
-                if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
+                if !self.charter_npc_message(&message)?
+                    && !self.receive_quest_npc_message(&message)?
+                    && !self.bank_npc_message(&message)
+                {
                     self.receive_npc_message(message)?;
                 }
             }
