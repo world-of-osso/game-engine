@@ -1,5 +1,6 @@
 import importlib.util
 import tempfile
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -32,6 +33,29 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertEqual({str(p.relative_to(target / 'data')) for p in (target / 'data').rglob('*') if p.is_file()}, expected)
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
+
+    def test_project_keeps_resources_but_excludes_crates_and_tests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'source'
+            root.mkdir()
+            names = ('godot/Cargo.toml', 'godot/Cargo.lock', 'godot/project.godot',
+                     'godot/scenes/main.tscn', 'godot/shaders/terrain.gdshader',
+                     'godot/rust/Cargo.toml', 'godot/rust/src/lib.rs',
+                     'godot/tests/run.gd', 'godot/game_engine.gdextension')
+            for name in names:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(name)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            subprocess.run(['git', '-C', str(root), 'add', '.'], check=True)
+            target = Path(directory) / 'player'
+            bundle.copy_project(root, target, 'windows-x86_64')
+            for name in ('godot/project.godot', 'godot/scenes/main.tscn', 'godot/shaders/terrain.gdshader'):
+                self.assertEqual((target / name).read_text(), name)
+            self.assertFalse((target / 'godot/rust').exists())
+            self.assertFalse((target / 'godot/tests').exists())
+            self.assertFalse((target / 'godot/Cargo.toml').exists())
+            self.assertEqual((target / 'godot/.godot/extension_list.cfg').read_text(), 'res://game_engine.gdextension\n')
 
     def test_platform_extension_contract(self):
         for platform, library in [('linux-x86_64', 'linux.x86_64 = "res://../lib/libgame_engine_godot.so"'),
