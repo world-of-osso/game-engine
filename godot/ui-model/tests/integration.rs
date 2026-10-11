@@ -22,6 +22,7 @@ mod character_select;
 mod classbook_catalog_audit;
 mod classbook_icons;
 mod classbook_preview;
+mod cooldown_assist;
 mod cursor_icon;
 mod damage_meter_types;
 mod dungeonclient;

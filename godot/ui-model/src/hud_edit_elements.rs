@@ -29,6 +29,30 @@ const fn element(
 
 pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
     element(
+        "essential_cooldowns",
+        "Essential Cooldowns",
+        "EssentialCooldownViewer",
+        HudAnchor::Bottom,
+    ),
+    element(
+        "utility_cooldowns",
+        "Utility Cooldowns",
+        "UtilityCooldownViewer",
+        HudAnchor::Bottom,
+    ),
+    element(
+        "tracked_buffs",
+        "Tracked Buffs",
+        "BuffIconCooldownViewer",
+        HudAnchor::Bottom,
+    ),
+    element(
+        "tracked_buff_bars",
+        "Tracked Buff Bars",
+        "BuffBarCooldownViewer",
+        HudAnchor::Bottom,
+    ),
+    element(
         "player_frame",
         "Player Frame",
         "PlayerFrame",
