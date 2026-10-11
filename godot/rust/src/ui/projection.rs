@@ -502,14 +502,15 @@ impl UiProjection {
             WidgetType::Button
                 if frame.onclick.as_deref().is_some_and(|action| {
                     action.starts_with("bank_slot:")
+                        || action.starts_with("guild:member:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
                         || action.starts_with(
                             game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST,
                         )
                 }) =>
             {
-                // Cursor sources (bank slots, toy tiles, spellbook entries) need press
-                // coordinates and modified clicks; release decides click vs drag.
+                // Cursor sources need press coordinates; guild rows also need right-clicks.
+                // Release decides click vs drag for cursor sources.
                 connect_frame_click(pending, frame.id, node);
                 node.connect(
                     "mouse_entered",
@@ -1218,14 +1219,16 @@ fn update_single_line_edit(
     mut node: Gd<LineEdit>,
     data: &ui_toolkit::widgets::edit_box::EditBoxData,
 ) {
+    let max_length = data.max_letters.unwrap_or(0) as i32;
+    if node.get_max_length() != max_length {
+        // Godot's setter rewrites the text and resets the caret, even for the same limit.
+        node.set_max_length(max_length);
+    }
     if node.get_text().to_string() != data.text {
         node.set_text(&data.text);
         node.set_caret_column(data.text.chars().count() as i32);
     }
     node.set_secret(data.password);
-    if let Some(max) = data.max_letters {
-        node.set_max_length(max as i32);
-    }
 }
 
 fn update_multiline_edit(mut node: Gd<TextEdit>, text: &str) {

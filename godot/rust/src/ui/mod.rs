@@ -17,6 +17,8 @@ mod dungeon_preview;
 mod flight_map_preview;
 mod forevergaps_preview;
 mod guild_preview;
+#[cfg(test)]
+mod guild_tests;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
 #[cfg(test)]
@@ -157,6 +159,7 @@ enum ScreenPostsetup {
     Spellbook,
     Minimap,
     CharacterFrame,
+    Guild,
     /// Bag bar icons and container portraits get their round `CircleMask`.
     Bags,
     /// Header glyphs become tinted masks (`IconMasks`).
@@ -282,6 +285,17 @@ impl RegistryModel {
         }
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::Guild => {
+                if let Some(state) = self
+                    .shared
+                    .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()
+                {
+                    game_engine_ui_model::guild_rank_frame::apply_guild_postsetup(
+                        state,
+                        &mut self.registry,
+                    );
+                }
+            }
             ScreenPostsetup::Auction => {
                 self.icon_masks.apply(&mut self.registry);
                 game_engine_ui_model::auction::apply_auction_paging_postsetup(&mut self.registry);
@@ -339,6 +353,9 @@ impl RegistryModel {
             ScreenPostsetup::Merchant => {
                 game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry);
                 game_engine_ui_model::mail_frame_component::apply_mail_body_postsetup(
+                    &mut self.registry,
+                );
+                game_engine_ui_model::guild_bank_frame_component::apply_guild_bank_postsetup(
                     &mut self.registry,
                 );
                 // The NPC canvas's own backpack portrait.
@@ -602,6 +619,23 @@ impl RegistryModel {
                     && self.registry.focused_frame.is_some() =>
             {
                 actions.push_back("talent:loadout_save".into());
+            }
+            ScreenPostsetup::Guild => {
+                use game_engine_ui_model::guild_ranks::{GuildProfileField, GuildRanksSession};
+                if self.registry.focused_frame
+                    == self
+                        .registry
+                        .get_by_name(game_engine_ui_model::guild_rank_frame::INVITE_BOX)
+                    && self.registry.focused_frame.is_some()
+                {
+                    actions.push_back("guild:invite_send".into());
+                } else if self
+                    .shared
+                    .get::<GuildRanksSession>()
+                    .is_some_and(|state| state.profile_editor == Some(GuildProfileField::Motd))
+                {
+                    actions.push_back("guild:profile_accept".into());
+                }
             }
             ScreenPostsetup::Trade => actions.push_back(crate::trade::ACTION_MONEY_SUBMIT.into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
@@ -1161,6 +1195,25 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_group_loot(
+        &mut self,
+        state: game_engine_ui_model::group_loot_component::GroupLootUiState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::group_loot_component::group_loot_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
     /// The spellbook in its `PlayerSpellsFrame` portrait `metal_frame` window.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
@@ -1415,6 +1468,31 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_combat_pet_stable(
+        &mut self,
+        state: game_engine_ui_model::pet_stable_component::StableFrameView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::pet_stable_component::pet_stable_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// BankFrame on the metal border; bag slots stay in the standalone Bags UI.
     pub fn show_bank(
         &mut self,
@@ -1483,6 +1561,27 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_pvp(
+        &mut self,
+        state: game_engine_ui_model::battleground::PvpView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::battleground::pvp_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
     pub fn show_pet_journal(
         &mut self,
         state: game_engine_ui_model::pet_journal::PetJournalView,
@@ -1532,13 +1631,32 @@ impl RegistryUi {
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
-        register_metal_frame_style(
-            &mut registry,
-            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
-        )?;
+        register_guild_panel_styles(&mut registry)?;
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::guild_rank_frame::guild_screen,
+            ScreenPostsetup::Guild,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_guild_charter(
+        &mut self,
+        state: game_engine_ui_model::guild_charters::GuildCharters,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::guild_charter_frame::charter_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -1559,6 +1677,10 @@ impl RegistryUi {
             game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
         )?;
         register_auction_popup_style(&mut registry);
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::guild_bank::native_guild_bank_screen,
@@ -2787,6 +2909,15 @@ mod modern_panel_snapshot_tests;
 #[cfg(test)]
 #[path = "skin_sync_tests.rs"]
 mod skin_sync_tests;
+
+fn register_guild_panel_styles(registry: &mut FrameRegistry) -> Result<(), String> {
+    register_metal_frame_style(
+        registry,
+        game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+    )?;
+    register_auction_popup_style(registry);
+    Ok(())
+}
 
 fn register_auction_popup_style(registry: &mut FrameRegistry) {
     const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];
