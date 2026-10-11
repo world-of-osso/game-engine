@@ -34,7 +34,9 @@ const INDEX_COUNT: usize = 24;
 const INDEX_OFFSET: usize = 28;
 const VERTEX_BUFFER_SIZE: usize = 80;
 const VERTEX_DATA_FIELD: usize = 48;
+const VERTEX_EXTERNAL_ID_FIELDS: [usize; 3] = [40, 64, 68];
 const INDEX_BUFFER_SIZE: usize = 24;
+const INDEX_EXTERNAL_ID_FIELD: usize = 16;
 const INDEX_WIDTH: usize = 2;
 const TRIANGLE_CORNERS: usize = 3;
 const VERTEX_FORMAT: u32 = 6;
@@ -115,7 +117,7 @@ fn read_vertex_buffer<'a>(
         return Err("Unsupported vertex format/stride; expected format 6, stride 44".into());
     }
     // vfid, vbid and baid must describe inline payload data, not external resources.
-    for field in [40, 64, 68] {
+    for field in VERTEX_EXTERNAL_ID_FIELDS {
         if read_u32(meta, at + field)? != u32::MAX {
             return Err("Unsupported external vertex buffer".into());
         }
@@ -128,7 +130,7 @@ fn read_vertex_buffer<'a>(
 }
 
 fn read_index_buffer<'a>(meta: &[u8], payload: &'a [u8], at: usize) -> Result<&'a [u8], String> {
-    if read_u32(meta, at + 16)? != u32::MAX {
+    if read_u32(meta, at + INDEX_EXTERNAL_ID_FIELD)? != u32::MAX {
         return Err("Unsupported external index buffer".into());
     }
     let bytes = read_payload_blob(meta, payload, at)?;
@@ -147,30 +149,29 @@ fn count_subobject(
     let (vertices, indices) = select_subobject_buffers(meta, buffers, at)?;
     let flags = read_u32(meta, at)?;
     let hash = read_u32(meta, at + SUBOBJECT_HASH)?;
-    let mut counts = Vec::new();
-    for (segment, record) in read_records(meta, at + SEGMENTS_FIELD, SEGMENT_SIZE)?
+    read_records(meta, at + SEGMENTS_FIELD, SEGMENT_SIZE)?
         .into_iter()
         .enumerate()
-    {
-        let (vertex_count, triangles) =
-            count_segment(meta, vertices, indices, record).map_err(|error| {
-                format!(
-                    "chunk {} LOD {} subobject {} segment {segment}: {error}",
-                    location[0], location[1], location[2]
-                )
-            })?;
-        counts.push(MeshCount {
-            chunk: location[0],
-            lod: location[1],
-            subobject: location[2],
-            segment,
-            flags,
-            hash,
-            vertices: vertex_count,
-            triangles,
-        });
-    }
-    Ok(counts)
+        .map(|(segment, record)| {
+            let (vertex_count, triangles) = count_segment(meta, vertices, indices, record)
+                .map_err(|error| {
+                    format!(
+                        "chunk {} LOD {} subobject {} segment {segment}: {error}",
+                        location[0], location[1], location[2]
+                    )
+                })?;
+            Ok(MeshCount {
+                chunk: location[0],
+                lod: location[1],
+                subobject: location[2],
+                segment,
+                flags,
+                hash,
+                vertices: vertex_count,
+                triangles,
+            })
+        })
+        .collect()
 }
 
 fn select_subobject_buffers<'a>(
