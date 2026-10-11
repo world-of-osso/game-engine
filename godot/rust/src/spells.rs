@@ -10,6 +10,8 @@
 mod action_bar;
 mod assignment;
 mod casting;
+mod cooldown_viewer;
+use cooldown_viewer::CooldownHud;
 mod floating_text;
 mod ground_target;
 mod snapshot;
@@ -58,6 +60,7 @@ enum CatalogLoad {
 
 pub(crate) struct SpellsHud {
     catalog: CatalogLoad,
+    cooldowns: CooldownHud,
     bar_ui: Option<Gd<RegistryUi>>,
     pub(crate) vigor_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
@@ -90,6 +93,7 @@ impl Default for SpellsHud {
     fn default() -> Self {
         Self {
             catalog: CatalogLoad::Idle,
+            cooldowns: CooldownHud::default(),
             bar_ui: None,
             vigor_ui: None,
             cast_ui: None,
@@ -123,6 +127,7 @@ impl SpellsHud {
             &mut self.vigor_ui,
             &mut self.cast_ui,
             &mut self.book_ui,
+            &mut self.cooldowns.ui,
         ] {
             if let Some(ui) = ui {
                 visit(ui)?;
@@ -140,6 +145,7 @@ impl SpellsHud {
 
     fn close(&mut self) {
         self.cancel_ground_target();
+        self.cooldowns.close();
         for ui in [
             self.bar_ui.take(),
             self.vigor_ui.take(),
@@ -254,6 +260,7 @@ impl GameClient {
             *pushed = (*pushed - delta).max(0.0);
         }
         self.sync_action_bar()?;
+        self.update_cooldown_viewer();
         self.sync_vigor_bar()?;
         self.sync_cast_bar()?;
         self.sync_spellbook()?;

@@ -9,7 +9,7 @@ fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
     let ids = [34465, 47453, 160516].into_iter().collect();
     let conditions = CooldownConditions::load(&dir, &ids).unwrap();
     let mut actor = ConditionActor {
-        race: 3,
+        race_bit: 2,
         class: 1,
         spec_index: 0,
         known: &[],
@@ -17,7 +17,7 @@ fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
     };
     assert_eq!(conditions.evaluate(34465, &actor), Ok(true));
     assert_eq!(conditions.evaluate(47453, &actor), Ok(false));
-    actor.race = 5;
+    actor.race_bit = 4;
     assert_eq!(conditions.evaluate(34465, &actor), Ok(false));
     assert_eq!(conditions.evaluate(47453, &actor), Ok(true));
     assert!(

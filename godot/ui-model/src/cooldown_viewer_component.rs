@@ -26,7 +26,7 @@ pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
         .categories
         .iter()
         .enumerate()
-        .flat_map(|(category, icons)| viewer(category, icons))
+        .flat_map(|(category, icons)| viewer(category, icons, state.enabled))
         .collect();
     rows.extend(crate::cooldown_settings_component::settings_panel(
         &state.settings,
@@ -34,7 +34,8 @@ pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
     rows
 }
 
-fn viewer(category: usize, icons: &[CooldownIconView]) -> Element {
+fn viewer(category: usize, icons: &[CooldownIconView], enabled: bool) -> Element {
+    let hidden = !enabled;
     // XML item dimensions; Modern authored IconLimit and padding.
     let (side, columns, padding, bottom, offset_x) = match category {
         0 => (50.0, 12, 2.0, 310.0, 0.0),
@@ -61,7 +62,7 @@ fn viewer(category: usize, icons: &[CooldownIconView]) -> Element {
     rsx! {
         r#frame {
             name: {FrameName(VIEWER_NAMES[category])},
-            width, height,
+            width, height, hidden,
             strata: FrameStrata::Medium,
             pos_type: "absolute",
             left: "50%",
@@ -111,7 +112,7 @@ fn viewer_item_content(
     } else {
         size.1
     };
-    let progress_height = if bar { size.1 } else { size.1 * icon.fraction };
+    let progress_height = size.1;
     let label = if bar { icon.name.as_str() } else { "" };
     rsx! {
         texture {
@@ -123,7 +124,7 @@ fn viewer_item_content(
         r#frame {
             name: {DynName(format!("{name}Cooldown"))},
             width: progress_width, height: progress_height,
-            background_color: {if bar { "0.7,0.5,0.15,0.85" } else { "0.0,0.0,0.0,0.8" }},
+            background_color: {if bar { "0.7,0.5,0.15,0.85" } else { "0.0,0.0,0.0,0.0" }},
             pos_type: "absolute", pos_x: {if bar { size.1 } else { 0.0 }},
             pos_y: {if bar { 0.0 } else { size.1 - progress_height }},
         }

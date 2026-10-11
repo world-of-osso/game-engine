@@ -22,7 +22,9 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Nat
 - `scripts/export_db2_csv.py`: pinned six-table local-CASC export.
 - `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism with explicit predicate input.
 - `godot/ui-model/src/cooldown_assist.rs`: selection/order and supplied-sample projection.
-- `godot/ui-model/src/cooldown_viewer_component.rs`: four viewer roots/default anchors and icon/bar presentation; not mounted yet. Swipe uses rectangular projection and highlight uses existing mouseover art, not yet exact Retail radial/ants animation.
+- `godot/ui-model/src/cooldown_viewer_component.rs`: four viewer roots/default anchors and icon/bar presentation. Native icons use the existing radial swipe adapter; highlight art remains provisional mouseover art, not exact Retail ants animation.
+- `godot/ui-model/src/cooldown_settings_component.rs`: category pages and select/up/down controls.
+- `godot/rust/src/spells/cooldown_viewer.rs`: loader, server cooldown/charge and counted-down aura sampling, choice persistence and native mounting (execution proof pending).
 - `godot/core/src/client_options_data.rs` and UI Options files: default-off manager/bar highlight/optional icon highlight controls; runtime integration pending.
 
 ## Tests asserting this spec
@@ -31,7 +33,7 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Nat
 - `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, highlight option, per-spec selection/order.
 
 ## Known gaps (current cycle)
-- [ ] Native renderer/settings/Edit Mode and runtime/server-state adapters remain unimplemented.
+- [ ] Native renderer/settings/Edit Mode and server-state adapters need build/live proof. Four roots are registered in the shared mover list; recommendation remains explicitly absent until the predicate adapter exists.
 - [ ] Rotation predicate semantics and state capture require integration; two nonzero unidentified rule fields remain unresolved.
 - [ ] Private both-skin combat proof, inspected screenshots and final checks remain outstanding.
 
