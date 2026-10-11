@@ -92,6 +92,54 @@ fn text(r: &FrameRegistry, n: &str) -> String {
     }
 }
 #[test]
+fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
+    use game_engine_ui_model::professions_orders::OrderMenu;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.orders.customer = true;
+        v.orders.creating = true;
+        v.orders.recipe = Some(2153);
+        v.orders.snapshot.as_mut().unwrap().recipes = vec![CraftingOrderRecipeSnapshot {
+            spell_id: 2153,
+            skill_line: 2532,
+            item_id: 2303,
+            count: 1,
+            name: "Handstitched Leather Pants".into(),
+            reagents: vec![CraftingOrderReagent {
+                item_id: 2318,
+                quantity: 4,
+                supplied: 0,
+            }],
+        }];
+        v.orders.menu = Some(OrderMenu::Recipient);
+        let r = render(v.clone(), skin);
+        assert_eq!(
+            frame(&r, "CraftingOrderRecipientDropdown")
+                .onclick
+                .as_deref(),
+            Some("profession:order:recipient-menu")
+        );
+        assert_eq!(
+            frame(&r, "CraftingOrderMenuPersonal").onclick.as_deref(),
+            Some("profession:order:recipient:personal")
+        );
+        assert!(r.get_by_name("CraftingOrderRecipes").is_none());
+        assert!(r.get_by_name("CraftingOrderGold").is_some());
+        v.orders.menu = Some(OrderMenu::Duration);
+        let r = render(v, skin);
+        for hours in [12, 24, 48] {
+            assert_eq!(
+                frame(&r, &format!("CraftingOrderMenu{hours}"))
+                    .onclick
+                    .as_deref(),
+                Some(format!("profession:order:duration:{hours}").as_str())
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn orders_native_crafter_detail_uses_server_eligibility_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let v = view();

@@ -3,8 +3,15 @@ use crate::bag_data::InventoryState;
 use shared::protocol::*;
 use std::collections::BTreeMap;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OrderMenu {
+    Recipient,
+    Duration,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CraftingOrders {
+    pub menu: Option<OrderMenu>,
     pub snapshot: Option<CraftingOrdersSnapshot>,
     pub customer: bool,
     pub creating: bool,
@@ -23,6 +30,7 @@ pub struct CraftingOrders {
 impl Default for CraftingOrders {
     fn default() -> Self {
         Self {
+            menu: None,
             snapshot: None,
             customer: false,
             creating: false,

@@ -122,6 +122,19 @@ impl GameClient {
             self.professions.orders.kind = parse_kind(kind)?;
             self.professions.orders.selected = None;
             self.query_crafting_orders()?;
+        } else if let Some(kind) = action.strip_prefix("recipient:") {
+            self.professions.orders.kind = parse_kind(kind)?;
+            self.professions.orders.menu = None;
+            self.professions.order_form_initialized = false;
+        } else if let Some(hours) = action.strip_prefix("duration:") {
+            let hours = hours
+                .parse::<u8>()
+                .map_err(|_| format!("Invalid order duration: {hours}"))?;
+            if ![12, 24, 48].contains(&hours) {
+                return Err(format!("Unsupported order duration: {hours}").into());
+            }
+            self.professions.orders.duration_hours = hours;
+            self.professions.orders.menu = None;
         } else if let Some(item) = action.strip_prefix("supply:") {
             self.toggle_order_supply(item)?;
         } else {
@@ -175,23 +188,10 @@ impl GameClient {
             }
             "back" => self.professions.orders.selected = None,
             "refresh" => self.query_crafting_orders()?,
-            "next-kind" => {
-                let kind = self.professions.orders.kind;
-                self.professions.orders.kind = match kind {
-                    CraftingOrderKind::Public => CraftingOrderKind::Guild,
-                    CraftingOrderKind::Guild => CraftingOrderKind::Personal,
-                    CraftingOrderKind::Personal => CraftingOrderKind::Public,
-                };
-                self.professions.order_form_initialized = false;
-            }
-            "duration" => {
-                let hours = self.professions.orders.duration_hours;
-                self.professions.orders.duration_hours = match hours {
-                    12 => 24,
-                    24 => 48,
-                    _ => 12,
-                };
-            }
+            "recipient-menu" => self
+                .toggle_order_menu(game_engine_ui_model::professions_orders::OrderMenu::Recipient),
+            "duration-menu" => self
+                .toggle_order_menu(game_engine_ui_model::professions_orders::OrderMenu::Duration),
             "place" => self.place_crafting_order()?,
             "claim" | "release" | "fulfill" | "cancel" => {
                 if let Some(request) = self.professions.orders.action_request(action) {
@@ -201,6 +201,13 @@ impl GameClient {
             _ => return Err(format!("Unknown crafting order action: {action}").into()),
         }
         Ok(())
+    }
+    fn toggle_order_menu(&mut self, menu: game_engine_ui_model::professions_orders::OrderMenu) {
+        self.professions.orders.menu = if self.professions.orders.menu == Some(menu) {
+            None
+        } else {
+            Some(menu)
+        };
     }
     fn place_crafting_order(&mut self) -> Result<(), FrameError> {
         let recipe = self.professions.orders.selected_recipe().cloned();
