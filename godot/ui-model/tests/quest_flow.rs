@@ -43,6 +43,9 @@ fn worgs(current: u32) -> QuestEntrySnapshot {
         title: "Beating Them Back!".into(),
         zone: String::new(),
         completed: current >= 6,
+        expires_at: None,
+        timer_sampled_at: None,
+        failed: false,
         repeatability: QuestRepeatability::Normal,
         objectives: vec![QuestObjectiveSnapshot {
             text: "Blackrock Worg slain".into(),
@@ -401,6 +404,92 @@ fn quest_log_lists_objectives_tracks_and_confirms_abandon() {
         click(&log, "QuestLogFrameCloseButton", &mut runtime, &mut ui),
         [QuestUiEffect::CloseLog]
     );
+}
+
+#[test]
+fn quest_share_popup_and_selected_log_button_use_authoritative_offer() {
+    let mut runtime = QuestRuntime::default();
+    let mut ui = QuestUiState::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![worgs(2)],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let log = render_log(&runtime, &ui);
+    assert_eq!(
+        sent(click(&log, "QuestLogShareButton", &mut runtime, &mut ui)),
+        [R::Share {
+            quest_id: BEATING_THEM_BACK
+        }]
+    );
+    let popup =
+        game_engine_ui_model::quest_actions::share_popup(&shared::protocol::QuestShareOffer {
+            offer_id: 42,
+            sender_name: "ShareA".into(),
+            quest_id: BEATING_THEM_BACK,
+            title: "Beating Them Back!".into(),
+        });
+    assert_eq!(popup.key, "QUEST_ACCEPT");
+    assert_eq!(
+        popup.text,
+        "ShareA is starting Beating Them Back!\nWould you like to as well?"
+    );
+    assert_eq!(popup.cancel_label.as_deref(), Some("No"));
+}
+
+#[test]
+fn quest_share_rejection_uses_retail_sender_and_recipient_strings() {
+    let mut result = shared::protocol::QuestPushResult {
+        quest_id: 62,
+        quest_title: "The Fargodeep Mine".into(),
+        player_name: "ShareA".into(),
+        reason: shared::protocol::QuestPushReason::OnQuest,
+        recipient: false,
+    };
+    assert_eq!(
+        game_engine_ui_model::quest_runtime::quest_push_text(&result),
+        "ShareA is already on that quest."
+    );
+    result.recipient = true;
+    assert_eq!(
+        game_engine_ui_model::quest_runtime::quest_push_text(&result),
+        "ShareA's attempt to share quest \"The Fargodeep Mine\" failed. You are already on that quest."
+    );
+}
+
+#[test]
+fn quest_tracker_countdown_changes_each_second_and_failed_quest_replaces_objectives() {
+    let mut runtime = QuestRuntime::default();
+    let mut entry = worgs(2);
+    entry.expires_at = Some(2800 + 86400);
+    entry.timer_sampled_at = Some(1000 + 86400);
+    runtime.observe_timer_clock(&[entry.clone()], 1000);
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![entry.clone()],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let a =
+        game_engine_ui_model::objective_tracker_component::ObjectiveTrackerState::from_runtime_at(
+            &runtime, false, false, 1000,
+        );
+    assert_eq!(a.quests[0].lines[0].text, "Time Remaining: 30:00");
+    let b =
+        game_engine_ui_model::objective_tracker_component::ObjectiveTrackerState::from_runtime_at(
+            &runtime, false, false, 1001,
+        );
+    assert_eq!(b.quests[0].lines[0].text, "Time Remaining: 29:59");
+    entry.failed = true;
+    runtime.apply_update(QuestLogUpdate {
+        changed: vec![entry],
+        removed: vec![],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let failed =
+        game_engine_ui_model::objective_tracker_component::ObjectiveTrackerState::from_runtime_at(
+            &runtime, false, false, 2800,
+        );
+    assert_eq!(failed.quests[0].title, "Beating Them Back! - Failed");
+    assert_eq!(failed.quests[0].lines.len(), 1);
+    assert_eq!(failed.quests[0].lines[0].text, "Quest completion failed.");
 }
 
 #[test]

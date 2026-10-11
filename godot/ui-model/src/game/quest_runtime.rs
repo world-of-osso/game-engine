@@ -14,6 +14,59 @@ use shared::protocol::{
     QuestLogUpdate, QuestMarkerClass, QuestPoiSnapshot,
 };
 
+/// English Retail GlobalStrings.csv ERR_QUEST_PUSH_* (local 12.1 catalog).
+pub fn quest_push_text(result: &shared::protocol::QuestPushResult) -> String {
+    use shared::protocol::QuestPushReason as R;
+    let name = &result.player_name;
+    if result.recipient
+        && let Some(text) = recipient_push_text(result.reason)
+    {
+        return format!(
+            "{name}'s attempt to share quest \"{}\" failed. {text}",
+            result.quest_title
+        );
+    }
+    match result.reason {
+        R::Success => format!("Sharing quest with {name}..."),
+        R::Accepted => format!("{name} has accepted your quest."),
+        R::Declined => format!("{name} has declined your quest."),
+        R::NotAllowed => "That quest cannot be shared.".into(),
+        R::NotInParty => "You are not in a party.".into(),
+        R::Busy => format!("{name} is busy."),
+        R::Dead => format!("{name} is dead."),
+        R::AlreadyDone => format!("{name} has completed that quest."),
+        R::OnQuest => format!("{name} is already on that quest."),
+        R::LogFull => format!("{name}'s quest log is full."),
+        R::LowLevel => format!("{name} is too low level for that quest."),
+        R::HighLevel => format!("{name} is too high level for that quest."),
+        R::Class => format!("{name} is the wrong class for that quest."),
+        R::Race => format!("{name} is the wrong race for that quest."),
+        R::Prerequisite => format!(
+            "{name} hasn't completed all of the prerequisite quests required for that quest."
+        ),
+        R::Invalid => format!("{name} is not eligible for that quest."),
+        R::TimerExpired => "Quest sharing timer has expired.".into(),
+        R::CrossFactionRestricted => "Quests can't be shared in cross-faction groups.".into(),
+    }
+}
+
+fn recipient_push_text(reason: shared::protocol::QuestPushReason) -> Option<&'static str> {
+    use shared::protocol::QuestPushReason as R;
+    match reason {
+        R::Invalid => Some("You are not eligible for that quest."),
+        R::Dead => Some("You are dead."),
+        R::LogFull => Some("Your quest log is full."),
+        R::OnQuest => Some("You are already on that quest."),
+        R::AlreadyDone => Some("You have completed that quest."),
+        R::LowLevel => Some("You are too low level for that quest."),
+        R::HighLevel => Some("You are too high level for that quest."),
+        R::Class => Some("You are the wrong class for that quest."),
+        R::Race => Some("You are the wrong race for that quest."),
+        R::Prerequisite => Some("You must complete all of the prerequisite quests first."),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuestNotice {
     System(String),
@@ -38,6 +91,7 @@ pub struct QuestRuntime {
     /// Quest giver marker per NPC (server entity bits).
     pub giver_status: HashMap<u64, QuestGiverStatus>,
     pub dialog: Option<QuestDialog>,
+    pub server_clock_offset: i64,
 }
 
 /// A role frame (auction house, vendor, ...) the server opened for an NPC interaction,
@@ -81,6 +135,13 @@ pub enum NpcInteractionRequest {
     SetWatched {
         quest_id: u32,
         watched: bool,
+    },
+    Share {
+        quest_id: u32,
+    },
+    RespondShare {
+        offer_id: u64,
+        accepted: bool,
     },
     Close {
         npc: u64,
@@ -148,6 +209,13 @@ fn objective_progress_notices(
 }
 
 impl QuestRuntime {
+    /// Sample the authoritative clock at receipt; injected realm clocks still count down locally.
+    pub fn observe_timer_clock(&mut self, entries: &[QuestEntrySnapshot], local_now: i64) {
+        if let Some(sample) = entries.iter().find_map(|entry| entry.timer_sampled_at) {
+            self.server_clock_offset = sample - local_now;
+        }
+    }
+
     pub fn entry(&self, quest_id: u32) -> Option<&QuestEntrySnapshot> {
         self.log.iter().find(|entry| entry.quest_id == quest_id)
     }
@@ -484,6 +552,8 @@ pub fn quest_failed_text(reason: QuestFailedReason) -> &'static str {
         QuestFailedReason::NotEnoughMoney => "You don't have enough money for that quest.",
         QuestFailedReason::InventoryFull => "Inventory is full.",
         QuestFailedReason::InvalidRewardChoice => "You must choose a reward.",
+        QuestFailedReason::TimedOut => "Quest completion failed.",
+        QuestFailedReason::OnlyOneTimedQuest => "You can only be on one timed quest at a time",
     }
 }
 
