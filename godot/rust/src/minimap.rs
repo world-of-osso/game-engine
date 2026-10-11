@@ -677,8 +677,13 @@ impl GameClient {
         );
         drop(span);
         let composite = self.minimap_composite(position);
-        if let Some(ui) = self.minimap.ui.as_mut() {
-            return ui.bind_mut().set_minimap(state, composite);
+        let tracking_open = state.tracking.open;
+        if let Some(mut ui) = self.minimap.ui.clone() {
+            ui.bind_mut().set_minimap(state, composite)?;
+            if tracking_open {
+                self.raise_above_layer(&ui)?;
+            }
+            return Ok(());
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MinimapUI");
