@@ -1092,14 +1092,15 @@ pub fn apply_achievement_postsetup(
     registry: &mut ui_toolkit::registry::FrameRegistry,
 ) {
     // AchievementCategoryTemplate HighlightTexture uses ADD, not an opaque green overlay.
-    let selected = if let Some(id) = window.selected_category {
-        Some(format!("AchievementCategory{id}Highlight"))
-    } else if !window.statistics {
-        Some("AchievementCategorySummaryHighlight".into())
-    } else {
-        None
-    };
-    if let Some(name) = selected {
+    // Selection can be outside the current category tree; style the emitted textures,
+    // not a second reconstruction of which categories the tree contains.
+    let highlights: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| frame.name.as_ref())
+        .filter(|name| name.starts_with("AchievementCategory") && name.ends_with("Highlight"))
+        .cloned()
+        .collect();
+    for name in highlights {
         set_additive_texture(registry, &name, 1.0);
     }
     for (index, entry) in window.displayed_entries().into_iter().enumerate() {
