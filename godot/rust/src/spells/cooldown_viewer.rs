@@ -420,7 +420,6 @@ impl GameClient {
                 ui.free();
                 return Err(error);
             }
-            ui.bind_mut().enable_cursor_inputs();
             self.spells.cooldowns.ui = Some(ui);
         }
         let ui = self

@@ -208,8 +208,14 @@ func configure_options() -> void:
 	await click("ActionButtoncooldown_settings")
 	await click("CooldownSettingsUp19389")
 	await capture("settings-essential-reordered")
+	var icons: Array = client.cooldown_viewer_state().icons
+	if icons.is_empty() or int(icons[0].cooldown_id) != 19389:
+		fail("Settings Up did not move Crusader Strike before Judgment")
+		return
 	await click("CooldownSettingsCategory2")
 	await click("CooldownSettingsSelect92839")
+	for frame in range(3):
+		await process_frame
 	await click("CooldownSettingsCategory3")
 	await click("CooldownSettingsSelect68661")
 	await capture("settings-tracked-bars")
