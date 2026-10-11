@@ -74,10 +74,12 @@ const MODEL_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
     match go_type {
         GAMEOBJECT_TYPE_MAILBOX => Some(ActiveWowCursor::Mail),
+        shared::protocol::GAMEOBJECT_TYPE_GATHERING_NODE => Some(ActiveWowCursor::Interact),
         GAMEOBJECT_TYPE_GUILD_BANK
         | GAMEOBJECT_TYPE_CHAIR
         | GAMEOBJECT_TYPE_MEETINGSTONE
         | GAMEOBJECT_TYPE_RITUAL
+        | shared::protocol::GAMEOBJECT_TYPE_KEYSTONE_RECEPTACLE
         | GAMEOBJECT_TYPE_CHEST
         | GAMEOBJECT_TYPE_GOOBER
         | GAMEOBJECT_TYPE_BATTLEGROUND_FLAG => Some(ActiveWowCursor::Interact),
@@ -317,6 +319,12 @@ mod tests {
         );
         // GAMEOBJECT_TYPE_GENERIC decoration is not shown as usable.
         assert_eq!(game_object_cursor(5), None);
+    }
+
+    #[test]
+    fn mythic_font_renders_and_has_interaction_cursor() {
+        assert_eq!(game_object_cursor(49), Some(ActiveWowCursor::Interact));
+        assert!(game_object_is_renderable(49));
     }
 
     #[test]

@@ -1,12 +1,19 @@
 # Wiki Index
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
+- [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
+- [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
+- [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
+- [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
+- [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
 
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
 - [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
 - [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
 - [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
+- [Native transmog application](systems/transmog-apply.md) — shared Wardrobe slot/layout/search,3Dmodel pages, visible weapon profiles and authored additive state borders; both-skin native composited-pixel/paidApply proof, inherited self/observer/relog proof; server-backed outfits/camera-data gaps explicit.
+- [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
@@ -55,8 +62,9 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
-- [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
+- [Native battleground lifecycle](systems/battlegrounds.md) — WSG lifecycle plus source PvP wallet/talent/War Mode private both-skin proof; lifetime honor and reward/rating policies remain explicit gaps.
 
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 

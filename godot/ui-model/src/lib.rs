@@ -41,6 +41,7 @@ pub mod ui {
 
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod battleground;
+pub mod challenge;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
 pub mod chat_draft;
@@ -51,6 +52,8 @@ pub mod chat_frame_component;
 pub mod collections_component;
 pub mod countdown_component;
 pub mod group_countdown;
+pub mod group_loot;
+pub mod group_loot_component;
 #[path = "game/group_state.rs"]
 pub mod group_state;
 pub mod guild_charter_frame;
@@ -62,6 +65,7 @@ pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;
+pub mod professions_quality;
 pub mod raid_manager_component;
 pub mod raid_warning;
 pub mod spell_overrides;
@@ -226,6 +230,8 @@ pub mod mail_frame_component;
 pub mod achievements;
 pub mod death_flow;
 pub mod dungeon_progress;
+pub mod raid_info;
+pub mod scenario_progress;
 pub mod trade;
 #[path = "ui/screens/trade_frame_component.rs"]
 pub mod trade_frame_component;

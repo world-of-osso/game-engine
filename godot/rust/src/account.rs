@@ -123,11 +123,16 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    pub lfg: Option<shared::protocol::LfgStateUpdate>,
+    pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
+    pub challenge: shared::protocol::ChallengeSnapshot,
+    pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
     /// Saved instances of the last `InstanceInfo`.
     pub instance_locks: Vec<InstanceLockInfo>,
+    pub instance_info_at: std::time::Instant,
     /// Known spells, action bar and cooldowns from the server.
     pub spells: PlayerSpells,
     pub talents: game_engine_ui_model::talents::TalentEditor,
@@ -275,13 +280,14 @@ pub(crate) enum MailMessage {
 }
 
 /// Authoritative loot traffic, retained in `LootChannel` send order.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum LootMessage {
     Lootable(CorpseLootable),
     Opened(LootResponse),
     Removed(LootSlotRemoved),
     Closed(LootClosed),
     Failed(LootFailed),
+    GroupRoll(shared::protocol::GroupLootRoll),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -337,10 +343,15 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            lfg: None,
+            raid_difficulty: None,
             dungeon_objectives: Default::default(),
+            challenge: Default::default(),
+            scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
+            instance_info_at: std::time::Instant::now(),
             spells: PlayerSpells::default(),
             talents: Default::default(),
             combat_log: std::collections::VecDeque::new(),
@@ -392,7 +403,10 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.lfg = None;
+        self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
+        self.scenario_objectives = Default::default();
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -470,6 +484,15 @@ impl Account {
         }
         self.bridge()?
             .send::<_, InputChannel>(input)
+            .map_err(SessionError)
+    }
+
+    pub(crate) fn send_lfg<M: game_engine_network::WireMessage>(
+        &self,
+        request: M,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::LfgChannel>(request)
             .map_err(SessionError)
     }
 
@@ -648,6 +671,28 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_raid_difficulty(
+        &self,
+        difficulty_id: u32,
+        legacy: bool,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(shared::protocol::SetRaidDifficulty {
+                difficulty_id,
+                legacy,
+            })
+            .map_err(SessionError)
+    }
+
+    pub fn send_saved_instance_extend(
+        &self,
+        request: shared::protocol::SetSavedInstanceExtend,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
     pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
         self.bridge()?
@@ -724,6 +769,12 @@ impl Account {
         let bridge = self.bridge()?;
         let result = match action {
             PvpAction::Query => bridge.send::<_, PvpChannel>(QueryPvpStatus),
+            PvpAction::SelectTalent { slot, talent_id } => {
+                bridge.send::<_, PvpChannel>(SelectPvpTalent { slot, talent_id })
+            }
+            PvpAction::WarMode(enabled) => {
+                bridge.send::<_, PvpChannel>(SetWarModeDesired { enabled })
+            }
             PvpAction::Queue(battleground_id) => {
                 bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
             }
@@ -776,6 +827,15 @@ impl Account {
     pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_challenge_request(
+        &self,
+        request: shared::protocol::ChallengeRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::InstanceChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1014,6 +1074,21 @@ impl Account {
         .map_err(SessionError)
     }
 
+    pub fn send_group_loot_choice(
+        &self,
+        choice: shared::protocol::GroupLootChoice,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(choice)
+            .map_err(SessionError)
+    }
+
+    pub fn request_group_loot_history(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(shared::protocol::GroupLootHistoryRequest)
+            .map_err(SessionError)
+    }
+
     pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, LootChannel>(LootUnit { corpse, auto })
@@ -1232,6 +1307,12 @@ impl Account {
             GroupCommand::SetRole { name, role } => {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
             }
+            GroupCommand::SetLootMethod(method) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootMethod { method })
+            }
+            GroupCommand::SetLootThreshold(quality) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootThreshold { quality })
+            }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
             GroupCommand::Countdown(seconds) => {
                 bridge.send::<_, GroupChannel>(GroupCountdownRequest { seconds })
@@ -1340,6 +1421,7 @@ impl Account {
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.set_link_connected(false);
@@ -1452,6 +1534,14 @@ impl Account {
             output.push(AccountEvent::Death(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::LfgStateUpdate>() {
+            let update: shared::protocol::LfgStateUpdate = decode(message)?;
+            if let Some(text) = update.error.as_ref().or(update.message.as_ref()) {
+                output.push(AccountEvent::GroupNotice(text.clone()));
+            }
+            self.lfg = Some(update);
+            return Ok(());
+        }
         if message.is::<TradeStateUpdate>() {
             output.push(AccountEvent::Trade(decode(message)?));
             return Ok(());
@@ -1533,8 +1623,11 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
+            || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
+            || message.is::<shared::protocol::ChallengeSnapshot>()
+            || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
             || message.is::<DamageMeterSnapshot>()
@@ -1547,6 +1640,14 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::ChallengeSnapshot>() {
+            self.challenge = decode(message)?;
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ScenarioProgress>() {
+            self.scenario_objectives.apply(decode(message)?);
+            return Ok(());
+        }
         if message.is::<shared::protocol::DungeonProgress>() {
             let progress: shared::protocol::DungeonProgress = decode(message)?;
             let name = if progress.encounters.is_empty() {
@@ -1606,6 +1707,10 @@ impl Account {
             self.damage_meter = Some(decode(message)?);
             return Ok(());
         }
+        if message.is::<shared::protocol::RaidDifficultySet>() {
+            self.raid_difficulty = Some(decode(message)?);
+            return Ok(());
+        }
         if message.is::<DungeonDifficultySet>() {
             let set: DungeonDifficultySet = decode(message)?;
             self.dungeon_difficulty = Some(set.difficulty_id);
@@ -1613,6 +1718,7 @@ impl Account {
         }
         let info: InstanceInfo = decode(message)?;
         self.instance_locks = info.locks;
+        self.instance_info_at = std::time::Instant::now();
         Ok(())
     }
 
@@ -1817,6 +1923,8 @@ impl Account {
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
             self.dungeon_objectives.begin_map(new_world.map_id);
+            self.challenge = Default::default();
+            self.scenario_objectives.begin_map(new_world.map_id);
             self.session.begin_world_port(new_world.map_id);
             output.push(AccountEvent::NewWorld(new_world));
             output.push(AccountEvent::Screen(SessionScreen::Loading));
@@ -1994,6 +2102,7 @@ impl Account {
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.stop_bridge()?;
@@ -2692,9 +2801,13 @@ fn is_loot_message(message: &ProtocolMessage) -> bool {
         || message.is::<LootSlotRemoved>()
         || message.is::<LootClosed>()
         || message.is::<LootFailed>()
+        || message.is::<shared::protocol::GroupLootRoll>()
 }
 
 fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String> {
+    if message.is::<shared::protocol::GroupLootRoll>() {
+        return Ok(LootMessage::GroupRoll(decode(message)?));
+    }
     if message.is::<CorpseLootable>() {
         return Ok(LootMessage::Lootable(decode(message)?));
     }
@@ -2742,4 +2855,19 @@ fn auction_message(
         return Ok(Err(message));
     };
     Ok(Ok(reply))
+}
+
+/// Terrain messages refresh tiles; NewWorld owns changing an initialized world map.
+pub(crate) fn validate_terrain_refresh(
+    current: Option<&str>,
+    requested: &str,
+) -> Result<(), String> {
+    if let Some(current) = current
+        && current != requested
+    {
+        return Err(format!(
+            "Stale terrain refresh for {requested}; NewWorld selected {current}"
+        ));
+    }
+    Ok(())
 }

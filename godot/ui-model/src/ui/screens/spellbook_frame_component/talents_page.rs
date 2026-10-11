@@ -19,6 +19,8 @@ const HERO_DIALOG_NODES_TOP: f32 = 417.0;
 const EDGE_COLOR: [f32; 4] = [0.35, 0.35, 0.35, 1.0];
 #[path = "talents_footer.rs"]
 mod footer;
+#[path = "pvp_talent_controls.rs"]
+mod pvp_talent_controls;
 
 pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
     let children = match &state.talents {
@@ -541,7 +543,9 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
         }},
     );
     children.extend(footer::controls(view, scale));
-    if let Some(reason) = &view.editor.error_text {
+    children.extend(war_mode_control(view, scale));
+    children.extend(pvp_talent_controls::render(view, scale));
+    if let Some(reason) = view.editor.error_text.as_ref().or(view.pvp_error.as_ref()) {
         children.extend(label(
             Label {
                 name: "TalentError".into(),
@@ -873,4 +877,69 @@ fn hero_choice_column(
     rsx! {r#frame {name:{DynName(format!("TalentHero{}Option",tree.id))},width:{width*scale},height:{height*scale},
         pos_type:"absolute",pos_x:{x*scale},pos_y:0.0,{children}
     }}
+}
+
+// ClassTalentsFrame.xml:326, WarmodeButtonTemplate.xml:100x100, RIGHT -6/+2.
+fn war_mode_control(view: &TalentView, scale: f32) -> Element {
+    let desired = view.war_mode.as_ref().is_some_and(|mode| mode.desired);
+    let permitted = view.war_mode.as_ref().is_some_and(|mode| {
+        if mode.desired {
+            mode.can_disable
+        } else {
+            mode.can_enable
+        }
+    });
+    let disabled = !permitted || view.pvp_pending;
+    let action = if disabled { "" } else { "pvp:warmode" };
+    let origin = [BOOK_W - 106.0, BOOK_H - FOOTER_HEIGHT / 2.0 - 52.0];
+    let suffix = if desired { "" } else { "-disabled" };
+    let mut children = warmode_layer(
+        "WarmodeIndent",
+        "talents-warmode-indent",
+        origin,
+        6.0,
+        scale,
+    );
+    children.extend(warmode_layer(
+        "WarmodeOrb",
+        "pvptalents-warmode-orb",
+        origin,
+        14.0,
+        scale,
+    ));
+    children.extend(warmode_layer(
+        "WarmodeSwords",
+        &format!("pvptalents-warmode-swords{suffix}"),
+        origin,
+        39.0,
+        scale,
+    ));
+    children.extend(warmode_layer(
+        "WarmodeRing",
+        &format!("talents-warmode-ring{suffix}"),
+        origin,
+        5.0,
+        scale,
+    ));
+    children.extend(
+        rsx! { button { name: "WarmodeButton", onclick: action, disabled,
+            width: {100.0*scale}, height: {100.0*scale}, button_default_skin: false,
+            pos_type: "absolute", pos_x: {origin[0]*scale}, pos_y: {origin[1]*scale},
+        } },
+    );
+    children
+}
+fn warmode_layer(name: &str, atlas: &str, origin: [f32; 2], bottom: f32, scale: f32) -> Element {
+    let region = resolve_region(atlas, ActiveSkin::Modern).expect("Retail War Mode atlas");
+    retail_atlas(
+        name,
+        atlas,
+        [
+            origin[0] + (100.0 - region.width) / 2.0,
+            origin[1] + 100.0 - bottom - region.height,
+            region.width,
+            region.height,
+        ],
+        scale,
+    )
 }
