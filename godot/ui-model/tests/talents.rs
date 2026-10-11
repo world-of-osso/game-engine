@@ -416,6 +416,69 @@ fn talent_tree3_hero_staging_keeps_dialog_apply_and_authored_close_control() {
 }
 
 #[test]
+fn talent_tree3_gate_badge_uses_retail_numeric_text_instead_of_overlapping_hero_nodes() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let view = state.talents.as_ref().unwrap();
+    let gate = view
+        .gates_for_nodes(&view.graph.spec.nodes)
+        .into_iter()
+        .find(|gate| gate.required == 8)
+        .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    apply_spellbook_postsetup(&state, &mut registry);
+    let frame = registry
+        .get(
+            registry
+                .get_by_name(&format!("TalentGate{}Text", gate.condition_id))
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+        panic!("gate amount")
+    };
+    assert_eq!(text.text, "8");
+    assert_eq!(text.font_size, 24.0);
+    assert!(
+        registry
+            .get_by_name(&format!("TalentGate{}Button", gate.condition_id))
+            .is_some(),
+        "hover owner for real gate tooltip"
+    );
+}
+
+#[test]
+fn talent_tree3_entry_tooltips_show_actual_choice_rank_and_never_route_navigation_as_a_spell() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let view = state.talents.unwrap();
+    let tooltip = view
+        .entry_tooltip(108654, 134183, Default::default())
+        .unwrap();
+    assert_eq!(tooltip.content.lines[0].left_text, "Rank 0/1");
+    let name = "TalentChoiceNode108654Entry134183Spell1244087Button";
+    assert_eq!(
+        game_engine_ui_model::talents::talent_button_entry(name),
+        Some(134183)
+    );
+    assert_eq!(
+        game_engine_ui_model::talents::talent_button_spell(name),
+        Some(1244087)
+    );
+    assert_eq!(
+        game_engine_ui_model::talents::talent_button_spell(
+            "TalentChoiceNode99830Entry123344Spell0Button"
+        ),
+        None
+    );
+}
+
+#[test]
 fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -425,24 +488,42 @@ fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
     apply_spellbook_postsetup(&state, &mut registry);
-    let texts: Vec<_> = registry
-        .frames_iter()
-        .filter_map(|frame| {
-            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
-                return None;
-            };
-            text.text
-                .contains("more points to unlock")
-                .then(|| text.text.clone())
-        })
-        .collect();
-    assert!(
-        texts.contains(&"8 more points to unlock".to_string()),
-        "actual Mage gate at eight earlier-row purchases: {texts:?}"
+    let mut view = state.talents.unwrap();
+    let gates = view.gates_for_nodes(&view.graph.class.nodes);
+    let eight = gates
+        .iter()
+        .find(|gate| gate.required == 8)
+        .unwrap()
+        .condition_id;
+    let twenty = gates
+        .iter()
+        .find(|gate| gate.required == 20)
+        .unwrap()
+        .condition_id;
+    let gate_text = |view: &game_engine_ui_model::talents::TalentView, id| {
+        view.gate_tooltip(id).unwrap().content.lines[0]
+            .left_text
+            .clone()
+    };
+    assert_eq!(
+        gate_text(&view, eight),
+        "Spend 8 more points to unlock this row"
     );
-    assert!(
-        texts.contains(&"20 more points to unlock".to_string()),
-        "actual Mage gate at twenty earlier-row purchases: {texts:?}"
+    assert_eq!(
+        gate_text(&view, twenty),
+        "Spend 20 more points to unlock this row"
+    );
+    let mut editor = view.editor.clone();
+    assert!(editor.purchase(&view, 80, 62115, 80174));
+    assert!(editor.purchase(&view, 80, 108654, 134183));
+    view.editor = editor;
+    assert_eq!(
+        gate_text(&view, eight),
+        "Spend 6 more points to unlock this row"
+    );
+    assert_eq!(
+        gate_text(&view, twenty),
+        "Spend 18 more points to unlock this row"
     );
 }
 
