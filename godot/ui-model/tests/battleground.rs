@@ -16,6 +16,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
         brackets: vec![],
         queue: None,
         war_mode: None,
+        talents: None,
         battleground: Some(BattlegroundSnapshot {
             match_id: 71,
             battleground_id: 1014,
