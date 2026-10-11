@@ -808,11 +808,19 @@ fn message_row(
 
 fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> Element {
     let [r, g, b, a] = run.color;
-    let is_link = run.spell_id.is_some();
-    let name = match run.spell_id {
-        Some(spell) => format!("{LINK_PREFIX}{row}_{run_index}_{spell}"),
-        None => format!("{CHAT_MESSAGES}Row{row}Run{run_index}"),
+    let is_link = run.spell_id.is_some() || run.achievement_id.is_some();
+    let name = if let Some(id) = run.achievement_id {
+        format!("ChatAchievementLink{row}_{run_index}_{id}")
+    } else {
+        match run.spell_id {
+            Some(spell) => format!("{LINK_PREFIX}{row}_{run_index}_{spell}"),
+            None => format!("{CHAT_MESSAGES}Row{row}Run{run_index}"),
+        }
     };
+    let action = run
+        .achievement_id
+        .map(|id| format!("achievement:open:{id}"))
+        .unwrap_or_default();
     rsx! {
         fontstring {
             name: {DynName(name)},
@@ -824,6 +832,7 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> E
             font_color: {FontColor::new(r, g, b, a)},
             justify_h: "LEFT",
             mouse_enabled: is_link,
+            onclick: {action.as_str()},
             pos_type: "absolute",
             left: {run.x},
             top: 0.0,
@@ -866,6 +875,7 @@ mod tests {
             x,
             width: 60.0,
             spell_id,
+            achievement_id: None,
         }
     }
 

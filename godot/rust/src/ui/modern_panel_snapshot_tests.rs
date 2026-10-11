@@ -46,6 +46,7 @@ pub(super) fn chat_view() -> ChatFrameView {
                     x: 0.0,
                     width: 120.0,
                     spell_id: None,
+                    achievement_id: None,
                 }],
             }],
         }],
