@@ -22,7 +22,12 @@ fn cooldown_assist_categories_preserve_authored_order_and_links() {
                 <= (pair[1].category, pair[1].order, pair[1].id))
     );
     let linked = data.entry(280).unwrap();
-    assert!(linked.linked_spells.contains(&16979));
+    assert!(
+        linked
+            .linked_spells
+            .iter()
+            .any(|link| link.spell_id == 16979)
+    );
 }
 
 #[test]

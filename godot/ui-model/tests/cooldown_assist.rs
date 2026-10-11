@@ -1,6 +1,54 @@
 use game_engine_core::cooldown_assist::{CooldownAssistCatalog, Recommendation};
-use game_engine_ui_model::cooldown_assist::{CooldownViewerModel, SpellSample};
+use game_engine_ui_model::cooldown_assist::{
+    CooldownIconView, CooldownViewerModel, CooldownViewerView, SpellSample,
+};
+use game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen;
 use std::path::Path;
+use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::screen::{Screen, SharedContext};
+
+#[test]
+fn cooldown_assist_native_rows_and_highlights_share_both_skin_inventory() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        let mut view = CooldownViewerView::default();
+        view.categories[0].push(CooldownIconView {
+            cooldown_id: 27,
+            spell_id: 12294,
+            name: "Mortal Strike".into(),
+            icon_fdid: 132355,
+            remaining: 4.5,
+            fraction: 0.75,
+            assisted_highlight: true,
+            ..Default::default()
+        });
+        shared.insert(view.clone());
+        let mut screen = Screen::new(cooldown_viewer_screen);
+        screen.sync(&shared, &mut registry);
+        for name in [
+            "EssentialCooldownViewer",
+            "UtilityCooldownViewer",
+            "BuffIconCooldownViewer",
+            "BuffBarCooldownViewer",
+        ] {
+            assert!(registry.get_by_name(name).is_some(), "{skin:?} {name}");
+        }
+        let glow = registry
+            .get_by_name("CooldownViewer27AssistedHighlight")
+            .unwrap();
+        assert!(!registry.get(glow).unwrap().hidden);
+        view.categories[0][0].assisted_highlight = false;
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        let glow = registry
+            .get_by_name("CooldownViewer27AssistedHighlight")
+            .unwrap();
+        assert!(registry.get(glow).unwrap().hidden);
+    }
+}
 
 fn catalog() -> CooldownAssistCatalog {
     CooldownAssistCatalog::load(
