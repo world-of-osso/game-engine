@@ -120,7 +120,18 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
             panic!("score text missing")
         };
         assert!(label.text.contains("Flagrunner"));
-        assert!(label.text.contains('2'));
+        let capture = registry
+            .get(registry.get_by_name("PVPMatchPlayer81Captures").unwrap())
+            .unwrap();
+        let WidgetData::FontString(label) = capture.widget_data.as_ref().unwrap() else {
+            panic!("capture text missing")
+        };
+        assert_eq!(label.text, "2");
+        view.action("pvp:horde");
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("PVPMatchPlayer81").is_none());
+        view.action("pvp:all");
         receive(&mut view, snapshot(BgPhase::Ended, true));
         context.insert(view);
         screen.sync(&context, &mut registry);

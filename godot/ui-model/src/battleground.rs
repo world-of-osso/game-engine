@@ -1,6 +1,7 @@
 //! Retail Mainline PVPUIFrame, PVPReadyDialog, PVPMatchScoreboard and Results.
 //! Layout authority: Blizzard_PVPUI/Mainline and Blizzard_PVPMatch XML/Lua.
 use crate::bank_art::{WHITE, label};
+use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagState};
 use shared::protocol::{BattlegroundSnapshot, PvpSnapshot, PvpStateUpdate};
@@ -23,6 +24,7 @@ pub struct PvpView {
     pub pending: bool,
     pub error: String,
     pub filter: Option<BgTeam>,
+    pub results_dismissed: bool,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -34,6 +36,7 @@ impl Default for PvpView {
             pending: false,
             error: String::new(),
             filter: None,
+            results_dismissed: false,
         }
     }
 }
@@ -42,6 +45,11 @@ impl PvpView {
         self.pending = false;
         self.error = update.error.unwrap_or_default();
         if let Some(snapshot) = update.snapshot {
+            let old_match = self.battleground().map(|b| b.match_id);
+            if old_match != snapshot.battleground.as_ref().map(|b| b.match_id) {
+                self.results_dismissed = false;
+                self.scoreboard = false;
+            }
             self.snapshot = Some(snapshot);
         }
     }
@@ -59,10 +67,12 @@ impl PvpView {
                 return None;
             }
             "pvp:scoreboard" => {
+                self.results_dismissed = false;
                 self.scoreboard = !self.scoreboard;
                 return None;
             }
             "pvp:score-close" => {
+                self.results_dismissed = true;
                 self.scoreboard = false;
                 return None;
             }
@@ -273,12 +283,12 @@ fn hud(view: &PvpView) -> Element {
         children,
     )
 }
-fn scoreboard(view: &PvpView) -> Element {
+fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     let Some(bg) = view.battleground().filter(|b| b.accepted) else {
         return vec![];
     };
     let ended = bg.phase == BgPhase::Ended;
-    if !view.scoreboard && !ended {
+    if !view.scoreboard && (!ended || view.results_dismissed) {
         return vec![];
     }
     let (name, height, row_top) = if ended {
@@ -309,28 +319,20 @@ fn scoreboard(view: &PvpView) -> Element {
             ));
         }
     }
-    children.extend(text("PVPMatchCategories", "Name                        KB       HK       Deaths       Honor      Damage      Healing       Captures    Returns", (38.0, row_top-28.0, 950.0, 22.0)));
-    for (i, player) in bg
-        .players
-        .iter()
-        .filter(|p| view.filter.is_none_or(|team| p.team == team))
-        .enumerate()
+    for (i, title) in [
+        "Name", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
+    ]
+    .iter()
+    .enumerate()
     {
-        // Server combat counters are not instrumented yet. Never portray synthetic zero as live measurement.
-        let line = format!(
-            "{:<24}     —         {}          —              {}             —             —                  {}               {}",
-            player.name,
-            player.honorable_kills.map_or("—".into(), |n| n.to_string()),
-            player.honor_level.map_or("—".into(), |n| n.to_string()),
-            player.flag_captures,
-            player.flag_returns
-        );
+        let (x, width) = column(i);
         children.extend(text(
-            &format!("PVPMatchPlayer{}", player.character_id),
-            &line,
-            (38.0, row_top + i as f32 * 22.0, 950.0, 22.0),
+            &format!("PVPMatchCategory{i}"),
+            title,
+            (38.0 + x, row_top - 28.0, width, 22.0),
         ));
     }
+    children.extend(score_rows(context, view, bg, row_top));
     for (i, (title, action)) in [
         ("All", "pvp:all"),
         ("Alliance", "pvp:alliance"),
@@ -369,11 +371,81 @@ fn scoreboard(view: &PvpView) -> Element {
         children,
     )
 }
+fn column(index: usize) -> (f32, f32) {
+    [
+        (0.0, 188.0),
+        (188.0, 55.0),
+        (243.0, 55.0),
+        (298.0, 65.0),
+        (363.0, 65.0),
+        (428.0, 125.0),
+        (553.0, 125.0),
+        (678.0, 125.0),
+        (803.0, 125.0),
+    ][index]
+}
+fn score_rows(
+    context: &SharedContext,
+    view: &PvpView,
+    bg: &BattlegroundSnapshot,
+    top: f32,
+) -> Element {
+    let players: Vec<_> = bg
+        .players
+        .iter()
+        .filter(|p| view.filter.is_none_or(|team| p.team == team))
+        .collect();
+    let height = (players.len() as f32 * 22.0).max(256.0);
+    let geometry = pixel_geometry(256.0, height, 256.0);
+    let offset = geometry.clamp(context.scroll_first_row("PVPMatchScrollBox"));
+    let config = scroll_list_attr(&geometry);
+    let child_top = -(offset as f32);
+    let mut content = Vec::new();
+    for (index, player) in players.iter().enumerate() {
+        // Combat counters remain uninstrumented. Dashes mean unknown, not measured zero.
+        let values = [
+            player.name.clone(),
+            "—".into(),
+            player.honorable_kills.map_or("—".into(), |n| n.to_string()),
+            "—".into(),
+            player.honor_level.map_or("—".into(), |n| n.to_string()),
+            "—".into(),
+            "—".into(),
+            player.flag_captures.to_string(),
+            player.flag_returns.to_string(),
+        ];
+        let suffixes = [
+            "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
+        ];
+        for (i, value) in values.iter().enumerate() {
+            let (x, width) = column(i);
+            content.extend(text(
+                &format!("PVPMatchPlayer{}{}", player.character_id, suffixes[i]),
+                value,
+                (x, index as f32 * 22.0, width, 22.0),
+            ));
+        }
+    }
+    let bar = MinimalScrollBar {
+        list: "PVPMatchScrollBox",
+        left: 938.0,
+        top: 0.0,
+        height: 256.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    rsx! { r#frame { name: "PVPMatchScrollBox", width: 958.0, height: 256.0, left: 38.0, top,
+    pos_type: "absolute", mouse_enabled: true, scroll_list: config,
+    r#frame { name: "PVPMatchScrollChild", width: 928.0, height, left: 0.0, top: child_top, pos_type: "absolute", {content} }
+    {bar.element()} } }
+}
 pub fn pvp_screen(context: &SharedContext) -> Element {
+    let _ = context.get::<ui_toolkit::atlas::ActiveSkin>();
     let view = context.get::<PvpView>().expect("PvP view");
     let mut elements = queue(view);
     elements.extend(hud(view));
-    elements.extend(scoreboard(view));
+    elements.extend(scoreboard(context, view));
     elements.extend(invite(view));
     elements
 }
