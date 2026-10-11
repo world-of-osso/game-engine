@@ -142,6 +142,42 @@ fn cooldown_assist_viewer_uses_real_cooldown_charges_and_aura_clock() {
 }
 
 #[test]
+fn cooldown_assist_tracked_aura_expires_without_hiding_spell_cooldown() {
+    let data = catalog();
+    let entries = data.cooldowns(70, |_| Ok(true)).unwrap();
+    let mut model = CooldownViewerModel::default();
+    model.select(70, 68661, true);
+    assert!(model.selected(70, data.entry(68661).unwrap()));
+    assert!(!model.selected(71, data.entry(68661).unwrap()));
+    let sample = SpellSample {
+        spell_id: 31884,
+        duration: 120.0,
+        remaining: 115.0,
+        aura_active: true,
+        aura_duration: 20.0,
+        aura_remaining: 15.0,
+        ..Default::default()
+    };
+    let active = model.project(70, &entries, Recommendation::None, |spell| {
+        (spell == 31884).then(|| sample.clone())
+    });
+    assert_eq!(active.categories[0][0].remaining, 15.0);
+    assert_eq!(active.categories[3][0].cooldown_id, 68661);
+    assert_eq!(active.categories[3][0].fraction, 0.75);
+    let expired = SpellSample {
+        remaining: 100.0,
+        aura_active: false,
+        aura_remaining: 0.0,
+        ..sample
+    };
+    let after = model.project(70, &entries, Recommendation::None, |spell| {
+        (spell == 31884).then(|| expired.clone())
+    });
+    assert_eq!(after.categories[0][0].remaining, 100.0);
+    assert!(after.categories[3].is_empty());
+}
+
+#[test]
 fn cooldown_assist_selection_and_order_are_spec_local() {
     let data = catalog();
     let entries = data.cooldowns(71, |_| Ok(true)).unwrap();
