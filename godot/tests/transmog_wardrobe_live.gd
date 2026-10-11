@@ -29,8 +29,10 @@ func run_test() -> void:
 	root.size = Vector2i(1280, 720)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	# Let startup initialize its native login destination before fixture authentication.
+	# Wait for cold startup work; source icons also require this real catalog readiness.
 	await frames(5)
+	if not await wait_for(func(s): return s.item_catalog_loaded, "startup item catalog", 90000):
+		return
 	var error = client.connect_account("127.0.0.1:55087", "fb_transmog_a", "fbtest", false)
 	if error != "":
 		fail(error)
@@ -44,6 +46,12 @@ func run_test() -> void:
 	await click_control(select.find_child("CharCard_0", true, false), MOUSE_BUTTON_LEFT)
 	await click_control(select.find_child("EnterWorld", true, false), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return client.account_state().screen == "InWorld" and client.account_state().local_player_position != null, "enter world", 180000):
+		return
+	var expected_skin := OS.get_environment("TRANSMOG_SKIN")
+	var account: Dictionary = client.account_state()
+	print("TRANSMOG_SKIN ", account.ui_skin, " layout=", account.ui_layout)
+	if expected_skin != "" and account.ui_skin != expected_skin:
+		fail("Expected skin " + expected_skin + ", got " + str(account.ui_skin))
 		return
 	await create_timer(40.0).timeout
 	await tap(KEY_Z)
