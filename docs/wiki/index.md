@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — local Retail CooldownSet and AssistedCombat extraction/layouts; rotation is authored, UI/live integration remains outstanding.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — authored DB2 joins; both-skin private four-category clocks/settings/Edit Mode/assistant placement proof; exact rotation and hostile combat acceptance remain open.
 
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
