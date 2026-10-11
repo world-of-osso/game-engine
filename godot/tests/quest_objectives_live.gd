@@ -184,17 +184,29 @@ func credit_world_object() -> bool:
 		var before: Array = log_entry(client.quest_state(), scenario.quest).objectives.duplicate()
 		await click(target.point, MOUSE_BUTTON_RIGHT)
 		if scenario.kind == "loot":
-			await frames(20)
-			print("FIXTURE OBJECT_CLICK ", target, " player=", player_position())
-			for node in client.find_children("*Loot*", "Control", true, false):
-				print("FIXTURE LOOT_CONTROL ", node.get_path(), " visible=", node.is_visible_in_tree())
-			await capture(shot_prefix + "-after-object-click.png")
-			if not await take_chest_item():
+			if not await open_chest(target) or not await take_chest_item():
 				return false
 		elif not await wait_quest(func(s): return Array(log_entry(s, scenario.quest).objectives) != before, "matching object credit"):
 			return false
 		index += 1
 	return true
+
+func open_chest(target: Dictionary) -> bool:
+	for attempt in range(3):
+		var deadline := Time.get_ticks_msec() + 2500
+		while Time.get_ticks_msec() < deadline:
+			await process_frame
+			var frame = client.find_child("LootFrame", true, false)
+			if frame != null and frame.is_visible_in_tree():
+				return true
+		print("FIXTURE CHEST_RETRY ", target)
+		target = await find_unit(target.name)
+		if target.is_empty():
+			return false
+		await click(target.point, MOUSE_BUTTON_RIGHT)
+	await capture(shot_prefix + "-failed-chest.png")
+	fail("Native chest click did not open loot")
+	return false
 
 func take_chest_item() -> bool:
 	if not await wait_frames(func():
