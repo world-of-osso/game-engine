@@ -1,3 +1,7 @@
+## 2026-10-10 — No-install receipt recovery
+
+[Recovery and bounded recheck](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10): authenticated legacy tooling, preserved byte conflicts, pinned display-cache regeneration, and remaining newly exposed receipt/skin gaps. No ownership bypass or whole-catalog certification.
+
 ## 2026-10-10 — Class spell private live proof
 
 [Class spell proof](investigations/class-spell-live-proof.md) records thirteen bounded native client paths, four classes in both skins, received damage/heal/aura/resource receipts and inspected screenshots on private54113. Setup/skin migration/cast-time/resource/spec mistakes remain distinct from script defects; supplemental contracts and full class parity remain unproved. No production code, world.db, shared realm or master changes.
