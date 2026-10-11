@@ -38,7 +38,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 ## Tests asserting this spec
 - `godot/ui-model/tests/wild_pet_battle.rs`: both-skin frames/timer/actions, round identity, cooldowns, swaps, forfeit/end.
 - `godot/ui-model/tests/pet_journal.rs`: owned loadout action and duplicate-slot clearing.
-- `scripts/tests/test_petbattle_model_visibility.py`: private native regression for a ready Rabbit opposite a receipt-gated ally; complete-pair checks assert both pets' projected pad positions, 80–200px rest bounds, full animation framing and actual skin over eight seconds.
+- `scripts/tests/test_petbattle_model_visibility.py`: private native regression for a ready Rabbit opposite a receipt-gated ally; complete-pair checks assert both pets' projected pad positions, 80–200px posed geometry, full posed-animation framing and actual skin over eight seconds.
 - `godot/tests/pet_battle_live.gd`: private real-pointer fixture; durable `data/diagnostics/pbwild-20261010/prove.py` asserts actual skin, two models, isolated HUD, defeated 0-HP win, capture and close restoration.
 
 ## Known gaps (current cycle)
