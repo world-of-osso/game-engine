@@ -3,9 +3,9 @@
 use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
-    AchievementCatalogEntry, AchievementCatalogPage, AchievementCategoryEntry,
-    AchievementCriterionLine, AchievementScope, AchievementStateUpdate, AchievementSummary,
-    QueryAchievementCatalog,
+    ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry, AchievementCatalogPage,
+    AchievementCategoryEntry, AchievementCriterionLine, AchievementScope, AchievementStateUpdate,
+    AchievementSummary, QueryAchievementCatalog,
 };
 use std::collections::BTreeMap;
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
@@ -156,7 +156,7 @@ impl AchievementWindow {
     }
 
     fn search(&mut self, text: &str, requests: &mut Vec<QueryAchievementCatalog>) {
-        self.search_text = text.chars().take(256).collect();
+        self.search_text = text.chars().take(ACHIEVEMENT_SEARCH_MAX_CHARS).collect();
         self.search_results = CategoryPage::default();
         self.selected_category = None;
         self.selected_achievement = None;
@@ -1076,7 +1076,7 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         !window.statistics,
         (130.0, 578.0, 92.0, 22.0),
     ));
-    content.extend(rsx! { editbox { name: "AchievementSearchBox", text: {window.search_text.as_str()}, width: 160.0, height: 22.0, left: 622.0, top: 32.0, pos_type: "absolute", max_letters:256, auto_focus:false, background_color:"0.0,0.0,0.0,0.8", } });
+    content.extend(rsx! { editbox { name: "AchievementSearchBox", text: {window.search_text.as_str()}, width: 160.0, height: 22.0, left: 622.0, top: 32.0, pos_type: "absolute", max_letters:ACHIEVEMENT_SEARCH_MAX_CHARS, auto_focus:false, background_color:"0.0,0.0,0.0,0.8", } });
     content.extend(label(
         "AchievementSearchLabel".into(),
         "Search",
