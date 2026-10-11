@@ -14,6 +14,10 @@ mod art;
 mod slots;
 #[path = "professions_frame_specializations.rs"]
 mod specializations;
+#[path = "professions_frame_orders.rs"]
+pub mod orders;
+#[path = "professions_frame_recraft.rs"]
+mod recraft;
 #[path = "professions_frame_tree.rs"]
 mod tree;
 
@@ -36,12 +40,17 @@ pub enum ProfessionPage {
     Recipes,
     Specializations,
     Orders,
+    Recraft,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ProfessionView {
     pub page: ProfessionPage,
     pub specializations: crate::professions_specializations::SpecializationDraft,
+    pub orders: crate::professions_orders::CraftingOrders,
+    pub order_recipes: Vec<crate::professions::Recipe>,
+    pub order_can_place: bool,
+    pub bag_counts: BTreeMap<u32, u32>,
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
     pub child_skills: BTreeSet<u32>,
@@ -63,6 +72,9 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     let Some(view) = ctx.get::<ProfessionView>().filter(|view| view.book.visible) else {
         return vec![];
     };
+    if view.page == ProfessionPage::Orders && view.orders.customer {
+        return orders::customer_screen(ctx, view);
+    }
     let title = if view.profession_name.is_empty() {
         "Professions"
     } else {
@@ -88,9 +100,17 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     } else {
         children.extend(specializations::page(view));
     }
-    if view.page == ProfessionPage::Recipes {
-        children.extend(tree::recipe_list(ctx, view));
-        children.extend(slots::schematic(view));
+    match view.page {
+        ProfessionPage::Recipes => {
+            children.extend(tree::recipe_list(ctx, view));
+            children.extend(slots::schematic(view));
+        }
+        ProfessionPage::Recraft => {
+            children.extend(tree::recipe_list(ctx, view));
+            children.extend(recraft::schematic(view));
+        }
+        ProfessionPage::Orders => children.extend(orders::crafter_page(ctx, view)),
+        ProfessionPage::Specializations => {}
     }
     children.extend(page_tabs(view.page));
     rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
@@ -154,7 +174,7 @@ fn page_tabs(page: ProfessionPage) -> Element {
         (
             "Recipes",
             "Recipes",
-            page == ProfessionPage::Recipes,
+            matches!(page, ProfessionPage::Recipes | ProfessionPage::Recraft),
             21.0,
             108.0,
             "profession:tab:recipes",
