@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 
 use shared::protocol::{
-    GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot, GroupRosterSnapshot,
-    ReadyCheckAnswer, ReadyCheckUpdate,
+    GroupCountdownUpdate, GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot,
+    GroupRosterSnapshot, ReadyCheckAnswer, ReadyCheckUpdate,
 };
 
 /// Seconds ready check marks stay on the frames after the check ends
@@ -19,11 +19,15 @@ pub const MAX_PARTY_SIZE: usize = 5;
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct GroupState {
     pub is_raid: bool,
+    pub assistants: Vec<String>,
     /// Roster order from the server; empty when not in a group.
     pub members: Vec<GroupMemberSnapshot>,
     /// Live state of online members, by name.
     pub live: HashMap<String, GroupMemberState>,
     pub ready_check: Option<ReadyCheckView>,
+    pub countdown: Option<crate::group_countdown::CountdownView>,
+    /// Sound kits waiting for the native host, drained once per frame.
+    pub countdown_sounds: Vec<u32>,
     /// Inviter of the pending `PARTY_INVITE`, until answered or cancelled.
     pub pending_invite: Option<String>,
     pub last_server_message: Option<String>,
@@ -59,6 +63,15 @@ impl GroupState {
         self.member(name).is_some_and(|m| m.is_leader)
     }
 
+    pub fn apply_assistants(&mut self, snapshot: shared::protocol::GroupAssistants) {
+        self.assistants = snapshot.members;
+    }
+
+    pub fn can_start_group_checks(&self, name: &str) -> bool {
+        self.is_leader(name)
+            || (self.is_raid && self.assistants.iter().any(|member| member == name))
+    }
+
     /// Replaces the roster. Live state of members who left or went offline is dropped;
     /// an empty roster (left the group) also ends any ready check.
     pub fn apply_roster(&mut self, roster: GroupRosterSnapshot) {
@@ -73,7 +86,45 @@ impl GroupState {
         self.live.retain(|name, _| online.contains(&name.as_str()));
         if self.members.is_empty() {
             self.ready_check = None;
+            self.countdown = None;
+            self.countdown_sounds.clear();
+            self.assistants.clear();
         }
+    }
+
+    pub fn apply_countdown_at(&mut self, mut update: GroupCountdownUpdate, now_unix_ms: u64) {
+        let remaining = update.deadline_unix_ms.saturating_sub(now_unix_ms) as f32 / 1000.0;
+        update.time_remaining_secs = update.time_remaining_secs.min(remaining);
+        if update.duration_secs == 0 {
+            self.countdown = None;
+            self.countdown_sounds.clear();
+            return;
+        }
+        if update.time_remaining_secs <= 0.0 {
+            if self.countdown.take().is_some() {
+                self.countdown_sounds
+                    .push(game_engine_core::ui_sound_kits::UI_COUNTDOWN_FINISHED);
+            }
+            return;
+        }
+        self.countdown_sounds.clear();
+        let view = crate::group_countdown::CountdownView::new(update);
+        self.countdown_sounds.extend(view.start_sounds());
+        self.countdown = Some(view);
+    }
+
+    pub fn tick_countdown(&mut self, delta: f32) {
+        let Some(view) = self.countdown.as_mut() else {
+            return;
+        };
+        self.countdown_sounds.extend(view.tick(delta.max(0.0)));
+        if view.seconds() == 0 {
+            self.countdown = None;
+        }
+    }
+
+    pub fn drain_countdown_sounds(&mut self) -> Vec<u32> {
+        std::mem::take(&mut self.countdown_sounds)
     }
 
     /// Stores live states by name. The server sends states only of group members, but
@@ -84,6 +135,25 @@ impl GroupState {
         for state in states {
             self.live.insert(state.name.clone(), state);
         }
+    }
+
+    /// Retail RAID_MEMBERS_AFK / READY_CHECK_YOU_WERE_AFK, once per completed check.
+    pub fn apply_ready_check_notices(
+        &mut self,
+        update: ReadyCheckUpdate,
+        local_name: Option<&str>,
+    ) -> Vec<String> {
+        let already_finished = self
+            .ready_check
+            .as_ref()
+            .is_some_and(|view| view.update.finished);
+        let notices = if update.finished && !already_finished {
+            ready_check_away_notices(&update, local_name)
+        } else {
+            Vec::new()
+        };
+        self.apply_ready_check(update);
+        notices
     }
 
     pub fn apply_ready_check(&mut self, update: ReadyCheckUpdate) {
@@ -134,12 +204,36 @@ impl GroupState {
     }
 }
 
+fn ready_check_away_notices(update: &ReadyCheckUpdate, local_name: Option<&str>) -> Vec<String> {
+    let away: Vec<&str> = update
+        .members
+        .iter()
+        .filter(|member| member.answer == ReadyCheckAnswer::Pending)
+        .map(|member| member.name.as_str())
+        .collect();
+    if away.is_empty() {
+        return Vec::new();
+    }
+    let mut notices = vec![format!(
+        "The following players are Away: {}",
+        away.join(", ")
+    )];
+    if local_name.is_some_and(|name| away.contains(&name)) {
+        notices.push("You were Away for a ready check".into());
+    }
+    notices
+}
+
 /// A group request from UI, chat or IPC; networking sends it on `GroupChannel`.
 #[derive(Clone, Debug, PartialEq)]
 pub enum GroupCommand {
     Invite(String),
     Uninvite(String),
     Promote(String),
+    SetAssistant {
+        name: String,
+        assistant: bool,
+    },
     Leave,
     ConvertToRaid,
     ConvertToParty,
@@ -152,6 +246,7 @@ pub enum GroupCommand {
         role: GroupRoleSnapshot,
     },
     StartReadyCheck,
+    Countdown(u32),
     RespondReadyCheck(bool),
     RespondInvite(bool),
 }
@@ -161,6 +256,7 @@ pub enum GroupCommand {
 pub enum GroupMenuEntry {
     Invite,
     Promote,
+    SetAssistant(bool),
     Uninvite,
     ConvertToRaid,
     ConvertToParty,
@@ -177,6 +273,8 @@ impl GroupMenuEntry {
         match self {
             Self::Invite => "Invite",
             Self::Promote => "Promote to Leader",
+            Self::SetAssistant(true) => "Promote to Assistant",
+            Self::SetAssistant(false) => "Demote",
             Self::Uninvite => "Uninvite",
             Self::ConvertToRaid => "Convert To Raid",
             Self::ConvertToParty => "Convert To Party",
@@ -194,6 +292,8 @@ impl GroupMenuEntry {
         match self {
             Self::Invite => "Invite",
             Self::Promote => "Promote",
+            Self::SetAssistant(true) => "PromoteAssistant",
+            Self::SetAssistant(false) => "DemoteAssistant",
             Self::Uninvite => "Uninvite",
             Self::ConvertToRaid => "ConvertToRaid",
             Self::ConvertToParty => "ConvertToParty",
@@ -210,6 +310,8 @@ impl GroupMenuEntry {
         match self {
             Self::Invite => "group_menu:invite",
             Self::Promote => "group_menu:promote",
+            Self::SetAssistant(true) => "group_menu:promote_assistant",
+            Self::SetAssistant(false) => "group_menu:demote_assistant",
             Self::Uninvite => "group_menu:uninvite",
             Self::ConvertToRaid => "group_menu:convert_to_raid",
             Self::ConvertToParty => "group_menu:convert_to_party",
@@ -234,6 +336,10 @@ impl GroupMenuEntry {
         match self {
             Self::Invite => GroupCommand::Invite(unit_name.into()),
             Self::Promote => GroupCommand::Promote(unit_name.into()),
+            Self::SetAssistant(assistant) => GroupCommand::SetAssistant {
+                name: unit_name.into(),
+                assistant,
+            },
             Self::Uninvite => GroupCommand::Uninvite(unit_name.into()),
             Self::ConvertToRaid => GroupCommand::ConvertToRaid,
             Self::ConvertToParty => GroupCommand::ConvertToParty,
@@ -247,7 +353,9 @@ impl GroupMenuEntry {
     }
 }
 
-const ALL_ENTRIES: [GroupMenuEntry; 11] = [
+const ALL_ENTRIES: [GroupMenuEntry; 13] = [
+    GroupMenuEntry::SetAssistant(true),
+    GroupMenuEntry::SetAssistant(false),
     GroupMenuEntry::Invite,
     GroupMenuEntry::Promote,
     GroupMenuEntry::Uninvite,
@@ -278,12 +386,16 @@ pub fn group_menu_entries(
 ) -> Vec<GroupMenuEntry> {
     let leader = state.is_leader(local_name);
     if unit_name.eq_ignore_ascii_case(local_name) {
-        return self_menu_entries(state, leader);
+        return self_menu_entries(state, leader, state.can_start_group_checks(local_name));
     }
     if state.member(unit_name).is_some() {
         let mut entries = Vec::new();
         if leader {
             entries.extend([GroupMenuEntry::Promote, GroupMenuEntry::Uninvite]);
+            if state.is_raid {
+                let assistant = state.assistants.iter().any(|member| member == unit_name);
+                entries.push(GroupMenuEntry::SetAssistant(!assistant));
+            }
             entries.extend(ROLE_ENTRIES);
         }
         return entries;
@@ -295,7 +407,7 @@ pub fn group_menu_entries(
     }
 }
 
-fn self_menu_entries(state: &GroupState, leader: bool) -> Vec<GroupMenuEntry> {
+fn self_menu_entries(state: &GroupState, leader: bool, can_check: bool) -> Vec<GroupMenuEntry> {
     if !state.in_group() {
         return Vec::new();
     }
@@ -306,6 +418,8 @@ fn self_menu_entries(state: &GroupState, leader: bool) -> Vec<GroupMenuEntry> {
         } else if state.members.len() <= MAX_PARTY_SIZE {
             entries.push(GroupMenuEntry::ConvertToParty);
         }
+    }
+    if can_check {
         entries.push(GroupMenuEntry::ReadyCheck);
     }
     entries.push(GroupMenuEntry::Leave);

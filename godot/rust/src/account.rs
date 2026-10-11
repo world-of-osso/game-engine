@@ -73,11 +73,12 @@ use shared::protocol::{
     QuestGiverQuestDetails, QuestGiverQuestList, QuestGiverRequestItems, SetQuestWatched,
 };
 use shared::protocol::{
-    ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
-    GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
-    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, MinimapPing, MinimapPingRequest,
-    PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck,
-    SetGroupRole, SetRaidSubgroup, SetRaidTarget, StartReadyCheck,
+    ConvertGroupToParty, ConvertGroupToRaid, GroupAssistants, GroupChannel, GroupCommandResponse,
+    GroupCountdownRequest, GroupCountdownUpdate, GroupInviteCancelled, GroupInviteIntent,
+    GroupInvitePrompt, GroupMemberStates, GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup,
+    MinimapPing, MinimapPingRequest, PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate,
+    RespondGroupInvite, RespondReadyCheck, SetGroupAssistant, SetGroupRole, SetRaidSubgroup,
+    SetRaidTarget, StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -1126,6 +1127,9 @@ impl Account {
             GroupCommand::Uninvite(name) => {
                 bridge.send::<_, GroupChannel>(GroupUninviteIntent { name })
             }
+            GroupCommand::SetAssistant { name, assistant } => {
+                bridge.send::<_, GroupChannel>(SetGroupAssistant { name, assistant })
+            }
             GroupCommand::Promote(name) => {
                 bridge.send::<_, GroupChannel>(PromoteGroupLeader { name })
             }
@@ -1139,6 +1143,9 @@ impl Account {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
             }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
+            GroupCommand::Countdown(seconds) => {
+                bridge.send::<_, GroupChannel>(GroupCountdownRequest { seconds })
+            }
             GroupCommand::RespondReadyCheck(ready) => {
                 bridge.send::<_, GroupChannel>(RespondReadyCheck { ready })
             }
@@ -1513,6 +1520,8 @@ impl Account {
             || message.is::<GroupInvitePrompt>()
             || message.is::<GroupInviteCancelled>()
             || message.is::<ReadyCheckUpdate>()
+            || message.is::<GroupCountdownUpdate>()
+            || message.is::<GroupAssistants>()
             || message.is::<GroupCommandResponse>()
             || message.is::<RaidTargetIcons>()
             || message.is::<MinimapPing>()
@@ -1526,6 +1535,8 @@ impl Account {
     ) -> Result<(), String> {
         if message.is::<GroupRosterSnapshot>() {
             self.group.apply_roster(decode(message)?);
+        } else if message.is::<GroupAssistants>() {
+            self.group.apply_assistants(decode(message)?);
         } else if message.is::<GroupMemberStates>() {
             let states: GroupMemberStates = decode(message)?;
             self.group.apply_member_states(states.members);
@@ -1538,7 +1549,29 @@ impl Account {
                 self.group.pending_invite = None;
             }
         } else if message.is::<ReadyCheckUpdate>() {
-            self.group.apply_ready_check(decode(message)?);
+            let notices = self.group.apply_ready_check_notices(
+                decode(message)?,
+                self.session.selected_character_name.as_deref(),
+            );
+            output.extend(notices.into_iter().map(AccountEvent::GroupNotice));
+        } else if message.is::<GroupCountdownUpdate>() {
+            let update: GroupCountdownUpdate = decode(message)?;
+            if update.time_remaining_secs > 0.0 || update.duration_secs == 0 {
+                let verb = if update.duration_secs == 0 {
+                    "canceled"
+                } else {
+                    "started"
+                };
+                output.push(AccountEvent::GroupNotice(format!(
+                    "[{}] {verb} a countdown timer.",
+                    update.initiator_name
+                )));
+            }
+            let now_unix_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|error| format!("Cannot read countdown wall clock: {error}"))?
+                .as_millis() as u64;
+            self.group.apply_countdown_at(update, now_unix_ms);
         } else if message.is::<RaidTargetIcons>() {
             self.raid_targets = decode(message)?;
         } else if message.is::<MinimapPing>() {

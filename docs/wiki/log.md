@@ -1,6 +1,9 @@
 ## 2026-10-11 — Quest sharing, resets and timers
 
 [Runtime](systems/quest-share-resets.md): native share offer/results relay repair, sampled server-clock countdown, exact Retail notices. Two private fb_* accounts on UDP5517; both skins share62, daily26153 reward/lock/reset and timed938 countdown/failure;14 inspected PNGs. No world.db writes/master merge/shared realm changes.
+## 2026-10-11 — Native ready checks and pull countdowns
+
+[Group frames](systems/group-frames.md#native-ready-checks-and-pull-countdowns): server-authoritative assistant permissions and UTC countdown deadlines prevent stale reliable delivery from restarting timers. Both skins' party/raid native ready responses, AFK summaries and Retail timer stages proved with fresh private-redb two-account runs; three-account assistant proof retained. [Contract](../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11) owns test counts, inspected PNGs and Dummy-audio limitation.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
