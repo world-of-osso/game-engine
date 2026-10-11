@@ -72,14 +72,15 @@ fn prompt(index: usize, roll: &GroupLootRoll, viewer: u64) -> Element {
         .iter()
         .find(|player| player.character_id == viewer)
         .expect("visible participant");
-    let mut children = atlas(
+    // XML comments name these regions, but they are not named DB2 atlas members.
+    let mut children = toast_texture(
         format!("{prefix}Background"),
-        "LootFrame-Background",
+        "0.28222656,0.55273438,0.30859375,0.57031250",
         [0.0, 0.0, PROMPT_W, PROMPT_H],
     );
-    children.extend(atlas(
+    children.extend(toast_texture(
         format!("{prefix}Border"),
-        "LootFrame-Border",
+        "0.00097656,0.28027344,0.43750000,0.73437500",
         [-4.5, -4.5, 286.0, 76.0],
     ));
     children.extend(item_art(&prefix, roll, [10.0, 13.0, 34.0, 34.0]));
@@ -186,6 +187,12 @@ fn label(name: String, text: &str, [left, top, width, height]: [f32; 4], color: 
     rsx! { fontstring { name: {DynName(name)}, width, height, text,
         font: GameFont::FrizQuadrata, font_size: 11.0, font_color: color,
         justify_h: "LEFT", pos_type: "absolute", left, top,
+    }}
+}
+
+fn toast_texture(name: String, coords: &str, [left, top, width, height]: [f32; 4]) -> Element {
+    rsx! { texture { name: {DynName(name)}, width, height, texture_fdid: 609618u32,
+        tex_coords: coords, pos_type: "absolute", left, top,
     }}
 }
 

@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Retail GroupLootFrame XML raw toast sheet and named Need/Greed/Transmog/Pass icons.
+textures/609618.blp
+textures/5148876.blp
 # Northshire spell10848/kit989 owner: real attachment19, delayed visual regression.
 models/124640.m2
 models/12464000.skin
