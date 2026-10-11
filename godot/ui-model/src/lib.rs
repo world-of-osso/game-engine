@@ -43,6 +43,7 @@ pub mod ui {
 pub mod battleground;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
+pub mod chat_draft;
 #[path = "ui/chat_frame.rs"]
 pub mod chat_frame;
 #[path = "ui/screens/chat_frame_component.rs"]

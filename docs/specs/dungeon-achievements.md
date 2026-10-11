@@ -24,6 +24,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - [x] Show earned alerts with authoritative icon/name/points, Mainline plate/icon/shield elements and click-to-open own-state details.
 - [x] Add a local earned chat line with a clickable achievement name; clicking it requests authoritative own-state details. Shift-click inserts the real ID/name link at the current chat caret.
+- [x] Show only the achievement label in chat drafts while retaining its real ID for transport and sent clickable chat. Unicode caret/selection replacement, surrounding edits and history recall preserve unedited links; editing a label makes it plain text.
 - [x] Never fabricate GUIDs, dates, other-character completion or comparison payloads in links.
 - [x] Track unearned achievements in the existing objective tracker after quests. Refresh tracked rows while the window is closed; stop tracking earned rows.
 - [x] Persist character-scoped watch IDs under authenticated account/realm preferences; restore rows from the server, not serialized progress.
@@ -61,7 +62,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
-- [ ] Native chat draft uses a plain edit box and displays transport markup; sent chat renders a clickable name.
+- Native draft appearance and transport preservation require private live proof in both skins; unit-model proof alone is not native certification.
 
 ## Out of scope
 
