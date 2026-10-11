@@ -146,7 +146,7 @@ fn collection_model(player: Gd<Node3D>, slot: EquipmentSlot) -> Result<Gd<Node3D
     let mut group = Node3D::new_alloc();
     group.set_name("WardrobeItemModel");
     for node in items.iter_shared() {
-        let mut item = node.cast::<Node3D>();
+        let item = node.cast::<Node3D>();
         let mut parent = item.get_parent().expect("equipment attached to player");
         parent.remove_child(&item);
         group.add_child(&item);
