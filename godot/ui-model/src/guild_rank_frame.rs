@@ -379,7 +379,7 @@ fn member_menu(session: &GuildRanksSession) -> Element {
         title: name,
         width: 200.0,
         x: 20.0,
-        y: -365.0,
+        y: 365.0,
         items: &items,
     })
 }

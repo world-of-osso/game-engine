@@ -29,7 +29,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
 - [x] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.
 - [x] Whole-gold input sends copper/day, sharing the allowance with guild repairs.
-- [x] Member context menu shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
+- [x] Right-click member context menu stays on screen and shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
 - [x] `/gpromote` / `/guildpromote` and `/gdemote` / `/guilddemote` send the same authoritative rank requests (Retail SlashCommands.lua GUILD_PROMOTE/GUILD_DEMOTE), not generic help.
 - [x] Server refusals display Retail GlobalStrings. `/o` and `/officer` use the Officer channel and its styling.
 
@@ -51,6 +51,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 
 ## Tests asserting this spec
 
+- `godot/tests/guild_member_controls_live.gd`: native right-click menu is inside the viewport; Promote/Demote alter and restore the authoritative roster label.
 - `godot/tests/guild_profile_live.gd`: private guild master types MOTD, inserts before the final character, accepts and checks the authoritative displayed reply; real Godot input/projection boundary.
 
 - `godot/ui-model/tests/native_guild_ranks.rs`: 5 authoritative model/Officer tests pass.
