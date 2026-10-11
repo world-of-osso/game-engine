@@ -45,6 +45,7 @@ pub struct CooldownViewerView {
     /// Essential, Utility, Tracked Buff icons, Tracked Buff bars.
     pub categories: [Vec<CooldownIconView>; 4],
     pub recommended_spell: Option<u32>,
+    pub settings: crate::cooldown_settings_component::CooldownSettingsView,
 }
 
 impl CooldownViewerModel {
