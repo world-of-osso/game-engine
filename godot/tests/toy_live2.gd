@@ -81,7 +81,8 @@ func sample_toy(sample: Array) -> void:
 	await click("ToySpellButton1")
 	# Closing Collections via its toggle preserves unit selection during casts.
 	await click("CollectionsMicroButton")
-	for frame in range(7):
+	var frame_count := 12 if item == 153183 else 7
+	for frame in range(frame_count):
 		await create_timer(0.1 if frame < 3 else 1.0).timeout
 		await RenderingServer.frame_post_draw
 		var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-%d.png" % [skin, item, frame])
@@ -123,8 +124,8 @@ func learn_sample(item: int) -> void:
 
 func select_mortar_target() -> bool:
 	# TDB Northshire spawn:42937 (-9029.03,-274.965,74.4195).
-	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-9029.03", "-254.965", "74.4195"]): return false
-	var destination := Vector3(-9029.03, 74.4195, 254.965)
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-9029.03", "-294.965", "74.4195"]): return false
+	var destination := Vector3(-9029.03, 74.4195, 294.965)
 	if not await wait_until(func(): return actor.position.distance_to(destination) < 4.0, "Northshire20yd positioning"): return false
 	await create_timer(3.0).timeout
 	for attempt in range(40):
