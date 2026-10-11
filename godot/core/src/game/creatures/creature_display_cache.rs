@@ -25,11 +25,12 @@ struct DisplayInfoColumns {
 }
 
 /// Builds `<data_dir>/cache/creature_display.sqlite` (display rows and per-model preferred
-/// skins) from CreatureDisplayInfo.csv and CreatureModelData.csv in `data_dir`, reusing it
+/// skins) from the pinned Retail DB2 export plus the Forever overlay, reusing it
 /// when its recorded sources are unchanged.
 pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String> {
-    let di = data_dir.join("CreatureDisplayInfo.csv");
-    let md = data_dir.join("CreatureModelData.csv");
+    let retail = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);
+    let di = retail.join("CreatureDisplayInfo.csv");
+    let md = retail.join("CreatureModelData.csv");
     if !di.exists() || !md.exists() {
         return Err(format!(
             "Creature display CSVs not found: {} / {}",
@@ -446,11 +447,12 @@ mod tests {
     #[test]
     fn import_pet_instance_scale_preserves_world_scale_and_rebuilds_old_cache() {
         let dir = std::env::temp_dir().join(format!("creature-pet-scale-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("CreatureDisplayInfo.csv"),
+        std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
+        std::fs::write(dir.join(crate::player_model_data::RETAIL_DB2_DIR).join("CreatureDisplayInfo.csv"),
             "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n62217,7,0.25,0.7,11,12,0,0\n328,7,1,1,11,12,0,0\n").unwrap();
         std::fs::write(
-            dir.join("CreatureModelData.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR)
+                .join("CreatureModelData.csv"),
             "ID,FileDataID,ModelScale\n7,1100485,2\n",
         )
         .unwrap();
@@ -484,13 +486,14 @@ mod tests {
     fn import_lord_cannon_preserves_fourth_creature_variation() {
         let dir =
             std::env::temp_dir().join(format!("creature-fourth-variation-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         std::fs::write(
-            dir.join("CreatureDisplayInfo.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR).join("CreatureDisplayInfo.csv"),
             "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n35297,2780,3,4237053,4237050,4237060,4237057,1\n",
         ).unwrap();
         std::fs::write(
-            dir.join("CreatureModelData.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR)
+                .join("CreatureModelData.csv"),
             "ID,FileDataID,ModelScale\n2780,4236958,1\n",
         )
         .unwrap();
@@ -535,14 +538,15 @@ mod tests {
     fn equivalent_data_root_spelling_reuses_the_cache() {
         let dir =
             std::env::temp_dir().join(format!("creature-display-alias-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         std::fs::write(
-            dir.join("CreatureDisplayInfo.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR).join("CreatureDisplayInfo.csv"),
             "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n",
         )
         .unwrap();
         std::fs::write(
-            dir.join("CreatureModelData.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR)
+                .join("CreatureModelData.csv"),
             "ID,FileDataID,ModelScale\n7,9001,1\n",
         )
         .unwrap();
@@ -567,14 +571,17 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("forever-npc-displays-{}", std::process::id()));
         let forever = dir.join("db2/1.60.1.70205");
         std::fs::create_dir_all(&forever).unwrap();
+        std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n";
         std::fs::write(
-            dir.join("CreatureDisplayInfo.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR)
+                .join("CreatureDisplayInfo.csv"),
             format!("{header}10,1,1,11,0,0,0,1\n"),
         )
         .unwrap();
         std::fs::write(
-            dir.join("CreatureModelData.csv"),
+            dir.join(crate::player_model_data::RETAIL_DB2_DIR)
+                .join("CreatureModelData.csv"),
             "ID,FileDataID,ModelScale\n1,1011653,1.25\n",
         )
         .unwrap();
@@ -643,9 +650,13 @@ mod tests {
     fn import_and_query_creature_display() {
         let dir =
             std::env::temp_dir().join(format!("creature-display-cache-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let display_path = dir.join("CreatureDisplayInfo.csv");
-        let model_path = dir.join("CreatureModelData.csv");
+        std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
+        let display_path = dir
+            .join(crate::player_model_data::RETAIL_DB2_DIR)
+            .join("CreatureDisplayInfo.csv");
+        let model_path = dir
+            .join(crate::player_model_data::RETAIL_DB2_DIR)
+            .join("CreatureModelData.csv");
         std::fs::write(
             &display_path,
             "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n5,7,1,21,22,23,24,1\n",

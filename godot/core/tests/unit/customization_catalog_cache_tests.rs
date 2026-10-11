@@ -13,7 +13,7 @@ impl CatalogFixture {
             std::process::id(),
             SEQUENCE.fetch_add(1, Ordering::Relaxed)
         ));
-        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir_all(root.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         let fixture = Self { root };
         for (name, contents) in [
             (
@@ -59,9 +59,13 @@ impl CatalogFixture {
                 "FileDataID,UsageType,MaterialResourcesID\n1020001,0,101\n1020002,2,101\n",
             ),
         ] {
-            std::fs::write(fixture.root.join(format!("{name}.csv")), contents).unwrap();
+            std::fs::write(fixture.retail().join(format!("{name}.csv")), contents).unwrap();
         }
         fixture
+    }
+
+    fn retail(&self) -> PathBuf {
+        self.root.join(crate::player_model_data::RETAIL_DB2_DIR)
     }
 
     fn cache_path(&self) -> PathBuf {
@@ -105,7 +109,10 @@ fn skyborne_compositor_uses_forever_layouts_without_replacing_retail() {
     let fixture = CatalogFixture::new();
     let forever = fixture.root.join("db2/1.60.1.70205");
     std::fs::create_dir_all(&forever).unwrap();
-    for (dir, ids) in [(&fixture.root, &[1][..]), (&forever, &[1, 201, 202][..])] {
+    for (dir, ids) in [
+        (&fixture.retail(), &[1][..]),
+        (&forever, &[1, 201, 202][..]),
+    ] {
         let mut layouts = String::from("ID,Width,Height\n");
         let mut sections =
             String::from("CharComponentTextureLayoutID,SectionType,X,Y,Width,Height\n");
@@ -155,7 +162,7 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
     let source = CatalogFixture::new();
     let forever = retail.root.join("db2/1.60.1.70205");
     std::fs::create_dir_all(&forever).unwrap();
-    for entry in std::fs::read_dir(&source.root).unwrap() {
+    for entry in std::fs::read_dir(source.retail()).unwrap() {
         let entry = entry.unwrap();
         std::fs::copy(entry.path(), forever.join(entry.file_name())).unwrap();
     }
@@ -199,7 +206,7 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         .unwrap();
     let header = "ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID\n";
     std::fs::write(
-        retail.root.join("ChrCustomizationReq.csv"),
+        retail.retail().join("ChrCustomizationReq.csv"),
         format!("{header}12,1,0,1,0,0,0,0\n19,2,0,0,0,0,0,0\n"),
     )
     .unwrap();
@@ -208,7 +215,7 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         format!("{header}12,1,0,0,3,0,0,0\n19,1,128,0,3,0,0,0\n20,1,128,0,3,0,0,0\n"),
     )
     .unwrap();
-    for dir in [&retail.root, &forever] {
+    for dir in [&retail.retail(), &forever] {
         std::fs::write(
             dir.join("ChrCustomizationReqChoice.csv"),
             "ChrCustomizationReqID,ChrCustomizationChoiceID\n",
@@ -250,7 +257,7 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
     }
     assert!(db.offered_choices(1, 0, 8, 500).is_empty());
     assert!(!db.offered_choices(1, 0, 8, 890).is_empty());
-    let cache = import_customization_cache(&forever).unwrap();
+    let cache = super::import_forever_customization_cache(&forever).unwrap();
     let conn = Connection::open(&cache).unwrap();
     assert_eq!(
         conn.query_row(
@@ -503,7 +510,7 @@ fn concurrent_imports_of_a_missing_catalog_all_succeed() {
 #[test]
 fn catalog_cache_rejects_invalid_authored_swatch_instead_of_inventing_color() {
     let fixture = CatalogFixture::new();
-    let path = fixture.root.join("ChrCustomizationChoice.csv");
+    let path = fixture.retail().join("ChrCustomizationChoice.csv");
     let csv = std::fs::read_to_string(&path)
         .unwrap()
         .replace("-26091", "not-a-color");

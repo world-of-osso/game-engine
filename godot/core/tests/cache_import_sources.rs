@@ -1,0 +1,116 @@
+use game_engine_core::{char_texture_cache, creature_display_cache, customization_cache};
+use rusqlite::Connection;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+struct Fixture(PathBuf);
+impl Fixture {
+    fn new() -> Self {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "cache-import-sources-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(root.join("db2/12.1.0.69933")).unwrap();
+        Self(root)
+    }
+    fn write(&self, name: &str, root: &str, retail: &str) {
+        std::fs::write(self.0.join(name), root).unwrap();
+        std::fs::write(self.0.join("db2/12.1.0.69933").join(name), retail).unwrap();
+    }
+}
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        std::fs::remove_dir_all(&self.0).unwrap();
+    }
+}
+
+#[test]
+fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
+    let fixture = Fixture::new();
+    let header = "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n";
+    fixture.write(
+        "CreatureDisplayInfo.csv",
+        &format!("{header}4,7,1,1,11,0,0,0\n"),
+        &format!("{header}145204,7,2,0.7,22,0,0,0\n145205,7,1,1,23,0,0,0\n"),
+    );
+    fixture.write(
+        "CreatureModelData.csv",
+        "ID,FileDataID,ModelScale\n7,9001,1\n",
+        "ID,FileDataID,ModelScale\n7,9002,1.25\n",
+    );
+    let path = creature_display_cache::import_creature_display_cache(&fixture.0).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let rows: Vec<(u32, u32, u32, u32)> = conn.prepare("SELECT display_id, model_fdid, scale_milli, pet_instance_scale_milli FROM creature_displays ORDER BY display_id").unwrap().query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).unwrap().map(Result::unwrap).collect();
+    assert_eq!(
+        rows,
+        vec![(145204, 9002, 2500, 700), (145205, 9002, 1250, 1000)]
+    );
+    // Emulate a cache produced by the old root-path importer, even with matching mtimes.
+    conn.execute(
+        "UPDATE source_files SET path = replace(path, 'db2/12.1.0.69933/', '')",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "DELETE FROM creature_displays WHERE display_id = 145205",
+        [],
+    )
+    .unwrap();
+    drop(conn);
+    creature_display_cache::import_creature_display_cache(&fixture.0).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM creature_displays", [], |r| r
+            .get::<_, u32>(0))
+            .unwrap(),
+        2
+    );
+    drop(conn);
+    // A missing pinned input must fail even when a usable cache and root CSV remain.
+    std::fs::remove_file(fixture.0.join("db2/12.1.0.69933/CreatureModelData.csv")).unwrap();
+    let error = creature_display_cache::import_creature_display_cache(&fixture.0).unwrap_err();
+    assert!(
+        error.contains("db2/12.1.0.69933/CreatureModelData.csv"),
+        "{error}"
+    );
+}
+
+#[test]
+fn importers_reject_root_only_csvs_without_creating_caches() {
+    let fixture = Fixture::new();
+    for name in [
+        "ChrModel",
+        "ChrCustomizationOption",
+        "ChrCustomizationChoice",
+        "ChrCustomizationElement",
+        "ChrCustomizationMaterial",
+        "ChrCustomizationGeoset",
+        "CharHairGeosets",
+        "ChrCustomizationCategory",
+        "ChrCustomizationSkinnedModel",
+        "TextureFileData",
+        "ChrRaceXChrModel",
+        "ChrRaces",
+        "ChrModelTextureLayer",
+        "CharComponentTextureSections",
+        "CharComponentTextureLayouts",
+        "ChrModelMaterial",
+        "CharStartOutfit",
+        "ItemModifiedAppearance",
+        "ItemAppearance",
+        "ItemDisplayInfo",
+        "ItemDisplayInfoMaterialRes",
+        "ModelFileData",
+    ] {
+        std::fs::write(fixture.0.join(format!("{name}.csv")), "ID\n1\n").unwrap();
+    }
+    for importer in [
+        customization_cache::import_customization_cache,
+        char_texture_cache::import_char_texture_cache,
+    ] {
+        let error = importer(&fixture.0).unwrap_err();
+        assert!(error.contains("db2/12.1.0.69933/"), "{error}");
+    }
+}

@@ -125,7 +125,7 @@ pub fn load_customization_db(data_root: &Path) -> Result<CustomizationDb, String
     let mut db = read_customization_db(data_root, false)?;
     let forever = data_root.join(crate::player_model_data::FOREVER_DB2_DIR);
     if needs_forever(data_root, &forever)? {
-        crate::customization_cache::import_customization_cache(&forever)?;
+        crate::customization_cache::import_forever_customization_cache(&forever)?;
         db.overlay_forever(read_customization_db(&forever, true)?)?;
     }
     Ok(db)
@@ -135,7 +135,8 @@ fn needs_forever(data_root: &Path, forever: &Path) -> Result<bool, String> {
     if forever.exists() {
         return Ok(true);
     }
-    let races = RaceModels::load(data_root)?;
+    let retail = data_root.join(crate::player_model_data::RETAIL_DB2_DIR);
+    let races = RaceModels::load(&retail)?;
     if crate::player_model_data::FOREVER_RACES
         .iter()
         .any(|&race| races.chr_model_id(race, 0).is_some())
@@ -150,14 +151,16 @@ fn needs_forever(data_root: &Path, forever: &Path) -> Result<bool, String> {
 
 fn read_customization_db(data_root: &Path, skyborne_only: bool) -> Result<CustomizationDb, String> {
     let connection = open_catalog(data_root, &customization_cache_file())?;
-    let races = RaceModels::load(data_root)?;
+    let retail = data_root.join(crate::player_model_data::RETAIL_DB2_DIR);
+    let csv_dir = if skyborne_only { data_root } else { &retail };
+    let races = RaceModels::load(csv_dir)?;
     let raw = if skyborne_only {
         query_skyborne_customization_raw_data(&connection, races)?
     } else {
         query_customization_raw_data(&connection, races)?
     };
     let mut db = CustomizationDb::from_raw(&raw);
-    db.load_requirements(data_root)?;
+    db.load_requirements(csv_dir)?;
     Ok(db)
 }
 
@@ -165,7 +168,7 @@ pub fn load_compositor(data_root: &Path) -> Result<CharTextureData, String> {
     let mut compositor = read_compositor(data_root)?;
     let forever = data_root.join(crate::player_model_data::FOREVER_DB2_DIR);
     if needs_forever(data_root, &forever)? {
-        crate::char_texture_cache::import_char_texture_cache(&forever)?;
+        crate::char_texture_cache::import_forever_char_texture_cache(&forever)?;
         let mut overlay = read_compositor(&forever)?;
         // ChrModel 218/219 use layouts 201/202 in Forever 1.60.1.70205.
         let layouts = [201, 202];

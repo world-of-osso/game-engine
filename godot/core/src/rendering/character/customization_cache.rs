@@ -67,6 +67,9 @@ fn cache_is_fresh(
         let (source, mtime) = row.map_err(|err| format!("read source_files row: {err}"))?;
         recorded.insert(source, mtime);
     }
+    if recorded.len() != csv_paths.len() {
+        return Ok(false);
+    }
     for path in csv_paths {
         let key = source_key(data_dir, path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
@@ -92,9 +95,14 @@ fn record_source_files(
     Ok(())
 }
 
-fn build_cache(conn: &Connection, data_dir: &Path, all_sources: &[PathBuf]) -> Result<(), String> {
-    let csv_paths = required_csv_paths(data_dir);
-    let texture_file_data = texture_file_data_path(data_dir);
+fn build_cache(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_dir: &Path,
+    all_sources: &[PathBuf],
+) -> Result<(), String> {
+    let csv_paths = required_csv_paths(csv_dir);
+    let texture_file_data = texture_file_data_path(csv_dir);
     init_cache_schema(conn)?;
     record_source_files(conn, data_dir, all_sources)?;
     populate_chr_models(conn, &csv_paths[0])?;
@@ -103,7 +111,7 @@ fn build_cache(conn: &Connection, data_dir: &Path, all_sources: &[PathBuf]) -> R
     populate_elements(conn, &csv_paths[3])?;
     populate_materials(conn, &csv_paths[4])?;
     populate_geosets(conn, &csv_paths[5])?;
-    populate_hair_geosets(conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
+    populate_hair_geosets(conn, &csv_paths[6], &RaceModels::load(csv_dir)?)?;
     populate_categories(conn, &csv_paths[7])?;
     populate_skinned_models(conn, &csv_paths[8])?;
     populate_texture_fdids(conn, &texture_file_data)?;
@@ -554,12 +562,34 @@ pub fn import_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
 }
 
 fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<PathBuf, String> {
-    let mut csv_paths = required_csv_paths(data_dir).to_vec();
-    csv_paths.push(texture_file_data_path(data_dir));
+    let csv_dir = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);
+    import_customization_sources(data_dir, &csv_dir, cache_path)
+}
+
+/// Import a product-local catalog (used only for the explicitly selected Forever overlay).
+pub fn import_forever_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
+    import_customization_sources(data_dir, data_dir, &cache_path(data_dir))
+}
+
+fn import_customization_sources(
+    data_dir: &Path,
+    csv_dir: &Path,
+    cache_path: &Path,
+) -> Result<PathBuf, String> {
+    let mut csv_paths = required_csv_paths(csv_dir).to_vec();
+    csv_paths.extend([
+        texture_file_data_path(csv_dir),
+        csv_dir.join("ChrRaceXChrModel.csv"),
+        csv_dir.join("ChrRaces.csv"),
+    ]);
+    // Validate before freshness: missing sources must never reuse a cached result.
+    for path in &csv_paths {
+        csv_mtime(path)?;
+    }
     rebuild_unless_fresh(
         cache_path,
         |conn| cache_is_fresh(conn, data_dir, &csv_paths),
-        |conn| build_cache(conn, data_dir, &csv_paths),
+        |conn| build_cache(conn, data_dir, csv_dir, &csv_paths),
     )?;
     Ok(cache_path.to_path_buf())
 }
@@ -573,7 +603,7 @@ fn load_customization_raw_data_at(
     let conn = crate::cache_sqlite::open_read_only(cache_path)?;
     crate::customization_query_data::query_customization_raw_data(
         &conn,
-        RaceModels::load(data_dir)?,
+        RaceModels::load(&data_dir.join(crate::player_model_data::RETAIL_DB2_DIR))?,
     )
 }
 
