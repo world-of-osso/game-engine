@@ -1,6 +1,6 @@
 //! Original cursor-item policy projected for standalone bag slots and stack splits.
 
-use game_engine_ui_model::bag_data::{InventoryRequest, container_item_request};
+use game_engine_ui_model::bag_data::container_item_request;
 use game_engine_ui_model::bag_frame_component::{parse_bag_close_action, parse_bag_slot_action};
 use game_engine_ui_model::character_frame::parse_equipment_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
