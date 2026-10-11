@@ -17,6 +17,18 @@ const WARRIOR_INITIAL: u32 = 1446;
 const ARMS: u32 = 71;
 
 #[test]
+fn journal_text_uses_explicit_spell_references_without_a_section_spell() {
+    let text = catalog()
+        .render_external_text(
+            "The plates reflect spells for $78939d.",
+            0,
+            &SpellTextContext::default(),
+        )
+        .unwrap();
+    assert_eq!(text, "The plates reflect spells for 10 sec.");
+}
+
+#[test]
 fn ground_leaps_need_a_cursor_destination_but_blink_and_target_leaps_do_not() {
     let data = catalog();
     assert!(data.get(189110).unwrap().ground_targeted);
