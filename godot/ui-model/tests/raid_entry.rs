@@ -103,7 +103,29 @@ fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_scroll_r
         locked: true,
         extended: false,
     };
-    let rows = catalog.rows(&[lock; 4], 60).unwrap();
+    let saves = [
+        lock,
+        InstanceLockInfo {
+            map_id: 533,
+            difficulty_id: 3,
+            instance_id: 9,
+            ..lock
+        },
+        InstanceLockInfo {
+            map_id: 249,
+            difficulty_id: 3,
+            instance_id: 10,
+            ..lock
+        },
+        InstanceLockInfo {
+            map_id: 670,
+            difficulty_id: 2,
+            instance_id: 11,
+            completed_mask: 1 << 3,
+            ..lock
+        },
+    ];
+    let rows = catalog.rows(&saves, 60).unwrap();
     assert_eq!(rows[0].name, "Molten Core");
     assert_eq!(rows[0].difficulty, "40 Player");
     assert_eq!(rows[0].lock.time_remaining_secs, 3940);
@@ -125,7 +147,8 @@ fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_scroll_r
     state.action("raid_info:down");
     assert_eq!(state.offset, 1);
     state.action("raid_info:select:3");
-    assert!(state.selected_row().is_some());
+    assert_eq!(state.selected_row().unwrap().lock.instance_id, 11);
+    assert_eq!(state.selected_row().unwrap().lock.map_id, 670);
     state.action("raid_info:up");
     assert_eq!(state.offset, 0);
 }
