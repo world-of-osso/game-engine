@@ -255,7 +255,8 @@ impl GameClient {
         let Some(toast) = self.achievements.toasts.pop_front() else {
             return Ok(());
         };
-        self.extract_art(&[130650]);
+        self.extract_art(&[model::TOAST_ATLAS_FDID]);
+        self.drawable_fdid(toast.icon_fdid);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("AchievementToastUI");
         ui.set_layer(10);
@@ -270,7 +271,8 @@ impl GameClient {
             return Err(error);
         }
         self.achievements.toast_ui = Some(ui);
-        self.achievements.toast_remaining = 5.0;
+        // Mainline AlertFrameSystems.lua:419 queues alerts for six seconds.
+        self.achievements.toast_remaining = 6.0;
         Ok(())
     }
 }

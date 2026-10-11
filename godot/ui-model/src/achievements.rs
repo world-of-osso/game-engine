@@ -14,6 +14,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const OPEN_ACTION: &str = "micro:AchievementMicroButton";
 pub const FRAME: &str = "AchievementFrame";
+/// Local Mainline UI atlas1771: alert plate, icon frame and point shield.
+pub const TOAST_ATLAS_FDID: u32 = 4_035_524;
 const ROWS: usize = 3;
 const STATISTIC_ROWS: usize = 11;
 const STATISTIC_ROW_HEIGHT: f32 = 24.0;
@@ -24,7 +26,7 @@ pub const ART: &[u32] = &[
     130652,
     235397,
     130665,
-    130650,
+    TOAST_ATLAS_FDID,
     137012,
     130656,
     HEADER_SHIELD_FDID,
@@ -1338,37 +1340,55 @@ pub fn achievement_link(id: u32, name: &str) -> String {
     format!("|Hachievement:{id}|h[{name}]|h")
 }
 
-/// Existing wire toast payload; the native Godot host did not previously subscribe to it.
+/// Mainline AlertFrameSystems.xml:173-330 and lua:348-388: authored atlas regions and anchors.
 pub fn achievement_toast_screen(ctx: &SharedContext) -> Element {
+    use crate::quest_art::named_atlas_texture;
     let toast = ctx
         .get::<shared::protocol::AchievementToastSnapshot>()
         .expect("toast payload");
     let action = format!("achievement:open:{}", toast.achievement_id);
-    let mut content = art(
+    let mut content = named_atlas_texture(
         "AchievementToastBackground".into(),
-        130650,
-        (0.0, 0.0, 360.0, 80.0),
+        "ui-achievement-alert-background",
+        (-5.0, 0.0, 310.0, 101.0),
     );
-    content.extend(label(
-        "AchievementToastTitle".into(),
-        "Achievement earned",
-        (64.0, 10.0, 280.0, 20.0),
-        GOLD,
-        "",
+    content.extend(art(
+        "AchievementToastIcon".into(),
+        toast.icon_fdid,
+        (9.0, 26.5, 52.0, 52.0),
     ));
-    content.extend(label(
-        "AchievementToastName".into(),
-        &toast.name,
-        (64.0, 33.0, 280.0, 22.0),
-        WHITE,
-        &action,
+    content.extend(named_atlas_texture(
+        "AchievementToastIconFrame".into(),
+        "ui-achievement-iconframe",
+        (-3.0, 15.5, 74.0, 74.0),
     ));
-    content.extend(label(
-        "AchievementToastPoints".into(),
-        &format!("{} points", toast.points),
-        (64.0, 57.0, 280.0, 20.0),
-        GOLD,
-        "",
+    let shield = if toast.points == 0 {
+        "UI-Achievement-Shield-NoPoints"
+    } else {
+        "ui-achievement-shield-2"
+    };
+    content.extend(named_atlas_texture(
+        "AchievementToastShield".into(),
+        shield,
+        (231.0, 21.0, 62.0, 55.0),
     ));
-    rsx! { r#frame { name: "AchievementToast", width: 360.0, height: 80.0, pos_type: "absolute", left: "50%", margin_left: -180.0, bottom: 170.0, {content} } }
+    let points = toast.points.to_string();
+    rsx! {
+        r#frame { name: "AchievementToast", width:300.0, height:101.0, mouse_enabled:true, onclick:{action.as_str()},
+            pos_type:"absolute", left:"50%", margin_left:-150.0, bottom:128.0,
+            {content}
+            fontstring { name:"AchievementToastTitle", text:"Achievement earned", font:GameFont::FrizQuadrata,
+                font_size:9.0, font_color:"0,0,0,1", justify_h:"CENTER", justify_v:"MIDDLE",
+                width:200.0,height:12.0,pos_type:"absolute",left:57.0,top:23.0,
+            }
+            fontstring { name:"AchievementToastName", text:{toast.name.as_str()}, font:GameFont::FrizQuadrata,
+                font_size:12.0,font_color:WHITE,justify_h:"CENTER",justify_v:"MIDDLE",onclick:{action.as_str()},
+                width:155.0,height:36.0,pos_type:"absolute",left:79.5,top:35.0,
+            }
+            fontstring { name:"AchievementToastPoints", text:{points.as_str()}, font:GameFont::FrizQuadrata,
+                font_size:12.0,font_color:WHITE,justify_h:"CENTER",justify_v:"MIDDLE",
+                width:38.0,height:16.0,pos_type:"absolute",left:243.0,top:41.0,
+            }
+        }
+    }
 }

@@ -262,6 +262,32 @@ fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row
 }
 
 #[test]
+fn achievementlinks_toast_uses_mainline_icon_shield_and_plate_layout_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(AchievementToastSnapshot {
+            achievement_id: 9,
+            name: "Level 40".into(),
+            points: 10,
+            icon_fdid: 236565,
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(game_engine_ui_model::achievements::achievement_toast_screen)
+            .sync(&shared, &mut registry);
+        assert!(registry.get_by_name("AchievementToastIcon").is_some());
+        assert!(registry.get_by_name("AchievementToastShield").is_some());
+        assert_eq!(text(&registry, "AchievementToastPoints"), "10");
+        let frame = registry
+            .get(registry.get_by_name("AchievementToast").unwrap())
+            .unwrap();
+        let rect = frame.layout_rect.as_ref().unwrap();
+        assert_eq!((rect.width, rect.height), (300.0, 101.0));
+    }
+}
+
+#[test]
 fn achievementlinks_open_unloaded_achievement_and_keep_server_earned_state() {
     let mut window = AchievementWindow::default();
     window.apply(AchievementCatalogPage::Categories {
