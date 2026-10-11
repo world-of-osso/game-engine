@@ -73,12 +73,7 @@ fn keystone_row(index: usize, member: &PartyKeystoneMember) -> Element {
     let [r, g, b] = crate::damage_meter_data::class_color(member.class);
     let color = format!("{r},{g},{b},1.0");
     let mut children = row_icon(&prefix, member);
-    children.extend(label(
-        format!("{prefix}Level"),
-        &level,
-        (5.0, 19.0, 26.0, 14.0),
-        (11.0, "1.0,0.82,0.0,1.0", "RIGHT"),
-    ));
+    children.extend(icon_overlay(&prefix, &level, member.is_leader));
     children.extend(label(
         format!("{prefix}Dungeon"),
         &dungeon,
@@ -97,7 +92,21 @@ fn keystone_row(index: usize, member: &PartyKeystoneMember) -> Element {
         (117.0, 18.0, 38.0, 17.0),
         (9.0, WHITE, "RIGHT"),
     ));
-    if member.is_leader {
+    rsx! {
+        r#frame { name: {DynName(prefix)}, width: 160.0, height: 36.0,
+            background_color: "0.06,0.07,0.11,0.95", border: "1px solid 0.3,0.3,0.3,1.0",
+            pos_type: "absolute", left: 8.0, top: {22.0 + index as f32 * 40.0}, {children} }
+    }
+}
+fn icon_overlay(prefix: &str, level: &str, leader: bool) -> Element {
+    // KeystoneWidget.lua's topLayer is above the icon button and its hover layer.
+    let mut children = label(
+        format!("{prefix}Level"),
+        level,
+        (5.0, 19.0, 26.0, 14.0),
+        (11.0, "1.0,0.82,0.0,1.0", "RIGHT"),
+    );
+    if leader {
         children.extend(texture(
             format!("{prefix}Leader"),
             132062,
@@ -105,11 +114,8 @@ fn keystone_row(index: usize, member: &PartyKeystoneMember) -> Element {
             WHITE,
         ));
     }
-    rsx! {
-        r#frame { name: {DynName(prefix)}, width: 160.0, height: 36.0,
-            background_color: "0.06,0.07,0.11,0.95", border: "1px solid 0.3,0.3,0.3,1.0",
-            pos_type: "absolute", left: 8.0, top: {22.0 + index as f32 * 40.0}, {children} }
-    }
+    rsx! { r#frame { name: {DynName(format!("{prefix}TopLayer"))}, width: 36.0, height: 36.0,
+    frame_level: 20.0, mouse_enabled: false, pos_type: "absolute", left: 0.0, top: 0.0, {children} } }
 }
 fn row_icon(prefix: &str, member: &PartyKeystoneMember) -> Element {
     // local community-listfile: interface/lfgframe/ui-lfg-background-azurevaults.blp.
@@ -135,9 +141,8 @@ fn row_icon(prefix: &str, member: &PartyKeystoneMember) -> Element {
         .and_then(|key| teleport_spell(key.challenge_id))
         .map(|spell| format!("mentor:teleport:{spell}"))
         .unwrap_or_default();
-    let enabled = !action.is_empty();
     rsx! { button { name: {DynName(format!("{prefix}Teleport"))}, width: 26.0, height: 26.0,
-    button_default_skin: false, onclick: {action.as_str()}, enabled,
+    button_default_skin: false, onclick: {action.as_str()},
     pos_type: "absolute", left: 5.0, top: 5.0, {art} } }
 }
 

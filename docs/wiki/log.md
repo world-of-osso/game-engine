@@ -1,3 +1,7 @@
+## 2026-10-11 — Native Mythic Mentor
+
+[Keys panel](systems/mythic-mentor.md): server party summaries, addon list projection, native launcher/title drag/placement. Private5811 initial two-account +8/+11 data and physical controls; native proof exposed loading snapshot loss and icon-overpaint, fixed at lifecycle/layer roots. Revised final proof remains explicitly pending.
+
 ## 2026-10-11 — Native Mythic Keystone UI
 
 [Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.

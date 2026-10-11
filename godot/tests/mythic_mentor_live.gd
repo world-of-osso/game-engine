@@ -25,6 +25,13 @@ func run_test() -> void:
 	if not await enter_world():
 		return
 	await wait_frames(30)
+	var initial = JSON.parse_string(client.party_keystone_state())
+	if not initial is Dictionary or initial.members.size() != 1:
+		fail("Initial solo keystone snapshot lost during loading: " + client.party_keystone_state())
+		return
+	if int(initial.members[0].key.level) != 8:
+		fail("Expected authored owner key +8")
+		return
 	write_state("ready.json")
 	var deadline := Time.get_ticks_msec() + 900000
 	while Time.get_ticks_msec() < deadline:
