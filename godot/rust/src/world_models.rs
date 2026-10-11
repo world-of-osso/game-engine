@@ -576,7 +576,12 @@ impl WorldModels {
         };
         let mut visual = Node3D::new_alloc();
         visual.set_name("NpcVisualRoot");
+        visual.set_meta("creature_display_id", &Variant::from(display_id));
         visual.set_scale(Vector3::ONE * scale.max(0.01));
+        visual.set_meta(
+            "pet_instance_scale",
+            &Variant::from(display.pet_instance_scale_milli as f32 / 1000.0),
+        );
         visual.set_rotation(Vector3::new(0.0, -FRAC_PI_2, 0.0));
         visual.add_child(&model);
         Ok(visual)

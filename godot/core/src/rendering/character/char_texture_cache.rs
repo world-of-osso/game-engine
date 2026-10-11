@@ -52,6 +52,9 @@ fn cache_is_fresh(
         let (source, mtime) = row.map_err(|err| format!("read source_files row: {err}"))?;
         recorded.insert(source, mtime);
     }
+    if recorded.len() != csv_paths.len() {
+        return Ok(false);
+    }
     for path in csv_paths {
         let key = source_key(data_dir, path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
@@ -265,11 +268,24 @@ fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String
     )
 }
 
-/// Builds `<data_dir>/cache/char_texture-v<N>.sqlite` from the DB2 CSVs in `data_dir`,
+/// Builds `<data_dir>/cache/char_texture-v<N>.sqlite` from the pinned Retail DB2 export,
 /// reusing it when its recorded sources are unchanged.
 pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
+    let csv_dir = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);
+    import_texture_sources(data_dir, &csv_dir)
+}
+
+/// Import only the explicitly selected Forever product's texture catalog.
+pub fn import_forever_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
+    import_texture_sources(data_dir, data_dir)
+}
+
+fn import_texture_sources(data_dir: &Path, csv_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = cache_path(data_dir);
-    let csv_paths = source_paths(data_dir);
+    let csv_paths = source_paths(csv_dir);
+    for path in &csv_paths {
+        csv_mtime(path)?;
+    }
     rebuild_unless_fresh(
         &cache_path,
         |conn| cache_is_fresh(conn, data_dir, &csv_paths),
@@ -290,11 +306,14 @@ mod tests {
         if root.exists() {
             std::fs::remove_dir_all(&root).unwrap();
         }
-        std::fs::create_dir_all(&root).unwrap();
-        for source in super::source_paths(Path::new("data")) {
+        let retail = root.join(crate::player_model_data::RETAIL_DB2_DIR);
+        std::fs::create_dir_all(&retail).unwrap();
+        for source in
+            super::source_paths(&Path::new("data").join(crate::player_model_data::RETAIL_DB2_DIR))
+        {
             std::os::unix::fs::symlink(
                 source.canonicalize().unwrap(),
-                root.join(source.file_name().unwrap()),
+                retail.join(source.file_name().unwrap()),
             )
             .unwrap();
         }

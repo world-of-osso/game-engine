@@ -2,7 +2,7 @@
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
-- [Class spell live proof](investigations/class-spell-live-proof.md) — thirteen bounded class-script paths on private54113, four classes in both skins; exact receipts and unproved supplemental contracts retained.
+- [Class spell live proof](investigations/class-spell-live-proof.md) — first pass on private54113; batches9–14 continuation on54123 adds twelve new class paths plus a Monk control, four both-skin classes and explicit guardian/numeric gaps.
 
 - [PvP pet battles](systems/battle-pets.md#pvp-queue-and-initial-selection--bounded-proof-2026-10-10) — two isolated accounts, both-skin native queue/Accept/selection/rounds/three-pet outcomes; numeric Retail timer/XP policy unresolved.
 
@@ -10,6 +10,10 @@
 - [Passenger mounts](systems/mounts.md#passenger-mounts) — local seat enums, authoritative group occupancy, model-aligned seat transforms, production `InMap` authority and both-skin native Ride/leave/dismount live proof; acceptance owned by the [contract](../specs/passenger-mounts.md).
 
 - [Native dev rebuild timings](investigations/native-dev-build-timings.md) — warm workspace test compilation 37.75s → 14.21s with one UI harness; unchanged 2689-test inventory, relocated-cache and linker-profiling limits.
+
+- [Spell kit attachment ordering](investigations/spell-kit-attach.md) — authored anchors present in all165 baseline failures; asynchronous owner readiness, explicit asset/anchor diagnostic separation and real-data regression.
+
+- [Black unit-frame portraits](investigations/portrait-black.md) —49 authentic starter-cloth/Imp receipts restore Human/Orc Modern portraits, private RED→GREEN and10 inspected PNGs; Forever HUD portrait slots are absent, both-skin world proof retained.
 
 ## October 9 reconciliation
 
@@ -43,6 +47,10 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
+
+- [Toy-live2](systems/toy-box.md#toy-live2-catalog-lifetime-and-later-effects-2026-10-10) — catalog-before-world lifetime RED/GREEN; both-skin learning/account reset,15 sampled identities per skin and explicit visual/audio/mortar limits.
+
 - [Toy-effects6 follow-up](systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10) — Spitzy inverted aura, strict train appearance coverage and both-skin bounded asset captures; mortar/absent source payloads remain unproved.
 
 - [Effect50 toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) — generic decoration visibility separated from interaction; three actual toys rendered in both configured skins; aura233 payload mapping remains unimplemented.
@@ -53,6 +61,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Native Toy Box](systems/toy-box.md) — Retail journal, unresolved-name ItemID labels, both-skin search/progress/desaturation; master-protocol private live learning/favourite/cast/bar/relog proof and inspected26 v2 captures. Transform-model coverage remains separate.
 - [Quest map objectives](systems/quest-map-objectives.md) — local Retail POIs and numbered overlays; v3 title/POI hover adds authored polygons and Retail additive button glow, with both-skin private proof and eight inspected PNGs. Native minimap selection remains source-unexposed; watched behavior retained.
+- [Authentic battlefield pet scales](systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10) — bounds normalization removed; world display/model scales plus PetInstanceScale, fixed pads/camera, importer schema RED/GREEN and eight inspected both-skin native passes.
 - [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab with creature-model card; [v2 both-skin proof](systems/battle-pets.md#collections-integration-correction--2026-10-10), turn battles excluded.
 - [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
 - [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab; [v2 companion proof](systems/battle-pets.md#collections-integration-correction--2026-10-10) and [bounded wild PvE](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10), both-skin private win/capture with isolated HUD and [Retail HUD v2](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10).

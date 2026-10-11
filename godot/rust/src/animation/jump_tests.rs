@@ -69,6 +69,7 @@ pub(super) fn player(with_running_landing: bool) -> AnimationState {
         source_id: 0,
         time_ms: 0.0,
         looping: true,
+        vary_loops: true,
         transition: None,
         random_state: 0,
         action: None,

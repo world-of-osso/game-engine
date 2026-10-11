@@ -2584,6 +2584,8 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.close_toybox();
+        self.toybox.model = Default::default();
         self.cancel_ground_target();
         self.encounter.clear();
         self.stop_sound();

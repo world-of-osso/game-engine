@@ -62,6 +62,9 @@ fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
     data_dir.join("cache/outfit_links-v4.sqlite")
 }
 fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
+    // WORKAROUND: CharStartOutfit (FDID 1237591) is absent from the local
+    // 12.1.0.69933 CASC root. Keep this importer's existing source set until an
+    // authentic pinned CharStartOutfit export is available, then pin all seven.
     [
         data_dir.join("CharStartOutfit.csv"),
         data_dir.join("ItemModifiedAppearance.csv"),

@@ -49,6 +49,38 @@ func live_run() -> void:
 						result.units.append({"name": str(unit.name), "position": [unit.global_position.x, unit.global_position.y, unit.global_position.z], "meshes": unit.find_children("*", "MeshInstance3D", true, false).size()})
 				var scene = root.find_child("PetBattleActiveModels", true, false)
 				result.battle_meshes = scene.find_children("*", "MeshInstance3D", true, false).size() if scene != null else 0
+				result.battle_models = []
+				if scene != null:
+					for model in scene.get_children():
+						var bounds := AABB()
+						var visible_meshes := 0
+						var framed := true
+						var model_viewport = scene.get_viewport()
+						var model_camera = model_viewport.get_camera_3d()
+						var view_rect: Rect2 = model_viewport.get_parent().get_global_rect()
+						var projected := Rect2()
+						var posed_projected := Rect2()
+						for mesh in model.find_children("*", "MeshInstance3D", true, false):
+							if mesh.is_visible_in_tree():
+								var transformed: AABB = mesh.global_transform * mesh.get_aabb().merge(mesh.get_custom_aabb())
+								for corner in range(8):
+									var world_corner = transformed.get_endpoint(corner)
+									var point = model_camera.unproject_position(world_corner)
+									projected = Rect2(point, Vector2.ZERO) if visible_meshes == 0 and corner == 0 else projected.expand(point)
+								var posed_mesh = mesh.bake_mesh_from_current_skeleton_pose() if mesh.get_skin() != null else mesh.mesh
+								var posed: AABB = mesh.global_transform * posed_mesh.get_aabb()
+								for corner in range(8):
+									var posed_corner = posed.get_endpoint(corner)
+									var point = model_camera.unproject_position(posed_corner)
+									framed = framed and not model_camera.is_position_behind(posed_corner) and model_viewport.get_visible_rect().has_point(point)
+									posed_projected = Rect2(point, Vector2.ZERO) if visible_meshes == 0 and corner == 0 else posed_projected.expand(point)
+								bounds = transformed if visible_meshes == 0 else bounds.merge(transformed)
+								visible_meshes += 1
+						var origin = view_rect.position + model_camera.unproject_position(model.global_position)
+						var visual = model.get_child(0)
+						var instance_scale = visual.get_meta("pet_instance_scale")
+						var display_id = visual.get_meta("creature_display_id")
+						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "framed": framed, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z], "origin_px": [origin.x, origin.y], "projected_px": [projected.position.x + view_rect.position.x, projected.position.y + view_rect.position.y, projected.size.x, projected.size.y], "posed_projected_px": [posed_projected.position.x + view_rect.position.x, posed_projected.position.y + view_rect.position.y, posed_projected.size.x, posed_projected.size.y], "position": [model.position.x, model.position.y, model.position.z], "scale": [model.scale.x, model.scale.y, model.scale.z], "display_id": display_id, "pet_instance_scale": instance_scale, "visual_scale": [visual.scale.x, visual.scale.y, visual.scale.z], "visual_position": [visual.position.x, visual.position.y, visual.position.z]})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw

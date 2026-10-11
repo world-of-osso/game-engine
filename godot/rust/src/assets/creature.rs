@@ -440,6 +440,7 @@ mod tests {
             model_fdid: 126278,
             skin_fdids: [126280, 0, 0, 0],
             scale_milli: 1000,
+            pet_instance_scale_milli: 1000,
         };
         let path = cache_model_files(&resolver, &data_root, display.model_fdid).unwrap();
         assert_eq!(path, data_root.join("models/126278.m2"));
@@ -488,6 +489,7 @@ mod tests {
             model_fdid: 1011653,
             skin_fdids: [0; 4],
             scale_milli: 1000,
+            pet_instance_scale_milli: 1000,
         };
         let path = cache_model_files(&resolver, &data_root, display.model_fdid).unwrap();
         let model = std::fs::read(path).unwrap();

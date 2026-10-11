@@ -152,6 +152,7 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
             model_fdid: MODEL_FDID,
             skin_fdids: [0; 4],
             scale_milli: 1000,
+            pet_instance_scale_milli: 1000,
         };
         let parsed = load_display_model_files(&root, &display).unwrap();
         assert_eq!(

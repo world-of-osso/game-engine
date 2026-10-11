@@ -48,7 +48,7 @@ impl SpellEffects {
     pub(super) fn spawn_due(&mut self, world: &WorldUnits) -> Result<(), String> {
         let mut errors = Vec::new();
         for pending in std::mem::take(&mut self.pending) {
-            if pending.due_at > self.clock {
+            if !pending.is_due(self.clock, world.unit_visual_loading(pending.unit)) {
                 self.pending.push(pending);
                 continue;
             }
@@ -106,6 +106,12 @@ impl SpellEffects {
         phase: Phase,
     ) -> Result<ActiveEffect, String> {
         let model = &pending.model;
+        if model.attachment.is_some() && world.unit_model_node(pending.unit).is_none() {
+            return Err(format!(
+                "Spell {} kit {}: unit {} owner visual unavailable after loading; cannot attach model {}",
+                pending.spell_id, pending.kit_id, pending.unit, model.model_fdid
+            ));
+        }
         let Some(parent) = attachment_node(world, pending.unit, model.attachment) else {
             return Err(format!(
                 "Spell {} kit {}: unit {} has no attachment {:?}",
@@ -152,6 +158,12 @@ impl SpellEffects {
             }
         }
         self.pools.end_frame();
+    }
+}
+
+impl PendingModel {
+    pub(super) fn is_due(&self, clock: f32, owner_loading: bool) -> bool {
+        self.due_at <= clock && (self.model.attachment.is_none() || !owner_loading)
     }
 }
 
