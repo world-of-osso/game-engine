@@ -240,6 +240,14 @@ impl Scene {
         self.frame_camera(&model);
     }
 
+    /// Battle pads use a fixed projection, never the combined pets' idle envelope.
+    pub(crate) fn frame_battlefield(&mut self) {
+        self.camera.set_orthogonal(3.0, 0.05, 100.0);
+        let center = Vector3::new(0.0, 0.72, 0.0);
+        self.camera
+            .look_at_from_position(center + Vector3::new(10.0, 0.0, 0.0), center);
+    }
+
     /// Face the model and fit its height into the frame.
     fn frame_camera(&mut self, model: &Gd<Node3D>) {
         let bounds = preview_model_bounds(model);
@@ -254,7 +262,7 @@ impl Scene {
     }
 }
 
-fn preview_model_bounds(model: &Gd<Node3D>) -> Aabb {
+pub(crate) fn preview_model_bounds(model: &Gd<Node3D>) -> Aabb {
     let meshes = model
         .find_children_ex("*")
         .type_("MeshInstance3D")

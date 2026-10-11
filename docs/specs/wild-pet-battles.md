@@ -10,6 +10,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - [x] Wild PvE uses the untimed Retail timer mode, not an invented timeout.
 - [x] The camera frames both active 3D pet models on their corresponding health-frame sides, facing each other; swapping updates models.
 - [x] Preview framing includes authored skinned-animation bounds and nearest-face depth, not only rest-pose vertex bounds.
+- [ ] Both active pets stay on separate left/right battlefield pads at battle presentation scale (80–200px tall at 1280×720), independently of either pet's world display scale or idle flourish envelope. Battle presentation repeats the base idle; ordinary world idle variations remain unchanged.
 - [x] Each ready pet renders independently; a missing asset on one side reports that display's error without suppressing the other pet or retrying the consumed completion.
 - [x] End displays outcome/XP/capture and disables further actions. Journal updates remain authoritative.
 - [x] Modern and Forever retain identical geometry and controls.
@@ -37,7 +38,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 ## Tests asserting this spec
 - `godot/ui-model/tests/wild_pet_battle.rs`: both-skin frames/timer/actions, round identity, cooldowns, swaps, forfeit/end.
 - `godot/ui-model/tests/pet_journal.rs`: owned loadout action and duplicate-slot clearing.
-- `scripts/tests/test_petbattle_model_visibility.py`: private native regression for a ready Rabbit opposite a Soul of the Aspects whose receipt is absent.
+- `scripts/tests/test_petbattle_model_visibility.py`: private native regression for a ready Rabbit opposite a receipt-gated ally; complete-pair checks assert both pets' projected pad positions, 80–200px rest bounds, full animation framing and actual skin over eight seconds.
 - `godot/tests/pet_battle_live.gd`: private real-pointer fixture; durable `data/diagnostics/pbwild-20261010/prove.py` asserts actual skin, two models, isolated HUD, defeated 0-HP win, capture and close restoration.
 
 ## Known gaps (current cycle)

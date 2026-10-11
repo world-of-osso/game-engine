@@ -173,6 +173,8 @@ pub struct AnimationState {
     source_id: u16,
     time_ms: f64,
     looping: bool,
+    /// World idles vary; a staged battle repeats its base idle without roaming flourishes.
+    vary_loops: bool,
     transition: Option<Transition>,
     random_state: u64,
     /// Per sequence: whether any bone track has more than one keyframe.
@@ -256,6 +258,7 @@ impl AnimationState {
                 .id,
             time_ms: 0.0,
             looping: true,
+            vary_loops: true,
             transition: None,
             random_state: 0,
             sequence_animated,
@@ -420,6 +423,17 @@ impl AnimationState {
         }
         self.start_transition(index, looping);
         Ok(true)
+    }
+
+    fn repeat_base_animation(&mut self, id: u16) -> Result<(), String> {
+        let index = self
+            .sequences
+            .iter()
+            .position(|sequence| sequence.id == id && sequence.variation_id == 0)
+            .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
+        self.select(index, true)?;
+        self.vary_loops = false;
+        Ok(())
     }
 
     fn has_base_sequence(&self, id: u16) -> bool {
@@ -632,6 +646,11 @@ impl AnimationState {
             if !self.looping && elapsed >= duration {
                 self.finish_death(elapsed - duration);
             }
+            return Ok(());
+        }
+        if !self.vary_loops {
+            self.time_ms = elapsed % duration;
+            self.tick_transition(delta_ms / rate);
             return Ok(());
         }
         let family = m2::VariationFamily::read(&self.sequences, self.current)?;
@@ -995,9 +1014,21 @@ impl WowAnimationPlayer {
         self.apply_sequence_bounds();
     }
 
+    pub(crate) fn use_battle_idle(&mut self) -> Result<(), String> {
+        self.animation
+            .as_mut()
+            .ok_or("Battle idle has no animation state")?
+            .repeat_base_animation(ANIM_STAND)?;
+        self.write_poses();
+        Ok(())
+    }
+
     /// A preview's camera must also fit later loop variations of the current animation.
     pub(crate) fn preview_loop_bounds(&self) -> Option<Aabb> {
         let animation = self.animation.as_ref()?;
+        if !animation.vary_loops {
+            return sequence_bounds(&animation.sequences[animation.current]);
+        }
         let id = animation.sequences[animation.current].id;
         animation
             .sequences

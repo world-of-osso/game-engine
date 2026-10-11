@@ -1,5 +1,6 @@
 //! Native wild PvE battle HUD and a single camera framing the two active pet models.
-use crate::character_frame::preview::{Scene, bind_sheet_light};
+use crate::animation::WowAnimationPlayer;
+use crate::character_frame::preview::{Scene, bind_sheet_light, preview_model_bounds};
 use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
@@ -9,6 +10,9 @@ use godot::prelude::*;
 use shared::components::Npc;
 use shared::protocol::WildPetBattleUpdate;
 use std::collections::{BTreeMap, BTreeSet};
+
+const BATTLE_PET_HEIGHT: f32 = 1.2;
+const BATTLE_PAD_OFFSET: f32 = 2.2;
 
 #[derive(Default)]
 pub(crate) struct WildBattleHud {
@@ -240,30 +244,21 @@ impl GameClient {
                 continue;
             };
             *request = None;
-            let mut model = match result {
+            let model = match result {
                 Ok(model) => model,
                 Err(error) => {
                     godot_error!("Pet battle team {team} display {}: {error}", displays[team]);
                     continue;
                 }
             };
-            bind_sheet_light(&model);
-            model.set_name(if team == 0 { "AllyPet" } else { "EnemyPet" });
-            model.set_position(Vector3::new(0.0, 0.0, if team == 0 { 1.5 } else { -1.5 }));
-            model.set_rotation(Vector3::new(
-                0.0,
-                if team == 0 {
-                    std::f32::consts::FRAC_PI_2
-                } else {
-                    -std::f32::consts::FRAC_PI_2
-                },
-                0.0,
-            ));
-            self.wild_pet_battle
-                .scene
-                .as_mut()
-                .expect("battle scene created with requests")
-                .add_model_child(&model);
+            stage_battle_pet(
+                self.wild_pet_battle
+                    .scene
+                    .as_mut()
+                    .expect("battle scene created with requests"),
+                model,
+                team,
+            )?;
         }
         if ids.iter().all(Option::is_none) {
             self.wild_pet_battle.shown = displays;
@@ -273,4 +268,66 @@ impl GameClient {
         }
         Ok(())
     }
+}
+
+fn repeat_battle_idle(model: &Gd<Node3D>) -> Result<(), String> {
+    let animations = model
+        .find_children_ex("*")
+        .type_("WowAnimationPlayer")
+        .owned(false)
+        .done();
+    for node in animations.iter_shared() {
+        node.cast::<WowAnimationPlayer>()
+            .bind_mut()
+            .use_battle_idle()?;
+    }
+    Ok(())
+}
+
+fn stage_battle_pet(scene: &mut Scene, mut model: Gd<Node3D>, team: usize) -> Result<(), String> {
+    if let Err(error) = repeat_battle_idle(&model) {
+        model.free();
+        return Err(format!("Battle team {team} idle: {error}"));
+    }
+    bind_sheet_light(&model);
+    model.set_rotation(Vector3::new(
+        0.0,
+        if team == 0 {
+            std::f32::consts::FRAC_PI_2
+        } else {
+            -std::f32::consts::FRAC_PI_2
+        },
+        0.0,
+    ));
+    let mut pad = Node3D::new_alloc();
+    pad.set_name(if team == 0 { "AllyPet" } else { "EnemyPet" });
+    pad.add_child(&model);
+    scene.add_model_child(&pad);
+    normalize_battle_pad(&mut model, &mut pad, team)?;
+    scene.frame_battlefield();
+    Ok(())
+}
+
+fn normalize_battle_pad(
+    model: &mut Gd<Node3D>,
+    pad: &mut Gd<Node3D>,
+    team: usize,
+) -> Result<(), String> {
+    let bounds = preview_model_bounds(model);
+    if !bounds.size.y.is_finite() || bounds.size.y <= 0.0 {
+        return Err(format!(
+            "Battle team {team} has invalid model height {}",
+            bounds.size.y
+        ));
+    }
+    // Presentation scale belongs to the pad, preserving the nested authored display scale.
+    model.set_position(Vector3::new(
+        -bounds.center().x,
+        -bounds.position.y,
+        -bounds.center().z,
+    ));
+    pad.set_scale(Vector3::ONE * (BATTLE_PET_HEIGHT / bounds.size.y));
+    let side = if team == 0 { 1.0 } else { -1.0 };
+    pad.set_position(Vector3::new(0.0, 0.0, side * BATTLE_PAD_OFFSET));
+    Ok(())
 }

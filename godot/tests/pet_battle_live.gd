@@ -57,6 +57,9 @@ func live_run() -> void:
 						var framed := true
 						var model_viewport = scene.get_viewport()
 						var model_camera = model_viewport.get_camera_3d()
+						var view_rect: Rect2 = model_viewport.get_parent().get_global_rect()
+						var projected := Rect2()
+						var rest_projected := Rect2()
 						for mesh in model.find_children("*", "MeshInstance3D", true, false):
 							if mesh.is_visible_in_tree():
 								var transformed: AABB = mesh.global_transform * mesh.get_aabb().merge(mesh.get_custom_aabb())
@@ -64,9 +67,15 @@ func live_run() -> void:
 									var world_corner = transformed.get_endpoint(corner)
 									var point = model_camera.unproject_position(world_corner)
 									framed = framed and not model_camera.is_position_behind(world_corner) and model_viewport.get_visible_rect().has_point(point)
+									projected = Rect2(point, Vector2.ZERO) if visible_meshes == 0 and corner == 0 else projected.expand(point)
+								var rest: AABB = mesh.global_transform * mesh.get_aabb()
+								for corner in range(8):
+									var point = model_camera.unproject_position(rest.get_endpoint(corner))
+									rest_projected = Rect2(point, Vector2.ZERO) if visible_meshes == 0 and corner == 0 else rest_projected.expand(point)
 								bounds = transformed if visible_meshes == 0 else bounds.merge(transformed)
 								visible_meshes += 1
-						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "framed": framed, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z]})
+						var origin = view_rect.position + model_camera.unproject_position(model.global_position)
+						result.battle_models.append({"name": str(model.name), "visible_meshes": visible_meshes, "framed": framed, "bounds": [bounds.size.x, bounds.size.y, bounds.size.z], "origin_px": [origin.x, origin.y], "projected_px": [projected.position.x + view_rect.position.x, projected.position.y + view_rect.position.y, projected.size.x, projected.size.y], "rest_projected_px": [rest_projected.position.x + view_rect.position.x, rest_projected.position.y + view_rect.position.y, rest_projected.size.x, rest_projected.size.y], "position": [model.position.x, model.position.y, model.position.z], "scale": [model.scale.x, model.scale.y, model.scale.z]})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
