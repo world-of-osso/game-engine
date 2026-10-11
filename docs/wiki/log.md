@@ -2,6 +2,12 @@
 
 [Boss encounters](systems/boss-encounters.md#scheduler-timeline--verified-2026-10-11): actual SmartAI/EventMap timers, ordered accepted-cast/phase events, bars/track and severity text/icons/audio, saved view choices and four Edit Mode movers. Native offscreen warning/covered timer text/unregistered sound failures reproduced and corrected. Both-skin Cobrahn and data-bound Skum countdown→actual cast/warning, real audio-play receipts, saved view choices, Forever live track movement and movers inspected; [acceptance](../specs/encounter-timeline.md#sources--acceptance) owns18 PNGs and exact coverage limits. Private5850 only; no invented timers or realm5000 changes.
 
+## 2026-10-11 — Native follower LFG transport
+
+[Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
+## 2026-10-11 — Native Mythic Keystone UI
+
+[Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
@@ -3242,3 +3248,11 @@ Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--ve
 ## 2026-10-11 — raid-entry
 
 Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
+
+## 2026-10-11 — Gathering branch (acceptance incomplete)
+
+[Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.
+
+## 2026-10-11 — integrated native gathering baseline
+
+- [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.

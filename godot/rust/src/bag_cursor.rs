@@ -177,6 +177,10 @@ impl GameClient {
         }
         // The drop target is the topmost frame of any canvas, not the pickup's own.
         let hit = self.ui_hit_at(physical_at)?;
+        if hit.as_ref().and_then(|hit| hit.action.as_deref()) == Some("challenge_slot") {
+            self.apply_challenge_action("challenge_slot")?;
+            return Ok(());
+        }
         if let Some(action) = hit.as_ref().and_then(|hit| hit.action.as_deref())
             && self.assign_cursor_to_action_button(action)?
         {
