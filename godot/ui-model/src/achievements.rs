@@ -15,6 +15,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 pub const OPEN_ACTION: &str = "micro:AchievementMicroButton";
 pub const FRAME: &str = "AchievementFrame";
 const ROWS: usize = 3;
+const STATISTIC_ROWS: usize = 11;
+const STATISTIC_ROW_HEIGHT: f32 = 24.0;
 const CATEGORIES: usize = 17;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
@@ -92,7 +94,7 @@ impl AchievementWindow {
                 self.category_offset = self.category_offset.saturating_sub(CATEGORIES)
             }
             "achievement:rows_prev" => {
-                self.row_offset = self.row_offset.saturating_sub(ROWS);
+                self.row_offset = self.row_offset.saturating_sub(self.visible_row_count());
                 self.select_first();
             }
             "achievement:more_rows" => self.advance_rows(&mut requests),
@@ -109,6 +111,7 @@ impl AchievementWindow {
             return;
         }
         self.statistics = statistics;
+        self.category_offset = 0;
         self.pages.clear();
         self.selected_category = None;
         self.selected_achievement = None;
@@ -295,6 +298,14 @@ impl AchievementWindow {
         requests.push(QueryAchievementCatalog::Achievement { achievement_id: id });
     }
 
+    fn visible_row_count(&self) -> usize {
+        if self.statistics && self.search_text.trim().chars().count() < 3 {
+            STATISTIC_ROWS
+        } else {
+            ROWS
+        }
+    }
+
     fn advance_rows(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
         if self.search_text.trim().chars().count() >= 3 {
             if self.row_offset + ROWS < self.displayed_entries().len() {
@@ -315,8 +326,8 @@ impl AchievementWindow {
         let Some(page) = self.pages.get(&category_id) else {
             return;
         };
-        if self.row_offset + ROWS < self.displayed_entries().len() {
-            self.row_offset += ROWS;
+        if self.row_offset + self.visible_row_count() < self.displayed_entries().len() {
+            self.row_offset += self.visible_row_count();
             self.select_first();
         } else if let Some(after_id) = page.next {
             requests.push(self.category_request(category_id, after_id));
@@ -1054,7 +1065,7 @@ fn statistic_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
     let mut content = label(
         format!("{prefix}Name"),
         &entry.name,
-        (240.0, y, 440.0, 50.0),
+        (240.0, y, 440.0, STATISTIC_ROW_HEIGHT),
         WHITE,
         &action,
     );
@@ -1065,7 +1076,7 @@ fn statistic_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
     content.extend(label(
         format!("{prefix}Statistic"),
         &value,
-        (685.0, y, 110.0, 30.0),
+        (685.0, y, 110.0, STATISTIC_ROW_HEIGHT),
         GOLD,
         &action,
     ));
@@ -1078,10 +1089,15 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
         .displayed_entries()
         .into_iter()
         .skip(window.row_offset)
-        .take(ROWS)
+        .take(window.visible_row_count())
         .enumerate()
     {
-        let y = 68.0 + index as f32 * 96.0;
+        let spacing = if window.statistics && window.search_text.trim().chars().count() < 3 {
+            STATISTIC_ROW_HEIGHT
+        } else {
+            96.0
+        };
+        let y = 68.0 + index as f32 * spacing;
         if entry.flags & 1 != 0 {
             content.extend(statistic_row(entry, y));
         } else {
@@ -1137,7 +1153,7 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
         window.row_offset > 0,
         (240.0, 358.0, 174.0, 24.0),
     ));
-    let more = window.row_offset + ROWS < window.displayed_entries().len()
+    let more = window.row_offset + window.visible_row_count() < window.displayed_entries().len()
         || (window.search_text.trim().chars().count() >= 3 && window.search_results.next.is_some())
         || window
             .selected_category
@@ -1155,7 +1171,7 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
 
 fn criteria_panel(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
-    if let Some(entry) = window.selected() {
+    if let Some(entry) = window.selected().filter(|entry| entry.flags & 1 == 0) {
         content.extend(label(
             "AchievementCriteriaTitle".into(),
             &format!("Criteria — {}", entry.name),
