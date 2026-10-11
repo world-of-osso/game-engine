@@ -24,7 +24,14 @@ def configure(root):
         CARGO_BUILD_JOBS='4', PYTHONHASHSEED='0', BUILD_NAME='pr123546',
         RUSTUP_TOOLCHAIN='1.98.1',
     )
-    os.environ['PATH'] = str(mingw) + os.pathsep + os.environ['PATH']
+    clang = Path(os.environ['LIBCLANG_PATH']) / 'clang.exe'
+    resource = subprocess.check_output([str(clang), '-print-resource-dir'], text=True).strip()
+    headers = mingw.parent / 'x86_64-w64-mingw32/include'
+    # libclang cannot discover MinGW's user-installed headers from an MSVC-host Python.
+    os.environ['BINDGEN_EXTRA_CLANG_ARGS_x86_64_pc_windows_gnu'] = (
+        f'-resource-dir "{Path(resource).as_posix()}" -isystem "{headers.as_posix()}"'
+    )
+    os.environ['PATH'] = str(mingw) + os.pathsep + str(clang.parent) + os.pathsep + os.environ['PATH']
     return mingw
 
 
