@@ -17,13 +17,14 @@ func run_fixture() -> void:
 	await checkpoint("roster")
 	await click("CharCard_1" if scenario == "skin" else "CharCard_0")
 	await click("EnterWorld")
-	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("CollectionsMicroButton") != null, "world", 180000): return
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and client.account_state().world_attached, "world", 180000): return
 	if not await wait_until(func():
 		var nodes := client.find_children(character, "Node3D", true, false)
 		if nodes.is_empty(): return false
 		actor = nodes[0]
 		return not actor.find_children("PlayerModel", "Node3D", true, false).is_empty(), "native player", 120000): return
 	if client.account_state().ui_skin != skin: fail("requested skin not applied: " + str(client.account_state())); return
+	await capture("world-baseline")
 	await checkpoint("world")
 	if scenario == "skin": await prove_skinning()
 	else:
