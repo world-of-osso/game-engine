@@ -19,6 +19,26 @@ fn journal() -> View {
     }
 }
 #[test]
+fn pending_guide_shows_loading_without_catalog_choices() {
+    let mut view = journal();
+    view.visible = true;
+    view.loading = true;
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    context.insert(view);
+    let mut registry = FrameRegistry::new(1280., 720.);
+    Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+    let loading = registry
+        .get(registry.get_by_name("EncounterJournalLoading").unwrap())
+        .unwrap();
+    match &loading.widget_data {
+        Some(WidgetData::FontString(font)) => assert_eq!(font.text, "Loading Adventure Guide…"),
+        other => panic!("Expected loading notice, got {other:?}"),
+    }
+    assert!(registry.get_by_name("JournalInstance67").is_none());
+}
+
+#[test]
 fn robe_loot_uses_the_chest_filter() {
     let mut view = journal();
     view.select_encounter(96).unwrap();
