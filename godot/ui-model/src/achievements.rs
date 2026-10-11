@@ -16,6 +16,25 @@ pub const OPEN_ACTION: &str = "micro:AchievementMicroButton";
 pub const FRAME: &str = "AchievementFrame";
 /// Local Mainline UI atlas1771: alert plate, icon frame and point shield.
 pub const TOAST_ATLAS_FDID: u32 = 4_035_524;
+use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+/// UiTextureAtlasMember12156/12180/12183/12749, identical in both pinned skin catalogs.
+const ALERT_BACKGROUND: AtlasArt = AtlasArt {
+    fdid: TOAST_ATLAS_FDID,
+    atlas: (1024.0, 1024.0),
+    rect: (640.0, 950.0, 174.0, 275.0),
+};
+const ALERT_ICON_FRAME: AtlasArt = AtlasArt {
+    rect: (110.0, 184.0, 518.0, 592.0),
+    ..ALERT_BACKGROUND
+};
+const ALERT_SHIELD: AtlasArt = AtlasArt {
+    rect: (110.0, 172.0, 710.0, 765.0),
+    ..ALERT_BACKGROUND
+};
+const ALERT_NO_POINTS: AtlasArt = AtlasArt {
+    rect: (110.0, 170.0, 825.0, 881.0),
+    ..ALERT_BACKGROUND
+};
 const ROWS: usize = 3;
 const STATISTIC_ROWS: usize = 11;
 const STATISTIC_ROW_HEIGHT: f32 = 24.0;
@@ -1342,14 +1361,14 @@ pub fn achievement_link(id: u32, name: &str) -> String {
 
 /// Mainline AlertFrameSystems.xml:173-330 and lua:348-388: authored atlas regions and anchors.
 pub fn achievement_toast_screen(ctx: &SharedContext) -> Element {
-    use crate::quest_art::named_atlas_texture;
+    use crate::quest_art::atlas_texture;
     let toast = ctx
         .get::<shared::protocol::AchievementToastSnapshot>()
         .expect("toast payload");
     let action = format!("achievement:open:{}", toast.achievement_id);
-    let mut content = named_atlas_texture(
+    let mut content = atlas_texture(
         "AchievementToastBackground".into(),
-        "ui-achievement-alert-background",
+        &ALERT_BACKGROUND,
         (-5.0, 0.0, 310.0, 101.0),
     );
     content.extend(art(
@@ -1357,20 +1376,22 @@ pub fn achievement_toast_screen(ctx: &SharedContext) -> Element {
         toast.icon_fdid,
         (9.0, 26.5, 52.0, 52.0),
     ));
-    content.extend(named_atlas_texture(
+    content.extend(atlas_texture(
         "AchievementToastIconFrame".into(),
-        "ui-achievement-iconframe",
+        &ALERT_ICON_FRAME,
         (-3.0, 15.5, 74.0, 74.0),
     ));
     let shield = if toast.points == 0 {
-        "UI-Achievement-Shield-NoPoints"
+        &ALERT_NO_POINTS
     } else {
-        "ui-achievement-shield-2"
+        &ALERT_SHIELD
     };
-    content.extend(named_atlas_texture(
+    let shield_width = shield.rect.1 - shield.rect.0;
+    let shield_height = shield.rect.3 - shield.rect.2;
+    content.extend(atlas_texture(
         "AchievementToastShield".into(),
         shield,
-        (231.0, 21.0, 62.0, 55.0),
+        (293.0 - shield_width, 21.0, shield_width, shield_height),
     ));
     let points = toast.points.to_string();
     rsx! {
