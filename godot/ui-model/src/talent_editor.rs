@@ -229,6 +229,7 @@ impl TalentEditor {
     fn purchased_entries(
         &self,
         view: &TalentView,
+        level: u8,
         node_id: u32,
         entry_id: u32,
     ) -> Option<Vec<TraitEntrySelection>> {
@@ -245,6 +246,13 @@ impl TalentEditor {
             }
         }
         let mut entries = self.pending.clone();
+        if node.kind == TraitNodeType::SubTreeSelection && self.rank(node_id, entry_id) == 0 {
+            let context = TraitContext {
+                spec_id: self.snapshot.as_ref()?.spec_id,
+                level,
+            };
+            entries = refund_inactive_hero_purchases(tree, context, entry.sub_tree_id, entries);
+        }
         if matches!(
             node.kind,
             TraitNodeType::Selection | TraitNodeType::SubTreeSelection
@@ -311,11 +319,11 @@ impl TalentEditor {
             .collect()
     }
     pub fn can_purchase(&self, view: &TalentView, level: u8, node: u32, entry: u32) -> bool {
-        self.purchased_entries(view, node, entry)
+        self.purchased_entries(view, level, node, entry)
             .is_some_and(|entries| self.valid(view, level, &entries))
     }
     pub fn purchase(&mut self, view: &TalentView, level: u8, node: u32, entry: u32) -> bool {
-        let Some(entries) = self.purchased_entries(view, node, entry) else {
+        let Some(entries) = self.purchased_entries(view, level, node, entry) else {
             return false;
         };
         if !self.valid(view, level, &entries) {
@@ -548,6 +556,34 @@ fn parse_id(raw: &str) -> Result<u32, String> {
     raw.parse()
         .map_err(|error| format!("Talent ID {raw}: {error}"))
 }
+/// A subtree selection cannot keep purchases in a different hero tree. Stage
+/// their refunds alongside the selection; free/granted entries remain intact.
+fn refund_inactive_hero_purchases(
+    tree: &TraitTree,
+    context: TraitContext,
+    selected: u32,
+    mut entries: Vec<TraitEntrySelection>,
+) -> Vec<TraitEntrySelection> {
+    let inactive: BTreeSet<_> = tree
+        .nodes
+        .iter()
+        .filter(|node| node.sub_tree_id != 0 && node.sub_tree_id != selected)
+        .map(|node| node.id)
+        .collect();
+    entries.retain(|entry| !inactive.contains(&entry.node_id));
+    entries.extend(
+        granted_entries(tree, context)
+            .into_iter()
+            .filter(|entry| inactive.contains(&entry.node_id))
+            .map(|entry| TraitEntrySelection {
+                node_id: entry.node_id,
+                entry_id: entry.entry_id,
+                rank: entry.granted as u8,
+            }),
+    );
+    entries
+}
+
 fn allocation_costs(tree: &TraitTree, entries: &[TraitEntrySelection]) -> BTreeMap<u32, i32> {
     let mut spent = BTreeMap::new();
     for entry in entries {
