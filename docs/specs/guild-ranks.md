@@ -14,6 +14,14 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Requests leave selected-rank data unchanged until the authoritative reply arrives.
 - [x] Mutating controls wait for authoritative state before sending another write; queued clicks cannot overwrite a prior permission edit using stale flags.
 
+### Invitation and guild profile
+- [x] `/ginvite` / `/guildinvite`, `/gquit` / `/guildquit`, `/gremove` / `/guildremove` send authoritative guild actions, not help.
+- [x] AuthChannel invitation delivery mounts GuildInviteFrame independently of Communities. Join waits for authoritative acceptance; Decline sends the pending-invite refusal. Both skins share controls and mechanics.
+- [x] `/gmotd` / `/guildmotd` sends SetGuildMotd; authoritative profile replies update MOTD and info.
+- [ ] `/ginfo` / `/guildinfo` sends a read-only query, but legacy guild records have no creation date for Retail GUILD_INFO_TEMPLATE; the client explicitly reports unavailable data instead of inventing it.
+- [ ] Communities invite/MOTD/info editing controls remain pending.
+- [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
+
 ### Permissions and members
 - [x] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
 - [x] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.

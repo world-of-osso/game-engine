@@ -38,6 +38,28 @@ fn guild_rank_slashes_do_not_fall_through_to_help() {
     }
 }
 
+#[test]
+fn guild_lifecycle_slashes_do_not_fall_through_to_help() {
+    use game_engine_ui_model::chat_frame::{ChatCommand, parse_chat_input};
+    for line in [
+        "/ginvite Cara",
+        "/guildinvite Cara",
+        "/gquit",
+        "/guildquit",
+        "/gremove Cara",
+        "/guildremove Cara",
+        "/gmotd Meeting tonight",
+        "/ginfo ignored arguments",
+        "/guildinfo",
+    ] {
+        let command = parse_chat_input(line, None);
+        assert!(
+            !matches!(command, ChatCommand::System(_) | ChatCommand::None),
+            "{line}: {command:?}"
+        );
+    }
+}
+
 fn snapshot(own_rank: u8) -> GuildRanksState {
     let rank = |name: &str, rights| GuildRankSettings {
         name: name.into(),

@@ -31,14 +31,58 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
     let Some(session) = shared.get::<GuildRanksSession>() else {
         return vec![];
     };
-    if !session.visible {
-        return vec![];
-    }
-    let mut children = roster(session);
-    if session.settings_open {
+    let mut children = if session.visible {
+        roster(session)
+    } else {
+        vec![]
+    };
+    if session.visible && session.settings_open {
         children.extend(settings(session));
     }
+    children.extend(invitation_popup(session));
     children
+}
+
+/// Retail GuildInviteFrame.xml: centered 310×188, inviter, invitation, guild, Join/Decline.
+fn invitation_popup(session: &GuildRanksSession) -> Element {
+    let Some(invite) = &session.invitation else {
+        return vec![];
+    };
+    let mut children = label(
+        "GuildInviteFrameInviterName".into(),
+        &invite.inviter_name,
+        (40.0, 28.0, 230.0, 16.0),
+        (12.0, "1,1,1,1", "CENTER"),
+    );
+    children.extend(label(
+        "GuildInviteFrameInviteText".into(),
+        "invites you to join the guild:",
+        (40.0, 48.0, 230.0, 16.0),
+        (12.0, "1,1,1,1", "CENTER"),
+    ));
+    children.extend(label(
+        "GuildInviteFrameGuildName".into(),
+        &invite.guild_name,
+        (24.0, 70.0, 262.0, 28.0),
+        (14.0, NORMAL_FONT_COLOR, "CENTER"),
+    ));
+    children.extend(panel_button(
+        "GuildInviteFrameJoinButton".into(),
+        "Join Guild",
+        "guild:accept_invite",
+        !session.invitation_waiting,
+        (24.0, 142.0, 110.0, 22.0),
+    ));
+    children.extend(panel_button(
+        "GuildInviteFrameDeclineButton".into(),
+        "Decline Invitation",
+        "guild:decline_invite",
+        !session.invitation_waiting,
+        (176.0, 142.0, 110.0, 22.0),
+    ));
+    rsx! { r#frame { name: {DynName("GuildInviteFrame".into())}, width: 310.0, height: 188.0,
+    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute",
+    mouse_enabled: true, strata: FrameStrata::Dialog, style: "static_popup", {children} } }
 }
 
 fn title(name: &str, text: &str, x: f32, y: f32, width: f32) -> Element {

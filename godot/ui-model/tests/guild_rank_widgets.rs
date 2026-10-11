@@ -62,6 +62,44 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+        });
+        let registry = mounted(&session);
+        assert_eq!(text(&registry, "GuildInviteFrameInviterName"), "Alice");
+        assert_eq!(text(&registry, "GuildInviteFrameGuildName"), "Raid Team");
+        assert_eq!(
+            action(&registry, "GuildInviteFrameJoinButton"),
+            "guild:accept_invite"
+        );
+        assert_eq!(
+            action(&registry, "GuildInviteFrameDeclineButton"),
+            "guild:decline_invite"
+        );
+        session.click("guild:accept_invite", &Default::default());
+        session.click("guild:accept_invite", &Default::default());
+        assert_eq!(
+            session.commands,
+            vec![game_engine_ui_model::guild_ranks::GuildCommand::AcceptInvite]
+        );
+        let mut declined = GuildRanksSession::default();
+        declined.invitation = session.invitation.clone();
+        declined.click("guild:decline_invite", &Default::default());
+        assert_eq!(
+            declined.commands,
+            vec![game_engine_ui_model::guild_ranks::GuildCommand::DeclineInvite]
+        );
+    }
+}
+
+#[test]
 fn guild_rank_widgets_render_only_purchased_bank_tabs() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
