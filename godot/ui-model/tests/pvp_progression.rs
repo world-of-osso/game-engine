@@ -60,7 +60,7 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
             honor: 750,
             honor_max: 15000,
             conquest: 120,
-            conquest_max: 0,
+            conquest_max: None,
             brackets: vec![],
             queue: None,
             battleground: None,
@@ -167,7 +167,7 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
             honor: 0,
             honor_max: 15000,
             conquest: 0,
-            conquest_max: 0,
+            conquest_max: None,
             brackets: vec![],
             queue: None,
             battleground: None,
@@ -187,5 +187,71 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
         );
         assert!(view.pending);
         assert_eq!(view.talent_slot, None);
+    }
+}
+
+#[test]
+fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() {
+    use game_engine_ui_model::battleground::{PvpView, pvp_screen};
+    use shared::protocol::PvpSnapshot;
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = PvpView::default();
+        view.visible = true;
+        view.snapshot = Some(PvpSnapshot {
+            honor: 750,
+            honor_max: 15000,
+            conquest: 120,
+            conquest_max: None,
+            brackets: vec![],
+            queue: None,
+            battleground: None,
+            war_mode: None,
+            talents: None,
+        });
+        let mut shared = SharedContext::new();
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&shared, &mut registry);
+        let honor = registry
+            .get(
+                registry
+                    .get_by_name("PVPUIHonorCurrency")
+                    .expect("Honor wallet balance"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = honor.widget_data.as_ref() else {
+            panic!("Honor balance text")
+        };
+        assert!(text.text.contains("750"));
+        assert!(text.text.contains("15000"));
+        view.action("pvp:category:rated");
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        let conquest = registry
+            .get(
+                registry
+                    .get_by_name("ConquestFrameBalance")
+                    .expect("Rated Conquest balance"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = conquest.widget_data.as_ref() else {
+            panic!("Conquest balance text")
+        };
+        assert!(text.text.contains("120"));
+        let policy = registry
+            .get(registry.get_by_name("ConquestFramePolicy").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = policy.widget_data.as_ref() else {
+            panic!("Policy gap text")
+        };
+        assert!(text.text.contains("unavailable"));
+        assert!(
+            registry.get_by_name("HonorFrameQueueButton").is_none(),
+            "rated tab cannot join an unplayed simulated arena"
+        );
     }
 }
