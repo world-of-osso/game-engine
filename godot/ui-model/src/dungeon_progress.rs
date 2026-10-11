@@ -26,6 +26,7 @@ impl DungeonObjectives {
         self.map = Some(snapshot.map_id);
         self.copy = Some((snapshot.instance_id, snapshot.difficulty_id));
         self.block = (!snapshot.encounters.is_empty()).then(|| DungeonBlock {
+            challenge: false,
             name,
             bosses: snapshot
                 .encounters
