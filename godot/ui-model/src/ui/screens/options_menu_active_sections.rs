@@ -153,10 +153,11 @@ pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
                 "Encounter Timeline",
                 hud.encounter_timeline,
             ),
-            toggle_row(
-                "encounter_bars",
-                "Encounter View: Bars (off: Timeline)",
-                hud.encounter_bars,
+            choice_row(
+                "encounter_view",
+                "Encounter View",
+                &[(1, "Timeline"), (2, "Bars")],
+                if hud.encounter_bars { 2 } else { 1 },
             ),
             toggle_row(
                 "encounter_warnings",
