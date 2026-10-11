@@ -84,6 +84,43 @@ func teleport(at: Array) -> bool:
 		return await wait_frames(func(): return not player_dead(), "alive after fixture travel")
 	return true
 
+## Travel places the player three yards before the pick shape along the current
+## camera direction. Native ray picking and right-click still perform interaction;
+## no synthetic mouse-look or direct objective messages are used.
+func find_unit(name: String) -> Dictionary:
+	if (await locate(name)).is_empty():
+		return {}
+	var unit: Node3D = units_named(name)[0]
+	var world_point = pick_point(unit)
+	var forward := -camera().global_basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var stand: Vector3 = unit.global_position - forward * 3.0
+	if not await teleport([stand.x, -stand.z, stand.y]):
+		return {}
+	await frames(30)
+	var id: int = unit.find_child("UnitPick", true, false).get_meta("unit_server_id")
+	var point := find_unit_point(unit, id)
+	if point == Vector2.INF:
+		print("FIXTURE PROJECTED_PICK_FAILED ", name, " player=", player_position(), " pick=", world_point, " camera=", camera().global_transform)
+		await capture("fail-projected-pick.png")
+		fail(name + " has no unoccluded projected native pick")
+		return {}
+	return {"id": id, "name": name, "point": point}
+
+func open_quest(at: Array, npc: String, title: String) -> bool:
+	if not await teleport(at):
+		return false
+	var target := await find_unit(npc)
+	if target.is_empty() or not await open_giver(target):
+		return false
+	var index: int = Array(client.quest_state().greeting_quests).find(title)
+	if index < 0:
+		fail("%s offers %s, not %s" % [npc, client.quest_state().greeting_quests, title])
+		return false
+	await click_control(quest_control("QuestFrameUI", "QuestTitleButton%dText" % (index + 1)))
+	return true
+
 func credit_world_object() -> bool:
 	var index := 0
 	for object in scenario.objects:
