@@ -262,6 +262,30 @@ Retail8203433 remains authenticated-root-absent; no Forever substitution is
 allowed. The24 dungeon appearance misses and affected demon profiles remain
 metadata-blocked. **Full no-install certification remains FAIL.**
 
+## NPC chunk authentication
+
+`scripts/certify_npc_metadata.py` resolves the three NPC DB2 EKeys through the
+existing authenticated local build/root/encoding chain. `closure_casc.py` checks
+the header EKey and every encoded chunk MD5, then decodes N/Z chunks. E chunks
+retain authenticated ciphertext evidence and explicit unauthenticated decoded
+ranges. A version-2 sidecar records chunk offsets, decoded section ranges,
+selected record dependencies, required-record lists and per-profile gaps.
+Model asset receipts remain version 1.
+
+WDC5 field/palette/common/encrypted-ID metadata is a prerequisite to record
+proof. Required child records additionally depend on the authored ID and
+relationship bytes. Unknown child parents block membership completeness rather
+than being guessed unrelated. Publication can add verified positive records,
+but adds runtime `display_coverage` only for certified complete membership.
+The SQLite cache is built separately, backed up exclusively, checked for concurrent
+changes and atomically replaced. CSV/model/material joins retain their separate
+source-authentication limitation; the sidecar states that boundary explicitly.
+
+Tests: `scripts/tests/test_npc_chunk_certification.py` covers altered headers,
+plain/encrypted checksum corruption, headerless EKeys, size/trailing rejection,
+record boundary crossings, encrypted-section identity/parent mapping and
+backed-up publication without false runtime coverage.
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).

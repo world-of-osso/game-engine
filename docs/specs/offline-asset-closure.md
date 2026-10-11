@@ -76,6 +76,23 @@ substitution. This bounded inventory does not verify the entire legacy catalog.
 metadata, corrupt metadata rejection, actual-build pinning, matching publication,
 wrong-product/root-absent rejection and preservation of existing bytes.
 
+## NPC chunk-authenticated metadata receipts
+
+`scripts/certify_npc_metadata.py` certifies required records from the three pinned
+NPC WDC5 inputs independently of unavailable plaintext. Receipt version 2 is a
+separate `npc-appearance-authentication.json` sidecar, not a model-asset-index
+version change. [Implementation](../wiki/systems/offline-asset-closure.md#npc-chunk-authentication).
+
+- [x] Authenticate the BLTE header against the EKey resolved through authenticated build/root/encoding metadata before trusting chunk descriptors. Check every encoded chunk MD5, decoded sizes and archive bounds. Headerless EKeys cover the entire encoded file.
+- [x] Mark encrypted chunks as ciphertext-authenticated only; zero-filled decoded ranges never prove plaintext or a full-file CKey.
+- [x] Map required records to authenticated metadata, payload, ID and relationship dependencies, including chunk-boundary crossings. Preserve encrypted section record IDs as gaps.
+- [x] Certify complete required-record membership only when no required record is unauthenticated and no encrypted child relationship has an unknown relevant parent. Distinguish known-required missing records from membership uncertainty; never infer an unknown section is irrelevant.
+- [x] Back up before atomic NPC cache replacement. Publish authenticated positive rows separately from completeness: unresolved profiles must not gain runtime display coverage.
+- [ ] Existing CSV/model/material joins still need their own authenticated source receipts for end-to-end profile certification.
+
+Tests: `scripts/tests/test_npc_chunk_certification.py`. This receipt is bounded
+metadata evidence, not full no-install gameplay acceptance.
+
 ## Out of scope
 
 Runtime policy/tripwire (P1), product-isolated runtime keys/identity migration (P2), packaging/release enforcement, audio/UI scenario acceptance. The offline graph audit itself still performs no extraction. Neither tool establishes no-install gameplay acceptance.

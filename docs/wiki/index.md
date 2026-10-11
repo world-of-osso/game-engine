@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [NPC chunk-authentication receipts](systems/offline-asset-closure.md#npc-chunk-authentication) — header/chunk trust chain, record byte dependencies, conservative child-membership gaps and backed-up cache publication without false coverage.
+
 - [Priority no-install receipts](systems/offline-asset-closure.md#priority-receipt-closure--verified-2026-10-11) —1,111 authenticated assets/195 owner aliases;31 both-skin body proofs, fresh seven-race recheck.32 staged NPC profiles rejected on DB2 root authentication; original cache restored. Full certification remains FAIL.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.

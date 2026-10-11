@@ -152,6 +152,88 @@ def decode_blte(data):
     return b''.join(output)
 
 
+def authenticate_blte_chunks(data, encoding_key, content_size):
+    """Authenticate the header before trusting its per-chunk hashes/ranges.
+
+    E chunks authenticate ciphertext only. Their zero-filled decoded ranges are
+    placeholders, never authenticated plaintext and never full CKey proof.
+    """
+    if take(data, 0, 4) != b"BLTE":
+        raise ValueError("no BLTE header")
+    header_size = int.from_bytes(take(data, 4, 4), "big")
+    header = take(data, 0, header_size) if header_size else data
+    if hashlib.md5(header).hexdigest() != encoding_key:
+        raise ValueError("BLTE encoding key mismatch")
+    if header_size:
+        count = int.from_bytes(take(data, 9, 3), "big")
+        if take(data, 8, 1) != b"\x0f" or not count or header_size != 12 + count * 24:
+            raise ValueError("unsupported BLTE chunk header")
+        descriptors = [
+            struct.unpack(">II16s", take(data, 12 + i * 24, 24)) for i in range(count)
+        ]
+    else:
+        block = take(data, 8, len(data) - 8)
+        descriptors = [(len(block), content_size, hashlib.md5(block).digest())]
+    encoded_offset = header_size or 8
+    decoded_offset = 0
+    output, chunks = [], []
+    for index, (compressed, plain, expected) in enumerate(descriptors):
+        block = take(data, encoded_offset, compressed)
+        if hashlib.md5(block).digest() != expected:
+            raise ValueError(f"BLTE chunk checksum mismatch: {index}")
+        decoded, key_name = decode_authenticated_chunk(block, plain)
+        chunks.append(
+            {
+                "index": index,
+                "encoded_start": encoded_offset,
+                "encoded_end": encoded_offset + compressed,
+                "encoded_md5": expected.hex(),
+                "decoded_start": decoded_offset,
+                "decoded_end": decoded_offset + plain,
+                "mode": chr(block[0]),
+                "authenticated_plaintext": key_name is None,
+                "key_name": key_name,
+            }
+        )
+        output.append(decoded)
+        encoded_offset += compressed
+        decoded_offset += plain
+    if encoded_offset != len(data) or decoded_offset != content_size:
+        raise ValueError("BLTE encoded/decoded total size mismatch")
+    return b"".join(output), {
+        "version": 2,
+        "authentication": "blte-chunks",
+        "encoding_key": encoding_key,
+        "header_bytes": header_size,
+        "decoded_bytes": decoded_offset,
+        "chunks": chunks,
+    }
+
+
+def decode_authenticated_chunk(block, plain):
+    mode = take(block, 0, 1)
+    key_name = None
+    if mode == b"N":
+        decoded = block[1:]
+    elif mode == b"Z":
+        inflater = zlib.decompressobj()
+        decoded = inflater.decompress(block[1:]) + inflater.flush()
+        if not inflater.eof or inflater.unused_data or inflater.unconsumed_tail:
+            raise ValueError("invalid BLTE zlib stream")
+    elif mode == b"E":
+        if take(block, 1, 1) != b"\x08" or take(block, 10, 1) != b"\x04":
+            raise ValueError("unsupported BLTE encrypted key/IV shape")
+        if take(block, 15, 1) != b"S":
+            raise ValueError("unsupported BLTE encryption type")
+        key_name = take(block, 2, 8)[::-1].hex().upper()
+        decoded = bytes(plain)
+    else:
+        raise ValueError(f"unsupported BLTE mode {mode!r}")
+    if len(decoded) != plain:
+        raise ValueError("BLTE chunk decoded size mismatch")
+    return decoded, key_name
+
+
 def resolve_missing(wanted, roots, encodings, indices, archives):
     counts = Counter()
     files = []
