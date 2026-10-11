@@ -206,6 +206,54 @@ pub enum InventoryRequest {
     Use(UseItem),
 }
 
+/// `C_Container.UseContainerItem`: select the opcode from resolved item metadata.
+pub fn container_item_request(
+    location: ItemLocation,
+    definition: Result<&crate::item_catalog::ItemCatalogEntry, String>,
+) -> Result<InventoryRequest, String> {
+    let can_equip = definition?.inventory_type != 0;
+    Ok(if can_equip {
+        InventoryRequest::Equip(EquipItem { from: location })
+    } else {
+        InventoryRequest::Use(UseItem {
+            location,
+            target: None,
+        })
+    })
+}
+
+#[cfg(test)]
+mod container_use_tests {
+    use super::*;
+    use crate::item_catalog::ItemCatalogEntry;
+
+    #[test]
+    fn container_use_does_not_cast_an_unresolved_weapon_before_equipping_it() {
+        let location = ItemLocation::Bag { bag: 0, slot: 2 };
+        let loading = "Retail item 2850: catalog still loading".to_owned();
+        assert_eq!(
+            container_item_request(location, Err(loading.clone())),
+            Err(loading)
+        );
+        let sword = ItemCatalogEntry {
+            inventory_type: 21,
+            ..Default::default()
+        };
+        assert_eq!(
+            container_item_request(location, Ok(&sword)),
+            Ok(InventoryRequest::Equip(EquipItem { from: location }))
+        );
+        let hearthstone = ItemCatalogEntry::default();
+        assert_eq!(
+            container_item_request(location, Ok(&hearthstone)),
+            Ok(InventoryRequest::Use(UseItem {
+                location,
+                target: None
+            }))
+        );
+    }
+}
+
 /// Runtime inventory state for all bags and the equipped items.
 #[derive(Clone, Debug, PartialEq)]
 pub struct InventoryState {

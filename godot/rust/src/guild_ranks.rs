@@ -2,8 +2,8 @@
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bank::InputTexts;
-use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, NAME_BOX};
-use game_engine_ui_model::guild_ranks::GuildRanksSession;
+use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, INVITE_BOX, NAME_BOX, PROFILE_BOX};
+use game_engine_ui_model::guild_ranks::{GuildCommand, GuildRanksSession};
 use godot::prelude::*;
 use shared::protocol::{GuildRankRequest, GuildRanksState};
 
@@ -11,6 +11,8 @@ use shared::protocol::{GuildRankRequest, GuildRanksState};
 pub(crate) struct GuildRanks {
     session: GuildRanksSession,
     ui: Option<Gd<RegistryUi>>,
+    invite_targets: std::collections::VecDeque<String>,
+    query_info: bool,
 }
 impl GuildRanks {
     pub(crate) fn visit_uis(
@@ -22,6 +24,13 @@ impl GuildRanks {
         }
         Ok(())
     }
+    fn synchronize_session_screen(&mut self, screen: SessionScreen) {
+        if !matches!(screen, SessionScreen::InWorld | SessionScreen::Loading) {
+            self.session = GuildRanksSession::default();
+            self.invite_targets.clear();
+            self.query_info = false;
+        }
+    }
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
@@ -29,6 +38,99 @@ impl GuildRanks {
     }
 }
 impl GameClient {
+    pub(crate) fn send_guild_command(&mut self, command: GuildCommand) -> Result<(), FrameError> {
+        self.account.send_guild_command(command.clone())?;
+        match command {
+            GuildCommand::Invite(name) => self.guild_ranks.invite_targets.push_back(name),
+            GuildCommand::DeclineInvite => {
+                self.guild_ranks.session.invitation = None;
+                self.guild_ranks.session.invitation_waiting = false;
+            }
+            GuildCommand::Query => self.guild_ranks.query_info = true,
+            _ => {}
+        }
+        Ok(())
+    }
+
+    pub(super) fn receive_guild_invitation(
+        &mut self,
+        invitation: shared::protocol::GuildInvitation,
+    ) {
+        self.guild_ranks.session.invitation = Some(invitation);
+        self.guild_ranks.session.invitation_waiting = false;
+    }
+    pub(super) fn receive_guild_invite_result(
+        &mut self,
+        result: shared::protocol::GuildInviteResponse,
+    ) -> Result<(), FrameError> {
+        let target = self.guild_ranks.invite_targets.pop_front();
+        if let Some(error) = result.error {
+            self.guild_notice(&error, true)?;
+        } else if result.success
+            && let Some(target) = target
+        {
+            self.guild_notice(
+                &format!("You have invited {target} to join your guild."),
+                false,
+            )?;
+        }
+        Ok(())
+    }
+    pub(super) fn receive_guild_accepted(
+        &mut self,
+        result: shared::protocol::GuildAcceptInviteResponse,
+    ) -> Result<(), FrameError> {
+        self.guild_ranks.session.invitation_waiting = false;
+        if let Some(error) = result.error {
+            self.guild_notice(&error, true)?;
+        } else if result.success {
+            self.guild_ranks.session.invitation = None;
+            self.account
+                .send_guild_rank_request(GuildRankRequest::Query)?;
+        }
+        Ok(())
+    }
+    pub(super) fn receive_guild_profile(
+        &mut self,
+        update: shared::protocol::GuildStateUpdate,
+    ) -> Result<(), FrameError> {
+        self.guild_ranks.session.profile_waiting = false;
+        if let Some(error) = update.error {
+            self.guild_ranks.query_info = false;
+            self.guild_notice(&error, true)?;
+            return Ok(());
+        }
+        if let Some(profile) = &update.guild {
+            let motd_changed = self
+                .guild_ranks
+                .session
+                .profile
+                .as_ref()
+                .is_none_or(|old| old.motd != profile.motd);
+            if motd_changed && !profile.motd.is_empty() {
+                self.guild_notice(
+                    &format!("Guild Message of the Day: \"{}\"", profile.motd),
+                    false,
+                )?;
+            }
+            if self.guild_ranks.query_info {
+                let notice =
+                    game_engine_ui_model::guild_ranks::guild_creation_notice(profile.created_at);
+                self.guild_notice(&notice, false)?;
+                self.guild_ranks.query_info = false;
+            }
+        }
+        self.guild_ranks.session.profile = update.guild;
+        Ok(())
+    }
+    fn guild_notice(&mut self, text: &str, error: bool) -> Result<(), FrameError> {
+        game_engine_ui_model::chat_frame::add_system_line(&mut self.chat.model.log, text);
+        if error {
+            self.add_world_error(text)?;
+        }
+        Ok(())
+    }
+
     pub(super) fn toggle_guild_ranks(&mut self) -> Result<(), FrameError> {
         if self.guild_ranks.session.visible {
             self.close_guild_ranks();
@@ -50,6 +152,8 @@ impl GameClient {
         let visible = self.guild_ranks.session.visible;
         self.guild_ranks.session.visible = false;
         self.guild_ranks.session.settings_open = false;
+        self.guild_ranks.session.invite_open = false;
+        self.guild_ranks.session.profile_editor = None;
         self.guild_ranks.session.member_menu = None;
         self.guild_ranks.free_ui();
         visible
@@ -58,16 +162,23 @@ impl GameClient {
         if let Some(error) = state.error {
             self.add_world_error(error.message())?;
         }
+        let guilded = !state.ranks.is_empty();
         self.guild_ranks.session.apply(state);
+        if guilded {
+            self.account.send_guild_command(GuildCommand::Query)?;
+        } else {
+            self.guild_ranks.session.profile = None;
+        }
         Ok(())
     }
     pub(super) fn update_guild_ranks(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_guild_ranks();
-            self.guild_ranks.session = GuildRanksSession::default();
+            self.guild_ranks
+                .synchronize_session_screen(self.account.session.screen);
             return Ok(());
         }
-        if !self.guild_ranks.session.visible {
+        if !self.guild_ranks.session.visible && self.guild_ranks.session.invitation.is_none() {
             self.guild_ranks.free_ui();
             return Ok(());
         }
@@ -90,6 +201,13 @@ impl GameClient {
             }
             if !self.guild_ranks.session.visible {
                 break;
+            }
+        }
+        let commands = std::mem::take(&mut self.guild_ranks.session.commands);
+        for command in commands {
+            if let Err(error) = self.send_guild_command(command) {
+                self.guild_ranks.session.invitation_waiting = false;
+                return Err(error);
             }
         }
         while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
@@ -130,9 +248,14 @@ impl GameClient {
 }
 fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTexts {
     let tabs = session.state().map_or(0, |state| state.tab_names.len());
-    let names = [NAME_BOX.to_owned(), GOLD_BOX.to_owned()]
-        .into_iter()
-        .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
+    let names = [
+        NAME_BOX.to_owned(),
+        GOLD_BOX.to_owned(),
+        INVITE_BOX.to_owned(),
+        PROFILE_BOX.to_owned(),
+    ]
+    .into_iter()
+    .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
     names
         .map(|name| {
             let text = ui
@@ -142,4 +265,26 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
             (name, text)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn guild_pending_invitation_survives_loading_but_not_logout() {
+        let invitation = shared::protocol::GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+        };
+        let mut guild = GuildRanks::default();
+        guild.session.invitation = Some(invitation.clone());
+        // Server delivers Added<InWorld> while the native client still loads terrain.
+        guild.synchronize_session_screen(SessionScreen::Loading);
+        assert_eq!(guild.session.invitation, Some(invitation.clone()));
+        guild.synchronize_session_screen(SessionScreen::InWorld);
+        assert_eq!(guild.session.invitation, Some(invitation));
+        guild.synchronize_session_screen(SessionScreen::Login);
+        assert!(guild.session.invitation.is_none());
+    }
 }

@@ -15,6 +15,7 @@ mod bag_cursor;
 mod bag_destroy;
 mod bags;
 mod bank;
+mod battleground;
 mod camera;
 mod char_create;
 mod character_frame;
@@ -39,6 +40,7 @@ mod game_menu;
 mod game_objects;
 mod gameplay;
 mod ground;
+mod guild_charters;
 mod guild_ranks;
 mod hud_edit;
 mod input;
@@ -70,6 +72,7 @@ mod particles;
 mod party_frames;
 mod pet_bar;
 mod pet_journal;
+mod pet_stable;
 mod player_spells;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
@@ -105,6 +108,7 @@ mod toybox_snapshot;
 mod trade;
 mod trainer;
 mod trainer_preview;
+mod transmog;
 mod ui;
 mod ui_layout;
 mod ui_scale;
@@ -300,8 +304,10 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     professions: professions::Professions,
     pet_journal: pet_journal::CompanionJournal,
+    battleground: battleground::BattlegroundUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
+    transmog: transmog::Transmog,
     pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
@@ -315,7 +321,9 @@ pub struct GameClient {
     pending_summon: Option<(shared::protocol::SummonRequest, std::time::Duration)>,
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
+    combat_stable: pet_stable::CombatPetStable,
     guild_ranks: guild_ranks::GuildRanks,
+    guild_charters: guild_charters::GuildCharters,
     achievements: achievements::Achievements,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -435,8 +443,10 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
             pet_journal: pet_journal::CompanionJournal::default(),
+            battleground: battleground::BattlegroundUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
+            transmog: transmog::Transmog::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
@@ -450,7 +460,9 @@ impl INode3D for GameClient {
             pending_summon: None,
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
+            combat_stable: pet_stable::CombatPetStable::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
+            guild_charters: guild_charters::GuildCharters::default(),
             achievements: achievements::Achievements::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -506,6 +518,7 @@ impl INode3D for GameClient {
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
+            || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
@@ -1147,6 +1160,16 @@ impl GameClient {
         self.toybox_snapshot()
     }
 
+    #[func]
+    fn combat_stable_state(&self) -> VarDictionary {
+        self.combat_stable_snapshot()
+    }
+
+    #[func]
+    fn stable_gui_input(&mut self, event: Gd<godot::classes::InputEvent>, slot: i64) {
+        self.stable_gui_event(event, slot);
+    }
+
     /// The pet bar: pet, command/react states, buttons, checked states, Move To targeting
     /// and the `PetAction`s sent.
     #[func]
@@ -1382,11 +1405,15 @@ impl GameClient {
             visit(ui)?;
         }
         self.banks.visit_uis(&mut visit)?;
+        self.combat_stable.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
+        self.guild_charters.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
+        self.battleground.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
+        self.transmog.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
@@ -1931,8 +1958,10 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
+            ("Battleground", |c, _| c.update_battleground()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
+            ("Transmog", |c, _| c.update_transmog()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
             ("Character frame", |c, _| c.update_character_frame()),
@@ -1947,7 +1976,9 @@ impl GameClient {
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
+            ("CombatPetStable", |c, _| c.update_combat_stable()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild charters", |c, _| c.update_guild_charters()),
             ("Achievements", |c, d| c.update_achievements(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
@@ -2082,6 +2113,10 @@ impl GameClient {
                 self.close_pet_journal();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
+                if let Some(ui) = self.battleground.ui.take() {
+                    ui.free();
+                }
+                self.battleground = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2126,10 +2161,19 @@ impl GameClient {
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::Pvp(update) => self.battleground.view.receive(update),
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
+            AccountEvent::TransmogState(state) => self.receive_transmog_state(state),
+            AccountEvent::TransmogFailed(failed) => self.receive_transmog_failure(failed)?,
             AccountEvent::Bank(message) => self.receive_bank(message)?,
+            AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
+            AccountEvent::GuildInvitation(invite) => self.receive_guild_invitation(invite),
+            AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
+            AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,
+            AccountEvent::GuildProfile(update) => self.receive_guild_profile(update)?,
+            AccountEvent::GuildCharter(reply) => self.receive_guild_charter(reply)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -2148,8 +2192,14 @@ impl GameClient {
                 if let account::NpcMessage::Closed(npc) = &message {
                     self.flight_map.session.close_for(*npc);
                     self.trainer_closed_for(*npc);
+                    self.transmog_closed_for(*npc);
                 }
-                if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
+                let stable_opened = self.stable_npc_message(&message);
+                if !self.charter_npc_message(&message)?
+                    && !self.receive_quest_npc_message(&message)?
+                    && !self.bank_npc_message(&message)
+                    && !stable_opened
+                {
                     self.receive_npc_message(message)?;
                 }
             }
@@ -2179,7 +2229,10 @@ impl GameClient {
                 }
             },
             AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
-            AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
+            AccountEvent::Appearances(update) => {
+                self.tooltips.receive_appearances(update);
+                self.refresh_transmog()?;
+            }
             AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
             AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),

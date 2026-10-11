@@ -1,9 +1,33 @@
 ## 2026-10-11 — Windows extension unload race
 
 [Investigation](investigations/windows-extension-unload.md): LLDB first exception confirms native import teardown races detached item/spell catalog workers while main thread unloads the DLL. Add Core-stage join barrier preserving nonblocking owner drops. Native early-quit RED→GREEN proves unload fix, shutdown unit1/1 passes. Private Windows login/world reaches authoritative InWorld but PNGs expose missing player/NPC visuals: product-qualified assets were omitted by the shared bundle allowlist. Add products and receipts (3.17GB); visual recheck pending. No sound leak workaround, world.db writes or publication.
+## 2026-10-11 — Native group loot
+
+[Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
 ## 2026-10-11 — Quest sharing, resets and timers
 
 [Runtime](systems/quest-share-resets.md): native share offer/results relay repair, sampled server-clock countdown, exact Retail notices. Two private fb_* accounts on UDP5517; both skins share62, daily26153 reward/lock/reset and timed938 countdown/failure;14 inspected PNGs. No world.db writes/master merge/shared realm changes.
+## 2026-10-11 — Native ready checks and pull countdowns
+
+[Group frames](systems/group-frames.md#native-ready-checks-and-pull-countdowns): server-authoritative assistant permissions and UTC countdown deadlines prevent stale reliable delivery from restarting timers. Both skins' party/raid native ready responses, AFK summaries and Retail timer stages proved with fresh private-redb two-account runs; three-account assistant proof retained. [Contract](../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11) owns test counts, inspected PNGs and Dummy-audio limitation.
+## 2026-10-11 — Combat pet lifecycle
+
+[Native lifecycle](systems/combat-pet-lifecycle.md): real Erma stable mutations in both skins, missing rename Plain chrome RED→GREEN16fdd7f18, genuine wound/Mend/dead/Revive/server-confirmed native logout proof. Six demon summon/dismiss bars and current/dismissed native logout tested in both skins; body coverage remains limited to Imp.23 inspected1920×1080 PNGs in AgentShared; no world.db writes, shared realm changes or master merge. Feed provenance and absent Incubus remain data boundaries.
+## 2026-10-11 — Native transmog application
+
+[System](systems/transmog-apply.md): private55087 Hashom gossip, target2850 GUID123, native sources821/1181;1500copper per paid apply, detached pending character, self/observer visual rebuilds, both-skin process relog and private-redb server restart. Bag metadata race RED→GREEN1/1; wrong Use opcode replaced by explicit unresolved-definition error, native ready right-click equips. Engine d66aa8e59 native build/check clean. Inspected PNGs shared; observer framing weaker than attachment logs. No world.db writes/master merge/5000. Saved outfits,3D thumbnails and linked data/policy gaps remain. Independent verifier unavailable (expired OAuth).
+## 2026-10-11 — Native guild lifecycle and Retail charters
+
+[Guilds](systems/guilds.md): private54381, both-skin Aldwin registrar/purchase5863/rename/target offer/four signatures/registration, consumption and durable five-founder roster/date. Profile multiline editor/readback/restart and invite decline/reinvite/Join inspected. Native guild6/6, UI guild37/37; later registrar portrait control1/1 plus live M2 NPC portrait. [Banks](systems/banks.md#guild-lifecycle-and-charters) retains inspected tab info/item transfer/log proof. No world.db writes or master merge; tabard/achievement payloads and expired independent verifier are explicit gaps.
+## 2026-10-11 — GO and item-spell quest live proof
+
+[Quest UI](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11): private5496 Modern+Forever26446/28175 native objective credit and real reward turn-ins;12 successful PNGs inspected. Fixture travel/projected picks replace synthetic steering, with full pick bounds and typed objective comparisons. Chest-loot completion remains blocked; server ledger owns attempted maps and typed-invisibility giver diagnosis. No product camera repair, master merge or world.db writes.
+## 2026-10-11 — Native WSG lifecycle
+
+[Native battlegrounds](systems/battlegrounds.md): both-skin ten-account private UDP5710 queue/invite, source flag pickup/three captures, roster/score/results and origin return. Type36 dispatch and closed-scoreboard/end-transition RED→GREEN fixes; two UI and six object tests pass. Sixteen inspected PNGs; private source-position travel acceleration, no injected objective state, canonical DB write or master merge. Timing/honor and exact PvP-specific texture parity remain uncertified; lead owns the full merge gate.
+## 2026-10-11 — Native Achievement UI continuation
+
+[Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11): full authoritative Summary/scopes, own-state links, persisted tracking, raw Statistics and correlated full-catalog search. Real hidden39958 and Unicode failures reproduced/fixed; authored alert/sheet/point-shield and progress caption corrections. Filtered client19/server13 cases across scoped runs, checks/builds/formats, inspected current Modern/Forever private PNGs. Comparison and unevaluated server quantities remain explicit; no world.db writes, shared realm changes or master merge.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 

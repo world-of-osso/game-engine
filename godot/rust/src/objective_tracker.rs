@@ -58,6 +58,10 @@ impl GameClient {
         if action.is_empty() {
             return Ok(());
         }
+        if action.starts_with("achievement:") {
+            let requests = self.account.achievements.action(&action);
+            return self.send_achievement_requests(requests);
+        }
         self.apply_quest_action(&action)
     }
 
@@ -83,6 +87,7 @@ impl GameClient {
         if let Some(ui) = self.objective_tracker.ui.as_mut() {
             let mut ui = ui.bind_mut();
             ui.set_state(bosses)?;
+            ui.set_state(self.account.achievements.clone())?;
             return ui.set_state(state);
         }
         if !self.objective_tracker.textures_cached {
@@ -97,6 +102,7 @@ impl GameClient {
             let mut view = ui.bind_mut();
             view.show_objective_tracker(state)
                 .and_then(|()| view.set_state(bosses))
+                .and_then(|()| view.set_state(self.account.achievements.clone()))
         };
         if let Err(error) = shown {
             ui.free();
