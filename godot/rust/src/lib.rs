@@ -2258,6 +2258,7 @@ impl GameClient {
     }
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
+        account::validate_terrain_refresh(self.terrain.state().map.as_deref(), &request.map_name)?;
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
             let _span = profile::span(|| "terrain.map_id".to_owned());
