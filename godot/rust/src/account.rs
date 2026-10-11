@@ -239,6 +239,8 @@ pub(crate) enum QuestMessage {
     Reward(QuestGiverOfferReward),
     Complete(QuestGiverQuestComplete),
     Failed(QuestFailed),
+    ShareOffer(shared::protocol::QuestShareOffer),
+    PushResult(shared::protocol::QuestPushResult),
 }
 
 pub(crate) enum BankMessage {
@@ -977,6 +979,15 @@ impl Account {
             R::Abandon { quest_id } => bridge.send::<_, QuestChannel>(AbandonQuest { quest_id }),
             R::SetWatched { quest_id, watched } => {
                 bridge.send::<_, QuestChannel>(SetQuestWatched { quest_id, watched })
+            }
+            R::Share { quest_id } => {
+                bridge.send::<_, QuestChannel>(shared::protocol::PushQuestToParty { quest_id })
+            }
+            R::RespondShare { offer_id, accepted } => {
+                bridge.send::<_, QuestChannel>(shared::protocol::QuestPushResponse {
+                    offer_id,
+                    accepted,
+                })
             }
             R::Close { npc } => bridge.send::<_, InteractionChannel>(CloseInteraction { npc }),
         }
@@ -1994,6 +2005,10 @@ fn quest_message(
         QuestMessage::Reward(decode(message)?)
     } else if message.is::<QuestGiverQuestComplete>() {
         QuestMessage::Complete(decode(message)?)
+    } else if message.is::<shared::protocol::QuestShareOffer>() {
+        QuestMessage::ShareOffer(decode(message)?)
+    } else if message.is::<shared::protocol::QuestPushResult>() {
+        QuestMessage::PushResult(decode(message)?)
     } else if message.is::<QuestFailed>() {
         QuestMessage::Failed(decode(message)?)
     } else {
