@@ -63,6 +63,7 @@ pub mod toybox_component;
 pub mod trainer;
 pub mod trainer_frame;
 pub mod transmog;
+pub mod transmog_frame;
 pub mod wild_pet_battle;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
