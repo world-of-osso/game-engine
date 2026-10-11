@@ -393,6 +393,7 @@
 - [Native professions crafting](systems/native-professions-crafting.md) — trainer/crafting, Favorites reopen, both-skin visibility/Reset/search-scroll and native SearchBox clear/focus/magnifier tint and passive-status diagnostics and server-recorded crafting origin proof. Selection/Favorites/filters/gameplay conserved; physical thumb dispatch, favorite cursor anchoring and quality/origin gaps retained.
 
 - [DB2 readable-section qualification](systems/offline-asset-closure.md#named-encrypted-section-qualification) — pinned table/key-census proofs, explicit excluded row slots and source-restoration boundaries.
+- [Diablo IV Appearance](formats/d4-appearance.md) — offline geometry counter, explicit SNO schema records, Druid fixture layout and active-look limitations.
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, native-kind preflight, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
 - [Class spell live proof](investigations/class-spell-live-proof.md) — first pass on private54113; batches9–14 continuation on54123 adds twelve new class paths plus a Monk control, four both-skin classes and explicit guardian/numeric gaps.
