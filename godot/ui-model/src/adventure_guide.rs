@@ -94,11 +94,11 @@ impl View {
         let Some(instance) = self.catalog.instance(instance) else {
             return Vec::new();
         };
-        self.catalog
-            .map_difficulties
-            .get(&instance.map)
-            .into_iter()
-            .flatten()
+        let Some(difficulties) = self.catalog.map_difficulties.get(&instance.map) else {
+            return Vec::new();
+        };
+        difficulties
+            .iter()
             .copied()
             .filter(|difficulty| {
                 encounter.is_none_or(|id| {
@@ -424,12 +424,11 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         (15., 65., 240., 24.),
     ));
     let rows = view.instances();
-    let content:Element=rows.iter().enumerate().flat_map(|(index,i)|{
- let x=(index%4) as f32*191.;let y=(index/4) as f32*130.;let mut art=texture(format!("JournalInstance{}Art",i.id),i.button,(0.,0.,185.,105.),WHITE);
- art.extend(text(&format!("JournalInstance{}Title",i.id),&i.name,(4.,106.,177.,22.)));
- let name=DynName(format!("JournalInstance{}",i.id));let action=format!("journal:instance:{}",i.id);
- rsx!{r#frame {name:{name},left:x,top:y,width:185.0,height:128.0,pos_type:"absolute",mouse_enabled:true,onclick:{action.as_str()},{art}}}
- }).collect();
+    let content = rows
+        .iter()
+        .enumerate()
+        .flat_map(|(index, instance)| instance_card(index, instance))
+        .collect();
     controls.extend(scroll(
         ctx,
         content,
@@ -454,6 +453,24 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         controls.extend(rsx! { r#frame {name:"EncounterJournalTierMenu",left:15.0,top:89.0,width:240.0,height:312.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{options}} });
     }
     controls
+}
+fn instance_card(index: usize, instance: &Instance) -> Element {
+    let left = (index % 4) as f32 * 191.;
+    let top = (index / 4) as f32 * 130.;
+    let mut art = texture(
+        format!("JournalInstance{}Art", instance.id),
+        instance.button,
+        (0., 0., 185., 105.),
+        WHITE,
+    );
+    art.extend(text(
+        &format!("JournalInstance{}Title", instance.id),
+        &instance.name,
+        (4., 106., 177., 22.),
+    ));
+    let name = DynName(format!("JournalInstance{}", instance.id));
+    let action = format!("journal:instance:{}", instance.id);
+    rsx! {r#frame {name:{name},left,top,width:185.0,height:128.0,pos_type:"absolute",mouse_enabled:true,onclick:{action.as_str()},{art}}}
 }
 fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) else {
