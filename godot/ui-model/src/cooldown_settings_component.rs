@@ -133,7 +133,7 @@ fn panel_button(name: String, label: &str, action: String, rect: [f32; 4]) -> El
         button {
             name: {DynName(name)}, width: {rect[2]}, height: {rect[3]}, text: label,
             font: GameFont::FrizQuadrata, font_size: 12.0,
-            on_click: {action.as_str()}, background_color: "0.18,0.13,0.07,1.0",
+            onclick: {action.as_str()}, background_color: "0.18,0.13,0.07,1.0",
             pos_type: "absolute", pos_x: {rect[0]}, pos_y: {rect[1]},
         }
     }
