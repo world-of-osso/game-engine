@@ -61,6 +61,21 @@ Separate opt-in `scripts/recheck_local_asset_gaps.py` consumes a recorded produc
 - ModelFileData export accepts the pinned Retail `2AE4E788` layout, retaining inline FileDataIDs after the bounding box and authored resource/flags/LOD values. Wrong layouts fail before CSV creation.
 - Recovered CSVs use distinct paths selected explicitly by the closure config; existing metadata CSVs and display/customization caches remain untouched. Readable encrypted-table sections do not certify complete metadata or authenticate zero-filled records.
 
+## Recorded legacy-byte authentication
+
+`scripts/verify_legacy_product_assets.py` consumes no-install receipt misses and
+checks each legacy candidate against authenticated local Retail12.1.0.69933 or
+Forever70338 root content keys. Only an exact byte match for the requested
+product publishes scoped bytes and a model-asset-index receipt. Build config,
+encoding and root metadata hashes must validate first. Existing asset bytes are
+never overwritten; root absence, missing bytes, byte mismatch and scoped conflicts
+remain explicit results. A match in another product is diagnostic only, never a
+substitution. This bounded inventory does not verify the entire legacy catalog.
+
+`scripts/tests/test_verify_legacy_product_assets.py` covers authenticated local
+metadata, corrupt metadata rejection, actual-build pinning, matching publication,
+wrong-product/root-absent rejection and preservation of existing bytes.
+
 ## Out of scope
 
 Runtime policy/tripwire (P1), product-isolated runtime keys/identity migration (P2), packaging/release enforcement, audio/UI scenario acceptance. The offline graph audit itself still performs no extraction. Neither tool establishes no-install gameplay acceptance.
