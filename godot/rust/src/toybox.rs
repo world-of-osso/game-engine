@@ -99,14 +99,6 @@ impl GameClient {
         self.toybox.model.cooldowns.tick(delta);
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_toybox();
-            if matches!(
-                self.account.session.screen,
-                SessionScreen::Login
-                    | SessionScreen::CharacterSelect
-                    | SessionScreen::CharacterCreate
-            ) {
-                self.toybox.model = ToyBox::default();
-            }
             return Ok(());
         }
         if !self.toybox.model.open {

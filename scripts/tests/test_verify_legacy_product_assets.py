@@ -104,6 +104,122 @@ class LegacyProductTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unexpected actual build'):
             verifier.authenticate_root(Path('unused'), {'Product': 'wow', 'Version': '12.1.1.70000'}, {42}, {}, Path('unused'))
 
+    def skin_fixture(self, reference=43, corrupt_parent=False):
+        raw = b'SKIN authentic'
+        data, _, _, identity, _, _ = self.fixture()
+        parent = b'MD21' + struct.pack('<I', 0) + b'SFID' + struct.pack('<II', 4, reference)
+        (data / 'models').mkdir()
+        parent_path = data / ('products/wow/' + 'a' * 32 + '/models/42.m2')
+        parent_path.parent.mkdir(parents=True)
+        parent_path.write_bytes(parent)
+        (data / 'models/4200.skin').write_bytes(raw)
+        asset = {'product': 'wow', 'fdid': 43, 'extension': 'skin',
+                 'actual_build': 'a' * 32, 'legacy_candidate_path': 'models/4200.skin'}
+        roots = {42: hashlib.md5(b'other' if corrupt_parent else parent).digest(),
+                 43: hashlib.md5(raw).digest()}
+        return data, identity, asset, roots, raw
+
+    def test_authenticated_sfid_companion_publishes_alias_and_canonical_receipt(self):
+        data, identity, asset, roots, raw = self.skin_fixture()
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        index = json.loads((data / 'cache/model-asset-index.json').read_text())
+        alias = index['aliases'][0]
+        self.assertEqual(alias['fdid'], 43)
+        self.assertEqual((data / alias['path']).read_bytes(), raw)
+        self.assertEqual((data / index['assets'][0]['path']).read_bytes(), raw)
+        self.assertEqual(index['chains'][0]['dependencies']['42.m2'], {'skin': [43]})
+
+    def test_unrelated_skin_never_publishes_alias_or_receipt(self):
+        data, identity, asset, roots, _ = self.skin_fixture(reference=44)
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'companion_mismatch')
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
+    def test_unauthenticated_parent_never_publishes_alias_or_receipt(self):
+        data, identity, asset, roots, _ = self.skin_fixture(corrupt_parent=True)
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'parent_content_mismatch')
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
+    def test_authenticated_skid_companion_publishes_parent_alias(self):
+        data, identity, asset, roots, _ = self.skin_fixture()
+        parent = b'MD21' + struct.pack('<I', 0) + b'SKID' + struct.pack('<II', 4, 43)
+        (data / ('products/wow/' + 'a' * 32 + '/models/42.m2')).write_bytes(parent)
+        raw = b'SKL1 authentic skeleton'
+        (data / 'models/42.skel').write_bytes(raw)
+        asset.update(kind='missing_scoped_bytes', extension='skel', legacy_candidate_path='models/42.skel')
+        roots.update({42: hashlib.md5(parent).digest(), 43: hashlib.md5(raw).digest()})
+        row = verifier.publish_miss(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        index = json.loads((data / 'cache/model-asset-index.json').read_text())
+        alias = index['aliases'][0]
+        self.assertEqual(alias['fdid'], 43)
+        self.assertEqual(alias['path'], 'products/wow/' + 'a' * 32 + '/models/42.skel')
+        self.assertEqual((data / alias['path']).read_bytes(), raw)
+
+    def test_scoped_texture_miss_publishes_only_authenticated_texture(self):
+        raw = b'BLP2 authentic'
+        data, _, target, identity, asset, roots = self.fixture(content=hashlib.md5(raw).digest())
+        asset.update(kind='missing_scoped_bytes', actual_build='a' * 32)
+        row = verifier.publish_miss(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual(target.read_bytes(), raw)
+
+    def test_existing_fragment_mapping_is_authenticated_without_base_publication(self):
+        raw = b'BLP2 authentic'
+        data, _, target, identity, asset, roots = self.fixture(content=hashlib.md5(raw).digest())
+        receipt = verifier.chains.create_asset_receipt(identity, 42, 'blp', 'textures/42.blp', raw, hashlib.md5(raw).hexdigest())
+        verifier.chains.write_asset_files(data, [(receipt, raw)])
+        fragment = data / 'cache/model-asset-index-other.json'
+        fragment.parent.mkdir()
+        fragment.write_text(json.dumps({'version': 1, 'assets': [receipt], 'aliases': []}))
+        before, inode = fragment.read_bytes(), target.stat().st_ino
+        row = verifier.publish_legacy(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual(row['receipt_location'], str(fragment))
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+        self.assertEqual(fragment.read_bytes(), before)
+        self.assertEqual(target.stat().st_ino, inode)
+
+    def test_fragment_owned_companion_is_not_republished_in_base(self):
+        data, identity, asset, roots, raw = self.skin_fixture()
+        receipt = verifier.chains.create_asset_receipt(identity, 43, 'skin', 'models/43.skin', raw, roots[43].hex())
+        alias = verifier.chains.create_asset_receipt(identity, 43, 'skin', 'models/4200.skin', raw, roots[43].hex())
+        verifier.chains.write_asset_files(data, [(receipt, raw), (alias, raw)])
+        fragment = data / 'cache/model-asset-index-other.json'
+        fragment.parent.mkdir()
+        fragment.write_text(json.dumps({'version': 1, 'assets': [receipt], 'aliases': [alias]}))
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+        self.assertEqual(row['alias'], alias)
+
+    def test_conflicting_fragment_mapping_is_preserved_and_rejected(self):
+        raw = b'BLP2 authentic'
+        data, _, target, identity, asset, roots = self.fixture(content=hashlib.md5(raw).digest())
+        receipt = verifier.chains.create_asset_receipt(identity, 42, 'blp', 'textures/42.blp', b'BLP2 other', hashlib.md5(b'BLP2 other').hexdigest())
+        fragment = data / 'cache/model-asset-index-other.json'
+        fragment.parent.mkdir()
+        fragment.write_text(json.dumps({'version': 1, 'assets': [receipt], 'aliases': []}))
+        before = fragment.read_bytes()
+        row = verifier.publish_legacy(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'scoped_conflict')
+        self.assertEqual(fragment.read_bytes(), before)
+        self.assertFalse(target.exists())
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
+    def test_shared_alias_audit_rows_do_not_block_an_unrelated_companion(self):
+        data, identity, asset, roots, raw = self.skin_fixture()
+        shared = verifier.chains.create_asset_receipt(identity, 43, 'skin', 'models/9900.skin', raw, roots[43].hex())
+        (data / 'cache').mkdir()
+        for name in ['one', 'two']:
+            (data / f'cache/model-asset-index-{name}.json').write_text(json.dumps({'version': 1, 'assets': [], 'aliases': [shared]}))
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual((data / row['alias']['path']).read_bytes(), raw)
+        self.assertEqual(json.loads((data / 'cache/model-asset-index.json').read_text())['assets'][0]['fdid'], 43)
+
     def test_missing_bytes_do_not_publish(self):
         data, source, target, identity, asset, keys = self.fixture(content=hashlib.md5(b'BLP2 authentic').digest())
         source.unlink()

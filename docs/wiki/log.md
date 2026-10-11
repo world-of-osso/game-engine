@@ -1,3 +1,17 @@
+## 2026-10-10 — Black unit-frame portrait receipt gaps
+
+[Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
+
+## 2026-10-10 — Spell kit owner attachment ordering
+
+[Investigation](investigations/spell-kit-attach.md) classifies41 baseline non-asset lines:165 kit attachment occurrences all have authored anchors, but owner chains failed. Receipt recovery proves an additional ready-effect/late-owner race for spell10848. Scheduling now waits for the requested owner without restarting the kit timeline. Real-data RED→GREEN7/7 and native build pass at a4a3dcaff. Same failed baseline kits attached to authored own anchors for10 spells in both skins;28 inspected PNGs. Scoped final log has0spell errors; original broader no-install certification remains separate.
+## 2026-10-10 — Class spell live2 continuation
+
+[Continuation proof](investigations/class-spell-live-proof.md#batches914-continuation--spell-live2): private54123/prebuilt615fb90, twelve new bounded class paths plus a prior-batch Monk control; four both-skin classes, forty inspected PNGs. Damage sharing, actual owned-pet child, combo-duration and stealth snapshots, mana payment and Maelstrom spender admission have receipts. Guardian numeric/crit/inheritance, Deathmark80 total and Eye Beam facing remain uncertified. No production fix, world.db write or master merge.
+## 2026-10-10 — Toy-live2 catalog lifetime and later effects
+
+[Catalog lifetime and effects](systems/toy-box.md#toy-live2-catalog-lifetime-and-later-effects-2026-10-10): received1166-entry catalog was deleted during CharacterSelect; explicit world/account reset replaces per-frame clearing. Real receive-before-world RED,14-toy no-workaround GREEN and both-skin closed/open/next-open/account-switch proof.15 sampled identities per skin;19 source-bound model pairs,23 decoded sound pairs,456 inspected PNGs. Three ordinary appearance rows and11 authenticated assets prepared privately, not promoted. Mortar/precise visual/audio parity remain partial; no world.db writes, master merge or shared realm changes.
+
 ## 2026-10-10 — Authentic battlefield pet scales
 
 [Authentic sizing](systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10) removes invented pose-bound normalization, preserves world scale and adds PetInstanceScale through the importer. Eight catalog tests and all eight both-skin native four-pair cases pass; eight v3 PNGs individually inspected. Fixed pads/camera, no world.db writes or master merge. Supersedes the rejected v2 composition acceptance below.
