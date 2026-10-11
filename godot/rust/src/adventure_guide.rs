@@ -148,7 +148,10 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn adventure_guide_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+    pub(super) fn adventure_guide_pointer(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> bool {
         if self.game_menu_ui.is_some() || !self.adventure_guide.view.visible {
             return false;
         }
