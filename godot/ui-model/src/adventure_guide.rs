@@ -8,6 +8,12 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "EncounterJournalSearchBox";
 pub const LIST: &str = "EncounterJournalContent";
+pub const SCROLL_LISTS: [&str; 4] = [
+    LIST,
+    "EncounterJournalSearchList",
+    "EncounterJournalFilterList",
+    "EncounterJournalDifficultyList",
+];
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tab {
     #[default]
