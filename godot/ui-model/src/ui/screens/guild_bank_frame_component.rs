@@ -18,7 +18,7 @@ use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{
     DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait,
 };
-use crate::ui::strata::FrameStrata;
+use crate::ui::strata::{DrawLayer, FrameStrata};
 
 pub const FRAME_NAME: &str = "GuildBankFrame";
 /// GB.xml:167 `<Size x="750" y="428"/>`.
@@ -87,7 +87,7 @@ fn apply_guild_bank_checked_art(registry: &mut ui_toolkit::registry::FrameRegist
         let frame = registry.get_mut(id).expect("registered checked texture");
         if let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_mut() {
             texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-            frame.draw_layer = ui_toolkit::frame::DrawLayer::Overlay;
+            frame.draw_layer = DrawLayer::Overlay;
         }
     }
 }
