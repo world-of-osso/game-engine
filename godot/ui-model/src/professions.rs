@@ -77,16 +77,9 @@ impl ProfessionBook {
     }
 
     pub fn craftable_count(&self, bags: &InventoryState) -> u32 {
-        let Some(recipe) = self.selected_recipe() else {
-            return 0;
-        };
-        let rank = self
-            .snapshot
-            .lines
-            .iter()
-            .find(|line| line.skill_line == recipe.skill_line)
-            .map_or(0, |line| line.rank);
-        if rank < recipe.min_rank {
+        // MinSkillLineRank gates automatic learning, not casts of a trainer-learned spell.
+        // Recipe knowledge is authoritative (TrinityCore Player::LearnSkillRewardedSpells).
+        if self.selected_recipe().is_none() {
             return 0;
         }
         self.reagent_counts(bags)

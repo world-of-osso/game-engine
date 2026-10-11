@@ -126,6 +126,58 @@ fn professions_create_emits_spell_id_and_cast_quantity() {
     assert_eq!(book().craft_request(&bags(), true).unwrap().casts, 5);
 }
 #[test]
+fn professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn_rank() {
+    let dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    let recipe = catalog.get(2153).unwrap().clone();
+    assert_eq!(recipe.min_rank, 30);
+    let book = ProfessionBook {
+        recipes: vec![recipe],
+        snapshot: ProfessionSnapshot {
+            lines: vec![ProfessionSkillLine {
+                skill_line: 2532,
+                step: 1,
+                rank: 15,
+                max_rank: 300,
+            }],
+            spells: vec![2108, 2153],
+        },
+        selected: Some(2153),
+        quantity: 1,
+        ..Default::default()
+    };
+    let bags = InventoryState {
+        slots: vec![vec![
+            InventorySlot {
+                item_guid: 128,
+                item_id: 2318,
+                count: 14,
+                ..Default::default()
+            },
+            InventorySlot {
+                item_guid: 102,
+                item_id: 2320,
+                count: 1,
+                ..Default::default()
+            },
+        ]],
+        ..Default::default()
+    };
+    assert_eq!(book.craftable_count(&bags), 1);
+    assert_eq!(
+        book.craft_request(&bags, false),
+        Some(CraftRecipe {
+            spell_id: 2153,
+            casts: 1
+        })
+    );
+    let mut unlearned = book;
+    unlearned.snapshot.spells.retain(|spell| *spell != 2153);
+    assert!(unlearned.craft_request(&bags, false).is_none());
+}
+
+#[test]
 fn professions_missing_reagents_disable_create() {
     assert!(
         book()

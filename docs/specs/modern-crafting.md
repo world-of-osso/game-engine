@@ -5,6 +5,7 @@ Extend the existing [ProfessionsFrame](professions-frame.md), trainer and server
 ## Acceptance
 
 - [ ] One locally best-covered crafting profession is playable from trainer learning through recipe search/category selection, authored reagent requirements, cast, result item and authored skill-up in both skins.
+- [x] A trainer-learned recipe is not blocked by the DB2 automatic-learning threshold. Authored trainer requirements and authoritative recipe knowledge own acquisition; bag requirements own craft count.
 - [x] Recipe categories follow `TradeSkillCategory.OrderIndex`, not alphabetical category names; recipes inside each category remain name-sorted.
 - [x] Reagent crafting tiers are shown from `Item.CraftingQualityID` joined to `CraftingQuality` and its authored inventory overlay atlas, separately from item rarity.
 - [ ] Behavioral tests cover trainer purchase, reagent consumption, cast completion, output and skill progression; private UDP5770 native proof covers both skins.
@@ -14,6 +15,10 @@ Extend the existing [ProfessionsFrame](professions-frame.md), trainer and server
 Pinned Retail 12.1.0.69933 `SkillLineAbility`/`SpellEffect`/`SpellReagents` census: Leatherworking has 1,286 effect24 create-item rows with authored reagent rows, ahead of Blacksmithing1,091, Jewelcrafting967 and Tailoring904. Of those Leatherworking rows,1,229 have a nonzero skill-up line and trivial-high threshold. Leatherworking therefore provides the largest directly authored fixed-output corpus. Counts are rows, not unique recipes or proof that all outputs have server templates.
 
 Local world.db has only627 of1,286 distinct Leatherworking effect24 outputs joined to `content_item`; pinned CSV presence does not imply server runtime readiness. Existing Classic Leatherworking is the first end-to-end acceptance slice, not a claim of complete Midnight support.
+
+## Learned-recipe boundary
+
+Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at authored trainer rank15/cost50. Bags held14 Light Leather and1 Coarse Thread. Client incorrectly showed Create All[0]: pinned `SkillLineAbility.MinSkillLineRank` is30. TrinityCore a352b1fa `Player.cpp:25450` uses that field to remove **AutomaticSkillRank** abilities below their threshold; `Spell.cpp:CheckItems` does not impose it on manually learned spells. Retail `ProfessionsCrafting.lua:631-637` requires a learned recipe, and `ValidateCraftRequirements:569-623` delegates actual requirements/reagents. The client must not invent an additional automatic-learning gate for a recipe the authoritative trainer taught.
 
 ## Explicit gaps
 
