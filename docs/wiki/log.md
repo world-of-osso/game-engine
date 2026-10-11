@@ -3220,3 +3220,7 @@ Added [cache source policy](systems/cache-import-sources.md) and [contract](../s
 ## 2026-10-11 — Gathering branch (acceptance incomplete)
 
 [Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.
+
+## 2026-10-11 — integrated native gathering baseline
+
+- [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
