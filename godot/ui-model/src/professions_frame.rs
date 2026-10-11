@@ -165,18 +165,18 @@ fn page_tabs(page: ProfessionPage) -> Element {
         ),
     ] {
         let mut children = Vec::new();
-        let state = if selected { "active" } else { "inactive" };
+        let state = if selected { "activetab" } else { "tab" };
         for (suffix, member, x, w) in [
-            ("Left", format!("uiframe-{state}tab-left"), 0.0, 35.0),
+            ("Left", format!("uiframe-{state}-left"), 0.0, 35.0),
             (
                 "Middle",
-                format!("_uiframe-{state}tab-center"),
+                format!("_uiframe-{state}-center"),
                 35.0,
                 width - 72.0,
             ),
             (
                 "Right",
-                format!("uiframe-{state}tab-right"),
+                format!("uiframe-{state}-right"),
                 width - 37.0,
                 37.0,
             ),

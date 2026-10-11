@@ -1,0 +1,214 @@
+//! Retail specialization draft. Server snapshots own committed knowledge and unlocks.
+use shared::protocol::*;
+use std::collections::BTreeMap;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SpecializationDraft {
+    pub snapshot: Option<ProfessionSpecializationsSnapshot>,
+    pub selected_tree: Option<u32>,
+    pub selected_node: Option<u32>,
+    pub purchases: BTreeMap<(u32, u32), ProfessionTraitPurchase>,
+    pub confirming_unlock: bool,
+    pub pending: bool,
+    pub status: String,
+}
+impl SpecializationDraft {
+    pub fn tree(&self) -> Option<&ProfessionSpecTreeSnapshot> {
+        self.snapshot
+            .as_ref()?
+            .trees
+            .iter()
+            .find(|t| Some(t.tree_id) == self.selected_tree)
+    }
+    pub fn node(&self) -> Option<&ProfessionSpecNodeSnapshot> {
+        self.tree()?
+            .nodes
+            .iter()
+            .find(|n| Some(n.node_id) == self.selected_node)
+    }
+    pub fn rank(&self, tree: u32, node: &ProfessionSpecNodeSnapshot) -> u32 {
+        self.purchases
+            .get(&(tree, node.node_id))
+            .map_or(node.rank, |p| p.ranks)
+    }
+    pub fn remaining_knowledge(&self) -> u32 {
+        let Some(snapshot) = &self.snapshot else {
+            return 0;
+        };
+        let spent = snapshot
+            .trees
+            .iter()
+            .flat_map(|tree| tree.nodes.iter().map(move |n| (tree.tree_id, n)))
+            .map(|(tree, node)| {
+                let ranks = self.rank(tree, node).saturating_sub(node.rank);
+                let cost: u32 = node
+                    .costs
+                    .iter()
+                    .filter(|c| c.trait_currency_id == snapshot.knowledge_currency_id)
+                    .map(|c| c.amount)
+                    .sum();
+                ranks.saturating_mul(cost)
+            })
+            .fold(0u32, u32::saturating_add);
+        snapshot.knowledge_available.saturating_sub(spent)
+    }
+    pub fn can_stage(&self) -> bool {
+        if self.pending {
+            return false;
+        }
+        let (Some(tree), Some(node), Some(snapshot)) = (self.tree(), self.node(), &self.snapshot)
+        else {
+            return false;
+        };
+        if !tree.unlocked
+            || !node.available
+            || self.rank(tree.tree_id, node) + node.granted_rank >= node.max_rank
+        {
+            return false;
+        }
+        let cost: u32 = node
+            .costs
+            .iter()
+            .filter(|c| c.trait_currency_id == snapshot.knowledge_currency_id)
+            .map(|c| c.amount)
+            .sum();
+        self.remaining_knowledge() >= cost
+    }
+    pub fn stage_rank(&mut self) -> bool {
+        if !self.can_stage() {
+            return false;
+        }
+        let tree = self.tree().unwrap();
+        let node = self.node().unwrap();
+        let key = (tree.tree_id, node.node_id);
+        let purchase = ProfessionTraitPurchase {
+            node_id: node.node_id,
+            entry_id: node.entry_id,
+            ranks: self.rank(tree.tree_id, node) + 1,
+        };
+        self.purchases.insert(key, purchase);
+        true
+    }
+    pub fn commit_request(&mut self) -> Option<ProfessionSpecializationRequest> {
+        if self.pending {
+            return None;
+        }
+        let snapshot = self.snapshot.as_ref()?;
+        let tree_id = self.selected_tree?;
+        let purchases: Vec<_> = self
+            .purchases
+            .iter()
+            .filter(|((tree, _), _)| *tree == tree_id)
+            .map(|(_, p)| p.clone())
+            .collect();
+        if purchases.is_empty() {
+            return None;
+        }
+        let request = ProfessionSpecializationRequest::Commit {
+            skill_line: snapshot.skill_line,
+            tree_id,
+            purchases,
+        };
+        self.pending = true;
+        Some(request)
+    }
+    pub fn can_unlock(&self) -> bool {
+        !self.pending
+            && self.tree().is_some_and(|t| {
+                !t.unlocked
+                    && t.nodes
+                        .iter()
+                        .any(|n| n.node_id == t.root_node_id && n.available)
+            })
+    }
+    pub fn confirm_unlock(&mut self) -> Option<ProfessionSpecializationRequest> {
+        if !self.confirming_unlock || !self.can_unlock() {
+            return None;
+        }
+        let tree = self.tree()?;
+        let node = tree.nodes.iter().find(|n| n.node_id == tree.root_node_id)?;
+        let request = ProfessionSpecializationRequest::Commit {
+            skill_line: self.snapshot.as_ref()?.skill_line,
+            tree_id: tree.tree_id,
+            purchases: vec![ProfessionTraitPurchase {
+                node_id: node.node_id,
+                entry_id: node.entry_id,
+                ranks: node.rank + 1,
+            }],
+        };
+        self.confirming_unlock = false;
+        self.pending = true;
+        Some(request)
+    }
+    pub fn undo(&mut self) {
+        if !self.pending {
+            self.purchases
+                .retain(|(tree, _), _| Some(*tree) != self.selected_tree);
+        }
+    }
+    pub fn receive(&mut self, update: ProfessionSpecializationStateUpdate) {
+        self.pending = false;
+        self.status = update.error.clone().or(update.message).unwrap_or_default();
+        if let Some(snapshot) = update.snapshot {
+            if update.error.is_none() {
+                self.purchases.clear();
+            }
+            self.snapshot = Some(snapshot);
+            if self.tree().is_none() {
+                self.selected_tree = self
+                    .snapshot
+                    .as_ref()
+                    .and_then(|s| s.trees.first())
+                    .map(|t| t.tree_id);
+                self.selected_node = self.tree().map(|t| t.root_node_id);
+            }
+        }
+    }
+    pub fn tooltip(&self, node_id: u32) -> Option<crate::game_tooltip::GameTooltip> {
+        use crate::tooltip_presentation::{
+            TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation, description_lines,
+        };
+        let tree = self.tree()?;
+        let node = tree.nodes.iter().find(|n| n.node_id == node_id)?;
+        let mut lines = description_lines(&node.description, TOOLTIP_DESCRIPTION_COLOR);
+        lines.push(TooltipLineState::colored(
+            format!(
+                "Rank {}/{}",
+                self.rank(tree.tree_id, node) + node.granted_rank,
+                node.max_rank
+            ),
+            [1.0; 4],
+        ));
+        if let Some(perk) = &node.perk {
+            lines.push(TooltipLineState::colored(
+                format!(
+                    "Requires {} points{}",
+                    perk.required_points,
+                    if perk.unlocks_subpath {
+                        " — unlocks a sub-specialization"
+                    } else {
+                        ""
+                    }
+                ),
+                [1.0; 4],
+            ));
+        }
+        if !node.available {
+            lines.push(TooltipLineState::colored(
+                "Locked".into(),
+                [1.0, 0.1, 0.1, 1.0],
+            ));
+        }
+        Some(crate::game_tooltip::GameTooltip::new(
+            TooltipPresentation {
+                title: node.name.clone(),
+                lines,
+                ..Default::default()
+            },
+            None,
+        ))
+    }
+}
+#[cfg(test)]
+#[path = "professions_specializations_tests.rs"]
+mod tests;
