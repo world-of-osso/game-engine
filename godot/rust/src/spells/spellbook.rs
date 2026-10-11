@@ -305,7 +305,7 @@ impl GameClient {
         Ok(state)
     }
 
-    pub(super) fn sync_spellbook(&mut self) -> Result<(), String> {
+    pub(crate) fn sync_spellbook(&mut self) -> Result<(), String> {
         if self.spells.book_ui.is_none() {
             return Ok(());
         }
