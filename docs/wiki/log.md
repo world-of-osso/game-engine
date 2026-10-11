@@ -1,3 +1,7 @@
+## 2026-10-11 — Native WSG lifecycle
+
+[Native battlegrounds](systems/battlegrounds.md): both-skin ten-account private UDP5710 queue/invite, source flag pickup/three captures, roster/score/results and origin return. Type36 dispatch and closed-scoreboard/end-transition RED→GREEN fixes; two UI and six object tests pass. Sixteen inspected PNGs; private source-position travel acceleration, no injected objective state, canonical DB write or master merge. Timing/honor and exact PvP-specific texture parity remain uncertified; lead owns the full merge gate.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
