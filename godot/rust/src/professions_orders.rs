@@ -7,16 +7,18 @@ use shared::protocol::{CraftingOrderKind, CraftingOrderRequest};
 
 impl GameClient {
     fn order_skill_line(&self) -> u32 {
+        if self.professions.orders.customer {
+            return 0;
+        }
         self.professions
             .orders
-            .recipe
-            .and_then(|id| self.professions.recipe(id))
-            .map(|r| r.skill_line)
+            .selected_recipe()
+            .map(|recipe| recipe.skill_line)
             .or_else(|| {
                 self.professions
                     .book
                     .selected_recipe()
-                    .map(|r| r.skill_line)
+                    .map(|recipe| recipe.skill_line)
             })
             .unwrap_or(0)
     }
@@ -131,15 +133,14 @@ impl GameClient {
         let item: u32 = item
             .parse()
             .map_err(|_| format!("Invalid supplied reagent: {item}"))?;
-        let Some(recipe) = self
-            .professions
-            .orders
-            .recipe
-            .and_then(|id| self.professions.recipe(id))
-        else {
+        let Some(recipe) = self.professions.orders.selected_recipe() else {
             return Ok(());
         };
-        let Some(&(_, required)) = recipe.reagents.iter().find(|&&(id, _)| id == item) else {
+        let Some(requirement) = recipe
+            .reagents
+            .iter()
+            .find(|reagent| reagent.item_id == item)
+        else {
             return Err(format!("Reagent {item} is not required by this recipe").into());
         };
         let supplied = self
@@ -152,7 +153,9 @@ impl GameClient {
         let next = if supplied > 0 {
             0
         } else {
-            required.min(owned_count(&self.merchant.session.inventory, item))
+            requirement
+                .quantity
+                .min(owned_count(&self.merchant.session.inventory, item))
         };
         self.professions.orders.supplied.insert(item, next);
         Ok(())
@@ -200,12 +203,7 @@ impl GameClient {
         Ok(())
     }
     fn place_crafting_order(&mut self) -> Result<(), FrameError> {
-        let recipe = self
-            .professions
-            .orders
-            .recipe
-            .and_then(|id| self.professions.recipe(id))
-            .cloned();
+        let recipe = self.professions.orders.selected_recipe().cloned();
         let Some(recipe) = recipe else {
             return Ok(());
         };
@@ -221,29 +219,29 @@ impl GameClient {
     }
     pub(super) fn project_order_view(&self, view: &mut ProfessionView) {
         view.orders = self.professions.orders.clone();
-        // Customer corpus awaits the authoritative orderable recipe contract, never all spells.
-        if !view.orders.customer {
-            view.order_recipes = view.book.recipes.clone();
-        }
+        view.order_recipes = view
+            .orders
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.recipes.clone())
+            .unwrap_or_default();
         let search = self.professions.order_search.to_lowercase();
         view.order_recipes
             .retain(|r| r.name.to_lowercase().contains(&search));
-        if let Some(recipe) = view
-            .orders
-            .recipe
-            .and_then(|id| self.professions.recipe(id))
-        {
+        if let Some(recipe) = view.orders.selected_recipe() {
             view.order_can_place = view
                 .orders
                 .validate_place(recipe, &self.merchant.session.inventory)
                 .is_ok();
-            for &(item, _) in &recipe.reagents {
-                view.bag_counts
-                    .insert(item, owned_count(&self.merchant.session.inventory, item));
+            for reagent in &recipe.reagents {
+                view.bag_counts.insert(
+                    reagent.item_id,
+                    owned_count(&self.merchant.session.inventory, reagent.item_id),
+                );
             }
             insert_order_items(
                 &mut view.items,
-                std::iter::once(recipe.output.0).chain(recipe.reagents.iter().map(|r| r.0)),
+                std::iter::once(recipe.item_id).chain(recipe.reagents.iter().map(|r| r.item_id)),
             );
         }
         if let Some(snapshot) = &view.orders.snapshot {

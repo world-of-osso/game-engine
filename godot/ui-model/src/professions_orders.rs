@@ -1,5 +1,5 @@
 //! Fixed-output Retail orders; escrow, visibility and action eligibility are server-owned.
-use crate::{bag_data::InventoryState, professions::Recipe};
+use crate::bag_data::InventoryState;
 use shared::protocol::*;
 use std::collections::BTreeMap;
 
@@ -47,9 +47,16 @@ impl CraftingOrders {
             .iter()
             .find(|o| Some(o.id) == self.selected)
     }
+    pub fn selected_recipe(&self) -> Option<&CraftingOrderRecipeSnapshot> {
+        self.snapshot
+            .as_ref()?
+            .recipes
+            .iter()
+            .find(|recipe| Some(recipe.spell_id) == self.recipe)
+    }
     pub fn place_request(
         &mut self,
-        recipe: &Recipe,
+        recipe: &CraftingOrderRecipeSnapshot,
         bags: &InventoryState,
     ) -> Result<CraftingOrderRequest, String> {
         let request = self.validate_place(recipe, bags)?;
@@ -58,7 +65,7 @@ impl CraftingOrders {
     }
     pub fn validate_place(
         &self,
-        recipe: &Recipe,
+        recipe: &CraftingOrderRecipeSnapshot,
         bags: &InventoryState,
     ) -> Result<CraftingOrderRequest, String> {
         if !self.customer || self.pending {
@@ -87,7 +94,9 @@ impl CraftingOrders {
         let reagents = recipe
             .reagents
             .iter()
-            .map(|&(item_id, quantity)| {
+            .map(|requirement| {
+                let item_id = requirement.item_id;
+                let quantity = requirement.quantity;
                 let supplied = self.supplied.get(&item_id).copied().unwrap_or(0);
                 let owned = owned_count(bags, item_id);
                 if supplied > quantity || supplied > owned {
@@ -120,9 +129,7 @@ impl CraftingOrders {
         let request = match action {
             "claim" if order.can_claim => CraftingOrderRequest::Claim { order_id: order.id },
             "fulfill" if order.can_fulfill => CraftingOrderRequest::Fulfill { order_id: order.id },
-            "release" if order.can_fulfill && order.status == CraftingOrderStatus::Claimed => {
-                CraftingOrderRequest::Release { order_id: order.id }
-            }
+            "release" if order.can_release => CraftingOrderRequest::Release { order_id: order.id },
             "cancel" if order.can_cancel => CraftingOrderRequest::Cancel { order_id: order.id },
             _ => return None,
         };

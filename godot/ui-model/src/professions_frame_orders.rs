@@ -273,7 +273,7 @@ fn detail(view: &ProfessionView) -> Element {
             "CraftingOrderRelease".into(),
             "Release Order",
             "profession:order:release",
-            order.can_fulfill && !view.orders.pending,
+            order.can_release && !view.orders.pending,
             (665.0, y - 30.0, 150.0, 22.0),
         ));
     }
@@ -303,11 +303,7 @@ fn output(view: &ProfessionView, item: u32, count: u32, pos: (f32, f32)) -> Elem
     out
 }
 fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
-    let Some(recipe) = view
-        .order_recipes
-        .iter()
-        .find(|r| Some(r.spell_id) == view.orders.recipe)
-    else {
+    let Some(recipe) = view.orders.selected_recipe() else {
         return recipe_list(ctx, view, true);
     };
     let mut out = art::atlas(
@@ -332,7 +328,7 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
         !view.orders.pending,
         (60.0, 32.0, 107.0, 22.0),
     ));
-    out.extend(output(view, recipe.output.0, recipe.output.1, (28.0, 88.0)));
+    out.extend(output(view, recipe.item_id, recipe.count, (28.0, 88.0)));
     out.extend(text(
         "CraftingOrderOutputName",
         &recipe.name,
@@ -363,8 +359,13 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
         "Reagents",
         (28.0, 179.0, 370.0, 20.0),
     ));
-    for (index, &(item, quantity)) in recipe.reagents.iter().enumerate() {
-        out.extend(customer_reagent(view, index, item, quantity));
+    for (index, reagent) in recipe.reagents.iter().enumerate() {
+        out.extend(customer_reagent(
+            view,
+            index,
+            reagent.item_id,
+            reagent.quantity,
+        ));
     }
     out.extend(text(
         "CraftingOrderNoteLabel",
