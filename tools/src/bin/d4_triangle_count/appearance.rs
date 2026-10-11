@@ -144,16 +144,7 @@ fn count_subobject(
     at: usize,
     location: [usize; 3],
 ) -> Result<Vec<MeshCount>, String> {
-    let vb_index = read_nonnegative(meta, at + VERTEX_BUFFER_INDEX)?;
-    let ib_index = read_nonnegative(meta, at + INDEX_BUFFER_INDEX)?;
-    let vertices = buffers
-        .vertices
-        .get(vb_index)
-        .ok_or("Invalid vertex buffer index")?;
-    let indices = buffers
-        .indices
-        .get(ib_index)
-        .ok_or("Invalid index buffer index")?;
+    let (vertices, indices) = select_subobject_buffers(meta, buffers, at)?;
     let flags = read_u32(meta, at)?;
     let hash = read_u32(meta, at + SUBOBJECT_HASH)?;
     let mut counts = Vec::new();
@@ -182,6 +173,24 @@ fn count_subobject(
     Ok(counts)
 }
 
+fn select_subobject_buffers<'a>(
+    meta: &[u8],
+    buffers: &'a ChunkBuffers<'_>,
+    at: usize,
+) -> Result<(&'a VertexBuffer<'a>, &'a [u8]), String> {
+    let vb_index = read_nonnegative(meta, at + VERTEX_BUFFER_INDEX)?;
+    let ib_index = read_nonnegative(meta, at + INDEX_BUFFER_INDEX)?;
+    let vertices = buffers
+        .vertices
+        .get(vb_index)
+        .ok_or("Invalid vertex buffer index")?;
+    let indices = buffers
+        .indices
+        .get(ib_index)
+        .ok_or("Invalid index buffer index")?;
+    Ok((vertices, indices))
+}
+
 fn count_segment(
     meta: &[u8],
     vertices: &VertexBuffer<'_>,
@@ -208,6 +217,11 @@ fn count_segment(
         checked_scale(index_offset, INDEX_WIDTH)?,
         checked_scale(index_count, INDEX_WIDTH)?,
     )?;
+    validate_segment_indices(index_bytes, vertex_count)?;
+    Ok((vertex_count, index_count / TRIANGLE_CORNERS))
+}
+
+fn validate_segment_indices(index_bytes: &[u8], vertex_count: usize) -> Result<(), String> {
     for index in index_bytes.chunks_exact(INDEX_WIDTH) {
         let value = u16::from_le_bytes([index[0], index[1]]) as usize;
         if value >= vertex_count {
@@ -216,7 +230,7 @@ fn count_segment(
             ));
         }
     }
-    Ok((vertex_count, index_count / TRIANGLE_CORNERS))
+    Ok(())
 }
 
 fn checked_scale(count: usize, width: usize) -> Result<usize, String> {
