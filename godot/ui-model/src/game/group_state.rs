@@ -92,7 +92,9 @@ impl GroupState {
         }
     }
 
-    pub fn apply_countdown(&mut self, update: GroupCountdownUpdate) {
+    pub fn apply_countdown_at(&mut self, mut update: GroupCountdownUpdate, now_unix_ms: u64) {
+        let remaining = update.deadline_unix_ms.saturating_sub(now_unix_ms) as f32 / 1000.0;
+        update.time_remaining_secs = update.time_remaining_secs.min(remaining);
         if update.duration_secs == 0 {
             self.countdown = None;
             self.countdown_sounds.clear();

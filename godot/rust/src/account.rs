@@ -1550,7 +1550,11 @@ impl Account {
                     update.initiator_name
                 )));
             }
-            self.group.apply_countdown(update);
+            let now_unix_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|error| format!("Cannot read countdown wall clock: {error}"))?
+                .as_millis() as u64;
+            self.group.apply_countdown_at(update, now_unix_ms);
         } else if message.is::<RaidTargetIcons>() {
             self.raid_targets = decode(message)?;
         } else if message.is::<MinimapPing>() {
