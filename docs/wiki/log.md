@@ -3231,3 +3231,6 @@ Local CASC Scenario/ScenarioStep and existing criteria/TDB join; copy-scoped ach
 ### 2026-10-11 — Scenario native proof
 
 Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy re-entry verified;13 PNGs inspected. HP-primed fixture, one authored main stage and asset/LOS limits documented in [system SSOT](systems/scenarios.md).
+## 2026-10-11 — raid-entry
+
+Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
