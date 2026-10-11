@@ -113,6 +113,7 @@ impl ObjectiveTrackerState {
         now: i64,
     ) -> Self {
         let mut state = Self::from_runtime(runtime, collapsed, quests_collapsed);
+        let now = now + runtime.server_clock_offset;
         for (block, entry) in state.quests.iter_mut().zip(runtime.watched_entries()) {
             if entry.failed {
                 block.title = format!("{} - Failed", entry.title);

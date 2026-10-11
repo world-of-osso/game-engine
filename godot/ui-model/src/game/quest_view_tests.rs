@@ -22,6 +22,7 @@ fn entry(quest_id: u32, title: &str, sort_id: i32) -> QuestEntrySnapshot {
         zone: String::new(),
         completed: false,
         expires_at: None,
+        timer_sampled_at: None,
         failed: false,
         repeatability: QuestRepeatability::Normal,
         objectives: vec![QuestObjectiveSnapshot {
