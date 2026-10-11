@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 # table, layout, stored values, expected CSV row (ID is a non-inline fixture ID).
 CASES = [
+    ("ChrModel", 0x03FAB755, [0, 0, 1, 0, 101, 103, 0, 0, 0, 0, 0, 0x3F800000, 0, 0xBEAE147B, 0, 0, 0],
+     {"ID": "1", "Sex": "0", "DisplayID": "101", "CharComponentTextureLayoutID": "103", "CustomizeScale": "1", "CameraDistanceOffset": "-0.340000004"}),
     ("ChrCustomizationOption", 0xDCC2A86E, [0, 890, 0, 0, 1, 10, 3, 0, 0, 0, 12, 0, 0],
      {"ID": "890", "Name_lang": "", "ChrModelID": "1", "OrderIndex": "10", "ChrCustomizationCategoryID": "3", "OptionType": "0", "Requirement": "12"}),
     ("ChrCustomizationChoice", 0x9559C358, [0, 90001, 890, 19, 23, 2, 0, 0, 0, 0, 0xFF000001 | (0xFF000002 << 32)],
