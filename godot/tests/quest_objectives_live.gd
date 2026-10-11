@@ -36,7 +36,8 @@ func run_test() -> void:
 		return
 	if not in_log(client.quest_state(), scenario.quest) and not await take_quest(scenario.giver.at, scenario.giver.name, scenario.quest, scenario.title):
 		return
-	await tap(KEY_ESCAPE)
+	if client.quest_state().frame_open:
+		await tap(KEY_ESCAPE)
 	if scenario.kind == "spell":
 		if not await credit_item_spell():
 			return
@@ -107,6 +108,31 @@ func find_unit(name: String) -> Dictionary:
 		fail(name + " has no unoccluded projected native pick")
 		return {}
 	return {"id": id, "name": name, "point": point}
+
+## Search the whole projected pick box, including low ground-level object meshes.
+## The base creature fixture only searches pixels above the box centre.
+func find_unit_point(unit: Node, id: int) -> Vector2:
+	var shape: CollisionShape3D = unit.find_child("UnitPick", true, false).get_child(0)
+	var half: Vector3 = shape.shape.size * 0.5
+	var low := Vector2.INF
+	var high := -Vector2.INF
+	for x in [-half.x, half.x]:
+		for y in [-half.y, half.y]:
+			for z in [-half.z, half.z]:
+				var corner: Vector3 = shape.global_transform * Vector3(x, y, z)
+				if camera().is_position_behind(corner):
+					return Vector2.INF
+				var projected := camera().unproject_position(corner)
+				low = low.min(projected)
+				high = high.max(projected)
+	low = low.max(Vector2.ZERO)
+	high = high.min(Vector2(root.size))
+	for y in range(int(low.y), int(high.y) + 1, 4):
+		for x in range(int(low.x), int(high.x) + 1, 4):
+			var point := Vector2(x, y)
+			if UnitPicker.pick(camera(), point) == id:
+				return point
+	return Vector2.INF
 
 func open_quest(at: Array, npc: String, title: String) -> bool:
 	if not await teleport(at):
