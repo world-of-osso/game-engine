@@ -1,3 +1,7 @@
+## 2026-10-11 — World-quest source boundary
+
+[Investigation](investigations/world-quest-availability.md): pinned QuestInfo classification and archive/SQLite template fields agree for4,207 world quests. Actual quest pools/events supply zero matching quests; managed-state defaults and activation windows are absent from inspected inputs. [Contract](../specs/world-quests.md) remains unchecked. Read-only census receipt retained; no runtime code, canonical writes, server/client process or PNG proof.
+
 ## 2026-10-11 — Native follower LFG transport
 
 [Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.

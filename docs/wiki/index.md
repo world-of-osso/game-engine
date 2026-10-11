@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [World-quest availability source boundary](investigations/world-quest-availability.md) — read-only pinned DB2/TDB census:4,207 definitions, zero quest-pool/event matches or runtime world quests; no invented schedule, runtime implementation or live completion claim.
+
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
