@@ -86,6 +86,16 @@ func run_fixture() -> void:
 	await click("EnterWorld")
 	if not await wait_screen("InWorld"):
 		return
+	if OS.get_environment("COOLDOWN_ASSIST_ADMIN") == "1":
+		var ready := FileAccess.open(directory.path_join("online.ready"), FileAccess.WRITE)
+		ready.store_string("private fb_cooldown_assist online")
+		ready.close()
+		deadline = Time.get_ticks_msec() + 120000
+		while not FileAccess.file_exists(directory.path_join("server-setup.done")) and Time.get_ticks_msec() < deadline:
+			await process_frame
+		if not FileAccess.file_exists(directory.path_join("server-setup.done")):
+			fail("private admin setup timeout")
+			return
 	var spec_error: String = client.set_specialization(70)
 	if not spec_error.is_empty():
 		fail(spec_error)
