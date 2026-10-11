@@ -166,6 +166,49 @@ class LegacyProductTests(unittest.TestCase):
         self.assertEqual(row['status'], 'verified')
         self.assertEqual(target.read_bytes(), raw)
 
+    def test_existing_fragment_mapping_is_authenticated_without_base_publication(self):
+        raw = b'BLP2 authentic'
+        data, _, target, identity, asset, roots = self.fixture(content=hashlib.md5(raw).digest())
+        receipt = verifier.chains.create_asset_receipt(identity, 42, 'blp', 'textures/42.blp', raw, hashlib.md5(raw).hexdigest())
+        verifier.chains.write_asset_files(data, [(receipt, raw)])
+        fragment = data / 'cache/model-asset-index-other.json'
+        fragment.parent.mkdir()
+        fragment.write_text(json.dumps({'version': 1, 'assets': [receipt], 'aliases': []}))
+        before, inode = fragment.read_bytes(), target.stat().st_ino
+        row = verifier.publish_legacy(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertEqual(row['receipt_location'], str(fragment))
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+        self.assertEqual(fragment.read_bytes(), before)
+        self.assertEqual(target.stat().st_ino, inode)
+
+    def test_fragment_owned_companion_is_not_republished_in_base(self):
+        data, identity, asset, roots, raw = self.skin_fixture()
+        receipt = verifier.chains.create_asset_receipt(identity, 43, 'skin', 'models/43.skin', raw, roots[43].hex())
+        alias = verifier.chains.create_asset_receipt(identity, 43, 'skin', 'models/4200.skin', raw, roots[43].hex())
+        verifier.chains.write_asset_files(data, [(receipt, raw), (alias, raw)])
+        fragment = data / 'cache/model-asset-index-other.json'
+        fragment.parent.mkdir()
+        fragment.write_text(json.dumps({'version': 1, 'assets': [receipt], 'aliases': [alias]}))
+        row = verifier.publish_model_companion(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'verified')
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+        self.assertEqual(row['alias'], alias)
+
+    def test_conflicting_fragment_mapping_is_preserved_and_rejected(self):
+        raw = b'BLP2 authentic'
+        data, _, target, identity, asset, roots = self.fixture(content=hashlib.md5(raw).digest())
+        receipt = verifier.chains.create_asset_receipt(identity, 42, 'blp', 'textures/42.blp', b'BLP2 other', hashlib.md5(b'BLP2 other').hexdigest())
+        fragment = data / 'cache/model-asset-index-other.json'
+        fragment.parent.mkdir()
+        fragment.write_text(json.dumps({'version': 1, 'assets': [receipt], 'aliases': []}))
+        before = fragment.read_bytes()
+        row = verifier.publish_legacy(data, identity, asset, roots)
+        self.assertEqual(row['status'], 'scoped_conflict')
+        self.assertEqual(fragment.read_bytes(), before)
+        self.assertFalse(target.exists())
+        self.assertFalse((data / 'cache/model-asset-index.json').exists())
+
     def test_missing_bytes_do_not_publish(self):
         data, source, target, identity, asset, keys = self.fixture(content=hashlib.md5(b'BLP2 authentic').digest())
         source.unlink()
