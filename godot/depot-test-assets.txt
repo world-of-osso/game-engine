@@ -2282,6 +2282,7 @@ db2/12.1.0.69933/CraftingQualityAtlasSet.csv
 dbfilesclient/4373538.db2
 dbfilesclient/7012110.db2
 dbfilesclient/4545612.db2
+textures/7487371.blp
 
 # Read-only Talents: real Mage Arcane DB2 fixture.
 db2/12.1.0.69933/TraitTree.csv

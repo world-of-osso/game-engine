@@ -4,11 +4,11 @@ Extend the existing [ProfessionsFrame](professions-frame.md), trainer and server
 
 ## Acceptance
 
-- [ ] One locally best-covered crafting profession is playable from trainer learning through recipe search/category selection, authored reagent requirements, cast, result item and authored skill-up in both skins.
+- [x] One locally best-covered crafting profession is playable from trainer learning through recipe search/category selection, authored reagent requirements, cast, result item and authored skill-up in both skins.
 - [x] A trainer-learned recipe is not blocked by the DB2 automatic-learning threshold. Authored trainer requirements and authoritative recipe knowledge own acquisition; bag requirements own craft count.
 - [x] Recipe categories follow `TradeSkillCategory.OrderIndex`, not alphabetical category names; recipes inside each category remain name-sorted.
 - [x] Reagent crafting tiers are shown from `Item.CraftingQualityID` joined to `CraftingQuality` and its authored inventory overlay atlas, separately from item rarity.
-- [ ] Behavioral tests cover trainer purchase, reagent consumption, cast completion, output and skill progression; private UDP5770 native proof covers both skins.
+- [x] Behavioral tests cover trainer purchase, reagent consumption, cast completion, output and skill progression; private UDP5770 native proof covers both skins for Classic Leatherworking.
 
 ## Data choice
 
@@ -29,7 +29,11 @@ Private Modern proof learned Handstitched Leather Pants2153 from Simon Tanner at
 
 ## Quality source receipt
 
-Local CASC extraction from Retail build key `dcfc90fffd79ba00406ae46f5f657592`: `CraftingQuality`4373538 (11 rows, layout5E7AC242), `CraftingQualityAtlasSet`7012110 (7 rows, layout4FC8E439), `CraftingDataItemQuality`4545612 (1,687 rows, layoutDE11A051), no encrypted rows dropped. DB2 headers preserve shared static68914 payloads selected by the69933 build root; headers are not rewritten. Layout field order checked against wowdev/WoWDBDefs. Runtime reads the first two exports, `Item` and `UiTextureAtlasElement`; output-variant export records available identities but is not an outcome formula. QualityID14 means tier2/atlas-set7, not tier14 or item rarity2.
+Local CASC extraction from Retail build key `dcfc90fffd79ba00406ae46f5f657592`: `CraftingQuality`4373538 (11 rows, layout5E7AC242), `CraftingQualityAtlasSet`7012110 (7 rows, layout4FC8E439), `CraftingDataItemQuality`4545612 (1,687 rows, layoutDE11A051), no encrypted rows dropped. DB2 headers preserve shared static68914 payloads selected by the69933 build root; headers are not rewritten. Layout field order checked against wowdev/WoWDBDefs. Runtime reads the first two exports, `Item` and `UiTextureAtlasElement`; output-variant export records available identities but is not an outcome formula. QualityID14 means tier2/atlas-set7, not tier14 or item rarity2. Its inventory glyph is element32404, authored33×28 on sheet7487371 (locally extracted and included in fixture assets); preserve `UseAtlasSize` rather than squashing it to20×20.
+
+## Native acceptance — verified2026-10-11
+
+Private UDP5770, owned `fb_moderncraft_m`/`fb_moderncraft_f`, Classic Leatherworking2532. Both skins: normal charselect→EnterWorld, Simon Tanner trainer56, primary profession264578, recipe categories/search,14 Light Leather2881 casts consume42 Ruined Leather Scraps and raise rank1→15; trainer teaches2153, single pants craft consumes4 Leather+1 Coarse Thread, grants item2303 and raises rank16. Native InventoryList observes10 Leather, zero Thread and1 Handstitched Leather Pants. Modern result also verifies persisted trainer/recipe/rank state after private server restart. Canonical diagnostics: `data/diagnostics/modern-crafting-2026-10-11/`; [native system](../wiki/systems/native-professions-crafting.md) owns proof/artifact details. Static reagent-quality glyphs have both-skin model/geometry proof; this acceptance does **not** certify variable-quality output math.
 
 ## Sources
 

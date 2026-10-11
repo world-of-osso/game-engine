@@ -120,6 +120,8 @@ fn professions_authored_midnight_reagent_quality_overlay_in_both_skins() {
             "4/3 Lightbloom Hide"
         );
         let overlay = frame(&registry, "ProfessionReagent0QualityOverlay");
+        assert_eq!(overlay.width, ui_toolkit::frame::Dimension::Fixed(33.0));
+        assert_eq!(overlay.height, ui_toolkit::frame::Dimension::Fixed(28.0));
         assert!(
             matches!(overlay.widget_data.as_ref(), Some(WidgetData::Texture(texture))
             if matches!(texture.source, ui_toolkit::widgets::texture::TextureSource::FileDataId(_)))
