@@ -356,3 +356,38 @@ fn purchase_info_denial_and_close_are_bound_to_current_vault() {
     assert!(session.close().is_empty());
     assert!(session.state.contents.is_none());
 }
+
+#[test]
+fn guild_bank_info_does_not_target_nonexistent_or_read_only_editors() {
+    let mut session = opened();
+    let mut empty = contents(42);
+    empty.tabs.clear();
+    session.apply_contents(empty);
+    session.set_mode(GuildBankMode::Info);
+    assert!(session.frame_state().info.is_none());
+    assert!(session.text_edits.is_empty());
+
+    let mut member = contents(42);
+    member.is_leader = false;
+    session.apply_contents(member);
+    session.set_mode(GuildBankMode::Info);
+    assert_eq!(
+        session.frame_state().info,
+        Some(("Raid supplies".into(), false))
+    );
+    assert!(session.text_edits.is_empty());
+
+    let mut locked = contents(42);
+    locked.tabs[0].viewable = false;
+    session.apply_contents(locked);
+    session.set_mode(GuildBankMode::Info);
+    assert!(session.frame_state().info.is_none());
+    assert!(session.text_edits.is_empty());
+
+    session.apply_contents(contents(42));
+    session.set_mode(GuildBankMode::Info);
+    assert_eq!(
+        session.text_edits,
+        vec![("GuildBankTabInfoEditBox", "Raid supplies".into())]
+    );
+}

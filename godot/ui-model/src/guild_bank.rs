@@ -190,11 +190,10 @@ impl GuildBankSession {
         if self.state.mode != GuildBankMode::Info {
             return Vec::new();
         }
-        let text = self
-            .selected_tab()
-            .map(|tab| tab.text.clone())
-            .unwrap_or_default();
-        vec![(frame::INFO_BOX, text)]
+        match self.frame_state().info {
+            Some((text, true)) => vec![(frame::INFO_BOX, text)],
+            _ => Vec::new(),
+        }
     }
 
     fn selected_tab(&self) -> Option<&GuildBankTabView> {
