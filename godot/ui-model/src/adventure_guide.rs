@@ -32,6 +32,7 @@ pub struct View {
     pub tab: Tab,
     pub page: Page,
     pub tier: u32,
+    pub tier_open: bool,
     pub instance: Option<u32>,
     pub encounter: Option<u32>,
     pub difficulty: u32,
@@ -52,6 +53,7 @@ impl Default for View {
             tab: Tab::Dungeons,
             page: Page::Overview,
             tier: 73,
+            tier_open: false,
             instance: None,
             encounter: None,
             difficulty: 2,
@@ -90,6 +92,7 @@ impl View {
         } else {
             Tab::Raids
         };
+        self.difficulty = if self.tab == Tab::Dungeons { 2 } else { 14 };
         self.page = Page::Overview;
         self.visible = true;
         self.collapsed.clear();
@@ -206,7 +209,9 @@ impl View {
                 self.encounter = None;
                 self.search.clear();
             }
+            "tier-menu" => self.tier_open = !self.tier_open,
             "tier" => {
+                self.tier_open = false;
                 self.tier = number()?;
                 self.instance = None;
                 self.encounter = None;
@@ -279,7 +284,8 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         "journal:back",
         (64., 29., 170., 22.),
     ));
-    body.extend(rsx!{editbox {name:"EncounterJournalSearchBox",left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:80,text_insets:"4,4,0,0",pos_type:"absolute"}});
+    let search = view.search.as_str();
+    body.extend(rsx!{editbox {name:"EncounterJournalSearchBox",text:search,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:80,text_insets:"4,4,0,0",pos_type:"absolute"}});
     for (index, (title, action)) in [
         ("Dungeons", "dungeons"),
         ("Raids", "raids"),
@@ -307,6 +313,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             }
         }
     });
+    if view.search.chars().count() >= 3 && view.page != Page::Loot {
+        body.extend(search_results(ctx, view));
+    }
     let left = (view.viewport[0] - 800.) / 2.;
     let top = (view.viewport[1] - 496.) / 2.;
     rsx! {r#frame {name:"EncounterJournalRoot",stretch:true,r#frame {name:"EncounterJournal",width:800.0,height:496.0,left,top,pos_type:"absolute",mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",strata:crate::ui::strata::FrameStrata::Dialog,{body}}}}
@@ -321,26 +330,12 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         .find(|t| t.id == view.tier)
         .map(|t| t.name.as_str())
         .unwrap_or("");
-    controls.extend(text("EncounterJournalTier", title, (15., 65., 190., 22.)));
-    let tiers: Vec<_> = view
-        .catalog
-        .tiers
-        .iter()
-        .filter(|t| t.id != view.tier)
-        .collect();
-    for (index, tier) in tiers.into_iter().enumerate() {
-        controls.extend(button(
-            format!("EncounterJournalTier{}", tier.id),
-            &tier.name,
-            &format!("journal:tier:{}", tier.id),
-            (
-                15. + (index % 4) as f32 * 192.,
-                90. + (index / 4) as f32 * 24.,
-                188.,
-                22.,
-            ),
-        ));
-    }
+    controls.extend(button(
+        "EncounterJournalTierDropdown".into(),
+        title,
+        "journal:tier-menu",
+        (15., 65., 240., 24.),
+    ));
     let rows = view.instances();
     let content:Element=rows.iter().enumerate().flat_map(|(index,i)|{
  let x=(index%4) as f32*191.;let y=(index/4) as f32*130.;let mut art=texture(format!("JournalInstance{}Art",i.id),i.button,(0.,0.,185.,105.),WHITE);
@@ -351,9 +346,26 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
     controls.extend(scroll(
         ctx,
         content,
-        (15., 168., 770., 315.),
-        (rows.len().div_ceil(4) as f32 * 130.).max(315.),
+        (15., 96., 770., 387.),
+        (rows.len().div_ceil(4) as f32 * 130.).max(387.),
     ));
+    if view.tier_open {
+        let options: Element = view
+            .catalog
+            .tiers
+            .iter()
+            .enumerate()
+            .flat_map(|(index, tier)| {
+                button(
+                    format!("EncounterJournalTier{}", tier.id),
+                    &tier.name,
+                    &format!("journal:tier:{}", tier.id),
+                    (0., index as f32 * 24., 240., 23.),
+                )
+            })
+            .collect();
+        controls.extend(rsx! { r#frame {name:"EncounterJournalTierMenu",left:15.0,top:89.0,width:240.0,height:312.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{options}} });
+    }
     controls
 }
 fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
@@ -645,6 +657,56 @@ fn sets(ctx: &SharedContext, view: &View) -> Element {
     }
     scroll(ctx, content, (15., 65., 770., 416.), y.max(416.))
 }
+fn search_results(ctx: &SharedContext, view: &View) -> Element {
+    let search = view.search.to_lowercase();
+    let instances = view
+        .catalog
+        .instances
+        .iter()
+        .filter(|i| i.name.to_lowercase().contains(&search))
+        .map(|i| (i.name.clone(), format!("journal:instance:{}", i.id)));
+    let encounters = view
+        .catalog
+        .encounters
+        .iter()
+        .filter(|e| e.name.to_lowercase().contains(&search))
+        .map(|e| (e.name.clone(), format!("journal:encounter:{}", e.id)));
+    let sections = view
+        .catalog
+        .sections
+        .values()
+        .filter(|s| s.title.to_lowercase().contains(&search))
+        .map(|s| {
+            (
+                s.title.clone(),
+                format!("journal:encounter:{}", s.encounter),
+            )
+        });
+    let matches: Vec<_> = instances.chain(encounters).chain(sections).collect();
+    let rows: Element = matches
+        .iter()
+        .enumerate()
+        .map(|(index, (title, action))| {
+            button(
+                format!("JournalSearchResult{index}"),
+                title,
+                action,
+                (0., index as f32 * 26., 546., 24.),
+            )
+        })
+        .flatten()
+        .collect();
+    let content_height = (matches.len() as f32 * 26.).max(330.);
+    let list = scroll_in(
+        ctx,
+        rows,
+        (0., 0., 564., 330.),
+        content_height,
+        "EncounterJournalSearchList",
+    );
+    rsx! {r#frame {name:"EncounterJournalSearchResults",left:210.0,top:62.0,width:568.0,height:334.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,background_color:"0.08,0.07,0.06,1.0",{list}}}
+}
+
 fn tutorials() -> Element {
     text(
         "EncounterJournalTutorials",
@@ -658,13 +720,22 @@ fn scroll(
     rect: (f32, f32, f32, f32),
     content_height: f32,
 ) -> Element {
+    scroll_in(ctx, children, rect, content_height, LIST)
+}
+fn scroll_in(
+    ctx: &SharedContext,
+    children: Element,
+    rect: (f32, f32, f32, f32),
+    content_height: f32,
+    list: &'static str,
+) -> Element {
     let (left, top, width, height) = rect;
     let geometry = pixel_geometry(height, content_height, height);
-    let offset = geometry.clamp(ctx.scroll_first_row(LIST));
+    let offset = geometry.clamp(ctx.scroll_first_row(list));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
     let bar = MinimalScrollBar {
-        list: LIST,
+        list,
         left: width - 14.,
         top: 0.,
         height,
@@ -673,5 +744,7 @@ fn scroll(
         unscrollable: Unscrollable::HideThumb,
     };
     let child_width = width - 18.0;
-    rsx! {r#frame {name:"EncounterJournalContent",left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,r#frame {name:"EncounterJournalContentChild",left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}{bar.element()}}}
+    let list_name = DynName(list.into());
+    let child_name = DynName(format!("{list}Child"));
+    rsx! {r#frame {name:{list_name},left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,r#frame {name:{child_name},left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}{bar.element()}}}
 }
