@@ -17,7 +17,8 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Provide All/Account/Character scope tabs using the authentic account flag.
 - [x] Browse category ancestry/order, icons/names/descriptions/points/earned dates and criterion progress, including continuation pages.
 - [x] Show bare thousands-separated earned points beside the Retail shield in both skins.
-- [x] Use cropped authored category-button, icon-frame, point-shield and achievement-background regions; progress fills must not cover their captions.
+- [x] Use Retail's 768×500 AchievementFrame, styled collapsible category tree, header shield/search art and authored bottom tabs. Forever changes art only.
+- [x] Achievement row buttons expand criteria in place, pushing following rows down; include icon frames, point shields, descriptions, completion dates and authentic progress-bar art. Statistics use Retail striped rows. Summary uses carved category status-bar art; fills must not cover captions.
 
 ### Earned links and tracking
 

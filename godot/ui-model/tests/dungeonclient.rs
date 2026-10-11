@@ -9,6 +9,73 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+#[test]
+fn achievements_art_categories_collapse_and_rows_expand_in_place_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        let mut child = category();
+        child.parent_id = 168;
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![
+                AchievementCategoryEntry {
+                    category_id: 168,
+                    parent_id: -1,
+                    order_index: 1,
+                    name: "Dungeons & Raids".into(),
+                },
+                child,
+            ],
+            next_id: None,
+        });
+        assert_eq!(
+            window.category_tree().len(),
+            1,
+            "Retail starts with collapsed headers"
+        );
+        window.action("achievement:category:168");
+        assert_eq!(window.category_tree().len(), 2);
+        window.action("achievement:category:168");
+        assert_eq!(window.category_tree().len(), 1);
+        window.action("achievement:category:14808");
+        let mut second = achievement();
+        second.achievement_id = 646;
+        window.apply(AchievementCatalogPage::Category {
+            category_id: 14808,
+            achievements: vec![achievement(), second],
+            next_id: None,
+        });
+        window.action("achievement:row:633");
+        let expanded = achievement_registry(&window, skin);
+        let first = expanded
+            .get(expanded.get_by_name("Achievement633Row").unwrap())
+            .unwrap();
+        let next = expanded
+            .get(expanded.get_by_name("Achievement646Row").unwrap())
+            .unwrap();
+        let ui_toolkit::frame::Dimension::Fixed(height) = first.height else {
+            panic!("row height");
+        };
+        let ui_toolkit::layout_values::Val::Px(top) = first.position.top else {
+            panic!("row top");
+        };
+        let ui_toolkit::layout_values::Val::Px(next_top) = next.position.top else {
+            panic!("next top");
+        };
+        assert!(height > 84.0);
+        assert!(
+            next_top >= top + height,
+            "criteria push later rows down, not separate panel"
+        );
+        assert!(expanded.get_by_name("Achievement633Criterion1").is_some());
+        window.action("achievement:row:633");
+        let collapsed = achievement_registry(&window, skin);
+        assert!(collapsed.get_by_name("Achievement633Criterion1").is_none());
+        assert!(collapsed.get_by_name("Achievement633IconFrame").is_some());
+    }
+}
+
 fn assets(skin: ActiveSkin) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -693,7 +760,7 @@ fn dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable() {
             .iter()
             .map(|(row, depth)| (row.category_id, *depth))
             .collect::<Vec<_>>(),
-        vec![(20000, 0), (14808, 1)]
+        vec![(20000, 0)]
     );
     window.action("achievement:category:14808");
     let entries = (625..=632)
@@ -826,6 +893,7 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
             categories: vec![],
             recent: vec![achievement()],
         }));
+        window.action("achievement:row:633");
         let mut shared = SharedContext::new();
         shared.insert(skin);
         shared.insert(window.clone());
@@ -867,10 +935,10 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         let ui_toolkit::layout_values::Val::Px(left) = points.position.left else {
             panic!("absolute points position")
         };
-        assert_eq!(left + width / 2.0, 410.0);
+        assert_eq!(left + width / 2.0, 404.0);
         assert_eq!(
             points.position.top,
-            ui_toolkit::layout_values::Val::Px(32.0)
+            ui_toolkit::layout_values::Val::Px(-5.0)
         );
         assert_eq!(points.height, ui_toolkit::frame::Dimension::Fixed(20.0));
         assert_eq!(
@@ -879,7 +947,7 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         );
         assert_eq!(
             shield.position.top,
-            ui_toolkit::layout_values::Val::Px(33.0)
+            ui_toolkit::layout_values::Val::Px(-4.0)
         );
         assert_eq!(
             (shield.width, shield.height),
