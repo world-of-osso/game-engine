@@ -121,9 +121,32 @@ impl GameClient {
         }
         self.persist_achievement_tracking()?;
         self.sync_achievements()?;
+        self.request_achievement_scroll_page()?;
         self.advance_achievement_toast(delta)?;
         Ok(())
     }
+    fn request_achievement_scroll_page(&mut self) -> Result<(), FrameError> {
+        let at_bottom = self.achievements.ui.as_ref().is_some_and(|ui| {
+            let host = ui.bind();
+            let Some(registry) = host.registry() else {
+                return false;
+            };
+            if registry.get_by_name(model::ROWS_SCROLLBOX).is_none() {
+                return false;
+            }
+            let scroll = registry
+                .scroll_lists
+                .get(model::ROWS_SCROLLBOX)
+                .expect("achievement rows scroll state");
+            scroll.first_row >= scroll.geometry.max_first_row()
+        });
+        if at_bottom {
+            let requests = self.account.achievements.action("achievement:more_rows");
+            self.send_achievement_requests(requests)?;
+        }
+        Ok(())
+    }
+
     fn load_achievement_tracking(&mut self) -> Result<(), FrameError> {
         let character = self
             .account
@@ -225,7 +248,7 @@ impl GameClient {
             self.drawable_fdid(entry.icon_fdid);
         }
         if let Some(ui) = &mut self.achievements.ui {
-            return ui.bind_mut().set_state(state);
+            return ui.bind_mut().set_achievement_window(state);
         }
         self.extract_art(model::ART);
         self.extract_art(&game_engine_ui_model::panel_style_data::metal_sheet_fdids(

@@ -21,7 +21,8 @@ pub(super) fn skin_tint(fdid: u32) -> &'static str {
 }
 
 /// XML:1505-1660: 768x500 wood/metal frame, 175-wide categories, 504-wide content.
-pub(super) fn chrome() -> Element {
+pub(super) fn chrome(summary: bool) -> Element {
+    let content_width = if summary { 523.0 } else { 498.0 };
     let mut out = named_atlas_texture(
         "AchievementFrameRock".into(),
         "UI-Background-Rock-Brown",
@@ -38,7 +39,7 @@ pub(super) fn chrome() -> Element {
             "ContentBG",
             235397,
             "0,1,0,0.5",
-            (221.0, 58.0, 498.0, 419.0),
+            (221.0, 58.0, content_width, 419.0),
         ),
         ("MetalLeft", 130658, "0,1,0,0.87", (14.0, 32.0, 16.0, 436.0)),
         (
@@ -196,10 +197,10 @@ pub(super) fn section_header(name: &str, title: &str, y: f32) -> Element {
         &format!("{name}Art"),
         235408,
         "0,1,0,0.71875",
-        (214.0, y, 510.0, 20.0),
+        (203.0, y, 559.0, 20.0),
     );
     out.extend(rsx! {fontstring {name:{DynName(name.into())},text:title,font:ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
-        font_size:12.0,font_color:GOLD,justify_h:"CENTER",width:470.0,height:20.0,left:234.0,top:y,pos_type:"absolute",
+        font_size:12.0,font_color:GOLD,justify_h:"CENTER",width:519.0,height:20.0,left:223.0,top:y,pos_type:"absolute",
     }});
     out
 }
