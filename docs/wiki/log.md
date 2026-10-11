@@ -1,3 +1,7 @@
+## 2026-10-11 — Combat pet lifecycle
+
+[Native lifecycle](systems/combat-pet-lifecycle.md): real Erma stable mutations in both skins, missing rename Plain chrome RED→GREEN16fdd7f18, genuine wound/Mend/dead/Revive/server-confirmed native logout proof. Six demon summon/dismiss bars and current/dismissed native logout tested in both skins; body coverage remains limited to Imp.23 inspected1920×1080 PNGs in AgentShared; no world.db writes, shared realm changes or master merge. Feed provenance and absent Incubus remain data boundaries.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
