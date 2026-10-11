@@ -123,6 +123,7 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    pub lfg: Option<shared::protocol::LfgStateUpdate>,
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub challenge: shared::protocol::ChallengeSnapshot,
@@ -343,6 +344,7 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            lfg: None,
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
             challenge: Default::default(),
@@ -403,6 +405,7 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.lfg = None;
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
         self.party_keystones = Default::default();
@@ -484,6 +487,15 @@ impl Account {
         }
         self.bridge()?
             .send::<_, InputChannel>(input)
+            .map_err(SessionError)
+    }
+
+    pub(crate) fn send_lfg<M: game_engine_network::WireMessage>(
+        &self,
+        request: M,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::LfgChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1523,6 +1535,14 @@ impl Account {
         }
         if message.is::<shared::protocol::DeathStateUpdate>() {
             output.push(AccountEvent::Death(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::LfgStateUpdate>() {
+            let update: shared::protocol::LfgStateUpdate = decode(message)?;
+            if let Some(text) = update.error.as_ref().or(update.message.as_ref()) {
+                output.push(AccountEvent::GroupNotice(text.clone()));
+            }
+            self.lfg = Some(update);
             return Ok(());
         }
         if message.is::<TradeStateUpdate>() {
