@@ -231,15 +231,18 @@ fn keystone_frame(view: &ChallengeView) -> Element {
         (12.0, 438.0, 374.0, 30.0),
         (16.0, "1,1,1,1", "CENTER"),
     ));
-    if slotted.is_some() {
-        children.extend(crate::bank_art::texture(
+    let slot_icon = if slotted.is_some() {
+        crate::bank_art::texture(
             "ChallengesKeystoneIcon".into(),
             4352494,
-            (175.0, 190.0, 48.0, 48.0),
+            (0.0, 0.0, 48.0, 48.0),
             "1,1,1,1",
-        ));
-    }
-    children.extend(rsx! {button {name:"ChallengesKeystoneSlot",width:48.0,height:48.0,pos_type:"absolute",left:175.0,top:190.0,onclick:"challenge_slot"}});
+        )
+    } else {
+        Vec::new()
+    };
+    // Like the existing item_slot host: no generic UIPanelButton art over the item.
+    children.extend(rsx! {r#frame {name:"ChallengesKeystoneSlot",width:48.0,height:48.0,pos_type:"absolute",left:175.0,top:190.0,mouse_enabled:true,onclick:"challenge_slot",{slot_icon}}});
     children.extend(panel_button(
         "ChallengesStartButton".into(),
         "Activate",

@@ -111,7 +111,7 @@ impl GameClient {
         ui.bind_mut().set_state(view)?;
         Ok(())
     }
-    fn apply_challenge_action(&mut self, action: &str) -> Result<(), FrameError> {
+    pub(super) fn apply_challenge_action(&mut self, action: &str) -> Result<(), FrameError> {
         match action {
             "challenge_close" => {
                 self.challenge_ui.dismissed = true;
