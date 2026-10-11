@@ -1,6 +1,7 @@
 #[path = "d4_triangle_count/appearance.rs"]
 mod appearance;
 
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -18,10 +19,12 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<(), String> {
-    let Some([meta_path, payload_path]) = read_positional_paths()? else {
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if args.len() == 1 && args[0] == "--help" {
         println!("{USAGE}");
         return Ok(());
-    };
+    }
+    let [meta_path, payload_path] = parse_input_paths(&args)?;
     let meta = read_input(&meta_path)?;
     let payload = read_input(&payload_path)?;
     let counts = appearance::count_triangles(&meta, &payload).map_err(|error| {
@@ -32,15 +35,11 @@ fn run() -> Result<(), String> {
         )
     })?;
 
-    print_triangle_counts_tsv(&counts);
+    emit_counts(&counts);
     Ok(())
 }
 
-fn read_positional_paths() -> Result<Option<[PathBuf; 2]>, String> {
-    let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.len() == 1 && args[0] == "--help" {
-        return Ok(None);
-    }
+fn parse_input_paths(args: &[OsString]) -> Result<[PathBuf; 2], String> {
     if args.len() != 2
         || args
             .iter()
@@ -48,10 +47,10 @@ fn read_positional_paths() -> Result<Option<[PathBuf; 2]>, String> {
     {
         return Err(format!("expected exactly two positional paths; {USAGE}"));
     }
-    Ok(Some([PathBuf::from(&args[0]), PathBuf::from(&args[1])]))
+    Ok([PathBuf::from(&args[0]), PathBuf::from(&args[1])])
 }
 
-fn print_triangle_counts_tsv(counts: &[appearance::MeshCount]) {
+fn emit_counts(counts: &[appearance::MeshCount]) {
     println!("chunk\tlod\tsubobject\tsegment\tflags\thash\tvertices\ttriangles");
     for count in counts {
         println!(
