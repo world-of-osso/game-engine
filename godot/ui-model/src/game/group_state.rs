@@ -19,6 +19,8 @@ pub const MAX_PARTY_SIZE: usize = 5;
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct GroupState {
     pub is_raid: bool,
+    pub loot_method: Option<shared::loot::LootMode>,
+    pub loot_threshold: u8,
     /// Roster order from the server; empty when not in a group.
     pub members: Vec<GroupMemberSnapshot>,
     /// Live state of online members, by name.
@@ -63,6 +65,8 @@ impl GroupState {
     /// an empty roster (left the group) also ends any ready check.
     pub fn apply_roster(&mut self, roster: GroupRosterSnapshot) {
         self.is_raid = roster.is_raid;
+        self.loot_method = Some(roster.loot_method);
+        self.loot_threshold = roster.loot_threshold;
         self.members = roster.members;
         let online: Vec<&str> = self
             .members
@@ -154,6 +158,8 @@ pub enum GroupCommand {
     StartReadyCheck,
     RespondReadyCheck(bool),
     RespondInvite(bool),
+    SetLootMethod(shared::loot::LootMode),
+    SetLootThreshold(u8),
 }
 
 /// Group entries of a unit's right-click menu (Retail `UnitPopup` SELF/PARTY/PLAYER).
@@ -167,6 +173,11 @@ pub enum GroupMenuEntry {
     ReadyCheck,
     SetRole(GroupRoleSnapshot),
     Leave,
+    GroupLoot,
+    PersonalLoot,
+    ThresholdUncommon,
+    ThresholdRare,
+    ThresholdEpic,
 }
 
 const MENU_ACTION_PREFIX: &str = "group_menu:";
@@ -186,6 +197,11 @@ impl GroupMenuEntry {
             Self::SetRole(GroupRoleSnapshot::Damage) => "Set Role: Damage",
             Self::SetRole(GroupRoleSnapshot::None) => "Set Role: None",
             Self::Leave => "Leave Party",
+            Self::GroupLoot => "Group Loot",
+            Self::PersonalLoot => "Personal Loot",
+            Self::ThresholdUncommon => "Loot Threshold: Uncommon",
+            Self::ThresholdRare => "Loot Threshold: Rare",
+            Self::ThresholdEpic => "Loot Threshold: Epic",
         }
     }
 
@@ -203,6 +219,11 @@ impl GroupMenuEntry {
             Self::SetRole(GroupRoleSnapshot::Damage) => "RoleDamage",
             Self::SetRole(GroupRoleSnapshot::None) => "RoleNone",
             Self::Leave => "Leave",
+            Self::GroupLoot => "LootGroup",
+            Self::PersonalLoot => "LootPersonal",
+            Self::ThresholdUncommon => "LootThresholdUncommon",
+            Self::ThresholdRare => "LootThresholdRare",
+            Self::ThresholdEpic => "LootThresholdEpic",
         }
     }
 
@@ -219,6 +240,11 @@ impl GroupMenuEntry {
             Self::SetRole(GroupRoleSnapshot::Damage) => "group_menu:role_damage",
             Self::SetRole(GroupRoleSnapshot::None) => "group_menu:role_none",
             Self::Leave => "group_menu:leave",
+            Self::GroupLoot => "group_menu:loot_group",
+            Self::PersonalLoot => "group_menu:loot_personal",
+            Self::ThresholdUncommon => "group_menu:loot_threshold_2",
+            Self::ThresholdRare => "group_menu:loot_threshold_3",
+            Self::ThresholdEpic => "group_menu:loot_threshold_4",
         }
     }
 
@@ -243,11 +269,16 @@ impl GroupMenuEntry {
                 role,
             },
             Self::Leave => GroupCommand::Leave,
+            Self::GroupLoot => GroupCommand::SetLootMethod(shared::loot::LootMode::GroupLoot),
+            Self::PersonalLoot => GroupCommand::SetLootMethod(shared::loot::LootMode::PersonalLoot),
+            Self::ThresholdUncommon => GroupCommand::SetLootThreshold(2),
+            Self::ThresholdRare => GroupCommand::SetLootThreshold(3),
+            Self::ThresholdEpic => GroupCommand::SetLootThreshold(4),
         }
     }
 }
 
-const ALL_ENTRIES: [GroupMenuEntry; 11] = [
+const ALL_ENTRIES: [GroupMenuEntry; 16] = [
     GroupMenuEntry::Invite,
     GroupMenuEntry::Promote,
     GroupMenuEntry::Uninvite,
@@ -259,6 +290,11 @@ const ALL_ENTRIES: [GroupMenuEntry; 11] = [
     GroupMenuEntry::SetRole(GroupRoleSnapshot::Damage),
     GroupMenuEntry::SetRole(GroupRoleSnapshot::None),
     GroupMenuEntry::Leave,
+    GroupMenuEntry::GroupLoot,
+    GroupMenuEntry::PersonalLoot,
+    GroupMenuEntry::ThresholdUncommon,
+    GroupMenuEntry::ThresholdRare,
+    GroupMenuEntry::ThresholdEpic,
 ];
 
 const ROLE_ENTRIES: [GroupMenuEntry; 4] = [
@@ -307,6 +343,13 @@ fn self_menu_entries(state: &GroupState, leader: bool) -> Vec<GroupMenuEntry> {
             entries.push(GroupMenuEntry::ConvertToParty);
         }
         entries.push(GroupMenuEntry::ReadyCheck);
+        entries.extend([
+            GroupMenuEntry::GroupLoot,
+            GroupMenuEntry::PersonalLoot,
+            GroupMenuEntry::ThresholdUncommon,
+            GroupMenuEntry::ThresholdRare,
+            GroupMenuEntry::ThresholdEpic,
+        ]);
     }
     entries.push(GroupMenuEntry::Leave);
     entries

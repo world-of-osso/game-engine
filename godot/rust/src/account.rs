@@ -264,6 +264,7 @@ pub(crate) enum LootMessage {
     Removed(LootSlotRemoved),
     Closed(LootClosed),
     Failed(LootFailed),
+    GroupRoll(shared::protocol::GroupLootRoll),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -921,6 +922,21 @@ impl Account {
         .map_err(SessionError)
     }
 
+    pub fn send_group_loot_choice(
+        &self,
+        choice: shared::protocol::GroupLootChoice,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(choice)
+            .map_err(SessionError)
+    }
+
+    pub fn request_group_loot_history(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(shared::protocol::GroupLootHistoryRequest)
+            .map_err(SessionError)
+    }
+
     pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, LootChannel>(LootUnit { corpse, auto })
@@ -1126,6 +1142,12 @@ impl Account {
             }
             GroupCommand::SetRole { name, role } => {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
+            }
+            GroupCommand::SetLootMethod(method) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootMethod { method })
+            }
+            GroupCommand::SetLootThreshold(quality) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootThreshold { quality })
             }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
             GroupCommand::RespondReadyCheck(ready) => {
@@ -2486,9 +2508,13 @@ fn is_loot_message(message: &ProtocolMessage) -> bool {
         || message.is::<LootSlotRemoved>()
         || message.is::<LootClosed>()
         || message.is::<LootFailed>()
+        || message.is::<shared::protocol::GroupLootRoll>()
 }
 
 fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String> {
+    if message.is::<shared::protocol::GroupLootRoll>() {
+        return Ok(LootMessage::GroupRoll(decode(message)?));
+    }
     if message.is::<CorpseLootable>() {
         return Ok(LootMessage::Lootable(decode(message)?));
     }
