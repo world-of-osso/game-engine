@@ -79,9 +79,12 @@ def main():
     uv = root / 'tools/uv/uv.exe'
     configure(root)
     if args.phase == 'shutdown-test':
-        run('cargo', 'test', '--locked', '--release', '--target', 'x86_64-pc-windows-gnu',
-            '--manifest-path', str(engine / 'godot/Cargo.toml'), '--target-dir', str(root / 'target'),
-            '-p', 'game-engine-core', '--lib', 'worker_shutdown::tests', cwd=engine)
+        # Core's other unit fixtures use Unix symlinks; this pure-std module can be
+        # tested natively without compiling those unrelated platform fixtures.
+        test = root / 'target/worker-shutdown-test.exe'
+        run('rustc', '--test', '--edition', '2024', '--target', 'x86_64-pc-windows-gnu',
+            str(engine / 'godot/core/src/worker_shutdown.rs'), '-o', str(test))
+        run(str(test))
     elif args.phase == 'launcher-lock':
         launcher = root / 'source/game-launcher'
         run('cargo', 'update', '--package', 'game-launcher',
