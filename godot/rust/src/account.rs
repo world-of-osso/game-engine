@@ -205,6 +205,8 @@ pub enum AccountEvent {
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
+    TransmogState(shared::protocol::TransmogState),
+    TransmogFailed(shared::protocol::TransmogFailed),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     Stable(StableMessage),
@@ -660,6 +662,21 @@ impl Account {
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, shared::protocol::TrainerChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_transmog_apply(
+        &self,
+        request: shared::protocol::ApplyTransmog,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TransmogChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_transmog_query(&self, npc: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TransmogChannel>(shared::protocol::RequestTransmog { npc })
             .map_err(SessionError)
     }
 
@@ -1325,6 +1342,14 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TransmogState>() {
+            output.push(AccountEvent::TransmogState(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TransmogFailed>() {
+            output.push(AccountEvent::TransmogFailed(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::TrainerList>() {

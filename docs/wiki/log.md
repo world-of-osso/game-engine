@@ -7,6 +7,9 @@
 ## 2026-10-11 — Combat pet lifecycle
 
 [Native lifecycle](systems/combat-pet-lifecycle.md): real Erma stable mutations in both skins, missing rename Plain chrome RED→GREEN16fdd7f18, genuine wound/Mend/dead/Revive/server-confirmed native logout proof. Six demon summon/dismiss bars and current/dismissed native logout tested in both skins; body coverage remains limited to Imp.23 inspected1920×1080 PNGs in AgentShared; no world.db writes, shared realm changes or master merge. Feed provenance and absent Incubus remain data boundaries.
+## 2026-10-11 — Native transmog application
+
+[System](systems/transmog-apply.md): private55087 Hashom gossip, target2850 GUID123, native sources821/1181;1500copper per paid apply, detached pending character, self/observer visual rebuilds, both-skin process relog and private-redb server restart. Bag metadata race RED→GREEN1/1; wrong Use opcode replaced by explicit unresolved-definition error, native ready right-click equips. Engine d66aa8e59 native build/check clean. Inspected PNGs shared; observer framing weaker than attachment logs. No world.db writes/master merge/5000. Saved outfits,3D thumbnails and linked data/policy gaps remain. Independent verifier unavailable (expired OAuth).
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
