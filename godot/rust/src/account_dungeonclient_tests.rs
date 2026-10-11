@@ -253,3 +253,24 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
         matches!(&name.widget_data,Some(ui_toolkit::frame::WidgetData::FontString(text)) if text.text=="Stormwind Stockade")
     );
 }
+
+#[test]
+fn raid_entry_account_accepts_primary_and_legacy_selection_from_server() {
+    let mut account = account();
+    let result = account.dispatch_message(
+        ProtocolMessage::for_tests(shared::protocol::RaidDifficultySet {
+            difficulty_id: 15,
+            legacy_difficulty_id: 6,
+        }),
+        &mut Vec::new(),
+    );
+    assert!(result.is_ok(), "raid selection rejected: {result:?}");
+}
+
+#[test]
+fn raid_entry_terrain_refresh_cannot_replace_the_world_selected_by_new_world() {
+    assert!(super::validate_terrain_refresh(Some("moltencore"), "azeroth").is_err());
+    assert!(super::validate_terrain_refresh(Some("azeroth"), "moltencore").is_err());
+    assert!(super::validate_terrain_refresh(Some("moltencore"), "moltencore").is_ok());
+    assert!(super::validate_terrain_refresh(None, "azeroth").is_ok());
+}
