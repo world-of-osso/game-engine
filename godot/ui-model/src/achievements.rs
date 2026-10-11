@@ -66,6 +66,13 @@ impl AchievementWindow {
                     requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
                 }
             }
+            "achievement:scope:all" => self.change_scope(AchievementScope::All, &mut requests),
+            "achievement:scope:account" => {
+                self.change_scope(AchievementScope::Account, &mut requests)
+            }
+            "achievement:scope:character" => {
+                self.change_scope(AchievementScope::Character, &mut requests)
+            }
             "achievement:categories_next" => {
                 self.category_offset =
                     (self.category_offset + CATEGORIES).min(self.categories.len().saturating_sub(1))
@@ -86,6 +93,22 @@ impl AchievementWindow {
         }
         self.enqueue(requests)
     }
+    fn change_scope(
+        &mut self,
+        scope: AchievementScope,
+        requests: &mut Vec<QueryAchievementCatalog>,
+    ) {
+        if self.scope == scope {
+            return;
+        }
+        self.scope = scope;
+        self.summary = None;
+        self.row_offset = 0;
+        self.selected_achievement = None;
+        self.select_first();
+        requests.push(QueryAchievementCatalog::Summary { scope });
+    }
+
     fn toggle(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
         self.visible = !self.visible;
         if !self.visible {
@@ -131,7 +154,7 @@ impl AchievementWindow {
             .and_then(|id| id.parse().ok())
         {
             if self
-                .entries()
+                .displayed_entries()
                 .iter()
                 .any(|entry| entry.achievement_id == id)
             {
@@ -147,7 +170,7 @@ impl AchievementWindow {
         let Some(page) = self.pages.get(&category_id) else {
             return;
         };
-        if self.row_offset + ROWS < page.entries.len() {
+        if self.row_offset + ROWS < self.displayed_entries().len() {
             self.row_offset += ROWS;
             self.select_first();
         } else if let Some(after_id) = page.next {
@@ -300,9 +323,11 @@ impl AchievementWindow {
         requests
     }
     fn select_first(&mut self) {
-        self.row_offset = self.row_offset.min(self.entries().len().saturating_sub(1));
+        self.row_offset = self
+            .row_offset
+            .min(self.displayed_entries().len().saturating_sub(1));
         self.selected_achievement = self
-            .entries()
+            .displayed_entries()
             .get(self.row_offset)
             .map(|entry| entry.achievement_id);
         self.criterion_offset = 0;
@@ -318,6 +343,19 @@ impl AchievementWindow {
                 },
                 |page| page.entries.as_slice(),
             )
+    }
+    pub fn displayed_entries(&self) -> Vec<&AchievementCatalogEntry> {
+        self.entries()
+            .iter()
+            .filter(|entry| {
+                let account = entry.flags & 0x20000 != 0;
+                match self.scope {
+                    AchievementScope::All => true,
+                    AchievementScope::Account => account,
+                    AchievementScope::Character => !account,
+                }
+            })
+            .collect()
     }
     pub fn selected(&self) -> Option<&AchievementCatalogEntry> {
         self.entries()
@@ -430,6 +468,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         window.summary.as_ref().map(|summary| summary.points),
     ));
     content.extend(category_panel(window));
+    content.extend(scope_tabs(window));
     if window.selected_category.is_none() && window.selected_achievement.is_none() {
         content.extend(summary_panel(window));
     } else {
@@ -605,6 +644,25 @@ fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSumm
     content
 }
 
+fn scope_tabs(window: &AchievementWindow) -> Element {
+    let tabs = [
+        (AchievementScope::All, "All", "all"),
+        (AchievementScope::Account, "Account", "account"),
+        (AchievementScope::Character, "Character", "character"),
+    ];
+    let mut content = Vec::new();
+    for (index, (scope, title, action)) in tabs.into_iter().enumerate() {
+        content.extend(panel_button(
+            format!("AchievementScope{action}"),
+            title,
+            &format!("achievement:scope:{action}"),
+            window.scope != scope,
+            (240.0 + index as f32 * 112.0, 578.0, 106.0, 22.0),
+        ));
+    }
+    content
+}
+
 fn summary_progress_bar(
     name: &str,
     current: u32,
@@ -674,8 +732,8 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
 fn achievement_rows(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     for (index, entry) in window
-        .entries()
-        .iter()
+        .displayed_entries()
+        .into_iter()
         .skip(window.row_offset)
         .take(ROWS)
         .enumerate()
@@ -686,7 +744,7 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
             Some(entry.achievement_id) == window.selected_achievement,
         ));
     }
-    if window.entries().is_empty() {
+    if window.displayed_entries().is_empty() {
         let message = if window.selected_category.is_none() {
             "Select a category"
         } else if window
@@ -713,7 +771,7 @@ fn achievement_rows(window: &AchievementWindow) -> Element {
         window.row_offset > 0,
         (240.0, 358.0, 174.0, 24.0),
     ));
-    let more = window.row_offset + ROWS < window.entries().len()
+    let more = window.row_offset + ROWS < window.displayed_entries().len()
         || window
             .selected_category
             .and_then(|id| window.pages.get(&id))

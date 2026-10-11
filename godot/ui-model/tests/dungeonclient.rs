@@ -136,6 +136,55 @@ fn achievements_ui_summary_opens_by_default_and_uses_authoritative_points_both_s
     }
 }
 
+#[test]
+fn achievements_ui_scope_tabs_filter_authored_account_flag_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![category()],
+            next_id: None,
+        });
+        window.action("achievement:category:14808");
+        let mut account = achievement();
+        account.achievement_id = 646;
+        account.name = "Stratholme".into();
+        account.description = "Defeat the evil masterminds inhabiting Stratholme.".into();
+        account.icon_fdid = 237511;
+        account.flags = 0x20000;
+        account.criteria.clear();
+        window.apply(AchievementCatalogPage::Category {
+            category_id: 14808,
+            achievements: vec![achievement(), account],
+            next_id: None,
+        });
+        assert_eq!(
+            window.action("achievement:scope:account"),
+            vec![QueryAchievementCatalog::Summary {
+                scope: AchievementScope::Account
+            }]
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(window.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(achievement_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("Achievement633Name").is_none());
+        assert_eq!(text(&registry, "Achievement646Name"), "Stratholme");
+        assert_eq!(
+            window.action("achievement:scope:character"),
+            vec![QueryAchievementCatalog::Summary {
+                scope: AchievementScope::Character
+            }]
+        );
+        shared.insert(window);
+        screen.sync(&shared, &mut registry);
+        assert_eq!(text(&registry, "Achievement633Name"), "Stormwind Stockade");
+        assert!(registry.get_by_name("Achievement646Name").is_none());
+    }
+}
+
 fn category() -> AchievementCategoryEntry {
     AchievementCategoryEntry {
         category_id: 14808,
