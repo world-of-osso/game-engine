@@ -208,11 +208,12 @@ fn slot_icon(book: &TransmogBook, slot: &shared::protocol::TransmogSlot) -> Opti
         .copied()
         .unwrap_or(slot.applied);
     match choice {
-        TransmogChoice::Source(id) => slot
-            .sources
-            .iter()
-            .find(|source| source.source_id == id)
-            .map(|source| source.icon_fdid),
+        TransmogChoice::Source(id) => {
+            let source = slot.sources.iter().find(|source| source.source_id == id)?;
+            crate::item_catalog::item_catalog_entry_for(slot.definition_source, source.item_id)
+                .map(|item| item.icon_fdid)
+                .filter(|fdid| *fdid != 0)
+        }
         TransmogChoice::Original => {
             crate::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id)
                 .map(|item| item.icon_fdid)

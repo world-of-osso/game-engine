@@ -28,12 +28,14 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 
 ## Tests asserting this spec
 
-- `godot/ui-model/src/transmog_tests.rs` — pending versus applied state, exact prices, refusals and stale GUIDs.
+- `godot/ui-model/src/transmog_tests.rs` — pending versus applied state, exact prices, refusals, stale GUIDs,18-cell paging and independent source preview equipment.
+- `godot/ui-model/tests/transmog_wardrobe.rs` — both-skin slot/model controls and collected/applied/pending labels.
+- `godot/tests/transmog_wardrobe_live.gd` — native main-hand pixel contribution, loaded collection meshes, staging, paid Apply and Escape teardown on private55087.
 
 ## Known gaps (current cycle)
 
 - [x] Native host/network integration: private55087, Hashom gossip, target2850 GUID123, sources821/1181, exact1500copper applications, self/observer rebuilds and relog in both configured art skins. Private-server restart preserved the same redb modifiers. [Bounded proof and evidence](../wiki/systems/transmog-apply.md#native-proof--verified-2026-10-11); this is not every-slot/product certification.
-- [ ] Source cells currently expose authentic appearance icons, not Retail 3D thumbnail scenes.
+- [ ] Native source cells own 3D model scenes; weapon cells frame the weapon alone. Both-skin native acceptance remains pending.
 - [ ] Saved outfits remain unimplemented; core live application proof is available.
 - [ ] Dynamic pricing, conditional source policies and illusion availability remain the linked server contract's explicit local-data gaps.
 

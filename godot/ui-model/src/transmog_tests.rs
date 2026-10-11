@@ -51,6 +51,29 @@ fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_chang
 }
 
 #[test]
+fn transmog_collection_preview_uses_the_source_display_without_staging_or_world_mutation() {
+    let mut book = TransmogBook::default();
+    let mut applied = state();
+    applied.slots[0].applied = TransmogChoice::Source(821);
+    book.receive(applied);
+    let before = book.clone();
+    let preview = book.collection_equipment(821).expect("collected source");
+    assert_eq!(preview.entries.len(), 1);
+    let weapon = &preview.entries[0];
+    assert_eq!(
+        weapon.slot,
+        shared::components::EquipmentVisualSlot::MainHand
+    );
+    assert_eq!(weapon.display_info_id, Some(1542));
+    assert_eq!(weapon.item_id, Some(2850));
+    assert_eq!(weapon.definition_source, Some(ItemDefinitionSource::Retail));
+    assert_eq!(weapon.inventory_type, 13);
+    assert!(!weapon.hidden);
+    assert_eq!(book, before);
+    assert!(book.collection_equipment(730).is_none());
+}
+
+#[test]
 fn transmog_pending_choice_does_not_change_applied_state_and_apply_quotes_exact_cost() {
     let mut book = TransmogBook::default();
     book.receive(state());

@@ -190,6 +190,28 @@ impl TransmogBook {
         &slot.sources[start..end]
     }
 
+    /// A collection cell dresses only its offered source, not other pending choices.
+    pub fn collection_equipment(
+        &self,
+        source_id: u32,
+    ) -> Option<shared::components::EquipmentAppearance> {
+        let slot = self.selected_slot()?;
+        let source = slot
+            .sources
+            .iter()
+            .find(|source| source.source_id == source_id)?;
+        Some(shared::components::EquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: slot.slot.visual_slot()?,
+                item_id: Some(slot.item_id),
+                definition_source: Some(slot.definition_source),
+                display_info_id: Some(source.display_id),
+                inventory_type: source.inventory_type,
+                hidden: false,
+            }],
+        })
+    }
+
     pub fn preview_equipment(
         &self,
         current: &shared::components::EquipmentAppearance,
