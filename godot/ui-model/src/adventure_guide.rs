@@ -672,5 +672,6 @@ fn scroll(
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
-    rsx! {r#frame {name:"EncounterJournalContent",left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,r#frame {name:"EncounterJournalContentChild",left:0.0,top:child_top,width:width-18.0,height:content_height,pos_type:"absolute",{children}}{bar.element()}}}
+    let child_width = width - 18.0;
+    rsx! {r#frame {name:"EncounterJournalContent",left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,r#frame {name:"EncounterJournalContentChild",left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}{bar.element()}}}
 }

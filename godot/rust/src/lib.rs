@@ -72,6 +72,7 @@ mod particles;
 mod party_frames;
 mod pet_bar;
 mod pet_journal;
+mod adventure_guide;
 mod pet_stable;
 mod player_spells;
 #[path = "process_memory_status.rs"]
@@ -300,6 +301,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     professions: professions::Professions,
     pet_journal: pet_journal::CompanionJournal,
+    adventure_guide: adventure_guide::AdventureGuide,
     battleground: battleground::BattlegroundUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
@@ -439,6 +441,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
             pet_journal: pet_journal::CompanionJournal::default(),
+            adventure_guide: adventure_guide::AdventureGuide::default(),
             battleground: battleground::BattlegroundUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
@@ -1406,6 +1409,7 @@ impl GameClient {
         self.guild_charters.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
+        self.adventure_guide.visit_uis(&mut visit)?;
         self.battleground.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
@@ -1954,6 +1958,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
+            ("Adventure Guide", |c, _| c.update_adventure_guide()),
             ("Battleground", |c, _| c.update_battleground()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
@@ -2109,6 +2114,8 @@ impl GameClient {
                 self.close_pet_journal();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
+                self.close_adventure_guide();
+                self.adventure_guide = Default::default();
                 if let Some(ui) = self.battleground.ui.take() {
                     ui.free();
                 }
