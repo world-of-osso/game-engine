@@ -193,22 +193,15 @@ fn render_tree(tree: &TalentTree, view: &TalentView, layout: TreeLayout, scale: 
         .collect();
     for gate in view.gates_for_nodes(&tree.nodes) {
         let center = layout.centers[&gate.node_id];
-        children.extend(retail_atlas(
-            &format!("TalentGate{}Icon", gate.condition_id),
-            "talents-gate",
-            [center[0] - 112.0, center[1] - 9.0, 84.0, 14.0],
-            scale,
-        ));
-        let text = format!("{} more points to unlock", gate.remaining);
-        children.extend(label(
-            Label {
-                name: format!("TalentGate{}Text", gate.condition_id),
-                text: &text,
-                rect: [center[0] - 220.0, center[1] + 12.0, 190.0, 20.0],
-                size: 12.0,
-                color: "1.0,0.64,0.56,1.0",
-                justify: "RIGHT",
-            },
+        let node = tree
+            .nodes
+            .iter()
+            .find(|node| node.id == gate.node_id)
+            .expect("gate anchor node");
+        children.extend(render_gate(
+            &gate,
+            center,
+            node_size(node) * layout.node_scale,
             scale,
         ));
     }
@@ -222,6 +215,38 @@ fn render_tree(tree: &TalentTree, view: &TalentView, layout: TreeLayout, scale: 
         ));
     }
     children
+}
+fn render_gate(
+    gate: &crate::talents::TalentGate,
+    center: [f32; 2],
+    node_width: f32,
+    scale: f32,
+) -> Element {
+    // SharedTalentFrameTemplates.xml:124x40, RIGHT to node LEFT -12.
+    let text = gate.remaining.to_string();
+    let (width, _) = measure_text(&text, GameFont::FrizQuadrata, 24.0).expect("gate amount font");
+    let mut children = retail_atlas(
+        &format!("TalentGate{}Icon", gate.condition_id),
+        "talents-gate",
+        [65.0, 11.0, 84.0, 14.0],
+        scale,
+    );
+    children.extend(label(
+        Label {
+            name: format!("TalentGate{}Text", gate.condition_id),
+            text: &text,
+            rect: [55.0 - width, 6.0, width, 30.0],
+            size: 24.0,
+            color: "1.0,0.64,0.56,1.0",
+            justify: "RIGHT",
+        },
+        scale,
+    ));
+    rsx! { button { name:{DynName(format!("TalentGate{}Button",gate.condition_id))},
+        width:{124.0*scale},height:{40.0*scale},mouse_enabled:true,button_default_skin:false,
+        pos_type:"absolute",pos_x:{(center[0]-node_width/2.0-12.0-124.0)*scale},pos_y:{(center[1]-20.0)*scale},
+        {children}
+    }}
 }
 fn render_edge(
     edge: &game_engine_core::talent_data::TalentEdge,
