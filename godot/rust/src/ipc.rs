@@ -12,9 +12,9 @@ mod mail;
 mod trade;
 mod tree;
 mod ui_tree;
-mod world;
 #[cfg(windows)]
 mod windows;
+mod world;
 
 use std::{
     cell::RefCell,
@@ -32,9 +32,9 @@ use godot::{
 };
 #[cfg(unix)]
 use peercred_ipc::{Connection, Server};
+use tokio::{sync::oneshot, task::JoinSet};
 #[cfg(windows)]
 use windows::{Connection, Server};
-use tokio::{sync::oneshot, task::JoinSet};
 
 pub(crate) fn dump_tree(client: &Gd<Node>, filter: Option<&str>) -> Response {
     tree::dump_tree(client, filter)

@@ -101,6 +101,7 @@ def main():
         build_runtime(root, uv, engine)
     else:
         bundle = root / 'player'
+        os.environ['GAME_ENGINE_ASSET_MODE'] = 'extracted-only'
         run(str(bundle / 'runtime/godot.exe'), '--headless', '--path', str(bundle / 'godot'), '--import')
         shutil.rmtree(bundle / 'godot/.godot/editor', ignore_errors=True)
 

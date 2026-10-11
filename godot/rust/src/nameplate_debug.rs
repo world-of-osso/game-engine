@@ -372,9 +372,9 @@ fn spell_catalog_loader(data_root: &std::path::Path) -> Receiver<Result<SpellCat
             .to_string(),
     );
     let (send, receive) = mpsc::channel();
-    std::thread::spawn(move || {
+    game_engine_core::worker_shutdown::track(std::thread::spawn(move || {
         let _ = send.send(load_spell_catalog(&paths));
-    });
+    }));
     receive
 }
 
