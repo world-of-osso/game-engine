@@ -124,6 +124,25 @@ impl GroupState {
         }
     }
 
+    /// Retail RAID_MEMBERS_AFK / READY_CHECK_YOU_WERE_AFK, once per completed check.
+    pub fn apply_ready_check_notices(
+        &mut self,
+        update: ReadyCheckUpdate,
+        local_name: Option<&str>,
+    ) -> Vec<String> {
+        let already_finished = self
+            .ready_check
+            .as_ref()
+            .is_some_and(|view| view.update.finished);
+        let notices = if update.finished && !already_finished {
+            ready_check_away_notices(&update, local_name)
+        } else {
+            Vec::new()
+        };
+        self.apply_ready_check(update);
+        notices
+    }
+
     pub fn apply_ready_check(&mut self, update: ReadyCheckUpdate) {
         let finished_for = update.finished.then_some(0.0);
         self.ready_check = Some(ReadyCheckView {
@@ -170,6 +189,26 @@ impl GroupState {
                     .any(|m| m.name == name && m.answer == ReadyCheckAnswer::Pending)
         })
     }
+}
+
+fn ready_check_away_notices(update: &ReadyCheckUpdate, local_name: Option<&str>) -> Vec<String> {
+    let away: Vec<&str> = update
+        .members
+        .iter()
+        .filter(|member| member.answer == ReadyCheckAnswer::Pending)
+        .map(|member| member.name.as_str())
+        .collect();
+    if away.is_empty() {
+        return Vec::new();
+    }
+    let mut notices = vec![format!(
+        "The following players are Away: {}",
+        away.join(", ")
+    )];
+    if local_name.is_some_and(|name| away.contains(&name)) {
+        notices.push("You were Away for a ready check".into());
+    }
+    notices
 }
 
 /// A group request from UI, chat or IPC; networking sends it on `GroupChannel`.

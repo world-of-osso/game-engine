@@ -1526,7 +1526,11 @@ impl Account {
                 self.group.pending_invite = None;
             }
         } else if message.is::<ReadyCheckUpdate>() {
-            self.group.apply_ready_check(decode(message)?);
+            let notices = self.group.apply_ready_check_notices(
+                decode(message)?,
+                self.session.selected_character_name.as_deref(),
+            );
+            output.extend(notices.into_iter().map(AccountEvent::GroupNotice));
         } else if message.is::<GroupCountdownUpdate>() {
             let update: GroupCountdownUpdate = decode(message)?;
             if update.time_remaining_secs > 0.0 || update.duration_secs == 0 {
