@@ -279,6 +279,8 @@ impl AchievementWindow {
 
     fn open_achievement(&mut self, id: u32, requests: &mut Vec<QueryAchievementCatalog>) {
         self.visible = true;
+        self.statistics = false;
+        self.category_offset = 0;
         self.selected_category = None;
         self.selected_achievement = Some(id);
         self.detail = None;
@@ -431,6 +433,7 @@ impl AchievementWindow {
                 if self.selected_category.is_none()
                     && self.selected_achievement == Some(achievement_id)
                 {
+                    self.statistics = entry.as_ref().is_some_and(|row| row.flags & 1 != 0);
                     self.detail = entry;
                 }
                 self.tracked_criteria_request(achievement_id)
