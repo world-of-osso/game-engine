@@ -50,6 +50,7 @@ pub struct AchievementWindow {
     pub summary: Option<AchievementSummary>,
     pub detail: Option<AchievementCatalogEntry>,
     pub tracked: Vec<AchievementCatalogEntry>,
+    pub tracked_ids: Vec<u32>,
     pub tracking_error: Option<String>,
     pub statistics: bool,
     pub search_text: String,
@@ -191,10 +192,26 @@ impl AchievementWindow {
         if let Some(text) = action.strip_prefix("achievement:search:") {
             self.search(text, requests);
         } else if let Some(id) = action
+            .strip_prefix("achievement:restore:")
+            .and_then(|id| id.parse().ok())
+        {
+            if self.tracked_ids.len() < 10 && !self.tracked_ids.contains(&id) {
+                self.tracked_ids.push(id);
+                requests.push(QueryAchievementCatalog::Achievement { achievement_id: id });
+            }
+        } else if let Some(id) = action
             .strip_prefix("achievement:track:")
             .and_then(|id| id.parse().ok())
         {
             self.toggle_tracking(id);
+            if let Some(entry) = self.tracked.iter().find(|entry| entry.achievement_id == id) {
+                if let Some(after_id) = entry.next_criteria_id {
+                    requests.push(QueryAchievementCatalog::Criteria {
+                        achievement_id: id,
+                        after_id,
+                    });
+                }
+            }
         } else if let Some(id) = action
             .strip_prefix("achievement:open:")
             .and_then(|id| id.parse().ok())
@@ -235,7 +252,8 @@ impl AchievementWindow {
     /// Retail AchievementUI.lua:1616-1643: manual tracking, ten-entry cap, no earned rows.
     fn toggle_tracking(&mut self, id: u32) {
         self.tracking_error = None;
-        if self.tracked.iter().any(|entry| entry.achievement_id == id) {
+        if self.tracked_ids.contains(&id) {
+            self.tracked_ids.retain(|tracked| *tracked != id);
             self.tracked.retain(|entry| entry.achievement_id != id);
             return;
         }
@@ -248,10 +266,11 @@ impl AchievementWindow {
         };
         if entry.earned || entry.flags & 1 != 0 {
             self.tracking_error = Some("Completed achievements cannot be tracked".into());
-        } else if self.tracked.len() == 10 {
+        } else if self.tracked_ids.len() == 10 {
             self.tracking_error = Some("You can track at most 10 achievements".into());
         } else {
             self.tracked.push(entry.clone());
+            self.tracked_ids.push(id);
         }
     }
 
@@ -378,20 +397,22 @@ impl AchievementWindow {
                 achievement_id,
                 entry,
             } => {
-                if self
-                    .tracked
-                    .iter()
-                    .any(|row| row.achievement_id == achievement_id)
-                {
-                    if let Some(row) = entry.as_ref().filter(|row| !row.earned) {
+                if self.tracked_ids.contains(&achievement_id) {
+                    if let Some(row) = entry
+                        .as_ref()
+                        .filter(|row| !row.earned && row.flags & 1 == 0)
+                    {
                         if let Some(tracked) = self
                             .tracked
                             .iter_mut()
                             .find(|row| row.achievement_id == achievement_id)
                         {
                             *tracked = row.clone();
+                        } else {
+                            self.tracked.push(row.clone());
                         }
                     } else {
+                        self.tracked_ids.retain(|id| *id != achievement_id);
                         self.tracked
                             .retain(|row| row.achievement_id != achievement_id);
                     }
@@ -401,7 +422,9 @@ impl AchievementWindow {
                 {
                     self.detail = entry;
                 }
-                Vec::new()
+                self.tracked_criteria_request(achievement_id)
+                    .into_iter()
+                    .collect()
             }
             AchievementCatalogPage::Summary(summary) => {
                 if summary.scope == self.scope {
@@ -433,11 +456,25 @@ impl AchievementWindow {
                 next_id,
             } => {
                 self.cache_criteria(achievement_id, criteria, next_id);
-                Vec::new()
+                self.tracked_criteria_request(achievement_id)
+                    .into_iter()
+                    .collect()
             }
         };
         self.enqueue(requests)
     }
+    fn tracked_criteria_request(&self, id: u32) -> Option<QueryAchievementCatalog> {
+        let after_id = self
+            .tracked
+            .iter()
+            .find(|row| row.achievement_id == id)?
+            .next_criteria_id?;
+        Some(QueryAchievementCatalog::Criteria {
+            achievement_id: id,
+            after_id,
+        })
+    }
+
     fn cache_categories(
         &mut self,
         categories: Vec<AchievementCategoryEntry>,

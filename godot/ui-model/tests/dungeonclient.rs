@@ -381,6 +381,34 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
 }
 
 #[test]
+fn achievements_ui_tracking_restores_authoritative_rows_after_new_session() {
+    let mut window = AchievementWindow::default();
+    assert_eq!(
+        window.action("achievement:restore:633"),
+        vec![QueryAchievementCatalog::Achievement {
+            achievement_id: 633
+        }]
+    );
+    let mut row = achievement();
+    row.earned = false;
+    window.apply(AchievementCatalogPage::Achievement {
+        achievement_id: 633,
+        entry: Some(row),
+    });
+    assets(ActiveSkin::Modern);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(ObjectiveTrackerState::default());
+    shared.insert(window);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(objective_tracker_screen).sync(&shared, &mut registry);
+    assert_eq!(
+        text(&registry, "TrackedAchievement633HeaderText"),
+        "Stormwind Stockade"
+    );
+}
+
+#[test]
 fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         assets(skin);
