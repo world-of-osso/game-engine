@@ -56,6 +56,10 @@ Gotcha (2026-09-29): half the CASC index buckets were only in Syncthing `.idx.tm
 
 The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CACHE_FORMAT}.bin` (`db2_cache`). The format is in the name because checkouts share `data/`: with one file name, a branch at another format rebuilt over it on every run. `SpellEffects` loads the catalog on a worker thread when the client starts. The first cast waits only if the worker has not finished. A rebuild parses 1.3M `SoundKitEntry` rows. When that ran on the main thread at the first cast, it froze the client through the cast (see Proof, cast timing).
 
+## Owner readiness
+
+Type2 kit models wait for pending owner visual loads while retaining their original kit clock. An absent settled owner is an asset-chain failure, not evidence of a wrong attachment ID. See [attachment investigation and proof](../investigations/spell-kit-attach.md).
+
 ## Runtime (`godot/rust/src/spell_effects.rs`)
 
 - **Precast and channel.** A replicated `CastState` starts PrecastStart kits (Normal) or ChannelStart kits (Channel). They are held with their looping unit clip until the cast disappears or its `SpellGo` arrives.

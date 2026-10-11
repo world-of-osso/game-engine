@@ -1,8 +1,78 @@
 //! Missile flight at `SpellMisc.Speed`, and where a late kit model joins its timeline.
-use super::{EffectClips, Phase, missile_step, phase_at};
+use super::{EffectClips, Lifetime, PendingModel, Phase, missile_step, phase_at};
 use godot::builtin::Vector3;
 
 const FRAME: f32 = 1.0 / 60.0;
+
+/// Northshire display5233 receives aura10848 before its owner visual completes.
+/// The effect is already available, but must wait rather than consume the request.
+#[test]
+fn spell_kit_attach_waits_for_owner_without_restarting_its_timeline() {
+    use game_engine_core::spell_visual::{CasterContext, SpellVisualCatalog, VisualEvent};
+    use std::path::Path;
+
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core/data");
+    let catalog = SpellVisualCatalog::build(&data.join("db2/12.1.0.69933")).unwrap();
+    let visual = catalog
+        .visual_for_spell(10848, &CasterContext::default())
+        .unwrap();
+    let kits = catalog.kits(visual, VisualEvent::AuraStart);
+    let kit = kits.iter().find(|kit| kit.kit_id == 989).unwrap();
+    let model = kit
+        .models
+        .iter()
+        .find(|model| model.attachment == Some(19))
+        .unwrap();
+    let models = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+    let owner = game_engine_core::m2::parse_model(
+        &std::fs::read(models.join("124640.m2")).unwrap(),
+        &std::fs::read(models.join("12464000.skin")).unwrap(),
+    )
+    .unwrap();
+    let anchor = &owner.attachments[owner.attachment_lookup[19] as usize];
+    assert_eq!((anchor.id, anchor.bone, anchor.position), (19, 4, [0.0; 3]));
+    let pending = PendingModel {
+        due_at: 8.86 + model.start_delay,
+        unit: 4294958353,
+        spell_id: 10848,
+        kit_id: 989,
+        model: model.clone(),
+        lifetime: Lifetime::UntilAuraEnds {
+            unit: 4294958353,
+            instance: 1,
+        },
+    };
+    assert!(
+        !pending.is_due(8.0, false),
+        "authored StartDelay still applies"
+    );
+    assert!(
+        !pending.is_due(9.0, true),
+        "an available effect cannot attach before its owner loads"
+    );
+    assert!(
+        pending.is_due(18.894, false),
+        "attach after owner completion"
+    );
+    let at_origin = PendingModel {
+        model: super::KitModel {
+            attachment: None,
+            ..pending.model.clone()
+        },
+        ..pending
+    };
+    assert!(
+        at_origin.is_due(9.0, true),
+        "DB2's explicit -1 anchor does not need an owner model"
+    );
+    let (phase, _) = phase_at(&clips(true), true, 18.894 - pending.due_at).unwrap();
+    assert_eq!(phase, Phase::Hold, "join the held kit's elapsed timeline");
+    assert_eq!(
+        phase_at(&clips(true), false, 18.894 - pending.due_at),
+        None,
+        "an expired one-shot must not restart after owner loading"
+    );
+}
 
 /// Frames a missile takes from `start` to `goal` at `speed` yd/s, 60 fps.
 fn frames_to_arrive(start: Vector3, goal: Vector3, speed: f32) -> usize {
