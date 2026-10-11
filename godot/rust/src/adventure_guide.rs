@@ -39,6 +39,13 @@ impl GameClient {
         } else {
             self.load_adventure_guide()?;
             self.adventure_guide.view.visible = true;
+            self.account
+                .send_request_raid_info()
+                .map_err(|e| e.to_string())?;
+            if let Some(start) = &self.encounter.frames.active {
+                let encounter = start.encounter_id;
+                self.open_adventure_encounter(encounter)?;
+            }
         }
         Ok(())
     }
@@ -47,7 +54,16 @@ impl GameClient {
             return Ok(());
         }
         let path = self.data_root.join("cache/adventure_guide.sqlite");
-        self.adventure_guide.view.catalog = Arc::new(Catalog::load(&path)?);
+        let mut catalog = Catalog::load(&path)?;
+        let spells = self
+            .spells
+            .catalog()
+            .ok_or("Journal spell catalog still loading")?;
+        for section in catalog.sections.values_mut() {
+            section.body =
+                spells.render_external_text(&section.body, section.spell, &Default::default())?;
+        }
+        self.adventure_guide.view.catalog = Arc::new(catalog);
         self.adventure_guide.loaded = true;
         Ok(())
     }
@@ -100,11 +116,32 @@ impl GameClient {
             return Ok(());
         }
         self.poll_adventure_inputs()?;
+        self.update_journal_lockouts();
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;
         }
         Ok(())
+    }
+    fn update_journal_lockouts(&mut self) {
+        let elapsed = self.account.instance_info_at.elapsed().as_secs();
+        self.adventure_guide.view.lockouts = self
+            .account
+            .instance_locks
+            .iter()
+            .filter(|lock| lock.locked && u64::from(lock.time_remaining_secs) > elapsed)
+            .map(|lock| {
+                (
+                    lock.map_id,
+                    format!(
+                        "Saved · difficulty {} · {} bosses defeated · resets in {} minutes",
+                        lock.difficulty_id,
+                        lock.completed_mask.count_ones(),
+                        (u64::from(lock.time_remaining_secs) - elapsed).div_ceil(60),
+                    ),
+                )
+            })
+            .collect();
     }
     fn poll_adventure_inputs(&mut self) -> Result<(), String> {
         let Some(mut ui) = self.adventure_guide.ui.clone() else {
@@ -235,5 +272,32 @@ impl GameClient {
             .replace_model(model);
         self.adventure_guide.shown = Some(display);
         Ok(())
+    }
+}
+
+#[godot_api(secondary)]
+impl GameClient {
+    /// Read-only native automation observation of the displayed journal.
+    #[func]
+    fn adventure_guide_state(&self) -> VarDictionary {
+        let view = &self.adventure_guide.view;
+        let mut state = VarDictionary::new();
+        state.set("visible", view.visible);
+        state.set("tab", format!("{:?}", view.tab));
+        state.set("page", format!("{:?}", view.page));
+        state.set("tier", view.tier);
+        state.set("instance", view.instance.map(i64::from).unwrap_or(-1));
+        state.set("encounter", view.encounter.map(i64::from).unwrap_or(-1));
+        state.set("difficulty", view.difficulty);
+        state.set("role", view.role);
+        state.set("class", view.class);
+        state.set("spec", view.spec);
+        state.set("slot", view.slot);
+        state.set("loot_count", view.loot().len() as i64);
+        state.set(
+            "model_display",
+            self.adventure_guide.shown.map(i64::from).unwrap_or(-1),
+        );
+        state
     }
 }

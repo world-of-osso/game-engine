@@ -181,6 +181,23 @@ impl SpellCatalogData {
         Some(&self.spells[index])
     }
 
+    /// Journal sections can contain fully qualified spell tokens without a SpellID.
+    pub fn render_external_text(
+        &self,
+        text: &str,
+        spell_id: u32,
+        ctx: &SpellTextContext,
+    ) -> Result<String, String> {
+        let unbound = CatalogSpell::default();
+        let spell = if spell_id == 0 {
+            &unbound
+        } else {
+            self.get(spell_id)
+                .ok_or_else(|| format!("Journal text references missing spell {spell_id}"))?
+        };
+        Ok(render::render_spell_text(text, spell, self, ctx))
+    }
+
     pub fn render_description(&self, id: u32, ctx: &SpellTextContext) -> Option<String> {
         let spell = self.get(id)?;
         Some(render::render_spell_text(
