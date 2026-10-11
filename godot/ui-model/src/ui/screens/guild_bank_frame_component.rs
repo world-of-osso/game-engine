@@ -12,13 +12,13 @@ use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT, SlotItem, WHITE,
-    cropped, item_slot, label, money_display, money_prompt, selected_marker, texture,
+    cropped, item_slot, label, money_display, money_prompt, texture,
 };
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{
     DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait,
 };
-use crate::ui::strata::FrameStrata;
+use crate::ui::strata::{DrawLayer, FrameStrata};
 
 pub const FRAME_NAME: &str = "GuildBankFrame";
 /// GB.xml:167 `<Size x="750" y="428"/>`.
@@ -47,6 +47,51 @@ pub const MONEY_BOXES: MoneyBoxNames = MoneyBoxNames {
 };
 pub const INFO_BOX: &str = "GuildBankTabInfoEditBox";
 
+/// GB.xml:758: native multiline tab text with a 500-character limit.
+pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    apply_guild_bank_info_postsetup(registry);
+    apply_guild_bank_checked_art(registry);
+}
+
+fn apply_guild_bank_info_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    if let Some(id) = registry.get_by_name("GuildBankFrameInfoText")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(ui_toolkit::frame::WidgetData::FontString(text)) = frame.widget_data.as_mut()
+    {
+        text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Top;
+    }
+    let Some(id) = registry.get_by_name(INFO_BOX) else {
+        return;
+    };
+    if let Some(ui_toolkit::frame::WidgetData::EditBox(edit)) = registry
+        .get_mut(id)
+        .and_then(|frame| frame.widget_data.as_mut())
+    {
+        edit.multi_line = true;
+        edit.max_letters = Some(500);
+    }
+}
+
+fn apply_guild_bank_checked_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    let checked: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            frame
+                .name
+                .as_deref()
+                .filter(|name| name.starts_with("GuildBankTab") && name.ends_with("Checked"))
+                .map(|_| frame.id)
+        })
+        .collect();
+    for id in checked {
+        let frame = registry.get_mut(id).expect("registered checked texture");
+        if let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_mut() {
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+            frame.draw_layer = DrawLayer::Overlay;
+        }
+    }
+}
+
 /// Retail `MAX_GUILDBANK_SLOTS_PER_TAB`, `NUM_SLOTS_PER_GUILDBANK_GROUP` (GB.lua:1-9).
 pub const SLOTS: usize = 98;
 const SLOTS_PER_COLUMN: usize = 14;
@@ -61,6 +106,8 @@ const TAB_BG: u32 = 132_074;
 const NEW_TAB: u32 = 132_071;
 /// `Interface\GuildBankFrame\UI-TabNameBorder` (GB.xml:171-200).
 const TAB_NAME_BORDER: u32 = 132_076;
+/// GB.xml:156: native checked tab art, not a recoloured quickslot.
+const CHECKED_HIGHLIGHT: u32 = 130_724;
 
 /// GB.xml:31-68, 477-510: Column1 at 18,-59, columns 100 wide 3 apart; Button1 at
 /// 7,-3, 7 below each other, Button8 12 right of Button1. `slot` is 0-based.
@@ -135,6 +182,10 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<GuildBankFrameState>()
         .expect("GuildBankFrameState must be in SharedContext");
+    guild_bank_frame(ctx, state)
+}
+
+pub fn guild_bank_frame(ctx: &SharedContext, state: &GuildBankFrameState) -> Element {
     let hide = !state.visible;
     // GB.xml:167 inherits BasicFrameTemplate, not PortraitFrameTemplate.
     let mut children =
@@ -160,7 +211,7 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
     match state.mode {
         GuildBankModeView::Bank => children.extend(bank_mode(state)),
         GuildBankModeView::Log | GuildBankModeView::MoneyLog => {
-            children.extend(log_lines(&state.log_lines))
+            children.extend(log_lines(ctx, &state.log_lines))
         }
         GuildBankModeView::Info => children.extend(info(state.info.as_ref())),
     }
@@ -382,19 +433,53 @@ fn buy_info(buy: &BuyTabView) -> Element {
     children
 }
 
-/// `GuildBankMessageFrame` 688×304 at 24,-64 (GB.xml:682-695), oldest line first.
-fn log_lines(lines: &[String]) -> Element {
-    let line_h = 14.0;
-    let visible = (304.0 / line_h) as usize;
-    let start = lines.len().saturating_sub(visible);
-    lines[start..]
-        .iter()
-        .enumerate()
+pub const LOG_LIST: &str = "GuildBankMessageFrame";
+const LOG_HEIGHT: f32 = 304.0;
+pub const LOG_LINE_HEIGHT: f32 = 14.0;
+const LOG_MAX_LINES: usize = 128;
+
+/// GB.xml:682-695: 688×304, max128, insert at TOP, with a MinimalScrollBar.
+fn log_lines(ctx: &SharedContext, lines: &[String]) -> Element {
+    use crate::minimal_scroll_bar::{
+        MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+    };
+    let content_height = lines.len().min(LOG_MAX_LINES) as f32 * LOG_LINE_HEIGHT;
+    let geometry = pixel_geometry(LOG_HEIGHT, content_height, LOG_HEIGHT);
+    let offset = geometry.clamp(ctx.scroll_first_row(LOG_LIST));
+    let config = scroll_list_attr(&geometry);
+    let rows = log_rows(lines, offset);
+    let bar = MinimalScrollBar {
+        list: LOG_LIST,
+        left: 694.0,
+        top: 0.0,
+        height: LOG_HEIGHT,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    rsx! { r#frame {
+        name: {DynName(LOG_LIST.into())}, width: 710.0, height: LOG_HEIGHT,
+        left: 24.0, top: 64.0, pos_type: "absolute", mouse_enabled: true,
+        scroll_list: {config}, {rows} {bar.element()}
+    } }
+}
+
+fn log_rows(lines: &[String], offset: usize) -> Element {
+    let first = offset / LOG_LINE_HEIGHT as usize;
+    let count = (LOG_HEIGHT / LOG_LINE_HEIGHT).ceil() as usize + 1;
+    let recent = lines.iter().rev().take(LOG_MAX_LINES);
+    let visible = recent.enumerate().skip(first).take(count);
+    visible
         .flat_map(|(index, line)| {
             label(
                 format!("{FRAME_NAME}LogLine{}", index + 1),
                 line,
-                (24.0, 64.0 + index as f32 * line_h, 688.0, line_h),
+                (
+                    0.0,
+                    index as f32 * LOG_LINE_HEIGHT - offset as f32,
+                    688.0,
+                    LOG_LINE_HEIGHT,
+                ),
                 (12.0, HIGHLIGHT_FONT_COLOR, "LEFT"),
             )
         })
@@ -543,7 +628,12 @@ fn side_tab(index: usize, icon: u32, selected: bool, action: &str) -> Element {
         WHITE,
     ));
     if selected {
-        children.extend(selected_marker(format!("{name}Checked"), (2.0, 8.0, 35.0)));
+        children.extend(texture(
+            format!("{name}Checked"),
+            CHECKED_HIGHLIGHT,
+            (2.0, 8.0, 36.0, 34.0),
+            WHITE,
+        ));
     }
     rsx! {
         r#frame {

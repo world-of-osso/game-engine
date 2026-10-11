@@ -123,13 +123,16 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub challenge: shared::protocol::ChallengeSnapshot,
     pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
+    pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
     /// Saved instances of the last `InstanceInfo`.
     pub instance_locks: Vec<InstanceLockInfo>,
+    pub instance_info_at: std::time::Instant,
     /// Known spells, action bar and cooldowns from the server.
     pub spells: PlayerSpells,
     pub talents: game_engine_ui_model::talents::TalentEditor,
@@ -205,6 +208,7 @@ pub enum AccountEvent {
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
+    Pvp(shared::protocol::PvpStateUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     TransmogState(shared::protocol::TransmogState),
@@ -213,6 +217,11 @@ pub enum AccountEvent {
     Bank(BankMessage),
     Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
+    GuildInvitation(shared::protocol::GuildInvitation),
+    GuildInviteResult(shared::protocol::GuildInviteResponse),
+    GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
+    GuildProfile(shared::protocol::GuildStateUpdate),
+    GuildCharter(shared::protocol::GuildCharterReply),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
@@ -271,13 +280,14 @@ pub(crate) enum MailMessage {
 }
 
 /// Authoritative loot traffic, retained in `LootChannel` send order.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum LootMessage {
     Lootable(CorpseLootable),
     Opened(LootResponse),
     Removed(LootSlotRemoved),
     Closed(LootClosed),
     Failed(LootFailed),
+    GroupRoll(shared::protocol::GroupLootRoll),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -333,12 +343,15 @@ impl Account {
             pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            raid_difficulty: None,
             dungeon_objectives: Default::default(),
             challenge: Default::default(),
             party_keystones: Default::default(),
+            scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
+            instance_info_at: std::time::Instant::now(),
             spells: PlayerSpells::default(),
             talents: Default::default(),
             combat_log: std::collections::VecDeque::new(),
@@ -390,7 +403,9 @@ impl Account {
         self.layout_username = None;
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
+        self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
+        self.scenario_objectives = Default::default();
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -646,6 +661,28 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_raid_difficulty(
+        &self,
+        difficulty_id: u32,
+        legacy: bool,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(shared::protocol::SetRaidDifficulty {
+                difficulty_id,
+                legacy,
+            })
+            .map_err(SessionError)
+    }
+
+    pub fn send_saved_instance_extend(
+        &self,
+        request: shared::protocol::SetSavedInstanceExtend,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
     pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
         self.bridge()?
@@ -713,6 +750,35 @@ impl Account {
             .send::<_, shared::protocol::CollectionChannel>(request)
             .map_err(SessionError)
     }
+    pub fn send_pvp(
+        &self,
+        action: game_engine_ui_model::battleground::PvpAction,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::battleground::PvpAction;
+        use shared::protocol::*;
+        let bridge = self.bridge()?;
+        let result = match action {
+            PvpAction::Query => bridge.send::<_, PvpChannel>(QueryPvpStatus),
+            PvpAction::SelectTalent { slot, talent_id } => {
+                bridge.send::<_, PvpChannel>(SelectPvpTalent { slot, talent_id })
+            }
+            PvpAction::WarMode(enabled) => {
+                bridge.send::<_, PvpChannel>(SetWarModeDesired { enabled })
+            }
+            PvpAction::Queue(battleground_id) => {
+                bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
+            }
+            PvpAction::Dequeue => bridge.send::<_, PvpChannel>(DequeueFromPvp),
+            PvpAction::Respond { match_id, accepted } => {
+                bridge.send::<_, PvpChannel>(RespondToBattlegroundInvite { match_id, accepted })
+            }
+            PvpAction::Leave(match_id) => {
+                bridge.send::<_, PvpChannel>(LeaveBattleground { match_id })
+            }
+        };
+        result.map_err(SessionError)
+    }
+
     pub fn send_pet_queue(
         &self,
         request: shared::protocol::PetBattleQueueRequest,
@@ -885,6 +951,37 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_guild_charter(
+        &self,
+        request: shared::protocol::GuildCharterRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::GuildChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_guild_command(
+        &self,
+        command: game_engine_ui_model::guild_ranks::GuildCommand,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::guild_ranks::GuildCommand;
+        use shared::protocol::*;
+        let bridge = self.bridge()?;
+        match command {
+            GuildCommand::Invite(target_character_name) => {
+                bridge.send::<_, AuthChannel>(GuildInviteRequest {
+                    target_character_name,
+                })
+            }
+            GuildCommand::AcceptInvite => bridge.send::<_, AuthChannel>(GuildAcceptInviteRequest),
+            GuildCommand::DeclineInvite => bridge.send::<_, AuthChannel>(GuildDeclineInviteRequest),
+            GuildCommand::SetMotd(text) => bridge.send::<_, GuildChannel>(SetGuildMotd { text }),
+            GuildCommand::SetInfo(text) => bridge.send::<_, GuildChannel>(SetGuildInfo { text }),
+            GuildCommand::Query => bridge.send::<_, GuildChannel>(QueryGuild),
+        }
+        .map_err(SessionError)
+    }
+
     pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, MailChannel>(request)
@@ -965,6 +1062,21 @@ impl Account {
             InventoryRequest::Use(request) => bridge.send::<_, InventoryChannel>(request.clone()),
         }
         .map_err(SessionError)
+    }
+
+    pub fn send_group_loot_choice(
+        &self,
+        choice: shared::protocol::GroupLootChoice,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(choice)
+            .map_err(SessionError)
+    }
+
+    pub fn request_group_loot_history(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(shared::protocol::GroupLootHistoryRequest)
+            .map_err(SessionError)
     }
 
     pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
@@ -1185,6 +1297,12 @@ impl Account {
             GroupCommand::SetRole { name, role } => {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
             }
+            GroupCommand::SetLootMethod(method) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootMethod { method })
+            }
+            GroupCommand::SetLootThreshold(quality) => {
+                bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootThreshold { quality })
+            }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
             GroupCommand::Countdown(seconds) => {
                 bridge.send::<_, GroupChannel>(GroupCountdownRequest { seconds })
@@ -1293,6 +1411,7 @@ impl Account {
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.set_link_connected(false);
@@ -1371,6 +1490,10 @@ impl Account {
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::PvpStateUpdate>() {
+            output.push(AccountEvent::Pvp(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::PetBattleQueueUpdate>() {
@@ -1482,10 +1605,12 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
+            || message.is::<shared::protocol::RaidDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ChallengeSnapshot>()
             || message.is::<shared::protocol::PartyKeystoneSnapshot>()
+            || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
             || message.is::<DamageMeterSnapshot>()
@@ -1504,6 +1629,10 @@ impl Account {
         }
         if message.is::<shared::protocol::ChallengeSnapshot>() {
             self.challenge = decode(message)?;
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ScenarioProgress>() {
+            self.scenario_objectives.apply(decode(message)?);
             return Ok(());
         }
         if message.is::<shared::protocol::DungeonProgress>() {
@@ -1565,6 +1694,10 @@ impl Account {
             self.damage_meter = Some(decode(message)?);
             return Ok(());
         }
+        if message.is::<shared::protocol::RaidDifficultySet>() {
+            self.raid_difficulty = Some(decode(message)?);
+            return Ok(());
+        }
         if message.is::<DungeonDifficultySet>() {
             let set: DungeonDifficultySet = decode(message)?;
             self.dungeon_difficulty = Some(set.difficulty_id);
@@ -1572,6 +1705,7 @@ impl Account {
         }
         let info: InstanceInfo = decode(message)?;
         self.instance_locks = info.locks;
+        self.instance_info_at = std::time::Instant::now();
         Ok(())
     }
 
@@ -1702,6 +1836,26 @@ impl Account {
         if Self::is_roster_message(&message) {
             return self.dispatch_roster_message(message, output);
         }
+        if message.is::<shared::protocol::GuildInvitation>() {
+            output.push(AccountEvent::GuildInvitation(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildInviteResponse>() {
+            output.push(AccountEvent::GuildInviteResult(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildAcceptInviteResponse>() {
+            output.push(AccountEvent::GuildAccepted(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildStateUpdate>() {
+            output.push(AccountEvent::GuildProfile(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildCharterReply>() {
+            output.push(AccountEvent::GuildCharter(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::GuildRanksState>() {
             output.push(AccountEvent::GuildRanks(decode(message)?));
             return Ok(());
@@ -1757,6 +1911,7 @@ impl Account {
             let new_world: NewWorld = decode(message)?;
             self.dungeon_objectives.begin_map(new_world.map_id);
             self.challenge = Default::default();
+            self.scenario_objectives.begin_map(new_world.map_id);
             self.session.begin_world_port(new_world.map_id);
             output.push(AccountEvent::NewWorld(new_world));
             output.push(AccountEvent::Screen(SessionScreen::Loading));
@@ -1934,6 +2089,7 @@ impl Account {
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.stop_bridge()?;
@@ -2151,6 +2307,9 @@ mod toys_tests;
 #[cfg(test)]
 #[path = "account_dungeonclient_tests.rs"]
 mod dungeonclient_tests;
+#[cfg(test)]
+#[path = "account_guild_charter_tests.rs"]
+mod guild_charter_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]
@@ -2629,9 +2788,13 @@ fn is_loot_message(message: &ProtocolMessage) -> bool {
         || message.is::<LootSlotRemoved>()
         || message.is::<LootClosed>()
         || message.is::<LootFailed>()
+        || message.is::<shared::protocol::GroupLootRoll>()
 }
 
 fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String> {
+    if message.is::<shared::protocol::GroupLootRoll>() {
+        return Ok(LootMessage::GroupRoll(decode(message)?));
+    }
     if message.is::<CorpseLootable>() {
         return Ok(LootMessage::Lootable(decode(message)?));
     }
@@ -2679,4 +2842,19 @@ fn auction_message(
         return Ok(Err(message));
     };
     Ok(Ok(reply))
+}
+
+/// Terrain messages refresh tiles; NewWorld owns changing an initialized world map.
+pub(crate) fn validate_terrain_refresh(
+    current: Option<&str>,
+    requested: &str,
+) -> Result<(), String> {
+    if let Some(current) = current
+        && current != requested
+    {
+        return Err(format!(
+            "Stale terrain refresh for {requested}; NewWorld selected {current}"
+        ));
+    }
+    Ok(())
 }

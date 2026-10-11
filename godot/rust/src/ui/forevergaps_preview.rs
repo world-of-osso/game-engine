@@ -78,6 +78,7 @@ fn chat() -> ChatFrameView {
                 x: 0.0,
                 width: 220.0,
                 spell_id: None,
+                achievement_id: None,
             }],
         }],
     })

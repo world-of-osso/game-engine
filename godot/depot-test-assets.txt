@@ -2,6 +2,11 @@
 # Mythic Mentor: authentic local Azure dungeon art and addon leader crown.
 textures/4880614.blp
 textures/132062.blp
+# Retail GroupLootFrame XML raw toast sheet and named Need/Greed/Transmog/Pass icons.
+textures/609618.blp
+textures/5148876.blp
+# Retail PetitionFrame GuildCharter-Icon, extracted from local CASC.
+textures/136583.blp
 # Northshire spell10848/kit989 owner: real attachment19, delayed visual regression.
 models/124640.m2
 models/12464000.skin
@@ -2280,6 +2285,12 @@ textures/7743357.blp
 # Trainer tooltips reuse existing professions recipe metadata.
 db2/12.1.0.69933/SpellReagents.csv
 db2/12.1.0.69933/TradeSkillCategory.csv
+db2/12.1.0.69933/CraftingQuality.csv
+db2/12.1.0.69933/CraftingQualityAtlasSet.csv
+dbfilesclient/4373538.db2
+dbfilesclient/7012110.db2
+dbfilesclient/4545612.db2
+textures/7487371.blp
 
 # Read-only Talents: real Mage Arcane DB2 fixture.
 db2/12.1.0.69933/TraitTree.csv
@@ -4653,3 +4664,6 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
+# Mainline achievement earned-alert plate, icon frame and shield atlas.
+textures/4035524.blp
+textures/130666.blp
