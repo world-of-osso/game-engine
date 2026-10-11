@@ -20,6 +20,11 @@ fn mythic_mentor_account_retains_loading_snapshot_and_clears_on_connection_chang
     assert_eq!(account.party_keystones, summary);
     account.session.screen = SessionScreen::InWorld;
     assert_eq!(account.party_keystones.members[0].name, "Mentorone");
+    account.stop().unwrap();
+    assert!(
+        account.party_keystones.members.is_empty(),
+        "Logout's transport stop must discard old character rows"
+    );
     account.prepare_connection("127.0.0.1:5811").unwrap();
     assert!(
         account.party_keystones.members.is_empty(),

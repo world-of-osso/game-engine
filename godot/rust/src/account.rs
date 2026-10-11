@@ -408,7 +408,6 @@ impl Account {
         self.lfg = None;
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
-        self.party_keystones = Default::default();
         self.scenario_objectives = Default::default();
         self.achievements = Default::default();
         self.achievement_requests.clear();
@@ -2175,6 +2174,7 @@ impl Account {
     }
 
     fn stop_bridge(&mut self) -> Result<(), String> {
+        self.party_keystones = Default::default();
         self.session.reset_world_port();
         self.link = None;
         if let Some(mut bridge) = self.bridge.take() {

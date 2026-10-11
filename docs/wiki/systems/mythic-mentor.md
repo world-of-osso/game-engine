@@ -6,7 +6,7 @@ Verified source/UI model: 2026-10-11. [Contract](../../specs/mythic-mentor.md) o
 
 `PartyKeystoneSnapshot` enters the normal network bridge and Account reducer. `ChallengeUi` owns the separate Mentor window lifetime and includes it in native window visitation. The launcher entry opens its rsx screen; Escape and the ordinary close button close it. Native `WindowDrag` clamps the title drag and the existing layout store preserves its position per selected character.
 
-Snapshots may arrive while the Loading screen is still attaching the world. Clear them at transport preparation, not every non-InWorld frame: the latter discarded the only initial solo snapshot while the server's change cache correctly withheld duplicates. The live fixture asserts solo data before forming the party, exercising that exact process ordering.
+Snapshots may arrive while the Loading screen is still attaching the world. Clear them when stopping the transport (both fresh connection preparation and logout), not every non-InWorld frame: the latter discarded the only initial solo snapshot while the server's change cache correctly withheld duplicates. The live fixture asserts solo data before forming the party, exercising that exact process ordering.
 
 The addon places a separate topLayer above the icon button. Native level/crown art needs the same ordering; sibling labels could otherwise be behind the deeper button texture, despite correct registry text. Initial native capture exposed this; the rsx top layer now owns icon overlays.
 
