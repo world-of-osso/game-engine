@@ -150,6 +150,8 @@ func open_quest(at: Array, npc: String, title: String) -> bool:
 func credit_world_object() -> bool:
 	var index := 0
 	for object in scenario.objects:
+		if log_entry(client.quest_state(), scenario.quest).get("completed", false):
+			break
 		desired_object_entry = object.entry
 		current_map = object.map
 		if not await teleport(object.at):
