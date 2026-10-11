@@ -124,14 +124,14 @@ fn cooldown_assist_race_only_condition_accepts_inactive_content_tuning_flag() {
     let conditions = CooldownConditions::load(&dir, &[104496].into_iter().collect()).unwrap();
     let auras = BTreeMap::new();
     let mut actor = ConditionActor {
-        race_bit: 16,
+        race_bit: 15,
         class: 2,
         spec_index: 2,
         known: &[],
         auras: &auras,
     };
     assert_eq!(conditions.evaluate(104496, &actor), Ok(true));
-    actor.race_bit = 17;
+    actor.race_bit = 16;
     assert_eq!(conditions.evaluate(104496, &actor), Ok(true));
     actor.race_bit = 0;
     assert_eq!(conditions.evaluate(104496, &actor), Ok(false));
