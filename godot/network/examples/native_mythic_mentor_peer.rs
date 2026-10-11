@@ -84,7 +84,9 @@ fn run() -> Result<(), String> {
         for event in bridge.drain_events()? {
             match event {
                 Event::Message(message) => receive(&bridge, message, &directory)?,
-                Event::Disconnected(reason) => return Err(reason),
+                Event::Disconnected(reason) => {
+                    return Err(format!("Peer disconnected: {reason:?}"));
+                }
                 _ => {}
             }
         }
