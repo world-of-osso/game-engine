@@ -254,6 +254,7 @@ mod tests {
             total_count: 1,
             members,
             loot_method: shared::loot::LootMode::PersonalLoot,
+            loot_threshold: 2,
         });
         let appearances = roster_appearances(&group);
         let Some(UnitAppearance::Player(player, equipment)) = appearances.get("Ann") else {
