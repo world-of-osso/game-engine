@@ -1,4 +1,6 @@
 //! Native TransmogFrame, authoritative quotes, and isolated pending character preview.
+mod collection;
+
 use crate::{
     GameClient,
     character_frame::preview::{Scene, bind_sheet_light},
@@ -24,6 +26,7 @@ pub(crate) struct Transmog {
     scene: Option<Scene>,
     shown: Option<UnitAppearance>,
     pending: Option<(u64, UnitAppearance)>,
+    collection: std::collections::BTreeMap<u32, collection::CollectionPreview>,
 }
 
 impl Transmog {
@@ -81,6 +84,7 @@ impl GameClient {
 
     fn close_transmog(&mut self) -> bool {
         let shown = self.transmog.book.state.is_some();
+        self.clear_transmog_collection();
         if let Some((id, _)) = self.transmog.pending.take() {
             self.world.cancel_detached_visual(id);
         }
@@ -122,6 +126,7 @@ impl GameClient {
         if self.transmog.book.state.is_some() {
             self.sync_transmog()?;
             self.sync_transmog_model()?;
+            self.sync_transmog_collection()?;
         }
         Ok(())
     }

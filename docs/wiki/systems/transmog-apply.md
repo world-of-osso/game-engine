@@ -1,6 +1,6 @@
 # Native transmog application
 
-Retail Mainline's three-region TransmogFrame stages account-collected appearances, previews a detached character, and applies server-authoritative prices. Modern and Forever share the same elements and behavior; Forever changes art only. [Contract](../../specs/transmog-apply.md).
+The Wardrobe service stages account-collected appearances, previews a detached character, and applies server-authoritative prices. Slot icons occupy two fixed columns around the model; disabled outfit dropdown/Save sit above it and cost/Apply below. The collection uses the cached Mainline Wardrobe's authentic78×104 model cells, border states and3×6 pages. Modern and Forever share the same elements and behavior; Forever changes art only. [Contract](../../specs/transmog-apply.md).
 
 ## State and rendering
 
@@ -9,6 +9,10 @@ Retail Mainline's three-region TransmogFrame stages account-collected appearance
 The tracked workspace retains the canonical shared-protocol sibling patch. Leased tests/builds select the matching protocol checkout with `DEPOT_SIBLING_SHARED_PROTOCOL` (engine helper) or an untracked `.cargo/config.toml` override (server); task-specific protocol paths never enter tracked manifests.
 
 The native host receives service/failure messages through the account/network bridge. Pending preview uses `request_detached_visual`, never the replicated world appearance. Accepted equipment uses the existing self/observer appearance rebuild. Escape and interaction/session closure cancel the detached request and free the frame/scene.
+
+## Collection model ownership
+
+Each visible collection cell owns a separate viewport and detached request. Source equipment uses the offered display/inventory type and physical target definition metadata, never world equipment or other pending changes. Armor dresses the body; weapon cells remove the independently loaded weapon models from the temporary body and frame only those models. Page/slot changes cancel obsolete requests and free their scenes; closing the service frees all cells. Applied/pending borders remain above model views. Native acceptance is exercised by `godot/tests/transmog_wardrobe_live.gd`; live model proof remains pending at this implementation checkpoint.
 
 ## Native proof — verified 2026-10-11
 
@@ -28,7 +32,7 @@ InteractTarget is unbound and keyboard soft interaction disabled by default. Fix
 
 ## Remaining boundaries
 
-Saved outfits and Retail3D wardrobe thumbnails remain unimplemented. Illusions require missing authentic local illusion data. Non-override dynamic prices and conditional source eligibility remain the [server contract](../../../../game-server/docs/specs/transmog-apply.md)'s explicit data/policy gaps. Proof covers Retail-definition items in both art skins, not cross-product item-ID translation or every slot.
+Saved outfits have no server-backed protocol and remain disabled explicitly. Collection3D scenes are implemented; current native proof is still pending. Illusions require missing authentic local illusion data. Non-override dynamic prices and conditional source eligibility remain the [server contract](../../../../game-server/docs/specs/transmog-apply.md)'s explicit data/policy gaps. Proof covers Retail-definition items in both art skins, not cross-product item-ID translation or every slot.
 
 ## Sources
 
