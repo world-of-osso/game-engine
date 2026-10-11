@@ -264,6 +264,24 @@ fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row
 #[test]
 fn achievementlinks_open_unloaded_achievement_and_keep_server_earned_state() {
     let mut window = AchievementWindow::default();
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![
+            AchievementCategoryEntry {
+                category_id: 92,
+                parent_id: -1,
+                order_index: 1,
+                name: "Characters".into(),
+            },
+            AchievementCategoryEntry {
+                category_id: 130,
+                parent_id: 1,
+                order_index: 1,
+                name: "Character".into(),
+            },
+        ],
+        next_id: None,
+    });
+    window.action("achievement:statistics");
     assert!(window.action("achievement:open:633").contains(
         &QueryAchievementCatalog::Achievement {
             achievement_id: 633
@@ -276,6 +294,14 @@ fn achievementlinks_open_unloaded_achievement_and_keep_server_earned_state() {
     assert!(window.visible);
     assert_eq!(window.selected().unwrap().achievement_id, 633);
     assert!(window.selected().unwrap().earned);
+    assert_eq!(
+        window
+            .category_tree()
+            .iter()
+            .map(|(row, _)| row.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Characters"]
+    );
 }
 
 #[test]
