@@ -42,7 +42,7 @@ impl Peer {
                 .downcast::<NewWorld>()
                 .map_err(|_| "transfer type")?;
             self.map = Some(destination.map_id);
-            self.bridge.send::<_, TerrainChannel>(WorldPortAck)?;
+            self.bridge.send::<_, TransferChannel>(WorldPortAck)?;
             println!("fb_bg{} WorldPortAck map{}", self.index, destination.map_id);
         } else if message.is::<PvpStateUpdate>() {
             let update = message
