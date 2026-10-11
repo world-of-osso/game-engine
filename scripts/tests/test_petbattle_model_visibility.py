@@ -34,17 +34,20 @@ def snapshot(directory):
 class PetBattleModelVisibility(unittest.TestCase):
     def test_active_pair_visibility(self):
         directory = Path(os.environ["PETBATTLE_MODELS_DIR"])
-        response = snapshot(directory)
         ally = os.environ.get("PETBATTLE_EXPECT_ALLY")
-        labels = {row["name"]: row["text"] for row in response["controls"]}
-        self.assertEqual(labels["PetBattleAllyName"], ally or "Soul of the Aspects")
-        self.assertEqual(labels["PetBattleEnemyName"], "Rabbit")
-        expected = {"AllyPet", "EnemyPet"} if ally else {"EnemyPet"}
-        self.assertEqual({row["name"] for row in response["battle_models"]}, expected)
-        for model in response["battle_models"]:
-            self.assertGreater(model["visible_meshes"], 0)
-            self.assertTrue(model["framed"], f"authored animation bounds clipped: {model}")
-            self.assertTrue(all(extent > 0 for extent in model["bounds"]), model)
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            response = snapshot(directory)
+            labels = {row["name"]: row["text"] for row in response["controls"]}
+            self.assertEqual(labels["PetBattleAllyName"], ally or "Soul of the Aspects")
+            self.assertEqual(labels["PetBattleEnemyName"], "Rabbit")
+            expected = {"AllyPet", "EnemyPet"} if ally else {"EnemyPet"}
+            self.assertEqual({row["name"] for row in response["battle_models"]}, expected)
+            for model in response["battle_models"]:
+                self.assertGreater(model["visible_meshes"], 0)
+                self.assertTrue(model["framed"], f"authored animation bounds clipped: {model}")
+                self.assertTrue(all(extent > 0 for extent in model["bounds"]), model)
+            time.sleep(.5)
 
 
 if __name__ == "__main__":
