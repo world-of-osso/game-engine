@@ -1,4 +1,8 @@
-## 2026-10-10 — Battlefield staging continuation, incomplete
+## 2026-10-10 — Authentic battlefield pet scales
+
+[Authentic sizing](systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10) removes invented pose-bound normalization, preserves world scale and adds PetInstanceScale through the importer. Eight catalog tests and all eight both-skin native four-pair cases pass; eight v3 PNGs individually inspected. Fixed pads/camera, no world.db writes or master merge. Supersedes the rejected v2 composition acceptance below.
+
+## 2026-10-10 — Battlefield staging continuation, incomplete (historical v2)
 
 [Staging correction](systems/battle-pets.md#battlefield-staging-correction--2026-10-10) supersedes the original eight-mesh proof as composition acceptance: Soul's idle envelope collapsed both pads. Both-pet projected geometry/position checks now pass six of eight native cases; Tickbird's pose-sampling boundary still fails both skins. Eight inspected v2 captures include two explicitly rejected cases. No asset overwrite, world.db write, shared-realm mutation or master merge; branch is not ready to merge.
 
