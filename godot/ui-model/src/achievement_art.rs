@@ -32,13 +32,13 @@ pub(super) fn chrome() -> Element {
             "CategoriesBG",
             130662,
             "0,0.5,0,1",
-            (25.0, 23.0, 171.0, 454.0),
+            (25.0, 23.0, 195.0, 454.0),
         ),
         (
             "ContentBG",
             235397,
             "0,1,0,0.5",
-            (221.0, 58.0, 498.0, 416.0),
+            (221.0, 58.0, 498.0, 419.0),
         ),
         ("MetalLeft", 130658, "0,1,0,0.87", (14.0, 32.0, 16.0, 436.0)),
         (
@@ -86,30 +86,27 @@ pub(super) fn chrome() -> Element {
             "HeaderLeft",
             235402,
             "0,1,0,0.4140625",
-            (20.0, -69.0, 512.0, 106.0),
+            (26.0, -68.0, 512.0, 106.0),
         ),
         (
             "HeaderRight",
             235402,
             "0,0.419921875,0.4140625,0.8046875",
-            (532.0, -57.0, 215.0, 100.0),
+            (538.0, -56.0, 215.0, 100.0),
         ),
         (
             "PointBorder",
             235402,
             "0.419921875,0.6796875,0.4140625,0.56640625",
-            (337.5, -18.0, 133.0, 39.0),
+            (342.5, -17.0, 133.0, 39.0),
         ),
     ] {
         out.extend(texture(&format!("AchievementFrame{name}"), fdid, uv, rect));
     }
-    out.extend(label(
-        "AchievementFrameTitle".into(),
-        "Achievements",
-        (352.0, -32.0, 140.0, 20.0),
-        GOLD,
-        "",
-    ));
+    out.extend(rsx! {fontstring {name:"AchievementFrameTitle",text:"Achievements",width:150.0,height:20.0,
+        left:334.0,top:-29.0,pos_type:"absolute",font:ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        font_size:12.0,font_color:GOLD,justify_h:"CENTER",
+    }});
     let close = named_atlas_texture(
         "AchievementFrameCloseArt".into(),
         "RedButton-Exit",
@@ -132,14 +129,14 @@ pub(super) fn category_row(
     depth: usize,
     selected: bool,
 ) -> Element {
-    let x = depth as f32 * 12.0;
-    let width = 170.0 - x;
-    let mut content = texture(
-        &format!("{name}Background"),
-        130652,
-        "0,0.6640625,0,1",
-        (0.0, 0.0, width, 32.0),
-    );
+    // Mainline Lua:547-560 centers 165px headers and 150px white child labels.
+    let child = depth > 0;
+    let x = if child { 12.5 } else { 5.0 };
+    let width = if child { 150.0 } else { 165.0 };
+    let tint = if child { "0.6,0.6,0.6,1" } else { WHITE };
+    let mut content = rsx! {texture {name:{DynName(format!("{name}Background"))},texture_fdid:130652,
+        tex_coords:"0,0.6640625,0,1",vertex_color:tint,width,height:32.0,left:0.0,top:0.0,pos_type:"absolute",
+    }};
     if selected {
         content.extend(texture(
             &format!("{name}Highlight"),
@@ -152,7 +149,7 @@ pub(super) fn category_row(
         name.into(),
         title,
         (16.0, 1.0, width - 24.0, 22.0),
-        GOLD,
+        if child { WHITE } else { GOLD },
         action,
     ));
     rsx! { button { name:{DynName(format!("{name}Button"))},width,height:24.0,
@@ -172,14 +169,14 @@ pub(super) fn scroll_pane(
         MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
     };
     let (x, y, width, height) = rect;
-    let geometry = pixel_geometry(height, content_height, height - 14.0);
+    let geometry = pixel_geometry(height, content_height, height - 4.0);
     let offset = geometry.clamp(ctx.scroll_first_row(name));
     let config = scroll_list_attr(&geometry);
     let bar = MinimalScrollBar {
         list: name,
         left: width + 6.0,
-        top: 7.0,
-        height: height - 14.0,
+        top: 3.0,
+        height: height - 4.0,
         geometry,
         offset,
         unscrollable: Unscrollable::HideThumb,
@@ -258,22 +255,22 @@ pub(super) fn search_box(text: &str) -> Element {
         (
             "Left",
             "common-search-border-left",
-            (545.0, 29.0, 8.0, 20.0),
+            (628.0, 30.0, 8.0, 20.0),
         ),
         (
             "Middle",
             "common-search-border-middle",
-            (553.0, 29.0, 159.0, 20.0),
+            (636.0, 30.0, 96.0, 20.0),
         ),
         (
             "Right",
             "common-search-border-right",
-            (712.0, 29.0, 8.0, 20.0),
+            (732.0, 30.0, 8.0, 20.0),
         ),
         (
             "Icon",
             "common-search-magnifyingglass",
-            (551.0, 35.0, 10.0, 10.0),
+            (634.0, 36.0, 10.0, 10.0),
         ),
     ] {
         content.extend(named_atlas_texture(
@@ -282,9 +279,12 @@ pub(super) fn search_box(text: &str) -> Element {
             rect,
         ));
     }
-    content.extend(rsx! { editbox { name:"AchievementSearchBox",text,width:133.0,height:20.0,
-        left:566.0,top:29.0,pos_type:"absolute",max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
-    } });
+    content.extend(
+        rsx! { editbox { name:"AchievementSearchBox",text,width:107.0,height:30.0,
+            left:633.0,top:25.0,pos_type:"absolute",text_insets:"16,0,20,0",
+            max_letters:super::ACHIEVEMENT_SEARCH_MAX_CHARS,auto_focus:false,
+        } },
+    );
     if !text.is_empty() {
         let icon = named_atlas_texture(
             "AchievementSearchClearIcon".into(),
@@ -292,7 +292,7 @@ pub(super) fn search_box(text: &str) -> Element {
             (3.0, 3.0, 10.0, 10.0),
         );
         content.extend(rsx! {button {name:"AchievementSearchClearButton",width:17.0,height:17.0,
-            left:700.0,top:30.0,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
+            left:720.0,top:31.5,pos_type:"absolute",onclick:"achievement:search:",button_default_skin:false, {icon}
         }});
     }
     content

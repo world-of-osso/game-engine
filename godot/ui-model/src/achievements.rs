@@ -866,20 +866,21 @@ fn points_header(points: Option<u32>) -> Element {
     );
     let (width, _) = ui_toolkit::text_measure::measure_text(&text, GameFont::FrizQuadrata, 12.0)
         .expect("achievement header font must be loaded");
-    let left = 404.0 - width / 2.0;
+    // Header center: 26 + 726/2, then PointBorder's +20 center offset (XML:1927-1965).
+    let left = 409.0 - width / 2.0;
     let shield_left = left + width + 3.0;
     let mut content = label(
         "AchievementFrameHeaderPoints".into(),
         &text,
         // The native font needs 15 units; a shield-height box keeps both centers stable.
-        (left, -5.0, width, 20.0),
+        (left, -8.0, width, 20.0),
         WHITE,
         "",
     );
     content.extend(rsx! { texture {
         name: {DynName("AchievementFrameHeaderShield".into())},
         texture_fdid: HEADER_SHIELD_FDID, tex_coords: "0,0.625,0,0.625",
-        width: 20.0, height: 20.0, pos_type: "absolute", left: shield_left, top: -4.0,
+        width: 20.0, height: 20.0, pos_type: "absolute", left: shield_left, top: -7.0,
     } });
     content
 }
@@ -912,7 +913,7 @@ fn category_panel(ctx: &SharedContext, window: &AchievementWindow) -> Element {
         ctx,
         "AchievementCategoriesScrollBox",
         rows,
-        (21.0, 24.0, 175.0, 448.0),
+        (21.0, 24.0, 175.0, 451.0),
         first_y + tree.len() as f32 * 24.0,
     )
 }
@@ -1078,7 +1079,7 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         "Achievements",
         "achievement:achievements",
         !window.statistics,
-        20.0,
+        17.0,
         115.0,
     );
     content.extend(artwork::tab(
@@ -1086,7 +1087,7 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         "Statistics",
         "achievement:statistics",
         window.statistics,
-        139.0,
+        136.0,
         115.0,
     ));
     content.extend(artwork::search_box(&window.search_text));
