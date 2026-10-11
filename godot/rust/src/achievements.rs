@@ -53,7 +53,7 @@ impl GameClient {
         requests: Vec<QueryAchievementCatalog>,
     ) -> Result<(), FrameError> {
         for request in requests {
-            if let Err(error) = self.account.send_achievement_request(request) {
+            if let Err(error) = self.account.send_achievement_request(request.clone()) {
                 self.account.achievements.request_failed(request);
                 return Err(error.into());
             }
@@ -95,6 +95,7 @@ impl GameClient {
         let requests = std::mem::take(&mut self.account.achievement_requests);
         self.send_achievement_requests(requests)?;
         if let Some(mut ui) = self.achievements.ui.clone() {
+            self.apply_achievement_search_input(&ui)?;
             loop {
                 let action = ui.bind_mut().pop_action().to_string();
                 if action.is_empty() {
@@ -116,6 +117,29 @@ impl GameClient {
         self.advance_achievement_toast(delta)?;
         Ok(())
     }
+    fn apply_achievement_search_input(&mut self, ui: &Gd<RegistryUi>) -> Result<(), FrameError> {
+        let search = {
+            let host = ui.bind();
+            host.registry().and_then(|registry| {
+                let frame = registry.get(registry.get_by_name("AchievementSearchBox")?)?;
+                match frame.widget_data.as_ref()? {
+                    ui_toolkit::frame::WidgetData::EditBox(edit) => Some(edit.text.clone()),
+                    _ => None,
+                }
+            })
+        };
+        if let Some(search) =
+            search.filter(|search| *search != self.account.achievements.search_text)
+        {
+            let requests = self
+                .account
+                .achievements
+                .action(&format!("achievement:search:{search}"));
+            self.send_achievement_requests(requests)?;
+        }
+        Ok(())
+    }
+
     fn apply_achievement_shift_clicks(&mut self, ui: &mut Gd<RegistryUi>) -> Result<(), String> {
         while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
             if right || !shift {

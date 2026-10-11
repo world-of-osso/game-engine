@@ -65,6 +65,7 @@ pub(super) fn window() -> AchievementWindow {
             points: 10,
             icon_fdid: 134163,
             flags: 0,
+            statistic_value: None,
             earned: true,
             earned_at: Some(1791244800),
             progress_supported: true,
