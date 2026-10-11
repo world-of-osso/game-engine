@@ -3183,6 +3183,7 @@ dependencies = [
  "ktx2-rw",
  "peercred-ipc",
  "png",
+ "rmp-serde",
  "ron 0.8.1",
  "rusqlite",
  "serde",
