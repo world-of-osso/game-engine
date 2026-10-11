@@ -268,7 +268,7 @@ fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String
     )
 }
 
-/// Builds `<data_dir>/cache/char_texture-v<N>.sqlite` from the DB2 CSVs in `data_dir`,
+/// Builds `<data_dir>/cache/char_texture-v<N>.sqlite` from the pinned Retail DB2 export,
 /// reusing it when its recorded sources are unchanged.
 pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let csv_dir = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);

@@ -82,6 +82,56 @@ impl Drop for CatalogFixture {
 }
 
 #[test]
+fn pinned_customization_tracks_race_model_inputs_and_ignores_root_csvs() {
+    let fixture = CatalogFixture::new();
+    std::fs::write(fixture.root.join("ChrCustomizationChoice.csv"), "ID\n999\n").unwrap();
+    let path = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM choices", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        3
+    );
+    conn.execute(
+        "UPDATE source_files SET source = replace(source, 'db2/12.1.0.69933/', '')",
+        [],
+    )
+    .unwrap();
+    conn.execute("DELETE FROM choices", []).unwrap();
+    drop(conn);
+    import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM choices", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        3
+    );
+    drop(conn);
+    let source = fixture.retail().join("ChrRaceXChrModel.csv");
+    std::fs::write(&source, "ChrRacesID,ChrModelID,Sex\n1,20,0\n").unwrap();
+    let modified = std::time::SystemTime::now() + std::time::Duration::from_secs(5);
+    std::fs::File::options()
+        .write(true)
+        .open(&source)
+        .unwrap()
+        .set_times(std::fs::FileTimes::new().set_modified(modified))
+        .unwrap();
+    import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let model: u32 = conn
+        .query_row("SELECT chr_model_id FROM hair_geosets", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(model, 20);
+    drop(conn);
+    std::fs::remove_file(source).unwrap();
+    let error = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap_err();
+    assert!(
+        error.contains("db2/12.1.0.69933/ChrRaceXChrModel.csv"),
+        "{error}"
+    );
+}
+
+#[test]
 fn skyborne_imported_forever_catalog_and_retail_share_the_player_path() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let db = crate::npc_appearance_assets::load_customization_db(&root).unwrap();

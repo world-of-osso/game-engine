@@ -47,6 +47,8 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
         &data.join("cache/creature_display.sqlite"),
         "INSERT OR REPLACE INTO creature_displays (display_id,model_fdid,skin_fdid_0,skin_fdid_1,skin_fdid_2,skin_fdid_3,scale_milli) VALUES (910010,910010,910001,0,0,0,1500);",
     )?;
+    let retail = game_engine_core::player_model_data::RETAIL_DB2_DIR;
+    fs::create_dir_all(data.join(retail)).map_err(|error| error.to_string())?;
     for name in [
         "ChrRaceXChrModel.csv",
         "ChrRaces.csv",
@@ -54,7 +56,12 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
         "ChrCustomizationReqChoice.csv",
         "equipment_transforms.ron",
     ] {
-        fs::copy(source.join(name), data.join(name)).map_err(|e| e.to_string())?;
+        let relative = if name.ends_with(".csv") {
+            Path::new(retail).join(name)
+        } else {
+            PathBuf::from(name)
+        };
+        fs::copy(source.join(&relative), data.join(&relative)).map_err(|e| e.to_string())?;
     }
     let output = project.root.join("oracle");
     fs::create_dir_all(&output).map_err(|e| e.to_string())?;

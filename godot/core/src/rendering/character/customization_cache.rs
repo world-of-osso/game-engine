@@ -555,7 +555,7 @@ fn populate_texture_fdids(conn: &Connection, path: &Path) -> Result<(), String> 
     )
 }
 
-/// Builds `<data_dir>/cache/customization-v<N>.sqlite` from the DB2 CSVs in `data_dir`,
+/// Builds `<data_dir>/cache/customization-v<N>.sqlite` from the pinned Retail DB2 export,
 /// reusing it when its recorded sources are unchanged.
 pub fn import_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
     import_customization_cache_at(data_dir, &cache_path(data_dir))
