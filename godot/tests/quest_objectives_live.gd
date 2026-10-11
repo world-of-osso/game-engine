@@ -6,6 +6,7 @@ extends "res://tests/world_quest_flow.gd"
 var scenario: Dictionary
 var current_map := 0
 var shot_prefix := ""
+var desired_object_entry := 0
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -45,6 +46,7 @@ func run_test() -> void:
 	if not await wait_quest(func(s): return log_entry(s, scenario.quest).get("completed", false), "authored objective credited"):
 		return
 	current_map = scenario.giver.map
+	desired_object_entry = 0
 	if not await open_quest(scenario.giver.at, scenario.giver.name, scenario.title) or not await reach_reward(scenario.quest, ""):
 		return
 	await capture(shot_prefix + "-reward.png")
@@ -60,7 +62,10 @@ func units_named(name: String) -> Array:
 	var units := client.get_node_or_null("WorldUnits")
 	if units == null:
 		return []
-	return units.get_children().filter(func(unit): return unit.get_meta("unit_name", unit.get_meta("game_object_name", "")) == name)
+	return units.get_children().filter(func(unit):
+		var named := unit.get_meta("unit_name", unit.get_meta("game_object_name", "")) == name
+		var matching_entry := desired_object_entry == 0 or unit.get_meta("game_object_entry", 0) == desired_object_entry
+		return named and matching_entry)
 
 func teleport(at: Array) -> bool:
 	if not admin(["teleport", character_name(), str(current_map), str(at[0]), str(at[1]), str(at[2])]):
@@ -75,18 +80,29 @@ func teleport(at: Array) -> bool:
 	return true
 
 func credit_world_object() -> bool:
-	var object: Dictionary = scenario.object
-	current_map = object.map
-	if not await teleport(object.at):
-		return false
-	var target := await find_unit(object.name)
-	if target.is_empty():
-		return false
-	# find_unit_point verifies UnitPicker hits the real rendered object's pick shape.
-	await capture(shot_prefix + "-object.png")
-	await click(target.point, MOUSE_BUTTON_RIGHT)
-	if scenario.kind != "loot":
-		return true
+	var index := 0
+	for object in scenario.objects:
+		desired_object_entry = object.entry
+		current_map = object.map
+		if not await teleport(object.at):
+			return false
+		var target := await find_unit(object.name)
+		if target.is_empty():
+			return false
+		# find_unit_point verifies UnitPicker hits the real rendered object's pick shape.
+		if index == 0:
+			await capture(shot_prefix + "-object.png")
+		var before: Array = log_entry(client.quest_state(), scenario.quest).objectives.duplicate()
+		await click(target.point, MOUSE_BUTTON_RIGHT)
+		if scenario.kind == "loot":
+			if not await take_chest_item():
+				return false
+		elif not await wait_quest(func(s): return log_entry(s, scenario.quest).objectives != before, "matching object credit"):
+			return false
+		index += 1
+	return true
+
+func take_chest_item() -> bool:
 	if not await wait_frames(func():
 		var frame = client.find_child("LootFrame", true, false)
 		return frame != null and frame.is_visible_in_tree(), "chest loot window"):
