@@ -27,6 +27,91 @@ fn state() -> TransmogState {
 }
 
 #[test]
+fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_changes() {
+    let mut collection = state();
+    let source = collection.slots[0].sources[0].clone();
+    collection.slots[0].sources = (0..37)
+        .map(|index| TransmogSource {
+            source_id: 821 + index,
+            name: format!("Gladius {index}"),
+            ..source.clone()
+        })
+        .collect();
+    let mut book = TransmogBook::default();
+    book.receive(collection);
+    assert_eq!(book.pages(), 3);
+    assert_eq!(book.page_sources().len(), 18);
+    book.page = 1;
+    assert_eq!(book.page_sources()[0].source_id, 839);
+    book.page = 2;
+    assert_eq!(book.page_sources().len(), 1);
+    book.receive(state());
+    assert_eq!(book.page, 0);
+    assert_eq!(book.page_sources()[0].source_id, 821);
+}
+
+#[test]
+fn transmog_collection_preview_uses_the_source_display_without_staging_or_world_mutation() {
+    let mut book = TransmogBook::default();
+    let mut applied = state();
+    applied.slots[0].applied = TransmogChoice::Source(821);
+    book.receive(applied);
+    let before = book.clone();
+    let preview = book.collection_equipment(821).expect("collected source");
+    assert_eq!(preview.entries.len(), 1);
+    let weapon = &preview.entries[0];
+    assert_eq!(
+        weapon.slot,
+        shared::components::EquipmentVisualSlot::MainHand
+    );
+    assert_eq!(weapon.display_info_id, Some(1542));
+    assert_eq!(weapon.item_id, Some(2850));
+    assert_eq!(weapon.definition_source, Some(ItemDefinitionSource::Retail));
+    assert_eq!(weapon.inventory_type, 13);
+    assert!(!weapon.hidden);
+    assert_eq!(book, before);
+    assert!(book.collection_equipment(730).is_none());
+}
+
+#[test]
+fn transmog_search_filters_names_without_losing_hidden_pending_choices() {
+    let mut collection = state();
+    collection.slots[0].sources.push(TransmogSource {
+        source_id: 1181,
+        appearance_id: 389,
+        item_id: 3295,
+        display_id: 1546,
+        icon_fdid: 135274,
+        name: "Deadman Blade".into(),
+        inventory_type: 13,
+    });
+    let mut book = TransmogBook::default();
+    book.receive(collection);
+    book.money = 5000;
+    assert!(book.stage(TransmogChoice::Source(1181)));
+    book.set_search(" gLaDiUs ".into());
+    assert_eq!(
+        book.page_sources()
+            .iter()
+            .map(|source| source.source_id)
+            .collect::<Vec<_>>(),
+        vec![821]
+    );
+    assert_eq!(book.pending_cost(), Some(1500));
+    book.set_search("not collected".into());
+    assert!(book.page_sources().is_empty());
+    assert_eq!(book.pages(), 1);
+    assert!(book.can_apply());
+    assert!(book.collection_equipment(1181).is_some());
+    book.set_search(String::new());
+    assert_eq!(book.page_sources().len(), 2);
+    assert_eq!(
+        book.apply().unwrap().changes[0].choice,
+        TransmogChoice::Source(1181)
+    );
+}
+
+#[test]
 fn transmog_pending_choice_does_not_change_applied_state_and_apply_quotes_exact_cost() {
     let mut book = TransmogBook::default();
     book.receive(state());

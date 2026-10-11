@@ -71,6 +71,20 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Local Retail build dcfc90fffd79ba00406ae46f5f657592 (12.1.0.69933).
+    # Exact field orders from wowdev/WoWDBDefs at these layout hashes.
+    "CraftingQuality": (
+        0x5E7AC242,
+        [("ID", "id"), ("QualityTier", 0), ("CraftingQualityAtlasSetID", 1)],
+    ),
+    "CraftingQualityAtlasSet": (
+        0x4FC8E439,
+        [("ID", "id"), ("IconInv", 2)],
+    ),
+    "CraftingDataItemQuality": (
+        0xDE11A051,
+        [("ID", "id"), ("ItemID", 0), ("CraftingDataID", "parent")],
+    ),
     # Retail 12.1.0.69933 cache inputs; field order from wowdev/WoWDBDefs
     # definitions/<table>.dbd at the exact layout hashes below. Only consumed columns.
     "ChrCustomizationOption": (

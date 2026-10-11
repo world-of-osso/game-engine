@@ -35,6 +35,7 @@ pub struct ProfessionView {
     pub profession_name: String,
     pub profession_icon: u32,
     pub items: BTreeMap<u32, ItemDisplay>,
+    pub crafting_quality: BTreeMap<u32, crate::professions_quality::CraftingQuality>,
     pub recipe_craftable: BTreeMap<u32, u32>,
     pub collapsed: BTreeSet<String>,
     pub reagents: Vec<(u32, u32, u32)>,

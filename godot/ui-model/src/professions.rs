@@ -9,6 +9,7 @@ pub struct Recipe {
     /// Parent profession SkillLine, used only for window title/art.
     pub profession: u32,
     pub category: String,
+    pub category_order: i32,
     pub name: String,
     pub min_rank: u16,
     pub trivial_low: u16,
@@ -43,7 +44,9 @@ impl ProfessionBook {
         for recipes in groups.values_mut() {
             recipes.sort_by(|left, right| left.name.cmp(&right.name));
         }
-        groups.into_iter().collect()
+        let mut groups: Vec<_> = groups.into_iter().collect();
+        groups.sort_by_key(|(_, recipes)| recipes[0].category_order);
+        groups
     }
 
     pub fn selected_recipe(&self) -> Option<&Recipe> {
@@ -74,16 +77,9 @@ impl ProfessionBook {
     }
 
     pub fn craftable_count(&self, bags: &InventoryState) -> u32 {
-        let Some(recipe) = self.selected_recipe() else {
-            return 0;
-        };
-        let rank = self
-            .snapshot
-            .lines
-            .iter()
-            .find(|line| line.skill_line == recipe.skill_line)
-            .map_or(0, |line| line.rank);
-        if rank < recipe.min_rank {
+        // MinSkillLineRank gates automatic learning, not casts of a trainer-learned spell.
+        // Recipe knowledge is authoritative (TrinityCore Player::LearnSkillRewardedSpells).
+        if self.selected_recipe().is_none() {
             return 0;
         }
         self.reagent_counts(bags)

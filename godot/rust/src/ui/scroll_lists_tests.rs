@@ -529,3 +529,49 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
         "Forward is disabled at the end"
     );
 }
+
+#[test]
+fn guild_bank_log_wheel_scrolls_a_whole_transaction_and_reaches_oldest() {
+    use game_engine_ui_model::bag_frame_component::BagFrameState;
+    use game_engine_ui_model::guild_bank::{NativeGuildBankView, native_guild_bank_screen};
+    use game_engine_ui_model::guild_bank_frame_component::{
+        GuildBankFrameState, GuildBankModeView, LOG_LIST,
+    };
+    use ui_toolkit::frame::WidgetData;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(NativeGuildBankView {
+        frame: GuildBankFrameState {
+            visible: true,
+            mode: GuildBankModeView::MoneyLog,
+            log_lines: (1..=25).map(|i| format!("Cara deposited {i}c")).collect(),
+            ..Default::default()
+        },
+        bags: BagFrameState::default(),
+    });
+    let mut model = RegistryModel {
+        screen: Screen::new(native_guild_bank_screen),
+        shared,
+        registry: UiParent::for_viewport(1280.0, 720.0).registry(),
+        icon_masks: Default::default(),
+        postsetup: ScreenPostsetup::None,
+    };
+    rebuild(&mut model);
+    let shows = |model: &RegistryModel, expected: &str| {
+        model.registry.frames_iter().any(|frame| {
+            matches!(&frame.widget_data, Some(WidgetData::FontString(text)) if text.text == expected)
+        })
+    };
+    assert!(shows(&model, "Cara deposited 25c"));
+    assert!(wheel(&mut model, LOG_LIST, false));
+    rebuild(&mut model);
+    assert!(!shows(&model, "Cara deposited 25c"));
+    for _ in 0..10 {
+        wheel(&mut model, LOG_LIST, false);
+    }
+    rebuild(&mut model);
+    assert!(shows(&model, "Cara deposited 1c"));
+}
