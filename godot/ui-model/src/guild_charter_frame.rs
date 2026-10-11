@@ -2,11 +2,14 @@
 use crate::bank_art::label;
 use crate::guild_charters::{GuildCharters, PURCHASE_NAME, RENAME_NAME};
 use crate::quest_art::{
-    DynName, named_atlas_texture, panel_button, window_chrome, window_portrait_slot,
-    window_portrait_texture,
+    DynName, named_atlas_texture, panel_button, window_chrome, window_portrait,
+    window_portrait_slot, window_portrait_texture,
 };
 use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+    window_portrait_slot("GuildRegistrarFramePortrait");
+
 const INK: &str = "0.15,0.09,0.04,1";
 const WIDTH: f32 = 338.0;
 const HEIGHT: f32 = 424.0;
@@ -61,6 +64,7 @@ fn registrar(view: &GuildCharters) -> Element {
         "charter:close",
     );
     children.extend(parchment("GuildRegistrarFrame"));
+    children.extend(window_portrait(&PORTRAIT));
     children.extend(panel_button(
         "GuildRegistrarFrameCancelButton".into(),
         "Cancel",

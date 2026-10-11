@@ -14,9 +14,12 @@ use shared::{
 #[derive(Default)]
 pub(crate) struct GuildCharters {
     view: View,
-    ui: Option<Gd<RegistryUi>>,
+    pub(crate) ui: Option<Gd<RegistryUi>>,
 }
 impl GuildCharters {
+    pub(crate) fn portrait_unit(&self) -> Option<u64> {
+        self.view.registrar.as_ref().map(|r| r.npc)
+    }
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,

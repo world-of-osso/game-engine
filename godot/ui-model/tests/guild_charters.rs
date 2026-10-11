@@ -150,6 +150,12 @@ fn guild_charter_retail_controls_use_authoritative_quota_in_both_skins() {
             registry.get_by_name("GuildRegistrarButton1").is_some(),
             "{skin:?} registrar purchase missing"
         );
+        assert!(
+            registry
+                .get_by_name("GuildRegistrarFramePortrait")
+                .is_some(),
+            "Retail NPC portrait missing"
+        );
         view.click("charter:purchase_open", &InputTexts::default(), None);
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);

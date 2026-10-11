@@ -23,6 +23,7 @@ use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::auction_house_frame_component::PORTRAIT as AUCTION_PORTRAIT;
 use game_engine_ui_model::bank_frame_component::PORTRAIT as BANK_PORTRAIT;
 use game_engine_ui_model::character_frame::PORTRAIT as CHARACTER_FRAME_PORTRAIT;
+use game_engine_ui_model::guild_charter_frame::PORTRAIT as REGISTRAR_PORTRAIT;
 use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
@@ -81,6 +82,7 @@ pub(crate) struct UnitPortraits {
     auction: Portrait,
     trade: Portrait,
     trainer: Portrait,
+    registrar: Portrait,
     party: PartyPortraits,
 }
 
@@ -98,6 +100,7 @@ impl Default for UnitPortraits {
             auction: Portrait::new(AUCTION_PORTRAIT),
             trade: Portrait::new(TRADE_PORTRAIT),
             trainer: Portrait::new(TRAINER_PORTRAIT),
+            registrar: Portrait::new(REGISTRAR_PORTRAIT),
             party: PartyPortraits::default(),
         }
     }
@@ -545,6 +548,11 @@ impl GameClient {
         let trainer_npc = self.trainer.book.list.as_ref().map(|list| list.npc);
         let (trainer_host, trainer) =
             self.npc_portrait(self.trainer.ui.as_ref(), &TRAINER_PORTRAIT, trainer_npc);
+        let (registrar_host, registrar) = self.npc_portrait(
+            self.guild_charters.ui.as_ref(),
+            &REGISTRAR_PORTRAIT,
+            self.guild_charters.portrait_unit(),
+        );
         let trade_host = self
             .trade
             .ui
@@ -576,6 +584,9 @@ impl GameClient {
         let trainer_result = portraits
             .trainer
             .sync(&mut self.world, trainer_host, trainer);
+        let registrar_result = portraits
+            .registrar
+            .sync(&mut self.world, registrar_host, registrar);
         player_result
             .and(target_result)
             .and(pet_result)
@@ -587,6 +598,7 @@ impl GameClient {
             .and(auction_result)
             .and(trade_result)
             .and(trainer_result)
+            .and(registrar_result)
     }
 
     /// The window's portrait slot and `npc`'s appearance while the window shows that NPC.
@@ -644,6 +656,7 @@ impl GameClient {
         portraits.auction.clear(&mut self.world);
         portraits.trade.clear(&mut self.world);
         portraits.trainer.clear(&mut self.world);
+        portraits.registrar.clear(&mut self.world);
         portraits.party.clear(&mut self.world);
     }
 }
@@ -669,6 +682,7 @@ impl GameClient {
             &portraits.auction,
             &portraits.trade,
             &portraits.trainer,
+            &portraits.registrar,
         ]
         .into_iter()
         .find(|portrait| portrait.slot.frame == frame)
