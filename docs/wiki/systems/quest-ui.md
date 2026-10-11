@@ -77,9 +77,18 @@ Six-frame approach bursts skip melee range at 2 FPS. `994dfbc3` polls each frame
 
 The error overlay holds a line for three seconds, then fades for half a second. Predicate settling plus another draw can lose the required message: actual quest capture instrumentation saw opacity change from `1.0` to `0.334`. `9dc775f7` saves the first post-draw frame while the line is opaque. The real button/timer/rendered-image regression at 2 FPS reproduced the old empty capture and preserved 721 red text pixels with the corrected pipeline. `is_visible_in_tree()` alone is not rendered proof. The fixture uses a 1920×1080 viewport and rejects a clipped tracker.
 
+## GO and item-spell live objectives — verified2026-10-11
+
+Private5496 native fixture proof now covers Modern+Forever26446 (Fertile Dirt Mounds → Gnarl turn-in) and28175 (provided bag item → spell credit → Velastrasza turn-in). Twelve successful PNGs were inspected, including reward dialogs and post-turn-in state; no admin objective or reward writes. Rendered chest-loot completion remains blocked, not certified. Exact rewards, attempted alternatives, typed-invisibility giver diagnosis and pinned protocol/build boundary live in the [server coverage ledger](../../../../game-server/docs/quest-objectives-coverage.md#behavioral-proof).
+
+`quest_objectives_live.gd` uses admin travel to position the player before the current camera, then real native triangle picks/right-clicks. Low ground objects require searching below the box centre; large giver bounds crossing the camera require the visible viewport. The fixture no longer depends on synthetic right-drag steering; no product camera repair is claimed. It compares packed objective strings as Arrays and waits for each actual bag-count increase.
+
+Evidence: canonical `data/diagnostics/quest-objectives-2026-10-11/live-{go,spell}-{modern,forever}.log`; user PNGs in `/syncthing/AgentShared/2026-10-11/quest-objectives/`. Giver visibility is separate from whether an authored quest counter route exists.
+
 ## Sources
 
 - [Quest UI spec](../../specs/quest-ui.md) — requirements and test inventory.
+- [GO/spell live fixture](../../../godot/tests/quest_objectives_live.gd), [server coverage ledger](../../../../game-server/docs/quest-objectives-coverage.md) — bounded both-skin rendered turn-ins and remaining chest/giver visibility boundaries.
 - [Native quest host](../../../godot/rust/src/quests.rs) — dialogue, log and markers.
 - [Quest scroll viewport](../../../godot/ui-model/src/ui/screens/quest_scroll.rs), [native extent feedback](../../../godot/rust/src/ui/mod.rs) and [offline clipping/input capture](../../../godot/tests/quest_overflow_capture.gd) — bounded native scrolling behavior.
 - [Live fixture](../../../godot/tests/world_quest_flow.gd), [movement regression](../../../godot/tests/quest_flow_movement.gd), [capture regression](../../../godot/tests/quest_flow_error_capture.gd) — observable input, life and rendered output.
