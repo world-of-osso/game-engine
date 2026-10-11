@@ -13,9 +13,6 @@ ui-toolkit-macros = { path = "../../ui-toolkit-macros" }
 ktx2-rw = { path = "../vendor/ktx2-rw" }
 taffy = { path = "../vendor/taffy" }
 
-[patch."https://github.com/world-of-osso/shared-protocol.git"]
-shared = { path = "../../shared-protocol" }
-
 [profile.dev]
 debug = 1
 split-debuginfo = "unpacked"
