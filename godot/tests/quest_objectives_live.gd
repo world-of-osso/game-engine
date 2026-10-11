@@ -116,19 +116,26 @@ func find_unit_point(unit: Node, id: int) -> Vector2:
 	var half: Vector3 = shape.shape.size * 0.5
 	var low := Vector2.INF
 	var high := -Vector2.INF
+	var crosses_camera := false
 	for x in [-half.x, half.x]:
 		for y in [-half.y, half.y]:
 			for z in [-half.z, half.z]:
 				var corner: Vector3 = shape.global_transform * Vector3(x, y, z)
 				if camera().is_position_behind(corner):
-					return Vector2.INF
+					crosses_camera = true
+					continue
 				var projected := camera().unproject_position(corner)
 				low = low.min(projected)
 				high = high.max(projected)
+	if crosses_camera:
+		print("FIXTURE CAMERA_INSIDE_PICK_BOUNDS ", unit.name, " half=", half)
+		low = Vector2.ZERO
+		high = Vector2(root.size)
 	low = low.max(Vector2.ZERO)
 	high = high.min(Vector2(root.size))
-	for y in range(int(low.y), int(high.y) + 1, 4):
-		for x in range(int(low.x), int(high.x) + 1, 4):
+	var stride := 16 if crosses_camera else 4
+	for y in range(int(low.y), int(high.y) + 1, stride):
+		for x in range(int(low.x), int(high.x) + 1, stride):
 			var point := Vector2(x, y)
 			if UnitPicker.pick(camera(), point) == id:
 				return point
