@@ -11,21 +11,27 @@ use shared::protocol::{
 };
 use std::time::Duration;
 
-pub(crate) fn meeting_stone_request(id: u64, info: &GameObjectInfo) -> Option<UseGameObject> {
+pub(crate) fn spell_or_quest_object_request(
+    id: u64,
+    info: &GameObjectInfo,
+) -> Option<UseGameObject> {
     matches!(
         info.go_type,
-        GAMEOBJECT_TYPE_MEETINGSTONE | GAMEOBJECT_TYPE_RITUAL
+        GAMEOBJECT_TYPE_MEETINGSTONE
+            | GAMEOBJECT_TYPE_RITUAL
+            | crate::game_objects::GAMEOBJECT_TYPE_CHEST
+            | crate::game_objects::GAMEOBJECT_TYPE_GOOBER
     )
     .then_some(UseGameObject { object: id })
 }
 
 impl GameClient {
-    pub(crate) fn use_meeting_stone(&mut self, id: u64) -> Result<bool, FrameError> {
+    pub(crate) fn use_spell_or_quest_object(&mut self, id: u64) -> Result<bool, FrameError> {
         let request = self
             .replica
             .unit(id)
             .and_then(|unit| unit.get::<GameObjectInfo>())
-            .and_then(|info| meeting_stone_request(id, info));
+            .and_then(|info| spell_or_quest_object_request(id, info));
         let Some(request) = request.filter(|_| self.game_objects.contains(id)) else {
             return Ok(false);
         };
