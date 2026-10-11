@@ -12,9 +12,11 @@ const PRIMARY_PROFESSION: u32 = 11;
 pub struct RecipeCatalog {
     pub recipes: Vec<Recipe>,
     pub skill_names: BTreeMap<u32, String>,
+    pub child_skills: BTreeSet<u32>,
     pub openers: BTreeMap<u32, u32>,
     pub primary_skills: BTreeSet<u32>,
     pub profession_skills: BTreeSet<u32>,
+    pub crafting_quality: BTreeMap<u32, crate::professions_quality::CraftingQuality>,
 }
 
 impl RecipeCatalog {
@@ -46,11 +48,15 @@ impl RecipeCatalog {
                 let skill = number(row[0])?;
                 catalog.skill_names.insert(skill, row[1].into());
                 let category = number(row[3])?;
-                if category == PRIMARY_PROFESSION && number(row[4])? == 0 {
+                let parent = number(row[4])?;
+                if category == PRIMARY_PROFESSION && parent == 0 {
                     catalog.primary_skills.insert(skill);
                 }
                 if matches!(category, SECONDARY_PROFESSION | PRIMARY_PROFESSION) {
                     catalog.profession_skills.insert(skill);
+                    if parent != 0 {
+                        catalog.child_skills.insert(skill);
+                    }
                 }
                 let opener = number(row[2])?;
                 if opener != 0 {
@@ -59,6 +65,7 @@ impl RecipeCatalog {
                 Ok(())
             },
         )?;
+        catalog.crafting_quality = crate::professions_quality::load(dir)?;
         let categories = load_categories(dir)?;
         let outputs = load_outputs(dir)?;
         let reagents = load_reagents(dir)?;
@@ -68,12 +75,20 @@ impl RecipeCatalog {
     }
 }
 
-fn load_categories(dir: &Path) -> Result<BTreeMap<u32, String>, String> {
+fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, i32)>, String> {
     let mut categories = BTreeMap::new();
-    read_rows(dir, "TradeSkillCategory", &["ID", "Name_lang"], |row| {
-        categories.insert(number(row[0])?, row[1].into());
-        Ok(())
-    })?;
+    read_rows(
+        dir,
+        "TradeSkillCategory",
+        &["ID", "Name_lang", "OrderIndex"],
+        |row| {
+            let order = row[2]
+                .parse::<i32>()
+                .map_err(|error| format!("category order: {error}"))?;
+            categories.insert(number(row[0])?, (row[1].into(), order));
+            Ok(())
+        },
+    )?;
     Ok(categories)
 }
 
@@ -139,7 +154,7 @@ fn load_reagents(dir: &Path) -> Result<BTreeMap<u32, Vec<(u32, u32)>>, String> {
 fn load_recipes(
     dir: &Path,
     skills: &BTreeMap<u32, String>,
-    categories: &BTreeMap<u32, String>,
+    categories: &BTreeMap<u32, (String, i32)>,
     outputs: &BTreeMap<u32, (u32, u32)>,
     reagents: &BTreeMap<u32, Vec<(u32, u32)>>,
 ) -> Result<Vec<Recipe>, String> {
@@ -162,16 +177,17 @@ fn load_recipes(
             0 => number(row[1])?,
             line => line,
         };
-        let category = categories
+        let (category, category_order) = categories
             .get(&number(row[3])?)
-            .or_else(|| skills.get(&skill_line))
             .cloned()
+            .or_else(|| skills.get(&skill_line).map(|name| (name.clone(), 0)))
             .ok_or_else(|| format!("Recipe {spell_id}: missing category and skill {skill_line}"))?;
         recipes.push(Recipe {
             spell_id,
             skill_line,
             profession: number(row[1])?,
             category,
+            category_order,
             name: String::new(),
             min_rank: rank(row[4])?,
             trivial_low: rank(row[5])?,
@@ -186,7 +202,7 @@ fn load_recipes(
     Ok(recipes)
 }
 
-fn number(raw: &str) -> Result<u32, String> {
+pub(super) fn number(raw: &str) -> Result<u32, String> {
     raw.parse()
         .map_err(|error| format!("Recipe DB2 integer {raw:?}: {error}"))
 }
@@ -194,7 +210,7 @@ fn rank(raw: &str) -> Result<u16, String> {
     raw.parse()
         .map_err(|error| format!("Recipe DB2 rank {raw:?}: {error}"))
 }
-fn read_rows(
+pub(super) fn read_rows(
     dir: &Path,
     table: &str,
     columns: &[&str],

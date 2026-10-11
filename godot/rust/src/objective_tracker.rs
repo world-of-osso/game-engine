@@ -77,7 +77,14 @@ impl GameClient {
             ui.quests_collapsed,
             now,
         );
-        state.dungeon = self.account.dungeon_objectives.block.clone();
+        state.dungeon = self
+            .account
+            .challenge
+            .run
+            .as_ref()
+            .and_then(game_engine_ui_model::challenge::tracker_block)
+            .or_else(|| self.account.dungeon_objectives.block.clone());
+        state.scenario = self.account.scenario_objectives.block.clone();
         state
     }
 
@@ -114,7 +121,14 @@ impl GameClient {
 
     fn cache_objective_tracker_textures(&self) {
         let resolver = crate::assets::creature::local_resolver(&self.data_root);
-        for fdid in TRACKER_FDIDS {
+        let skin = ui_toolkit::atlas::thread_skin();
+        let scenario_art =
+            ui_toolkit::atlas::resolve_region("evergreen-scenario-trackerheader", skin)
+                .expect("scenario header atlas is required for the active skin");
+        let ui_toolkit::atlas::AtlasSource::FileDataId(scenario_fdid) = scenario_art.source else {
+            panic!("scenario header must be a FileDataID atlas");
+        };
+        for fdid in TRACKER_FDIDS.into_iter().chain([scenario_fdid]) {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
             if !path.exists() {
                 match resolver.ensure_cached(fdid, &path) {

@@ -1,6 +1,18 @@
 ## 2026-10-11 — AchievementFrame art
 
 [Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.
+## 2026-10-11 — Native follower LFG transport
+
+[Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
+## 2026-10-11 — Native Mythic Keystone UI
+
+[Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.
+## 2026-10-11 — Native group loot
+
+[Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.
+## 2026-10-11 — Native Leatherworking crafting
+
+[Native professions crafting](systems/native-professions-crafting.md): signed authored category order, local-CASC crafting-tier/atlas exports, inventory overlays at authored dimensions, and automatic-learning-rank versus trainer-known recipe boundary. Private UDP5770, both skins: trainer→14 crafts→rank15→pants learning/craft→rank16/item2303, then clean persisted-book captures. Targeted tests/checks/fmt pass with the explicitly leased protocol graph; variable-quality operations/concentration/inspiration remain gaps. No world.db writes/master merge/shared realm changes.
 
 ## 2026-10-11 — Quest sharing, resets and timers
 
@@ -11,6 +23,10 @@
 ## 2026-10-11 — Combat pet lifecycle
 
 [Native lifecycle](systems/combat-pet-lifecycle.md): real Erma stable mutations in both skins, missing rename Plain chrome RED→GREEN16fdd7f18, genuine wound/Mend/dead/Revive/server-confirmed native logout proof. Six demon summon/dismiss bars and current/dismissed native logout tested in both skins; body coverage remains limited to Imp.23 inspected1920×1080 PNGs in AgentShared; no world.db writes, shared realm changes or master merge. Feed provenance and absent Incubus remain data boundaries.
+## 2026-10-11 — Wardrobe UI and visible appearance models
+
+[System](systems/transmog-apply.md#wardrobe-ui-proof--verified-2026-10-11): shared icon-slot columns, top outfit controls/bottom Apply,3×6 native appearance model pages, search, rotation/Sheathe. End-on character weapon and normal-alpha state overlays were separate causes: isolated profile RED8×28 and composited-card RED0pixels now have native regressions. Actual Modern/Forever private55087 runs prove visible collected/pending/applied models and exact1500copper applications; six inspected PNGs published. Outfits lack a server protocol; historical anchors/UICamera data remain gaps. Scoped tests/check/fmt only; no master merge or5000.
+
 ## 2026-10-11 — Native transmog application
 
 [System](systems/transmog-apply.md): private55087 Hashom gossip, target2850 GUID123, native sources821/1181;1500copper per paid apply, detached pending character, self/observer visual rebuilds, both-skin process relog and private-redb server restart. Bag metadata race RED→GREEN1/1; wrong Use opcode replaced by explicit unresolved-definition error, native ready right-click equips. Engine d66aa8e59 native build/check clean. Inspected PNGs shared; observer framing weaker than attachment logs. No world.db writes/master merge/5000. Saved outfits,3D thumbnails and linked data/policy gaps remain. Independent verifier unavailable (expired OAuth).
@@ -3216,3 +3232,26 @@ Updated [battle pets](systems/battle-pets.md#pvp-queue--partial-2026-10-10) and 
 ## 2026-10-10 — Cache import source pinning
 
 Added [cache source policy](systems/cache-import-sources.md) and [contract](../specs/cache-import-sources.md): local-CASC exports, pinned Retail imports, explicit Forever selection, runtime race/requirement inputs and root-absent CharStartOutfit workaround.
+
+## 2026-10-11 — Scenario progression
+
+Local CASC Scenario/ScenarioStep and existing criteria/TDB join; copy-scoped achievement evaluator reuse and both-skin Retail stage block. Added [system](systems/scenarios.md) and [contract](../specs/scenarios.md); live acceptance pending.
+
+### 2026-10-11 — Scenario native proof
+
+Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy re-entry verified;13 PNGs inspected. HP-primed fixture, one authored main stage and asset/LOS limits documented in [system SSOT](systems/scenarios.md).
+
+## 2026-10-11 — PvP progression bounded proof
+
+Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--verified-2026-10-11) with real-login combat-state and terrain-before-instance RED/GREEN, actual-aura talent activation, both-skin private5790 selection/toggle/relog/wallet evidence, and links to source/import and unresolved-policy contracts.
+## 2026-10-11 — raid-entry
+
+Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
+
+## 2026-10-11 — Gathering branch (acceptance incomplete)
+
+[Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.
+
+## 2026-10-11 — integrated native gathering baseline
+
+- [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.

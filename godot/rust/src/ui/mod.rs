@@ -405,6 +405,12 @@ impl RegistryModel {
         }
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::transmog_frame::TransmogView>()
+        {
+            game_engine_ui_model::transmog_frame::apply_transmog_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::toybox_component::ToyBoxView>()
         {
             game_engine_ui_model::toybox_component::apply_toybox_postsetup(
@@ -1202,6 +1208,25 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_group_loot(
+        &mut self,
+        state: game_engine_ui_model::group_loot_component::GroupLootUiState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::group_loot_component::group_loot_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
     /// The spellbook in its `PlayerSpellsFrame` portrait `metal_frame` window.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
@@ -1456,6 +1481,22 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_challenge(
+        &mut self,
+        state: game_engine_ui_model::challenge::ChallengeView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let registry = parent.registry();
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::challenge::challenge_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     pub fn show_combat_pet_stable(
         &mut self,
         state: game_engine_ui_model::pet_stable_component::StableFrameView,
@@ -1538,6 +1579,26 @@ impl RegistryUi {
             model.registry.scroll_lists.scroll_to(ROWS_SCROLLBOX, 0);
         }
         self.set_state(state)
+    }
+
+    pub fn show_raid_info(
+        &mut self,
+        state: game_engine_ui_model::raid_info::RaidInfoState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::raid_info::screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
     }
 
     pub fn show_achievement_window(

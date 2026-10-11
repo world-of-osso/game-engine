@@ -5,6 +5,114 @@ use shared::protocol::{
     DungeonProgress, QueryAchievementCatalog,
 };
 
+#[test]
+fn follower_queue_native_account_retains_server_rejection_and_match_state() {
+    let mut account = account();
+    let mut output = Vec::new();
+    for error in [Some("follower map not imported".to_owned()), None] {
+        use shared::protocol::{
+            GroupRoleSnapshot as Role, LfgMatchFoundSnapshot, LfgMatchMemberSnapshot,
+        };
+        let match_found = error.is_none().then(|| LfgMatchFoundSnapshot {
+            dungeon_id: 2436,
+            dungeon_name: "Ruby Life Pools".into(),
+            assigned_role: Role::Damage,
+            members: [
+                ("Alice", Role::Damage),
+                ("Captain Garrick", Role::Tank),
+                ("Crenna Earth-Daughter", Role::Healer),
+                ("Meredy Huntswell", Role::Damage),
+                ("Shuja Grimaxe", Role::Damage),
+            ]
+            .into_iter()
+            .map(|(name, role)| LfgMatchMemberSnapshot {
+                name: name.into(),
+                role,
+            })
+            .collect(),
+        });
+        let update = shared::protocol::LfgStateUpdate {
+            snapshot: Some(shared::protocol::LfgSnapshot {
+                queued: false,
+                selected_role: Some(shared::protocol::GroupRoleSnapshot::Damage),
+                dungeon_ids: vec![2436],
+                queue_size: 0,
+                average_wait_secs: 0,
+                in_demand_roles: vec![],
+                role_check: None,
+                match_found,
+            }),
+            message: None,
+            error,
+        };
+        account
+            .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut output)
+            .unwrap();
+        assert_eq!(account.lfg, Some(update));
+    }
+}
+
+#[test]
+fn scenarios_account_reduces_entry_completion_and_clears_before_transfer_snapshots() {
+    use shared::protocol::{ScenarioProgress, ScenarioStage};
+    let mut account = account();
+    let mut output = Vec::new();
+    let update = ScenarioProgress {
+        map_id: 90,
+        instance_id: 17,
+        difficulty_id: 1,
+        scenario: Some(ScenarioStage {
+            scenario_id: 649,
+            name: "Gnomeregan".into(),
+            kind: 3,
+            flags: 10,
+            step_id: 1176,
+            stage: 1,
+            num_stages: 1,
+            title: "Gnomeregan".into(),
+            description: "Defeat Mekgineer Thermaplugg.".into(),
+            completed: false,
+            criteria: vec![],
+        }),
+    };
+    account
+        .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut output)
+        .unwrap();
+    assert_eq!(account.scenario_objectives.block.as_ref().unwrap().stage, 1);
+    let mut completed = update.clone();
+    let stage = completed.scenario.as_mut().unwrap();
+    stage.stage = 2;
+    stage.step_id = 0;
+    stage.completed = true;
+    account
+        .dispatch_message(ProtocolMessage::for_tests(completed), &mut output)
+        .unwrap();
+    assert!(
+        account
+            .scenario_objectives
+            .block
+            .as_ref()
+            .unwrap()
+            .completed
+    );
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(NewWorld {
+                map_id: 0,
+                map_directory: "Azeroth".into(),
+                position: [0.; 3],
+                facing: 0.,
+            }),
+            &mut output,
+        )
+        .unwrap();
+    assert!(account.scenario_objectives.block.is_none());
+    account
+        .dispatch_message(ProtocolMessage::for_tests(update), &mut output)
+        .unwrap();
+    assert!(account.scenario_objectives.block.is_none());
+}
+
 fn account() -> Account {
     Account::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))
 }
@@ -191,4 +299,25 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
     assert!(
         matches!(&name.widget_data,Some(ui_toolkit::frame::WidgetData::FontString(text)) if text.text=="Stormwind Stockade")
     );
+}
+
+#[test]
+fn raid_entry_account_accepts_primary_and_legacy_selection_from_server() {
+    let mut account = account();
+    let result = account.dispatch_message(
+        ProtocolMessage::for_tests(shared::protocol::RaidDifficultySet {
+            difficulty_id: 15,
+            legacy_difficulty_id: 6,
+        }),
+        &mut Vec::new(),
+    );
+    assert!(result.is_ok(), "raid selection rejected: {result:?}");
+}
+
+#[test]
+fn raid_entry_terrain_refresh_cannot_replace_the_world_selected_by_new_world() {
+    assert!(super::validate_terrain_refresh(Some("moltencore"), "azeroth").is_err());
+    assert!(super::validate_terrain_refresh(Some("azeroth"), "moltencore").is_err());
+    assert!(super::validate_terrain_refresh(Some("moltencore"), "moltencore").is_ok());
+    assert!(super::validate_terrain_refresh(None, "azeroth").is_ok());
 }

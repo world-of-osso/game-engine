@@ -52,8 +52,13 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Reagent slot (ReagentSlotBase.xml:6-27, ReagentSlot.lua:238-252): `Professions-Slot-bg` (15182) button with the item icon, name "have/need Name" (`TRADESKILL_REAGENT_COUNT` "%s/%d") in white, or `DISABLED_REAGENT_COLOR` (0xffa0a0a0) while short.
 - [x] Create (80×22 at BOTTOMRIGHT −9,7), the `NumericInputSpinner` 30 left of it and Create All ("Create All [%d]", `PROFESSIONS_CREATE_ALL_FORMAT`) 30 left of that (PC.xml:205-224). Create All uses `SetTextToFit` (PC.lua:698): unchanged GameFontNormal12, measured text width + 40px inherited padding, permitted to shrink when its count decreases; retain its right anchor in both skins (`Blizzard_SharedXML/SecureUIPanelTemplates.lua:83-91`, `.xml:39-43`). Enabled while the bags hold the reagents for one craft. Create sends `CraftRecipe { casts: spinner }`, Create All `CraftRecipe { casts: craftable count }`; the spinner stays within 1..craftable.
 - [x] The cast shows on the player cast bar (the server's replicated `CastState`); reagents, the created item and the skill-up arrive as `InventoryDelta` and `ProfessionSnapshot`.
-- [ ] Filter dropdown, expansion dropdown on the rank bar, favourites, unlearned recipes, tooltips, recipe description, Specializations and Crafting Orders tabs, minimized mode, the cast bar moved onto the page (PC.lua:1282-1296), quality/concentration (Dragonflight systems are out of scope).
+- [ ] Filter dropdown, expansion dropdown on the rank bar, favourites, unlearned recipes, tooltips, recipe description, Specializations and Crafting Orders tabs, minimized mode, the cast bar moved onto the page (PC.lua:1282-1296), variable-quality outcomes/concentration (operation formulas remain gaps; fixed reagent crafting-tier overlays are covered by [modern crafting](modern-crafting.md)).
 - [ ] Rank-bar `BarAnimation` flipbook playback and the `Skillbar_Flare_<kit>` fade (PRB.xml:94-99); the fill shows the first frame. The Tailoring kit fill is unit-tested only; the live proof showed DefaultBlue before this change.
+
+## Native gathering rank display
+
+- With no recipe selected, display a learned profession child (`SkillLine.ParentSkillLineID`), not its parent skill holder (including capped parents such as Skinning `1/75`). Selected recipes retain their authored skill line. Both skins show Classic Herbalism, Mining and Skinning ranks.
+- Regression: `godot/ui-model/tests/professions_art.rs::professions_gathering_skill_bar_uses_progress_line_not_parent_holder` uses concrete parent/Classic child snapshots.
 
 ## Tests asserting this spec
 

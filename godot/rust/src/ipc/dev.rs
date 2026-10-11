@@ -25,6 +25,10 @@ impl crate::GameClient {
         request: Request,
         reply: super::Reply,
     ) -> Result<(), (Request, super::Reply)> {
+        let (request, reply) = match self.lfg_request(request, reply) {
+            Ok(()) => return Ok(()),
+            Err(unserved) => unserved,
+        };
         let (request, reply) = match self.trade_request(request, reply) {
             Ok(()) => return Ok(()),
             Err(unserved) => unserved,
