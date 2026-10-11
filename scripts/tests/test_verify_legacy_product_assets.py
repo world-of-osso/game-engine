@@ -109,7 +109,9 @@ class LegacyProductTests(unittest.TestCase):
         data, _, _, identity, _, _ = self.fixture()
         parent = b'MD21' + struct.pack('<I', 0) + b'SFID' + struct.pack('<II', 4, reference)
         (data / 'models').mkdir()
-        (data / 'models/42.m2').write_bytes(parent)
+        parent_path = data / ('products/wow/' + 'a' * 32 + '/models/42.m2')
+        parent_path.parent.mkdir(parents=True)
+        parent_path.write_bytes(parent)
         (data / 'models/4200.skin').write_bytes(raw)
         asset = {'product': 'wow', 'fdid': 43, 'extension': 'skin',
                  'actual_build': 'a' * 32, 'legacy_candidate_path': 'models/4200.skin'}
