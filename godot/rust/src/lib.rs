@@ -39,6 +39,7 @@ mod game_menu;
 mod game_objects;
 mod gameplay;
 mod ground;
+mod guild_charters;
 mod guild_ranks;
 mod hud_edit;
 mod input;
@@ -316,6 +317,7 @@ pub struct GameClient {
     banks: bank::Banks,
     combat_stable: pet_stable::CombatPetStable,
     guild_ranks: guild_ranks::GuildRanks,
+    guild_charters: guild_charters::GuildCharters,
     achievements: achievements::Achievements,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -453,6 +455,7 @@ impl INode3D for GameClient {
             banks: bank::Banks::default(),
             combat_stable: pet_stable::CombatPetStable::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
+            guild_charters: guild_charters::GuildCharters::default(),
             achievements: achievements::Achievements::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -508,6 +511,7 @@ impl INode3D for GameClient {
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
+            || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
@@ -1396,6 +1400,7 @@ impl GameClient {
         self.banks.visit_uis(&mut visit)?;
         self.combat_stable.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
+        self.guild_charters.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
@@ -1964,6 +1969,7 @@ impl GameClient {
             ("Banks", |c, _| c.update_banks()),
             ("CombatPetStable", |c, _| c.update_combat_stable()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Guild charters", |c, _| c.update_guild_charters()),
             ("Achievements", |c, d| c.update_achievements(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
@@ -2149,6 +2155,11 @@ impl GameClient {
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
+            AccountEvent::GuildInvitation(invite) => self.receive_guild_invitation(invite),
+            AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
+            AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,
+            AccountEvent::GuildProfile(update) => self.receive_guild_profile(update)?,
+            AccountEvent::GuildCharter(reply) => self.receive_guild_charter(reply)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -2173,6 +2184,9 @@ impl GameClient {
                 if !self.receive_quest_npc_message(&message)?
                     && !self.bank_npc_message(&message)
                     && !stable_opened
+                if !self.charter_npc_message(&message)?
+                    && !self.receive_quest_npc_message(&message)?
+                    && !self.bank_npc_message(&message)
                 {
                     self.receive_npc_message(message)?;
                 }

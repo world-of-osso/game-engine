@@ -10,6 +10,9 @@
 ## 2026-10-11 — Native transmog application
 
 [System](systems/transmog-apply.md): private55087 Hashom gossip, target2850 GUID123, native sources821/1181;1500copper per paid apply, detached pending character, self/observer visual rebuilds, both-skin process relog and private-redb server restart. Bag metadata race RED→GREEN1/1; wrong Use opcode replaced by explicit unresolved-definition error, native ready right-click equips. Engine d66aa8e59 native build/check clean. Inspected PNGs shared; observer framing weaker than attachment logs. No world.db writes/master merge/5000. Saved outfits,3D thumbnails and linked data/policy gaps remain. Independent verifier unavailable (expired OAuth).
+## 2026-10-11 — Native guild lifecycle and Retail charters
+
+[Guilds](systems/guilds.md): private54381, both-skin Aldwin registrar/purchase5863/rename/target offer/four signatures/registration, consumption and durable five-founder roster/date. Profile multiline editor/readback/restart and invite decline/reinvite/Join inspected. Native guild6/6, UI guild37/37; later registrar portrait control1/1 plus live M2 NPC portrait. [Banks](systems/banks.md#guild-lifecycle-and-charters) retains inspected tab info/item transfer/log proof. No world.db writes or master merge; tabard/achievement payloads and expired independent verifier are explicit gaps.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
