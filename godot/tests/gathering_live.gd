@@ -127,6 +127,7 @@ func prove_skinning() -> void:
 	if not await wait_until(func(): return float(client.spells_state().target_health) == 0.0, "own wolf kill", 90000): return
 	if client.spells_state().damage_dealt.is_empty(): fail("wolf kill has no owner damage receipt"); return
 	await capture("wolf-kill")
+	await checkpoint("wolf-corpse-position", wolf)
 	await create_timer(1.0).timeout
 	await click_world(wolf)
 	await capture("corpse-click")
