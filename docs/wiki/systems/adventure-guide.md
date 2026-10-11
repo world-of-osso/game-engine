@@ -22,7 +22,7 @@ Evidence lives in canonical `data/diagnostics/adventure-guide-2026-10-11/`. The 
 
 - CPU proof: targeted both-skin Registry tests, authored sword/spec exclusion and Molten Core9 RED→GREEN; explicit spell-reference text rendering RED→GREEN.
 - Native Modern and Forever fixtures pass at the scroll-pan checkpoint: first-open readiness and Ozruk model→Classic raid wheel→Molten Core/Lucifron9, Y518.67→418.67. Both private capture flows pass real micro/J open-close, section collapse, role selection, difficulty loot6→8, Ret3→Neck1, textured Ozruk/Lucifron, ItemSet scrolling, Tutorials and search.32 inspected PNGs live under `/syncthing/AgentShared/2026-10-11/adventure-guide/`; exact scope/remaining proof belongs to the [contract](../../specs/adventure-guide.md#october-11-native-checkpoint).
-- No world.db activity/Journeys/Suggested/keystone tables or client Mythic+ host were present at inspection. No monthly progress, RPE start or keystone state is invented.
+- Initial inspection found no activity/Journeys/Suggested backing. The final master merge adds [Mythic+](mythic-plus.md): the native journal copies the server's active ChallengeRun and renders the existing authoritative tracker summary only on its matching instance overview. No owned-keystone catalog, journal-active-run native proof, monthly progress or RPE start is invented.
 - The reused spell-token renderer retains its documented unavailable scaling/token limits; missing values are not manufactured.
 
 ## Sources

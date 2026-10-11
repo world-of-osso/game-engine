@@ -19,6 +19,52 @@ fn journal() -> View {
     }
 }
 #[test]
+fn journal_shows_authoritative_keystone_only_for_its_dungeon() {
+    use shared::protocol::{ChallengePhase, ChallengeRun, KeystoneInfo};
+    let mut view = journal();
+    let instance = view
+        .catalog
+        .instances
+        .iter()
+        .find(|i| i.map == 2515)
+        .expect("Azure Vault Journal instance")
+        .id;
+    view.instance = Some(instance);
+    view.challenge = Some(ChallengeRun {
+        run_id: 7,
+        map_id: 2515,
+        instance_id: 3,
+        name: "The Azure Vault".into(),
+        key: KeystoneInfo {
+            item_guid: 42,
+            item_id: 180653,
+            challenge_id: 401,
+            level: 8,
+            affixes: vec![],
+        },
+        phase: ChallengePhase::Running,
+        countdown_ms: 0,
+        elapsed_ms: 65000,
+        time_limit_ms: 2250000,
+        deaths: 2,
+        time_lost_ms: 0,
+        forces: 205,
+        forces_required: 410,
+        bosses: vec![],
+        upgrade_levels: 0,
+        resulting_level: None,
+        rating: None,
+    });
+    let text = view.challenge_text().unwrap();
+    assert!(text.contains("The Azure Vault +8"));
+    assert!(text.contains("36:25"));
+    assert!(text.contains("205 / 410"));
+    assert!(!text.contains("Rating"));
+    view.instance = Some(67);
+    assert!(view.challenge_text().is_none());
+}
+
+#[test]
 fn pending_guide_shows_loading_without_catalog_choices() {
     let mut view = journal();
     view.visible = true;
