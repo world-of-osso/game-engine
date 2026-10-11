@@ -227,25 +227,35 @@ payloads were staged to resolve absent or wrong-product legacy candidates;
 original legacy bytes remained untouched. Parent SFID/SKID checks authorized
 owner aliases through the existing publisher, never filename inference.
 
-The tracked NPC importer added **32 previously uncovered displays**, covering
-all24 recorded dungeon appearance misses and36 requested priority displays.
-It used pinned Retail69933 CreatureDisplayInfo and the existing local WDC5
-Extra/Option/Geoset inputs. Lord Cobrahn resolves authored bake1060054; giver35579
-retains bake920408. Unreadable unrelated encrypted sections stay recorded in
-`npc-import.log`; no invented appearance or server-table writes.
+The tracked NPC importer staged **32 previously uncovered displays** from36
+requested priority displays, including all24 dungeon appearance misses. Final
+root authentication rejects the Extra1264997 and Geoset1720141 source files:
+fresh local CASC extracts zero-fill chunks with unknown keys2555AE20C2538D36,
+EB31A3AFC23C590E and8EE361A0DD12A657 and fail the authenticated full-file content
+keys. Option3692043 matches its root. The staged profiles are **not accepted**;
+canonical `npc_appearance.sqlite` was restored byte-for-byte from its backup.
+`npc-metadata-blocker.json` and both metadata-root proofs preserve the boundary.
+No partial-metadata certification, fabricated appearance or server-table write.
 
-Canonical cache replacements preserve originals as
-`cache/model-asset-index.json.pre-noinstall-receipts3-20261011` and
-`cache/npc_appearance.sqlite.pre-noinstall-receipts3-20261011`.
+Canonical receipt-index replacement preserves its original as
+`cache/model-asset-index.json.pre-noinstall-receipts3-20261011`.
+`cache/npc_appearance.sqlite.pre-noinstall-receipts3-20261011` holds the original
+restored NPC cache; the rejected staged cache remains only in diagnostics.
 Exact runtime publication paths and hashes are recorded in the evidence and
 `/home/osso/.worktrees/handoff-noinstall-receipts2.md`.
 
 Saved race images from rounds11/12/16/19 were independently inspected using
 62 labelled center crops: all31 race body meshes are visible in both skins.
 This does not certify both sexes, every customization, item, zone or spell.
-A fresh sandbox recheck of the seven previously failed race bodies is running.
+Fresh sandbox recheck of races22/29/37/52/70/86/91 completed14/14 both-skin
+body captures; all inspected, authoritative skins confirmed and local bodies
+attached. That run had zero logged receipt/runtime errors **before the rejected
+NPC-cache rollback**; its whole-scene error result is not current-cache proof.
+Player-body inputs were not changed by rollback. Combined saved and fresh
+images establish31/31 race bodies, not general NPC or catalog rendering.
 Retail8203433 remains authenticated-root-absent; no Forever substitution is
-allowed. **Full no-install certification remains FAIL.**
+allowed. The24 dungeon appearance misses and affected demon profiles remain
+metadata-blocked. **Full no-install certification remains FAIL.**
 
 ## Sources
 
