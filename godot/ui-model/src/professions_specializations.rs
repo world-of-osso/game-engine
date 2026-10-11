@@ -67,8 +67,7 @@ impl SpecializationDraft {
         if self.pending {
             return false;
         }
-        let (Some(tree), Some(node), Some(snapshot)) = (self.tree(), self.node(), &self.snapshot)
-        else {
+        let (Some(tree), Some(node)) = (self.tree(), self.node()) else {
             return false;
         };
         if !tree.unlocked
@@ -77,16 +76,27 @@ impl SpecializationDraft {
         {
             return false;
         }
-        node.costs.iter().all(|cost| {
+        self.can_afford(node)
+    }
+    fn can_afford(&self, node: &ProfessionSpecNodeSnapshot) -> bool {
+        let Some(snapshot) = &self.snapshot else {
+            return false;
+        };
+        let mut costs = BTreeMap::<u32, u32>::new();
+        for cost in &node.costs {
+            let amount = costs.entry(cost.trait_currency_id).or_default();
+            *amount = amount.saturating_add(cost.amount);
+        }
+        costs.into_iter().all(|(trait_currency_id, amount)| {
             snapshot
                 .currencies
                 .iter()
-                .find(|c| c.trait_currency_id == cost.trait_currency_id)
+                .find(|currency| currency.trait_currency_id == trait_currency_id)
                 .is_some_and(|currency| {
                     currency
                         .available
-                        .saturating_sub(self.spent_currency(cost.trait_currency_id))
-                        >= cost.amount
+                        .saturating_sub(self.spent_currency(trait_currency_id))
+                        >= amount
                 })
         })
     }
@@ -132,9 +142,9 @@ impl SpecializationDraft {
         !self.pending
             && self.tree().is_some_and(|t| {
                 !t.unlocked
-                    && t.nodes
-                        .iter()
-                        .any(|n| n.node_id == t.root_node_id && n.available)
+                    && t.nodes.iter().any(|node| {
+                        node.node_id == t.root_node_id && node.available && self.can_afford(node)
+                    })
             })
     }
     pub fn confirm_unlock(&mut self) -> Option<ProfessionSpecializationRequest> {

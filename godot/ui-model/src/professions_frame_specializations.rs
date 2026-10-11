@@ -34,18 +34,21 @@ pub(super) fn page(view: &ProfessionView) -> Element {
         return out;
     };
     for (i, tree) in snapshot.trees.iter().enumerate() {
-        let caption = if tree.unlocked {
-            tree.name.clone()
-        } else {
-            format!("{} (Locked)", tree.name)
-        };
-        out.extend(panel_button(
-            format!("ProfessionSpecTree{}", tree.tree_id),
-            &caption,
+        let left = 20.0 + i as f32 * 190.0;
+        out.extend(art::top_tab(
+            &format!("ProfessionSpecTree{}", tree.tree_id),
+            &tree.name,
             &format!("profession:spec:tree:{}", tree.tree_id),
-            !state.pending,
-            (20.0 + i as f32 * 190.0, 75.0, 180.0, 30.0),
+            state.selected_tree == Some(tree.tree_id),
+            (left, 75.0, 180.0, 30.0),
         ));
+        if !tree.unlocked {
+            out.extend(art::atlas(
+                &format!("ProfessionSpecTree{}Lock", tree.tree_id),
+                "Professions_Specialization_Lock",
+                (left + 4.0, 74.0, 26.0, 32.0),
+            ));
+        }
     }
     let Some(tree) = state.tree() else {
         return out;

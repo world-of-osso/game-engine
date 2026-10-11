@@ -105,6 +105,12 @@ impl GameClient {
         Ok(())
     }
     pub(super) fn apply_crafting_order_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if self.professions.orders.pending {
+            return Ok(());
+        }
+        if !matches!(action, "recipient-menu" | "duration-menu") {
+            self.professions.orders.menu = None;
+        }
         if let Some(id) = action.strip_prefix("select:") {
             self.professions.orders.selected =
                 Some(id.parse().map_err(|_| format!("Invalid order ID: {id}"))?);

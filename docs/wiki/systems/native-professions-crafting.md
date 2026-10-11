@@ -46,5 +46,7 @@ Native world logs contain unrelated missing scenery/NPC receipt failures; these 
 
 ## See Also
 
+- [[crafting-ui]] — specialization/order UI continuation and explicit recraft boundary.
+
 - [[forever-preset]] — authenticated per-character skin selection.
 - [[cache-import-sources]] — pinned CSV provenance.

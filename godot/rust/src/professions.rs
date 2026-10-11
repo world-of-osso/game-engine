@@ -105,6 +105,12 @@ impl GameClient {
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
+        self.professions.page = ProfessionPage::Recipes;
+        self.professions.order_form_initialized = false;
+        self.professions.orders.menu = None;
+        self.professions.order_npc = None;
+        self.professions.specializations.confirming_unlock = false;
+        self.professions.specializations.purchases.clear();
         self.professions.free_ui();
         visible
     }
@@ -290,7 +296,7 @@ impl GameClient {
         }
         Ok(())
     }
-    fn query_profession_specializations(&self) -> Result<(), FrameError> {
+    fn query_profession_specializations(&mut self) -> Result<(), FrameError> {
         let skill_line = self
             .professions
             .book
@@ -308,6 +314,7 @@ impl GameClient {
             self.account.send_profession_specialization(
                 shared::protocol::ProfessionSpecializationRequest::Query { skill_line },
             )?;
+            self.professions.specializations.pending = true;
         }
         Ok(())
     }
@@ -377,6 +384,7 @@ impl GameClient {
             .collect();
         let mut view = ProfessionView {
             page: self.professions.page,
+            now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
             specializations: self.professions.specializations.clone(),
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
