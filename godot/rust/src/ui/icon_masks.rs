@@ -16,13 +16,16 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
-use super::assets;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Mask {
     Round,
     AuctionItem,
     Glyph,
+    TalentCircle,
+    TalentChoice,
+    TalentChoiceLeft,
+    TalentChoiceRight,
+    TalentChoiceFlyout,
 }
 
 #[derive(Default)]
@@ -86,6 +89,11 @@ impl IconMasks {
                 flare_glyph_mask(&mut source);
                 source
             }
+            Mask::TalentCircle
+            | Mask::TalentChoice
+            | Mask::TalentChoiceLeft
+            | Mask::TalentChoiceRight
+            | Mask::TalentChoiceFlyout => compose_masked_icon(source, &talent_mask(mask)?),
             Mask::Round | Mask::AuctionItem => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
@@ -128,8 +136,38 @@ fn is_round_icon(name: &str) -> bool {
     creation || bag || portrait || talent
 }
 
+fn talent_mask(mask: Mask) -> Result<GrayImage, String> {
+    let atlas = match mask {
+        Mask::TalentCircle => "talents-node-circle-mask",
+        Mask::TalentChoiceLeft => "talents-node-choice-mask-half",
+        Mask::TalentChoice | Mask::TalentChoiceRight => "talents-node-choice-mask",
+        Mask::TalentChoiceFlyout => "talents-node-choiceflyout-mask",
+        _ => unreachable!("talent mask only"),
+    };
+    let region = ui_toolkit::atlas::get_region(atlas)
+        .ok_or_else(|| format!("missing talent mask {atlas}"))?;
+    let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+        return Err(format!("talent mask {atlas} has no FDID"));
+    };
+    let crop = [region.left, region.right, region.top, region.bottom];
+    let mut image = crop_normalized(load_rgba(fdid, "talent mask")?, crop);
+    if mask == Mask::TalentChoiceRight {
+        image = image::imageops::rotate180(&image);
+    }
+    Ok(mask_alpha(&image))
+}
 fn mask_of(name: &str) -> Option<Mask> {
-    if name == "AuctionHouseFrameItemBuyFrameItemDisplayItemButtonIcon" {
+    if name.starts_with("TalentNode") && name.ends_with("RoundIcon") {
+        Some(Mask::TalentCircle)
+    } else if name.ends_with("ChoiceLeftIcon") {
+        Some(Mask::TalentChoiceLeft)
+    } else if name.ends_with("ChoiceRightIcon") {
+        Some(Mask::TalentChoiceRight)
+    } else if name.starts_with("TalentNode") && name.ends_with("ChoiceIcon") {
+        Some(Mask::TalentChoice)
+    } else if name.starts_with("TalentChoiceEntry") && name.ends_with("Icon") {
+        Some(Mask::TalentChoiceFlyout)
+    } else if name == "AuctionHouseFrameItemBuyFrameItemDisplayItemButtonIcon" {
         Some(Mask::AuctionItem)
     } else if is_round_icon(name) {
         Some(Mask::Round)
@@ -164,7 +202,10 @@ fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
 }
 
 fn load_rgba(fdid: u32, role: &str) -> Result<RgbaImage, String> {
-    let rgba = assets::decode_blp(&format!("data/textures/{fdid}.blp"))
+    let path = game_engine_ui_model::paths::resolve_data_path(format!("textures/{fdid}.blp"));
+    let bytes =
+        std::fs::read(&path).map_err(|error| format!("{role} {}: {error}", path.display()))?;
+    let rgba = game_engine_core::blp::decode_rgba(&bytes)
         .map_err(|error| format!("{role} FDID {fdid}: {error}"))?;
     if rgba.width == 0 || rgba.height == 0 {
         return Err(format!("{role} FDID {fdid} has zero dimensions"));
@@ -198,6 +239,63 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
         let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
         RgbaImage::from_raw(image.width, image.height, image.pixels).unwrap()
+    }
+
+    #[test]
+    fn talent_tree3_choice_icons_use_authored_half_over_full_octagon_masks() {
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(|_| ui_toolkit::rsx! {
+            texture { name:"TalentNode62087Entry80143ChoiceLeftIcon", texture_fdid:135729, width:36.0, height:36.0 }
+            texture { name:"TalentNode62087Entry134199ChoiceRightIcon", texture_fdid:135729, width:36.0, height:36.0 }
+        }).sync(&SharedContext::new(), &mut registry);
+        IconMasks::default().apply(&mut registry);
+        let images: Vec<_> = [
+            "TalentNode62087Entry80143ChoiceLeftIcon",
+            "TalentNode62087Entry134199ChoiceRightIcon",
+        ]
+        .into_iter()
+        .map(|name| {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("choice icon")
+            };
+            let TextureSource::Dynamic(id) = texture.source else {
+                panic!("choice icon must be masked")
+            };
+            let image = registry.dynamic_texture(id).unwrap();
+            RgbaImage::from_raw(image.width, image.height, image.rgba8.clone()).unwrap()
+        })
+        .collect();
+        for image in &images {
+            assert_eq!(image.get_pixel(0, 0)[3], 0);
+        }
+        let (w, h) = images[0].dimensions();
+        assert!(images[0].get_pixel(w / 4, h / 2)[3] > 200);
+        assert_eq!(images[0].get_pixel(3 * w / 4, h / 2)[3], 0);
+        // Retail Icon2Mask is a full octagon below IconSplitMask's left half.
+        assert!(images[1].get_pixel(w / 4, h / 2)[3] > 200);
+        assert!(images[1].get_pixel(3 * w / 4, h / 2)[3] > 200);
+        // Preserve decoded authentic art for the visual audit, not generated art.
+        if let Ok(directory) = std::env::var("TALENT_TREE3_DECODE_DIR") {
+            for fdid in [8116735, 4641164, 4633071, 4638369] {
+                let image = texture(fdid);
+                let header = format!(
+                    "P7\nWIDTH {}\nHEIGHT {}\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n",
+                    image.width(),
+                    image.height()
+                );
+                let bytes = [header.as_bytes(), image.as_raw()].concat();
+                std::fs::write(
+                    std::path::Path::new(&directory).join(format!("atlas-{fdid}.pam")),
+                    bytes,
+                )
+                .unwrap();
+            }
+        }
     }
 
     /// The open backpack's portrait is its bag icon, rounded by `TempPortraitAlphaMask`:

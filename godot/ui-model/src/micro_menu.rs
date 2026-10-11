@@ -181,13 +181,13 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         art: Some("Collections"),
         unavailable: None,
     },
-    // Not `AdventureGuideUtil.IsAvailable()`: `FEATURE_NOT_YET_AVAILABLE`.
+    // Native Adventure Guide uses the pinned local Journal cache.
     MicroButton {
         name: "EJMicroButton",
         title: "Adventure Guide",
         binding: Some(InputAction::ToggleEncounterJournal),
         art: Some("AdventureGuide"),
-        unavailable: Some(Unavailable::Reason("This feature is not yet available.")),
+        unavailable: None,
     },
     // Not `C_StorePublic.IsEnabled()` outside CN: `BLIZZARD_STORE_ERROR_UNAVAILABLE`.
     MicroButton {

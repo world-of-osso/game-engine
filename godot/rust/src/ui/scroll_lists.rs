@@ -67,7 +67,9 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         "AchievementCategoriesScrollBox",
     ]
     .contains(&list)
+        || game_engine_ui_model::adventure_guide::SCROLL_LISTS.contains(&list)
     {
+        // Achievement and journal lists use pixel steps, not one-pixel rows.
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
     if QUEST_SCROLL_FRAMES.contains(&list)

@@ -261,6 +261,7 @@ pub struct CameraDraft {
 pub struct HudDraft {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    pub cooldown_assist: client_options_data::CooldownAssistOptions,
     pub extra_action_bars: client_options_data::ExtraActionBars,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
@@ -381,6 +382,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
     HudDraft {
         show_minimap: hud.show_minimap,
         show_action_bars: hud.show_action_bars,
+        cooldown_assist: hud.cooldown_assist,
         extra_action_bars: hud.extra_action_bars,
         show_nameplates: hud.show_nameplates,
         nameplate_distance: hud.nameplate_distance,
@@ -440,6 +442,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
     HudOptionsView {
         show_minimap: h.show_minimap,
         show_action_bars: h.show_action_bars,
+        cooldown_assist: h.cooldown_assist,
         extra_action_bars: h.extra_action_bars,
         show_nameplates: h.show_nameplates,
         nameplate_distance: h.nameplate_distance,
@@ -993,6 +996,15 @@ fn apply_hud_toggle(
         }
         "show_minimap" => hud.show_minimap = !hud.show_minimap,
         "show_action_bars" => hud.show_action_bars = !hud.show_action_bars,
+        "cooldown_viewer_enabled" => {
+            hud.cooldown_assist.viewer_enabled = !hud.cooldown_assist.viewer_enabled
+        }
+        "assisted_highlight" => {
+            hud.cooldown_assist.highlight_action_bar = !hud.cooldown_assist.highlight_action_bar
+        }
+        "cooldown_assisted_highlight" => {
+            hud.cooldown_assist.highlight_viewer = !hud.cooldown_assist.highlight_viewer
+        }
         "action_bar_2" => {
             let default = skin == game_engine_core::ui_layout_data::LayoutSkin::Forever;
             hud.extra_action_bars.action_bar_2 =
@@ -1124,6 +1136,7 @@ pub fn apply_camera_file_snapshot(c: &mut CameraOptionsFile, d: &CameraDraft) {
 pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.show_minimap = d.show_minimap;
     h.show_action_bars = d.show_action_bars;
+    h.cooldown_assist = d.cooldown_assist;
     h.extra_action_bars = d.extra_action_bars;
     h.show_nameplates = d.show_nameplates;
     h.nameplate_style = d.nameplate_style.clamped();
