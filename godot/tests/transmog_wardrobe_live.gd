@@ -90,6 +90,11 @@ func run_test() -> void:
 		if actor.find_children("*", "MeshInstance3D", true, false).is_empty():
 			fail("Source%d has no 3D meshes" % source)
 			return
+		var pixels := await measure_collection_pixels(source)
+		print("TRANSMOG_COLLECTION_PIXELS source=", source, " pixels=", pixels)
+		if pixels < 5:
+			fail("Source%d model is covered by its state overlay" % source)
+			return
 	print("TRANSMOG_COLLECTION_3D_READY")
 	var initial_yaw := preview.rotation.y
 	await click_control(control("TransmogRotateLeft"), MOUSE_BUTTON_LEFT)
@@ -127,9 +132,15 @@ func run_test() -> void:
 	await click_control(control("TransmogSource%d" % next_source), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return ui.frame_text("TransmogSource%dStatus" % next_source) == "Pending", "pending source"):
 		return
+	if await measure_collection_pixels(next_source) < 5:
+		fail("Pending source model is covered by its overlay")
+		return
 	await save_shot("02-pending.png")
 	await click_control(control("TransmogApplyButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return ui.frame_text("TransmogSource%dStatus" % next_source) == "Applied" and client.merchant_state().money == before - 1500, "paid authoritative Apply", 30000):
+		return
+	if await measure_collection_pixels(next_source) < 5:
+		fail("Applied source model is covered by its overlay")
 		return
 	await save_shot("03-applied.png")
 	print("TRANSMOG_PAID_APPLY source=", next_source, " gold=", before, "->", client.merchant_state().money)
@@ -141,6 +152,23 @@ func run_test() -> void:
 	print("PASS TRANSMOG_WARDROBE_LIVE")
 	client.free()
 	quit(0)
+
+func measure_collection_pixels(source: int) -> int:
+	var host_name := "TransmogSource%dModelScene" % source
+	var host := control(host_name)
+	var model := preview_model(host_name)
+	model.visible = false
+	await frames(2)
+	var hidden := root.get_texture().get_image()
+	model.visible = true
+	await frames(2)
+	var visible := root.get_texture().get_image()
+	var transform := host.get_global_transform_with_canvas()
+	var first := Vector2i(transform * Vector2.ZERO)
+	var last := Vector2i(transform * host.size)
+	var region := Rect2i(first, last - first)
+	print("TRANSMOG_COLLECTION_REGION ", source, " ", region, " image=", hidden.get_size())
+	return changed_pixels(hidden.get_region(region), visible.get_region(region))
 
 func enter_search(value: String) -> void:
 	await click_control(control("TransmogSearchBox"), MOUSE_BUTTON_LEFT)
