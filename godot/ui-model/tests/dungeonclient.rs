@@ -380,6 +380,63 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
 }
 
 #[test]
+fn achievements_ui_tracking_survives_close_refreshes_and_clears_on_earn_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("achievement:open:633");
+        let mut row = achievement();
+        row.earned = false;
+        row.earned_at = None;
+        row.criteria[0].current = 0;
+        row.criteria[0].completed = false;
+        window.apply(AchievementCatalogPage::Achievement {
+            achievement_id: 633,
+            entry: Some(row.clone()),
+        });
+        window.action("achievement:track:633");
+        window.action("achievement:close");
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(ObjectiveTrackerState::default());
+        shared.insert(window.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(objective_tracker_screen);
+        screen.sync(&shared, &mut registry);
+        assert_eq!(
+            text(&registry, "TrackedAchievement633HeaderText"),
+            "The Stockade"
+        );
+        assert!(text(&registry, "TrackedAchievement633Criterion0Text").contains("0/1"));
+        assert_eq!(
+            window.refresh(&AchievementStateUpdate {
+                snapshot: None,
+                completed: None,
+                message: None,
+                error: None,
+            }),
+            vec![QueryAchievementCatalog::Achievement {
+                achievement_id: 633
+            }]
+        );
+        row.earned = true;
+        row.criteria[0].current = 1;
+        row.criteria[0].completed = true;
+        window.apply(AchievementCatalogPage::Achievement {
+            achievement_id: 633,
+            entry: Some(row),
+        });
+        shared.insert(window);
+        screen.sync(&shared, &mut registry);
+        assert!(
+            registry
+                .get_by_name("TrackedAchievement633HeaderText")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn dungeonclient_closed_live_update_refreshes_on_reopen() {
     let mut window = AchievementWindow::default();
     window.action("micro:AchievementMicroButton");
