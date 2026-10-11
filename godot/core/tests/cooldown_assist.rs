@@ -1,7 +1,57 @@
+use game_engine_core::assisted_combat::{AssistedFacts, evaluate_rule};
 use game_engine_core::cooldown_assist::{CooldownAssistCatalog, Recommendation};
 use game_engine_core::cooldown_conditions::{ConditionActor, CooldownConditions};
 use std::collections::BTreeMap;
 use std::path::Path;
+
+#[test]
+fn cooldown_assist_ret_authored_next_spell_changes_with_server_readiness() {
+    let data = catalog();
+    let mut facts = AssistedFacts::default();
+    facts.known.insert(35395);
+    facts.ready.insert(35395, Ok(true));
+    facts.affordable.insert(35395, Ok(true));
+    facts.in_range.insert(35395, Ok(true));
+    assert_eq!(
+        data.recommend(
+            70,
+            |id| facts.known.contains(&id),
+            |rule| evaluate_rule(rule, &facts)
+        ),
+        Ok(Recommendation::Spell(35395))
+    );
+    facts.ready.insert(35395, Ok(false));
+    assert_eq!(
+        data.recommend(
+            70,
+            |id| facts.known.contains(&id),
+            |rule| evaluate_rule(rule, &facts)
+        ),
+        Ok(Recommendation::None)
+    );
+}
+
+#[test]
+fn cooldown_assist_unknown_effective_cost_blocks_instead_of_guessing() {
+    let data = catalog();
+    let mut facts = AssistedFacts::default();
+    facts.known.insert(35395);
+    facts.ready.insert(35395, Ok(true));
+    facts
+        .affordable
+        .insert(35395, Err("effective caster cost unavailable".into()));
+    facts.in_range.insert(35395, Ok(true));
+    let decision = data.recommend(
+        70,
+        |id| facts.known.contains(&id),
+        |rule| evaluate_rule(rule, &facts),
+    );
+    assert!(
+        decision
+            .unwrap_err()
+            .contains("effective caster cost unavailable")
+    );
+}
 
 #[test]
 fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
