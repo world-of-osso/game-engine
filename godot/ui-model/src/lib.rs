@@ -63,6 +63,7 @@ pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;
+pub mod professions_quality;
 pub mod raid_manager_component;
 pub mod raid_warning;
 pub mod spell_overrides;
