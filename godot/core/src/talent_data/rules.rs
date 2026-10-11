@@ -330,6 +330,21 @@ fn spent_currencies(tree: &TraitTree, entries: &[ConfigEntry]) -> SpentMap {
     spent
 }
 
+/// Currency spent strictly before this authored gate, using the same buckets
+/// as validation. Granted ranks and purchases at/after the gate do not count.
+pub fn gate_progress(tree: &TraitTree, entries: &[ConfigEntry], cond: &TraitCond) -> u32 {
+    spent_currencies(tree, entries)
+        .get(&cond.currency_id)
+        .map_or(0, |spent| {
+            spent
+                .by_gate
+                .iter()
+                .filter(|(gate, _)| *gate < cond.spent_amount_required)
+                .map(|(_, amount)| amount)
+                .sum()
+        })
+}
+
 /// Outcome of one condition list (TrinityCore `ConditionCheckResult`).
 #[derive(Default)]
 struct CondListResult {

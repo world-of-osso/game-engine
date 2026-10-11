@@ -24,7 +24,93 @@ pub struct TalentView {
     /// These retain graph/spell metadata, but never reach the placeholder-art loader.
     pub missing_icons: BTreeSet<u32>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TalentVisualState {
+    Locked,
+    Gated,
+    Selectable,
+    Maxed,
+    Purchased,
+}
+#[derive(Clone, Debug)]
+pub struct TalentGate {
+    pub condition_id: u32,
+    pub node_id: u32,
+    pub required: u32,
+    pub remaining: u32,
+}
 impl TalentView {
+    pub fn visual_state(&self, node: &TalentNode) -> TalentVisualState {
+        let maxed = |entry: &game_engine_core::talent_data::TalentEntry| {
+            self.entry_rank(node, entry.id) >= entry.max_ranks
+        };
+        let filled = if matches!(node.node_type, 2 | 3) {
+            node.entries.iter().any(maxed)
+        } else {
+            node.entries.iter().all(maxed)
+        };
+        if filled {
+            return TalentVisualState::Maxed;
+        }
+        if node.entries.iter().any(|entry| {
+            self.editor
+                .can_purchase(self, self.level, node.id, entry.id)
+        }) {
+            return TalentVisualState::Selectable;
+        }
+        if self.node_rank(node) > 0 {
+            return TalentVisualState::Purchased;
+        }
+        if !self.gates_for_nodes(std::slice::from_ref(node)).is_empty() {
+            return TalentVisualState::Gated;
+        }
+        TalentVisualState::Locked
+    }
+    pub fn gates_for_nodes(&self, nodes: &[TalentNode]) -> Vec<TalentGate> {
+        use game_engine_core::talent_data::{rule_data::COND_FLAG_GATE, rules::gate_progress};
+        let Some(tree) = &self.rules else {
+            return Vec::new();
+        };
+        let entries = self.editor.rule_entries(self);
+        let mut gates = BTreeMap::new();
+        for node in nodes {
+            let Some(rule) = tree.node(node.id) else {
+                continue;
+            };
+            let conditions = rule
+                .conds
+                .iter()
+                .chain(
+                    rule.groups
+                        .iter()
+                        .filter_map(|&id| tree.group(id))
+                        .flat_map(|group| &group.conds),
+                )
+                .chain(rule.entries.iter().flat_map(|entry| &entry.conds));
+            for cond in conditions.filter(|cond| cond.flags & COND_FLAG_GATE != 0) {
+                let remaining = cond
+                    .spent_amount_required
+                    .saturating_sub(gate_progress(tree, &entries, cond));
+                if remaining == 0 {
+                    continue;
+                }
+                let gate = gates.entry(cond.id).or_insert(TalentGate {
+                    condition_id: cond.id,
+                    node_id: node.id,
+                    required: cond.spent_amount_required,
+                    remaining,
+                });
+                let first = nodes
+                    .iter()
+                    .find(|first| first.id == gate.node_id)
+                    .expect("gate node");
+                if (node.position[1], node.position[0]) < (first.position[1], first.position[0]) {
+                    gate.node_id = node.id;
+                }
+            }
+        }
+        gates.into_values().collect()
+    }
     pub fn node_rank(&self, node: &TalentNode) -> u32 {
         if self.editor.snapshot.is_some() {
             self.editor.node_rank(node.id)

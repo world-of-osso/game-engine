@@ -250,6 +250,42 @@ impl TalentEditor {
         entries.sort_by_key(|entry| (entry.node_id, entry.entry_id));
         Some(entries)
     }
+    /// Staged total ranks separated from grants for the shared gate evaluator.
+    pub fn rule_entries(
+        &self,
+        view: &TalentView,
+    ) -> Vec<game_engine_core::talent_data::rules::ConfigEntry> {
+        let Some(tree) = view.rules.as_ref() else {
+            return Vec::new();
+        };
+        let grants = granted_entries(
+            tree,
+            TraitContext {
+                spec_id: self
+                    .snapshot
+                    .as_ref()
+                    .map_or(0, |snapshot| snapshot.spec_id),
+                level: view.level,
+            },
+        );
+        self.pending
+            .iter()
+            .map(|entry| {
+                let granted = grants
+                    .iter()
+                    .find(|grant| {
+                        grant.node_id == entry.node_id && grant.entry_id == entry.entry_id
+                    })
+                    .map_or(0, |grant| grant.granted);
+                game_engine_core::talent_data::rules::ConfigEntry {
+                    node_id: entry.node_id,
+                    entry_id: entry.entry_id,
+                    granted,
+                    ranks: u32::from(entry.rank).saturating_sub(granted),
+                }
+            })
+            .collect()
+    }
     pub fn can_purchase(&self, view: &TalentView, level: u8, node: u32, entry: u32) -> bool {
         self.purchased_entries(view, node, entry)
             .is_some_and(|entries| self.valid(view, level, &entries))

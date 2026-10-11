@@ -1,7 +1,7 @@
 //! Blizzard SharedTalentUtil.lua:494-509 and ClassTalentsFrame.xml:37-42.
 //! Retail hero selector: one active tree on the page, two columns in its dialog.
 use super::*;
-use crate::talents::TalentView;
+use crate::talents::{TalentView, TalentVisualState};
 use game_engine_core::talent_data::{TalentNode, TalentTree};
 use std::collections::BTreeMap;
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
@@ -39,12 +39,24 @@ pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
 }
 fn page_contents(view: &TalentView, scale: f32) -> Element {
     let graph = &view.graph;
-    let mut children = heading(
+    let slug = |name: &str| name.to_lowercase().replace(' ', "");
+    let atlas = format!(
+        "talents-background-{}-{}",
+        slug(&graph.class.name),
+        slug(&graph.spec.name)
+    );
+    let mut children = retail_atlas(
+        "TalentSpecBackground",
+        &atlas,
+        [0.0, 0.0, BOOK_W, BOOK_H - FOOTER_HEIGHT],
+        scale,
+    );
+    children.extend(heading(
         "TalentClassName",
         &currency_text(view, 4, &graph.class.name),
         [372.0, 45.0],
         scale,
-    );
+    ));
     children.extend(heading(
         "TalentSpecName",
         &currency_text(view, 8, &graph.spec.name),
@@ -182,6 +194,27 @@ fn render_tree(tree: &TalentTree, view: &TalentView, layout: TreeLayout, scale: 
             )
         })
         .collect();
+    for gate in view.gates_for_nodes(&tree.nodes) {
+        let center = layout.centers[&gate.node_id];
+        children.extend(retail_atlas(
+            &format!("TalentGate{}Icon", gate.condition_id),
+            "talents-gate",
+            [center[0] - 112.0, center[1] - 9.0, 84.0, 14.0],
+            scale,
+        ));
+        let text = format!("{} more points to unlock", gate.remaining);
+        children.extend(label(
+            Label {
+                name: format!("TalentGate{}Text", gate.condition_id),
+                text: &text,
+                rect: [center[0] - 220.0, center[1] + 12.0, 190.0, 20.0],
+                size: 12.0,
+                color: "1.0,0.64,0.56,1.0",
+                justify: "RIGHT",
+            },
+            scale,
+        ));
+    }
     for node in &tree.nodes {
         children.extend(render_node(
             node,
@@ -294,10 +327,13 @@ fn entry_icon(
     let width = icon_size / count as f32;
     let left = index as f32 / count as f32;
     let coords = format!("{},{},0.0,1.0", left, left + 1.0 / count as f32);
-    let tint = if view.entry_rank(node, entry.id) > 0 {
-        "1.0,1.0,1.0,1.0"
+    let tint = if matches!(
+        view.visual_state(node),
+        TalentVisualState::Locked | TalentVisualState::Gated
+    ) {
+        "0.75,0.75,0.75,1.0"
     } else {
-        "0.55,0.55,0.55,1.0"
+        "1.0,1.0,1.0,1.0"
     };
     let mut icon = rsx! { texture {
         name: {DynName(icon_name(node,entry.id))}, tex_coords: {coords.as_str()},
@@ -344,15 +380,11 @@ fn node_border(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     } else {
         "square"
     };
-    let color = if view.node_rank(node) > 0 {
-        "yellow"
-    } else if node.entries.iter().any(|entry| {
-        view.editor
-            .can_purchase(view, view.level, node.id, entry.id)
-    }) {
-        "green"
-    } else {
-        "gray"
+    let color = match view.visual_state(node) {
+        TalentVisualState::Maxed | TalentVisualState::Purchased => "yellow",
+        TalentVisualState::Selectable => "green",
+        TalentVisualState::Gated => "locked",
+        TalentVisualState::Locked => "gray",
     };
     let atlas = if is_capstone(node) {
         let active = if node.entries[0].entry_type == 14 {
@@ -364,10 +396,9 @@ fn node_border(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     } else {
         format!("talents-node-{shape}-{color}")
     };
-    // These two skins share the Retail talent mechanic/art; their window chrome differs.
-    // Resolve the Retail sheet explicitly, not Forever crops over the same FDID bytes.
-    let region =
+    let retail =
         resolve_region(&atlas, ActiveSkin::Modern).expect("Retail talent node atlas must exist");
+    let region = resolve_region(&atlas, ui_toolkit::atlas::thread_skin()).expect("talent art skin");
     let AtlasSource::FileDataId(fdid) = region.source else {
         panic!("Talent borders must be DB2-backed");
     };
@@ -379,8 +410,8 @@ fn node_border(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     // UpdateStateBorder uses atlas draw dimensions, including override sizes.
     // Ordinary borders override to40; a capstone keeps its padded84/80px art
     // around the64px hit target. Resampling that art to64 shrinks its rim.
-    let width = region.width;
-    let height = region.height;
+    let width = retail.width;
+    let height = retail.height;
     super::art(
         format!("TalentNode{}Border", node.id),
         &art,
@@ -428,7 +459,10 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
                 && let Some(frame) = registry.get_mut(id)
                 && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
             {
-                texture.desaturated = view.entry_rank(node, entry.id) == 0;
+                texture.desaturated = matches!(
+                    view.visual_state(node),
+                    TalentVisualState::Locked | TalentVisualState::Gated
+                );
                 let fdid = view.icons[&entry.id];
                 if fdid == 0 || view.missing_icons.contains(&fdid) {
                     texture.source = TextureSource::None;
@@ -445,7 +479,16 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
                 && let Some(frame) = registry.get_mut(id)
                 && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
             {
-                texture.source = TextureSource::SolidColor(EDGE_COLOR);
+                let active = tree
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == edge.from)
+                    .is_some_and(|node| view.visual_state(node) == TalentVisualState::Maxed);
+                texture.source = TextureSource::SolidColor(if active {
+                    [1.0, 0.82, 0.0, 1.0]
+                } else {
+                    EDGE_COLOR
+                });
             }
         }
     }
@@ -650,7 +693,8 @@ fn active_hero(view: &TalentView) -> Option<&TalentTree> {
         .find(|tree| tree.id == entry.subtree_id)
 }
 fn retail_atlas(name: &str, atlas: &str, rect: [f32; 4], scale: f32) -> Element {
-    let region = resolve_region(atlas, ActiveSkin::Modern).expect("Retail talent atlas");
+    let region =
+        resolve_region(atlas, ui_toolkit::atlas::thread_skin()).expect("talent atlas art skin");
     let AtlasSource::FileDataId(fdid) = region.source else {
         panic!("Retail talent FDID");
     };
