@@ -135,7 +135,7 @@ func run_fixture() -> void:
 		return
 	await create_timer(0.6).timeout
 	var after: Dictionary = client.spells_state()
-	if after.sent.size() != before + 1 or int(after.sent.back()) != expected:
+	if after.sent.size() != before + 1 or int(after.sent[after.sent.size() - 1]) != expected:
 		fail("Assistant did not send exactly its authored recommendation")
 		return
 	await capture("assisted-cast")
@@ -172,7 +172,7 @@ func configure_options() -> void:
 	if control(choice) != null:
 		await click(choice)
 	for option in ["cooldown_viewer_enabled", "assisted_highlight", "cooldown_assisted_highlight"]:
-		var hit := "ToggleSwitch" + option + "RightHit"
+		var hit: String = "ToggleSwitch" + option + "RightHit"
 		if not await scroll_to("ToggleSwitch" + option):
 			return
 		if control(hit) != null:
