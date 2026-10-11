@@ -65,7 +65,7 @@ impl Peer {
             "queue" => self.bridge.send::<_, PvpChannel>(QueueForBattleground {
                 battleground_id: 1014,
             }),
-            "accept" => {
+            "accept" | "decline" => {
                 let match_id = self
                     .snapshot
                     .as_ref()
@@ -75,7 +75,7 @@ impl Peer {
                 self.bridge
                     .send::<_, PvpChannel>(RespondToBattlegroundInvite {
                         match_id,
-                        accepted: true,
+                        accepted: action == "accept",
                     })
             }
             "leave" => {
