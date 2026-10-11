@@ -1,3 +1,7 @@
+## 2026-10-11 — Native Mythic Keystone UI
+
+[Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.
+
 ## 2026-10-11 — Quest sharing, resets and timers
 
 [Runtime](systems/quest-share-resets.md): native share offer/results relay repair, sampled server-clock countdown, exact Retail notices. Two private fb_* accounts on UDP5517; both skins share62, daily26153 reward/lock/reset and timed938 countdown/failure;14 inspected PNGs. No world.db writes/master merge/shared realm changes.
