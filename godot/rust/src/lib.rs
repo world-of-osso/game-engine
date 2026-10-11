@@ -2078,8 +2078,6 @@ impl GameClient {
                 self.close_pet_journal();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
-                self.close_toybox();
-                self.toybox.model = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2586,6 +2584,8 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.close_toybox();
+        self.toybox.model = Default::default();
         self.cancel_ground_target();
         self.encounter.clear();
         self.stop_sound();
