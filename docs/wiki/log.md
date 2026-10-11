@@ -4,6 +4,9 @@
 ## 2026-10-11 — Non-visual equipment
 
 [Investigation](investigations/nonvisual-equipment.md): server additive storage/DB2 uniqueness, same-level Forever model/slot picking RED→GREEN; both-skin paid Mood Ring purchase, five filled slots, tooltip/drag and exact GUID/stat preservation across server restart and client relog. Twelve inspected1280px PNGs shared; legacy relic catalog and existing proficiency/equip-trigger limits explicit.
+## 2026-10-11 — Encounter timeline/warnings
+
+[Boss encounters](systems/boss-encounters.md#scheduler-timeline--verified-2026-10-11): actual SmartAI/EventMap timers, ordered accepted-cast/phase events, bars/track and severity text/icons/audio, saved view choices and four Edit Mode movers. Native offscreen warning/covered timer text/unregistered sound failures reproduced and corrected. Both-skin Cobrahn and data-bound Skum countdown→actual cast/warning, real audio-play receipts, saved view choices, Forever live track movement and movers inspected; [acceptance](../specs/encounter-timeline.md#sources--acceptance) owns18 PNGs and exact coverage limits. Private5850 only; no invented timers or realm5000 changes.
 
 ## 2026-10-11 — Native follower LFG transport
 ## 2026-10-11 — Native Mythic Mentor

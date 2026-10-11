@@ -140,6 +140,30 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
         "CompactRaidFrameContainer",
         HudAnchor::Bottom,
     ),
+    element(
+        "encounter_timeline",
+        "Encounter Timeline",
+        "EncounterTimeline",
+        HudAnchor::TopLeft,
+    ),
+    element(
+        "encounter_critical",
+        "Critical Encounter Warnings",
+        "CriticalEncounterWarnings",
+        HudAnchor::Top,
+    ),
+    element(
+        "encounter_medium",
+        "Medium Encounter Warnings",
+        "MediumEncounterWarnings",
+        HudAnchor::Top,
+    ),
+    element(
+        "encounter_minor",
+        "Normal Encounter Warnings",
+        "MinorEncounterWarnings",
+        HudAnchor::Top,
+    ),
     element("ui_errors", "Error Text", "UIErrorsFrame", HudAnchor::Top),
     element(
         "chat_frame",

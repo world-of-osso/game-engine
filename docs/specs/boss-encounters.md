@@ -35,8 +35,8 @@ Native Godot encounter presentation. Server contract: game-server `docs/specs/bo
 - [ ] Native live proof covers one boss, physical targeting/server echo, enrage and kill/reset. Five simultaneous native bosses, every power/classification and mounted loading/disconnect reset permutations remain unverified; pure projection/lifecycle tests cover five slots and explicit reset.
 
 ## Out of scope
-- Server/protocol changes. The pinned ChatType has RaidBossEmote but no player RaidWarning message; the warning view supports both colour kinds, but cannot receive nonexistent raid-warning traffic.
-- Boss cast/alternate-power bars, encounter journal/timers, RAID_BOSS_WHISPER, creature sounds and chat bubbles.
+- Player RaidWarning traffic is absent from pinned ChatType. Dedicated server/protocol timeline events and EncounterWarnings are covered by [encounter timeline](encounter-timeline.md).
+- Boss cast/alternate-power bars, encounter journal, RAID_BOSS_WHISPER, creature sounds and chat bubbles. Scheduled timers and cast warnings now have a [separate contract](encounter-timeline.md).
 - Historical Bevy Stockade proof (2026-09-27) is not native Godot proof.
 
 ## Native proof — 2026-10-07

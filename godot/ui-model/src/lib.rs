@@ -54,6 +54,8 @@ pub mod cooldown_assist;
 pub mod cooldown_settings_component;
 pub mod cooldown_viewer_component;
 pub mod countdown_component;
+pub mod encounter_timeline;
+pub mod encounter_timeline_component;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;
