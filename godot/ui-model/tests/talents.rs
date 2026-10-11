@@ -194,6 +194,62 @@ fn talent_tree3_choice_flyout_is_a_horizontal_authored_icon_row_above_its_node()
 }
 
 #[test]
+fn talent_tree3_headers_separate_spec_name_and_green32px_points_and_forever_skins_art() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(state.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        apply_spellbook_postsetup(&state, &mut registry);
+        let spec = registry
+            .get(registry.get_by_name("TalentSpecName").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &spec.widget_data else {
+            panic!("spec name")
+        };
+        assert_eq!(text.text, "Arcane");
+        let points = registry
+            .get(
+                registry
+                    .get_by_name("TalentSpecPoints")
+                    .expect("separate point amount"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &points.widget_data else {
+            panic!("points")
+        };
+        assert_eq!(text.text, "30");
+        assert_eq!(text.font_size, 32.0);
+        assert_eq!(text.color, [0.0, 1.0, 0.0, 1.0]);
+        let border = registry
+            .get(registry.get_by_name("HeroSpecBorder").unwrap())
+            .unwrap();
+        let Some(WidgetData::Texture(art)) = &border.widget_data else {
+            panic!("hero ring")
+        };
+        let expected = if skin == ActiveSkin::Forever {
+            8116735
+        } else {
+            5740021
+        };
+        assert_eq!(
+            art.source,
+            ui_toolkit::widgets::texture::TextureSource::FileDataId(expected)
+        );
+        let rank_art = registry.get_by_name("TalentNode62121SpendArt");
+        assert_eq!(
+            rank_art.is_some(),
+            skin == ActiveSkin::Forever,
+            "Forever rank-box reskin only"
+        );
+    }
+}
+
+#[test]
 fn talent_tree3_real_gates_show_remaining_earlier_row_cost() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
@@ -255,11 +311,11 @@ fn talents_pending_ranks_counters_apply_and_choice_elements_match_both_skins() {
         );
         assert_eq!(frame("TalentUndo").onclick.as_deref(), Some("talent:undo"));
         assert!(frame("TalentChoiceFlyout").visible);
-        for name in ["TalentClassName", "TalentSpecName"] {
+        for name in ["TalentClassPoints", "TalentSpecPoints"] {
             let Some(WidgetData::FontString(text)) = frame(name).widget_data.as_ref() else {
                 panic!("point counter")
             };
-            assert!(text.text.contains("Points Available:"));
+            assert!(text.text.parse::<i32>().is_ok());
             assert!(!text.text.contains('—'));
         }
         let view = state.talents.as_ref().unwrap();
