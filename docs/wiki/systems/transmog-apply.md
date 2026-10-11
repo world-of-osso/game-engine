@@ -6,6 +6,8 @@ Retail Mainline's three-region TransmogFrame stages account-collected appearance
 
 `TransmogBook` keeps pending choices separate from `TransmogState.applied`. It sends equipped GUIDs with the batch, disables duplicate application, preserves refusal text, and drops stale pending choices when equipment changes. Exact costs come from the service; unavailable quotes disable paid application, not free restoration.
 
+The workspace consumes the published d867b80 wire pin; a canonical sibling path override would silently replace it with a different protocol revision after the leased slot is released. Unrelated vendor patches remain unchanged.
+
 The native host receives service/failure messages through the account/network bridge. Pending preview uses `request_detached_visual`, never the replicated world appearance. Accepted equipment uses the existing self/observer appearance rebuild. Escape and interaction/session closure cancel the detached request and free the frame/scene.
 
 ## Native proof — verified 2026-10-11
