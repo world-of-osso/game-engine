@@ -1,9 +1,9 @@
 extends "res://tests/bank_live.gd"
 # Real private realm, authentic vendor purchase and native paperdoll input.
 const ENDPOINT := "127.0.0.1:5821"
-const VENDOR_NAME := "Lhara"
-const PURCHASE := "Darkmoon Ring"
-const PURCHASE_ID := 19302
+const VENDOR_NAME := "Arred"
+const PURCHASE := "Mood Ring"
+const PURCHASE_ID := 7338
 var character := ""
 var receipt: Dictionary = {}
 
