@@ -1,6 +1,8 @@
 //! Retail EncounterTimeline / EncounterWarnings presentation state.
 use shared::protocol::{EncounterSeverity, EncounterTimelineEvent, EncounterTimer};
 
+const WARNING_HOLD_SECONDS: f32 = 3.0;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TimerView {
     pub caster: u64,
@@ -57,29 +59,32 @@ impl EncounterTimeline {
                 spell_id, severity, ..
             } => {
                 let (name, icon) = spell(spell_id);
-                self.warnings.retain(|warning| warning.severity != severity);
-                self.warnings.push(WarningView {
+                self.replace_warning(WarningView {
                     spell_id,
                     severity,
                     name,
                     icon,
-                    remaining: 3.0,
+                    remaining: WARNING_HOLD_SECONDS,
                 });
             }
             EncounterTimelineEvent::Phase { phase, .. } => {
                 self.phase = Some(phase);
-                self.warnings
-                    .retain(|warning| warning.severity != EncounterSeverity::Low);
-                self.warnings.push(WarningView {
+                self.replace_warning(WarningView {
                     spell_id: 0,
                     severity: EncounterSeverity::Low,
                     name: format!("Phase {phase}"),
                     icon: 0,
-                    remaining: 3.0,
+                    remaining: WARNING_HOLD_SECONDS,
                 });
             }
         }
     }
+    fn replace_warning(&mut self, warning: WarningView) {
+        self.warnings
+            .retain(|current| current.severity != warning.severity);
+        self.warnings.push(warning);
+    }
+
     pub fn advance(&mut self, delta: f32) {
         let delta = delta.max(0.0);
         for timer in &mut self.timers {
