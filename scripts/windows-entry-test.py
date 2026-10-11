@@ -20,7 +20,8 @@ def prove_entry(root, engine):
         let arguments = std::env::args().skip(1).collect::<Vec<_>>().join("\\n");
         std::fs::write("arguments.txt", arguments).unwrap();
         std::fs::write("asset-mode.txt", std::env::var("GAME_ENGINE_ASSET_MODE").unwrap()).unwrap();
-        std::process::exit(7);
+        let code = std::env::var("ENTRY_TEST_EXIT").unwrap_or_else(|_| "7".into());
+        std::process::exit(code.parse().unwrap());
     }''', fixture / 'runtime/godot.exe')
     compile_fixture('''fn main() {
         let game_dir = std::path::PathBuf::from(std::env::args_os().nth(1).unwrap());
@@ -35,4 +36,8 @@ def prove_entry(root, engine):
     assert result.returncode == 7
     assert (fixture / 'arguments.txt').read_text(encoding='utf-8').splitlines() == expected + ['--char', 'Windows Space Æ']
     assert (fixture / 'asset-mode.txt').read_text() == 'extracted-only'
+    import os
+    result = subprocess.run([str(fixture / 'game-engine-windows-x86_64')],
+                            env={**os.environ, 'ENTRY_TEST_EXIT': '256'})
+    assert result.returncode == 256, f'Windows exit status truncated to {result.returncode}'
     print('PASS: exact launcher Command::new extensionless PE, spaces/Unicode arguments, relative runtime, child status, extracted-only')
