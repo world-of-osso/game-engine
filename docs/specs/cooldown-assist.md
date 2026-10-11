@@ -21,7 +21,9 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. Nat
 ## Implementation inventory
 - `scripts/export_db2_csv.py`: pinned six-table local-CASC export.
 - `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism with explicit predicate input.
-- `godot/ui-model/src/cooldown_assist.rs`: selection/order and authoritative-sample projection; no mounted native UI yet.
+- `godot/ui-model/src/cooldown_assist.rs`: selection/order and supplied-sample projection.
+- `godot/ui-model/src/cooldown_viewer_component.rs`: four viewer roots/default anchors and icon/bar presentation; not mounted yet. Swipe uses rectangular projection and highlight uses existing mouseover art, not yet exact Retail radial/ants animation.
+- `godot/core/src/client_options_data.rs` and UI Options files: default-off manager/bar highlight/optional icon highlight controls; runtime integration pending.
 
 ## Tests asserting this spec
 - `scripts/tests/test_cooldown_assist_export.py`: authentic DB2→CSV values and joins.

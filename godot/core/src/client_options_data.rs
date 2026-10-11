@@ -233,10 +233,20 @@ pub struct ExtraActionBars {
     pub action_bar_5: bool,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CooldownAssistOptions {
+    pub viewer_enabled: bool,
+    pub highlight_action_bar: bool,
+    /// World of Osso extension beyond Retail action-button highlighting.
+    pub highlight_viewer: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HudOptionsFile {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    #[serde(default)]
+    pub cooldown_assist: CooldownAssistOptions,
     #[serde(default, rename = "extraActionBars")]
     pub extra_action_bars: ExtraActionBars,
     pub show_nameplates: bool,
@@ -272,6 +282,7 @@ impl Default for HudOptionsFile {
         Self {
             show_minimap: true,
             show_action_bars: true,
+            cooldown_assist: CooldownAssistOptions::default(),
             extra_action_bars: ExtraActionBars::default(),
             show_nameplates: true,
             nameplate_distance: default_nameplate_distance(),
