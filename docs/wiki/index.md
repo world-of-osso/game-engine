@@ -45,6 +45,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 
+- [Toy-live2](systems/toy-box.md#toy-live2-catalog-lifetime-and-later-effects-2026-10-10) — catalog-before-world lifetime RED/GREEN; both-skin learning/account reset,15 sampled identities per skin and explicit visual/audio/mortar limits.
+
 - [Toy-effects6 follow-up](systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10) — Spitzy inverted aura, strict train appearance coverage and both-skin bounded asset captures; mortar/absent source payloads remain unproved.
 
 - [Effect50 toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) — generic decoration visibility separated from interaction; three actual toys rendered in both configured skins; aura233 payload mapping remains unimplemented.

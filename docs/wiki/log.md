@@ -1,3 +1,7 @@
+## 2026-10-10 — Toy-live2 catalog lifetime and later effects
+
+[Catalog lifetime and effects](systems/toy-box.md#toy-live2-catalog-lifetime-and-later-effects-2026-10-10): received1166-entry catalog was deleted during CharacterSelect; explicit world/account reset replaces per-frame clearing. Real receive-before-world RED,14-toy no-workaround GREEN and both-skin closed/open/next-open/account-switch proof.15 sampled identities per skin;19 source-bound model pairs,23 decoded sound pairs,456 inspected PNGs. Three ordinary appearance rows and11 authenticated assets prepared privately, not promoted. Mortar/precise visual/audio parity remain partial; no world.db writes, master merge or shared realm changes.
+
 ## 2026-10-10 — Authentic battlefield pet scales
 
 [Authentic sizing](systems/battle-pets.md#authentic-battlefield-scales--verified-2026-10-10) removes invented pose-bound normalization, preserves world scale and adds PetInstanceScale through the importer. Eight catalog tests and all eight both-skin native four-pair cases pass; eight v3 PNGs individually inspected. Fixed pads/camera, no world.db writes or master merge. Supersedes the rejected v2 composition acceptance below.
