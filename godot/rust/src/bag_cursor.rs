@@ -126,6 +126,9 @@ impl GameClient {
         if self.item_spell_cursor_click(action, click)? {
             return Ok(());
         }
+        if self.housing_cursor_press(owner, action)? {
+            return Ok(());
+        }
         if self.toybox_cursor_press(owner, action, click, at)? {
             return Ok(());
         }
