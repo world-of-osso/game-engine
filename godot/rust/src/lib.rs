@@ -17,6 +17,7 @@ mod bags;
 mod bank;
 mod battleground;
 mod camera;
+mod challenge;
 mod char_create;
 mod character_frame;
 mod character_select;
@@ -238,6 +239,7 @@ pub struct GameClient {
     toybox: toybox::ToyJournal,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
+    challenge_ui: challenge::ChallengeUi,
     quests: quests::QuestHud,
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
@@ -397,6 +399,7 @@ impl INode3D for GameClient {
             toybox: toybox::ToyJournal::default(),
             minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
+            challenge_ui: challenge::ChallengeUi::default(),
             quests: quests::QuestHud::default(),
             entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
@@ -1436,6 +1439,7 @@ impl GameClient {
         }
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
+        self.challenge_ui.visit_uis(&mut visit)?;
         self.quests.visit_uis(&mut visit)?;
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
@@ -2000,6 +2004,7 @@ impl GameClient {
             ("Minimap", |c, _| c.update_minimap()),
             ("Quests", |c, _| c.update_quests()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
+            ("Mythic Keystone", |c, _| c.update_challenge()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
             ("XP bar", |c, _| c.update_xp_bar()),
