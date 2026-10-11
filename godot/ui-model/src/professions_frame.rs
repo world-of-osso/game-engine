@@ -32,6 +32,7 @@ pub struct ItemDisplay {
 pub struct ProfessionView {
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
+    pub child_skills: BTreeSet<u32>,
     pub profession_name: String,
     pub profession_icon: u32,
     pub items: BTreeMap<u32, ItemDisplay>,
@@ -86,7 +87,13 @@ fn selected_line(view: &ProfessionView) -> Option<&shared::profession::Professio
         .lines
         .iter()
         .find(|line| Some(line.skill_line) == skill)
-        .or_else(|| view.book.snapshot.lines.first())
+        .or_else(|| {
+            view.book
+                .snapshot
+                .lines
+                .iter()
+                .find(|line| view.child_skills.contains(&line.skill_line))
+        })
 }
 
 fn skill_bar(view: &ProfessionView) -> Element {

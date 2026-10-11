@@ -49,6 +49,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.put(self.root, "Cargo.lock", "locked")
         self.put(self.root, "crates/server/src/main.rs", "old source")
         self.put(self.root, "crates/server/src/ground_gaps.tsv", "0\tmissing_tile\n")
+        self.put(self.root, "crates/server/src/encounter_compat.csv", "map,boss\n")
         self.put(self.root, "vendor/bevy_replicon/src/lib.rs", "replicon patch")
         self.put(
             self.root, "vendor/lightyear_replication/src/lib.rs", "replication patch"
@@ -135,6 +136,9 @@ class DesktopServerBuildTests(unittest.TestCase):
         )
         self.assertEqual(
             files["game-server/crates/server/src/ground_gaps.tsv"], "0\tmissing_tile\n"
+        )
+        self.assertEqual(
+            files["game-server/crates/server/src/encounter_compat.csv"], "map,boss\n"
         )
         self.assertEqual(
             files["game-server/vendor/bevy_replicon/src/lib.rs"], "replicon patch"

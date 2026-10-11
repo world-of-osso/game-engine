@@ -12,6 +12,7 @@ const PRIMARY_PROFESSION: u32 = 11;
 pub struct RecipeCatalog {
     pub recipes: Vec<Recipe>,
     pub skill_names: BTreeMap<u32, String>,
+    pub child_skills: BTreeSet<u32>,
     pub openers: BTreeMap<u32, u32>,
     pub primary_skills: BTreeSet<u32>,
     pub profession_skills: BTreeSet<u32>,
@@ -47,11 +48,15 @@ impl RecipeCatalog {
                 let skill = number(row[0])?;
                 catalog.skill_names.insert(skill, row[1].into());
                 let category = number(row[3])?;
-                if category == PRIMARY_PROFESSION && number(row[4])? == 0 {
+                let parent = number(row[4])?;
+                if category == PRIMARY_PROFESSION && parent == 0 {
                     catalog.primary_skills.insert(skill);
                 }
                 if matches!(category, SECONDARY_PROFESSION | PRIMARY_PROFESSION) {
                     catalog.profession_skills.insert(skill);
+                    if parent != 0 {
+                        catalog.child_skills.insert(skill);
+                    }
                 }
                 let opener = number(row[2])?;
                 if opener != 0 {

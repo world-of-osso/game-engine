@@ -85,6 +85,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<UnitTap>(),
         Codec::of::<NpcFlags>(),
         Codec::of::<GameObjectInfo>(),
+        Codec::of::<shared::protocol::GatherableResource>(),
         Codec::of::<UnitRunes>(),
         Codec::of::<UnitStats>(),
         Codec::of::<CombatRatings>(),
