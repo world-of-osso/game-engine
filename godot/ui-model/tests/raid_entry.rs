@@ -108,6 +108,16 @@ fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_scroll_r
     assert_eq!(rows[0].difficulty, "40 Player");
     assert_eq!(rows[0].lock.time_remaining_secs, 3940);
     assert!(!rows[0].extend_disabled);
+    assert!(!catalog.rows(&[lock], 4000).unwrap()[0].lock.locked);
+    assert!(!snapshot_reached_expiry(&[lock], 3999));
+    assert!(snapshot_reached_expiry(&[lock], 4000));
+    assert!(!snapshot_reached_expiry(
+        &[InstanceLockInfo {
+            time_remaining_secs: 0,
+            ..lock
+        }],
+        4000
+    ));
     let mut state = RaidInfoState {
         rows,
         ..Default::default()

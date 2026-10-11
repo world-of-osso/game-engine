@@ -1,13 +1,15 @@
-//! Native Retail saved-instance frame; both skins share the same rows and actions.
+//! Native Retail saved-instance frame; both skins share rows and actions.
 use crate::{GameClient, background_load::BackgroundLoad, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::raid_info::{RaidCatalog, RaidInfoState};
+use game_engine_ui_model::raid_info::{RaidCatalog, RaidInfoState, snapshot_reached_expiry};
 use godot::prelude::*;
+use std::time::Instant;
 
 pub(crate) struct RaidInfo {
     pub(crate) catalog: BackgroundLoad<Result<RaidCatalog, String>>,
     ui: Option<Gd<RegistryUi>>,
     state: RaidInfoState,
+    refresh_requested_for: Option<Instant>,
 }
 impl RaidInfo {
     pub(crate) fn new(data: &std::path::Path) -> Self {
@@ -16,6 +18,7 @@ impl RaidInfo {
             catalog: BackgroundLoad::start("raid-info", move || RaidCatalog::load(&db2)),
             ui: None,
             state: Default::default(),
+            refresh_requested_for: None,
         }
     }
     pub(crate) fn visit_uis(
@@ -32,6 +35,7 @@ impl RaidInfo {
             ui.free();
         }
         self.state = Default::default();
+        self.refresh_requested_for = None;
     }
 }
 impl GameClient {
@@ -54,25 +58,45 @@ impl GameClient {
         if !self.raid_info.state.visible {
             return Ok(());
         }
-        if let Some(mut ui) = self.raid_info.ui.clone() {
-            let error = ui.bind_mut().sync_input();
-            if !error.is_empty() {
-                return Err(error.to_string().into());
-            }
-            loop {
-                let action = ui.bind_mut().pop_action().to_string();
-                if action.is_empty() {
-                    break;
-                }
-                if let Some(request) = self.raid_info.state.action(&action) {
-                    self.account.send_saved_instance_extend(request)?;
-                }
-            }
-        }
+        self.receive_raid_info_actions()?;
         if !self.raid_info.state.visible {
             self.raid_info.reset();
             return Ok(());
         }
+        self.refresh_expired_raid_snapshot()?;
+        self.update_saved_instance_rows()?;
+        self.sync_raid_info_frame()
+    }
+    fn receive_raid_info_actions(&mut self) -> Result<(), FrameError> {
+        let Some(mut ui) = self.raid_info.ui.clone() else {
+            return Ok(());
+        };
+        let error = ui.bind_mut().sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string().into());
+        }
+        loop {
+            let action = ui.bind_mut().pop_action().to_string();
+            if action.is_empty() {
+                break;
+            }
+            if let Some(request) = self.raid_info.state.action(&action) {
+                self.account.send_saved_instance_extend(request)?;
+            }
+        }
+        Ok(())
+    }
+    fn refresh_expired_raid_snapshot(&mut self) -> Result<(), FrameError> {
+        let stamp = self.account.instance_info_at;
+        let elapsed = stamp.elapsed().as_secs().min(u32::MAX as u64) as u32;
+        let expired = snapshot_reached_expiry(&self.account.instance_locks, elapsed);
+        if expired && self.raid_info.refresh_requested_for != Some(stamp) {
+            self.account.send_request_raid_info()?;
+            self.raid_info.refresh_requested_for = Some(stamp);
+        }
+        Ok(())
+    }
+    fn update_saved_instance_rows(&mut self) -> Result<(), FrameError> {
         let Some(catalog) = self.raid_info.catalog.loaded() else {
             return Ok(());
         };
@@ -84,6 +108,9 @@ impl GameClient {
             .as_secs()
             .min(u32::MAX as u64) as u32;
         self.raid_info.state.rows = catalog.rows(&self.account.instance_locks, elapsed)?;
+        Ok(())
+    }
+    fn sync_raid_info_frame(&mut self) -> Result<(), FrameError> {
         let state = self.raid_info.state.clone();
         if let Some(ui) = &mut self.raid_info.ui {
             ui.bind_mut().set_state(state)?;
