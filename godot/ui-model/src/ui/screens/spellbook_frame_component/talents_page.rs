@@ -305,7 +305,8 @@ fn node_entries(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     };
     let count = entries.len();
     let mut children = Vec::new();
-    for (index, entry) in entries.into_iter().enumerate() {
+    // Icon2 is the full octagon beneath Icon's authored left-half mask.
+    for (index, entry) in entries.into_iter().enumerate().rev() {
         let layout = EntryLayout {
             index,
             count,

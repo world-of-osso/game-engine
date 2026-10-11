@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn talent_tree3_choice_icons_use_authored_complementary_octagon_masks() {
+    fn talent_tree3_choice_icons_use_authored_half_over_full_octagon_masks() {
         game_engine_ui_model::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
@@ -276,7 +276,8 @@ mod tests {
         let (w, h) = images[0].dimensions();
         assert!(images[0].get_pixel(w / 4, h / 2)[3] > 200);
         assert_eq!(images[0].get_pixel(3 * w / 4, h / 2)[3], 0);
-        assert_eq!(images[1].get_pixel(w / 4, h / 2)[3], 0);
+        // Retail Icon2Mask is a full octagon below IconSplitMask's left half.
+        assert!(images[1].get_pixel(w / 4, h / 2)[3] > 200);
         assert!(images[1].get_pixel(3 * w / 4, h / 2)[3] > 200);
         // Preserve decoded authentic art for the visual audit, not generated art.
         if let Ok(directory) = std::env::var("TALENT_TREE3_DECODE_DIR") {
