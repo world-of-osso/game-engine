@@ -18,7 +18,11 @@ RED: real staged Windows import and LLDB exception above. Native DLL build and f
 
 ## Product-directory packaging omission
 
-Private Windows UDP54392 authenticated fb_winrelease, projected character30 Winrelease, and reached authoritative InWorld (zone12,117 remote entities,1 local player). PNGs show missing character/NPC visuals; errors name `data/products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2` and other build-qualified paths. Those files exist in canonical data but `player_bundle.py` omitted the whole `products` directory. Add it to the shared allowlist, preserving byte-identical assets and receipts. Observed addition:10146 files /3166762580 bytes. Package selection RED reproduces omission; visual recheck remains pending. No world.db writes: private server mounts canonical inputs read-only with bwrap.
+Private Windows UDP54392 authenticated fb_winrelease, projected character30 Winrelease, and reached authoritative InWorld (zone12,117 remote entities,1 local player). PNGs show missing character/NPC visuals; errors name `data/products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2` and other build-qualified paths. Those files exist in canonical data but `player_bundle.py` omitted the whole `products` directory. Add it to the shared allowlist, preserving byte-identical assets and receipts. Observed addition:10146 files /3166762580 bytes. Package selection RED→GREEN4/4 reproduces/fixes omission. After adding only products to the existing staged player, native private login→roster→InWorld passes with visible textured player/NPCs/terrain/HUD,21FPS and zero ERROR lines (`windows-native-flow-products-2.log`, `client.log`, three final Windows PNGs). An intermediate observer `DumpScene` exceeded IPC's4MiB limit; removed that non-required observer before the final capture. No world.db writes: private server mounts canonical inputs read-only with bwrap.
+
+## Windows launch directory length
+
+Native launcher test found error267 when installation CWD exceeded260 characters. Win32 SetCurrentDirectory documentation explicitly says: “Setting a current directory longer than MAX_PATH causes CreateProcessW to fail.” Launcher and Windows entry now launch from the volume root; executable/runtime/project paths remain absolute and installation-relative. Native launcher tests10/10 pass, including download/hash and extensionless PE spawn under a long Unicode install root; actual Godot entry/launcher LAN proof remains pending.
 
 ## Sources
 

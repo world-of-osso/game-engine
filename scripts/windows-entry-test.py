@@ -27,8 +27,9 @@ def prove_entry(root, engine):
     }''', fixture / 'runtime/godot.exe')
     compile_fixture('''fn main() {
         let game_dir = std::path::PathBuf::from(std::env::args_os().nth(1).unwrap());
+        let working_dir = game_dir.ancestors().last().unwrap();
         let mut child = std::process::Command::new(game_dir.join("game-engine-windows-x86_64"))
-            .current_dir(&game_dir).spawn().unwrap();
+            .current_dir(working_dir).spawn().unwrap();
         assert_eq!(child.wait().unwrap().code(), Some(7));
     }''', fixture / 'launcher-proof.exe')
     subprocess.run([str(fixture / 'launcher-proof.exe'), str(fixture)], check=True)
@@ -42,4 +43,4 @@ def prove_entry(root, engine):
     result = subprocess.run([str(fixture / 'game-engine-windows-x86_64')],
                             env={**os.environ, 'ENTRY_TEST_EXIT': '256'})
     assert result.returncode == 256, f'Windows exit status truncated to {result.returncode}'
-    print('PASS: exact launcher Command::new extensionless PE, spaces/Unicode arguments, relative runtime, child status, extracted-only')
+    print('PASS: rooted launcher CWD, extensionless PE, spaces/Unicode arguments, relative runtime, child status, extracted-only')
