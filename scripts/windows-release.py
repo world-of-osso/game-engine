@@ -165,12 +165,12 @@ def main():
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--host', default='desktop')
     parser.add_argument('--remote-root', default=DEFAULT_REMOTE)
-    parser.add_argument('--phase', choices=('build', 'artifacts', 'assemble', 'all', 'launcher', 'launcher-test'), default='all')
+    parser.add_argument('--phase', choices=('build', 'artifacts', 'assemble', 'all', 'launcher', 'launcher-test', 'launcher-lock'), default='all')
     args = parser.parse_args()
     root = args.root.resolve()
     work = root / 'target/windows-release'
     work.mkdir(parents=True, exist_ok=True)
-    if args.phase in ('launcher', 'launcher-test'):
+    if args.phase in ('launcher', 'launcher-test', 'launcher-lock'):
         bootstrap(args.host, args.remote_root)
         stage_launcher(root, work, args.host, args.remote_root)
         worker(args.host, args.remote_root, args.phase)
