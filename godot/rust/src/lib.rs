@@ -2167,7 +2167,10 @@ impl GameClient {
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
-            AccountEvent::Pvp(update) => self.battleground.view.receive(update),
+            AccountEvent::Pvp(update) => {
+                self.battleground.view.receive(update);
+                self.sync_spellbook()?;
+            }
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::TransmogState(state) => self.receive_transmog_state(state),
