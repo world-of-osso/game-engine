@@ -114,6 +114,10 @@ impl Default for SpellsHud {
 }
 
 impl SpellsHud {
+    /// Current projected page, including staged ranks and server point budgets.
+    pub(crate) fn projected_talents(&self) -> Option<&game_engine_ui_model::talents::TalentView> {
+        self.book.talents.as_ref()
+    }
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
