@@ -639,6 +639,10 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 
 [Appearance layout](formats/d4-appearance.md) and [contract](../specs/d4-triangle-count.md) reconciled against parser `2eb8a9261` and locally saved d4data schema/license. Narrow format 6/stride 44/inline u16 scope, negative/unknown rejection boundaries and exact synthetic-test coverage recorded; broken CASC cross-reference corrected. MIT notice matches local source. No tests/builds run; reported pre-commit parser GREEN remains separate from pending CLI/real-fixture verification. No rendered-model aggregate claimed.
 
+## 2026-10-11 — Diablo IV counter scoped acceptance
+
+[Appearance counter](formats/d4-appearance.md), Rust `2413a8b36`: independent18/18unit/process tests, scoped fmt/check without warnings,154/154authentic Druid rows equal schema-based oracle/earlier independent traversal. Five malformed-input processes reject without partial output; semantic diff preserves proof. No aggregate active-character count, assets committed or game deployment. Root fmt remains blocked by unchanged launcher tests.
+
 ## 2026-10-11 — Diablo IV offline triangle counter
 
 [Appearance layout](formats/d4-appearance.md): explicit MIT-licensed d4data record layout replaces AppToOBJ sentinel guessing. One extracted male-Druid appearance has five LODs and154 stored segments; independent byte-range/index traversal validates all154. Thirteen synthetic parser tests pass after RED. Active-look/visibility selection, other formats and final CLI verification remain separate.

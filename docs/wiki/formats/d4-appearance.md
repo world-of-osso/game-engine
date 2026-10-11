@@ -2,6 +2,16 @@
 
 The [offline triangle counter](../../specs/d4-triangle-count.md) reads paired extracted `.app` metadata and payload files. CASC is their archive container, not the mesh format. This diagnostic does not load Diablo assets into the game engine.
 
+## Usage
+
+After building the `game-engine-tools` binary:
+
+```text
+target/debug/d4_triangle_count META.app PAYLOAD.app
+```
+
+Output is TSV, one row per segment, with chunk/LOD/subobject/segment IDs, raw flags/hash, declared vertices and validated triangles. Local Druid results are retained in `data/diablo4-analysis/final2-druid.tsv`.
+
 ## Layout evidence
 
 Field offsets and record sizes come from MIT-licensed `DiabloTools/d4data` revision `33e0bfbb5f717d3e560d14a7fb27d5a7f17fd2c0`, schema build `3.2.1.73552`. The extracted `druM_base00.app` pair came from the Windows install reporting `3.2.2.73764`. The local installation's metadata pointer tables were verified to match the schema; independent range/index traversal supports this fixture's layout compatibility, not universal support for either build. The locally saved reference is `data/diablo4-analysis/reference/d4data/`; its `buildVersion.txt` reports `3.2.1.73552`.
@@ -32,9 +42,10 @@ The appearance contains multiple subobjects and potential customization/visibili
 
 ## Proof scope
 
-- Parser `2eb8a9261` contains 13 synthetic paired-file tests, reported GREEN before commit: LOD/segment separation, offset units, negative segment ranges, missing buffer references, bad magic, out-of-range indices, asset mismatch, incomplete triangles, truncated files, external vertex buffers, unknown vertex format and malformed record-array size. This audit ran no tests.
+- Rust revision `2413a8b36`: independent verification passes 13 synthetic paired-file tests and five process-level CLI tests. Parser coverage includes LOD/segment separation, offset units, negative segment ranges, missing buffer references, bad magic, out-of-range indices, asset mismatch, incomplete triangles, truncated files, external vertex buffers, unknown vertex format and malformed record-array size.
 - External index IDs, stride mismatch, array padding, vertex alignment, negative buffer indices and empty geometry are explicit rejection paths in code, not separately asserted by those 13 tests.
-- Real-data compatibility currently has independent schema traversal evidence; CLI integration verification is tracked in the [spec](../../specs/d4-triangle-count.md).
+- All 154 actual CLI rows match the schema-derived oracle and previously independently regenerated rows; metadata/payload hashes match the recorded fixture. Five real-input mutations (unknown format, invalid index, ID mismatch, truncated metadata and payload) exit unsuccessfully with empty stdout and explicit errors. Local proof receipts live in `data/diablo4-analysis/final2-report.md`; [spec](../../specs/d4-triangle-count.md) records the scope.
+- Counter-package formatting and focused Cargo check pass without warnings. Unchanged `launcher/tests/process.rs` prevents a root-workspace formatting pass; no whole-engine acceptance is claimed.
 - Other models/builds/layouts and rendered active-look selection are unverified.
 
 ## Sources
