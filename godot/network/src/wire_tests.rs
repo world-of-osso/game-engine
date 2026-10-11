@@ -373,6 +373,7 @@ fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
     };
     let timers = EncounterTimelineEvent::Timers {
         caster: 123,
+        sample_unix_ms: 1791749090000,
         timers: vec![EncounterTimer {
             event_id: 2,
             spell_id: 20805,

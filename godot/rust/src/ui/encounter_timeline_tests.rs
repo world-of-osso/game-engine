@@ -17,6 +17,7 @@ fn timeline_native_warning_regions_are_centered_in_the_viewport() {
             spell_id: 20805,
             severity: EncounterSeverity::Low,
         },
+        0,
         |_| ("Lightning Bolt".into(), 136048),
     );
     let mut shared = SharedContext::new();
