@@ -104,14 +104,14 @@ func skill_rank() -> int:
 	return skill_text.get_slice("/", 0).get_slice(" ", 2).to_int()
 
 func prove_skinning() -> void:
+	await capture_skill("skinning-skill-before", "skin")
+	var before := skill_rank()
 	var resource: Dictionary = JSON.parse_string(OS.get_environment("GATHERING_WOLF"))
 	if not admin(["set-position", character, str(float(resource.x) - 3.0), str(resource.y), str(resource.z)]): return
 	if not await wait_until(func(): return wolf_node() != null, "authored wolf model", 60000): return
 	await create_timer(2.0).timeout
 	var wolf := wolf_node()
 	await checkpoint("wolf-position", wolf)
-	await capture_skill("skinning-skill-before", "skin")
-	var before := skill_rank()
 	await click_world(wolf)
 	await checkpoint("kill-started", wolf)
 	if not await wait_until(func(): return client.target_state().health_text == "Dead", "own wolf kill", 90000): return
