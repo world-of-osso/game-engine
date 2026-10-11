@@ -2,7 +2,7 @@
 //! container header, the "Quests" module header and one block per watched quest with
 //! its POI button, title and objective lines.
 
-use shared::protocol::QuestEntrySnapshot;
+use shared::protocol::{QuestEntrySnapshot, ScenarioStage};
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -99,6 +99,7 @@ pub struct ObjectiveTrackerState {
     pub quests_collapsed: bool,
     pub quests: Vec<TrackedQuest>,
     pub dungeon: Option<DungeonBlock>,
+    pub scenario: Option<ScenarioStage>,
 }
 
 impl ObjectiveTrackerState {
@@ -147,6 +148,7 @@ impl ObjectiveTrackerState {
             quests_collapsed,
             quests: watched.into_iter().map(tracked_quest).collect(),
             dungeon: None,
+            scenario: None,
         }
     }
 }
@@ -215,7 +217,9 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     let mut height = CONTAINER_HEADER_H;
     let mut contents = container_header(state.collapsed, scale);
     if !state.collapsed {
-        if let Some(dungeon) = &state.dungeon {
+        if let Some(scenario) = &state.scenario {
+            contents.extend(scenario_module(scenario, &mut height, scale));
+        } else if let Some(dungeon) = &state.dungeon {
             contents.extend(dungeon_module(dungeon, &mut height, scale));
         }
         if !state.quests.is_empty() {
@@ -343,6 +347,131 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) ->
         y += FROM_BLOCK_OFFSET_Y;
     }
     elements
+}
+
+const SUPPRESS_STAGE_TEXT: u32 = 0x2;
+const DUNGEON_DISPLAY: u32 = 3;
+
+fn scenario_module(scenario: &ScenarioStage, height: &mut f32, scale: f32) -> Element {
+    let top = TOP_MODULE_PADDING;
+    let header = if scenario.kind == DUNGEON_DISPLAY {
+        "Dungeon"
+    } else {
+        &scenario.name
+    };
+    let mut elements = atlas_texture(
+        "ScenarioObjectiveTrackerHeaderBackground".into(),
+        &TRACKER_SECONDARY_HEADER,
+        scaled((-20.0, top - 2.0, 300.0, 30.0), scale),
+    );
+    elements.extend(header_text(
+        "ScenarioObjectiveTrackerHeaderText",
+        header,
+        top + 5.0,
+        scale,
+    ));
+    let stage_top = top + MODULE_HEADER_HEIGHT;
+    elements.extend(crate::quest_art::named_atlas_texture(
+        "ScenarioObjectiveTrackerStageBlockNormalBG".into(),
+        "evergreen-scenario-trackerheader",
+        scaled((0.0, stage_top, 253.0, 80.0), scale),
+    ));
+    elements.extend(scenario_stage_labels(scenario, stage_top, scale));
+    *height = stage_top + 83.0;
+    elements.extend(scenario_criteria(scenario, height, scale));
+    elements
+}
+
+fn scenario_criteria(scenario: &ScenarioStage, height: &mut f32, scale: f32) -> Element {
+    let mut y = *height;
+    let mut elements = Vec::new();
+    for (index, criterion) in scenario.criteria.iter().enumerate() {
+        let text = if criterion.required > 1 {
+            format!(
+                "{}/{} {}",
+                criterion.current, criterion.required, criterion.description
+            )
+        } else {
+            criterion.description.clone()
+        };
+        let line = ObjectiveLine {
+            text,
+            style: if criterion.completed {
+                ObjectiveLineStyle::Completed
+            } else {
+                ObjectiveLineStyle::InProgress
+            },
+        };
+        let name = format!("ScenarioCriteria{index}");
+        elements.extend(objective_line(&name, &line, y, scale, true));
+        if !criterion.completed {
+            elements.extend(atlas_texture(
+                format!("{name}Nub"),
+                &crate::quest_art::TRACKER_NUB,
+                scaled((BLOCK_OFFSET_X - 10.0, y - 2.0, 16.0, 16.0), scale),
+            ));
+        }
+        y += wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT) + LINE_SPACING;
+    }
+    *height = y;
+    elements
+}
+
+fn scenario_stage_labels(scenario: &ScenarioStage, top: f32, scale: f32) -> Element {
+    if scenario.completed {
+        let text = if scenario.kind == DUNGEON_DISPLAY {
+            "Dungeon Complete!"
+        } else {
+            "Completed!"
+        };
+        return stage_label(
+            "ScenarioObjectiveTrackerCompleteLabel",
+            text,
+            top + 30.0,
+            18.0,
+            scale,
+        );
+    }
+    if scenario.flags & SUPPRESS_STAGE_TEXT != 0 {
+        return stage_label(
+            "ScenarioObjectiveTrackerStage",
+            &scenario.title,
+            top + 18.0,
+            18.0,
+            scale,
+        );
+    }
+    let text = if scenario.stage == scenario.num_stages {
+        "Final Stage".into()
+    } else {
+        format!("Stage {}", scenario.stage)
+    };
+    let mut elements = stage_label(
+        "ScenarioObjectiveTrackerStage",
+        &text,
+        top + 18.0,
+        18.0,
+        scale,
+    );
+    elements.extend(stage_label(
+        "ScenarioObjectiveTrackerStageName",
+        &scenario.title,
+        top + 40.0,
+        14.0,
+        scale,
+    ));
+    elements
+}
+
+fn stage_label(name: &str, text: &str, top: f32, font_size: f32, scale: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(name.into())}, width: {210.0 * scale}, height: {36.0 * scale}, text,
+            font: GameFont::FrizQuadrata, font_size: {font_size * scale}, font_color: "1.0,0.914,0.682,1.0",
+            shadow_color: SHADOW, shadow_offset: "1,-1", justify_h: "LEFT", pos_type: "absolute",
+            left: {15.0 * scale}, top: {top * scale},
+        }
+    }
 }
 
 /// Retail's Scenario module precedes the Quest module; the approved container anchor is unchanged.

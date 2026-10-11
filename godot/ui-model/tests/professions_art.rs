@@ -28,6 +28,7 @@ fn view(rank: u16) -> ProfessionView {
                 skill_line: 2540,
                 profession: 197,
                 category: "Bandages".into(),
+                category_order: 0,
                 name: "Linen Bandage".into(),
                 min_rank: 1,
                 trivial_low: 30,
@@ -88,6 +89,61 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
         other => panic!("Expected label {name}, got {other:?}"),
     }
 }
+#[test]
+fn professions_authored_midnight_reagent_quality_overlay_in_both_skins() {
+    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    let dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let catalog = RecipeCatalog::load(&dir).unwrap();
+    let quality = catalog.crafting_quality.get(&244634).unwrap();
+    assert_eq!(quality.tier, 2);
+    assert_eq!(
+        quality.inventory_atlas,
+        "Professions-Icon-Quality-12-Tier2-Inv"
+    );
+    assert!(!catalog.crafting_quality.contains_key(&2318));
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = view(1);
+        view.items.insert(
+            244634,
+            ItemDisplay {
+                name: "Lightbloom Hide".into(),
+                icon_fdid: 7549201,
+                quality: 1,
+            },
+        );
+        view.crafting_quality = catalog.crafting_quality.clone();
+        view.reagents = vec![(244634, 4, 3)];
+        let registry = render(skin, view);
+        assert_eq!(
+            text(&registry, "ProfessionReagent0").0,
+            "4/3 Lightbloom Hide"
+        );
+        let overlay = frame(&registry, "ProfessionReagent0QualityOverlay");
+        assert_eq!(overlay.width, ui_toolkit::frame::Dimension::Fixed(33.0));
+        assert_eq!(overlay.height, ui_toolkit::frame::Dimension::Fixed(28.0));
+        assert!(
+            matches!(overlay.widget_data.as_ref(), Some(WidgetData::Texture(texture))
+            if matches!(texture.source, ui_toolkit::widgets::texture::TextureSource::FileDataId(_)))
+        );
+        let ordinary = render(skin, ordinary_reagent_view(&catalog));
+        assert!(
+            ordinary
+                .get_by_name("ProfessionReagent0QualityOverlay")
+                .is_none()
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+fn ordinary_reagent_view(
+    catalog: &game_engine_ui_model::professions_catalog::RecipeCatalog,
+) -> ProfessionView {
+    let mut view = view(1);
+    view.crafting_quality = catalog.crafting_quality.clone();
+    view
+}
+
 #[test]
 fn professions_art_thresholds_keep_neutral_recipe_labels_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

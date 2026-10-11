@@ -124,6 +124,7 @@ pub struct Account {
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
+    pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
     /// Saved instances of the last `InstanceInfo`.
@@ -339,6 +340,7 @@ impl Account {
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
             dungeon_objectives: Default::default(),
+            scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
@@ -394,6 +396,7 @@ impl Account {
         self.pending_layout_username = None;
         self.dungeon_difficulty = None;
         self.dungeon_objectives = Default::default();
+        self.scenario_objectives = Default::default();
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -1362,6 +1365,7 @@ impl Account {
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.set_link_connected(false);
@@ -1557,6 +1561,7 @@ impl Account {
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
+            || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
             || message.is::<DamageMeterSnapshot>()
@@ -1569,6 +1574,10 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::ScenarioProgress>() {
+            self.scenario_objectives.apply(decode(message)?);
+            return Ok(());
+        }
         if message.is::<shared::protocol::DungeonProgress>() {
             let progress: shared::protocol::DungeonProgress = decode(message)?;
             let name = if progress.encounters.is_empty() {
@@ -1839,6 +1848,7 @@ impl Account {
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
             self.dungeon_objectives.begin_map(new_world.map_id);
+            self.scenario_objectives.begin_map(new_world.map_id);
             self.session.begin_world_port(new_world.map_id);
             output.push(AccountEvent::NewWorld(new_world));
             output.push(AccountEvent::Screen(SessionScreen::Loading));
@@ -2016,6 +2026,7 @@ impl Account {
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
                     self.dungeon_objectives = Default::default();
+                    self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
                     self.achievement_requests.clear();
                     self.stop_bridge()?;

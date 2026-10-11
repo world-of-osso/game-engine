@@ -63,6 +63,7 @@ pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;
+pub mod professions_quality;
 pub mod raid_manager_component;
 pub mod raid_warning;
 pub mod spell_overrides;
@@ -227,6 +228,7 @@ pub mod mail_frame_component;
 pub mod achievements;
 pub mod death_flow;
 pub mod dungeon_progress;
+pub mod scenario_progress;
 pub mod trade;
 #[path = "ui/screens/trade_frame_component.rs"]
 pub mod trade_frame_component;

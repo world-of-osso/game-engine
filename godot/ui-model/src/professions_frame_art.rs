@@ -28,6 +28,13 @@ pub(super) fn atlas(name: &str, member: &str, rect: (f32, f32, f32, f32)) -> Ele
     draw_region(name, region, rect)
 }
 
+/// Retail SetAtlas(..., UseAtlasSize): preserve the authored overlay's dimensions.
+pub(super) fn atlas_at_size(name: &str, member: &str, position: (f32, f32)) -> Element {
+    let region = read_region(member).unwrap_or_else(|| panic!("Missing profession atlas {member}"));
+    let rect = (position.0, position.1, region.width, region.height);
+    draw_region(name, region, rect)
+}
+
 pub(super) fn tinted(name: &str, member: &str, rect: (f32, f32, f32, f32), color: &str) -> Element {
     let region = read_region(member).unwrap_or_else(|| panic!("Missing profession atlas {member}"));
     let AtlasSource::FileDataId(fdid) = region.source else {

@@ -5,6 +5,67 @@ use shared::protocol::{
     DungeonProgress, QueryAchievementCatalog,
 };
 
+#[test]
+fn scenarios_account_reduces_entry_completion_and_clears_before_transfer_snapshots() {
+    use shared::protocol::{ScenarioProgress, ScenarioStage};
+    let mut account = account();
+    let mut output = Vec::new();
+    let update = ScenarioProgress {
+        map_id: 90,
+        instance_id: 17,
+        difficulty_id: 1,
+        scenario: Some(ScenarioStage {
+            scenario_id: 649,
+            name: "Gnomeregan".into(),
+            kind: 3,
+            flags: 10,
+            step_id: 1176,
+            stage: 1,
+            num_stages: 1,
+            title: "Gnomeregan".into(),
+            description: "Defeat Mekgineer Thermaplugg.".into(),
+            completed: false,
+            criteria: vec![],
+        }),
+    };
+    account
+        .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut output)
+        .unwrap();
+    assert_eq!(account.scenario_objectives.block.as_ref().unwrap().stage, 1);
+    let mut completed = update.clone();
+    let stage = completed.scenario.as_mut().unwrap();
+    stage.stage = 2;
+    stage.step_id = 0;
+    stage.completed = true;
+    account
+        .dispatch_message(ProtocolMessage::for_tests(completed), &mut output)
+        .unwrap();
+    assert!(
+        account
+            .scenario_objectives
+            .block
+            .as_ref()
+            .unwrap()
+            .completed
+    );
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(NewWorld {
+                map_id: 0,
+                map_directory: "Azeroth".into(),
+                position: [0.; 3],
+                facing: 0.,
+            }),
+            &mut output,
+        )
+        .unwrap();
+    assert!(account.scenario_objectives.block.is_none());
+    account
+        .dispatch_message(ProtocolMessage::for_tests(update), &mut output)
+        .unwrap();
+    assert!(account.scenario_objectives.block.is_none());
+}
+
 fn account() -> Account {
     Account::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"))
 }
