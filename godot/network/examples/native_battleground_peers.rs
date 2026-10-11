@@ -1,4 +1,4 @@
-//! Eight lightweight real-UDP account peers alongside two native Godot clients.
+//! Nine lightweight real-UDP account peers alongside one native Godot client.
 //! No simulated match state, synthetic roster or server shortcuts.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage};
 use shared::protocol::*;
@@ -115,7 +115,7 @@ fn run() -> Result<(), String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos() as u64;
-    for index in [1, 2, 3, 4, 6, 7, 8, 9] {
+    for index in 1..=9 {
         let bridge = BridgeConfig::new()
             .receive::<LoginResponse>()
             .receive::<EnterWorldResponse>()
