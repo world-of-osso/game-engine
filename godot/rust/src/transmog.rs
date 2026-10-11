@@ -151,6 +151,13 @@ impl GameClient {
         let Some(mut ui) = self.transmog.ui.clone() else {
             return Ok(());
         };
+        let search = ui
+            .bind_mut()
+            .frame_text(game_engine_ui_model::transmog_frame::SEARCH.into())
+            .to_string();
+        if search != self.transmog.book.search {
+            self.transmog.book.set_search(search);
+        }
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
