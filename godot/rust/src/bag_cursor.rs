@@ -1,11 +1,11 @@
 //! Original cursor-item policy projected for standalone bag slots and stack splits.
 
-use game_engine_ui_model::bag_data::InventoryRequest;
+use game_engine_ui_model::bag_data::{InventoryRequest, container_item_request};
 use game_engine_ui_model::bag_frame_component::{parse_bag_close_action, parse_bag_slot_action};
 use game_engine_ui_model::character_frame::parse_equipment_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
-use game_engine_ui_model::item_catalog::item_catalog_entry_for;
+use game_engine_ui_model::item_catalog::require_item_catalog_entry;
 use game_engine_ui_model::merchant::{Click, SplitKey};
 use game_engine_ui_model::merchant_frame_component::{ACTION_FRAME, ACTION_ITEM_PREFIX};
 use game_engine_ui_model::stack_split::{StackSplitOwner, StackSplitState};
@@ -17,7 +17,7 @@ use game_engine_ui_model::trade_frame_component::ACTION_PLAYER_SLOT_PREFIX;
 use godot::classes::Control;
 use godot::global::Key;
 use godot::prelude::*;
-use shared::protocol::{EquipItem, ItemLocation, UseItem};
+use shared::protocol::ItemLocation;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
@@ -287,24 +287,12 @@ impl GameClient {
     /// equipped, any other item used (its on-use spell, server-side).
     fn send_bag_use_request(&self, location: ItemLocation) -> Result<(), FrameError> {
         let Some(item) = self.merchant.session.inventory.item_at(location) else {
-            godot_print!("TRANSMOG_SETUP_BAG_USE location={location:?} empty=true");
             return Ok(());
         };
-        let can_equip = item_catalog_entry_for(item.definition_source, item.item_id)
-            .is_some_and(|entry| entry.inventory_type != 0);
-        godot_print!(
-            "TRANSMOG_SETUP_BAG_USE location={location:?} guid={} item={} can_equip={can_equip}",
-            item.item_guid,
-            item.item_id
-        );
-        let request = if can_equip {
-            InventoryRequest::Equip(EquipItem { from: location })
-        } else {
-            InventoryRequest::Use(UseItem {
-                location,
-                target: None,
-            })
-        };
+        let request = container_item_request(
+            location,
+            require_item_catalog_entry(item.definition_source, item.item_id),
+        )?;
         self.account.send_inventory_request(&request)?;
         Ok(())
     }
