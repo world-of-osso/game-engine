@@ -38,7 +38,9 @@ Local files: metadata 78,728 bytes, payload 10,177,648 bytes. The explicit chunk
 
 The old AppToOBJ algorithm scanned for sentinel patterns and guessed the index table from nearby bytes. Its inferred table began too early and produced out-of-file offsets. The schema instead resolves the actual index descriptor table at metadata byte 59,944. No converter code was copied.
 
-The appearance contains multiple subobjects and potential customization/visibility alternatives. Summing all stored geometry is not a defensible polygon count for one rendered Druid. The parser returns separate records identified by chunk, LOD, subobject, segment, raw flags and hash. The CLI contract requires these rows without an aggregate character total; its final proof remains pending. Flags and hashes are retained raw, not interpreted as active-look selectors.
+The appearance contains multiple subobjects and look/visibility alternatives. Resolved look hashes include `Human`, `Holodeck_Human`, `Holodeck_Wolf`, `Holodeck_Bear` and `Holodeck_HumanDeathMesh`. Resolved materials identify shapeshift and death geometry: LOD0/subobject0's 16,368 triangles use `Human_DeathMesh_mat`, not an established normal playable-body mesh. Hashes match the lowercased names' multiply-by-33 hash values. Local name dictionaries were inspected from the D4Analyzer release archive, not executed or redistributed.
+
+A single normal character's included segments remain unverified: the available references do not establish runtime flag/slot selection or the assembled body/head/armor asset set. No subset may be presented as a complete playable character merely because its buffers validate. Summing all stored geometry is not a defensible polygon count for one rendered Druid. The parser returns separate records identified by chunk, LOD, subobject, segment, raw flags and hash. The CLI contract requires these rows without an aggregate character total; its final proof remains pending. Flags and hashes are retained raw, not interpreted as active-look selectors.
 
 ## Proof scope
 
@@ -54,6 +56,7 @@ The appearance contains multiple subobjects and potential customization/visibili
 - [d4data parser](https://github.com/DiabloTools/d4data/blob/33e0bfbb5f717d3e560d14a7fb27d5a7f17fd2c0/parse.js) — SNO array serialization.
 - [License attribution](../../../tools/licenses/d4data.txt) — adapted field offsets/record sizes; includes the complete MIT notice, copyright © 2023 blizzhackers, matching the locally saved `LICENSE`. The pinned revision is recorded provenance, not independently re-fetched by this audit.
 - [Counter implementation](../../../tools/src/bin/d4_triangle_count/appearance.rs).
+- [D4Analyzer releases](https://github.com/DiabloTools/Diablo4Tools-Releases/releases) — June19,2026 archive's `data/names/LookNames.txt` and `MaterialNames.txt`, matched against local metadata hashes; naming evidence only, not visibility semantics.
 
 ## See Also
 
