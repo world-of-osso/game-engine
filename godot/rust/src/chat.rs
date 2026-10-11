@@ -44,6 +44,7 @@ pub(crate) enum ChatRequest {
     Group(GroupCommand),
     /// `/trade`: `InitiateTrade("target")` (SlashCommands.lua:911-913).
     TradeTarget,
+    RaidInfo,
 }
 
 /// Chat log, whisper partners and frame state. The log outlives the world, as the
@@ -153,6 +154,9 @@ impl ChatModel {
     pub fn submit(&mut self, line: &str) -> Option<ChatRequest> {
         self.close();
         self.state.remember_sent(line);
+        if line.trim().eq_ignore_ascii_case("/raidinfo") {
+            return Some(ChatRequest::RaidInfo);
+        }
         if is_trade_command(line) {
             return Some(ChatRequest::TradeTarget);
         }
@@ -539,6 +543,7 @@ impl crate::GameClient {
             ChatRequest::Emote(emote) => self.send_emote(emote),
             ChatRequest::Group(command) => self.account.send_group(command),
             ChatRequest::TradeTarget => return self.trade_with_target(),
+            ChatRequest::RaidInfo => return self.open_raid_info().map_err(|e| e.to_string()),
         }
         .map_err(|error| error.0)
     }
