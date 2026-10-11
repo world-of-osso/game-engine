@@ -5,6 +5,8 @@
 pub mod automation_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
+#[cfg(test)]
+mod group_loot_wire_tests;
 #[path = "input_bindings_bevy_data.rs"]
 pub mod input_bindings_bevy_data;
 #[path = "../../core/src/input_bindings_data.rs"]
@@ -736,14 +738,17 @@ fn install_group_relay(app: &mut App, events: Sender<Event>) {
 
 /// A single relay preserves order across message types sharing `LootChannel`.
 fn install_loot_relay(app: &mut App, events: Sender<Event>) {
-    use protocol::{CorpseLootable, LootClosed, LootFailed, LootResponse, LootSlotRemoved};
+    use protocol::{
+        CorpseLootable, GroupLootRoll, LootClosed, LootFailed, LootResponse, LootSlotRemoved,
+    };
     app.add_systems(
         Update,
         (move |mut lootable: Query<&mut MessageReceiver<CorpseLootable>>,
                mut opened: Query<&mut MessageReceiver<LootResponse>>,
                mut removed: Query<&mut MessageReceiver<LootSlotRemoved>>,
                mut closed: Query<&mut MessageReceiver<LootClosed>>,
-               mut failed: Query<&mut MessageReceiver<LootFailed>>| {
+               mut failed: Query<&mut MessageReceiver<LootFailed>>,
+               mut group_rolls: Query<&mut MessageReceiver<GroupLootRoll>>| {
             let mut received = Vec::new();
             macro_rules! drain {
                 ($receivers:ident) => {
@@ -759,6 +764,7 @@ fn install_loot_relay(app: &mut App, events: Sender<Event>) {
             drain!(removed);
             drain!(closed);
             drain!(failed);
+            drain!(group_rolls);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

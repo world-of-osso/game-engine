@@ -1161,6 +1161,25 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_group_loot(
+        &mut self,
+        state: game_engine_ui_model::group_loot_component::GroupLootUiState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::group_loot_component::group_loot_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
     /// The spellbook in its `PlayerSpellsFrame` portrait `metal_frame` window.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
