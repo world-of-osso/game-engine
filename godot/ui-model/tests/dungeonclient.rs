@@ -203,6 +203,24 @@ fn achievements_art_rows_scroll_and_cursor_append_preserves_expansion_both_skins
     }
 }
 
+#[test]
+fn achievements_art_postsetup_paints_only_rendered_category_highlights() {
+    assets(ActiveSkin::Modern);
+    let mut window = AchievementWindow::default();
+    window.visible = true;
+    window.statistics = true;
+    window.selected_category = Some(14822);
+    let mut outside_statistics_tree = category();
+    outside_statistics_tree.category_id = 14822;
+    window.categories.insert(14822, outside_statistics_tree);
+    let mut registry = achievement_registry(&window, ActiveSkin::Modern);
+    game_engine_ui_model::achievements::apply_achievement_postsetup(&window, &mut registry);
+    assert_eq!(
+        text(&registry, "AchievementEmpty"),
+        "Loading achievements..."
+    );
+}
+
 fn assets(skin: ActiveSkin) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
