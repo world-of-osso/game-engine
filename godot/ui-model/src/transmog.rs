@@ -5,7 +5,8 @@ use shared::protocol::{
 };
 use std::collections::BTreeMap;
 
-pub const SOURCES_PER_PAGE: usize = 12;
+/// Blizzard_Wardrobe.lua:566–568: three rows of six DressUpModel cells.
+pub const SOURCES_PER_PAGE: usize = 18;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct TransmogBook {
@@ -48,6 +49,7 @@ impl TransmogBook {
         }
         self.applying = false;
         self.state = Some(state);
+        self.page = self.page.min(self.pages() - 1);
     }
 
     pub fn selected_slot(&self) -> Option<&TransmogSlot> {

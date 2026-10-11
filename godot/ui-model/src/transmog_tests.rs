@@ -27,6 +27,30 @@ fn state() -> TransmogState {
 }
 
 #[test]
+fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_changes() {
+    let mut collection = state();
+    let source = collection.slots[0].sources[0].clone();
+    collection.slots[0].sources = (0..37)
+        .map(|index| TransmogSource {
+            source_id: 821 + index,
+            name: format!("Gladius {index}"),
+            ..source.clone()
+        })
+        .collect();
+    let mut book = TransmogBook::default();
+    book.receive(collection);
+    assert_eq!(book.pages(), 3);
+    assert_eq!(book.page_sources().len(), 18);
+    book.page = 1;
+    assert_eq!(book.page_sources()[0].source_id, 839);
+    book.page = 2;
+    assert_eq!(book.page_sources().len(), 1);
+    book.receive(state());
+    assert_eq!(book.page, 0);
+    assert_eq!(book.page_sources()[0].source_id, 821);
+}
+
+#[test]
 fn transmog_pending_choice_does_not_change_applied_state_and_apply_quotes_exact_cost() {
     let mut book = TransmogBook::default();
     book.receive(state());

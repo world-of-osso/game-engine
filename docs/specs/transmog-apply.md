@@ -10,12 +10,15 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 - [x] Show original appearance restoration and hide choices only for server-authorized slots.
 - [x] Preserve pending-state safety across item replacement, interaction closure and character/session changes.
 - [x] Native self and observer displays update after successful application and remain after relog, in both skins.
+- [ ] Collection uses paged 3D appearance models (3 rows × 6 columns), collected/applied/pending art, and icon slot buttons in two fixed columns around the character preview.
+- [ ] Outfits dropdown/Save belong above the preview; authoritative cost/Apply belong below it. Outfits remain disabled with an explicit gap when not server-backed.
+- [ ] Preview shows the equipped and pending main-hand weapon, independently of world equipment.
 - [ ] Saved outfits follow the working core apply path; illusion UI requires authentic local illusion data.
 
 ## How it works
 
 - [Transmog system](../wiki/systems/transmog-apply.md)
-- Local Retail `Blizzard_Transmog.xml` defines the three-region frame (outfit312, character658, wardrobe644; total1618×883). `Blizzard_Transmog.lua` owns pending-cost/apply semantics.
+- User-requested Wardrobe service arrangement: two slot columns around the model, top outfits, bottom cost/Apply and right-hand paged collection. Current cached Retail no longer contains `WardrobeFrame`/`WardrobeTransmogFrame`; `Blizzard_Wardrobe.xml:5–98` and `.lua:566–568` still define the authentic 78×104 DressUpModel collection cells, border states and 18-cell pages. Exact historical Wardrobe frame anchors are not present in that cache. `Blizzard_Transmog.lua` owns pending-cost/apply semantics.
 
 ## Implementation inventory
 
