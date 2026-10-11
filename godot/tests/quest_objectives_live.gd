@@ -62,10 +62,13 @@ func units_named(name: String) -> Array:
 	var units := client.get_node_or_null("WorldUnits")
 	if units == null:
 		return []
-	return units.get_children().filter(func(unit):
+	var matches: Array = units.get_children().filter(func(unit):
 		var named: bool = unit.get_meta("unit_name", unit.get_meta("game_object_name", "")) == name
 		var matching_entry: bool = desired_object_entry == 0 or unit.get_meta("game_object_entry", 0) == desired_object_entry
 		return named and matching_entry)
+	var here := player_position()
+	matches.sort_custom(func(a, b): return a.global_position.distance_squared_to(here) < b.global_position.distance_squared_to(here))
+	return matches
 
 func teleport(at: Array) -> bool:
 	if not admin(["teleport", character_name(), str(current_map), str(at[0]), str(at[1]), str(at[2])]):
