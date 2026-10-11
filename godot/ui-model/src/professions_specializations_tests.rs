@@ -3,8 +3,13 @@ fn draft() -> SpecializationDraft {
     SpecializationDraft {
         snapshot: Some(ProfessionSpecializationsSnapshot {
             skill_line: 2830,
-            knowledge_currency_id: 9,
+            knowledge_currency_id: 2025,
             knowledge_available: 2,
+            currencies: vec![ProfessionSpecCurrencySnapshot {
+                trait_currency_id: 9,
+                currency_id: 2025,
+                available: 2,
+            }],
             trees: vec![ProfessionSpecTreeSnapshot {
                 tree_id: 350,
                 name: "Leatherworking Discipline".into(),
@@ -24,6 +29,7 @@ fn draft() -> SpecializationDraft {
                     pos_y: 500,
                     kind: 0,
                     available: true,
+                    unavailable_reason: None,
                     costs: vec![ProfessionSpecCost {
                         trait_currency_id: 9,
                         amount: 1,
@@ -31,6 +37,7 @@ fn draft() -> SpecializationDraft {
                     path: None,
                     perk: None,
                 }],
+                edges: vec![],
             }],
         }),
         selected_tree: Some(350),

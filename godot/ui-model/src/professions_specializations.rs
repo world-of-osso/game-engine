@@ -31,11 +31,11 @@ impl SpecializationDraft {
             .get(&(tree, node.node_id))
             .map_or(node.rank, |p| p.ranks)
     }
-    pub fn remaining_knowledge(&self) -> u32 {
+    fn spent_currency(&self, trait_currency_id: u32) -> u32 {
         let Some(snapshot) = &self.snapshot else {
             return 0;
         };
-        let spent = snapshot
+        snapshot
             .trees
             .iter()
             .flat_map(|tree| tree.nodes.iter().map(move |n| (tree.tree_id, n)))
@@ -44,11 +44,22 @@ impl SpecializationDraft {
                 let cost: u32 = node
                     .costs
                     .iter()
-                    .filter(|c| c.trait_currency_id == snapshot.knowledge_currency_id)
+                    .filter(|c| c.trait_currency_id == trait_currency_id)
                     .map(|c| c.amount)
                     .sum();
                 ranks.saturating_mul(cost)
             })
+            .fold(0u32, u32::saturating_add)
+    }
+    pub fn remaining_knowledge(&self) -> u32 {
+        let Some(snapshot) = &self.snapshot else {
+            return 0;
+        };
+        let spent = snapshot
+            .currencies
+            .iter()
+            .filter(|c| c.currency_id == snapshot.knowledge_currency_id)
+            .map(|c| self.spent_currency(c.trait_currency_id))
             .fold(0u32, u32::saturating_add);
         snapshot.knowledge_available.saturating_sub(spent)
     }
@@ -66,13 +77,18 @@ impl SpecializationDraft {
         {
             return false;
         }
-        let cost: u32 = node
-            .costs
-            .iter()
-            .filter(|c| c.trait_currency_id == snapshot.knowledge_currency_id)
-            .map(|c| c.amount)
-            .sum();
-        self.remaining_knowledge() >= cost
+        node.costs.iter().all(|cost| {
+            snapshot
+                .currencies
+                .iter()
+                .find(|c| c.trait_currency_id == cost.trait_currency_id)
+                .is_some_and(|currency| {
+                    currency
+                        .available
+                        .saturating_sub(self.spent_currency(cost.trait_currency_id))
+                        >= cost.amount
+                })
+        })
     }
     pub fn stage_rank(&mut self) -> bool {
         if !self.can_stage() {
@@ -195,7 +211,7 @@ impl SpecializationDraft {
         }
         if !node.available {
             lines.push(TooltipLineState::colored(
-                "Locked".into(),
+                node.unavailable_reason.as_deref().unwrap_or("Locked"),
                 [1.0, 0.1, 0.1, 1.0],
             ));
         }

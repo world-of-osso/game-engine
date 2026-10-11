@@ -12,6 +12,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 mod art;
 #[path = "professions_frame_slots.rs"]
 mod slots;
+#[path = "professions_frame_specializations.rs"]
+mod specializations;
 #[path = "professions_frame_tree.rs"]
 mod tree;
 
@@ -39,6 +41,7 @@ pub enum ProfessionPage {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ProfessionView {
     pub page: ProfessionPage,
+    pub specializations: crate::professions_specializations::SpecializationDraft,
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
     pub child_skills: BTreeSet<u32>,
@@ -65,9 +68,14 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
     } else {
         &view.profession_name
     };
+    let width = if view.page == ProfessionPage::Specializations {
+        1144.0
+    } else {
+        WIDTH
+    };
     let mut children = window_chrome(
         "ProfessionsFrame",
-        (WIDTH, HEIGHT),
+        (width, HEIGHT),
         title,
         "profession:close",
     );
@@ -75,13 +83,17 @@ pub fn professions_screen(ctx: &SharedContext) -> Element {
         &window_portrait_slot("ProfessionsPortrait"),
         view.profession_icon,
     ));
-    children.extend(skill_bar(view));
+    if view.page != ProfessionPage::Specializations {
+        children.extend(skill_bar(view));
+    } else {
+        children.extend(specializations::page(view));
+    }
     if view.page == ProfessionPage::Recipes {
         children.extend(tree::recipe_list(ctx, view));
         children.extend(slots::schematic(view));
     }
     children.extend(page_tabs(view.page));
-    rsx! { r#frame { name: "ProfessionsFrame", width: WIDTH, height: HEIGHT,
+    rsx! { r#frame { name: "ProfessionsFrame", width, height: HEIGHT,
         left: 24.0, top: 94.0, pos_type: "absolute", mouse_enabled: true,
         strata: FrameStrata::Dialog, {children}
     } }
