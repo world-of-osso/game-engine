@@ -1,3 +1,7 @@
+## 2026-10-11 — Native Achievement UI continuation
+
+[Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11): full authoritative Summary/scopes, own-state links, persisted tracking, raw Statistics and correlated full-catalog search. Real hidden39958 and Unicode failures reproduced/fixed; authored alert/sheet/point-shield and progress caption corrections. Filtered client19/server13 cases across scoped runs, checks/builds/formats, inspected current Modern/Forever private PNGs. Comparison and unevaluated server quantities remain explicit; no world.db writes, shared realm changes or master merge.
+
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
 [Investigation](investigations/portrait-black.md): missing starter-cloth and Imp receipts strand models before camera framing.49 authenticated local-CASC receipts published; Human/Orc Modern+Imp pixel regressions and Human paladin control pass; all10 PNGs inspected. Forever has no HUD portrait slots; both-skin player/Imp world captures retained without claiming unavailable portrait coverage. Publisher tests8/8; no world.db writes, fallback, fabricated assets or master merge.
