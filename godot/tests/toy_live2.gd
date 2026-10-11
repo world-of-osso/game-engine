@@ -119,7 +119,7 @@ func select_mortar_target() -> bool:
 	var source_id := 0
 	for node in client.find_children("*", "Node3D", true, false):
 		if str(node.get_meta("unit_name", "")) != "Blackrock Invader" or node.get_node_or_null("NpcVisualRoot") == null: continue
-		var distance := node.position.distance_to(spawn)
+		var distance: float = node.position.distance_to(spawn)
 		if distance >= closest_distance: continue
 		for area in node.find_children("*", "Area3D", true, false):
 			if area.has_meta("unit_server_id"):
