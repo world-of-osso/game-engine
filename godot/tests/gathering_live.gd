@@ -116,6 +116,7 @@ func prove_skinning() -> void:
 	var wolf := wolf_node()
 	await checkpoint("wolf-position", wolf)
 	await click_world(wolf)
+	await capture("wolf-click")
 	if not await wait_until(func(): return client.target_state().target_name == "Mangy Wolf", "wolf selected", 5000): return
 	await capture("wolf-fight")
 	await checkpoint("kill-started", wolf)
@@ -212,7 +213,8 @@ func capture(label: String) -> void:
 	if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
 	receipts.append({"skin": skin, "scenario": scenario, "label": label, "png": path,
 		"account": client.account_state(), "spells": client.spells_state(), "target": client.target_state(),
-		"minimap": client.minimap_state(), "bags": client.merchant_state().bags, "skill_text": skill_text})
+		"minimap": client.minimap_state(), "bags": client.merchant_state().bags, "skill_text": skill_text,
+		"gui_hover": str(root.gui_get_hovered_control().get_path()) if root.gui_get_hovered_control() != null else ""})
 	write_receipts()
 
 func write_receipts() -> void:
