@@ -4,10 +4,10 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 
 ## What it must do
 
-- [ ] Creature displays, customization and character textures read Retail inputs only from `data/db2/12.1.0.69933/`; missing inputs fail even when root CSVs or caches remain.
-- [ ] Source receipts include build-relative paths. Changing from root inputs invalidates old caches; customization receipts also include race/model dependencies.
-- [ ] Forever inputs remain product-local, with existing Retail collision precedence and Skyborne overlay behavior.
-- [ ] Runtime customization race/requirement readers and creation backgrounds use pinned Retail inputs.
+- [x] Creature displays, customization and character textures read Retail inputs only from `data/db2/12.1.0.69933/`; missing inputs fail even when root CSVs or caches remain.
+- [x] Source receipts include build-relative paths. Changing from root inputs invalidates old caches; customization receipts also include race/model dependencies.
+- [x] Forever inputs remain product-local, with existing Retail collision precedence and Skyborne overlay behavior.
+- [x] Runtime customization race/requirement readers, creation backgrounds and owned Retail equipment/resource catalogs use pinned Retail inputs.
 - [ ] Import tools accept an optional data-root argument for isolated regeneration without changing canonical caches.
 
 ## How it works
@@ -22,6 +22,7 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 - `godot/core/src/npc_appearance_assets.rs` — product-selected runtime catalogs.
 - `godot/core/src/scenes/char_create/background_data.rs` — pinned creation background catalog.
 - `godot/core/src/game/outfit_catalog_db.rs` — temporary outfit source workaround.
+- `godot/core/src/game/equipment/outfit_catalog.rs` — pinned owned Retail gear sources, independent of starter outfits.
 - `scripts/export_db2_csv.py` — exact-layout local DB2 exports.
 - `tools/src/bin/*_cache_import.rs` — optional diagnostic data-root argument.
 
@@ -31,6 +32,7 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 - `godot/core/tests/unit/customization_catalog_cache_tests.rs`
 - Existing cache-module and creation-background fixture tests.
 - `scripts/tests/test_cache_import_exports.py`
+- `godot/core/src/outfit_data_tests.rs` — owned-product material/model fixture with divergent root inputs.
 
 ## Known gaps (current cycle)
 

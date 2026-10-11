@@ -193,7 +193,8 @@ mod baked_display {
             } else {
                 forever.join(name)
             };
-            std::fs::copy(source, root.join(name)).unwrap();
+            std::fs::copy(source, components.join(name)).unwrap();
+            std::fs::write(root.join(name), "ID\n999\n").unwrap();
         }
         for name in [
             "ComponentModelFileData.csv",
@@ -208,12 +209,12 @@ mod baked_display {
         helmet[176..180].copy_from_slice(&4u32.to_le_bytes());
         std::fs::write(root.join("db2/HelmetGeosetData.db2"), helmet).unwrap();
         std::fs::write(
-            root.join("TextureFileData.csv"),
+            components.join("TextureFileData.csv"),
             "FileDataID,UsageType,MaterialResourcesID\n4000,0,200\n4001,0,201\n",
         )
         .unwrap();
         std::fs::write(
-            root.join("ItemDisplayInfoModelMatRes.csv"),
+            components.join("ItemDisplayInfoModelMatRes.csv"),
             "ItemDisplayInfoID,ModelIndex,TextureType,MaterialResourcesID\n10,0,2,200\n10,0,3,201\n10,1,2,201\n",
         )
         .unwrap();
