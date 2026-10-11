@@ -126,6 +126,14 @@ impl GameClient {
 }
 #[godot_api(secondary)]
 impl GameClient {
+    /// Native live fixture selects the ordinary Mythic preference before entering the dungeon.
+    #[func]
+    fn choose_mythic_difficulty(&self) -> GString {
+        match self.account.send_set_dungeon_difficulty(23) {
+            Ok(()) => "".into(),
+            Err(error) => GString::from(&error.to_string()),
+        }
+    }
     #[func]
     fn challenge_state(&self) -> GString {
         GString::from(
