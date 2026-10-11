@@ -79,6 +79,7 @@ mod process_memory_status;
 mod professions;
 mod profile;
 mod quests;
+mod raid_info;
 mod raid_targets;
 mod replicated;
 mod scene;
@@ -321,6 +322,7 @@ pub struct GameClient {
     guild_ranks: guild_ranks::GuildRanks,
     guild_charters: guild_charters::GuildCharters,
     achievements: achievements::Achievements,
+    raid_info: raid_info::RaidInfo,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -460,6 +462,7 @@ impl INode3D for GameClient {
             guild_ranks: guild_ranks::GuildRanks::default(),
             guild_charters: guild_charters::GuildCharters::default(),
             achievements: achievements::Achievements::default(),
+            raid_info: raid_info::RaidInfo::new(&data_root),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -896,6 +899,11 @@ impl GameClient {
                 .count() as i64,
         );
         state.set("world_attached", self.world.root().is_some());
+        state.set("world_map_id", self.world_map_id.map_or(-1, i64::from));
+        state.set(
+            "pending_world_port",
+            format!("{:?}", session.pending_world_port()).as_str(),
+        );
         state.set(
             "zone_id",
             &self
@@ -1411,6 +1419,7 @@ impl GameClient {
         self.trainer.visit_uis(&mut visit)?;
         self.transmog.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
+        self.raid_info.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1976,6 +1985,7 @@ impl GameClient {
             ("Guild ranks", |c, _| c.update_guild_ranks()),
             ("Guild charters", |c, _| c.update_guild_charters()),
             ("Achievements", |c, d| c.update_achievements(d)),
+            ("RaidInfo", |c, d| c.update_raid_info(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -2301,6 +2311,7 @@ impl GameClient {
     }
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
+        account::validate_terrain_refresh(self.terrain.state().map.as_deref(), &request.map_name)?;
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
             let _span = profile::span(|| "terrain.map_id".to_owned());
@@ -2645,6 +2656,7 @@ impl GameClient {
         self.logout.clear();
         self.loot.reset();
         self.achievements.reset();
+        self.raid_info.reset();
         self.game_objects.reset();
         self.mailbox.reset();
         self.trade.reset();
