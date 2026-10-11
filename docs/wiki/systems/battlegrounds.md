@@ -23,8 +23,17 @@ Modern additionally proves automatic results after closing the live scoreboard a
 
 Evidence: `data/diagnostics/battleground-lifecycle-2026-10-11/` contains `*-final-*-pvp.json`, per-peer end/return snapshots, pointer ledger and targeted RED/GREEN logs. Six game-object tests and two both-skin UI tests pass; extension builds have no compile warnings. Sixteen personally inspected 1280×720 PNGs reside in `/syncthing/AgentShared/2026-10-11/battleground-lifecycle/`. Numeric timer/reward policy and exact PvP-specific texture parity remain explicit contract gaps; this is not full Retail parity certification. Scoped helper cargo check (Godot extension and CLI) and changed-Rust formatting checks pass at `e90c59497`. Lead owns integration review; full suites run periodically on master, not per-agent branches. No master merge or canonical DB write was performed.
 
+## PvP progression integration — verified 2026-10-11
+
+The same PvP view owns Quick Match/Rated/Premade categories and authoritative Honor/Conquest wallet text. Unknown season cap/rating are optional fields, not zero/default policy. ClassTalentsFrame contains the separate Mainline three-slot talent tray and War Mode control. Runtime source catalogs are mandatory; the [server progression contract](../../../../game-server/docs/specs/pvp-progression.md#lead-import-checklist) owns import instructions and remaining numeric gaps.
+
+Live fresh-login discovery: unlike test fixtures, authenticated player spawn lacked CombatStatus. Required eligibility queries silently skipped the player, leaving both talent and War Mode snapshots absent. The actual character-selection regression fails before inserting the explicit noncombat component and passes afterward. Instance transfer regression applies a real Enlisted aura then moves to489/instance7 with no terrain; checking map identity before terrain removes the aura without erasing desired mode. Talent grants follow actual aura119 rather than the cached Enlisted snapshot.
+
+Both-skin private5790 pointer/relog proof and remaining honor-level/XP/tooltip/drag boundaries are recorded once in the [client progression contract](../../specs/pvp-progression.md#bounded-acceptance--2026-10-11).
+
 ## Sources
 
+- [PvP progression contract](../../specs/pvp-progression.md) — wallet, source talents, War Mode proof and unresolved lifetime honor policy.
 - [Client contract](../../specs/battleground-lifecycle.md) — source XML/Lua paths, panel geometry, policy gaps.
 - [Server contract](../../../../game-server/docs/specs/battleground-lifecycle.md) — source identity, content, objectives and transfer authority.
 - [UI model](../../../godot/ui-model/src/battleground.rs) — authoritative view, actions, filters and results.

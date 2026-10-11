@@ -100,6 +100,38 @@ TABLES = {
          ("ConditionValue1", 4), ("ConditionValue2", 5), ("ConditionValue3", 6),
          ("AssistedCombatStepID", "parent")],
     ),
+    # Retail 12.1.0.69933 local CASC; field semantics from local TrinityCore
+    # DB2Structure.h (diagnostics/scrap-2026-10-10). No seasonal cap guessed.
+    "CurrencyTypes": (
+        0xFA3226AB,
+        [("ID", "id"), ("Name_lang", ("string", 0)),
+         ("Description_lang", ("string", 1)), ("InventoryIconFileID", 3),
+         ("MaxQty", 6), ("MaxEarnablePerWeek", 7),
+         ("AwardConditionID", 12), ("MaxQtyWorldStateID", 13),
+         ("Flags_0", ("int", 21, 0)), ("Flags_1", ("int", 21, 1))],
+    ),
+    "PvpTalent": (
+        0xBE69BB5A,
+        [("ID", "id"), ("Description_lang", ("string", 0)),
+         ("SpecID", 2), ("SpellID", 3), ("OverridesSpellID", 4),
+         ("Flags", 5), ("ActionBarSpellID", 6), ("PvpTalentCategoryID", 7),
+         ("LevelRequired", 8), ("PlayerConditionID", 9)],
+    ),
+    "PvpTalentCategory": (
+        0xECB2C5C2, [("ID", "id"), ("TalentSlotMask", ("u8", 0))],
+    ),
+    "PvpTalentSlotUnlock": (
+        0x9685CBCC,
+        [("ID", "id"), ("Slot", ("u8", 0)), ("LevelRequired", ("u8", 1)),
+         ("DeathKnightLevelRequired", ("u8", 2)),
+         ("DemonHunterLevelRequired", ("u8", 3))],
+    ),
+    "PrestigeLevelInfo": (
+        0x6582638F,
+        [("ID", "id"), ("Name_lang", ("string", 0)), ("PrestigeLevel", 1),
+         ("BadgeTextureFileDataID", 2), ("Flags", ("u8", 3)),
+         ("AwardedAchievementID", 4)],
+    ),
     # Local Retail build dcfc90fffd79ba00406ae46f5f657592 (12.1.0.69933).
     # Exact field orders from wowdev/WoWDBDefs at these layout hashes.
     "CraftingQuality": (
@@ -1063,6 +1095,7 @@ NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 1
 
 # Tables whose inline ID is not their first field.
 INLINE_ID_FIELD = {
+    "PvpTalent": 1,
     "SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2, "ModelFileData": 1,
     "ChrCustomizationOption": 1, "ChrCustomizationChoice": 1,
 }
