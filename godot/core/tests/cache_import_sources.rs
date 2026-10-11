@@ -78,6 +78,59 @@ fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
 }
 
 #[test]
+fn texture_import_ignores_root_rows_and_invalidates_root_source_receipts() {
+    let fixture = Fixture::new();
+    for (name, header, row) in [
+        (
+            "ChrModelTextureLayer.csv",
+            "TextureType,Layer,BlendMode,TextureSectionTypeBitMask,ChrModelTextureTargetID_0,CharComponentTextureLayoutsID\n",
+            "1,0,0,1,6,103\n",
+        ),
+        (
+            "CharComponentTextureSections.csv",
+            "CharComponentTextureLayoutID,SectionType,X,Y,Width,Height\n",
+            "103,2,16,32,128,256\n",
+        ),
+        (
+            "CharComponentTextureLayouts.csv",
+            "ID,Width,Height\n",
+            "103,2048,1024\n",
+        ),
+        (
+            "ChrModelMaterial.csv",
+            "CharComponentTextureLayoutsID,TextureType,Width,Height\n",
+            "103,1,2048,1024\n",
+        ),
+    ] {
+        fixture.write(name, header, &format!("{header}{row}"));
+    }
+    let path = char_texture_cache::import_char_texture_cache(&fixture.0).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    let size: (u32, u32) = conn
+        .query_row(
+            "SELECT width, height FROM layouts WHERE id = 103",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(size, (2048, 1024));
+    conn.execute(
+        "UPDATE source_files SET source = replace(source, 'db2/12.1.0.69933/', '')",
+        [],
+    )
+    .unwrap();
+    conn.execute("DELETE FROM layouts", []).unwrap();
+    drop(conn);
+    char_texture_cache::import_char_texture_cache(&fixture.0).unwrap();
+    let conn = Connection::open(&path).unwrap();
+    assert_eq!(
+        conn.query_row("SELECT count(*) FROM layouts", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
 fn importers_reject_root_only_csvs_without_creating_caches() {
     let fixture = Fixture::new();
     for name in [
