@@ -166,6 +166,47 @@ Three preserved legacy M2 conflicts (`119369`, `119376`, `1000764`) have no clos
 
 Final manifest `manifest-3.json` SHA-256 **`8349cd5eb377bcf911269ef6d1a22aabc38a25c9e7b52ed5a2a7f292fa4448ac`**. World-selection fingerprint remains `fa0ad2f2a1282570da12f8e54c948bdb9c5265ed4b156607dee937247c1cf0e5`; two explicit CSV inputs replace their previous paths. Shared `cache/npc_appearance.sqlite` changed concurrently; exact hashes in `source-drift.json`. No immutable/pristine dataset, master merge, world.db write, download, runtime/P3/P4 or no-install certificate.
 
+## No-install receipt recovery — verified 2026-10-10
+
+[Legacy authentication contract](../../specs/offline-asset-closure.md#recorded-legacy-byte-authentication)
+owns the publication rules. Reproduce the recorded inventory with:
+
+```text
+python3 scripts/verify_legacy_product_assets.py --misses data/diagnostics/noinstall-2026-10-10/misses.json --install "/syncthing/World of Warcraft" --data data --output data/diagnostics/noinstall-receipts-2026-10-10/legacy-authentication
+```
+
+473 legacy candidates match authenticated requested-product roots; the same3
+M2 conflicts above remain rejected and untouched. All476 original runtime
+receipt identities have matching authenticated scoped files, including the14
+Forever70338 textures already recovered in round4. No new extraction was needed.
+This is not whole-catalog provenance. `8203433.blp` is absent from the **Retail**
+root; its Forever-root presence does not authorize substitution.
+
+The tracked creature-display importer rebuilt the cache from pinned
+`data/db2/12.1.0.69933/{CreatureDisplayInfo,CreatureModelData}.csv` using private
+input staging, preserving the older root CSVs. Backup beside the cache:
+`creature_display.sqlite.pre-noinstall-receipts-20261010`. Rows145204/145205 now
+resolve to Retail models968705/986648.
+
+Evidence: `data/diagnostics/noinstall-receipts-2026-10-10/`. Authentication tests
+RED5/GREEN7; full Python289run/286pass/3skip,exit0 at7eeda7277. Native extension/CLI
+rebuilt at655e6cea1d after merging origin/master for protocol compatibility.
+Private read-only prebuilt server, UDP54212, own `fb_noinstall_receipts` account;
+extracted-only bubblewrap hides the configured install/CASC paths. Character
+select authentication,62 representative race/body selections and both-skin
+Northshire/Skyborne/mount scenarios completed. Glue screens stay Modern by
+contract; no alternate skin forced. All139 original PNGs were inspected in
+labeled sheets; missing/incomplete models remain visible, not rendering PASS.
+
+**Certification still fails.** The480 earlier broad-sweep identities become170
+emitted identities in this narrower2-zone recheck:130 newly exposed receipt
+misses (126 legacy candidates present),39 qualified skin-companion/alias misses
+(all39 legacy candidates present), and Retail8203433. None of the original476
+receipt errors recur. Four new absent texture candidates:7484430,7485185,
+7484392,7961159. Failed owners still hide further descendants; counts are not
+full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json`,
+`world-sweep.json`, `proof-ledger.json` and `summary.md` retain exact boundaries.
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).
