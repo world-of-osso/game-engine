@@ -228,6 +228,8 @@ impl NetworkBridge {
             .receive::<protocol::QuestGiverRequestItems>()
             .receive::<protocol::QuestGiverOfferReward>()
             .receive::<protocol::QuestGiverQuestComplete>()
+            .receive::<protocol::QuestShareOffer>()
+            .receive::<protocol::QuestPushResult>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()

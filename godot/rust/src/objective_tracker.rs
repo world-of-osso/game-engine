@@ -63,10 +63,15 @@ impl GameClient {
 
     fn objective_tracker_view(&self) -> ObjectiveTrackerState {
         let ui = &self.quests.ui;
-        let mut state = ObjectiveTrackerState::from_runtime(
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after Unix epoch")
+            .as_secs() as i64;
+        let mut state = ObjectiveTrackerState::from_runtime_at(
             &self.account.quests,
             ui.tracker_collapsed,
             ui.quests_collapsed,
+            now,
         );
         state.dungeon = self.account.dungeon_objectives.block.clone();
         state

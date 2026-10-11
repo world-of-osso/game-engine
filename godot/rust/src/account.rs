@@ -239,6 +239,8 @@ pub(crate) enum QuestMessage {
     Reward(QuestGiverOfferReward),
     Complete(QuestGiverQuestComplete),
     Failed(QuestFailed),
+    ShareOffer(shared::protocol::QuestShareOffer),
+    PushResult(shared::protocol::QuestPushResult),
 }
 
 pub(crate) enum BankMessage {
@@ -978,6 +980,15 @@ impl Account {
             R::SetWatched { quest_id, watched } => {
                 bridge.send::<_, QuestChannel>(SetQuestWatched { quest_id, watched })
             }
+            R::Share { quest_id } => {
+                bridge.send::<_, QuestChannel>(shared::protocol::PushQuestToParty { quest_id })
+            }
+            R::RespondShare { offer_id, accepted } => {
+                bridge.send::<_, QuestChannel>(shared::protocol::QuestPushResponse {
+                    offer_id,
+                    accepted,
+                })
+            }
             R::Close { npc } => bridge.send::<_, InteractionChannel>(CloseInteraction { npc }),
         }
         .map_err(SessionError)
@@ -1450,11 +1461,17 @@ impl Account {
             return Ok(());
         }
         if message.is::<QuestLogSnapshot>() {
-            self.quests.apply_snapshot(decode(message)?);
+            let snapshot: QuestLogSnapshot = decode(message)?;
+            self.quests
+                .observe_timer_clock(&snapshot.entries, quest_local_unix());
+            self.quests.apply_snapshot(snapshot);
             return Ok(());
         }
         if message.is::<QuestLogUpdate>() {
-            let notices = self.quests.apply_update(decode(message)?);
+            let update: QuestLogUpdate = decode(message)?;
+            self.quests
+                .observe_timer_clock(&update.changed, quest_local_unix());
+            let notices = self.quests.apply_update(update);
             output.extend(notices.into_iter().map(AccountEvent::QuestNotice));
             return Ok(());
         }
@@ -1981,6 +1998,13 @@ pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, Stri
 }
 
 /// The quest giver dialog message, or the message back (`QuestChannel`).
+fn quest_local_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after Unix epoch")
+        .as_secs() as i64
+}
+
 fn quest_message(
     message: ProtocolMessage,
 ) -> Result<Result<QuestMessage, ProtocolMessage>, String> {
@@ -1994,6 +2018,10 @@ fn quest_message(
         QuestMessage::Reward(decode(message)?)
     } else if message.is::<QuestGiverQuestComplete>() {
         QuestMessage::Complete(decode(message)?)
+    } else if message.is::<shared::protocol::QuestShareOffer>() {
+        QuestMessage::ShareOffer(decode(message)?)
+    } else if message.is::<shared::protocol::QuestPushResult>() {
+        QuestMessage::PushResult(decode(message)?)
     } else if message.is::<QuestFailed>() {
         QuestMessage::Failed(decode(message)?)
     } else {
