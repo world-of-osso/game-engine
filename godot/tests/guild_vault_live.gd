@@ -8,6 +8,7 @@ func run_test() -> void:
 	shots = OS.get_environment("BANK_SHOTS")
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	await wait_frames(30)
 	var error = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
 	if error != "":
 		fail(error)
