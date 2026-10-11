@@ -20,6 +20,7 @@ struct DisplayInfoColumns {
     id: usize,
     model: usize,
     scale: usize,
+    pet_instance_scale: usize,
     tex_var: [usize; 4],
 }
 
@@ -98,7 +99,7 @@ fn cache_is_fresh(
     };
     // A cache with the old three-slot schema must be rebuilt even at unchanged mtimes.
     if conn
-        .prepare("SELECT d.skin_fdid_3, d.source_product, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
+        .prepare("SELECT d.skin_fdid_3, d.source_product, d.pet_instance_scale_milli, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
         .is_err()
     {
         return Ok(false);
@@ -181,6 +182,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              skin_fdid_2 INTEGER NOT NULL,
              skin_fdid_3 INTEGER NOT NULL,
              scale_milli INTEGER NOT NULL,
+             pet_instance_scale_milli INTEGER NOT NULL,
              source_product TEXT NOT NULL CHECK(source_product IN ('wow', 'wow_classic_beta'))
          );
          CREATE INDEX idx_creature_displays_model_fdid
@@ -257,8 +259,8 @@ fn read_display_columns(
 fn prepare_display_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
         "INSERT OR IGNORE INTO creature_displays
-         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
     )
     .map_err(|err| format!("prepare creature_displays insert: {err}"))
 }
@@ -286,6 +288,7 @@ fn insert_display_row(
             entry.skin_fdids[3],
             entry.scale_milli,
             entry.source_product.as_str(),
+            entry.pet_instance_scale_milli,
         ))
         .map_err(|err| format!("insert creature display row {display_id}: {err}"))?;
     Ok(())
@@ -363,6 +366,7 @@ fn find_display_info_columns(header: &str) -> Option<DisplayInfoColumns> {
         id: find("ID")?,
         model: find("ModelID")?,
         scale: find("CreatureModelScale")?,
+        pet_instance_scale: find("PetInstanceScale")?,
         tex_var: [
             find("TextureVariationFileDataID_0")?,
             find("TextureVariationFileDataID_1")?,
@@ -400,6 +404,9 @@ fn parse_display_entry(
                 parse_fdid(cols.tex_var[3]),
             ],
             scale_milli: combine_scale_milli(display_scale_milli, model.scale_milli),
+            pet_instance_scale_milli: parse_scale_milli(
+                values.get(cols.pet_instance_scale).copied(),
+            ),
         },
     ))
 }
@@ -437,13 +444,50 @@ mod tests {
     use crate::cache_sqlite::open_read_only;
 
     #[test]
+    fn import_pet_instance_scale_preserves_world_scale_and_rebuilds_old_cache() {
+        let dir = std::env::temp_dir().join(format!("creature-pet-scale-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("CreatureDisplayInfo.csv"),
+            "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n62217,7,0.25,0.7,11,12,0,0\n328,7,1,1,11,12,0,0\n").unwrap();
+        std::fs::write(
+            dir.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale\n7,1100485,2\n",
+        )
+        .unwrap();
+        let path = import_creature_display_cache(&dir).unwrap();
+        let conn = Connection::open(&path).unwrap();
+        let scales: (u32, u32) = conn.query_row(
+            "SELECT scale_milli, pet_instance_scale_milli FROM creature_displays WHERE display_id = 62217",
+            [], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+        assert_eq!(scales, (500, 700));
+        conn.execute(
+            "ALTER TABLE creature_displays DROP COLUMN pet_instance_scale_milli",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&path).unwrap();
+        let pet_scale: u32 = conn
+            .query_row(
+                "SELECT pet_instance_scale_milli FROM creature_displays WHERE display_id = 328",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pet_scale, 1000);
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn import_lord_cannon_preserves_fourth_creature_variation() {
         let dir =
             std::env::temp_dir().join(format!("creature-fourth-variation-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("CreatureDisplayInfo.csv"),
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n35297,2780,3,4237053,4237050,4237060,4237057\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n35297,2780,3,4237053,4237050,4237060,4237057,1\n",
         ).unwrap();
         std::fs::write(
             dir.join("CreatureModelData.csv"),
@@ -494,7 +538,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("CreatureDisplayInfo.csv"),
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n4,7,1,11,12,0,0\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n",
         )
         .unwrap();
         std::fs::write(
@@ -523,10 +567,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("forever-npc-displays-{}", std::process::id()));
         let forever = dir.join("db2/1.60.1.70205");
         std::fs::create_dir_all(&forever).unwrap();
-        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n";
+        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n";
         std::fs::write(
             dir.join("CreatureDisplayInfo.csv"),
-            format!("{header}10,1,1,11,0,0,0\n"),
+            format!("{header}10,1,1,11,0,0,0,1\n"),
         )
         .unwrap();
         std::fs::write(
@@ -536,7 +580,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             forever.join("CreatureDisplayInfo.csv"),
-            format!("{header}10,1,2,999,0,0,0\n136968,1,1,0,0,0,0\n139694,1,1,0,0,0,0\n"),
+            format!("{header}10,1,2,999,0,0,0,1\n136968,1,1,0,0,0,0,1\n139694,1,1,0,0,0,0,1\n"),
         )
         .unwrap();
         std::fs::write(
@@ -604,7 +648,7 @@ mod tests {
         let model_path = dir.join("CreatureModelData.csv");
         std::fs::write(
             &display_path,
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n4,7,1,11,12,0,0\n5,7,1,21,22,23,24\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n5,7,1,21,22,23,24,1\n",
         )
         .unwrap();
         std::fs::write(&model_path, "ID,FileDataID,ModelScale\n7,9001,1.25\n").unwrap();
@@ -627,6 +671,7 @@ mod tests {
                 model_fdid: 9001,
                 skin_fdids: [11, 12, 0, 0],
                 scale_milli: 1250,
+                pet_instance_scale_milli: 1000,
             }
         );
 
