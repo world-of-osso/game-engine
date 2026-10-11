@@ -87,6 +87,7 @@ mod spellbook_preview;
 mod status_text_bars;
 mod talent_footer;
 mod talent_icons;
+mod talent_layout;
 mod talent_loadouts;
 mod talents;
 mod talentwire;
