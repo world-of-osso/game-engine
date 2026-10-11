@@ -257,7 +257,7 @@ pub(crate) enum MailMessage {
 }
 
 /// Authoritative loot traffic, retained in `LootChannel` send order.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum LootMessage {
     Lootable(CorpseLootable),
     Opened(LootResponse),
