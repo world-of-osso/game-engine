@@ -74,6 +74,44 @@ fn transmog_collection_preview_uses_the_source_display_without_staging_or_world_
 }
 
 #[test]
+fn transmog_search_filters_names_without_losing_hidden_pending_choices() {
+    let mut collection = state();
+    collection.slots[0].sources.push(TransmogSource {
+        source_id: 1181,
+        appearance_id: 389,
+        item_id: 3295,
+        display_id: 1546,
+        icon_fdid: 135274,
+        name: "Deadman Blade".into(),
+        inventory_type: 13,
+    });
+    let mut book = TransmogBook::default();
+    book.receive(collection);
+    book.money = 5000;
+    assert!(book.stage(TransmogChoice::Source(1181)));
+    book.set_search(" gLaDiUs ".into());
+    assert_eq!(
+        book.page_sources()
+            .iter()
+            .map(|source| source.source_id)
+            .collect::<Vec<_>>(),
+        vec![821]
+    );
+    assert_eq!(book.pending_cost(), Some(1500));
+    book.set_search("not collected".into());
+    assert!(book.page_sources().is_empty());
+    assert_eq!(book.pages(), 1);
+    assert!(book.can_apply());
+    assert!(book.collection_equipment(1181).is_some());
+    book.set_search(String::new());
+    assert_eq!(book.page_sources().len(), 2);
+    assert_eq!(
+        book.apply().unwrap().changes[0].choice,
+        TransmogChoice::Source(1181)
+    );
+}
+
+#[test]
 fn transmog_pending_choice_does_not_change_applied_state_and_apply_quotes_exact_cost() {
     let mut book = TransmogBook::default();
     book.receive(state());

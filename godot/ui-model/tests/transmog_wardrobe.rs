@@ -36,9 +36,9 @@ fn book() -> TransmogBook {
                 },
                 TransmogSource {
                     source_id: 1181,
-                    appearance_id: 730,
-                    item_id: 3296,
-                    display_id: 1545,
+                    appearance_id: 389,
+                    item_id: 3295,
+                    display_id: 1546,
                     icon_fdid: 135274,
                     name: "Deadman Blade".into(),
                     inventory_type: 13,
@@ -94,6 +94,7 @@ fn transmog_wardrobe_exposes_model_cells_fixed_slots_and_outfit_gap_in_both_skin
             "TransmogRotateRight",
             "TransmogSheatheButton",
             "TransmogRaceBackground",
+            "TransmogSearchBox",
         ] {
             assert!(
                 registry.get_by_name(name).is_some(),

@@ -12,6 +12,7 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 pub const WIDTH: f32 = 960.0;
 pub const HEIGHT: f32 = 580.0;
 pub const MODEL_SCENE: &str = "TransmogCharacterModelScene";
+pub const SEARCH: &str = "TransmogSearchBox";
 const GOLD: &str = "1,0.8235294,0,1";
 const WHITE: &str = "1,1,1,1";
 const RED: &str = "1,0.1254902,0.1254902,1";
@@ -267,6 +268,17 @@ fn wardrobe_region(book: &TransmogBook) -> Element {
         (COLLECTION_LEFT, 49.0, 310.0, 24.0),
         GOLD,
     );
+    out.extend(text(
+        "TransmogSearchLabel",
+        "Search",
+        (710.0, 50.0, 78.0, 20.0),
+        WHITE,
+    ));
+    out.extend(
+        rsx! { editbox { name: {DynName(SEARCH.into())}, width: 145.0, height: 20.0,
+        left: 793.0, top: 50.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
+        text_insets: "4,4,0,0", max_letters: 40, text: {book.search.as_str()} } },
+    );
     if let Some(slot) = book.selected_slot() {
         out.extend(text(
             "TransmogSelectedSlot",
@@ -290,10 +302,14 @@ fn wardrobe_region(book: &TransmogBook) -> Element {
                 (842.0, 82.0, 96.0, 24.0),
             ));
         }
-        if slot.sources.is_empty() {
+        if book.page_sources().is_empty() {
             out.extend(text(
                 "TransmogNoSources",
-                "No collected appearances usable for this item.",
+                if slot.sources.is_empty() {
+                    "No collected appearances usable for this item."
+                } else {
+                    "No matches."
+                },
                 (COLLECTION_LEFT, 140.0, 550.0, 48.0),
                 WHITE,
             ));

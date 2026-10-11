@@ -17,6 +17,7 @@ pub struct TransmogBook {
     pub applying: bool,
     pub error: String,
     pub page: usize,
+    pub search: String,
 }
 
 impl TransmogBook {
@@ -25,6 +26,9 @@ impl TransmogBook {
             .state
             .as_ref()
             .is_none_or(|previous| previous.npc != state.npc);
+        if new_service {
+            self.search.clear();
+        }
         if new_service || self.applying {
             self.pending.clear();
             self.error.clear();
@@ -181,13 +185,24 @@ impl TransmogBook {
         *self = Self::default();
     }
 
-    pub fn page_sources(&self) -> &[TransmogSource] {
-        let Some(slot) = self.selected_slot() else {
-            return &[];
-        };
-        let start = (self.page * SOURCES_PER_PAGE).min(slot.sources.len());
-        let end = (start + SOURCES_PER_PAGE).min(slot.sources.len());
-        &slot.sources[start..end]
+    pub fn set_search(&mut self, search: String) {
+        self.search = search;
+        self.page = 0;
+    }
+
+    fn matching_sources(&self) -> impl Iterator<Item = &TransmogSource> {
+        let query = self.search.trim().to_lowercase();
+        self.selected_slot()
+            .into_iter()
+            .flat_map(|slot| &slot.sources)
+            .filter(move |source| query.is_empty() || source.name.to_lowercase().contains(&query))
+    }
+
+    pub fn page_sources(&self) -> Vec<&TransmogSource> {
+        self.matching_sources()
+            .skip(self.page * SOURCES_PER_PAGE)
+            .take(SOURCES_PER_PAGE)
+            .collect()
     }
 
     /// A collection cell dresses only its offered source, not other pending choices.
@@ -249,9 +264,10 @@ impl TransmogBook {
     }
 
     pub fn pages(&self) -> usize {
-        self.selected_slot().map_or(1, |slot| {
-            slot.sources.len().div_ceil(SOURCES_PER_PAGE).max(1)
-        })
+        self.matching_sources()
+            .count()
+            .div_ceil(SOURCES_PER_PAGE)
+            .max(1)
     }
 }
 

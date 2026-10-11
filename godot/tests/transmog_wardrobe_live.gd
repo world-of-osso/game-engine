@@ -102,6 +102,17 @@ func run_test() -> void:
 		return
 	print("TRANSMOG_PREVIEW_CONTROLS_READY")
 	var ui = client.get_node("TransmogUI")
+	await enter_search("Gladius")
+	if not await wait_for(func(_s): return control("TransmogSource821") != null and control("TransmogSource1181") == null, "filtered Gladius collection"):
+		return
+	await save_shot("02-search.png")
+	await enter_search("not collected")
+	if not await wait_for(func(_s): return ui.frame_text("TransmogNoSources") == "No matches.", "no search matches"):
+		return
+	await enter_search("")
+	if not await wait_for(func(_s): return preview_model("TransmogSource1181ModelScene") != null, "restored collection model", 60000):
+		return
+	print("TRANSMOG_SEARCH_AND_MODEL_RESTORE_READY")
 	var before: int = client.merchant_state().money
 	var applied = ui.frame_text("TransmogSource821Status")
 	var next_source := 1181 if applied == "Applied" else 821
@@ -122,6 +133,28 @@ func run_test() -> void:
 	print("PASS TRANSMOG_WARDROBE_LIVE")
 	client.free()
 	quit(0)
+
+func enter_search(value: String) -> void:
+	await click_control(control("TransmogSearchBox"), MOUSE_BUTTON_LEFT)
+	var select_all := InputEventKey.new()
+	select_all.keycode = KEY_A
+	select_all.physical_keycode = KEY_A
+	select_all.ctrl_pressed = true
+	select_all.pressed = true
+	root.push_input(select_all, true)
+	await process_frame
+	select_all.pressed = false
+	root.push_input(select_all, true)
+	await tap(KEY_BACKSPACE)
+	for character in value:
+		var event := InputEventKey.new()
+		event.unicode = character.unicode_at(0)
+		event.pressed = true
+		root.push_input(event, true)
+		await process_frame
+		event.pressed = false
+		root.push_input(event, true)
+	await frames(3)
 
 func control(name: String) -> Control:
 	return client.find_child(name, true, false) as Control
