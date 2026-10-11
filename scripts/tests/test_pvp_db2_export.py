@@ -1,6 +1,5 @@
 """Behavioral exports against the pinned, locally recovered CASC records."""
 import csv
-import importlib.util
 from pathlib import Path
 import subprocess
 import sys
@@ -8,7 +7,7 @@ import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "export_db2_csv.py"
-SOURCE = Path("/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/pvp-progression-2026-10-11/db2")
+SOURCE = SCRIPT.parent / "tests/fixtures/pvp-12.1.0.69933"
 
 
 class PvpExports(unittest.TestCase):
