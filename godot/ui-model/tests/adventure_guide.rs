@@ -1,6 +1,13 @@
 use game_engine_core::adventure_guide::Catalog;
+use game_engine_ui_model::adventure_guide::adventure_guide_screen;
 use game_engine_ui_model::adventure_guide::{Page, Tab, View};
 use std::sync::Arc;
+use ui_toolkit::{
+    atlas::{ActiveSkin, set_thread_skin},
+    frame::{Dimension, WidgetData},
+    registry::FrameRegistry,
+    screen::{Screen, SharedContext},
+};
 fn journal() -> View {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../data/cache/adventure_guide.sqlite");
@@ -34,6 +41,71 @@ fn authentic_dungeon_sections_and_loot_are_selectable() {
     view.apply(&format!("journal:slot:{slot}")).unwrap();
     assert!(view.loot().iter().all(|i| i.slot == slot));
 }
+#[test]
+fn both_skins_render_authored_ability_loot_and_raid_text() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = journal();
+        view.select_encounter(112).unwrap();
+        view.page = Page::Abilities;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280., 720.);
+        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        let root = registry
+            .get(registry.get_by_name("EncounterJournal").unwrap())
+            .unwrap();
+        assert_eq!(root.width, Dimension::Fixed(800.));
+        assert_eq!(root.height, Dimension::Fixed(496.));
+        let title = registry
+            .get(
+                registry
+                    .get_by_name("EncounterJournalEncounterTitle")
+                    .unwrap(),
+            )
+            .unwrap();
+        match &title.widget_data {
+            Some(WidgetData::FontString(font)) => assert_eq!(font.text, "Ozruk"),
+            other => panic!("Expected title, got {other:?}"),
+        }
+        let section = view.sections().unwrap()[0].0.id;
+        assert!(
+            registry
+                .get_by_name(&format!("JournalSection{section}"))
+                .is_some()
+        );
+        view.page = Page::Loot;
+        let loot_id = view.loot()[0].id;
+        context.insert(view.clone());
+        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name(&format!("JournalLoot{loot_id}Name"))
+                .is_some()
+        );
+        view.select_encounter(1519).unwrap();
+        context.insert(view);
+        Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+        let title = registry
+            .get(
+                registry
+                    .get_by_name("EncounterJournalEncounterTitle")
+                    .unwrap(),
+            )
+            .unwrap();
+        match &title.widget_data {
+            Some(WidgetData::FontString(font)) => assert_eq!(font.text, "Lucifron"),
+            other => panic!("Expected raid title, got {other:?}"),
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 #[test]
 fn raid_selection_search_and_back_preserve_authored_identity() {
     let mut view = journal();

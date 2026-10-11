@@ -251,7 +251,10 @@ impl Catalog {
                 &db,
                 "SELECT JournalEncounterItemID,DifficultyID FROM JournalItemXDifficulty",
             )?,
-            item_specs: relations(&db, "SELECT ItemID,SpecID FROM ItemSpecOverride")?,
+            item_specs: relations(
+                &db,
+                "SELECT ItemID,SpecID FROM ItemSpecOverride WHERE ItemID IS NOT NULL",
+            )?,
         })
     }
     pub fn encounter(&self, id: u32) -> Option<&Encounter> {
