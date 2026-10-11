@@ -3204,3 +3204,7 @@ Added [cache source policy](systems/cache-import-sources.md) and [contract](../s
 ## 2026-10-11 — Scenario progression
 
 Local CASC Scenario/ScenarioStep and existing criteria/TDB join; copy-scoped achievement evaluator reuse and both-skin Retail stage block. Added [system](systems/scenarios.md) and [contract](../specs/scenarios.md); live acceptance pending.
+
+### 2026-10-11 — Scenario native proof
+
+Both-skin Gnomeregan stage/ordinary finisher/completion/exit and completed-copy re-entry verified;13 PNGs inspected. HP-primed fixture, one authored main stage and asset/LOS limits documented in [system SSOT](systems/scenarios.md).
