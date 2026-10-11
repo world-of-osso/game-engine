@@ -305,6 +305,8 @@ impl NetworkBridge {
             .receive::<protocol::ToyCollectionUpdate>()
             .receive::<protocol::ToyResult>()
             // Bank and guild bank contents, logs and refusals (bank-frame.md).
+            .receive::<protocol::PetStableContents>()
+            .receive::<protocol::PetStableFailed>()
             .receive::<protocol::BankContents>()
             .receive::<protocol::BankFailed>()
             .receive::<protocol::GuildBankContents>()

@@ -103,7 +103,7 @@ impl Default for UnitPortraits {
     }
 }
 
-struct Portrait {
+pub(crate) struct Portrait {
     slot: PortraitSlot,
     scene: Option<Scene>,
     /// The appearance the shown model was built from.
@@ -125,7 +125,7 @@ struct Scene {
 }
 
 impl Portrait {
-    fn new(slot: PortraitSlot) -> Self {
+    pub(crate) fn new(slot: PortraitSlot) -> Self {
         Self {
             slot,
             scene: None,
@@ -151,7 +151,7 @@ impl Portrait {
         }
     }
 
-    fn clear(&mut self, world: &mut WorldUnits) {
+    pub(crate) fn clear(&mut self, world: &mut WorldUnits) {
         self.cancel_pending(world);
         if let Some(scene) = self.scene.take()
             && scene.view.is_instance_valid()
@@ -163,7 +163,7 @@ impl Portrait {
 
     /// Show `appearance` in `host`: request its model when it changed, attach it once
     /// loaded, and keep the render at the slot's pixel size.
-    fn sync(
+    pub(crate) fn sync(
         &mut self,
         world: &mut WorldUnits,
         host: Option<Gd<Control>>,

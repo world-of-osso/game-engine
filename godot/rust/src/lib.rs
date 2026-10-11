@@ -70,6 +70,7 @@ mod particles;
 mod party_frames;
 mod pet_bar;
 mod pet_journal;
+mod pet_stable;
 mod player_spells;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
@@ -311,6 +312,7 @@ pub struct GameClient {
     pending_summon: Option<(shared::protocol::SummonRequest, std::time::Duration)>,
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
+    combat_stable: pet_stable::CombatPetStable,
     guild_ranks: guild_ranks::GuildRanks,
     achievements: achievements::Achievements,
     game_objects: game_objects::GameObjects,
@@ -446,6 +448,7 @@ impl INode3D for GameClient {
             pending_summon: None,
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
+            combat_stable: pet_stable::CombatPetStable::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
             achievements: achievements::Achievements::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
@@ -1143,6 +1146,16 @@ impl GameClient {
         self.toybox_snapshot()
     }
 
+    #[func]
+    fn combat_stable_state(&self) -> VarDictionary {
+        self.combat_stable_snapshot()
+    }
+
+    #[func]
+    fn stable_gui_input(&mut self, event: Gd<godot::classes::InputEvent>, slot: i64) {
+        self.stable_gui_event(event, slot);
+    }
+
     /// The pet bar: pet, command/react states, buttons, checked states, Move To targeting
     /// and the `PetAction`s sent.
     #[func]
@@ -1378,6 +1391,7 @@ impl GameClient {
             visit(ui)?;
         }
         self.banks.visit_uis(&mut visit)?;
+        self.combat_stable.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
@@ -1943,6 +1957,7 @@ impl GameClient {
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
+            ("CombatPetStable", |c, _| c.update_combat_stable()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
             ("Achievements", |c, d| c.update_achievements(d)),
             ("Loot", |c, _| c.update_loot()),
@@ -2125,6 +2140,7 @@ impl GameClient {
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
+            AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
@@ -2145,7 +2161,11 @@ impl GameClient {
                     self.flight_map.session.close_for(*npc);
                     self.trainer_closed_for(*npc);
                 }
-                if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
+                let stable_opened = self.stable_npc_message(&message);
+                if !self.receive_quest_npc_message(&message)?
+                    && !self.bank_npc_message(&message)
+                    && !stable_opened
+                {
                     self.receive_npc_message(message)?;
                 }
             }

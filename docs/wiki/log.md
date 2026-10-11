@@ -4,6 +4,9 @@
 ## 2026-10-11 — Native ready checks and pull countdowns
 
 [Group frames](systems/group-frames.md#native-ready-checks-and-pull-countdowns): server-authoritative assistant permissions and UTC countdown deadlines prevent stale reliable delivery from restarting timers. Both skins' party/raid native ready responses, AFK summaries and Retail timer stages proved with fresh private-redb two-account runs; three-account assistant proof retained. [Contract](../specs/group-frames.md#native-countdown-and-ready-check-acceptance--2026-10-11) owns test counts, inspected PNGs and Dummy-audio limitation.
+## 2026-10-11 — Combat pet lifecycle
+
+[Native lifecycle](systems/combat-pet-lifecycle.md): real Erma stable mutations in both skins, missing rename Plain chrome RED→GREEN16fdd7f18, genuine wound/Mend/dead/Revive/server-confirmed native logout proof. Six demon summon/dismiss bars and current/dismissed native logout tested in both skins; body coverage remains limited to Imp.23 inspected1920×1080 PNGs in AgentShared; no world.db writes, shared realm changes or master merge. Feed provenance and absent Incubus remain data boundaries.
 
 ## 2026-10-10 — Black unit-frame portrait receipt gaps
 
