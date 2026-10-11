@@ -168,6 +168,7 @@ impl GameClient {
         closed |= self.close_pet_journal();
         closed |= self.close_trainer_window()?;
         closed |= self.close_achievements();
+        closed |= self.close_combat_stable()?;
         closed |= self.close_bank_window()?;
         closed |= self.close_guild_bank_window()?;
         Ok(closed)

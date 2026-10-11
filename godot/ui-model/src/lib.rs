@@ -51,6 +51,8 @@ pub mod collections_component;
 pub mod group_state;
 pub mod pet_journal;
 pub mod pet_stable;
+#[path = "ui/screens/pet_stable_component.rs"]
+pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;

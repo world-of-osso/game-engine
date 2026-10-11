@@ -63,6 +63,7 @@ use shared::protocol::{
     UseGameObject,
 };
 use shared::protocol::{PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
+use shared::protocol::{PetStableChannel, PetStableContents, PetStableFailed, PetStableRequest};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
@@ -205,6 +206,7 @@ pub enum AccountEvent {
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
+    Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
@@ -239,6 +241,11 @@ pub(crate) enum QuestMessage {
     Reward(QuestGiverOfferReward),
     Complete(QuestGiverQuestComplete),
     Failed(QuestFailed),
+}
+
+pub(crate) enum StableMessage {
+    Contents(PetStableContents),
+    Failed(PetStableFailed),
 }
 
 pub(crate) enum BankMessage {
@@ -720,6 +727,12 @@ impl Account {
     pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_stable_request(&self, request: PetStableRequest) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, PetStableChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1602,6 +1615,13 @@ impl Account {
             }
             Err(message) => message,
         };
+        let message = match stable_message(message)? {
+            Ok(stable) => {
+                output.push(AccountEvent::Stable(stable));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
         let message = match bank_message(message)? {
             Ok(bank) => {
                 output.push(AccountEvent::Bank(bank));
@@ -1886,6 +1906,19 @@ impl Account {
         }
         Ok(())
     }
+}
+
+fn stable_message(
+    message: ProtocolMessage,
+) -> Result<Result<StableMessage, ProtocolMessage>, String> {
+    let stable = if message.is::<PetStableContents>() {
+        StableMessage::Contents(decode(message)?)
+    } else if message.is::<PetStableFailed>() {
+        StableMessage::Failed(decode(message)?)
+    } else {
+        return Ok(Err(message));
+    };
+    Ok(Ok(stable))
 }
 
 /// The NPC interaction, vendor, bag or durability message, or the message back.
