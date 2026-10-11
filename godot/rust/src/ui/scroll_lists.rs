@@ -46,6 +46,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = game_engine_ui_model::char_select_component::CHARACTER_LIST_PAN;
         return (pan * 2, pan);
     }
+    if list == game_engine_ui_model::guild_bank_frame_component::LOG_LIST {
+        let row = game_engine_ui_model::guild_bank_frame_component::LOG_LINE_HEIGHT as usize;
+        return (row, row);
+    }
     if list == game_engine_ui_model::professions_frame::LIST {
         let row = game_engine_ui_model::professions_frame::ROW_HEIGHT as usize;
         return (row, row);
