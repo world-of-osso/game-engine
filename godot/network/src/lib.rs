@@ -309,6 +309,10 @@ impl NetworkBridge {
             .receive::<protocol::GuildBankLog>()
             .receive::<protocol::GuildBankFailed>()
             .receive::<protocol::GuildRanksState>()
+            .receive::<protocol::GuildInvitation>()
+            .receive::<protocol::GuildInviteResponse>()
+            .receive::<protocol::GuildAcceptInviteResponse>()
+            .receive::<protocol::GuildStateUpdate>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
             // Players' social emotes, played on their models.

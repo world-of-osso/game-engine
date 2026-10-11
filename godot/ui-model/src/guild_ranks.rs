@@ -3,6 +3,16 @@ use shared::protocol::*;
 
 pub const ROSTER_PAGE_SIZE: usize = 9;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GuildCommand {
+    Invite(String),
+    AcceptInvite,
+    DeclineInvite,
+    SetMotd(String),
+    SetInfo(String),
+    Query,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GuildRanksSession {
     pub visible: bool,
@@ -10,6 +20,10 @@ pub struct GuildRanksSession {
     pub settings_open: bool,
     pub member_menu: Option<String>,
     pub error: Option<String>,
+    pub invitation: Option<GuildInvitation>,
+    pub invitation_waiting: bool,
+    pub profile: Option<GuildSnapshot>,
+    pub commands: Vec<GuildCommand>,
     state: Option<GuildRanksState>,
     selected_rank: usize,
     roster_page: usize,
@@ -68,6 +82,17 @@ impl GuildRanksSession {
     ) -> Option<GuildRankRequest> {
         let input = |name: &str| texts.get(name).map(String::as_str).unwrap_or_default();
         let request = match action {
+            "guild:accept_invite" | "guild:decline_invite" => {
+                if self.invitation.is_some() && !self.invitation_waiting {
+                    self.invitation_waiting = true;
+                    self.commands.push(if action == "guild:accept_invite" {
+                        GuildCommand::AcceptInvite
+                    } else {
+                        GuildCommand::DeclineInvite
+                    });
+                }
+                None
+            }
             "guild:close" => {
                 self.visible = false;
                 self.settings_open = false;
