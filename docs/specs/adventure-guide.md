@@ -20,3 +20,10 @@ Reference behavior: local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzar
 ## Acceptance
 
 Targeted importer and UI/layout tests, extension check and format proof. Inspected both-skin PNGs showing dungeon abilities, loot and a raid on private UDP5890 with fb_* accounts; GPU free memory at least 1.5 GiB. No UDP5000 access or full suites. Gaps and exact proof scope recorded in the task handoff.
+
+## October 11 native checkpoint
+
+- Both skins, privateUDP5890/fb_adventure: real micro-menu and J open/close; Ozruk overview/abilities/expand-collapse/role selection; difficulty2 six drops→Timewalking24 eight; Paladin Ret70 three→Neck one; textured Ozruk36475 and Lucifron13031 models; tier68 Molten Core741/Lucifron1519 at authored difficulty9; Item Sets wheel changes visible rows; authored Tutorials and Lucifron search result selection.
+- `godot/tests/adventure_guide_scroll.gd` passes in Modern and Forever: first-open readiness plus model→Classic raid list→five wheel notches moves Molten CoreY518.67→418.67 and selects Lucifron9. The pending-close path is asserted when catalog loading is observed.
+- 32 inspected1280×720 PNGs under `/syncthing/AgentShared/2026-10-11/adventure-guide/`; logs/state/CPU ledger in canonical `data/diagnostics/adventure-guide-2026-10-11/`. Cleanup verifies owned processes terminated and privateUDP cleared.
+- Not certified: nonempty authoritative lockouts or boss-frame/ENCOUNTER_START live links, all1889 boss payloads, complete Retail Item Sets presentation. These have source wiring/bounded coverage, not blanket live proof. Monthly/Journeys/Suggested Content, RPE start and keystone state lack realm backing; gem relic compatibility lacks GemProperties. Shared spell renderer numeric/token limits remain. No invented service state or asset substitution.
