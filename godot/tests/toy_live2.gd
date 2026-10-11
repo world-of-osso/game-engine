@@ -47,7 +47,7 @@ func run_fixture() -> void:
 		await process_frame
 	for sample in SAMPLES:
 		var requested := OS.get_environment("TOYFX_ITEM")
-		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "remaining" and int(sample[0]) not in [88584, 165791, 221964, 228413, 263198, 267456, 88580]): continue
+		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "scenery" and int(sample[0]) not in [88381, 88584]) or (requested == "remaining" and int(sample[0]) not in [88584, 165791, 221964, 228413, 263198, 267456, 88580]): continue
 		await sample_toy(sample)
 		if failed: return
 	write_receipts()
@@ -81,6 +81,10 @@ func sample_toy(sample: Array) -> void:
 	var frame_count := 20 if item == 204818 else (12 if item == 153183 else 7)
 	for frame in range(frame_count):
 		await create_timer(0.1 if item == 204818 or frame < 3 else 1.0).timeout
+		if frame == 3 and item in [88381, 88584]:
+			var destination := actor.position + Vector3(3.0, 0.0, 0.0)
+			if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return
+			if not await wait_until(func(): return actor.position.distance_to(destination) < 1.0, "leave stationary toy visible"): return
 		await RenderingServer.frame_post_draw
 		var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-%d.png" % [skin, item, frame])
 		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
