@@ -3238,3 +3238,11 @@ Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--ve
 ## 2026-10-11 — raid-entry
 
 Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
+
+## 2026-10-11 — Gathering branch (acceptance incomplete)
+
+[Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.
+
+## 2026-10-11 — integrated native gathering baseline
+
+- [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
