@@ -49,6 +49,8 @@ pub mod chat_frame;
 pub mod chat_frame_component;
 pub mod collections_component;
 pub mod countdown_component;
+pub mod encounter_timeline;
+pub mod encounter_timeline_component;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;

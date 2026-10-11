@@ -1418,6 +1418,9 @@ impl GameClient {
         self.spells.visit_uis(&mut visit)?;
         self.pet_bar.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
+        if let Some(ui) = &mut self.encounter.timeline_ui {
+            visit(ui)?;
+        }
         if let Some(ui) = &mut self.encounter.ui {
             visit(ui)?;
         }

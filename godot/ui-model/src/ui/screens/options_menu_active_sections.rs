@@ -148,6 +148,26 @@ pub fn action_bars_body(
 pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
     content_stack(
         [
+            toggle_row(
+                "encounter_timeline",
+                "Encounter Timeline",
+                hud.encounter_timeline,
+            ),
+            toggle_row(
+                "encounter_bars",
+                "Encounter View: Bars (off: Timeline)",
+                hud.encounter_bars,
+            ),
+            toggle_row(
+                "encounter_warnings",
+                "Encounter Warnings",
+                hud.encounter_warnings,
+            ),
+            toggle_row(
+                "encounter_sounds",
+                "Encounter Warning Sounds",
+                hud.encounter_sounds,
+            ),
             status_text_row(hud.status_text_display),
             slider_row(
                 "chat_font_size",
