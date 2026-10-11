@@ -5,6 +5,7 @@ var scenario := OS.get_environment("GATHERING_SCENARIO")
 var shots := OS.get_environment("GATHERING_SHOTS")
 var failed := false
 var skill_text := ""
+var wolf_id := 0
 const POSED_TRIANGLES := preload("res://tests/posed_triangle_points.gd")
 
 func run_fixture() -> void:
@@ -114,10 +115,13 @@ func prove_skinning() -> void:
 	if not await wait_until(func(): return wolf_node() != null, "authored wolf model", 60000): return
 	await create_timer(2.0).timeout
 	var wolf := wolf_node()
+	wolf_id = int(wolf.find_child("UnitPick", true, false).get_meta("unit_server_id"))
 	await checkpoint("wolf-position", wolf)
-	await click_world(wolf)
+	for attempt in range(5):
+		await click_world(wolf)
+		if client.target_state().target == wolf_id: break
 	await capture("wolf-click")
-	if not await wait_until(func(): return client.target_state().target_name == "Mangy Wolf", "wolf selected", 5000): return
+	if not await wait_until(func(): return client.target_state().target == wolf_id, "authored wolf selected", 5000): return
 	await capture("wolf-fight")
 	await checkpoint("kill-started", wolf)
 	if not await wait_until(func(): return float(client.spells_state().target_health) == 0.0, "own wolf kill", 90000): return
@@ -125,6 +129,7 @@ func prove_skinning() -> void:
 	await capture("wolf-kill")
 	await create_timer(1.0).timeout
 	await click_world(wolf)
+	await capture("corpse-click")
 	if not await wait_until(func(): return control("LootFrame") != null or int(client.spells_state().casting) == 8613, "corpse interaction", 5000): return
 	if int(client.spells_state().casting) != 8613:
 		await capture("corpse-loot")
@@ -169,7 +174,6 @@ func click_world(node: Node3D) -> void:
 	motion.position = point
 	motion.global_position = point
 	root.push_input(motion, true)
-	await process_frame
 	for down in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.position = point
@@ -187,7 +191,10 @@ func drawn_unit_point(node: Node3D, camera: Camera3D) -> Variant:
 		var mesh := candidate as MeshInstance3D
 		if mesh.mesh == null or not mesh.is_visible_in_tree(): continue
 		for surface in range(mesh.mesh.get_surface_count()):
-			for center in POSED_TRIANGLES.centroids(mesh, surface):
+			var centers := POSED_TRIANGLES.centroids(mesh, surface)
+			var body_center := mesh.to_global(mesh.get_aabb().get_center())
+			centers.sort_custom(func(a, b): return a.distance_squared_to(body_center) < b.distance_squared_to(body_center))
+			for center in centers:
 				var point := camera.unproject_position(center)
 				if Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
 					return point
@@ -214,7 +221,7 @@ func capture(label: String) -> void:
 	receipts.append({"skin": skin, "scenario": scenario, "label": label, "png": path,
 		"account": client.account_state(), "spells": client.spells_state(), "target": client.target_state(),
 		"minimap": client.minimap_state(), "bags": client.merchant_state().bags, "skill_text": skill_text,
-		"gui_hover": str(root.gui_get_hovered_control().get_path()) if root.gui_get_hovered_control() != null else ""})
+		"gui_hover": str(root.gui_get_hovered_control().get_path()) if root.gui_get_hovered_control() != null else "", "wolf_id": wolf_id})
 	write_receipts()
 
 func write_receipts() -> void:
