@@ -132,6 +132,7 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
         screen.sync(&context, &mut registry);
         assert!(registry.get_by_name("PVPMatchPlayer81").is_none());
         view.action("pvp:all");
+        view.action("pvp:score-close");
         receive(&mut view, snapshot(BgPhase::Ended, true));
         context.insert(view);
         screen.sync(&context, &mut registry);

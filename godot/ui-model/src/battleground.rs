@@ -46,7 +46,15 @@ impl PvpView {
         self.error = update.error.unwrap_or_default();
         if let Some(snapshot) = update.snapshot {
             let old_match = self.battleground().map(|b| b.match_id);
-            if old_match != snapshot.battleground.as_ref().map(|b| b.match_id) {
+            let match_changed = old_match != snapshot.battleground.as_ref().map(|b| b.match_id);
+            let just_ended = snapshot
+                .battleground
+                .as_ref()
+                .is_some_and(|b| b.phase == BgPhase::Ended)
+                && self
+                    .battleground()
+                    .is_none_or(|b| b.phase != BgPhase::Ended);
+            if match_changed || just_ended {
                 self.results_dismissed = false;
                 self.scoreboard = false;
             }

@@ -2,7 +2,7 @@
 
 ## Contract
 
-Retail Mainline defines PvP UI and behavior; Forever changes art only. Implement Warsong Gulch (BattlemasterList1014, map2106): specific queue, invitation with Enter Battle/Leave Queue, source-position entry, flag pickup/capture world-state HUD, retained-roster scoreboard, match results and explicit origin return. Server owns identity, phase, scores, flags, outcome and return coordinates. UI requests echo match identity and remain pending until server response. Errors clear pending without discarding retained authoritative state.
+Retail Mainline defines PvP UI and behavior; Forever changes art only. Implement Warsong Gulch (BattlemasterList1014, map2106): specific queue, invitation with Enter Battle/Leave Queue, source-position entry, flag pickup/capture world-state HUD, retained-roster scoreboard, match results and explicit origin return. Server owns identity, phase, scores, flags, outcome and return coordinates. UI requests echo match identity and remain pending until server response. Errors clear pending without discarding retained authoritative state. Match-end results open on the authoritative Ended transition even when the live scoreboard was previously closed. Authored type36 flag gameobjects use the normal display-ID model resolution and native interaction path.
 
 ## Source
 
