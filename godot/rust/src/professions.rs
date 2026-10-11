@@ -25,6 +25,9 @@ pub(crate) struct Professions {
     pub(crate) error: String,
     collapsed: BTreeSet<String>,
     page: ProfessionPage,
+    pub(crate) specializations:
+        game_engine_ui_model::professions_specializations::SpecializationDraft,
+    pub(crate) order_update: Option<shared::protocol::CraftingOrderStateUpdate>,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -227,6 +230,11 @@ impl GameClient {
                     "orders" => ProfessionPage::Orders,
                     _ => return Err(format!("Unknown profession tab: {tab}").into()),
                 };
+                if self.professions.page == ProfessionPage::Specializations {
+                    self.query_profession_specializations()?;
+                }
+            } else if let Some(action) = action.strip_prefix("profession:spec:") {
+                self.apply_specialization_action(action)?;
             } else if let Some(raw) = action.strip_prefix("profession:select:") {
                 self.professions.book.selected = Some(
                     raw.parse()
@@ -268,6 +276,68 @@ impl GameClient {
         }
         Ok(())
     }
+    fn query_profession_specializations(&self) -> Result<(), FrameError> {
+        let skill_line = self
+            .professions
+            .book
+            .selected_recipe()
+            .map(|r| r.skill_line)
+            .or_else(|| {
+                self.professions
+                    .book
+                    .snapshot
+                    .lines
+                    .first()
+                    .map(|line| line.skill_line)
+            });
+        if let Some(skill_line) = skill_line {
+            self.account.send_profession_specialization(
+                shared::protocol::ProfessionSpecializationRequest::Query { skill_line },
+            )?;
+        }
+        Ok(())
+    }
+    fn apply_specialization_action(&mut self, action: &str) -> Result<(), FrameError> {
+        let state = &mut self.professions.specializations;
+        if let Some(id) = action.strip_prefix("tree:") {
+            state.selected_tree = Some(
+                id.parse()
+                    .map_err(|_| format!("Invalid specialization tree: {id}"))?,
+            );
+            state.selected_node = state.tree().map(|t| t.root_node_id);
+        } else if let Some(id) = action.strip_prefix("node:") {
+            state.selected_node = Some(
+                id.parse()
+                    .map_err(|_| format!("Invalid specialization node: {id}"))?,
+            );
+        } else {
+            let request = match action {
+                "spend" => {
+                    state.stage_rank();
+                    None
+                }
+                "undo" => {
+                    state.undo();
+                    None
+                }
+                "apply" => state.commit_request(),
+                "unlock" => {
+                    state.confirming_unlock = state.can_unlock();
+                    None
+                }
+                "cancel-unlock" => {
+                    state.confirming_unlock = false;
+                    None
+                }
+                "confirm-unlock" => state.confirm_unlock(),
+                _ => return Err(format!("Unknown specialization action: {action}").into()),
+            };
+            if let Some(request) = request {
+                self.account.send_profession_specialization(request)?;
+            }
+        }
+        Ok(())
+    }
     fn profession_view(&mut self) -> ProfessionView {
         let book = self.professions.book.clone();
         let inventory = &self.merchant.session.inventory;
@@ -293,6 +363,7 @@ impl GameClient {
             .collect();
         let mut view = ProfessionView {
             page: self.professions.page,
+            specializations: self.professions.specializations.clone(),
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
@@ -337,6 +408,13 @@ impl GameClient {
         });
         if let Some(icon) = icon {
             view.profession_icon = self.drawable_fdid(icon);
+        }
+        if let Some(snapshot) = &mut view.specializations.snapshot {
+            for tree in &mut snapshot.trees {
+                for node in &mut tree.nodes {
+                    node.icon = self.drawable_fdid(node.icon);
+                }
+            }
         }
         for item in view.items.values_mut() {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);

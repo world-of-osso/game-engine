@@ -253,6 +253,8 @@ impl NetworkBridge {
             .receive::<protocol::ResurrectionOffer>()
             .receive::<protocol::SummonRequest>()
             .receive::<protocol::ProfessionSnapshot>()
+            .receive::<protocol::ProfessionSpecializationStateUpdate>()
+            .receive::<protocol::CraftingOrderStateUpdate>()
             .receive::<protocol::CollectionStateUpdate>()
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()

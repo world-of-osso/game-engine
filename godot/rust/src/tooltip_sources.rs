@@ -64,10 +64,11 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 22] = [
+        const SOURCES: [Source; 23] = [
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
+            GameClient::profession_specialization_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::trainer_tooltip,
             GameClient::chat_link_tooltip,
@@ -182,6 +183,24 @@ impl GameClient {
         })?;
         drop(ui);
         let tooltip = self.toy_game_tooltip(item_id)?;
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
+    }
+
+    fn profession_specialization_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, node) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            name_of(frame)?
+                .strip_prefix("ProfessionSpecNode")?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let tooltip = self.professions.specializations.tooltip(node)?;
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
