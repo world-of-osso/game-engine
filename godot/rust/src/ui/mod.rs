@@ -1364,6 +1364,17 @@ impl RegistryUi {
         )
     }
 
+    pub(crate) fn show_encounter_timeline(
+        &mut self,
+        state: game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::encounter_timeline_component::encounter_timeline_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     fn show_viewport_screen<T: 'static>(
         &mut self,
         state: T,
@@ -2969,6 +2980,8 @@ fn apply_login_art(registry: &mut FrameRegistry) -> Result<(), String> {
 #[cfg(test)]
 #[path = "button_style_tests.rs"]
 mod button_style_tests;
+#[cfg(test)]
+mod encounter_timeline_tests;
 #[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;

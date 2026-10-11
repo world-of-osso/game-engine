@@ -33,6 +33,33 @@ fn model() -> OptionsModel {
 }
 
 #[test]
+fn timeline_options_select_retail_view_types_and_commit_warning_controls() {
+    let mut model = model();
+    assert!(apply_toggle("encounter_view:1", &mut model));
+    assert!(!build_view_model(&model).options.hud.encounter_bars);
+    assert!(apply_toggle("encounter_view:2", &mut model));
+    assert!(apply_toggle("encounter_view:2", &mut model));
+    assert!(
+        build_view_model(&model).options.hud.encounter_bars,
+        "selecting Bars twice never toggles back"
+    );
+    for key in [
+        "encounter_timeline",
+        "encounter_warnings",
+        "encounter_sounds",
+    ] {
+        assert!(apply_toggle(key, &mut model));
+    }
+    let snapshot = apply_snapshot(&mut model);
+    let mut output = HudOptionsFile::default();
+    apply_hud_file_snapshot(&mut output, &snapshot.hud);
+    assert!(output.encounter_bars);
+    assert!(!output.encounter_timeline);
+    assert!(!output.encounter_warnings);
+    assert!(!output.encounter_sounds);
+}
+
+#[test]
 fn graphics_actions_project_and_commit_clamped_file() {
     let mut m = model();
     apply_slider_value(

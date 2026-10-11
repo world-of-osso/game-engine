@@ -4707,3 +4707,5 @@ textures/5179179.blp
 textures/7323575.blp
 # Adventure Guide cache from pinned local Retail Journal DB2s.
 cache/adventure_guide.sqlite
+# Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
+sounds/ui/567394.ogg
