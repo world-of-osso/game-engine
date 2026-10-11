@@ -626,6 +626,24 @@ impl GameClient {
         Ok(())
     }
 
+    /// The combined guild vault/backpack canvas owns its log wheel and scrollbar input.
+    pub(super) fn guild_bank_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        let Some(mut ui) = self.banks.guild_ui.clone() else {
+            return false;
+        };
+        match ui.bind_mut().scroll_list_input(event) {
+            Ok(false) => false,
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Err(error) => {
+                self.handle_frame_error("Guild vault scrolling", error.into());
+                true
+            }
+        }
+    }
+
     /// Read-only bank state for fixtures; requests only come from real frame input.
     pub(super) fn bank_snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();

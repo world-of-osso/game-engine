@@ -502,6 +502,7 @@ impl INode3D for GameClient {
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
+            || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
