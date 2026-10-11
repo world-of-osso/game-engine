@@ -67,6 +67,13 @@ impl RaidInfoState {
     }
 }
 
+/// Refresh once a cached active reset timer elapses, including extended lock snapshots.
+pub fn snapshot_reached_expiry(locks: &[InstanceLockInfo], elapsed: u32) -> bool {
+    locks
+        .iter()
+        .any(|lock| lock.time_remaining_secs > 0 && elapsed >= lock.time_remaining_secs)
+}
+
 #[derive(Default)]
 pub struct RaidCatalog {
     names: HashMap<u32, String>,
@@ -119,6 +126,7 @@ impl RaidCatalog {
             .map(|lock| {
                 let mut lock = *lock;
                 lock.time_remaining_secs = lock.time_remaining_secs.saturating_sub(elapsed);
+                lock.locked = lock.locked && lock.time_remaining_secs > 0;
                 Ok(SavedInstanceRow {
                     name: self
                         .names
