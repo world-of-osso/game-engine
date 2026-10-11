@@ -120,7 +120,14 @@ impl GameClient {
             let player = loaded.map_err(|error| format!("Wardrobe source{source_id}: {error}"))?;
             let model = collection_model(player, preview.slot)?;
             bind_sheet_light(&model);
-            preview.scene.replace_model(model);
+            if matches!(
+                preview.slot,
+                EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged
+            ) {
+                preview.scene.replace_item_model(model);
+            } else {
+                preview.scene.replace_model(model);
+            }
         }
         Ok(())
     }

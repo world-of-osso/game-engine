@@ -4,6 +4,22 @@ extends "res://tests/world_merchant_flow.gd"
 
 var shots := ""
 
+func _initialize() -> void:
+	if OS.get_environment("TRANSMOG_WEAPON_IMAGE") != "":
+		call_deferred("check_weapon_image")
+	else:
+		super._initialize()
+
+func check_weapon_image() -> void:
+	var image := Image.load_from_file(OS.get_environment("TRANSMOG_WEAPON_IMAGE"))
+	var span := opaque_span(image)
+	print("TRANSMOG_WEAPON_SPAN ", span)
+	if max(span.x, span.y) < 30:
+		fail("Main-hand rendered end-on: isolated span " + str(span))
+		return
+	print("PASS TRANSMOG_WEAPON_PROFILE")
+	quit(0)
+
 func run_test() -> void:
 	shots = OS.get_environment("TRANSMOG_SHOTS")
 	if shots == "" or OS.get_environment("GODOT_TEST_SERVER") != "127.0.0.1:55087":
@@ -40,6 +56,13 @@ func run_test() -> void:
 	if not await wait_for(func(_s): return preview_model("TransmogCharacterModelScene") != null, "character preview", 60000):
 		return
 	await frames(20)
+	var model_rect := control("TransmogCharacterModelScene").get_global_rect()
+	if control("TransmogSlot1").get_global_rect().end.x > model_rect.position.x or control("TransmogSlot16").get_global_rect().position.x < model_rect.end.x:
+		fail("Slot columns are not on opposite sides of the character preview")
+		return
+	if control("TransmogOutfitDropdown").get_global_rect().end.y > model_rect.position.y or control("TransmogApplyButton").get_global_rect().position.y < model_rect.end.y:
+		fail("Outfits/Apply do not bracket the preview vertically")
+		return
 	await save_shot("01-applied.png")
 	var preview := preview_model("TransmogCharacterModelScene")
 	var weapon = preview.find_child("EquipmentMainHand", true, false) as Node3D
@@ -60,6 +83,24 @@ func run_test() -> void:
 			fail("Source%d has no 3D meshes" % source)
 			return
 	print("TRANSMOG_COLLECTION_3D_READY")
+	var initial_yaw := preview.rotation.y
+	await click_control(control("TransmogRotateLeft"), MOUSE_BUTTON_LEFT)
+	await frames(2)
+	if is_equal_approx(preview.rotation.y, initial_yaw):
+		fail("Rotate-left did not rotate the detached model")
+		return
+	await click_control(control("TransmogRotateRight"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogSheatheButton"), MOUSE_BUTTON_LEFT)
+	await frames(2)
+	if weapon.get_parent().name == "Attachment1":
+		fail("Sheathe kept main-hand in the palm")
+		return
+	await click_control(control("TransmogSheatheButton"), MOUSE_BUTTON_LEFT)
+	await frames(2)
+	if weapon.get_parent().name != "Attachment1":
+		fail("Draw did not restore main-hand to the palm")
+		return
+	print("TRANSMOG_PREVIEW_CONTROLS_READY")
 	var ui = client.get_node("TransmogUI")
 	var before: int = client.merchant_state().money
 	var applied = ui.frame_text("TransmogSource821Status")
@@ -120,11 +161,27 @@ func measure_weapon_pixels(weapon: Node3D) -> int:
 	await frames(2)
 	var isolated := viewport.get_texture().get_image()
 	isolated.save_png(shots.path_join("weapon-isolated.png"))
+	var span := opaque_span(isolated)
+	print("TRANSMOG_WEAPON_SPAN ", span)
+	if max(span.x, span.y) < 30:
+		fail("Main-hand rendered end-on: isolated span " + str(span))
 	for mesh in mesh_visibility:
 		mesh.visible = mesh_visibility[mesh]
 	animation.set_process(true)
 	animation.set_paused(false)
 	return changed
+
+func opaque_span(image: Image) -> Vector2i:
+	var first := Vector2i(image.get_width(), image.get_height())
+	var last := Vector2i.ZERO
+	for y in image.get_height():
+		for x in image.get_width():
+			if image.get_pixel(x, y).a > 0.1:
+				first.x = min(first.x, x)
+				first.y = min(first.y, y)
+				last.x = max(last.x, x)
+				last.y = max(last.y, y)
+	return last - first + Vector2i.ONE
 
 func changed_pixels(first: Image, second: Image) -> int:
 	var changed := 0

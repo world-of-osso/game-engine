@@ -61,6 +61,7 @@ fn build(skin: ActiveSkin, book: TransmogBook) -> FrameRegistry {
     shared.insert(TransmogView {
         book,
         viewport_width: 1920.0,
+        race_id: 1,
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(transmog_screen).sync(&shared, &mut registry);
@@ -89,6 +90,10 @@ fn transmog_wardrobe_exposes_model_cells_fixed_slots_and_outfit_gap_in_both_skin
             "TransmogSource1181ModelScene",
             "TransmogOutfitDropdown",
             "TransmogSaveOutfitButton",
+            "TransmogRotateLeft",
+            "TransmogRotateRight",
+            "TransmogSheatheButton",
+            "TransmogRaceBackground",
         ] {
             assert!(
                 registry.get_by_name(name).is_some(),

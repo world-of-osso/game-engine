@@ -12,7 +12,7 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 - [x] Native self and observer displays update after successful application and remain after relog, in both skins.
 - [ ] Collection uses paged 3D appearance models (3 rows × 6 columns), collected/applied/pending art, and icon slot buttons in two fixed columns around the character preview.
 - [ ] Outfits dropdown/Save belong above the preview; authoritative cost/Apply belong below it. Outfits remain disabled with an explicit gap when not server-backed.
-- [ ] Preview shows the equipped and pending main-hand weapon, independently of world equipment.
+- [ ] Preview shows the equipped and pending main-hand weapon, independently of world equipment, with rotation and Sheathe/Draw controls. Weapon-cell camera fitting must show the blade profile rather than its end.
 - [ ] Saved outfits follow the working core apply path; illusion UI requires authentic local illusion data.
 
 ## How it works
