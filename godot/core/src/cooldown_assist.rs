@@ -73,6 +73,7 @@ pub struct CooldownAssistCatalog {
     sets: BTreeMap<u32, CooldownSet>,
     entries: BTreeMap<u32, CooldownEntry>,
     rotations: BTreeMap<u32, Vec<AssistedStep>>,
+    charge_categories: BTreeMap<u32, u32>,
 }
 
 impl CooldownAssistCatalog {
@@ -80,7 +81,34 @@ impl CooldownAssistCatalog {
         let mut data = Self::default();
         data.load_cooldowns(dir)?;
         data.load_rotations(dir)?;
+        data.load_charge_categories(dir)?;
         Ok(data)
+    }
+
+    pub fn player_condition_ids(&self) -> BTreeSet<u32> {
+        self.sets
+            .values()
+            .map(|set| set.player_condition)
+            .chain(self.entries.values().map(|entry| entry.player_condition_id))
+            .filter(|id| *id != 0)
+            .collect()
+    }
+
+    pub fn charge_category(&self, spell: u32) -> Option<u32> {
+        self.charge_categories.get(&spell).copied()
+    }
+
+    fn load_charge_categories(&mut self, dir: &Path) -> Result<(), String> {
+        for [_, spell, difficulty, category] in read_columns(
+            dir,
+            "SpellCategories",
+            ["ID", "SpellID", "DifficultyID", "ChargeCategory"],
+        )? {
+            if difficulty == 0 && category != 0 {
+                self.charge_categories.insert(spell, category);
+            }
+        }
+        Ok(())
     }
 
     pub fn entry(&self, id: u32) -> Option<&CooldownEntry> {

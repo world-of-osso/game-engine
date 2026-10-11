@@ -29,6 +29,11 @@ AssistedCombat relates to specialization; Step defines SpellID and OrderIndex; R
 
 Keep unidentified DB2 fields under their WoWDBDefs names. Rule field `Field_11_1_7_60520_002` is zero in3114 rows and1 in2 rows; meaning remains unproved. Condition70 is automation-only in SimulationCraft and excluded from normal assisted rotation. Unsupported condition semantics must remain explicit, never silently treated as true.
 
+## Referenced PlayerConditions
+All276 distinct conditions referenced by CooldownSet/Spell exist in the pinned PlayerCondition CSV. Their non-default fields are race/class masks, spell/aura predicates with packed logic, specialization index, and two ModifierTree IDs:160516→455815 (Protection Warrior spell228920),161780→459004 (Fire Mage spell205708). Core now evaluates the masks/spell/aura/specialization subset; ModifierTree and any other unimplemented non-default field return an explicit error. All276 carry Flags1 (ClientExecutable in TrinityCore DBCEnums.h); no other flags are assumed. Predicate sources: ConditionMgr::PlayerConditionLogic and IsPlayerMeetingCondition. The remote short revision a352b1fa was unavailable; comparison used current TrinityCore source and existing local mount logic, not a claim of exact pinned-revision proof.
+
+SpellCategories also supplies the spell→charge category join missing from the spell catalog's max/recharge-only projection: Fire Blast108853 maps to category1500. Viewer charges must use the server's category snapshot, never assume max charges from DB2 are current charges.
+
 ## User extension
 Retail Assisted Highlight targets action buttons. Optional matching Cooldown Viewer icon highlighting is an explicit World of Osso extension; not Retail parity. Forever must re-skin the same behavior, not introduce another UI inventory.
 
