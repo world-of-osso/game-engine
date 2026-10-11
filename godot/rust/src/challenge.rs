@@ -1,5 +1,5 @@
 //! Native keystone slot/start and completion banner; the tracker consumes the same snapshot.
-use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::challenge::{ChallengeView, challenge_screen, slot_cursor};
 use godot::prelude::*;
