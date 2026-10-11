@@ -546,6 +546,19 @@ pub(crate) enum LfgCmd {
 #[derive(Subcommand)]
 pub(crate) enum PvpCmd {
     Status,
+    Open,
+    Accept {
+        #[arg(long)]
+        match_id: u64,
+    },
+    Decline {
+        #[arg(long)]
+        match_id: u64,
+    },
+    Leave {
+        #[arg(long)]
+        match_id: u64,
+    },
     QueueBattleground {
         #[arg(long)]
         battleground_id: u32,

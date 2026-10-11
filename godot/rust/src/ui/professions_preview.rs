@@ -134,6 +134,7 @@ fn preview_recipes() -> Vec<Recipe> {
             skill_line: 2540,
             profession: 197,
             category: category.into(),
+            category_order: 0,
             name: name.into(),
             min_rank,
             trivial_low,

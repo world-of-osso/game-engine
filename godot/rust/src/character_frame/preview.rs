@@ -232,6 +232,30 @@ impl Scene {
         self.model = Some(model);
     }
 
+    /// A weapon's largest two extents belong in the portrait plane, not along its depth.
+    pub(crate) fn replace_item_model(&mut self, model: Gd<Node3D>) {
+        self.replace_model(model);
+        let mut model = self.model.clone().expect("item model installed");
+        let size = mesh_bounds(&model).size;
+        model.set_basis(portrait_item_basis(size));
+        self.frame_camera(&model);
+    }
+
+    pub(crate) fn model(&self) -> Option<Gd<Node3D>> {
+        self.model.clone()
+    }
+
+    pub(crate) fn set_model_yaw(&mut self, yaw: f32) {
+        let Some(mut model) = self.model.clone() else {
+            return;
+        };
+        let rotation = Basis::from_axis_angle(Vector3::UP, yaw);
+        if model.get_basis() != rotation {
+            model.set_basis(rotation);
+            self.frame_camera(&model);
+        }
+    }
+
     /// Publish one independently completed pet using the fixed battlefield camera.
     pub(crate) fn add_model_child(&mut self, child: &Gd<Node3D>) {
         let mut model = self.model.clone().expect("preview model group installed");
@@ -259,6 +283,38 @@ impl Scene {
         let distance = height / 2.0 / (CAMERA_FOV.to_radians() / 2.0).tan() + bounds.size.x / 2.0;
         let eye = center + Vector3::new(distance, 0.0, 0.0);
         self.camera.look_at_from_position(eye, center);
+    }
+}
+
+fn portrait_item_basis(size: Vector3) -> Basis {
+    let mut axes = [
+        (size.x, Vector3::RIGHT),
+        (size.y, Vector3::UP),
+        (size.z, Vector3::BACK),
+    ];
+    axes.sort_by(|left, right| right.0.total_cmp(&left.0));
+    let vertical = axes[0].1;
+    let horizontal = axes[1].1;
+    Basis::from_rows(vertical.cross(horizontal), vertical, horizontal)
+}
+
+#[cfg(test)]
+mod transmog_tests {
+    use super::*;
+
+    #[test]
+    fn transmog_portrait_item_basis_projects_length_and_width_not_depth() {
+        for (size, length, width) in [
+            (Vector3::new(0.8, 0.1, 0.05), Vector3::RIGHT, Vector3::UP),
+            (Vector3::new(0.05, 0.8, 0.1), Vector3::UP, Vector3::BACK),
+            (Vector3::new(0.1, 0.05, 0.8), Vector3::BACK, Vector3::RIGHT),
+        ] {
+            let basis = portrait_item_basis(size);
+            assert_eq!(basis * length, Vector3::UP);
+            assert_eq!(basis * width, Vector3::BACK);
+            assert_eq!(basis * length.cross(width), Vector3::RIGHT);
+            assert_eq!(basis.determinant(), 1.0);
+        }
     }
 }
 

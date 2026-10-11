@@ -81,6 +81,8 @@ pub struct GroupFramesState {
     pub raid: Vec<Vec<CompactUnitView>>,
     pub menu: GroupContextMenuState,
     pub ready_check: ReadyCheckFrameState,
+    pub countdown: Option<crate::group_countdown::CountdownView>,
+    pub manager: crate::raid_manager_component::RaidManagerState,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -115,7 +117,20 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<GroupFramesState>()
         .expect("GroupFramesState must be in SharedContext");
-    let layout = hud_layout(ctx);
+    let mut layout = hud_layout(ctx);
+    if state.manager.expanded {
+        // Default group frames anchor to the manager's TOPRIGHT; custom movers do not.
+        if layout.party == crate::hud_layout::MODERN.party
+            || layout.party == crate::hud_layout::FOREVER.party
+        {
+            layout.party.x += 200.0;
+        }
+        if layout.raid == crate::hud_layout::MODERN.raid
+            || layout.raid == crate::hud_layout::FOREVER.raid
+        {
+            layout.raid.x += 200.0;
+        }
+    }
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
@@ -138,6 +153,8 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
         {raid_frame(&state, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}
+        {crate::countdown_component::countdown_frame(state.countdown.as_ref())}
+        {crate::raid_manager_component::raid_manager(&state.manager)}
     }
 }
 

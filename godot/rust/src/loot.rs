@@ -29,8 +29,11 @@ const SPARKLE_EMISSION: f32 = 3.0;
 #[derive(Default)]
 pub(crate) struct Loot {
     pub state: LootState,
+    pub group: game_engine_ui_model::group_loot::GroupLootState,
     pub lootable: HashSet<u64>,
     ui: Option<Gd<RegistryUi>>,
+    group_ui: Option<Gd<RegistryUi>>,
+    history_requested: bool,
     anchor_corpse: Option<u64>,
     anchor: [f32; 2],
 }
@@ -40,14 +43,14 @@ impl Loot {
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
     ) -> Result<(), String> {
-        if let Some(ui) = &mut self.ui {
+        for ui in [&mut self.ui, &mut self.group_ui].into_iter().flatten() {
             visit(ui)?;
         }
         Ok(())
     }
 
     pub(crate) fn reset(&mut self) {
-        if let Some(ui) = self.ui.take() {
+        for ui in [self.ui.take(), self.group_ui.take()].into_iter().flatten() {
             ui.free();
         }
         *self = Self::default();
@@ -90,6 +93,14 @@ impl GameClient {
             }
             LootMessage::Closed(closed) => self.loot.state.close(closed.corpse),
             LootMessage::Failed(failed) => self.add_world_error(failed.error.message())?,
+            LootMessage::GroupRoll(snapshot) => {
+                for line in self.loot.group.apply(snapshot) {
+                    game_engine_ui_model::chat_frame::add_system_line(
+                        &mut self.chat.model.log,
+                        &line,
+                    );
+                }
+            }
         }
         Ok(())
     }
@@ -127,7 +138,76 @@ impl GameClient {
             self.send_loot_frame_actions()?;
         }
         self.sync_loot_anchor();
-        Ok(self.sync_loot_ui()?)
+        self.sync_loot_ui()?;
+        self.update_group_loot()?;
+        Ok(())
+    }
+
+    fn update_group_loot(&mut self) -> Result<(), FrameError> {
+        if !self.loot.history_requested {
+            self.account.request_group_loot_history()?;
+            self.loot.history_requested = true;
+        }
+        let delta = self.base().get_process_delta_time() as f32;
+        self.loot.group.tick(delta);
+        if self.game_menu_ui.is_none()
+            && self.account.session.gameplay_input_allowed()
+            && let Some(mut ui) = self.loot.group_ui.clone()
+        {
+            loop {
+                let action = ui.bind_mut().pop_action().to_string();
+                if action.is_empty() {
+                    break;
+                }
+                if action == game_engine_ui_model::group_loot_component::HISTORY_CLOSE {
+                    self.loot.group.history_open = false;
+                } else if let Some((id, choice)) =
+                    game_engine_ui_model::group_loot::parse_choice(&action)
+                {
+                    let viewer = self
+                        .account
+                        .session
+                        .selected_character_id
+                        .ok_or_else(|| "Group loot has no selected character".to_string())?;
+                    if let Some(request) = self.loot.group.request(viewer, id, choice) {
+                        self.account.send_group_loot_choice(request)?;
+                    }
+                }
+            }
+        }
+        self.sync_group_loot_ui()?;
+        Ok(())
+    }
+
+    fn sync_group_loot_ui(&mut self) -> Result<(), String> {
+        let viewer = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or_else(|| "Group loot has no selected character".to_string())?;
+        let state = game_engine_ui_model::group_loot_component::GroupLootUiState::from_state(
+            &self.loot.group,
+            viewer,
+        );
+        let scale = self.effective_ui_scale();
+        if let Some(ui) = &mut self.loot.group_ui {
+            ui.bind_mut().set_ui_scale(scale)?;
+            return ui.bind_mut().set_state(state);
+        }
+        if state.prompts.is_empty() && !state.history_open {
+            return Ok(());
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("GroupLootUI");
+        self.base_mut().add_child(&ui);
+        let scaled = ui.bind_mut().set_ui_scale(scale);
+        let shown = scaled.and_then(|()| ui.bind_mut().show_group_loot(state));
+        if let Err(error) = shown {
+            ui.free();
+            return Err(error);
+        }
+        self.loot.group_ui = Some(ui);
+        Ok(())
     }
 
     fn send_loot_frame_actions(&mut self) -> Result<(), FrameError> {

@@ -228,6 +228,7 @@ pub struct UnitFrameMenuState {
     pub player_items: Vec<UnitMenuItem>,
     /// The Dungeon Difficulty submenu, open beside the menu.
     pub difficulty_menu: Option<DifficultyMenuState>,
+    pub raid_difficulty_menu: Option<DifficultyMenuState>,
 }
 
 /// `UnitPopupDungeonDifficultyButtonMixin:GetEntries`: Normal, Heroic, Mythic radios.
@@ -365,6 +366,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {personal_resource_display::frame(state.personal_resource.as_ref())}
             {unit_frame_menu(&state.menu)}
             {difficulty_menu(state.menu.difficulty_menu.as_ref())}
+            {raid_difficulty_menu(state.menu.raid_difficulty_menu.as_ref())}
         }
     }
 }
@@ -921,10 +923,34 @@ const DIFFICULTY_MENU_ROWS: [u32; 3] = [1, 2, 23];
 /// The Dungeon Difficulty submenu (`DUNGEON_DIFFICULTY`): a radio row per difficulty,
 /// grey while disabled (its click is ignored, `unit_frames::UnitFrameClick`).
 fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
+    render_difficulty_menu(state, false)
+}
+fn raid_difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
+    if state.is_none() {
+        return Vec::new();
+    }
+    render_difficulty_menu(state, true)
+}
+fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> Element {
     let hidden = state.is_none();
+    let prefix = if raid {
+        "UnitFrameRaidDifficultyMenu"
+    } else {
+        "UnitFrameDifficultyMenu"
+    };
+    let title = if raid {
+        "Raid Difficulty"
+    } else {
+        "Dungeon Difficulty"
+    };
+    let ids: &[u32] = if raid {
+        &[14, 15, 16, 3, 4]
+    } else {
+        &DIFFICULTY_MENU_ROWS
+    };
     let (x, y) = state.map_or((0.0, 0.0), |menu| (menu.x, menu.y));
-    let height = difficulty_menu_height(DIFFICULTY_MENU_ROWS.len());
-    let rows: Element = DIFFICULTY_MENU_ROWS
+    let height = difficulty_menu_height(ids.len()) + if raid { 20.0 } else { 0.0 };
+    let rows: Element = ids
         .iter()
         .enumerate()
         .flat_map(|(index, &difficulty_id)| {
@@ -941,12 +967,12 @@ fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
                     checked: false,
                     enabled: false,
                 });
-            difficulty_row(index, &entry)
+            difficulty_row(index, &entry, raid, prefix)
         })
         .collect();
     rsx! {
         r#frame {
-            name: "UnitFrameDifficultyMenu",
+            name: {dyn_name(prefix.into())},
             width: {DIFFICULTY_MENU_W},
             height: {height},
             hidden: hidden,
@@ -957,10 +983,10 @@ fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
             left: {x},
             top: {y},
             fontstring {
-                name: "UnitFrameDifficultyMenuTitle",
+                name: {dyn_name(format!("{prefix}Title"))},
                 width: {DIFFICULTY_MENU_W - 12.0},
                 height: 14.0,
-                text: "Dungeon Difficulty",
+                text: title,
                 font_size: 10.0,
                 font_color: "1.0,0.82,0.0,1.0",
                 justify_h: "LEFT",
@@ -969,21 +995,18 @@ fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
                 top: 6.0,
             }
             {rows}
+            {if raid { rsx! { fontstring { name:"UnitFrameRaidDifficultyLegacyTitle",text:"Legacy Raid Size",width:108.0,height:20.0,font_size:10.0,font_color:"1,0.82,0,1",pos_type:"absolute",left:6.0,top:86.0 } } } else { Vec::new() }}
         }
     }
 }
 
-fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
-    let row_name = dyn_name(format!("UnitFrameDifficultyMenu{}", entry.difficulty_id));
-    let radio_name = dyn_name(format!(
-        "UnitFrameDifficultyMenu{}Radio",
-        entry.difficulty_id
-    ));
-    let text_name = dyn_name(format!(
-        "UnitFrameDifficultyMenu{}Text",
-        entry.difficulty_id
-    ));
-    let top = DIFFICULTY_MENU_TOP + index as f32 * DIFFICULTY_ROW_H;
+fn difficulty_row(index: usize, entry: &DifficultyMenuEntry, raid: bool, prefix: &str) -> Element {
+    let row_name = dyn_name(format!("{prefix}{}", entry.difficulty_id));
+    let radio_name = dyn_name(format!("{prefix}{}Radio", entry.difficulty_id));
+    let text_name = dyn_name(format!("{prefix}{}Text", entry.difficulty_id));
+    let top = DIFFICULTY_MENU_TOP
+        + index as f32 * DIFFICULTY_ROW_H
+        + if raid && index >= 3 { 20.0 } else { 0.0 };
     let coords = if entry.checked {
         RADIO_CHECKED_COORDS
     } else {
@@ -994,10 +1017,12 @@ fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
     } else {
         MENU_TEXT_DISABLED
     };
-    let action = format!(
-        "{ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX}{}",
-        entry.difficulty_id
-    );
+    let action_prefix = if raid {
+        "unit_menu_raid_difficulty:"
+    } else {
+        ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX
+    };
+    let action = format!("{action_prefix}{}", entry.difficulty_id);
     rsx! {
         r#frame {
             name: row_name,

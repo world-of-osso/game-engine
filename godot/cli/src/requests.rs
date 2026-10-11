@@ -207,6 +207,16 @@ pub fn lfg_request(command: LfgCmd) -> Result<Request, String> {
 pub fn pvp_request(command: PvpCmd) -> Result<Request, String> {
     let request = match command {
         PvpCmd::Status => Request::PvpStatus,
+        PvpCmd::Open => Request::PvpOpen,
+        PvpCmd::Accept { match_id } => Request::PvpRespond {
+            match_id,
+            accepted: true,
+        },
+        PvpCmd::Decline { match_id } => Request::PvpRespond {
+            match_id,
+            accepted: false,
+        },
+        PvpCmd::Leave { match_id } => Request::PvpLeave { match_id },
         PvpCmd::QueueBattleground { battleground_id } => {
             Request::PvpQueueBattleground { battleground_id }
         }
