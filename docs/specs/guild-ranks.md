@@ -19,6 +19,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.
 - [x] Whole-gold input sends copper/day, sharing the allowance with guild repairs.
 - [x] Member context menu shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
+- [x] `/gpromote` / `/guildpromote` and `/gdemote` / `/guilddemote` send the same authoritative rank requests (Retail SlashCommands.lua GUILD_PROMOTE/GUILD_DEMOTE), not generic help.
 - [x] Server refusals display Retail GlobalStrings. `/o` and `/officer` use the Officer channel and its styling.
 
 ## How it works
