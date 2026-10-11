@@ -124,3 +124,60 @@ fn guild_charter_turn_in_uses_registrar_owned_guid_and_creation_closes_views() {
     });
     assert!(view.registrar.is_none() && view.petition.is_none() && !view.waiting);
 }
+
+#[test]
+fn guild_charter_retail_controls_use_authoritative_quota_in_both_skins() {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = GuildCharters::default();
+        view.receive(GuildCharterReply::Registrar(registrar()));
+        let mut shared = SharedContext::new();
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(game_engine_ui_model::guild_charter_frame::charter_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(
+            registry.get_by_name("GuildRegistrarButton1").is_some(),
+            "{skin:?} registrar purchase missing"
+        );
+        view.click("charter:purchase_open", &InputTexts::default(), None);
+        shared.insert(view.clone());
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name(PURCHASE_NAME).is_some());
+        view.receive(GuildCharterReply::Petition(petition(true)));
+        shared.insert(view.clone());
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("PetitionFrameRequestButton").is_some());
+        assert!(registry.get_by_name("PetitionFrameSignButton").is_none());
+        let row = registry
+            .get(
+                registry
+                    .get_by_name("PetitionFrameMemberName4")
+                    .expect("authoritative fourth signature"),
+            )
+            .unwrap();
+        assert!(
+            matches!(&row.widget_data, Some(WidgetData::FontString(t)) if t.text == "Not yet signed")
+        );
+        assert!(registry.get_by_name("PetitionFrameMemberName5").is_none());
+        view.receive(GuildCharterReply::Petition(petition(false)));
+        shared.insert(view);
+        screen.sync(&shared, &mut registry);
+        let sign = registry
+            .get(registry.get_by_name("PetitionFrameSignButton").unwrap())
+            .unwrap();
+        assert_eq!(sign.onclick.as_deref(), Some("charter:sign"));
+        assert!(registry.get_by_name("PetitionFrameRenameButton").is_none());
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
