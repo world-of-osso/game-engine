@@ -308,6 +308,7 @@ func prove_timer() -> void:
 	while viewer_remaining(68661) <= 0 and Time.get_ticks_msec() < deadline:
 		await process_frame
 	if viewer_remaining(68661) <= 0:
+		write_json("bar-blocker", {"account": client.account_state(), "spells": client.spells_state(), "viewer": client.cooldown_viewer_state(), "auras": client.aura_state()})
 		fail("Tracked Avenging Wrath bar did not use real aura time")
 		return
 	await capture("viewer-buff-bar")
