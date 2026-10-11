@@ -1,3 +1,7 @@
+## 2026-10-10 — Battlefield pet model correction
+
+[Model availability](systems/battle-pets.md#battlefield-model-availability--verified-2026-10-10): missing ally receipts stranded the ready Rabbit; independent arrivals, authenticated additive no-clobber publication and authored idle-variation framing fix the roots. Native RED/GREEN and eight inspected both-skin four-pair PNGs; no raw fallback, existing asset overwrite, world.db write or master merge.
+
 ## 2026-10-10 — Class spell private live proof
 
 [Class spell proof](investigations/class-spell-live-proof.md) records thirteen bounded native client paths, four classes in both skins, received damage/heal/aura/resource receipts and inspected screenshots on private54113. Setup/skin migration/cast-time/resource/spec mistakes remain distinct from script defects; supplemental contracts and full class parity remain unproved. No production code, world.db, shared realm or master changes.
