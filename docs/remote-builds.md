@@ -14,6 +14,8 @@ Desktop prerequisites: SSH, Git, existing MinGW x86_64 GNU/UCRT tools on PATH, a
 
 The KTX cache is `~/.woo-ktx`: its compiler-keyed directory names plus CMake scratch/object paths exceed MinGW's path limit under the long project workspace. The source/archive checksums remain those of the vendored KTX builder. Native Cargo and SCons use four jobs. Godot uses `platform=windows arch=x86_64 target=editor use_mingw=yes production=yes accesskit=no d3d12=no winrt=no`, the pinned source commit and ClassDB patch; Windows does not compile the Linux-only Wayland code. Python hash seed is0. The player uses native Win32 plus Vulkan; WinRT/OneCore, D3D12 SDK and accessibility-library integration are not included. The first runtime configure failed explicitly on absent WinRT/D3D12 SDKs; neither driver is required by the Linux-parity Vulkan renderer.
 
+The Linux caller also needs existing `tar` and `zstd`. Bundle staging streams a zstd-compressed tar directly to Windows' native tar, into the owned NTFS-compressed `player/` directory. A second archive copy on desktop is deliberately avoided: the October11 allowlist exceeds172GB, while desktop free space after builds is below160GB. This does not change runtime files or the downloadable player format. `player/` is replaced during assembly; never assemble while its client is running.
+
 The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\game-engine-<pid>` named pipes. `--phase ipc-test` on the worker runs the real Windows framing/process fixture independently of Godot. The Linux IPC CLI is not built for Windows. [Deployment](deploy.md#windows-x86_64-native-gnu) owns the bundle and publication boundary.
 
 ## Requirements

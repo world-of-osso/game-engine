@@ -79,12 +79,43 @@ def bootstrap(host, remote):
         "rustup toolchain install 1.98.1 --profile minimal --target x86_64-pc-windows-gnu; exit $LASTEXITCODE")
 
 
-def assemble(root, work, host, remote):
+def stage_payload(root, work, host, remote):
     bundle = root / 'target/deploy/windows-x86_64'
     if bundle.exists():
         shutil.rmtree(bundle)
     (bundle / 'lib').mkdir(parents=True)
     (bundle / 'runtime').mkdir()
+    copy_project(root, bundle, 'windows-x86_64')
+    copy_data(root, bundle)
+    archive = work / 'player.tar.zst'
+    create_archive(bundle, archive)
+    powershell(host, f"$ErrorActionPreference='Stop'; if (Test-Path '{remote}/player') {{ Remove-Item -Recurse -Force '{remote}/player' }}")
+    stream_archive(host, archive, remote + '/player')
+
+
+def create_archive(bundle, archive):
+    with archive.open('wb') as output:
+        compressor = subprocess.Popen(['zstd', '-T4', '-3', '-q'], stdin=subprocess.PIPE, stdout=output)
+        producer = subprocess.Popen(['tar', '--dereference', '-cf', '-', '-C', str(bundle), '.'], stdout=compressor.stdin)
+        compressor.stdin.close()
+        produced = producer.wait()
+        compressed = compressor.wait()
+    if produced or compressed:
+        raise RuntimeError(f'Player archive failed: tar={produced}, zstd={compressed}')
+
+
+def stream_archive(host, archive, destination):
+    powershell(host, f"$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Force '{destination}' | Out-Null; compact.exe /C '{destination}'; exit $LASTEXITCODE")
+    # Native tar inherits binary stdin directly. No PowerShell text pipeline and no
+    # second 172GB archive copy on Windows. NTFS compression is inherited by new files.
+    script = f"& tar.exe -xf - -C '{destination}'; exit $LASTEXITCODE"
+    encoded = base64.b64encode(script.encode('utf-16-le')).decode()
+    with archive.open('rb') as source:
+        subprocess.run(['ssh', host, 'powershell.exe -NoProfile -EncodedCommand ' + encoded], stdin=source, check=True)
+
+
+def finish_bundle(root, work, host, remote):
+    bundle = root / 'target/deploy/windows-x86_64'
     for name, destination in (
         ('game_engine_godot.dll', bundle / 'lib/game_engine_godot.dll'),
         ('godot.exe', bundle / 'runtime/godot.exe'),
@@ -92,15 +123,11 @@ def assemble(root, work, host, remote):
         ('godot.sha512', work / 'godot.sha512'),
     ):
         run('scp', f'{host}:{remote}/artifacts/{name}', str(destination))
-    copy_project(root, bundle, 'windows-x86_64')
-    copy_data(root, bundle)
-    archive = work / 'player.tar'
-    with tarfile.open(archive, 'w', dereference=True) as output:
-        for path in bundle.iterdir():
-            output.add(path, arcname=path.name)
-    powershell(host, f"$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Force '{remote}/player' | Out-Null")
-    upload(host, archive, remote + '/player.tar')
-    powershell(host, f"tar -xf '{remote}/player.tar' -C '{remote}/player'; exit $LASTEXITCODE")
+    native = work / 'native.tar'
+    with tarfile.open(native, 'w') as output:
+        for name in ('runtime', 'lib', 'game-engine-windows-x86_64'):
+            output.add(bundle / name, arcname=name)
+    stream_archive(host, native, remote + '/player')
     worker(host, remote, 'import')
     # Import cache must ship in the bundle assembled on Linux, too.
     powershell(host, f"tar -cf '{remote}/import.tar' -C '{remote}/player/godot' .godot; exit $LASTEXITCODE")
@@ -108,6 +135,11 @@ def assemble(root, work, host, remote):
     with tarfile.open(work / 'import.tar') as archive_input:
         archive_input.extractall(bundle / 'godot', filter='data')
     print(f'Windows player bundle: {bundle}', flush=True)
+
+
+def assemble(root, work, host, remote):
+    stage_payload(root, work, host, remote)
+    finish_bundle(root, work, host, remote)
 
 
 def main():
