@@ -79,7 +79,9 @@ func prove_node(resource: Dictionary) -> void:
 
 func capture_skill(label: String, resource: String) -> void:
 	await tap(KEY_K)
-	if not await wait_until(func(): return control("ProfessionsSkillText") != null, label + " skill display"): return
+	if not await wait_until(func():
+		var text := control("ProfessionsSkillText")
+		return text != null and text.text.begins_with("Classic"), label + " skill display", 60000): return
 	if resource == "ore":
 		if not admin(["learn-spell", character, "2657"]): return
 		if not await wait_until(func(): return control("ProfessionRecipe2657") != null, "learned Smelt Copper"): return
