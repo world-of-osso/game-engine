@@ -1,7 +1,7 @@
 //! Native Retail saved-instance frame; both skins share the same rows and actions.
 use crate::{GameClient, background_load::BackgroundLoad, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::raid_info::{self as model, RaidCatalog, RaidInfoState};
+use game_engine_ui_model::raid_info::{RaidCatalog, RaidInfoState};
 use godot::prelude::*;
 
 pub(crate) struct RaidInfo {
