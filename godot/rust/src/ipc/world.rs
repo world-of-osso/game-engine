@@ -215,6 +215,14 @@ impl crate::GameClient {
             })
             .min_by(|a, b| a.3.total_cmp(&b.3));
         if let Some((id, npc, dead, _)) = npc {
+            if self
+                .replica
+                .unit(id)
+                .is_some_and(|unit| unit.has::<shared::protocol::GatherableResource>())
+            {
+                self.interact_unit(id).map_err(|error| error.to_string())?;
+                return Ok(format!("gather {npc}"));
+            }
             self.set_target(Some(id));
             let lootable = self.loot.lootable.contains(&id);
             return match npc_right_click(dead, lootable, false) {

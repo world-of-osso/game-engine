@@ -9,8 +9,7 @@ const INITIAL_COUNT := 3
 const INITIAL_MONEY := 1250
 const LOOT_MONEY := 10502
 const INVENTORY_FULL := "Inventory is full."
-# Spread candidates across each actual surface, bounding expensive exact picks.
-const TRIANGLE_SAMPLES := 128
+const POSED_TRIANGLES := preload("res://tests/posed_triangle_points.gd")
 
 const OPTIONS_CATEGORIES := {
 	"graphics": "Graphics", "sound": "Sound", "camera": "Camera",
@@ -268,59 +267,13 @@ func find_corpse(client: Node, unit_name: String = CORPSE) -> Dictionary:
 				if transparency != null and float(transparency) <= 0.0:
 					continue
 			var id = area.get_meta("unit_server_id")
-			var palette := corpse_bone_palette(mesh)
 			for surface in range(mesh.mesh.get_surface_count()):
-				for center in corpse_triangle_centroids(mesh, surface, palette):
+				for center in POSED_TRIANGLES.centroids(mesh, surface):
 					var point := camera.unproject_position(center)
 					if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
 						return {"id": id, "point": point}
 	fail("Cached unit model not visible and UnitPicker-pickable at actual mesh: " + unit_name)
 	return {}
-
-func corpse_bone_palette(mesh: MeshInstance3D) -> Array[Transform3D]:
-	var palette: Array[Transform3D] = []
-	var skeleton := mesh.get_node_or_null(mesh.skeleton) as Skeleton3D
-	if mesh.skin == null or skeleton == null:
-		return palette
-	# Same current-pose * skin-bind palette used by UnitPicker, not rest bounds.
-	for bind in range(mesh.skin.get_bind_count()):
-		palette.append(skeleton.get_bone_global_pose(mesh.skin.get_bind_bone(bind)) * mesh.skin.get_bind_pose(bind))
-	return palette
-
-func corpse_triangle_centroids(mesh: MeshInstance3D, surface: int, palette: Array[Transform3D]) -> Array[Vector3]:
-	var centers: Array[Vector3] = []
-	var arrays := mesh.mesh.surface_get_arrays(surface)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	if vertices.is_empty():
-		return centers
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
-	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
-	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
-	var triangles := floori(float(vertices.size() if indices.is_empty() else indices.size()) / 3.0)
-	var samples := mini(triangles, TRIANGLE_SAMPLES)
-	# Evenly spaced real triangles cover separate body regions in the held death
-	# pose. No screen-grid search; every candidate is a posed triangle centroid.
-	for sample in range(samples):
-		var triangle := floori(float(sample) * triangles / samples)
-		var center := Vector3.ZERO
-		for corner in range(3):
-			var slot := triangle * 3 + corner
-			var index := slot if indices.is_empty() else indices[slot]
-			center += corpse_posed_vertex(vertices, bones, weights, palette, index)
-		centers.append(mesh.global_transform * (center / 3.0))
-	return centers
-
-func corpse_posed_vertex(vertices: PackedVector3Array, bones: PackedInt32Array, weights: PackedFloat32Array, palette: Array[Transform3D], index: int) -> Vector3:
-	var vertex := vertices[index]
-	if palette.is_empty() or bones.is_empty():
-		return vertex
-	var influences := floori(float(bones.size()) / vertices.size())
-	var posed := Vector3.ZERO
-	for slot in range(index * influences, (index + 1) * influences):
-		var bone := bones[slot]
-		if bone >= 0 and bone < palette.size() and slot < weights.size() and weights[slot] > 0.0:
-			posed += (palette[bone] * vertex) * weights[slot]
-	return posed
 
 func corpse_click(point: Vector2, shift: bool) -> void:
 	if shift:
