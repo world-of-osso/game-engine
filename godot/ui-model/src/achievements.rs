@@ -44,7 +44,7 @@ const CRITERIA: usize = 6;
 pub const ART: &[u32] = &[
     130652,
     235397,
-    130665,
+    130666,
     TOAST_ATLAS_FDID,
     137012,
     130656,
@@ -785,7 +785,7 @@ fn art(name: String, fdid: u32, rect: (f32, f32, f32, f32)) -> Element {
     let coords = match fdid {
         130652 => "0,0.6640625,0,1",
         130656 => "0,0.5625,0,0.5625",
-        130665 => "0,0.5,0,0.5",
+        130666 => "0,0.5,0,0.5",
         235397 => "0,1,0,0.5",
         _ => "0,1,0,1",
     };
@@ -1058,7 +1058,7 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
     ));
     content.extend(art(
         format!("{prefix}Shield"),
-        130665,
+        130666,
         (728.0, y, 40.0, 40.0),
     ));
     content.extend(label(
@@ -1332,7 +1332,7 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
     ));
     content.extend(art(
         format!("{prefix}Shield"),
-        130665,
+        130666,
         (728.0, y + 12.0, 48.0, 48.0),
     ));
     content.extend(label(
