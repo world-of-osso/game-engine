@@ -27,7 +27,23 @@ fn roster(is_raid: bool, members: Vec<GroupMemberSnapshot>) -> GroupRosterSnapsh
         total_count: 0,
         members,
         loot_method: LootMode::PersonalLoot,
+        loot_threshold: 2,
     }
+}
+
+#[test]
+fn group_leader_menu_offers_mainline_loot_methods_and_thresholds() {
+    let group = party_of(&[("Alice", true), ("Bob", false)]);
+    let entries = group_menu_entries(&group, "Alice", "Alice");
+    assert!(entries.iter().any(|entry| entry.label() == "Group Loot"));
+    assert!(entries.iter().any(|entry| entry.label() == "Personal Loot"));
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry.label() == "Loot Threshold: Uncommon")
+    );
+    let other = group_menu_entries(&group, "Bob", "Bob");
+    assert!(!other.iter().any(|entry| entry.label() == "Group Loot"));
 }
 
 fn live(name: &str, health: u32) -> GroupMemberState {

@@ -281,7 +281,7 @@ impl GameClient {
 
     fn use_game_object(&mut self, id: u64) -> Result<bool, FrameError> {
         Ok(self.use_font_of_power(id)?
-            || self.use_meeting_stone(id)?
+            || self.use_spell_or_quest_object(id)?
             || self.use_guild_vault(id)?
             || self.use_mailbox(id)?
             || self.use_chair(id)?)

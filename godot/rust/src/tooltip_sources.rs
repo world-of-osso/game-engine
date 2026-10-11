@@ -64,7 +64,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 20] = [
+        const SOURCES: [Source; 21] = [
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
@@ -74,6 +74,7 @@ impl GameClient {
             GameClient::paperdoll_tooltip,
             GameClient::merchant_tooltip,
             GameClient::merchant_button_tooltip,
+            GameClient::group_loot_tooltip,
             GameClient::loot_tooltip,
             GameClient::mail_attachment_tooltip,
             GameClient::inbox_item_tooltip,
@@ -364,6 +365,104 @@ impl GameClient {
             OwnerSide::Right,
             tooltip,
         )?))
+    }
+
+    fn group_loot_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, (history, index, choice)) =
+            named_ancestor(ui.registry()?, hit.frame, |frame| {
+                let name = name_of(frame)?;
+                if let Some(index) = name
+                    .strip_prefix("LootHistoryElement")
+                    .and_then(|index| index.parse::<usize>().ok())
+                {
+                    return Some((true, index.checked_sub(1)?, None));
+                }
+                for (suffix, choice) in [
+                    ("NeedButton", Some(shared::loot::LootRollChoice::Need)),
+                    ("GreedButton", Some(shared::loot::LootRollChoice::Greed)),
+                    (
+                        "TransmogButton",
+                        Some(shared::loot::LootRollChoice::Transmog),
+                    ),
+                    ("PassButton", Some(shared::loot::LootRollChoice::Pass)),
+                    ("IconFrame", None),
+                ] {
+                    if let Some(index) = name
+                        .strip_prefix("GroupLootFrame")
+                        .and_then(|name| name.strip_suffix(suffix))
+                        .and_then(|index| index.parse::<usize>().ok())
+                    {
+                        return Some((false, index.checked_sub(1)?, choice));
+                    }
+                }
+                None
+            })?;
+        drop(ui);
+        let viewer = self.account.session.selected_character_id?;
+        let roll = if history {
+            self.loot.group.history().iter().rev().nth(index)?
+        } else {
+            self.loot.group.visible(viewer).get(index).copied()?
+        };
+        if let Some(choice) = choice {
+            let player = roll
+                .players
+                .iter()
+                .find(|player| player.character_id == viewer)?;
+            let mut content = TooltipPresentation {
+                title: game_engine_ui_model::group_loot::choice_name(choice).into(),
+                ..Default::default()
+            };
+            if choice == shared::loot::LootRollChoice::Need
+                && let Some(reason) = &player.need_reason
+            {
+                content.lines.push(TooltipLineState::colored(
+                    reason.clone(),
+                    game_engine_ui_model::item_tooltip::RED_FONT_COLOR,
+                ));
+            }
+            let tooltip = GameTooltip::new(content, None);
+            return Some(HoveredTooltip::text(self.owned_by(
+                hit,
+                owner,
+                OwnerSide::Right,
+                tooltip,
+            )?));
+        }
+        let LootContent::Item {
+            item_id,
+            name,
+            quality,
+            count,
+        } = &roll.item
+        else {
+            return None;
+        };
+        let item = named_item(*item_id, name, *quality, *count);
+        let lines: Vec<_> = if history {
+            roll.players
+                .iter()
+                .map(|player| match player.response {
+                    Some(response) => format!(
+                        "{}: {} ({})",
+                        player.name,
+                        game_engine_ui_model::group_loot::choice_name(response.choice),
+                        response.roll_value
+                    ),
+                    None => format!("{}: Waiting", player.name),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let mut tooltip = self.item_owned(hit, owner, OwnerSide::Right, item)?;
+        tooltip.tooltip.content.lines.extend(
+            lines
+                .into_iter()
+                .map(|line| TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR)),
+        );
+        Some(tooltip)
     }
 
     /// `LootFrameElement{n}`: `SetLootItem` for item slots; money slots have no tooltip.

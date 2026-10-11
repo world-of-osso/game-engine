@@ -64,9 +64,13 @@ wait. Selected rank data is never edited optimistically.
 `godot/rust/src/guild_ranks.rs` owns the native canvas and polls its action queue.
 `account.rs` sends `GuildRankRequest` on ordered-reliable `GuildChannel`; the network
 bridge receives `GuildRanksState` and account dispatch forwards it to the session.
-Refusals also go to `UIErrorsFrame`. Escape and leaving InWorld close/reset the canvas.
+Refusals also go to `UIErrorsFrame`. Escape closes the canvas. Loading preserves early guild/invitation state; logout resets it.
 The Guild micro button opens this entry point (previously unavailable).
 Offline capture methods feed a concrete snapshot into the same production screen.
+
+## Guild lifecycle and charters
+
+[Guilds](guilds.md) owns invitations, membership/profile controls and the authentic Retail charter flow. Both-skin vault proof includes authoritative item deposit/withdraw, multiline tab info, selected-tab additive art and reaching the oldest retained log row through native steppers. Guild log retention is server-owned25, not the portable display cap128. Inspected evidence: canonical `data/diagnostics/guilds3-2026-10-11/`, AgentShared `2026-10-11/guilds/`; native guild log/input and readonly-info fixtures cover the projection boundary.
 
 ## Sources
 

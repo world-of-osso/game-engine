@@ -1,9 +1,17 @@
 # Wiki Index
 
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
+- [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
+- [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
+- [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
 
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
 - [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
+- [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
+- [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
+- [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
+- [Native transmog application](systems/transmog-apply.md) — shared Wardrobe slot/layout/search,3Dmodel pages, visible weapon profiles and authored additive state borders; both-skin native composited-pixel/paidApply proof, inherited self/observer/relog proof; server-backed outfits/camera-data gaps explicit.
+- [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
@@ -46,13 +54,14 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-10.
+Last updated: 2026-10-11.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
 
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
+- [Native battleground lifecycle](systems/battlegrounds.md) — both-skin ten-account WSG queue/invite/flags/scoreboard/results/origin-return proof; unsourced timing/honor and exact PvP art parity remain explicit.
 
 - [Client cache import sources](systems/cache-import-sources.md) — pinned Retail CSVs, build-qualified freshness receipts, explicit Forever imports and temporary outfit source boundary.
 

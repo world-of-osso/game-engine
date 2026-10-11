@@ -191,6 +191,8 @@ fn greeting_maps_quest_states_and_options() {
 
 #[test]
 fn reward_page_carries_the_selected_choice_and_resolved_icons() {
+    // Runtime lookup is nonblocking; this test asserts the loaded-catalog state.
+    crate::item_catalog::wait_for_item_catalog();
     let mut rewards = QuestRewards {
         money: 25,
         ..QuestRewards::default()
