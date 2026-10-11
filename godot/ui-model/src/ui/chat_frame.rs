@@ -461,6 +461,8 @@ pub enum ChatCommand {
     Emote(EmoteKind),
     Who(String),
     Group(GroupCommand),
+    GuildRank(shared::protocol::GuildRankRequest),
+    Guild(crate::guild_ranks::GuildCommand),
     /// Local system lines, shown only to this client.
     System(Vec<String>),
     None,
@@ -486,11 +488,39 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
             None => ChatCommand::None,
         },
         "who" => ChatCommand::Who(rest.to_string()),
+        "ginvite" | "guildinvite" => {
+            ChatCommand::Guild(crate::guild_ranks::GuildCommand::Invite(rest.to_owned()))
+        }
+        "gquit" | "guildquit" => ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Leave),
+        "gremove" | "guildremove" => {
+            ChatCommand::GuildRank(shared::protocol::GuildRankRequest::RemoveMember {
+                character_name: rest.to_owned(),
+            })
+        }
+        "gmotd" | "guildmotd" => {
+            ChatCommand::Guild(crate::guild_ranks::GuildCommand::SetMotd(rest.to_owned()))
+        }
+        "ginfo" | "guildinfo" => ChatCommand::Guild(crate::guild_ranks::GuildCommand::Query),
+        // Retail SlashCommands.lua: GUILD_PROMOTE / GUILD_DEMOTE.
+        "gpromote" | "guildpromote" => {
+            ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Promote {
+                character_name: rest.to_owned(),
+            })
+        }
+        "gdemote" | "guilddemote" => {
+            ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Demote {
+                character_name: rest.to_owned(),
+            })
+        }
         // Retail SLASH_INVITE/UNINVITE/PROMOTE/READYCHECK aliases.
         "invite" | "inv" => named_group_command(rest, GroupCommand::Invite),
         "uninvite" | "un" | "u" | "kick" => named_group_command(rest, GroupCommand::Uninvite),
         "promote" | "pr" => named_group_command(rest, GroupCommand::Promote),
         "readycheck" | "rc" => ChatCommand::Group(GroupCommand::StartReadyCheck),
+        "countdown" => match rest.parse::<u32>() {
+            Ok(seconds) => ChatCommand::Group(GroupCommand::Countdown(seconds)),
+            Err(_) => ChatCommand::None,
+        },
         // Bare `/leave` leaves the party or raid (`C_PartyInfo.LeaveParty`); `/leave <n>`
         // (chat channels) stays unsupported.
         "leave" if rest.is_empty() => ChatCommand::Group(GroupCommand::Leave),

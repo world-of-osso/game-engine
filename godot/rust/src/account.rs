@@ -63,6 +63,7 @@ use shared::protocol::{
     UseGameObject,
 };
 use shared::protocol::{PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
+use shared::protocol::{PetStableChannel, PetStableContents, PetStableFailed, PetStableRequest};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
@@ -73,11 +74,12 @@ use shared::protocol::{
     QuestGiverQuestDetails, QuestGiverQuestList, QuestGiverRequestItems, SetQuestWatched,
 };
 use shared::protocol::{
-    ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
-    GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
-    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, MinimapPing, MinimapPingRequest,
-    PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck,
-    SetGroupRole, SetRaidSubgroup, SetRaidTarget, StartReadyCheck,
+    ConvertGroupToParty, ConvertGroupToRaid, GroupAssistants, GroupChannel, GroupCommandResponse,
+    GroupCountdownRequest, GroupCountdownUpdate, GroupInviteCancelled, GroupInviteIntent,
+    GroupInvitePrompt, GroupMemberStates, GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup,
+    MinimapPing, MinimapPingRequest, PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate,
+    RespondGroupInvite, RespondReadyCheck, SetGroupAssistant, SetGroupRole, SetRaidSubgroup,
+    SetRaidTarget, StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -201,11 +203,20 @@ pub enum AccountEvent {
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
+    Pvp(shared::protocol::PvpStateUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
+    TransmogState(shared::protocol::TransmogState),
+    TransmogFailed(shared::protocol::TransmogFailed),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
+    Stable(StableMessage),
     GuildRanks(shared::protocol::GuildRanksState),
+    GuildInvitation(shared::protocol::GuildInvitation),
+    GuildInviteResult(shared::protocol::GuildInviteResponse),
+    GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
+    GuildProfile(shared::protocol::GuildStateUpdate),
+    GuildCharter(shared::protocol::GuildCharterReply),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
@@ -239,6 +250,13 @@ pub(crate) enum QuestMessage {
     Reward(QuestGiverOfferReward),
     Complete(QuestGiverQuestComplete),
     Failed(QuestFailed),
+    ShareOffer(shared::protocol::QuestShareOffer),
+    PushResult(shared::protocol::QuestPushResult),
+}
+
+pub(crate) enum StableMessage {
+    Contents(PetStableContents),
+    Failed(PetStableFailed),
 }
 
 pub(crate) enum BankMessage {
@@ -654,6 +672,21 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_transmog_apply(
+        &self,
+        request: shared::protocol::ApplyTransmog,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TransmogChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_transmog_query(&self, npc: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TransmogChannel>(shared::protocol::RequestTransmog { npc })
+            .map_err(SessionError)
+    }
+
     pub fn send_pet_request(
         &self,
         request: game_engine_ui_model::pet_journal::PetRequest,
@@ -683,6 +716,29 @@ impl Account {
             .send::<_, shared::protocol::CollectionChannel>(request)
             .map_err(SessionError)
     }
+    pub fn send_pvp(
+        &self,
+        action: game_engine_ui_model::battleground::PvpAction,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::battleground::PvpAction;
+        use shared::protocol::*;
+        let bridge = self.bridge()?;
+        let result = match action {
+            PvpAction::Query => bridge.send::<_, PvpChannel>(QueryPvpStatus),
+            PvpAction::Queue(battleground_id) => {
+                bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
+            }
+            PvpAction::Dequeue => bridge.send::<_, PvpChannel>(DequeueFromPvp),
+            PvpAction::Respond { match_id, accepted } => {
+                bridge.send::<_, PvpChannel>(RespondToBattlegroundInvite { match_id, accepted })
+            }
+            PvpAction::Leave(match_id) => {
+                bridge.send::<_, PvpChannel>(LeaveBattleground { match_id })
+            }
+        };
+        result.map_err(SessionError)
+    }
+
     pub fn send_pet_queue(
         &self,
         request: shared::protocol::PetBattleQueueRequest,
@@ -721,6 +777,12 @@ impl Account {
     pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_stable_request(&self, request: PetStableRequest) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, PetStableChannel>(request)
             .map_err(SessionError)
     }
 
@@ -838,6 +900,37 @@ impl Account {
         self.bridge()?
             .send::<_, shared::protocol::GuildChannel>(request)
             .map_err(SessionError)
+    }
+
+    pub fn send_guild_charter(
+        &self,
+        request: shared::protocol::GuildCharterRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::GuildChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_guild_command(
+        &self,
+        command: game_engine_ui_model::guild_ranks::GuildCommand,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::guild_ranks::GuildCommand;
+        use shared::protocol::*;
+        let bridge = self.bridge()?;
+        match command {
+            GuildCommand::Invite(target_character_name) => {
+                bridge.send::<_, AuthChannel>(GuildInviteRequest {
+                    target_character_name,
+                })
+            }
+            GuildCommand::AcceptInvite => bridge.send::<_, AuthChannel>(GuildAcceptInviteRequest),
+            GuildCommand::DeclineInvite => bridge.send::<_, AuthChannel>(GuildDeclineInviteRequest),
+            GuildCommand::SetMotd(text) => bridge.send::<_, GuildChannel>(SetGuildMotd { text }),
+            GuildCommand::SetInfo(text) => bridge.send::<_, GuildChannel>(SetGuildInfo { text }),
+            GuildCommand::Query => bridge.send::<_, GuildChannel>(QueryGuild),
+        }
+        .map_err(SessionError)
     }
 
     pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
@@ -994,6 +1087,15 @@ impl Account {
             R::SetWatched { quest_id, watched } => {
                 bridge.send::<_, QuestChannel>(SetQuestWatched { quest_id, watched })
             }
+            R::Share { quest_id } => {
+                bridge.send::<_, QuestChannel>(shared::protocol::PushQuestToParty { quest_id })
+            }
+            R::RespondShare { offer_id, accepted } => {
+                bridge.send::<_, QuestChannel>(shared::protocol::QuestPushResponse {
+                    offer_id,
+                    accepted,
+                })
+            }
             R::Close { npc } => bridge.send::<_, InteractionChannel>(CloseInteraction { npc }),
         }
         .map_err(SessionError)
@@ -1131,6 +1233,9 @@ impl Account {
             GroupCommand::Uninvite(name) => {
                 bridge.send::<_, GroupChannel>(GroupUninviteIntent { name })
             }
+            GroupCommand::SetAssistant { name, assistant } => {
+                bridge.send::<_, GroupChannel>(SetGroupAssistant { name, assistant })
+            }
             GroupCommand::Promote(name) => {
                 bridge.send::<_, GroupChannel>(PromoteGroupLeader { name })
             }
@@ -1150,6 +1255,9 @@ impl Account {
                 bridge.send::<_, GroupChannel>(shared::protocol::SetGroupLootThreshold { quality })
             }
             GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
+            GroupCommand::Countdown(seconds) => {
+                bridge.send::<_, GroupChannel>(GroupCountdownRequest { seconds })
+            }
             GroupCommand::RespondReadyCheck(ready) => {
                 bridge.send::<_, GroupChannel>(RespondReadyCheck { ready })
             }
@@ -1318,12 +1426,24 @@ impl Account {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
             return Ok(());
         }
+        if message.is::<shared::protocol::TransmogState>() {
+            output.push(AccountEvent::TransmogState(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TransmogFailed>() {
+            output.push(AccountEvent::TransmogFailed(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::TrainerList>() {
             output.push(AccountEvent::TrainerList(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::PvpStateUpdate>() {
+            output.push(AccountEvent::Pvp(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::PetBattleQueueUpdate>() {
@@ -1472,11 +1592,17 @@ impl Account {
             return Ok(());
         }
         if message.is::<QuestLogSnapshot>() {
-            self.quests.apply_snapshot(decode(message)?);
+            let snapshot: QuestLogSnapshot = decode(message)?;
+            self.quests
+                .observe_timer_clock(&snapshot.entries, quest_local_unix());
+            self.quests.apply_snapshot(snapshot);
             return Ok(());
         }
         if message.is::<QuestLogUpdate>() {
-            let notices = self.quests.apply_update(decode(message)?);
+            let update: QuestLogUpdate = decode(message)?;
+            self.quests
+                .observe_timer_clock(&update.changed, quest_local_unix());
+            let notices = self.quests.apply_update(update);
             output.extend(notices.into_iter().map(AccountEvent::QuestNotice));
             return Ok(());
         }
@@ -1518,6 +1644,8 @@ impl Account {
             || message.is::<GroupInvitePrompt>()
             || message.is::<GroupInviteCancelled>()
             || message.is::<ReadyCheckUpdate>()
+            || message.is::<GroupCountdownUpdate>()
+            || message.is::<GroupAssistants>()
             || message.is::<GroupCommandResponse>()
             || message.is::<RaidTargetIcons>()
             || message.is::<MinimapPing>()
@@ -1531,6 +1659,8 @@ impl Account {
     ) -> Result<(), String> {
         if message.is::<GroupRosterSnapshot>() {
             self.group.apply_roster(decode(message)?);
+        } else if message.is::<GroupAssistants>() {
+            self.group.apply_assistants(decode(message)?);
         } else if message.is::<GroupMemberStates>() {
             let states: GroupMemberStates = decode(message)?;
             self.group.apply_member_states(states.members);
@@ -1543,7 +1673,29 @@ impl Account {
                 self.group.pending_invite = None;
             }
         } else if message.is::<ReadyCheckUpdate>() {
-            self.group.apply_ready_check(decode(message)?);
+            let notices = self.group.apply_ready_check_notices(
+                decode(message)?,
+                self.session.selected_character_name.as_deref(),
+            );
+            output.extend(notices.into_iter().map(AccountEvent::GroupNotice));
+        } else if message.is::<GroupCountdownUpdate>() {
+            let update: GroupCountdownUpdate = decode(message)?;
+            if update.time_remaining_secs > 0.0 || update.duration_secs == 0 {
+                let verb = if update.duration_secs == 0 {
+                    "canceled"
+                } else {
+                    "started"
+                };
+                output.push(AccountEvent::GroupNotice(format!(
+                    "[{}] {verb} a countdown timer.",
+                    update.initiator_name
+                )));
+            }
+            let now_unix_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|error| format!("Cannot read countdown wall clock: {error}"))?
+                .as_millis() as u64;
+            self.group.apply_countdown_at(update, now_unix_ms);
         } else if message.is::<RaidTargetIcons>() {
             self.raid_targets = decode(message)?;
         } else if message.is::<MinimapPing>() {
@@ -1613,6 +1765,26 @@ impl Account {
         if Self::is_roster_message(&message) {
             return self.dispatch_roster_message(message, output);
         }
+        if message.is::<shared::protocol::GuildInvitation>() {
+            output.push(AccountEvent::GuildInvitation(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildInviteResponse>() {
+            output.push(AccountEvent::GuildInviteResult(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildAcceptInviteResponse>() {
+            output.push(AccountEvent::GuildAccepted(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildStateUpdate>() {
+            output.push(AccountEvent::GuildProfile(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::GuildCharterReply>() {
+            output.push(AccountEvent::GuildCharter(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::GuildRanksState>() {
             output.push(AccountEvent::GuildRanks(decode(message)?));
             return Ok(());
@@ -1620,6 +1792,13 @@ impl Account {
         let message = match auction_message(message)? {
             Ok(reply) => {
                 output.push(AccountEvent::Auction(reply));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
+        let message = match stable_message(message)? {
+            Ok(stable) => {
+                output.push(AccountEvent::Stable(stable));
                 return Ok(());
             }
             Err(message) => message,
@@ -1910,6 +2089,19 @@ impl Account {
     }
 }
 
+fn stable_message(
+    message: ProtocolMessage,
+) -> Result<Result<StableMessage, ProtocolMessage>, String> {
+    let stable = if message.is::<PetStableContents>() {
+        StableMessage::Contents(decode(message)?)
+    } else if message.is::<PetStableFailed>() {
+        StableMessage::Failed(decode(message)?)
+    } else {
+        return Ok(Err(message));
+    };
+    Ok(Ok(stable))
+}
+
 /// The NPC interaction, vendor, bag or durability message, or the message back.
 fn bank_message(message: ProtocolMessage) -> Result<Result<BankMessage, ProtocolMessage>, String> {
     let bank = if message.is::<BankContents>() {
@@ -2003,6 +2195,13 @@ pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, Stri
 }
 
 /// The quest giver dialog message, or the message back (`QuestChannel`).
+fn quest_local_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after Unix epoch")
+        .as_secs() as i64
+}
+
 fn quest_message(
     message: ProtocolMessage,
 ) -> Result<Result<QuestMessage, ProtocolMessage>, String> {
@@ -2016,6 +2215,10 @@ fn quest_message(
         QuestMessage::Reward(decode(message)?)
     } else if message.is::<QuestGiverQuestComplete>() {
         QuestMessage::Complete(decode(message)?)
+    } else if message.is::<shared::protocol::QuestShareOffer>() {
+        QuestMessage::ShareOffer(decode(message)?)
+    } else if message.is::<shared::protocol::QuestPushResult>() {
+        QuestMessage::PushResult(decode(message)?)
     } else if message.is::<QuestFailed>() {
         QuestMessage::Failed(decode(message)?)
     } else {
@@ -2030,6 +2233,9 @@ mod toys_tests;
 #[cfg(test)]
 #[path = "account_dungeonclient_tests.rs"]
 mod dungeonclient_tests;
+#[cfg(test)]
+#[path = "account_guild_charter_tests.rs"]
+mod guild_charter_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]

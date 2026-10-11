@@ -46,6 +46,7 @@ const DONE_OBJECTIVE_COLOR: &str = "0.35,0.35,0.35,1.0";
 pub const CLOSE_ACTION: &str = "quest_log:close";
 pub const ABANDON_ACTION: &str = "quest_log:abandon";
 pub const TRACK_ACTION: &str = "quest_log:track";
+pub const SHARE_ACTION: &str = "quest_log:share";
 pub const SELECT_PREFIX: &str = "quest_log:select:";
 pub const HEADER_PREFIX: &str = "quest_log:header:";
 
@@ -410,6 +411,13 @@ fn details_pane(details: Option<&QuestLogDetails>, ctx: &SharedContext) -> Eleme
         ABANDON_ACTION,
         true,
         (DETAILS_X, button_y, 100.0, 22.0),
+    ));
+    elements.extend(panel_button(
+        "QuestLogShareButton".into(),
+        "Share",
+        SHARE_ACTION,
+        true,
+        (DETAILS_X + 105.0, button_y, 75.0, 22.0),
     ));
     elements.extend(panel_button(
         "QuestLogTrackButton".into(),
