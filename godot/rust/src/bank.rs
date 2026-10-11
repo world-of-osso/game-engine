@@ -18,6 +18,7 @@ use game_engine_ui_model::guild_bank_frame_component::{self as guild_frame, INFO
 use game_engine_ui_model::item_icons::item_icon_fdid_for;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
+use godot::classes::InputEvent;
 use godot::prelude::*;
 use shared::protocol::{
     BankContents, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GameObjectInfo,
