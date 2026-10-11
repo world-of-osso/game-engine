@@ -1151,6 +1151,11 @@ impl GameClient {
     }
 
     #[func]
+    fn cooldown_viewer_state(&self) -> VarDictionary {
+        self.cooldown_viewer_snapshot()
+    }
+
+    #[func]
     fn assisted_combat_state(&self) -> VarDictionary {
         self.assisted_snapshot()
     }
