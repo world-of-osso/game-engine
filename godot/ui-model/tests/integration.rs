@@ -49,6 +49,7 @@ mod merchant;
 mod merchant_junk;
 mod merchant_repair;
 mod micro_menu;
+mod minimap_gathering;
 mod minimap_ping;
 mod minimap_tracking;
 mod minimapblips;
