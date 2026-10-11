@@ -214,7 +214,7 @@ fn achievements_art_postsetup_paints_only_rendered_category_highlights() {
     outside_statistics_tree.category_id = 14822;
     window.categories.insert(14822, outside_statistics_tree);
     let mut registry = achievement_registry(&window, ActiveSkin::Modern);
-    game_engine_ui_model::achievements::apply_achievement_postsetup(&window, &mut registry);
+    game_engine_ui_model::achievements::apply_achievement_postsetup(&mut registry);
     assert_eq!(
         text(&registry, "AchievementEmpty"),
         "Loading achievements..."

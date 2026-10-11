@@ -1087,10 +1087,7 @@ fn browse_controls(window: &AchievementWindow) -> Element {
 }
 
 /// Mainline AchievementStatTemplateMixin:Init uses additive half-alpha on every second row.
-pub fn apply_achievement_postsetup(
-    window: &AchievementWindow,
-    registry: &mut ui_toolkit::registry::FrameRegistry,
-) {
+pub fn apply_achievement_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     // AchievementCategoryTemplate HighlightTexture uses ADD, not an opaque green overlay.
     // Selection can be outside the current category tree; style the emitted textures,
     // not a second reconstruction of which categories the tree contains.
@@ -1103,11 +1100,21 @@ pub fn apply_achievement_postsetup(
     for name in highlights {
         set_additive_texture(registry, &name, 1.0);
     }
-    for (index, entry) in window.displayed_entries().into_iter().enumerate() {
-        if entry.flags & 1 == 0 || index % 2 == 0 {
-            continue;
-        }
-        let name = format!("Achievement{}Stripe", entry.achievement_id);
+    let alternate_stripes: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let name = frame.name.as_ref()?;
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_ref()
+            else {
+                return None;
+            };
+            (name.starts_with("Achievement")
+                && name.ends_with("Stripe")
+                && texture.tex_coords[2] == 0.375)
+                .then(|| name.clone())
+        })
+        .collect();
+    for name in alternate_stripes {
         set_additive_texture(registry, &name, 0.5);
     }
 }
