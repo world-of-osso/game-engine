@@ -793,7 +793,12 @@ TABLES = {
         ],
     ),
     # WoWDBDefs layout 03FAB755: the inline ID is field 2.
-    "ChrModel": (0x03FAB755, [("ID", "id"), ("Sex", ("u8", 3)), ("DisplayID", 4)]),
+    "ChrModel": (
+        0x03FAB755,
+        [("ID", "id"), ("Sex", ("u8", 3)), ("DisplayID", 4),
+         ("CharComponentTextureLayoutID", 5), ("CustomizeScale", ("float", 11, 0)),
+         ("CameraDistanceOffset", ("float", 13, 0))],
+    ),
     "ChrRaceXChrModel": (
         0xA203BC29,
         [

@@ -12,7 +12,7 @@ Each tool accepts an optional `DATA_DIR`: `cargo run -p game-engine-tools --bin 
 
 ## Export boundary
 
-Missing customization/texture tables were exported from local Retail CASC build `12.1.0.69933`, build key `dcfc90fffd79ba00406ae46f5f657592`, using exact WDC5 layouts in the tracked exporter. New files were added with exclusive creation; existing pinned CSVs were not overwritten. Diagnostics and source/layout/hash receipts live under `data/diagnostics/cache-import-sources-2026-10-10/`.
+Missing customization/texture tables were exported from local Retail CASC build `12.1.0.69933`, build key `dcfc90fffd79ba00406ae46f5f657592`, using exact WDC5 layouts in the tracked exporter. New files were added with exclusive creation. The pre-existing three-column `ChrModel.csv` required customization layout/scale/camera columns; the lead explicitly authorized same-build expansion, preserving `ChrModel.csv.pre-cache-import-sources-20261010` and both hashes. Engine player-model and server LOS readers select columns by header name, so the added columns preserve their behavior. Diagnostics and source/layout/hash receipts live under `data/diagnostics/cache-import-sources-2026-10-10/`.
 
 The outfit importer retains its entire existing seven-table root source set as a **WORKAROUND**: `CharStartOutfit` FDID 1237591 is absent from the local Retail root. Retirement condition: obtain an authentic pinned `CharStartOutfit` export, then migrate all seven inputs together. The other missing outfit tables were exported but are not partially mixed into this importer. `ItemDisplayInfoMaterialRes` export drops 177 records whose TACT keys remain unavailable.
 
