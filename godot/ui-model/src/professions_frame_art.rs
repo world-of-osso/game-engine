@@ -60,6 +60,52 @@ fn draw_region(name: &str, region: AtlasRegion, rect: (f32, f32, f32, f32)) -> E
     cropped(name.into(), fdid, &coords, rect)
 }
 
+/// Shared TabSystemButtonArtTemplate top orientation (Mainline HandleRotation).
+pub(super) fn top_tab(
+    name: &str,
+    caption: &str,
+    action: &str,
+    selected: bool,
+    rect: (f32, f32, f32, f32),
+) -> Element {
+    use ui_toolkit::widget_def::{Attr, WidgetChild};
+    let (left, top, width, height) = rect;
+    let state = if selected { "activetab" } else { "tab" };
+    let mut children = Vec::new();
+    for (suffix, member, x, w) in [
+        ("Right", format!("uiframe-{state}-right"), -7.0, 37.0),
+        (
+            "Middle",
+            format!("_uiframe-{state}-center"),
+            30.0,
+            width - 65.0,
+        ),
+        ("Left", format!("uiframe-{state}-left"), width - 35.0, 35.0),
+    ] {
+        let mut cap = atlas(
+            &format!("{name}{suffix}"),
+            &member,
+            (x, height - 42.0, w, 42.0),
+        );
+        let WidgetChild::Widget(widget) = &mut cap[0] else {
+            unreachable!()
+        };
+        widget.attrs.push(Attr::new_dynamic(
+            "rotation",
+            std::f32::consts::PI.to_string(),
+        ));
+        children.extend(cap);
+    }
+    children.extend(crate::bank_art::label(
+        format!("{name}Text"),
+        caption,
+        (0.0, 0.0, width, height),
+        (12.0, crate::bank_art::HIGHLIGHT_FONT_COLOR, "CENTER"),
+    ));
+    let disabled = action.is_empty();
+    rsx! { button { name: {DynName(name.into())}, left, top, width, height, pos_type: "absolute", onclick: action, disabled, button_default_skin: false, {children} } }
+}
+
 pub(super) fn background(profession: &str) -> Element {
     let member = format!("Professions-Recipe-Background-{profession}");
     let region = read_region(&member).unwrap_or_else(|| {

@@ -79,6 +79,50 @@ fn specialization_undo_restores_balance_and_never_requests_a_refund() {
     assert_eq!(draft.snapshot.as_ref().unwrap().trees[0].nodes[0].rank, 1);
 }
 #[test]
+fn specialization_combines_costs_for_the_same_trait_currency() {
+    let mut draft = draft();
+    let snapshot = draft.snapshot.as_mut().unwrap();
+    snapshot.knowledge_available = 1;
+    snapshot.currencies[0].available = 1;
+    snapshot.trees[0].nodes[0].costs.push(ProfessionSpecCost {
+        trait_currency_id: 9,
+        amount: 1,
+    });
+    assert!(!draft.stage_rank());
+    assert!(draft.purchases.is_empty());
+}
+
+#[test]
+fn specialization_tab_unlock_requires_confirmation_and_available_currency() {
+    let mut draft = draft();
+    let snapshot = draft.snapshot.as_mut().unwrap();
+    snapshot.trees[0].unlocked = false;
+    snapshot.trees[0].nodes[0].rank = 0;
+    snapshot.knowledge_available = 0;
+    snapshot.currencies[0].available = 0;
+    assert!(!draft.can_unlock());
+    draft.snapshot.as_mut().unwrap().currencies[0].available = 1;
+    draft.snapshot.as_mut().unwrap().knowledge_available = 1;
+    assert!(draft.can_unlock());
+    assert!(draft.confirm_unlock().is_none());
+    draft.confirming_unlock = true;
+    assert_eq!(
+        draft.confirm_unlock(),
+        Some(ProfessionSpecializationRequest::Commit {
+            skill_line: 2830,
+            tree_id: 350,
+            purchases: vec![ProfessionTraitPurchase {
+                node_id: 100,
+                entry_id: 200,
+                ranks: 1
+            }],
+        })
+    );
+    assert!(draft.pending);
+    assert!(!draft.snapshot.as_ref().unwrap().trees[0].unlocked);
+}
+
+#[test]
 fn specialization_unavailable_path_cannot_stage() {
     let mut draft = draft();
     draft.snapshot.as_mut().unwrap().trees[0].nodes[0].available = false;

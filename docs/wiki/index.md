@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Crafting UI](systems/crafting-ui.md) — Retail specialization drafts, customer/crafter fixed-output orders and explicit disabled recraft boundary; development proof only, joint native acceptance pending.
+
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
 - [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — authored DB2 joins; both-skin private four-category clocks/settings/Edit Mode/assistant placement proof; exact rotation and hostile combat acceptance remain open.
 

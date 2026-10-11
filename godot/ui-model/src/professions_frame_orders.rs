@@ -74,18 +74,23 @@ pub(super) fn crafter_page(ctx: &SharedContext, view: &ProfessionView) -> Elemen
 }
 fn order_type_tabs(view: &ProfessionView) -> Element {
     [
-        ("public", "Public"),
-        ("guild", "Guild"),
-        ("personal", "Personal"),
+        ("public", "Public", CraftingOrderKind::Public),
+        ("guild", "Guild", CraftingOrderKind::Guild),
+        ("personal", "Personal", CraftingOrderKind::Personal),
     ]
     .into_iter()
     .enumerate()
-    .flat_map(|(index, (key, title))| {
-        panel_button(
-            format!("CraftingOrderType{key}"),
+    .flat_map(|(index, (key, title, kind))| {
+        let action = if view.orders.pending {
+            String::new()
+        } else {
+            format!("profession:order:kind:{key}")
+        };
+        art::top_tab(
+            &format!("CraftingOrderType{key}"),
             title,
-            &format!("profession:order:kind:{key}"),
-            !view.orders.pending,
+            &action,
+            view.orders.kind == kind,
             (290.0 + index as f32 * 185.0, 75.0, 180.0, 30.0),
         )
     })
@@ -247,6 +252,16 @@ fn detail(view: &ProfessionView) -> Element {
         ));
     }
     let y = if view.orders.customer { 480.0 } else { 625.0 };
+    let remaining = order.expires_at.saturating_sub(view.now_unix);
+    out.extend(text(
+        "CraftingOrderTimeRemaining",
+        &format!(
+            "Time Remaining: {}h {}m",
+            remaining / 3600,
+            (remaining % 3600) / 60
+        ),
+        (330.0, y - 60.0, 460.0, 22.0),
+    ));
     if view.orders.customer {
         out.extend(panel_button(
             "CraftingOrderCancel".into(),
