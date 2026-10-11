@@ -141,7 +141,7 @@ impl GameClient {
                 InteractionKind::Role(NpcRole::FlightMaster) => {
                     session.close();
                 }
-                InteractionKind::Role(NpcRole::Trainer) => {
+                InteractionKind::Role(NpcRole::Trainer | NpcRole::Transmogrifier) => {
                     session.close();
                 }
                 // The vendor list follows the vendor role (`VendorInventory`).
