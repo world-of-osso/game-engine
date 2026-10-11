@@ -15,6 +15,7 @@ pub struct RecipeCatalog {
     pub openers: BTreeMap<u32, u32>,
     pub primary_skills: BTreeSet<u32>,
     pub profession_skills: BTreeSet<u32>,
+    pub crafting_quality: BTreeMap<u32, crate::professions_quality::CraftingQuality>,
 }
 
 impl RecipeCatalog {
@@ -59,6 +60,7 @@ impl RecipeCatalog {
                 Ok(())
             },
         )?;
+        catalog.crafting_quality = crate::professions_quality::load(dir)?;
         let categories = load_categories(dir)?;
         let outputs = load_outputs(dir)?;
         let reagents = load_reagents(dir)?;
@@ -68,14 +70,17 @@ impl RecipeCatalog {
     }
 }
 
-fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, u32)>, String> {
+fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, i32)>, String> {
     let mut categories = BTreeMap::new();
     read_rows(
         dir,
         "TradeSkillCategory",
         &["ID", "Name_lang", "OrderIndex"],
         |row| {
-            categories.insert(number(row[0])?, (row[1].into(), number(row[2])?));
+            let order = row[2]
+                .parse::<i32>()
+                .map_err(|error| format!("category order: {error}"))?;
+            categories.insert(number(row[0])?, (row[1].into(), order));
             Ok(())
         },
     )?;
@@ -144,7 +149,7 @@ fn load_reagents(dir: &Path) -> Result<BTreeMap<u32, Vec<(u32, u32)>>, String> {
 fn load_recipes(
     dir: &Path,
     skills: &BTreeMap<u32, String>,
-    categories: &BTreeMap<u32, (String, u32)>,
+    categories: &BTreeMap<u32, (String, i32)>,
     outputs: &BTreeMap<u32, (u32, u32)>,
     reagents: &BTreeMap<u32, Vec<(u32, u32)>>,
 ) -> Result<Vec<Recipe>, String> {
@@ -192,7 +197,7 @@ fn load_recipes(
     Ok(recipes)
 }
 
-fn number(raw: &str) -> Result<u32, String> {
+pub(super) fn number(raw: &str) -> Result<u32, String> {
     raw.parse()
         .map_err(|error| format!("Recipe DB2 integer {raw:?}: {error}"))
 }
@@ -200,7 +205,7 @@ fn rank(raw: &str) -> Result<u16, String> {
     raw.parse()
         .map_err(|error| format!("Recipe DB2 rank {raw:?}: {error}"))
 }
-fn read_rows(
+pub(super) fn read_rows(
     dir: &Path,
     table: &str,
     columns: &[&str],

@@ -52,6 +52,7 @@ pub mod group_state;
 pub mod pet_journal;
 pub mod professions;
 pub mod professions_catalog;
+pub mod professions_quality;
 pub mod professions_frame;
 pub mod raid_warning;
 pub mod spell_overrides;

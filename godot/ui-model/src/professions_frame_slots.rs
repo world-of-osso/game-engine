@@ -81,7 +81,14 @@ fn reagent_cell(
     } else {
         DISABLED_REAGENT_COLOR
     };
-    let children = reagent_slot(item, index);
+    let mut children = reagent_slot(item, index);
+    if let Some(quality) = view.crafting_quality.get(&item_id) {
+        children.extend(art::atlas(
+            &format!("{prefix}QualityOverlay"),
+            &quality.inventory_atlas,
+            (-3.0, -2.0, 20.0, 20.0),
+        ));
+    }
     let mut out = rsx! { button { name: {DynName(format!("{prefix}Slot"))}, width: 39.0, height: 39.0,
     left: 0.0, top: 5.5, pos_type: "absolute", button_default_skin: false, {children} } };
     out.extend(label(
