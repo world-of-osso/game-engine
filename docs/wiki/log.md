@@ -1,6 +1,6 @@
 ## 2026-10-10 — Spell kit owner attachment ordering
 
-[Investigation](investigations/spell-kit-attach.md) classifies41 baseline non-asset lines:165 kit attachment occurrences all have authored anchors, but owner chains failed. Receipt recovery proves an additional ready-effect/late-owner race for spell10848. Scheduling now waits for the requested owner without restarting the kit timeline. Real-data RED recorded; GREEN/live pending.
+[Investigation](investigations/spell-kit-attach.md) classifies41 baseline non-asset lines:165 kit attachment occurrences all have authored anchors, but owner chains failed. Receipt recovery proves an additional ready-effect/late-owner race for spell10848. Scheduling now waits for the requested owner without restarting the kit timeline. Real-data RED→GREEN7/7 and native build pass at a4a3dcaff. Same failed baseline kits attached to authored own anchors for10 spells in both skins;28 inspected PNGs. Scoped final log has0spell errors; original broader no-install certification remains separate.
 
 ## 2026-10-10 — Authentic battlefield pet scales
 
