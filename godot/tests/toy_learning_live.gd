@@ -31,6 +31,11 @@ func run_fixture() -> void:
 	await show_learned_tile("Filmless Camera")
 	if failed: return
 	receipts.append({"phase": "open-learning-notification", "toybox": client.toybox_state()})
+	error = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("TOYFX_NEXT_ACCOUNT"), "fbtest", false)
+	if error != "": fail(error); return
+	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and control("CharCard_0") != null, "next account roster"): return
+	if client.toybox_state().catalog_count != 0 or not client.toybox_state().learned.is_empty(): fail("previous account collection survived connection reset"); return
+	receipts.append({"phase": "account-reset", "toybox": client.toybox_state()})
 	write_receipts()
 	print("PASS: toy learning updates closed collection and open/next-opened Toy Box without reopen workaround ", skin)
 	client.free()
