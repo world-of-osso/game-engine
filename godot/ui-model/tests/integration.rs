@@ -79,6 +79,7 @@ mod quest_poi_hover;
 mod readycheck_afk;
 mod rezrtap;
 mod roster_mapping;
+mod scenarios;
 mod spell_overrides;
 mod spell_power_text;
 mod spellbook_frame;
