@@ -1,6 +1,6 @@
 ## 2026-10-11 — Native Mythic Mentor
 
-[Keys panel](systems/mythic-mentor.md): server party summaries, addon list projection, native launcher/title drag/placement. Private5811 both-skin two-account +8/+11, authored37:30, initial solo snapshot, physical controls and open-panel leave/uninvite pruning. Loading snapshot loss, icon-overpaint and logout retention fixed at lifecycle/layer roots;3 targeted tests/checks/fmt pass, two inspected1280×720 PNGs published. No full suites or shared-realm mutation.
+[Keys panel](systems/mythic-mentor.md): server party summaries, addon list projection, native launcher/title drag/placement. Private5811 both-skin two-account +8/+11, authored37:30, initial solo snapshot, physical controls and open-panel leave/uninvite pruning. Loading snapshot loss, icon-overpaint and logout retention fixed at lifecycle/layer roots;4 targeted tests/checks/fmt pass, including integrated NPC-companion party identity, two inspected1280×720 PNGs published. No full suites or shared-realm mutation.
 
 ## 2026-10-11 — Native Mythic Keystone UI
 
