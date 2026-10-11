@@ -781,7 +781,15 @@ const WHITE: &str = "1.0,1.0,1.0,1.0";
 const GREY: &str = "0.7,0.7,0.7,1.0";
 fn art(name: String, fdid: u32, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, w, h) = rect;
-    rsx! { texture { name: {DynName(name)}, texture_fdid: fdid, width: w, height: h, pos_type: "absolute", left: x, top: y, } }
+    // Mainline AchievementUI.xml:632,1091,1113,2002: the files are sheets, not whole-frame images.
+    let coords = match fdid {
+        130652 => "0,0.6640625,0,1",
+        130656 => "0,0.5625,0,0.5625",
+        130665 => "0,0.5,0,0.5",
+        235397 => "0,1,0,0.5",
+        _ => "0,1,0,1",
+    };
+    rsx! { texture { name: {DynName(name)}, texture_fdid: fdid, tex_coords:coords, width: w, height: h, pos_type: "absolute", left: x, top: y, } }
 }
 pub fn achievement_screen(ctx: &SharedContext) -> Element {
     let window = ctx
@@ -840,13 +848,6 @@ fn points_header(points: Option<u32>) -> Element {
 
 fn category_panel(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
-    if thread_skin() == ActiveSkin::Modern {
-        content.extend(art(
-            "AchievementCategoriesBackground".into(),
-            130652,
-            (12.0, 64.0, 204.0, 478.0),
-        ));
-    }
     if !window.statistics {
         content.extend(label(
             "AchievementCategorySummary".into(),
@@ -869,6 +870,13 @@ fn category_panel(window: &AchievementWindow) -> Element {
         } else {
             WHITE
         };
+        if thread_skin() == ActiveSkin::Modern {
+            content.extend(art(
+                format!("AchievementCategory{}Background", category.category_id),
+                130652,
+                (x, 96.0 + index as f32 * 24.0, 210.0 - x, 22.0),
+            ));
+        }
         content.extend(label(
             format!("AchievementCategory{}", category.category_id),
             &category.name,
@@ -910,14 +918,14 @@ fn summary_panel(window: &AchievementWindow) -> Element {
         summary.completed,
         summary.total,
         (240.0, 70.0, 546.0, 22.0),
+        label(
+            "AchievementSummaryTotalText".into(),
+            &format!("{} / {}", summary.completed, summary.total),
+            (0.0, 0.0, 546.0, 22.0),
+            WHITE,
+            "",
+        ),
     );
-    content.extend(label(
-        "AchievementSummaryTotalText".into(),
-        &format!("{} / {}", summary.completed, summary.total),
-        (240.0, 70.0, 546.0, 22.0),
-        WHITE,
-        "",
-    ));
     content.extend(label(
         "AchievementSummaryRecentHeader".into(),
         "Recent Achievements",
@@ -964,13 +972,13 @@ fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSumm
             completed,
             total,
             (x, y, 254.0, 21.0),
-        ));
-        content.extend(label(
-            format!("AchievementSummaryCategory{id}"),
-            &text,
-            (x + 6.0, y, 242.0, 21.0),
-            WHITE,
-            &format!("achievement:category:{id}"),
+            label(
+                format!("AchievementSummaryCategory{id}"),
+                &text,
+                (6.0, 0.0, 242.0, 21.0),
+                WHITE,
+                &format!("achievement:category:{id}"),
+            ),
         ));
     }
     content
@@ -1000,6 +1008,7 @@ fn summary_progress_bar(
     current: u32,
     total: u32,
     rect: (f32, f32, f32, f32),
+    caption: Element,
 ) -> Element {
     let (x, y, width, height) = rect;
     let fill = if total == 0 {
@@ -1014,6 +1023,7 @@ fn summary_progress_bar(
                 width: fill, height, pos_type: "absolute", left: 0.0, top: 0.0,
                 vertex_color: "0.0,0.6,0.0,1.0",
             }
+            {caption}
         }
     }
 }
