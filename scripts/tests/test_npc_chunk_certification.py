@@ -119,6 +119,48 @@ class ProfileTests(unittest.TestCase):
         self.assertFalse(table["sections"][0]["authenticated"])
         self.assertEqual(table["rows"], {})
 
+    def test_summary_does_not_label_unknown_membership_as_known_required(self):
+        summarize = getattr(self.m, "summarize_profiles", None)
+        self.assertIsNotNone(summarize, "profile gap summary not implemented")
+        profiles = [
+            {"display": 42, "status": "membership_unresolved"},
+            {"display": 43, "status": "missing_required_records"},
+            {"display": 44, "status": "certified"},
+        ]
+        self.assertEqual(
+            summarize(profiles),
+            {
+                "certified_profiles": [44],
+                "known_required_gaps": [43],
+                "membership_unresolved_profiles": [42],
+            },
+        )
+
+    def test_certified_publication_adds_coverage_and_backup_collision_preserves_cache(
+        self,
+    ):
+        import tempfile
+        import import_npc_appearance as npc
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache = root / "npc_appearance.sqlite"
+            npc.write_database(cache, ([], [], [], [(7, 0)]))
+            profiles = [{"display": 42, "status": "certified"}]
+            rows = ([], [], [], [(42, 0)])
+            self.m.publish_cache(cache, rows, profiles, root / "backup.sqlite")
+            self.assertEqual(
+                npc.read_sqlite(
+                    cache, "SELECT * FROM display_coverage ORDER BY display_id"
+                ),
+                [(7, 0), (42, 0)],
+            )
+            before = cache.read_bytes()
+            with self.assertRaises(FileExistsError):
+                self.m.publish_cache(cache, rows, profiles, root / "backup.sqlite")
+            self.assertEqual(cache.read_bytes(), before)
+            self.assertFalse(cache.with_name(cache.name + ".chunk-staged").exists())
+
     def test_gapped_profile_never_adds_runtime_coverage_on_publication(self):
         import tempfile
         import contextlib
