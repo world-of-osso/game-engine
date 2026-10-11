@@ -9,7 +9,6 @@ use crate::ui::strata::FrameStrata;
 use shared::protocol::{PET_ACTIVE_SLOTS, PET_STABLE_SLOTS, PetStableContents, StablePetInfo};
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
-use ui_toolkit::strata::DrawLayer;
 use ui_toolkit::widget_def::Element;
 
 pub const FRAME_NAME: &str = "StableFrame";
@@ -225,7 +224,7 @@ fn atlas_button(
 fn portrait_slot(slot: u16, (x, y, size): (f32, f32, f32)) -> Element {
     rsx! { r#frame { name: {DynName(portrait_name(slot))}, width: size, height: size,
         left: x, top: y, pos_type: "absolute", mouse_enabled: false,
-        strata: FrameStrata::Dialog, draw_layer: DrawLayer::Background,
+        strata: FrameStrata::Dialog,
     } }
 }
 
