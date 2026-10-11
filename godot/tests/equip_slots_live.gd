@@ -29,7 +29,7 @@ func run_test() -> void:
 		fail("wrong skin: " + str(client.account_state().ui_skin))
 		return
 	if OS.get_environment("EQUIP_RELOG") == "1":
-		if not await wait_until(func(): return client.merchant_state().equipment.size() >= 5, "persisted equipment"): return
+		if not await wait_until(func(): return has_nonvisual_equipment(), "persisted equipment"): return
 		await tap(KEY_C)
 		await capture("relog-paperdoll")
 		receipt = {"equipment": client.merchant_state().equipment, "stats": sheet_stats(), "relog": true}
@@ -50,8 +50,10 @@ func run_test() -> void:
 			fail("authentic trinket missing from vendor")
 			return
 		for page in range(index / 10): await press("MerchantNextPageButton")
+		var money_before := money()
 		await click_at(control("MerchantItem%d" % (index % 10 + 1)).get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
-		if not await wait_until(func(): return bag_count(PURCHASE_ID) == 1, "paid vendor purchase"): return
+		if not await wait_until(func(): return bag_count(PURCHASE_ID) == 1 and money() < money_before, "paid vendor purchase"): return
+		var money_after := money()
 		await capture("authentic-vendor-purchase")
 		await tap(KEY_ESCAPE)
 		await press("MainMenuBarBackpackButton")
@@ -68,13 +70,13 @@ func run_test() -> void:
 			if not await wait_until(func(): return bag_count(item_id) == 0, "authoritative equip " + str(item_id)): return
 		await tap(KEY_ESCAPE)
 		await tap(KEY_C)
-		if not await wait_until(func(): return client.merchant_state().equipment.size() >= 5, "all nonvisual slots"): return
+		if not await wait_until(func(): return has_nonvisual_equipment(), "all nonvisual slots"): return
 		var equipped := sheet_stats()
 		if int(equipped.get("Stamina:", "0").replace(",", "")) <= int(baseline.get("Stamina:", "0").replace(",", "")):
 			fail("equipped stamina did not increase: " + str([baseline, equipped]))
 			return
 		await capture("filled-paperdoll-stats")
-		receipt = {"baseline": baseline, "equipped": equipped, "purchase_id": PURCHASE_ID}
+		receipt = {"baseline": baseline, "equipped": equipped, "purchase_id": PURCHASE_ID, "money_before": money_before, "money_after": money_after}
 		if not await prove_paired_slot_input(): return
 	var file := FileAccess.open(OS.get_environment("EQUIP_RECEIPT"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(receipt, "\t"))
@@ -82,6 +84,14 @@ func run_test() -> void:
 	print("PASS equipment live ", role, " ", JSON.stringify(receipt))
 	client.free()
 	quit(0)
+
+func has_nonvisual_equipment() -> bool:
+	var items := {}
+	for item in client.merchant_state().equipment:
+		items[item.slot] = int(item.item_id)
+	var fingers := [int(items.get("Finger1", 0)), int(items.get("Finger2", 0))]
+	fingers.sort()
+	return items.get("Neck") == 4112 and fingers == [1319, PURCHASE_ID] and items.get("Trinket1") == 1490 and items.get("Trinket2") == 2820
 
 func prove_paired_slot_input() -> bool:
 	var source_index := -1
