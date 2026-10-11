@@ -57,6 +57,7 @@ pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
 pub mod pet_journal;
+pub mod adventure_guide;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]
 pub mod pet_stable_component;
