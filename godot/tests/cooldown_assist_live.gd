@@ -54,10 +54,12 @@ func write_json(name: String, value: Dictionary) -> void:
 	file.close()
 
 func capture(name: String) -> void:
-	for frame in range(20):
+	for frame in range(3):
 		await process_frame
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png(directory.path_join(name + ".png"))
+	var image := root.get_texture().get_image()
+	image.resize(1280, 720, Image.INTERPOLATE_LANCZOS)
+	image.save_png(directory.path_join(name + ".png"))
 	write_json(name, {"account": client.account_state(), "spells": client.spells_state(), "assisted": client.assisted_combat_state(), "viewer": client.cooldown_viewer_state()})
 
 func wait_screen(screen: String) -> bool:
@@ -115,24 +117,47 @@ func run_fixture() -> void:
 	if control("CooldownViewer19389") == null:
 		fail("Essential Crusader Strike viewer not mounted")
 		return
+	await place_assistant()
+	if failed:
+		return
+	if OS.get_environment("COOLDOWN_ASSIST_ADMIN") == "1":
+		var ready := FileAccess.open(directory.path_join("combat.ready"), FileAccess.WRITE)
+		ready.store_string("native options, settings and assistant placement complete")
+		ready.close()
+		deadline = Time.get_ticks_msec() + 120000
+		while not FileAccess.file_exists(directory.path_join("combat-setup.done")) and Time.get_ticks_msec() < deadline:
+			await process_frame
+		if not FileAccess.file_exists(directory.path_join("combat-setup.done")):
+			fail("combat setup timeout")
+			return
+		while float(client.account_state().get("local_player_health", 0.0)) <= 0.0 and Time.get_ticks_msec() < deadline:
+			await process_frame
 	await capture("viewer-ready")
 	await prove_timer()
 	if failed:
 		return
 	await key(KEY_TAB)
+	var attack_error: String = client.use_spell(20271)
+	if not attack_error.is_empty():
+		fail(attack_error)
+		return
 	deadline = Time.get_ticks_msec() + 10000
 	while client.assisted_combat_state().get("next_spell", 0) == 0 and Time.get_ticks_msec() < deadline:
 		await process_frame
 	if client.assisted_combat_state().get("next_spell", 0) == 0:
 		write_json("assisted-blocker", {"assisted": client.assisted_combat_state(), "target": client.target_state()})
-		fail("No authored next spell: " + str(client.assisted_combat_state()))
+		await capture("assistant-unresolved")
+		var before_blocked: int = client.spells_state().sent.size()
+		await click("ActionButton12")
+		if client.spells_state().sent.size() != before_blocked:
+			fail("Unresolved rotation sent an invented spell")
+			return
+		print("PARTIAL: native manager/settings/timers and assistant button; exact rotation blocked: ", client.assisted_combat_state().failure_reason)
+		quit(2)
 		return
 	var expected: int = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
-	var cast_error: String = client.use_spell(1229376)
-	if not cast_error.is_empty():
-		fail(cast_error)
-		return
+	await click("ActionButton12")
 	await create_timer(0.6).timeout
 	var after: Dictionary = client.spells_state()
 	if after.sent.size() != before + 1 or int(after.sent[after.sent.size() - 1]) != expected:
@@ -178,11 +203,66 @@ func configure_options() -> void:
 		if control(hit) != null:
 			await click(hit)
 	await capture("configured-options")
+	if not await scroll_to("ActionRowcooldown_settings"):
+		return
+	await click("ActionButtoncooldown_settings")
+	await click("CooldownSettingsUp19389")
+	await capture("settings-essential-reordered")
+	await click("CooldownSettingsCategory2")
+	await click("CooldownSettingsSelect92839")
+	await click("CooldownSettingsCategory3")
+	await click("CooldownSettingsSelect68661")
+	await capture("settings-tracked-bars")
+	await click("CooldownSettingsClose")
 	await click("OptionsDoneButton")
 	await process_frame
 	# Done returns to the menu; Escape closes its remaining owner.
 	if control("MenuBtnResume") != null:
 		await click("MenuBtnResume")
+
+func mouse(at: Vector2, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.position = at
+	event.global_position = at
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	root.push_input(event, true)
+	await process_frame
+
+func place_assistant() -> void:
+	await key(KEY_P)
+	for category in range(1, 6):
+		var tab := control("SpellBookCategoryTab%d" % category)
+		if tab == null:
+			break
+		await click(str(tab.name))
+		for page in range(16):
+			var source := control("SpellBookItem1229376Button")
+			if source != null and source.is_visible_in_tree():
+				var destination := control("ActionButton12")
+				if destination == null:
+					fail("ActionButton12 absent")
+					return
+				await capture("assistant-spellbook")
+				await mouse(source.get_global_rect().get_center(), true)
+				var event := InputEventMouseMotion.new()
+				event.position = destination.get_global_rect().get_center()
+				event.global_position = event.position
+				root.push_input(event, true)
+				await process_frame
+				await mouse(event.position, false)
+				var deadline := Time.get_ticks_msec() + 5000
+				while client.spells_state().bar[11] != 1229376 and Time.get_ticks_msec() < deadline:
+					await process_frame
+				if client.spells_state().bar[11] != 1229376:
+					fail("Assistant spellbook drag did not persist to action button12")
+					return
+				await key(KEY_P)
+				return
+			if control("SpellBookNextPageButton") == null:
+				break
+			await click("SpellBookNextPageButton")
+	fail("Learned Single-Button Assistant absent from spellbook")
 
 func viewer_remaining(cooldown_id: int) -> float:
 	for icon in client.cooldown_viewer_state().get("icons", []):
@@ -210,3 +290,18 @@ func prove_timer() -> void:
 		fail("Server cooldown projection did not tick")
 		return
 	await capture("viewer-timer-tick")
+	if viewer_remaining(92839) <= 0:
+		fail("Tracked Divine Shield aura icon did not use real aura time")
+		return
+	await create_timer(1.6).timeout
+	var aura_error: String = client.use_spell(31884)
+	if not aura_error.is_empty():
+		fail(aura_error)
+		return
+	deadline = Time.get_ticks_msec() + 5000
+	while viewer_remaining(68661) <= 0 and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if viewer_remaining(68661) <= 0:
+		fail("Tracked Avenging Wrath bar did not use real aura time")
+		return
+	await capture("viewer-buff-bar")
