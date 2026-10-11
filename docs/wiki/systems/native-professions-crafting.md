@@ -1,0 +1,50 @@
+# Native professions crafting
+
+The native client extends the existing ProfessionBook/ProfessionsFrame, trainer and server spell pipeline. [Modern crafting](../../specs/modern-crafting.md) owns acceptance, profession choice and data gaps; [ProfessionsFrame](../../specs/professions-frame.md) owns the shared Retail presentation contract. Forever changes art, not recipe/craft rules.
+
+Verified: 2026-10-11. Engine behavioral source31c2bba12, overlay geometryac11dd7d5, formatter orderd22ab6878; serverd76b0e3; matching leased protocolb4523221e28c84d845066a532fafb8f838d4bf69. No master merge, canonical code edits, world.db writes or UDP5000 use. Extracted CSV/DB2/texture assets persist in canonical data, outside tracked code.
+
+## Catalog and rendering
+
+`godot/ui-model/src/professions_catalog.rs` loads pinned Retail CSVs. Category order is the signed `TradeSkillCategory.OrderIndex` (the source includes−1), not alphabetical category names. Known recipes remain name-sorted within each category.
+
+`professions_quality.rs` joins `Item.CraftingQualityID` → `CraftingQuality` → `CraftingQualityAtlasSet.IconInv` → `UiTextureAtlasElement.Name`. The stored tier is distinct from item rarity. `professions.rs` in the native extension supplies quality records only for displayed items; reagent slots draw the inventory overlay at its authored atlas size. Local-CASC export/layout/source receipts and absent outcome formulas are recorded in the [contract](../../specs/modern-crafting.md#quality-source-receipt), not inferred from item IDs.
+
+## Trainer-learned recipe boundary
+
+The private flow exposed a client-only craft block after a legitimate trainer purchase: Handstitched Leather Pants2153 was known at rank15, while the pinned automatic-learning threshold is30. The client reported zero crafts despite sufficient bags. Removing the invented acquisition-rank check restores authoritative knowledge/reagent decisions. TrinityCore and Retail source grounding lives in the [contract](../../specs/modern-crafting.md#learned-recipe-boundary). Unknown recipes still cannot produce a craft request.
+
+## Bounded proof
+
+Private UDP5770; accounts`fb_moderncraft_m`/`fb_moderncraft_f`; characters30/31. Both skins learned Classic Leatherworking from Simon Tanner, searched/selected recipes, crafted14 Light Leather from42 scraps, progressed rank1→15, learned pants2153, then consumed4 Leather+1 Thread for item2303/rank16. Native InventoryList ended with10 Leather, no Thread and1 Handstitched Leather Pants. Modern also resumed its persisted trainer/rank/recipe state after private server restart; final clean captures verify both persisted books at rank16.
+
+| Scope | Status / proof |
+|---|---|
+| Categories/search | Both-skin native physical-input captures; authored-order RED→GREEN |
+| Reagents / crafting tiers | Native concrete counts; both-skin model tests join quality14→tier2 and assert authored33×28 glyph; no native variable-quality outcome claim |
+| Cast / result | Both-skin replicated player cast bars and InventoryList item2303 |
+| Trainer / skill / persistence | Both-skin purchases/rank1→16; concrete server behavioral test; Modern restart and both final relogs |
+| Effect288/157, concentration/inspiration, tier substitution | Missing/underivable operation or slot bindings; explicitly not implemented or certified |
+
+Evidence SSOT: canonical `data/diagnostics/modern-crafting-2026-10-11/`. `modern/result-inventory.log`, `forever/result-inventory.log`, native logs and frame dumps retain the authoritative result. Inspected PNGs only are published to `/syncthing/AgentShared/2026-10-11/modern-crafting/`; logs/config/token state are not published there.
+
+Targeted proof ledger: three exporter tests; nine ProfessionBook/catalog tests and four integration tests; final overlay-geometry test; chosen server trainer/craft test; scoped engine/server Cargo checks and workspace formatter checks. No full suite was run. Initial server check accidentally resolved the later canonical protocol (new unrelated guild requests) and failed; the same leased sibling graph used by the server build passed. Final checker/runtime pins that graph explicitly.
+
+## Harness observations
+
+NPC service gossip uses `AuctionGossipOption0`, not quest-only `GossipOption0`. An observer's extra interaction while transitioning away from the trainer reopened gossip; final clean captures avoid those extra interactions. The direct-InWorld attempt displayed Forever despite explicit Modern account configuration; normal charselect→EnterWorld applied the requested preset. These are retained observations, not profession behavior fixes or claims about all startup paths.
+
+Native world logs contain unrelated missing scenery/NPC receipt failures; these did not prevent trainer/UI/cast/inventory proof. Headless import also emitted pre-existing editor dialog/thread and ObjectDB leak diagnostics. No warning suppression or fabricated assets were introduced.
+
+## Sources
+
+- [Modern crafting contract](../../specs/modern-crafting.md) — requirements, static receipts, source citations and gaps.
+- [ProfessionsFrame](../../specs/professions-frame.md) — Retail layout and existing trainer/craft behavior.
+- `godot/ui-model/src/professions*.rs`, `godot/rust/src/professions.rs` — catalog, decisions and native projection.
+- `../game-server/crates/server/src/profession.rs`, `profession_tests.rs` — existing authoritative pipeline and chosen behavioral proof.
+- [Private live workflow](../../headless-live-run.md) — account/port isolation.
+
+## See Also
+
+- [[forever-preset]] — authenticated per-character skin selection.
+- [[cache-import-sources]] — pinned CSV provenance.
