@@ -37,6 +37,7 @@ mod tests {
             timeline.receive(
                 EncounterTimelineEvent::Timers {
                     caster: 3669,
+                    sample_unix_ms: 0,
                     timers: vec![EncounterTimer {
                         event_id: 2,
                         spell_id: 20805,
@@ -45,6 +46,7 @@ mod tests {
                         conditional: true,
                     }],
                 },
+                0,
                 spell,
             );
             timeline.advance(2.0);
@@ -54,6 +56,7 @@ mod tests {
                     spell_id: 20805,
                     severity: EncounterSeverity::Low,
                 },
+                0,
                 spell,
             );
             let mut state = EncounterTimelineScreen {

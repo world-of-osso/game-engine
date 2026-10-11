@@ -24,15 +24,27 @@ pub struct EncounterTimeline {
     pub phase: Option<u32>,
 }
 impl EncounterTimeline {
-    pub fn receive(&mut self, event: EncounterTimelineEvent, spell: impl Fn(u32) -> (String, u32)) {
+    pub fn receive(
+        &mut self,
+        event: EncounterTimelineEvent,
+        received_unix_ms: u64,
+        spell: impl Fn(u32) -> (String, u32),
+    ) {
         match event {
-            EncounterTimelineEvent::Timers { caster, timers } => {
+            EncounterTimelineEvent::Timers {
+                caster,
+                timers,
+                sample_unix_ms,
+            } => {
+                let delivery_age_ms = received_unix_ms.saturating_sub(sample_unix_ms);
                 self.timers.retain(|view| view.caster != caster);
                 self.timers.extend(timers.into_iter().map(|timer| {
                     let (name, icon) = spell(timer.spell_id);
                     TimerView {
                         caster,
-                        remaining: timer.remaining_ms as f32 / 1000.0,
+                        remaining: u64::from(timer.remaining_ms).saturating_sub(delivery_age_ms)
+                            as f32
+                            / 1000.0,
                         timer,
                         name,
                         icon,
@@ -87,6 +99,31 @@ impl EncounterTimeline {
 mod tests {
     use super::*;
     #[test]
+    fn timeline_delayed_delivery_keeps_the_servers_selected_deadline() {
+        let mut view = EncounterTimeline::default();
+        let sample = EncounterTimelineEvent::Timers {
+            caster: 3669,
+            sample_unix_ms: 1000,
+            timers: vec![EncounterTimer {
+                event_id: 2,
+                spell_id: 20805,
+                remaining_ms: 7312,
+                duration_ms: 7312,
+                conditional: true,
+            }],
+        };
+        let spell = |_| ("Lightning Bolt".into(), 136048);
+        view.receive(sample.clone(), 3000, spell);
+        assert!((view.timers[0].remaining - 5.312).abs() < 0.001);
+        view.receive(sample, 10000, spell);
+        assert_eq!(view.timers[0].remaining, 0.0);
+        assert!(
+            view.warnings.is_empty(),
+            "expired timer delivery never creates a cast"
+        );
+    }
+
+    #[test]
     fn timeline_countdown_replacement_real_cast_warning_and_reset() {
         let mut view = EncounterTimeline::default();
         let timer = EncounterTimer {
@@ -100,8 +137,10 @@ mod tests {
         view.receive(
             EncounterTimelineEvent::Timers {
                 caster: 3669,
+                sample_unix_ms: 0,
                 timers: vec![timer.clone()],
             },
+            0,
             spell,
         );
         assert_eq!(view.timers.len(), 1);
@@ -111,18 +150,22 @@ mod tests {
         view.receive(
             EncounterTimelineEvent::Timers {
                 caster: 3674,
+                sample_unix_ms: 0,
                 timers: vec![EncounterTimer {
                     spell_id: 6254,
                     ..timer.clone()
                 }],
             },
+            0,
             spell,
         );
         view.receive(
             EncounterTimelineEvent::Timers {
                 caster: 3669,
+                sample_unix_ms: 0,
                 timers: vec![],
             },
+            0,
             spell,
         );
         assert_eq!(view.timers.len(), 1);
@@ -133,6 +176,7 @@ mod tests {
                 spell_id: 20805,
                 severity: EncounterSeverity::Low,
             },
+            0,
             spell,
         );
         assert_eq!(view.warnings[0].name, "Lightning Bolt");
@@ -142,6 +186,7 @@ mod tests {
                 caster: 3669,
                 phase: 2,
             },
+            0,
             spell,
         );
         assert_eq!(view.phase, Some(2));
