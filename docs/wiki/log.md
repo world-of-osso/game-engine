@@ -1,3 +1,6 @@
+## 2026-10-11 — AchievementFrame art
+
+[Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.
 ## 2026-10-11 — Cooldown/assist authored-data audit
 
 [Audit](investigations/cooldown-assist-data.md): six readable local Retail tables; native Flags33 and settings-input routing fixes. Private5860 Modern/Forever prove all four category clocks, settings/reordering, four Edit Mode movers with saved drag, and real assistant spellbook→action-slot placement; inspected1280PNG evidence.10 core/5 model/2 export tests pass. Exact rotation, assistant GCD penalty, Retail ants art, charges and hostile combat acceptance remain open; clients fell below terrain and selected no target. origin/master merged into the feature branch, not landed; shared realm/5000 untouched.

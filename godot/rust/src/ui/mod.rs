@@ -277,6 +277,13 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if self
+            .shared
+            .get::<game_engine_ui_model::achievements::AchievementWindow>()
+            .is_some()
+        {
+            game_engine_ui_model::achievements::apply_achievement_postsetup(&mut self.registry);
+        }
         // StackSplitFrame.xml:3. Shared by standalone bag/bank and merchant canvases.
         if let Some(id) = self
             .registry
@@ -1561,6 +1568,40 @@ impl RegistryUi {
         // BankFrame.xml:673 `toplevel="true"`.
         self.toplevel = true;
         Ok(())
+    }
+
+    /// Mainline AchievementUI.lua:1023/2317: a new category/filter starts at the top;
+    /// appending a cursor page retains the existing native position and expanded row.
+    pub fn set_achievement_window(
+        &mut self,
+        state: game_engine_ui_model::achievements::AchievementWindow,
+    ) -> Result<(), String> {
+        use game_engine_ui_model::achievements::{AchievementWindow, ROWS_SCROLLBOX};
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Achievement window not initialized")?;
+        let shown = model
+            .shared
+            .get::<AchievementWindow>()
+            .ok_or("Achievement window state not initialized")?;
+        let filter_changed = (
+            shown.scope,
+            shown.statistics,
+            shown.selected_category,
+            shown.search_text.as_str(),
+        ) != (
+            state.scope,
+            state.statistics,
+            state.selected_category,
+            state.search_text.as_str(),
+        );
+        let standalone = state.selected_category.is_none() && state.search_text.is_empty();
+        let detail_changed = standalone && shown.selected_achievement != state.selected_achievement;
+        if filter_changed || detail_changed {
+            model.registry.scroll_lists.scroll_to(ROWS_SCROLLBOX, 0);
+        }
+        self.set_state(state)
     }
 
     pub fn show_raid_info(
