@@ -54,6 +54,21 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
     }
 }
 
+pub fn is_spell_usable(spell: u32, facts: &AssistedFacts) -> Result<bool, String> {
+    let readings = [
+        read_boolean(&facts.ready, spell, "cooldown readiness"),
+        read_boolean(&facts.affordable, spell, "effective caster cost"),
+        read_boolean(&facts.in_range, spell, "spell range"),
+    ];
+    if readings.iter().any(|reading| *reading == Ok(false)) {
+        return Ok(false);
+    }
+    for reading in readings {
+        reading?;
+    }
+    Ok(true)
+}
+
 fn read_boolean(
     values: &BTreeMap<u32, Result<bool, String>>,
     spell: u32,

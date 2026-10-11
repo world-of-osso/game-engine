@@ -9,6 +9,7 @@
 
 mod action_bar;
 mod assignment;
+mod assisted_combat;
 mod casting;
 mod cooldown_viewer;
 use cooldown_viewer::CooldownHud;
@@ -251,6 +252,7 @@ impl GameClient {
         }
         self.spells.poll_catalog(&self.data_root);
         self.account.spells.tick(delta);
+        self.update_assisted_combat();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_spell_keys()?;
         }

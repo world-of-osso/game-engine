@@ -215,6 +215,35 @@ fn counted_down(mut auras: Vec<AuraInstance>, elapsed: f32) -> Vec<AuraInstance>
 }
 
 impl GameClient {
+    /// All authoritative auras at the current clock, including hidden gameplay auras.
+    /// Cooldown Viewer/rotation predicates must not inherit BuffFrame visibility filters.
+    pub(crate) fn unit_aura_views_now(&self, unit: u64) -> Vec<shared::components::AuraView> {
+        let Some(views) = self
+            .replica
+            .unit(unit)
+            .and_then(|unit| unit.get::<UnitAuras>())
+        else {
+            return Vec::new();
+        };
+        let elapsed = self.auras.received.get(&unit).map_or(0, |arrived| {
+            arrived.elapsed().as_millis().min(u128::from(u32::MAX)) as u32
+        });
+        views
+            .auras
+            .iter()
+            .cloned()
+            .filter_map(|mut aura| {
+                if aura.duration_ms != 0 {
+                    aura.remaining_ms = aura.remaining_ms.saturating_sub(elapsed);
+                    if aura.remaining_ms == 0 {
+                        return None;
+                    }
+                }
+                Some(aura)
+            })
+            .collect()
+    }
+
     /// Displayable auras of `unit` now.
     pub(crate) fn unit_auras(&self, unit: u64) -> Vec<AuraInstance> {
         let Some(views) = self

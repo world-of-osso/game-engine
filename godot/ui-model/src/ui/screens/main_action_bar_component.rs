@@ -114,6 +114,8 @@ pub struct ActionButtonView {
     pub cooldown_fraction: f32,
     /// Toy actions use the native radial CooldownFrame swipe.
     pub radial_cooldown: bool,
+    /// Retail Assisted Highlight recommendation, separate from pointer hover.
+    pub assisted_highlight: bool,
     /// Countdown text of cooldowns of 2 s and longer.
     pub cooldown_text: String,
     /// Key held or button pressed: `PushedTexture` replaces `NormalTexture`.
@@ -536,6 +538,12 @@ fn button(
             HIGHLIGHT,
             frame_art,
             !view.hovered,
+        ),
+        art(
+            format!("{name}AssistedHighlight"),
+            HIGHLIGHT,
+            frame_art,
+            !view.assisted_highlight,
         ),
         hotkey(&name, view.hotkey, style.skin, scale, HOTKEY_ANCHOR),
     ]
