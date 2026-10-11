@@ -36,6 +36,7 @@ fn catalog() -> CooldownAssistCatalog {
 #[test]
 fn cooldown_assist_categories_preserve_authored_order_and_links() {
     let data = catalog();
+    assert_eq!(data.charge_category(108853), Some(1500));
     let entries = data.cooldowns(71, |_| Ok(true)).unwrap();
     let strike = entries.iter().find(|entry| entry.id == 27).unwrap();
     assert_eq!(

@@ -50,6 +50,7 @@ pub mod creature_health_scaling_data;
 #[path = "csv_util.rs"]
 pub mod csv_util;
 pub mod cooldown_assist;
+pub mod cooldown_conditions;
 #[path = "rendering/character/customization_cache.rs"]
 pub mod customization_cache;
 #[path = "rendering/character/customization_catalog.rs"]
