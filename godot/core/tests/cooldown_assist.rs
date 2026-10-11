@@ -32,6 +32,24 @@ fn cooldown_assist_ret_authored_next_spell_changes_with_server_readiness() {
 }
 
 #[test]
+fn cooldown_assist_unconditional_authored_step_still_requires_cast_readiness() {
+    let data = catalog();
+    let mut facts = AssistedFacts::default();
+    facts.known.insert(20271);
+    facts.ready.insert(20271, Ok(false));
+    facts.affordable.insert(20271, Ok(true));
+    facts.in_range.insert(20271, Ok(true));
+    assert_eq!(
+        data.recommend(
+            70,
+            |id| facts.known.contains(&id),
+            |rule| evaluate_rule(rule, &facts)
+        ),
+        Ok(Recommendation::None)
+    );
+}
+
+#[test]
 fn cooldown_assist_unknown_effective_cost_blocks_instead_of_guessing() {
     let data = catalog();
     let mut facts = AssistedFacts::default();

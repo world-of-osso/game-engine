@@ -143,6 +143,16 @@ impl CooldownAssistCatalog {
         Ok(entries)
     }
 
+    pub fn rotation_rules(&self, spec: u32) -> Vec<&AssistedRule> {
+        self.rotations
+            .get(&spec)
+            .into_iter()
+            .flatten()
+            .filter(|step| !automation_only(step))
+            .flat_map(|step| step.rules.iter().map(|(_, rule)| rule))
+            .collect()
+    }
+
     pub fn rotation_spells(&self, spec: u32) -> Vec<u32> {
         let mut seen = BTreeSet::new();
         self.rotations
