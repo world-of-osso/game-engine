@@ -445,13 +445,10 @@ fn achievements_ui_browse_statistics_and_correlated_full_search_both_skins() {
             achievements: vec![row],
             next_id: None,
         });
-        assert_eq!(
-            text(
-                &achievement_registry(&window, skin),
-                "Achievement1068Statistic"
-            ),
-            "7"
-        );
+        let statistics = achievement_registry(&window, skin);
+        assert_eq!(text(&statistics, "Achievement1068Statistic"), "7");
+        assert!(statistics.get_by_name("AchievementCriteriaTitle").is_none());
+        assert!(statistics.get_by_name("AchievementTrack").is_none());
         assert_eq!(
             window.action("achievement:search:stockade"),
             vec![QueryAchievementCatalog::Search {
