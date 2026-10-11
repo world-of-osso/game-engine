@@ -6,6 +6,7 @@ Extract the FDIDs below with casc-local first. Pass the corresponding WoWDBDefs
 Unreadable encrypted records are counted; never synthesize replacement records.
 """
 import argparse
+import csv
 import importlib.util
 from pathlib import Path
 import re
@@ -28,6 +29,8 @@ TABLES = {
     'JournalSectionXDifficulty': (1121900, 0x9A12141A),
     'JournalEncounterXDifficulty': (1121901, 0xC038156D),
     'ItemSet': (1343609, 0xF79068A4),
+    'ItemSpec': (1135120, 0x83F3D113),
+    'ItemSpecOverride': (1134576, 0xB292998C),
 }
 
 
@@ -99,7 +102,23 @@ def read_table(table, path, definition):
     return columns, rows, dropped
 
 
-def import_cache(db2, definitions, output):
+def import_items(connection, items):
+    connection.execute('CREATE TABLE item (ID INTEGER PRIMARY KEY, name TEXT, icon INTEGER, slot INTEGER, class_mask INTEGER, quality INTEGER, item_level INTEGER, item_class INTEGER, subclass INTEGER, stats TEXT)')
+    with (items / 'Item.csv').open(newline='') as handle:
+        base = {int(row['ID']): row for row in csv.DictReader(handle)}
+    with (items / 'ItemSparse.csv').open(newline='') as handle:
+        for row in csv.DictReader(handle):
+            item = base.get(int(row['ID']))
+            if item is None:
+                continue
+            stats = ','.join(row[f'StatModifier_bonusStat_{i}'] for i in range(10))
+            connection.execute('INSERT INTO item VALUES(?,?,?,?,?,?,?,?,?,?)', (int(row['ID']), row['Display_lang'], int(item['IconFileDataID']), int(row['InventoryType']), int(row['AllowableClass']), int(row['OverallQualityID']), int(row['ItemLevel']), int(item['ClassID']), int(item['SubclassID']), stats))
+    connection.execute('CREATE TABLE specialization (ID INTEGER PRIMARY KEY, name TEXT, class_id INTEGER)')
+    with (items / 'ChrSpecialization.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO specialization VALUES(?,?,?)', ((int(row['ID']), row['Name_lang'], int(row['ClassID'])) for row in csv.DictReader(handle)))
+
+
+def import_cache(db2, definitions, output, items):
     # Decode every input before replacing an existing cache.
     decoded = {table: read_table(table, db2 / f'{fdid}.db2', definitions / f'{table}.dbd') for table, (fdid, _) in TABLES.items()}
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -114,6 +133,7 @@ def import_cache(db2, definitions, output):
             connection.execute(f'CREATE UNIQUE INDEX "{table}_id" ON "{table}" (ID)')
             connection.execute('INSERT INTO source VALUES(?,?,?,?,?)', (BUILD, table, f'{TABLES[table][1]:08X}', len(rows), dropped))
             print(f'{table}: {len(rows)} readable, {dropped} encrypted/unreadable')
+        import_items(connection, items)
     staging.replace(output)
 
 
@@ -122,8 +142,9 @@ def main():
     parser.add_argument('--db2', type=Path, required=True)
     parser.add_argument('--definitions', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--items', type=Path, required=True, help='Pinned Item, ItemSparse, ChrSpecialization CSV directory')
     args = parser.parse_args()
-    import_cache(args.db2, args.definitions, args.output)
+    import_cache(args.db2, args.definitions, args.output, args.items)
 
 
 if __name__ == '__main__':
