@@ -11,8 +11,9 @@ use shared::components::Npc;
 use shared::protocol::WildPetBattleUpdate;
 use std::collections::{BTreeMap, BTreeSet};
 
-const BATTLE_PET_HEIGHT: f32 = 1.0;
+const BATTLE_PET_HEIGHT: f32 = 1.3;
 const BATTLE_PAD_OFFSET: f32 = 2.2;
+const BATTLE_IDLE_SAMPLES: usize = 16;
 
 #[derive(Default)]
 pub(crate) struct WildBattleHud {
@@ -344,12 +345,34 @@ fn posed_battle_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
     bounds.ok_or_else(|| "Battle pet has no visible geometry".into())
 }
 
+/// Fit the complete base loop: e.g. Tickbird's raised wings exceed its first pose.
+fn battle_idle_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
+    let animations = model
+        .find_children_ex("*")
+        .type_("WowAnimationPlayer")
+        .owned(false)
+        .done();
+    let mut bounds: Option<Aabb> = None;
+    for sample in 0..=BATTLE_IDLE_SAMPLES {
+        let phase = (sample % BATTLE_IDLE_SAMPLES) as f64 / BATTLE_IDLE_SAMPLES as f64;
+        for node in animations.iter_shared() {
+            let mut player = node.cast::<WowAnimationPlayer>();
+            let mut player = player.bind_mut();
+            let (_, _, duration, _) = player.footstep_phase().ok_or("Battle idle has no clip")?;
+            player.seek_fixed_time_ms(f64::from(duration) * phase)?;
+        }
+        let posed = posed_battle_bounds(model)?;
+        bounds = Some(bounds.map_or(posed, |previous| previous.merge(posed)));
+    }
+    bounds.ok_or_else(|| "Battle idle has no posed bounds".into())
+}
+
 fn normalize_battle_pad(
     model: &mut Gd<Node3D>,
     pad: &mut Gd<Node3D>,
     team: usize,
 ) -> Result<(), String> {
-    let bounds = posed_battle_bounds(model)?;
+    let bounds = battle_idle_bounds(model)?;
     if !bounds.size.y.is_finite() || bounds.size.y <= 0.0 {
         return Err(format!(
             "Battle team {team} has invalid model height {}",
