@@ -94,6 +94,8 @@ pub struct Catalog {
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
     pub loot_difficulties: BTreeMap<u32, Vec<u32>>,
     pub item_specs: BTreeMap<u32, Vec<u32>>,
+    pub classes: BTreeMap<u32, String>,
+    pub text: BTreeMap<String, String>,
 }
 fn query<T>(
     db: &Connection,
@@ -251,10 +253,17 @@ impl Catalog {
                 &db,
                 "SELECT JournalEncounterItemID,DifficultyID FROM JournalItemXDifficulty",
             )?,
-            item_specs: relations(
-                &db,
-                "SELECT ItemID,SpecID FROM ItemSpecOverride WHERE ItemID IS NOT NULL",
-            )?,
+            item_specs: relations(&db, "SELECT item_id,spec_id FROM item_specialization")?,
+            classes: query(&db, "SELECT ID,name FROM class", |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })?
+            .into_iter()
+            .collect(),
+            text: query(&db, "SELECT tag,text FROM journal_text", |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })?
+            .into_iter()
+            .collect(),
         })
     }
     pub fn encounter(&self, id: u32) -> Option<&Encounter> {

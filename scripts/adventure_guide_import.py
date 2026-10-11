@@ -118,6 +118,71 @@ def import_items(connection, items):
         connection.executemany('INSERT INTO specialization VALUES(?,?,?)', ((int(row['ID']), row['Name_lang'], int(row['ClassID'])) for row in csv.DictReader(handle)))
 
 
+# TrinityCore a352b1fa ObjectMgr::ItemSpecStats and DBCEnums::ItemSpecStat.
+WEAPON_SPEC_STATS = {0: 7, 1: 8, 2: 16, 3: 15, 4: 11, 5: 12, 6: 19,
+                     7: 9, 8: 10, 9: 28, 10: 18, 13: 14, 15: 13,
+                     16: 20, 18: 17, 19: 21}
+MODIFIER_SPEC_STATS = {3: (1,), 4: (2,), 5: (0,), 13: (5,), 14: (6,),
+                       19: (24,), 20: (24,), 21: (24,), 32: (24,),
+                       36: (25,), 31: (4,), 50: (26,),
+                       71: (1, 2, 0), 72: (1, 2), 73: (1, 0), 74: (2, 0)}
+
+
+def item_spec_traits(item_class, subclass, slot, modifiers):
+    stats = set()
+    item_type = 0
+    if item_class == 2:
+        item_type = 5
+        if subclass in WEAPON_SPEC_STATS:
+            stats.add(WEAPON_SPEC_STATS[subclass])
+    elif item_class == 4:
+        if subclass == 1 and slot == 16:
+            stats.add(27)
+        elif 1 <= subclass <= 4:
+            item_type = subclass
+        elif subclass == 6:
+            item_type = 6
+            stats.add(22)
+        elif 6 < subclass <= 11:
+            item_type = 6
+            stats.add(23)
+    for modifier in modifiers:
+        stats.update(MODIFIER_SPEC_STATS.get(modifier, ()))
+    return item_type, stats
+
+
+def import_item_specializations(connection):
+    overrides = {}
+    for item, spec in connection.execute('SELECT ItemID,SpecID FROM ItemSpecOverride WHERE ItemID IS NOT NULL'):
+        overrides.setdefault(item, set()).add(spec)
+    rules = {}
+    for item_type, primary, secondary, spec in connection.execute('SELECT ItemType,PrimaryStat,SecondaryStat,SpecializationID FROM ItemSpec'):
+        rules.setdefault(item_type, []).append((primary, secondary, spec))
+    specs = dict(connection.execute('SELECT ID,class_id FROM specialization'))
+    connection.execute('CREATE TABLE item_specialization (item_id INTEGER, spec_id INTEGER, PRIMARY KEY(item_id,spec_id))')
+    for item, item_class, subclass, slot, mask, modifiers in connection.execute('SELECT ID,item_class,subclass,slot,class_mask,stats FROM item WHERE ID IN (SELECT ItemID FROM JournalEncounterItem)'):
+        if item in overrides:
+            matched = overrides[item]
+        else:
+            item_type, traits = item_spec_traits(item_class, subclass, slot, map(int, modifiers.split(',')))
+            matched = {spec for primary, secondary, spec in rules.get(item_type, ())
+                       if (primary == 40 or primary in traits)
+                       and (secondary == 40 or secondary in traits)
+                       and spec in specs and mask & (1 << (specs[spec] - 1))}
+        connection.executemany('INSERT INTO item_specialization VALUES(?,?)', ((item, spec) for spec in matched))
+
+
+def import_presentation(connection, items):
+    connection.execute('CREATE TABLE class (ID INTEGER PRIMARY KEY, name TEXT)')
+    with (items / 'ChrClasses.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO class VALUES(?,?)', ((int(row['ID']), row['Name_lang']) for row in csv.DictReader(handle)))
+    connection.execute('CREATE TABLE journal_text (tag TEXT PRIMARY KEY, text TEXT)')
+    with (items / 'GlobalStrings.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO journal_text VALUES(?,?)',
+            ((row['BaseTag'], row['TagText_lang'].replace('|n', '\n')) for row in csv.DictReader(handle)
+             if row['BaseTag'].startswith('INVTYPE_') or row['BaseTag'] in ('RPE_TITLE', 'RPE_TUTORIAL_TEXT', 'RPE_START_EXPERIENCE')))
+
+
 def import_cache(db2, definitions, output, items):
     # Decode every input before replacing an existing cache.
     decoded = {table: read_table(table, db2 / f'{fdid}.db2', definitions / f'{table}.dbd') for table, (fdid, _) in TABLES.items()}
@@ -134,6 +199,8 @@ def import_cache(db2, definitions, output, items):
             connection.execute('INSERT INTO source VALUES(?,?,?,?,?)', (BUILD, table, f'{TABLES[table][1]:08X}', len(rows), dropped))
             print(f'{table}: {len(rows)} readable, {dropped} encrypted/unreadable')
         import_items(connection, items)
+        import_item_specializations(connection)
+        import_presentation(connection, items)
     staging.replace(output)
 
 
