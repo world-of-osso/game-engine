@@ -165,7 +165,7 @@ func credit_world_object() -> bool:
 		if scenario.kind == "loot":
 			if not await take_chest_item():
 				return false
-		elif not await wait_quest(func(s): return log_entry(s, scenario.quest).objectives != before, "matching object credit"):
+		elif not await wait_quest(func(s): return Array(log_entry(s, scenario.quest).objectives) != before, "matching object credit"):
 			return false
 		index += 1
 	return true
