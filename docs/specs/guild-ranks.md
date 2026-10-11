@@ -18,11 +18,11 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] `/ginvite` / `/guildinvite`, `/gquit` / `/guildquit`, `/gremove` / `/guildremove` send authoritative guild actions, not help.
 - [x] AuthChannel invitation delivery mounts GuildInviteFrame independently of Communities. Join waits for authoritative acceptance; Decline sends the pending-invite refusal. Both skins share controls and mechanics.
 - [x] `/gmotd` / `/guildmotd` sends SetGuildMotd; authoritative profile replies update MOTD and info.
-- [ ] `/ginfo` / `/guildinfo` sends a read-only query, but legacy guild records have no creation date for Retail GUILD_INFO_TEMPLATE; the client explicitly reports unavailable data instead of inventing it.
+- [x] `/ginfo` / `/guildinfo` sends a read-only query and reports the persisted creation date for charter-created guilds; legacy guilds remain explicitly unknown, never backdated.
 - [x] Communities exposes Invite Member and Info; MOTD/info editors send authoritative writes, keep displayed text unchanged pending reply, and hide edits without rank permission. Member menu Remove uses strict hierarchy.
 - [x] Native Info editor uses TextEdit for multiline text (499 characters); MOTD uses Enter-to-accept input (255 characters). Native postsetup supplies limits before projection.
 - [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
-- [ ] Inspected authenticated multiline editor proof remains pending.
+- [x] Authenticated native multiline editor and authoritative readback inspected; both-skin profile and restart preserve both lines.
 - [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
 
 ### Permissions and members
@@ -67,10 +67,7 @@ Exact names, commands, revisions and exclusions: `data/diagnostics/guildranks-20
 
 ## Proof boundaries
 
-No requested native rank UI feature remains unimplemented. No live authenticated
-server smoke was run; the server slot was read-only. Both capture processes exit 0,
-but logs retain texture/font shutdown leaks. Full communities/social functionality,
-pixel-perfect Retail parity and clean-resource acceptance are not claimed.
+Private UDP54381 authenticated lifecycle, profile, strict member controls and bank proof now cover Modern and Forever. Charter-created guilds survive restart with five founders; member leave/kick → decline/reinvite/Join passes in both skins. Native UI guild gate37/37 and native guild gate6/6 pass; the later registrar-portrait boundary additionally passes both-skin control and real NPC portrait checks. Evidence: canonical `data/diagnostics/guilds{3,4}-2026-10-11/` and inspected AgentShared PNGs. Tabard/achievement payloads remain absent; no emblem or points are fabricated. Full unrelated Communities/social features and resource-leak acceptance are not claimed.
 
 ## Out of scope
 

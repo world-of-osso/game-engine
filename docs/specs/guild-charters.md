@@ -18,8 +18,8 @@ Native `guild_charters.rs` drives the dedicated registry canvas; portable decisi
 
 ## Tests
 
-Real UDP charter reply, native account dispatch, portable purchase/rename/sign/register and both-skin quota/controls. Private five-account charter capture gate remains open until inspected.
+Real UDP charter reply1/1, native account dispatch1/1, portable purchase/rename/sign/register and both-skin quota/controls5/5. Private UDP54381: authentic Aldwin Laughlin → purchase5863 → bag use → rename → four distinct signing accounts → registration → five founding memberships and charter consumption, in Modern and Forever. Purchase/signatures/rename survive reopen; created guild/profile/date survive restart. Inspected PNGs: `/syncthing/AgentShared/2026-10-11/guilds/guilds4-*.png`; exact commands/results: canonical `data/diagnostics/guilds4-2026-10-11/`.
 
 ## Sources
 
-Local Retail `Blizzard_UIPanels_Game/Mainline/{GuildRegistrarFrame,PetitionFrame}.{lua,xml}`; TrinityCore `a352b1fa` `PetitionsHandler.cpp` and realm defaults (1000 copper, four signatures). Server authority contract: `../game-server/docs/specs/guild-charters.md` (sibling checkout).
+Local Retail `Blizzard_UIPanels_Game/Mainline/{GuildRegistrarFrame,PetitionFrame}.{lua,xml}`; TrinityCore `a352b1fa` `PetitionsHandler.cpp` and realm defaults (1000 copper, four signatures). [Server authority contract](../../../game-server/docs/specs/guild-charters.md).
