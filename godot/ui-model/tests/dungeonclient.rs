@@ -262,6 +262,32 @@ fn achievements_ui_summary_recent_criteria_continuation_merges_into_selected_row
 }
 
 #[test]
+fn achievements_ui_uses_authored_sheet_regions_for_recent_icons_and_shields() {
+    assets(ActiveSkin::Modern);
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+        scope: AchievementScope::All,
+        points: 10,
+        total: 8078,
+        completed: 1,
+        categories: vec![],
+        recent: vec![achievement()],
+    }));
+    let registry = achievement_registry(&window, ActiveSkin::Modern);
+    for (name, coords) in [
+        ("Achievement633IconFrame", [0.0, 0.5625, 0.0, 0.5625]),
+        ("Achievement633Shield", [0.0, 0.5, 0.0, 0.5]),
+    ] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(texture)) = frame.widget_data.as_ref() else {
+            panic!("rendered texture")
+        };
+        assert_eq!(texture.tex_coords, coords);
+    }
+}
+
+#[test]
 fn achievementlinks_toast_uses_mainline_icon_shield_and_plate_layout_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         assets(skin);
