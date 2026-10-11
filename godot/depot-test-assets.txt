@@ -6,6 +6,9 @@ db2/12.1.0.69933/CooldownSetLinkedSpell.csv
 db2/12.1.0.69933/AssistedCombat.csv
 db2/12.1.0.69933/AssistedCombatStep.csv
 db2/12.1.0.69933/AssistedCombatRule.csv
+# Mythic Mentor: authentic local Azure dungeon art and addon leader crown.
+textures/4880614.blp
+textures/132062.blp
 # Retail GroupLootFrame XML raw toast sheet and named Need/Greed/Transmog/Pass icons.
 textures/609618.blp
 textures/5148876.blp

@@ -62,6 +62,7 @@ mod merchant;
 mod merchant_window;
 mod minimap;
 mod mirror_timers;
+mod mythic_mentor;
 mod nameplate_auras;
 mod nameplate_cast_bar;
 mod nameplate_casts;
@@ -522,6 +523,7 @@ impl INode3D for GameClient {
             || self.world_map_pointer(&event)
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
+            || self.mentor_pointer(&event)
             || self.merchant_pointer(&event)
             || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
