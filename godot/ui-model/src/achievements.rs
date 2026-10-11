@@ -1091,23 +1091,42 @@ pub fn apply_achievement_postsetup(
     window: &AchievementWindow,
     registry: &mut ui_toolkit::registry::FrameRegistry,
 ) {
-    use ui_toolkit::frame::WidgetData;
-    use ui_toolkit::widgets::texture::BlendMode;
+    // AchievementCategoryTemplate HighlightTexture uses ADD, not an opaque green overlay.
+    let selected = if let Some(id) = window.selected_category {
+        Some(format!("AchievementCategory{id}Highlight"))
+    } else if !window.statistics {
+        Some("AchievementCategorySummaryHighlight".into())
+    } else {
+        None
+    };
+    if let Some(name) = selected {
+        set_additive_texture(registry, &name, 1.0);
+    }
     for (index, entry) in window.displayed_entries().into_iter().enumerate() {
         if entry.flags & 1 == 0 || index % 2 == 0 {
             continue;
         }
         let name = format!("Achievement{}Stripe", entry.achievement_id);
-        let id = registry
-            .get_by_name(&name)
-            .expect("rendered statistic stripe");
-        let frame = registry.get_mut(id).expect("statistic stripe frame");
-        frame.alpha = 0.5;
-        let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
-            panic!("statistic stripe texture");
-        };
-        texture.blend_mode = BlendMode::Additive;
+        set_additive_texture(registry, &name, 0.5);
     }
+}
+
+fn set_additive_texture(
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+    name: &str,
+    alpha: f32,
+) {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::texture::BlendMode;
+    let id = registry
+        .get_by_name(name)
+        .expect("rendered achievement texture");
+    let frame = registry.get_mut(id).expect("achievement texture frame");
+    frame.alpha = alpha;
+    let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
+        panic!("achievement texture");
+    };
+    texture.blend_mode = BlendMode::Additive;
 }
 
 fn statistic_row(entry: &AchievementCatalogEntry, y: f32, index: usize) -> Element {
