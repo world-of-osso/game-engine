@@ -37,7 +37,7 @@ pub fn countdown_frame(view: Option<&CountdownView>) -> Element {
     }
 }
 
-fn countdown_digits(view: &CountdownView, size: [f32; 2]) -> Vec<Element> {
+fn countdown_digits(view: &CountdownView, size: [f32; 2]) -> Element {
     let number = view.seconds();
     let digits = if number >= 10 {
         vec![number % 10, (number / 10) % 10]
@@ -78,6 +78,7 @@ fn countdown_digits(view: &CountdownView, size: [f32; 2]) -> Vec<Element> {
                 ),
             ]
         })
+        .flatten()
         .collect()
 }
 
