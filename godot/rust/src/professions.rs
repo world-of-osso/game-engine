@@ -278,6 +278,12 @@ impl GameClient {
                 .as_ref()
                 .map(|catalog| catalog.skill_names.clone())
                 .unwrap_or_default(),
+            child_skills: self
+                .professions
+                .catalog
+                .as_ref()
+                .map(|catalog| catalog.child_skills.clone())
+                .unwrap_or_default(),
             status: self.professions.error.clone(),
             recipe_craftable: recipe_craftable_counts(&book, inventory),
             collapsed: self.professions.collapsed.clone(),
