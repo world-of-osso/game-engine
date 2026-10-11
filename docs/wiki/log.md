@@ -1,6 +1,6 @@
 ## 2026-10-11 — World-quest source boundary
 
-[Investigation](investigations/world-quest-availability.md): pinned QuestInfo classification and archive/SQLite template fields agree for4,207 world quests. Actual quest pools/events supply zero matching quests; managed-state defaults and activation windows are absent from inspected inputs. [Contract](../specs/world-quests.md) remains unchecked. Read-only census receipt retained; no runtime code, canonical writes, server/client process or PNG proof.
+[Investigation](investigations/world-quest-availability.md): pinned QuestInfo classification and archive/SQLite template fields agree for4,207 world quests. Actual quest pools/events supply zero matching quests. Local-CASC follow-through finds four managed-state duration definitions but no matching current-stage defaults/activation epochs; historical ScheduledWorldState payloads fail local root resolution. [Contract](../specs/world-quests.md) remains unchecked. Read-only census receipt retained; no runtime code, canonical writes, server/client process or PNG proof.
 
 ## 2026-10-11 — Native follower LFG transport
 
