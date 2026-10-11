@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 
 use shared::protocol::{
-    GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot, GroupRosterSnapshot,
-    ReadyCheckAnswer, ReadyCheckUpdate,
+    GroupCountdownUpdate, GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot,
+    GroupRosterSnapshot, ReadyCheckAnswer, ReadyCheckUpdate,
 };
 
 /// Seconds ready check marks stay on the frames after the check ends
@@ -24,6 +24,9 @@ pub struct GroupState {
     /// Live state of online members, by name.
     pub live: HashMap<String, GroupMemberState>,
     pub ready_check: Option<ReadyCheckView>,
+    pub countdown: Option<crate::group_countdown::CountdownView>,
+    /// Sound kits waiting for the native host, drained once per frame.
+    pub countdown_sounds: Vec<u32>,
     /// Inviter of the pending `PARTY_INVITE`, until answered or cancelled.
     pub pending_invite: Option<String>,
     pub last_server_message: Option<String>,
@@ -73,7 +76,42 @@ impl GroupState {
         self.live.retain(|name, _| online.contains(&name.as_str()));
         if self.members.is_empty() {
             self.ready_check = None;
+            self.countdown = None;
+            self.countdown_sounds.clear();
         }
+    }
+
+    pub fn apply_countdown(&mut self, update: GroupCountdownUpdate) {
+        if update.duration_secs == 0 {
+            self.countdown = None;
+            self.countdown_sounds.clear();
+            return;
+        }
+        if update.time_remaining_secs <= 0.0 {
+            if self.countdown.take().is_some() {
+                self.countdown_sounds
+                    .push(game_engine_core::ui_sound_kits::UI_COUNTDOWN_FINISHED);
+            }
+            return;
+        }
+        self.countdown_sounds.clear();
+        let view = crate::group_countdown::CountdownView::new(update);
+        self.countdown_sounds.extend(view.start_sounds());
+        self.countdown = Some(view);
+    }
+
+    pub fn tick_countdown(&mut self, delta: f32) {
+        let Some(view) = self.countdown.as_mut() else {
+            return;
+        };
+        self.countdown_sounds.extend(view.tick(delta.max(0.0)));
+        if view.seconds() == 0 {
+            self.countdown = None;
+        }
+    }
+
+    pub fn drain_countdown_sounds(&mut self) -> Vec<u32> {
+        std::mem::take(&mut self.countdown_sounds)
     }
 
     /// Stores live states by name. The server sends states only of group members, but
@@ -152,6 +190,7 @@ pub enum GroupCommand {
         role: GroupRoleSnapshot,
     },
     StartReadyCheck,
+    Countdown(u32),
     RespondReadyCheck(bool),
     RespondInvite(bool),
 }

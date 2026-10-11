@@ -81,6 +81,7 @@ pub struct GroupFramesState {
     pub raid: Vec<Vec<CompactUnitView>>,
     pub menu: GroupContextMenuState,
     pub ready_check: ReadyCheckFrameState,
+    pub countdown: Option<crate::group_countdown::CountdownView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -138,6 +139,7 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
         {raid_frame(&state, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}
+        {crate::countdown_component::countdown_frame(state.countdown.as_ref())}
     }
 }
 
