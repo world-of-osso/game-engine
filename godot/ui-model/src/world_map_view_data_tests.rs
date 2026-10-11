@@ -63,6 +63,9 @@ fn quest(title: &str, completed: bool, pois: Vec<QuestPoiSnapshot>) -> QuestEntr
         title: title.into(),
         zone: String::new(),
         completed,
+        expires_at: None,
+        timer_sampled_at: None,
+        failed: false,
         repeatability: QuestRepeatability::Normal,
         objectives: vec![shared::protocol::QuestObjectiveSnapshot {
             text: "Objective".into(),

@@ -3209,6 +3209,7 @@ dependencies = [
  "quick-js",
  "rusqlite",
  "serde",
+ "serde_json",
  "shared",
 ]
 

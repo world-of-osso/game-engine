@@ -392,6 +392,8 @@ class DepotBuildTests(unittest.TestCase):
         texture = self.root / "data/textures/135875.blp"
         texture.parent.mkdir(parents=True)
         shutil.copy2(SCRIPT.parent.parent / "data/textures/135875.blp", texture)
+        self._put(self.root, "scripts/ui-icon-exceptions.json",
+                  '{"version": 1, "spell_db2_build": "12.1.0.69933", "exceptions": []}')
 
     def test_release_installs_optimized_library_only_under_target_release(self):
         self.prepare_release_icon_fixture()

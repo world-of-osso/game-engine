@@ -18,9 +18,11 @@ lightyear_transport = { version = "0.28", default-features = false }
 serde = "1"
 # Execute the original synchronous ui.* script compiler, without Godot objects in JS.
 quick-js = "0.4"
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "c6e063c37d647c08661af16770ded3589eec23f4" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
 
 [dev-dependencies]
+# Live protocol peer fixtures persist authoritative JSON evidence for inspection.
+serde_json = "1"
 # Offline frozen-source extraction uses the same local archive reader; never a runtime dependency.
 osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
 # Real NPC fixture oracle: DB2 selection, compositor and authored M2 texture slots.
