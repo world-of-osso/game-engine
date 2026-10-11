@@ -886,7 +886,8 @@ fn war_mode_control(view: &TalentView, scale: f32) -> Element {
             mode.can_enable
         }
     });
-    let enabled = permitted && !view.pvp_pending;
+    let disabled = !permitted || view.pvp_pending;
+    let action = if disabled { "" } else { "pvp:warmode" };
     let origin = [BOOK_W - 106.0, BOOK_H - FOOTER_HEIGHT / 2.0 - 52.0];
     let suffix = if desired { "" } else { "-disabled" };
     let mut children = warmode_layer(
@@ -918,7 +919,7 @@ fn war_mode_control(view: &TalentView, scale: f32) -> Element {
         scale,
     ));
     children.extend(
-        rsx! { button { name: "WarmodeButton", onclick: "pvp:warmode", enabled,
+        rsx! { button { name: "WarmodeButton", onclick: action, disabled,
             width: {100.0*scale}, height: {100.0*scale}, button_default_skin: false,
             pos_type: "absolute", pos_x: {origin[0]*scale}, pos_y: {origin[1]*scale},
         } },
