@@ -1485,6 +1485,22 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_challenge(
+        &mut self,
+        state: game_engine_ui_model::challenge::ChallengeView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let registry = parent.registry();
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::challenge::challenge_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     pub fn show_combat_pet_stable(
         &mut self,
         state: game_engine_ui_model::pet_stable_component::StableFrameView,

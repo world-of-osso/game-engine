@@ -237,6 +237,7 @@ impl NetworkBridge {
             .receive::<shared::protocol::RaidDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
+            .receive::<protocol::ChallengeSnapshot>()
             .receive::<protocol::ScenarioProgress>()
             .receive_encounters()
             .receive_achievements()
@@ -246,6 +247,7 @@ impl NetworkBridge {
             .receive_mail()
             // Player trade: one message type, so channel order is kept.
             .receive::<protocol::TradeStateUpdate>()
+            .receive::<protocol::LfgStateUpdate>()
             // Owner-only death state, corpse and graveyard coordinates.
             .receive::<protocol::DeathStateUpdate>()
             .receive::<protocol::ResurrectionOffer>()
@@ -991,6 +993,8 @@ mod wire_tests;
 
 #[cfg(test)]
 mod dungeonclient_wire_tests;
+#[cfg(test)]
+mod follower_wire_tests;
 #[cfg(test)]
 mod guild_rank_wire_tests;
 #[cfg(test)]

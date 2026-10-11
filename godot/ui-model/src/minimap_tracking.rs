@@ -1,4 +1,4 @@
-//! Only replicated town-service flags are usable tracking sources. No spell tracking feed.
+//! Replicated town services and authored resources; learned tracking spells gate gathering filters.
 use game_engine_core::minimap_data::MinimapView;
 use shared::protocol::NpcFlags;
 use ui_toolkit::rsx;
@@ -19,6 +19,8 @@ pub enum TrackingFilter {
     Food,
     Reagents,
     Auctioneer,
+    FindHerbs,
+    FindMinerals,
 }
 
 struct Service {
@@ -87,10 +89,34 @@ const SERVICES: [Service; 9] = [
     },
 ];
 
+struct ResourceFilter {
+    filter: TrackingFilter,
+    label: &'static str,
+    parent_skill: u32,
+    art: SheetArt,
+}
+
+// Retail atlas647 members17635/17636: professions_tracking_herb / _ore.
+const RESOURCE_FILTERS: [ResourceFilter; 2] = [
+    ResourceFilter {
+        filter: TrackingFilter::FindHerbs,
+        label: "Find Herbs",
+        parent_skill: 182,
+        art: object_icon(865.0, 897.0, 526.0, 558.0),
+    },
+    ResourceFilter {
+        filter: TrackingFilter::FindMinerals,
+        label: "Find Minerals",
+        parent_skill: 186,
+        art: object_icon(899.0, 931.0, 526.0, 558.0),
+    },
+];
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TrackingState {
     pub open: bool,
-    pub enabled: [bool; SERVICES.len()],
+    pub enabled: [bool; SERVICES.len() + RESOURCE_FILTERS.len()],
+    pub gathering_available: [bool; RESOURCE_FILTERS.len()],
 }
 
 impl TrackingState {
@@ -98,6 +124,16 @@ impl TrackingState {
         let index = action
             .strip_prefix("minimap:tracking:")
             .and_then(|index| index.parse::<usize>().ok());
+        if let Some(index) = index
+            && index >= SERVICES.len()
+            && !self
+                .gathering_available
+                .get(index - SERVICES.len())
+                .copied()
+                .unwrap_or(false)
+        {
+            return false;
+        }
         let Some(enabled) = index.and_then(|index| self.enabled.get_mut(index)) else {
             return false;
         };
@@ -128,8 +164,40 @@ pub fn tracking_minimap_blips(
         .collect()
 }
 
+pub fn resource_tracking_minimap_blips(
+    view: &MinimapView,
+    tracking: &TrackingState,
+    resources: impl IntoIterator<Item = (u64, shared::protocol::GatherableResource, [f32; 2])>,
+) -> Vec<MinimapBlip> {
+    resources
+        .into_iter()
+        .filter_map(|(unit, resource, position)| {
+            let (_, filter) = RESOURCE_FILTERS
+                .iter()
+                .enumerate()
+                .find(|(index, filter)| {
+                    tracking.gathering_available[*index]
+                        && tracking.enabled[SERVICES.len() + *index]
+                        && resource.parent_skill == filter.parent_skill
+                })?;
+            Some(MinimapBlip {
+                unit,
+                kind: BlipKind::Tracking {
+                    filter: filter.filter,
+                },
+                offset: view.blip_offset(position)?,
+            })
+        })
+        .collect()
+}
+
 pub(super) fn art(filter: TrackingFilter) -> SheetArt {
-    SERVICES[filter as usize].art
+    let index = filter as usize;
+    if index < SERVICES.len() {
+        SERVICES[index].art
+    } else {
+        RESOURCE_FILTERS[index - SERVICES.len()].art
+    }
 }
 
 const MENU_WIDTH: f32 = 224.0;
@@ -140,12 +208,24 @@ pub(super) fn menu(state: &TrackingState) -> Element {
     if !state.open {
         return Vec::new();
     }
-    let rows: Element = SERVICES
+    let mut rows: Element = SERVICES
         .iter()
         .enumerate()
         .flat_map(|(index, service)| tracking_choice(index, service.label, state.enabled[index]))
         .collect();
-    let height = MENU_PAD * 2.0 + ROW_HEIGHT * SERVICES.len() as f32;
+    let mut visible_count = SERVICES.len();
+    for (index, filter) in RESOURCE_FILTERS.iter().enumerate() {
+        if state.gathering_available[index] {
+            rows.extend(tracking_choice_at(
+                SERVICES.len() + index,
+                visible_count,
+                filter.label,
+                state.enabled[SERVICES.len() + index],
+            ));
+            visible_count += 1;
+        }
+    }
+    let height = MENU_PAD * 2.0 + ROW_HEIGHT * visible_count as f32;
     rsx! { r#frame {
         name: "MinimapTrackingMenu", width: MENU_WIDTH, height,
         strata: FrameStrata::Dialog, mouse_enabled: true,
@@ -156,10 +236,14 @@ pub(super) fn menu(state: &TrackingState) -> Element {
 }
 
 fn tracking_choice(index: usize, label: &str, checked: bool) -> Element {
+    tracking_choice_at(index, index, label, checked)
+}
+
+fn tracking_choice_at(index: usize, row: usize, label: &str, checked: bool) -> Element {
     let action = format!("minimap:tracking:{index}");
     let name = format!("MinimapTrackingChoice{index}");
     let checkbox = crate::bank_art::checkbox(&name, label, checked, &action, (0.0, 0.0));
-    let top = MENU_PAD + ROW_HEIGHT * index as f32;
+    let top = MENU_PAD + ROW_HEIGHT * row as f32;
     rsx! { button {
         name: {DynName(format!("MinimapTrackingRow{index}"))}, width: {MENU_WIDTH - MENU_PAD * 2.0},
         height: ROW_HEIGHT, text: "", button_default_skin: false,
