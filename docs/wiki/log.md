@@ -1,3 +1,7 @@
+## 2026-10-11 — NPC chunk-authentication receipts
+
+[Chunk authentication](systems/offline-asset-closure.md#npc-chunk-authentication): version-2 NPC metadata sidecar checks header EKey and encoded chunk MD5s, maps record dependencies, and separates unknown encrypted child membership from known missing records. Backed-up publication cannot add coverage for unresolved profiles. Nine targeted behavioral tests pass; real-cache application tracked separately.
+
 ## 2026-10-11 — Priority no-install receipt closure
 
 [Receipt closure](systems/offline-asset-closure.md#priority-receipt-closure--verified-2026-10-11):1,111 numeric assets/195 authenticated owner aliases rehashed against frozen local-CASC roots;42 correct payloads staged without overwriting legacy bytes. Gathering, dungeon, demon, giver and regional asset roots authenticated.32 staged NPC profiles rejected: Extra/Geoset zero-filled unknown-key chunks fail full root hashes; original cache restored.31 both-skin race bodies inspected, fresh seven-race14/14 proof retained (whole-scene zero-error result predates NPC rollback). Metadata gaps and Retail8203433 root absence keep certification FAIL.
