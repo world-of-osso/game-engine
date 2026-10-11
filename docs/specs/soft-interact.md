@@ -51,6 +51,8 @@ References:
 - [x] Generic decorations remain non-interactive; spell-focus admission is unchanged. Prior chest/goober exclusion was unimplemented type admission, not a documented crash mitigation.
 - [x] Both-skin UDP fixture: `account::meetingstones_tests::quest_objects_and_meetingstones_udp_use_and_combat_answers_both_skins`; cursor contract: `game_objects::tests::quest_objects_show_interact_cursor_and_render_without_changing_decoration_cursor`.
 
+- [ ] Native quest-credit live fixture: `godot/tests/quest_objectives_live.gd`, using authored `QOBJ_SCENARIO` JSON, private `GODOT_TEST_SERVER`, `fb_*` `QF_ACCOUNT`, own `QF_ADMIN` socket and `QF_SHOTS`. Real screen ray-picked right-click → GO use/loot; real bag right-click → item spell; real quest dialog → reward. Admin only creates characters, sets level and travels/revives; it never fills objective counters. Both-skin rendered acceptance remains pending until the fixture succeeds.
+
 ## Proof
 
 - `soft_interact::tests` with world.db data (Northshire vendors Brother Danil 79950, Dermot Johns 79951 and Godric Rothgar 79952, Marshal McBride 79970, the Goldshire Mailbox 26784 and Wooden Chair 26246): selection at arc 0/1/2 and range settings; icons with Default, Show All and Show None.
