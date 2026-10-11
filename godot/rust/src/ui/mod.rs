@@ -2912,6 +2912,8 @@ fn apply_login_art(registry: &mut FrameRegistry) -> Result<(), String> {
 #[path = "button_style_tests.rs"]
 mod button_style_tests;
 #[cfg(test)]
+mod encounter_timeline_tests;
+#[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;
 #[cfg(test)]

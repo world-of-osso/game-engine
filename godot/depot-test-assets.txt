@@ -4664,3 +4664,5 @@ textures/407337.blp
 # Mainline achievement earned-alert plate, icon frame and shield atlas.
 textures/4035524.blp
 textures/130666.blp
+# Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
+sounds/ui/567394.ogg

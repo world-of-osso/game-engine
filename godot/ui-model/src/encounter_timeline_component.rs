@@ -146,16 +146,13 @@ pub fn encounter_timeline_screen(ctx: &SharedContext) -> Element {
         )
     })
     .collect();
-    rsx! { r#frame {
-        name: "EncounterEventsRoot", width: "100%", height: "100%", mouse_enabled: false,
-        r#frame {
-            name: "EncounterTimeline", width: 300.0, height: {if view.bars {300.0} else {55.0}},
-            hidden, mouse_enabled: false, strata: FrameStrata::High,
-            pos_type: "absolute", left: 110.0, top: 280.0,
-            {content}
-        }
-        {warnings}
-    } }
+    let timeline = rsx! { r#frame {
+        name: "EncounterTimeline", width: 300.0, height: {if view.bars {300.0} else {55.0}},
+        hidden, mouse_enabled: false, strata: FrameStrata::High,
+        pos_type: "absolute", left: 110.0, top: 280.0,
+        {content}
+    } };
+    timeline.into_iter().chain(warnings).collect()
 }
 
 fn timer_bar(index: usize, timer: &TimerView) -> Element {
@@ -181,11 +178,11 @@ fn timer_bar(index: usize, timer: &TimerView) -> Element {
             fontstring { name: {DynName(format!("EncounterTimer{}Name",index+1))}, text: {text.as_str()},
                 width: 174.0, height: 26.0, font: GameFont::FrizQuadrata, font_size: 13.0,
                 font_color: {FontColor::new(1.0,1.0,1.0,1.0)}, justify_h: "LEFT",
-                pos_type: "absolute", left: 4.0, top: 0.0, frame_level: 3.0 }
+                pos_type: "absolute", left: 4.0, top: 0.0, frame_level: 5.0 }
             fontstring { name: {DynName(format!("EncounterTimer{}Duration",index+1))}, text: {seconds.as_str()},
                 width: 42.0, height: 26.0, font: GameFont::FrizQuadrata, font_size: 13.0,
                 font_color: {FontColor::new(1.0,1.0,1.0,1.0)}, justify_h: "RIGHT",
-                pos_type: "absolute", left: 178.0, top: 0.0, frame_level: 3.0 }
+                pos_type: "absolute", left: 178.0, top: 0.0, frame_level: 5.0 }
         }
     } }
 }
@@ -234,7 +231,7 @@ fn warning_region(
             "CriticalEncounterWarnings",
             600.0,
             48.0,
-            140.0,
+            40.0,
             34.0,
             [1.0, 0.2, 0.1],
         ),
@@ -242,7 +239,7 @@ fn warning_region(
             "MediumEncounterWarnings",
             550.0,
             36.0,
-            200.0,
+            90.0,
             28.0,
             [1.0, 0.65, 0.1],
         ),
@@ -250,7 +247,7 @@ fn warning_region(
             "MinorEncounterWarnings",
             500.0,
             36.0,
-            248.0,
+            130.0,
             20.0,
             [1.0, 0.9, 0.2],
         ),
