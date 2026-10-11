@@ -25,6 +25,7 @@ const ROW_STEP: f32 = 132.0;
 pub struct TransmogView {
     pub book: TransmogBook,
     pub viewport_width: f32,
+    pub race_id: u8,
 }
 
 fn text(name: &str, value: &str, rect: (f32, f32, f32, f32), color: &str) -> Element {
@@ -52,7 +53,7 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
         "transmog:close",
     );
     children.extend(outfit_region());
-    children.extend(character_region(&view.book));
+    children.extend(character_region(view));
     children.extend(apply_region(&view.book));
     children.extend(wardrobe_region(&view.book));
     let left = ((view.viewport_width - WIDTH) * 0.5).max(0.0);
@@ -123,16 +124,27 @@ fn apply_region(book: &TransmogBook) -> Element {
         out.extend(text(
             "TransmogError",
             &book.error,
-            (22.0, 454.0, 324.0, 30.0),
+            (22.0, 76.0, 324.0, 24.0),
             RED,
         ));
     }
     out
 }
 
-fn character_region(book: &TransmogBook) -> Element {
-    let mut out = rsx! { r#frame { name: {DynName(MODEL_SCENE.into())}, width: 242.0, height: 367.0,
-    left: 64.0, top: 100.0, pos_type: "absolute" } };
+fn character_region(view: &TransmogView) -> Element {
+    let book = &view.book;
+    let mut out = Vec::new();
+    if let Some(background) = race_background_atlas(view.race_id) {
+        out.extend(atlas(
+            "TransmogRaceBackground".into(),
+            background,
+            (64.0, 100.0, 242.0, 367.0),
+        ));
+    }
+    out.extend(
+        rsx! { r#frame { name: {DynName(MODEL_SCENE.into())}, width: 242.0, height: 367.0,
+        left: 64.0, top: 100.0, pos_type: "absolute" } },
+    );
     let left = [
         EquipmentSlot::Head,
         EquipmentSlot::Shoulder,
@@ -155,6 +167,32 @@ fn character_region(book: &TransmogBook) -> Element {
             out.extend(slot_button(book, *slot, column, 102.0 + row as f32 * 50.0));
         }
     }
+    out.extend(preview_controls());
+    out
+}
+
+fn preview_controls() -> Element {
+    let mut out = panel_button(
+        "TransmogRotateLeft".into(),
+        "<",
+        "transmog:rotate-left",
+        true,
+        (84.0, 456.0, 28.0, 24.0),
+    );
+    out.extend(panel_button(
+        "TransmogSheatheButton".into(),
+        "Sheathe / Draw",
+        "transmog:sheathe",
+        true,
+        (120.0, 456.0, 160.0, 24.0),
+    ));
+    out.extend(panel_button(
+        "TransmogRotateRight".into(),
+        ">",
+        "transmog:rotate-right",
+        true,
+        (288.0, 456.0, 28.0, 24.0),
+    ));
     out
 }
 
@@ -300,7 +338,7 @@ fn source_button(book: &TransmogBook, source: &TransmogSource, index: usize) -> 
     let prefix = format!("TransmogSource{}", source.source_id);
     let action = format!("transmog:source:{}", source.source_id);
     let mut children = rsx! { r#frame { name: {DynName(source_model_scene(source.source_id))}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
-    left: 0.0, top: 0.0, pos_type: "absolute" } };
+    left: 0.0, top: 0.0, pos_type: "absolute", background_color: "0,0,0,1" } };
     children.extend(atlas(
         format!("{prefix}Border"),
         "transmog-wardrobe-border-collected",
@@ -367,6 +405,37 @@ fn slot_atlas(slot: EquipmentSlot) -> &'static str {
         EquipmentSlot::OffHand => "transmog-nav-slot-secondaryhand",
         _ => unreachable!("Wardrobe has only visual slots"),
     }
+}
+
+fn race_background_atlas(race: u8) -> Option<&'static str> {
+    Some(match race {
+        1 => "transmog-background-race-human",
+        2 => "transmog-background-race-orc",
+        3 => "transmog-background-race-dwarf",
+        4 => "transmog-background-race-nightelf",
+        5 => "transmog-background-race-scourge",
+        6 => "transmog-background-race-tauren",
+        7 => "transmog-background-race-gnome",
+        8 => "transmog-background-race-troll",
+        9 => "transmog-background-race-goblin",
+        10 => "transmog-background-race-bloodelf",
+        11 => "transmog-background-race-draenei",
+        22 => "transmog-background-race-worgen",
+        24..=26 => "transmog-background-race-pandaren",
+        27 => "transmog-background-race-nightborne",
+        28 => "transmog-background-race-highmountaintauren",
+        29 => "transmog-background-race-voidelf",
+        30 => "transmog-background-race-lightforgeddraenei",
+        31 => "transmog-background-race-ZandalariTroll",
+        32 => "transmog-background-race-kultiran",
+        34 => "transmog-background-race-darkirondwarf",
+        35 => "transmog-background-race-vulpera",
+        36 => "transmog-background-race-magharorc",
+        37 => "transmog-background-race-mechagnome",
+        52 | 70 => "transmog-background-race-dracthyr",
+        84 | 85 => "transmog-background-race-earthen",
+        _ => return None,
+    })
 }
 
 pub fn slot_name(slot: EquipmentSlot) -> &'static str {
