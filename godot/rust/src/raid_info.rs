@@ -46,6 +46,7 @@ impl GameClient {
         Ok(())
     }
     pub(super) fn update_raid_info(&mut self, _delta: f32) -> Result<(), FrameError> {
+        self.raid_info.catalog.poll();
         if self.account.session.screen != SessionScreen::InWorld {
             self.raid_info.reset();
             return Ok(());
