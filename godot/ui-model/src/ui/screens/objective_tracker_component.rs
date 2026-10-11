@@ -89,6 +89,7 @@ pub struct TrackedQuest {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DungeonBlock {
+    pub challenge: bool,
     pub name: String,
     pub bosses: Vec<ObjectiveLine>,
 }
@@ -371,7 +372,11 @@ fn dungeon_module(dungeon: &DungeonBlock, height: &mut f32, scale: f32) -> Eleme
         y += wrapped_text_height(&boss.text, BLOCK_W - DASH_W, LINE_FONT) + LINE_SPACING;
     }
     *height = y;
-    elements
+    if dungeon.challenge {
+        rsx! { r#frame { name: "ChallengeModeFrame", width: {TRACKER_W * scale}, height: {y * scale}, pos_type: "absolute", left: 0.0, top: 0.0, {elements} } }
+    } else {
+        elements
+    }
 }
 
 fn header_text(name: &str, text: &str, top: f32, scale: f32) -> Element {
