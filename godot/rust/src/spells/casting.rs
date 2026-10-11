@@ -13,6 +13,22 @@ use shared::protocol::CastFailed;
 
 impl GameClient {
     pub(crate) fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
+        let spell_id = if spell_id == game_engine_core::assisted_combat::SINGLE_BUTTON_ASSISTANT {
+            match self.spells.cooldowns.recommendation {
+                game_engine_core::cooldown_assist::Recommendation::Spell(id) => id,
+                _ => {
+                    if !self.spells.cooldowns.assisted_failure.is_empty() {
+                        report_once(&format!(
+                            "Single-Button Assistant: {}",
+                            self.spells.cooldowns.assisted_failure
+                        ));
+                    }
+                    return Ok(());
+                }
+            }
+        } else {
+            spell_id
+        };
         let spell_id = self.effective_spell(spell_id);
         self.spells.cancel_ground_target();
         if self.open_profession_spell(spell_id) {
