@@ -1,5 +1,5 @@
 //! Native keystone slot/start and completion banner; the tracker consumes the same snapshot.
-use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::challenge::{ChallengeView, challenge_screen, slot_cursor};
 use godot::prelude::*;
@@ -28,6 +28,21 @@ impl ChallengeUi {
     }
 }
 impl GameClient {
+    pub(crate) fn use_font_of_power(&mut self, id: u64) -> Result<bool, FrameError> {
+        let font = self
+            .replica
+            .unit(id)
+            .and_then(|unit| unit.get::<shared::protocol::GameObjectInfo>())
+            .is_some_and(|info| {
+                info.go_type == shared::protocol::GAMEOBJECT_TYPE_KEYSTONE_RECEPTACLE
+            });
+        if !font || !self.game_objects.contains(id) {
+            return Ok(false);
+        }
+        self.account.send_use_game_object(id)?;
+        Ok(true)
+    }
+
     pub(super) fn update_challenge(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.challenge_ui.free();
