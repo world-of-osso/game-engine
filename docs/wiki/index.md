@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
+
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
 - [Class spell live proof](investigations/class-spell-live-proof.md) — first pass on private54113; batches9–14 continuation on54123 adds twelve new class paths plus a Monk control, four both-skin classes and explicit guardian/numeric gaps.

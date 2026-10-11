@@ -4,12 +4,12 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 
 ## What it must do
 
-- [ ] Transmogrifier NPC/gossip opens the Transmogrify frame with collected, eligible per-slot appearance choices.
-- [ ] Stage pending changes without modifying replicated equipment; preview selected appearance and show the exact authoritative gold quote.
-- [ ] Apply only affordable locally defined quotes; disable duplicate application while awaiting server acceptance and show explicit refusal errors.
-- [ ] Show original appearance restoration and hide choices only for server-authorized slots.
-- [ ] Preserve pending-state safety across item replacement, interaction closure and character/session changes.
-- [ ] Native self and observer displays update after successful application and remain after relog, in both skins.
+- [x] Transmogrifier NPC/gossip opens the Transmogrify frame with collected, locally supported eligible per-slot appearance choices.
+- [x] Stage pending changes without modifying replicated equipment; preview selected appearance and show the exact authoritative gold quote.
+- [x] Apply only affordable locally defined quotes; disable duplicate application while awaiting server acceptance and show explicit refusal errors.
+- [x] Show original appearance restoration and hide choices only for server-authorized slots.
+- [x] Preserve pending-state safety across item replacement, interaction closure and character/session changes.
+- [x] Native self and observer displays update after successful application and remain after relog, in both skins.
 - [ ] Saved outfits follow the working core apply path; illusion UI requires authentic local illusion data.
 
 ## How it works
@@ -29,9 +29,9 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 
 ## Known gaps (current cycle)
 
-- [ ] Native host/network integration and graphical proof remain pending.
+- [x] Native host/network integration: private55087, Hashom gossip, target2850 GUID123, sources821/1181, exact1500copper applications, self/observer rebuilds and relog in both configured art skins. Private-server restart preserved the same redb modifiers. [Bounded proof and evidence](../wiki/systems/transmog-apply.md#native-proof--verified-2026-10-11); this is not every-slot/product certification.
 - [ ] Source cells currently expose authentic appearance icons, not Retail 3D thumbnail scenes.
-- [ ] Outfits remain pending core live application proof.
+- [ ] Saved outfits remain unimplemented; core live application proof is available.
 - [ ] Dynamic pricing, conditional source policies and illusion availability remain the linked server contract's explicit local-data gaps.
 
 ## Out of scope
