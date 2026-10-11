@@ -28,6 +28,7 @@ fn view(rank: u16) -> ProfessionView {
                 skill_line: 2540,
                 profession: 197,
                 category: "Bandages".into(),
+                category_order: 0,
                 name: "Linen Bandage".into(),
                 min_rank: 1,
                 trivial_low: 30,
