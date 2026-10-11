@@ -284,6 +284,7 @@ pub(crate) struct Chat {
     /// `Account::combat_log_seq` already turned into combat log lines.
     combat_seen: u64,
     flash_elapsed: f32,
+    draft: game_engine_ui_model::chat_draft::ChatDraft,
 }
 
 /// Spell link names from the catalog; `Spell #id` until it loads (root `spell_namer`).
@@ -348,6 +349,10 @@ impl crate::GameClient {
             .set_visible(true);
         self.absorb_combat_log();
         self.apply_chat_clicks()?;
+        if self.chat.model.state.input_open {
+            let visible = self.chat_editbox_text();
+            self.chat.draft.apply_visible_edit(&visible);
+        }
         let ui = self.chat.ui.as_ref().expect("chat UI attached");
         if self.chat.model.state.input_open && !ui.bind().is_frame_focused(CHAT_EDITBOX.0) {
             self.close_chat_input()?;
@@ -463,7 +468,8 @@ impl crate::GameClient {
         let view = self.chat.model.view(spell_namer(self.spells.catalog()));
         let mut bound = ui.bind_mut();
         bound.set_state(view)?;
-        bound.set_editbox_text(CHAT_EDITBOX.0, prefill)?;
+        self.chat.draft = game_engine_ui_model::chat_draft::ChatDraft::from_wire(prefill);
+        bound.set_editbox_text(CHAT_EDITBOX.0, self.chat.draft.visible())?;
         bound.focus_frame_named(CHAT_EDITBOX.0)
     }
 
@@ -476,6 +482,8 @@ impl crate::GameClient {
         if !self.chat.model.state.input_open {
             return self.open_chat_input(&link);
         }
+        let visible = self.chat_editbox_text();
+        self.chat.draft.apply_visible_edit(&visible);
         let ui = self.chat.ui.as_ref().ok_or("Chat frame is not shown")?;
         let node = ui
             .find_child_ex(CHAT_EDITBOX.0)
@@ -485,12 +493,27 @@ impl crate::GameClient {
         let mut edit = node
             .try_cast::<godot::classes::LineEdit>()
             .map_err(|_| "Chat edit box is not a LineEdit")?;
-        edit.insert_text_at_caret(&link);
+        let (start, end) = if edit.has_selection() {
+            (
+                edit.get_selection_from_column(),
+                edit.get_selection_to_column(),
+            )
+        } else {
+            let caret = edit.get_caret_column();
+            (caret, caret)
+        };
+        let caret = self
+            .chat
+            .draft
+            .insert_achievement(start as usize, end as usize, id, name);
+        edit.set_text(self.chat.draft.visible());
+        edit.set_caret_column(caret as i32);
         Ok(())
     }
 
     fn close_chat_input(&mut self) -> Result<(), String> {
         self.chat.model.close();
+        self.chat.draft = Default::default();
         let mut ui = self.chat.ui.clone().ok_or("Chat frame is not shown")?;
         let mut bound = ui.bind_mut();
         bound.set_editbox_text(CHAT_EDITBOX.0, "")?;
@@ -510,7 +533,9 @@ impl crate::GameClient {
         }
         match key.get_keycode() {
             Key::ENTER | Key::KP_ENTER => {
-                let line = self.chat_editbox_text();
+                let visible = self.chat_editbox_text();
+                self.chat.draft.apply_visible_edit(&visible);
+                let line = self.chat.draft.wire();
                 self.close_chat_input()?;
                 if let Some(request) = self.chat.model.submit(&line) {
                     self.send_chat_request(request)?;
@@ -527,7 +552,9 @@ impl crate::GameClient {
                 .map(str::to_owned);
                 if let Some(line) = recalled {
                     let mut ui = self.chat.ui.clone().ok_or("Chat frame is not shown")?;
-                    ui.bind_mut().set_editbox_text(CHAT_EDITBOX.0, &line)?;
+                    self.chat.draft = game_engine_ui_model::chat_draft::ChatDraft::from_wire(&line);
+                    ui.bind_mut()
+                        .set_editbox_text(CHAT_EDITBOX.0, self.chat.draft.visible())?;
                 }
             }
             _ => return Ok(false),
