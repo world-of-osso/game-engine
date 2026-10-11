@@ -166,4 +166,5 @@ fn importers_reject_root_only_csvs_without_creating_caches() {
         let error = importer(&fixture.0).unwrap_err();
         assert!(error.contains("db2/12.1.0.69933/"), "{error}");
     }
+    assert!(!fixture.0.join("cache").exists());
 }
