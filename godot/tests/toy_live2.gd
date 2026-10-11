@@ -39,7 +39,7 @@ func run_fixture() -> void:
 	await create_timer(2.0).timeout
 	for sample in SAMPLES:
 		var requested := OS.get_environment("TOYFX_ITEM")
-		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818): continue
+		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "remaining" and int(sample[0]) not in [165791, 221964, 228413, 263198, 267456, 88580]): continue
 		await sample_toy(sample)
 		if failed: return
 	write_receipts()
@@ -50,7 +50,7 @@ func run_fixture() -> void:
 func sample_toy(sample: Array) -> void:
 	var item := int(sample[0])
 	var spell := int(sample[1])
-	await learn_toy(item)
+	await learn_sample(item)
 	if failed or not learned_toy(item): return
 	# Learning uses Escape; select the mortar target only AFTER learning.
 	if item == 204818:
@@ -87,6 +87,24 @@ func sample_toy(sample: Array) -> void:
 	if has_aura(spell): await cancel_aura(spell)
 	if item == 153183: await tap(KEY_W)
 	await create_timer(1.0).timeout
+
+func learn_sample(item: int) -> void:
+	if learned_toy(item): return
+	await click("MainMenuBarBackpackButton")
+	if not await wait_until(func(): return control("ContainerFrame0") != null, "backpack"): return
+	var slot_name := ""
+	for bag_item in client.merchant_state().bags:
+		if int(bag_item.item_id) == item: slot_name = "ContainerFrame%dSlot%d" % [bag_item.bag, bag_item.slot]
+	if slot_name != "": await click(slot_name, MOUSE_BUTTON_RIGHT)
+	var deadline := Time.get_ticks_msec() + 5000
+	while not learned_toy(item) and Time.get_ticks_msec() < deadline: await process_frame
+	if not learned_toy(item):
+		await RenderingServer.frame_post_draw
+		var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-learning.png" % [skin, item])
+		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
+		receipts.append({"item": item, "skin": skin, "phase": "learning-refused", "slot": slot_name, "inventory": client.merchant_state(), "toybox": client.toybox_state(), "image": path})
+		write_receipts()
+	await tap(KEY_ESCAPE)
 
 func select_mortar_target() -> bool:
 	# TDB Northshire spawn:42937 (-9029.03,-274.965,74.4195).
