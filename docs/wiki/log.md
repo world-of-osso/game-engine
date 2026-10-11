@@ -1,3 +1,7 @@
+## 2026-10-11 — Native follower LFG transport
+
+[Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Server admission data has zero populated205-map/entrance pairs; private5750 trash/boss and both-skin PNG acceptance remain open. No canonical writes, master merge or posed capture.
+
 ## 2026-10-11 — Quest sharing, resets and timers
 
 [Runtime](systems/quest-share-resets.md): native share offer/results relay repair, sampled server-clock countdown, exact Retail notices. Two private fb_* accounts on UDP5517; both skins share62, daily26153 reward/lock/reset and timed938 countdown/failure;14 inspected PNGs. No world.db writes/master merge/shared realm changes.
