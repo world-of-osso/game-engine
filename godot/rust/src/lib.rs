@@ -106,6 +106,7 @@ mod toybox_snapshot;
 mod trade;
 mod trainer;
 mod trainer_preview;
+mod transmog;
 mod ui;
 mod ui_layout;
 mod ui_scale;
@@ -299,6 +300,7 @@ pub struct GameClient {
     pet_journal: pet_journal::CompanionJournal,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
+    transmog: transmog::Transmog,
     pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
@@ -435,6 +437,7 @@ impl INode3D for GameClient {
             pet_journal: pet_journal::CompanionJournal::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
+            transmog: transmog::Transmog::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
@@ -1397,6 +1400,7 @@ impl GameClient {
         self.pet_journal.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
+        self.transmog.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
@@ -1943,6 +1947,7 @@ impl GameClient {
             ("Pet Journal", |c, _| c.update_pet_journal()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
+            ("Transmog", |c, _| c.update_transmog()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
             ("Character frame", |c, _| c.update_character_frame()),
@@ -2139,6 +2144,8 @@ impl GameClient {
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
+            AccountEvent::TransmogState(state) => self.receive_transmog_state(state),
+            AccountEvent::TransmogFailed(failed) => self.receive_transmog_failure(failed)?,
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
@@ -2160,6 +2167,7 @@ impl GameClient {
                 if let account::NpcMessage::Closed(npc) = &message {
                     self.flight_map.session.close_for(*npc);
                     self.trainer_closed_for(*npc);
+                    self.transmog_closed_for(*npc);
                 }
                 let stable_opened = self.stable_npc_message(&message);
                 if !self.receive_quest_npc_message(&message)?
@@ -2195,7 +2203,10 @@ impl GameClient {
                 }
             },
             AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
-            AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
+            AccountEvent::Appearances(update) => {
+                self.tooltips.receive_appearances(update);
+                self.refresh_transmog()?;
+            }
             AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
             AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
