@@ -34,6 +34,14 @@ On 2026-10-03 at `574ad01f`, `./deploy.sh --dry-run` exited 0, with the Depot re
 
 This historical run used a saved-token login, the builder's WoW install for CASC, and its resolver cache in `~/.cache/asset-resolver`. It does not prove the extracted-only player contract, a cold resolver cache, a machine without the repo, or a game-launcher download.
 
+### 2026-10-11 Windows LAN and combined dry-run proof
+
+`data/diagnostics/windows-release-2026-10-11/combined-deploy-dry-run-release4.log` records the actual combined dry-run at `a6bc8215e` / shared-protocol `1101804`: Linux release/import and native Windows build succeeded; the assembled player contained 1,265,245 files (rounded 165 GiB). Manifest/publication/deletion commands were printed only; nothing was published or tagged.
+
+Native Windows `7af3f6ca0` / shared-protocol `252f409` subsequently ran through the actual launcher at the default `%APPDATA%\WorldOfOsso` root. The LAN manifest/download/verification and native entry reached login, roster and authoritative private InWorld on UDP54392: connected, one local player, nine initial terrain tiles loaded, no pending/failed tiles. Evidence: `release4-live-assets-2.log`, `lan-release4-proof/world-network.txt`, `terrain-status.txt` and `windows-lan-{login,roster,inworld}.png`. This is a Northshire acceptance subset, not all-map closure or a published/cold full-download certificate. The captured performance sample was 4 FPS; no performance acceptance is claimed.
+
+The separate launcher now has a per-user Windows installer and generated bronze app icon. Native desktop proof covers portable first-run Start Menu integration, installation without elevation, visible Start Search, actual shortcut launch to exact PLAY readiness, and clean uninstall while preserving game files. [Launcher installation contract](../../game-launcher/docs/specs/windows-installation.md) owns packaging and icon reproduction. Diagnostics include `installer-generated-icon-final.log` and `installer-proof/`; inspected PNGs are shared in the requested AgentShared folders. Launcher self-update remains disabled.
+
 ## Publish
 
 Since 2026-10-03 players download from the public R2 bucket `worldofosso-client` (Cloudflare account `mh`), served at its custom domain `https://files.worldofosso.com`: the manifest at `/manifest.json`, every manifest path at `/<path>`. No droplet is in the download path; sakuin's `osso-file-server` service is retired.
@@ -46,7 +54,7 @@ The destination is the rclone remote `woo-r2` (`DESTINATION` overrides). It need
 
 ## game-launcher contract
 
-game-launcher (`../game-launcher`) fetches `https://files.worldofosso.com/manifest.json` and downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>` with no arguments. Linux retains the game-directory working directory; Windows uses the volume root because `CreateProcessW` rejects an overlong current directory. Both Windows entry and Godot project/runtime resolve through absolute executable-relative paths; external script-file arguments should be absolute. The bundle therefore:
+game-launcher (`../game-launcher`) fetches `https://files.worldofosso.com/manifest.json` and downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>`. GUI Play supplies no client arguments; CLI `play` forwards following arguments unchanged for private-server and startup-screen proof. Linux retains the game-directory working directory; Windows uses the volume root because `CreateProcessW` rejects an overlong current directory. Both Windows entry and Godot project/runtime resolve through absolute executable-relative paths; external script-file arguments should be absolute. The bundle therefore:
 
 - names its entries `game-engine-linux-x86_64` and `game-engine-windows-x86_64`;
 - keeps every other path from starting with `game-engine-`;
