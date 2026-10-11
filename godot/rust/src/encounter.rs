@@ -165,7 +165,8 @@ impl GameClient {
             if cast
                 && self.client_options.hud.encounter_warnings
                 && self.client_options.hud.encounter_sounds
-                && let Err(error) = self.play_ui_sound_kit(12197)
+                && let Err(error) =
+                    self.play_ui_sound_kit(game_engine_core::ui_sound_kits::RAID_BOSS_EMOTE_WARNING)
             {
                 godot_error!("Encounter warning sound: {error}");
             }
