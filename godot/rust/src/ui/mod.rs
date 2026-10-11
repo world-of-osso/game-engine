@@ -25,6 +25,7 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
+mod mentor_host;
 mod meter_preview;
 mod minimap_preview;
 mod options_keybindings;

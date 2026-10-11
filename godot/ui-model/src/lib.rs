@@ -52,6 +52,7 @@ pub mod countdown_component;
 pub mod group_countdown;
 #[path = "game/group_state.rs"]
 pub mod group_state;
+pub mod mythic_mentor;
 pub mod pet_journal;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]
