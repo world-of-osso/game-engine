@@ -18,8 +18,10 @@ def prove_entry(root, engine):
     shutil.copy2(fixture / 'entry.exe', fixture / 'game-engine-windows-x86_64')
     compile_fixture('''fn main() {
         let arguments = std::env::args().skip(1).collect::<Vec<_>>().join("\\n");
-        std::fs::write("arguments.txt", arguments).unwrap();
-        std::fs::write("asset-mode.txt", std::env::var("GAME_ENGINE_ASSET_MODE").unwrap()).unwrap();
+        let runtime = std::env::current_exe().unwrap();
+        let root = runtime.parent().unwrap().parent().unwrap();
+        std::fs::write(root.join("arguments.txt"), arguments).unwrap();
+        std::fs::write(root.join("asset-mode.txt"), std::env::var("GAME_ENGINE_ASSET_MODE").unwrap()).unwrap();
         let code = std::env::var("ENTRY_TEST_EXIT").unwrap_or_else(|_| "7".into());
         std::process::exit(code.parse().unwrap());
     }''', fixture / 'runtime/godot.exe')
