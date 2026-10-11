@@ -19,6 +19,46 @@ fn journal() -> View {
     }
 }
 #[test]
+fn robe_loot_uses_the_chest_filter() {
+    let mut view = journal();
+    view.select_encounter(96).unwrap();
+    view.difficulty = 1;
+    view.page = Page::Loot;
+    assert!(view.loot().iter().any(|item| item.id == 6324));
+    view.apply("journal:slot:5").unwrap();
+    assert!(
+        view.loot().iter().any(|item| item.id == 6324),
+        "Robes are Chest loot, not a duplicate Chest category"
+    );
+}
+
+#[test]
+fn heroic_only_vanessa_does_not_offer_normal_difficulty() {
+    let mut view = journal();
+    view.difficulty = 1;
+    view.select_encounter(95).unwrap();
+    assert_eq!(view.difficulty, 2);
+    assert!(view.apply("journal:difficulty:1").is_err());
+}
+
+#[test]
+fn collapsed_ability_parent_does_not_hide_overview_children() {
+    let mut view = journal();
+    view.select_encounter(2491).unwrap();
+    let overview: Vec<_> = view.sections().unwrap().iter().map(|(s, _)| s.id).collect();
+    assert!(
+        overview.contains(&25040),
+        "Kurog's Altar of Flame overview exists"
+    );
+    view.page = Page::Abilities;
+    assert!(view.sections().unwrap().iter().any(|(s, _)| s.id == 25036));
+    view.apply("journal:section:25036").unwrap();
+    view.page = Page::Overview;
+    let after: Vec<_> = view.sections().unwrap().iter().map(|(s, _)| s.id).collect();
+    assert_eq!(after, overview);
+}
+
+#[test]
 fn authentic_dungeon_sections_and_loot_are_selectable() {
     let mut view = journal();
     view.apply("journal:instance:67").unwrap();

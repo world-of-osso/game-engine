@@ -90,6 +90,23 @@ impl View {
             })
             .collect()
     }
+    fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
+        let Some(instance) = self.catalog.instance(instance) else {
+            return Vec::new();
+        };
+        self.catalog
+            .map_difficulties
+            .get(&instance.map)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|difficulty| {
+                encounter.is_none_or(|id| {
+                    difficulty_matches(&self.catalog.encounter_difficulties, id, *difficulty)
+                })
+            })
+            .collect()
+    }
     pub fn select_encounter(&mut self, id: u32) -> Result<(), String> {
         let e = self
             .catalog
@@ -106,11 +123,7 @@ impl View {
             .catalog
             .instance(e.instance)
             .ok_or("Encounter instance missing")?;
-        let difficulties = self
-            .catalog
-            .map_difficulties
-            .get(&instance.map)
-            .ok_or("Instance difficulty data missing")?;
+        let difficulties = self.available_difficulties(e.instance, Some(id));
         if !difficulties.contains(&self.difficulty) {
             self.difficulty = *difficulties.first().ok_or("Instance has no difficulties")?;
         }
@@ -162,7 +175,7 @@ impl View {
                 if page_matches {
                     output.push((section, depth));
                 }
-                if !self.collapsed.contains(&id) {
+                if !page_matches || !self.collapsed.contains(&id) {
                     self.walk_sections(
                         section.child,
                         depth + usize::from(page_matches),
@@ -187,7 +200,7 @@ impl View {
             })
             .filter_map(|l| self.catalog.items.get(&l.item))
             .filter(|i| {
-                (self.slot == 0 || i.slot == self.slot)
+                slot_matches(i.slot, self.slot)
                     && (self.class == 0
                         || i.class_mask == -1
                         || i.class_mask & (1 << (self.class - 1)) != 0)
@@ -258,6 +271,11 @@ impl View {
                 }
                 self.instance = Some(id);
                 self.encounter = None;
+                let difficulties = self.available_difficulties(id, None);
+                if !difficulties.contains(&self.difficulty) {
+                    self.difficulty =
+                        *difficulties.first().ok_or("Instance has no difficulties")?;
+                }
                 self.page = Page::Overview;
                 self.search.clear();
             }
@@ -276,7 +294,17 @@ impl View {
             }
             "difficulty-menu" => self.difficulty_open = !self.difficulty_open,
             "difficulty" => {
-                self.difficulty = number()?;
+                let difficulty = number()?;
+                let instance = self.instance.ok_or("No journal instance selected")?;
+                if !self
+                    .available_difficulties(instance, self.encounter)
+                    .contains(&difficulty)
+                {
+                    return Err(format!(
+                        "Journal difficulty {difficulty} is unavailable for this selection"
+                    ));
+                }
+                self.difficulty = difficulty;
                 self.difficulty_open = false;
             }
             "role" => self.role = number()?,
@@ -447,7 +475,10 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         .catalog
         .encounters
         .iter()
-        .filter(|e| e.instance == instance.id)
+        .filter(|e| {
+            e.instance == instance.id
+                && difficulty_matches(&view.catalog.encounter_difficulties, e.id, view.difficulty)
+        })
         .enumerate()
     {
         out.extend(button(
@@ -590,12 +621,7 @@ fn difficulty_button(view: &View) -> Element {
     )
 }
 fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Element {
-    let entries = view
-        .catalog
-        .map_difficulties
-        .get(&instance.map)
-        .map(Vec::as_slice)
-        .unwrap_or(&[]);
+    let entries = view.available_difficulties(instance.id, view.encounter);
     let height = (entries.len() as f32 * 24.).min(300.);
     let rows = entries
         .iter()
@@ -661,6 +687,22 @@ fn loot_page(ctx: &SharedContext, view: &View) -> Element {
         out.extend(loot_filter_menu(ctx, view, menu));
     }
     out
+}
+// Retail SlotFilterToSlotName has MainHand, OffHand and Other, not separate robe/ranged entries.
+const OTHER_LOOT_SLOT: u32 = 99;
+fn slot_filters(inventory_type: u32) -> impl Iterator<Item = u32> {
+    let filters = match inventory_type {
+        1..=3 | 5..=12 | 16 => [inventory_type, 0],
+        20 => [5, 0],
+        13 => [21, 22],
+        15 | 17 | 21 | 25 | 26 => [21, 0],
+        14 | 22 | 23 => [22, 0],
+        _ => [OTHER_LOOT_SLOT, 0],
+    };
+    filters.into_iter().filter(|id| *id != 0)
+}
+fn slot_matches(inventory_type: u32, filter: u32) -> bool {
+    filter == 0 || slot_filters(inventory_type).any(|id| id == filter)
 }
 fn slot_name(id: u32) -> &'static str {
     match id {
@@ -748,7 +790,11 @@ fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, String)> {
         LootFilter::Slot => {
             let mut unfiltered = view.clone();
             unfiltered.slot = 0;
-            let slots: BTreeSet<_> = unfiltered.loot().iter().map(|item| item.slot).collect();
+            let slots: BTreeSet<_> = unfiltered
+                .loot()
+                .iter()
+                .flat_map(|item| slot_filters(item.slot))
+                .collect();
             std::iter::once((0, "All slots".into()))
                 .chain(slots.into_iter().map(|id| (id, slot_name(id).into())))
                 .collect()
