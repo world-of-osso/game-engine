@@ -242,7 +242,7 @@ impl EntranceCatalog {
 }
 
 /// The named columns of every row of CSV `path`.
-fn read_rows(path: &Path, columns: &[&str]) -> Result<Vec<Vec<String>>, String> {
+pub(crate) fn read_rows(path: &Path, columns: &[&str]) -> Result<Vec<Vec<String>>, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| format!("read {}: {error}", path.display()))?;
     let mut records = parse_csv_records(&text).into_iter();

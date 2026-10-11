@@ -76,6 +76,7 @@ mod process_memory_status;
 mod professions;
 mod profile;
 mod quests;
+mod raid_info;
 mod raid_targets;
 mod replicated;
 mod scene;
@@ -313,6 +314,7 @@ pub struct GameClient {
     banks: bank::Banks,
     guild_ranks: guild_ranks::GuildRanks,
     achievements: achievements::Achievements,
+    raid_info: raid_info::RaidInfo,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -448,6 +450,7 @@ impl INode3D for GameClient {
             banks: bank::Banks::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
             achievements: achievements::Achievements::default(),
+            raid_info: raid_info::RaidInfo::new(&data_root),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -1384,6 +1387,7 @@ impl GameClient {
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
+        self.raid_info.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1945,6 +1949,7 @@ impl GameClient {
             ("Banks", |c, _| c.update_banks()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
             ("Achievements", |c, d| c.update_achievements(d)),
+            ("RaidInfo", |c, d| c.update_raid_info(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -2592,6 +2597,7 @@ impl GameClient {
         self.logout.clear();
         self.loot.reset();
         self.achievements.reset();
+        self.raid_info.reset();
         self.game_objects.reset();
         self.mailbox.reset();
         self.trade.reset();
