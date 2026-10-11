@@ -39,6 +39,7 @@ pub struct View {
     pub page: Page,
     pub tier: u32,
     pub tier_open: bool,
+    pub difficulty_open: bool,
     pub instance: Option<u32>,
     pub encounter: Option<u32>,
     pub difficulty: u32,
@@ -61,6 +62,7 @@ impl Default for View {
             page: Page::Overview,
             tier: 73,
             tier_open: false,
+            difficulty_open: false,
             instance: None,
             encounter: None,
             difficulty: 2,
@@ -100,7 +102,21 @@ impl View {
         } else {
             Tab::Raids
         };
-        self.difficulty = if self.tab == Tab::Dungeons { 2 } else { 14 };
+        let instance = self
+            .catalog
+            .instance(e.instance)
+            .ok_or("Encounter instance missing")?;
+        let difficulties = self
+            .catalog
+            .map_difficulties
+            .get(&instance.map)
+            .ok_or("Instance difficulty data missing")?;
+        if !difficulties.contains(&self.difficulty) {
+            self.difficulty = *difficulties.first().ok_or("Instance has no difficulties")?;
+        }
+        if !instance.tiers.contains(&self.tier) {
+            self.tier = *instance.tiers.first().ok_or("Instance tier data missing")?;
+        }
         self.page = Page::Overview;
         self.visible = true;
         self.collapsed.clear();
@@ -258,7 +274,11 @@ impl View {
                     _ => return Err("Unknown journal page".into()),
                 }
             }
-            "difficulty" => self.difficulty = number()?,
+            "difficulty-menu" => self.difficulty_open = !self.difficulty_open,
+            "difficulty" => {
+                self.difficulty = number()?;
+                self.difficulty_open = false;
+            }
             "role" => self.role = number()?,
             "filter" => {
                 let menu = match value {
@@ -473,31 +493,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
             (202. + index as f32 * 140., 96., 137., 23.),
         ));
     }
-    for (index, (id, title)) in [
-        (1, "Normal"),
-        (2, "Heroic"),
-        (23, "Mythic"),
-        (14, "Raid Normal"),
-        (15, "Raid Heroic"),
-        (16, "Raid Mythic"),
-    ]
-    .into_iter()
-    .filter(|(id, _)| {
-        if instance.dungeon {
-            *id < 14 || *id == 23
-        } else {
-            *id >= 14 && *id <= 16
-        }
-    })
-    .enumerate()
-    {
-        out.extend(button(
-            format!("JournalDifficulty{id}"),
-            title,
-            &format!("journal:difficulty:{id}"),
-            (202. + index as f32 * 180., 123., 176., 22.),
-        ));
-    }
+    out.extend(difficulty_button(view));
     match view.page {
         Page::Model => {
             out.extend(rsx!{r#frame {name:"EncounterJournalModelScene",left:210.0,top:155.0,width:565.0,height:325.0,pos_type:"absolute",mouse_enabled:true}});
@@ -545,6 +541,14 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
                             &format!("journal:section:{}", section.id),
                             (indent, y, 545. - indent, 24.),
                         ));
+                        if section.icon != 0 {
+                            content.extend(texture(
+                                format!("JournalSection{}Icon", section.id),
+                                section.icon,
+                                (indent + 2., y + 2., 20., 20.),
+                                WHITE,
+                            ));
+                        }
                         y += 26.;
                         if !view.collapsed.contains(&section.id) && !section.body.is_empty() {
                             let height =
@@ -566,7 +570,59 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
             out.extend(scroll(ctx, content, (202., 179., 575., 300.), y.max(300.)));
         }
     }
+    if view.difficulty_open {
+        out.extend(difficulty_menu(ctx, view, instance));
+    }
     out
+}
+fn difficulty_button(view: &View) -> Element {
+    let name = view
+        .catalog
+        .difficulties
+        .get(&view.difficulty)
+        .map(String::as_str)
+        .unwrap_or("");
+    button(
+        "JournalDifficultyDropdown".into(),
+        name,
+        "journal:difficulty-menu",
+        (602., 123., 174., 22.),
+    )
+}
+fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Element {
+    let entries = view
+        .catalog
+        .map_difficulties
+        .get(&instance.map)
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let height = (entries.len() as f32 * 24.).min(300.);
+    let rows = entries
+        .iter()
+        .enumerate()
+        .flat_map(|(index, id)| {
+            let title = view
+                .catalog
+                .difficulties
+                .get(id)
+                .map(String::as_str)
+                .unwrap_or("");
+            button(
+                format!("JournalDifficulty{id}"),
+                title,
+                &format!("journal:difficulty:{id}"),
+                (0., index as f32 * 24., 164., 23.),
+            )
+        })
+        .collect();
+    let list = scroll_in(
+        ctx,
+        rows,
+        (0., 0., 174., height),
+        entries.len() as f32 * 24.,
+        "EncounterJournalDifficultyList",
+    );
+    rsx! {r#frame {name:"EncounterJournalDifficultyMenu",left:602.0,top:147.0,width:174.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{list}}}
 }
 fn loot_page(ctx: &SharedContext, view: &View) -> Element {
     let mut out = loot_filter_buttons(view);
@@ -731,6 +787,8 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
     let search = view.search.to_lowercase();
+    let offset = ctx.scroll_first_row(LIST) as f32;
+    let visible = |top: f32, height: f32| top + height >= offset && top <= offset + 416.;
     let mut y = 0.;
     let mut content = Vec::new();
     for set in view
@@ -739,18 +797,22 @@ fn sets(ctx: &SharedContext, view: &View) -> Element {
         .iter()
         .filter(|s| s.name.to_lowercase().contains(&search))
     {
-        content.extend(text(
-            &format!("JournalSet{}", set.id),
-            &set.name,
-            (4., y, 730., 24.),
-        ));
+        if visible(y, 24.) {
+            content.extend(text(
+                &format!("JournalSet{}", set.id),
+                &set.name,
+                (4., y, 730., 24.),
+            ));
+        }
         y += 26.;
         for item in set.items.iter().filter_map(|id| view.catalog.items.get(id)) {
-            content.extend(text(
-                &format!("JournalSet{}Item{}", set.id, item.id),
-                &item.name,
-                (20., y, 714., 20.),
-            ));
+            if visible(y, 20.) {
+                content.extend(text(
+                    &format!("JournalSet{}Item{}", set.id, item.id),
+                    &item.name,
+                    (20., y, 714., 20.),
+                ));
+            }
             y += 22.;
         }
         y += 10.;
@@ -820,11 +882,12 @@ fn tutorials(view: &View) -> Element {
         .get("RPE_TUTORIAL_TEXT")
         .map(String::as_str)
         .unwrap_or("");
-    let mut out = text(
+    let mut out = rsx! {texture {name:"EncounterJournalTutorialArt",texture_atlas:"adventureguide-tutorial-rpe",left:34.0,top:76.0,width:270.0,height:390.0,pos_type:"absolute"}};
+    out.extend(text(
         "EncounterJournalTutorialTitle",
         title,
         (330., 110., 380., 60.),
-    );
+    ));
     out.extend(text(
         "EncounterJournalTutorials",
         body,
