@@ -152,6 +152,7 @@ fn dungeonclient_account_catalog_continuations_and_live_toast_reach_host() {
         achievement_id: 633,
         name: "Stormwind Stockade".into(),
         points: 10,
+        icon_fdid: 134163,
     };
     account
         .dispatch_message(

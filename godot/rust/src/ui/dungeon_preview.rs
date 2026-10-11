@@ -151,6 +151,7 @@ impl RegistryUi {
                     achievement_id: 633,
                     name: "Stormwind Stockade".into(),
                     points: 10,
+                    icon_fdid: 134163,
                 })
             });
         GString::from(result.err().unwrap_or_default().as_str())
