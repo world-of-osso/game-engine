@@ -12,7 +12,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
         honor: 0,
         honor_max: 0,
         conquest: 0,
-        conquest_max: 0,
+        conquest_max: None,
         brackets: vec![],
         queue: None,
         war_mode: None,
