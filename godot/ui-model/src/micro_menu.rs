@@ -147,15 +147,13 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         art: Some("Questlog"),
         unavailable: None,
     },
-    // Not `C_Housing.IsHousingServiceEnabled()`.
+    // Native static Housing Dashboard/catalog; ownership is a separate service.
     MicroButton {
         name: "HousingMicroButton",
         title: "Housing Dashboard",
         binding: None,
         art: Some("Housing"),
-        unavailable: Some(Unavailable::Reason(
-            "This action is not available right now",
-        )),
+        unavailable: None,
     },
     // Native guild roster/settings use the account connection, not Blizzard services.
     MicroButton {
