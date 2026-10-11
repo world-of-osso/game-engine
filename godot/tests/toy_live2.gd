@@ -37,6 +37,17 @@ func run_fixture() -> void:
 				return true
 		return false, "player model", 120000): return
 	await create_timer(2.0).timeout
+	await click("CollectionsMicroButton")
+	await click("CollectionsJournalTab3")
+	if not await wait_until(func(): return client.toybox_state().catalog_count > 0, "initial journal query"): return
+	await click("CollectionsMicroButton")
+	for zoom in range(5):
+		var event := InputEventMouseButton.new()
+		event.position = Vector2(960, 540)
+		event.button_index = MOUSE_BUTTON_WHEEL_UP
+		event.pressed = true
+		root.push_input(event, true)
+		await process_frame
 	for sample in SAMPLES:
 		var requested := OS.get_environment("TOYFX_ITEM")
 		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "remaining" and int(sample[0]) not in [165791, 221964, 228413, 263198, 267456, 88580]): continue
@@ -96,7 +107,11 @@ func learn_sample(item: int) -> void:
 	for bag_item in client.merchant_state().bags:
 		if int(bag_item.item_id) == item: slot_name = "ContainerFrame%dSlot%d" % [bag_item.bag, bag_item.slot]
 	if slot_name != "": await click(slot_name, MOUSE_BUTTON_RIGHT)
-	var deadline := Time.get_ticks_msec() + 5000
+	await tap(KEY_ESCAPE)
+	# Read the authoritative journal through its normal opening/query action.
+	await click("CollectionsMicroButton")
+	await click("CollectionsJournalTab3")
+	var deadline := Time.get_ticks_msec() + 10000
 	while not learned_toy(item) and Time.get_ticks_msec() < deadline: await process_frame
 	if not learned_toy(item):
 		await RenderingServer.frame_post_draw
@@ -104,7 +119,7 @@ func learn_sample(item: int) -> void:
 		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
 		receipts.append({"item": item, "skin": skin, "phase": "learning-refused", "slot": slot_name, "inventory": client.merchant_state(), "toybox": client.toybox_state(), "image": path})
 		write_receipts()
-	await tap(KEY_ESCAPE)
+	await click("CollectionsMicroButton")
 
 func select_mortar_target() -> bool:
 	# TDB Northshire spawn:42937 (-9029.03,-274.965,74.4195).
