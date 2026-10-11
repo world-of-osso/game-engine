@@ -112,6 +112,8 @@ pub enum ChatSpan {
     /// A spell hyperlink shown as the bare spell name (`TEXT_MODE_A_STRING_SPELL`, no
     /// braces: `spellBraces = false`); the name is resolved when the line is laid out.
     SpellLink { id: u32, color: [f32; 4] },
+    /// Achievement chat label; its ID opens authoritative own-character state, never comparison.
+    AchievementLink { id: u32, display: String },
 }
 
 fn text(value: impl Into<String>) -> ChatSpan {
@@ -143,6 +145,7 @@ impl ChatLine {
             .map(|span| match span {
                 ChatSpan::Text(value) | ChatSpan::Colored(_, value) => value.clone(),
                 ChatSpan::SpellLink { id, .. } => spell_name(*id),
+                ChatSpan::AchievementLink { display, .. } => display.clone(),
             })
             .collect()
     }
@@ -448,7 +451,38 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
             format!("{} [{sender}]: {body}", msg.channel_type.prefix())
         }
     };
-    ChatLine::plain(msg.channel_type.color(), value)
+    ChatLine {
+        color: msg.channel_type.color(),
+        spans: parse_achievement_links(&value),
+    }
+}
+
+fn parse_achievement_links(value: &str) -> Vec<ChatSpan> {
+    const PREFIX: &str = "|Hachievement:";
+    let mut spans = Vec::new();
+    let mut remaining = value;
+    while let Some(start) = remaining.find(PREFIX) {
+        let Some((id, display, tail)) = split_achievement_link(&remaining[start + PREFIX.len()..])
+        else {
+            break;
+        };
+        let prefix = &remaining[..start];
+        spans.push(text(prefix.strip_suffix("|cffffff00").unwrap_or(prefix)));
+        spans.push(ChatSpan::AchievementLink {
+            id,
+            display: display.into(),
+        });
+        remaining = tail.strip_prefix("|r").unwrap_or(tail);
+    }
+    spans.push(text(remaining));
+    spans
+}
+
+fn split_achievement_link(value: &str) -> Option<(u32, &str, &str)> {
+    let (payload, label) = value.split_once("|h")?;
+    let id: u32 = payload.split(':').next()?.parse().ok()?;
+    let (display, tail) = label.split_once("|h")?;
+    (id != 0 && !display.is_empty()).then_some((id, display, tail))
 }
 
 /// What a submitted chat edit box line does.
@@ -861,6 +895,7 @@ pub struct ChatRun {
     pub x: f32,
     pub width: f32,
     pub spell_id: Option<u32>,
+    pub achievement_id: Option<u32>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -879,7 +914,7 @@ pub fn wrap_chat_line(
     // Positions come from measuring the row's text so far as one string: summing each
     // word's own measure drifts from where the text really ends.
     let mut row_text = String::new();
-    for (token, color, spell_id) in line_tokens(line, &spell_name) {
+    for (token, color, spell_id, achievement_id) in line_tokens(line, &spell_name) {
         let fits = measure(&format!("{row_text}{token}")) <= max_width;
         if !row_text.is_empty() && !fits && !token.trim().is_empty() {
             rows.push(ChatRow::default());
@@ -889,7 +924,13 @@ pub fn wrap_chat_line(
         row_text.push_str(&token);
         let row = rows.last_mut().expect("rows start non-empty");
         match row.runs.last_mut() {
-            Some(run) if run.spell_id.is_none() && spell_id.is_none() && run.color == color => {
+            Some(run)
+                if run.spell_id.is_none()
+                    && spell_id.is_none()
+                    && run.achievement_id.is_none()
+                    && achievement_id.is_none()
+                    && run.color == color =>
+            {
                 run.text.push_str(&token);
                 run.width = measure(&run.text);
             }
@@ -899,6 +940,7 @@ pub fn wrap_chat_line(
                 color,
                 x,
                 spell_id,
+                achievement_id,
             }),
         }
     }
@@ -910,17 +952,22 @@ pub fn wrap_chat_line(
 fn line_tokens(
     line: &ChatLine,
     spell_name: &impl Fn(u32) -> String,
-) -> Vec<(String, [f32; 4], Option<u32>)> {
+) -> Vec<(String, [f32; 4], Option<u32>, Option<u32>)> {
     let words = |value: &str, color: [f32; 4]| {
         value
             .split_inclusive(char::is_whitespace)
-            .map(|word| (word.to_string(), color, None))
+            .map(|word| (word.to_string(), color, None, None))
             .collect::<Vec<_>>()
     };
     let mut tokens = Vec::new();
     for span in &line.spans {
         match span {
-            ChatSpan::SpellLink { id, color } => tokens.push((spell_name(*id), *color, Some(*id))),
+            ChatSpan::SpellLink { id, color } => {
+                tokens.push((spell_name(*id), *color, Some(*id), None))
+            }
+            ChatSpan::AchievementLink { id, display } => {
+                tokens.push((display.clone(), [1.0, 1.0, 0.0, 1.0], None, Some(*id)))
+            }
             ChatSpan::Text(value) => tokens.extend(words(value, line.color)),
             ChatSpan::Colored(color, value) => tokens.extend(words(value, *color)),
         }

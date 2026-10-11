@@ -4652,3 +4652,6 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
+# Mainline achievement earned-alert plate, icon frame and shield atlas.
+textures/4035524.blp
+textures/130666.blp
