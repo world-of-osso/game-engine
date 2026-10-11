@@ -120,6 +120,25 @@ fn achievements_art_category_scroll_reaches_last_child_both_skins() {
     }
 }
 
+#[test]
+fn achievements_art_statistics_never_reuses_recent_achievement_rows() {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Summary(AchievementSummary {
+        scope: AchievementScope::All,
+        points: 10,
+        total: 8078,
+        completed: 1,
+        categories: vec![],
+        recent: vec![achievement()],
+    }));
+    window.action("achievement:statistics");
+    assert!(
+        window.displayed_entries().is_empty(),
+        "statistics must not display earned achievement rows"
+    );
+}
+
 fn assets(skin: ActiveSkin) {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
