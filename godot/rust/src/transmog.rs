@@ -1,4 +1,6 @@
 //! Native TransmogFrame, authoritative quotes, and isolated pending character preview.
+mod collection;
+
 use crate::{
     GameClient,
     character_frame::preview::{Scene, bind_sheet_light},
@@ -17,13 +19,28 @@ use shared::protocol::{
     ApplyTransmog, EquipmentSlot, TransmogChoice, TransmogError, TransmogFailed, TransmogState,
 };
 
+// The frontal body camera looks along drawn blades. A three-quarter view exposes them.
+const CHARACTER_VIEW_YAW: f32 = std::f32::consts::FRAC_PI_4;
+const ROTATE_STEP: f32 = std::f32::consts::FRAC_PI_8;
+
+fn transmog_sheath(sheathed: bool) -> SheathState {
+    if sheathed {
+        SheathState::Unarmed
+    } else {
+        SheathState::Melee
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct Transmog {
     pub(crate) book: TransmogBook,
     ui: Option<Gd<RegistryUi>>,
     scene: Option<Scene>,
     shown: Option<UnitAppearance>,
+    yaw: f32,
+    sheathed: bool,
     pending: Option<(u64, UnitAppearance)>,
+    collection: std::collections::BTreeMap<u32, collection::CollectionPreview>,
 }
 
 impl Transmog {
@@ -81,6 +98,7 @@ impl GameClient {
 
     fn close_transmog(&mut self) -> bool {
         let shown = self.transmog.book.state.is_some();
+        self.clear_transmog_collection();
         if let Some((id, _)) = self.transmog.pending.take() {
             self.world.cancel_detached_visual(id);
         }
@@ -91,6 +109,8 @@ impl GameClient {
             ui.free();
         }
         self.transmog.shown = None;
+        self.transmog.yaw = 0.0;
+        self.transmog.sheathed = false;
         self.transmog.book.close();
         shown
     }
@@ -122,6 +142,7 @@ impl GameClient {
         if self.transmog.book.state.is_some() {
             self.sync_transmog()?;
             self.sync_transmog_model()?;
+            self.sync_transmog_collection()?;
         }
         Ok(())
     }
@@ -130,6 +151,13 @@ impl GameClient {
         let Some(mut ui) = self.transmog.ui.clone() else {
             return Ok(());
         };
+        let search = ui
+            .bind_mut()
+            .frame_text(game_engine_ui_model::transmog_frame::SEARCH.into())
+            .to_string();
+        if search != self.transmog.book.search {
+            self.transmog.book.set_search(search);
+        }
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -151,6 +179,9 @@ impl GameClient {
     }
 
     fn apply_transmog_action(&mut self, action: &str) -> Result<Option<ApplyTransmog>, String> {
+        if self.apply_transmog_preview_action(action)? {
+            return Ok(None);
+        }
         let book = &mut self.transmog.book;
         match action {
             "transmog:apply" => return Ok(book.apply()),
@@ -189,6 +220,28 @@ impl GameClient {
         Ok(None)
     }
 
+    fn apply_transmog_preview_action(&mut self, action: &str) -> Result<bool, String> {
+        match action {
+            "transmog:rotate-left" => self.transmog.yaw -= ROTATE_STEP,
+            "transmog:rotate-right" => self.transmog.yaw += ROTATE_STEP,
+            "transmog:sheathe" => {
+                self.transmog.sheathed = !self.transmog.sheathed;
+                if let (Some(model), Some(appearance)) = (
+                    self.transmog.scene.as_ref().and_then(Scene::model),
+                    self.transmog.shown.as_ref(),
+                ) {
+                    self.world.place_player_weapons(
+                        &model,
+                        appearance,
+                        transmog_sheath(self.transmog.sheathed),
+                    )?;
+                }
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
     fn sync_transmog(&mut self) -> Result<(), String> {
         let size = self
             .base()
@@ -201,6 +254,10 @@ impl GameClient {
         let view = TransmogView {
             book: self.transmog.book.clone(),
             viewport_width: size.x / scale,
+            race_id: match self.world.local_player_appearance() {
+                Some(UnitAppearance::Player(player, _)) => player.race,
+                _ => 0,
+            },
         };
         if let Some(ui) = &mut self.transmog.ui {
             ui.bind_mut().set_ui_scale(scale)?;
@@ -243,11 +300,9 @@ impl GameClient {
         }
         self.request_transmog_model(appearance);
         self.attach_transmog_model()?;
-        self.transmog
-            .scene
-            .as_mut()
-            .expect("preview created")
-            .fit_viewport();
+        let scene = self.transmog.scene.as_mut().expect("preview created");
+        scene.fit_viewport();
+        scene.set_model_yaw(CHARACTER_VIEW_YAW + self.transmog.yaw);
         Ok(())
     }
 
@@ -277,10 +332,11 @@ impl GameClient {
         };
         let (_, appearance) = self.transmog.pending.take().expect("preview pending");
         let model = loaded?;
-        if let Err(error) = self
-            .world
-            .place_player_weapons(&model, &appearance, SheathState::Melee)
-        {
+        if let Err(error) = self.world.place_player_weapons(
+            &model,
+            &appearance,
+            transmog_sheath(self.transmog.sheathed),
+        ) {
             model.free();
             return Err(error);
         }
