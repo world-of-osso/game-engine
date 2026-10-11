@@ -1,6 +1,43 @@
 use game_engine_ui_model::guild_ranks::GuildRanksSession;
 use shared::protocol::*;
 
+#[test]
+fn guild_rank_slashes_do_not_fall_through_to_help() {
+    use game_engine_ui_model::chat_frame::{ChatCommand, parse_chat_input};
+    for (line, expected) in [
+        (
+            "/gpromote Cara",
+            GuildRankRequest::Promote {
+                character_name: "Cara".into(),
+            },
+        ),
+        (
+            "/guildpromote Cara",
+            GuildRankRequest::Promote {
+                character_name: "Cara".into(),
+            },
+        ),
+        (
+            "/gdemote Cara",
+            GuildRankRequest::Demote {
+                character_name: "Cara".into(),
+            },
+        ),
+        (
+            "/guilddemote Cara",
+            GuildRankRequest::Demote {
+                character_name: "Cara".into(),
+            },
+        ),
+    ] {
+        assert_eq!(
+            parse_chat_input(line, None),
+            ChatCommand::GuildRank(expected),
+            "{line}"
+        );
+    }
+}
+
 fn snapshot(own_rank: u8) -> GuildRanksState {
     let rank = |name: &str, rights| GuildRankSettings {
         name: name.into(),

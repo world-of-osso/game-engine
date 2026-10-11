@@ -461,6 +461,7 @@ pub enum ChatCommand {
     Emote(EmoteKind),
     Who(String),
     Group(GroupCommand),
+    GuildRank(shared::protocol::GuildRankRequest),
     /// Local system lines, shown only to this client.
     System(Vec<String>),
     None,
@@ -486,6 +487,17 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
             None => ChatCommand::None,
         },
         "who" => ChatCommand::Who(rest.to_string()),
+        // Retail SlashCommands.lua: GUILD_PROMOTE / GUILD_DEMOTE.
+        "gpromote" | "guildpromote" => {
+            ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Promote {
+                character_name: rest.to_owned(),
+            })
+        }
+        "gdemote" | "guilddemote" => {
+            ChatCommand::GuildRank(shared::protocol::GuildRankRequest::Demote {
+                character_name: rest.to_owned(),
+            })
+        }
         // Retail SLASH_INVITE/UNINVITE/PROMOTE/READYCHECK aliases.
         "invite" | "inv" => named_group_command(rest, GroupCommand::Invite),
         "uninvite" | "un" | "u" | "kick" => named_group_command(rest, GroupCommand::Uninvite),
