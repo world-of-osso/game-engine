@@ -27,7 +27,9 @@ func run_test() -> void:
 	await click_control(housing_control("HousingDashboardHouseInfoTabButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return preview_view() == null and client.find_children("HousingCatalogActor", "Node3D", true, false).is_empty(), "tab change frees preview scene"): return
 	await click_control(housing_control("HousingDashboardCatalogTabButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return preview_actor() != null, "reopened catalog actor"): return
+	if not await wait_housing(func():
+		var actor: Node3D = preview_actor()
+		return housing_text("HousingCatalogSearchBox") == BOOKCASE_NAME and actor != null and int(actor.get_meta("housing_decor_id", 0)) == 1693, "reopened catalog retains filter and actual bookcase actor"): return
 	var search: LineEdit = housing_control("HousingCatalogSearchBox") as LineEdit
 	await click_control(search, MOUSE_BUTTON_LEFT)
 	search.select_all()
