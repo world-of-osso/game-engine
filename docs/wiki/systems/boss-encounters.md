@@ -1,10 +1,10 @@
 # Native boss encounters
 
-Godot boss HUD consumes the server's EncounterChannel and existing RaidBossEmote chat. The server and pinned protocol are unchanged. Contract: [boss encounters](../../specs/boss-encounters.md).
+Godot boss HUD consumes EncounterChannel lifecycle/timeline messages and RaidBossEmote chat. Contracts: [boss encounters](../../specs/boss-encounters.md), [encounter timeline](../../specs/encounter-timeline.md).
 
 ## Lifecycle and projection
 
-One transport relay drains all four message receivers and sorts channel message IDs before delivering native Account events. Per-type relays would reorder Start/Engage/End in a single worker frame. EncounterFrames stores engaged entity IDs with stable ascending priority; repeats do not change order. Start replaces the lifecycle; End, loading, disconnect and world reset clear it.
+One transport relay drains lifecycle and timeline message receivers and sorts channel message IDs before delivering native Account events. Per-type relays would reorder Start/Engage/End in a single worker frame. EncounterFrames stores engaged entity IDs with stable ascending priority; repeats do not change order. Start replaces the lifecycle; End, loading, disconnect and world reset clear it.
 
 Every targeting update projects the first five replicated engaged units. An Engage that precedes replication remains pending. Hidden/missing units do not occupy a visible frame; click resolution uses the same visible ordered IDs. Clicks resolve a topmost registry hit's named ancestor and call the existing set_target path; the existing SetTarget sender and server echo are unchanged.
 
@@ -13,6 +13,14 @@ Five compact portrait-off frame roots retain the existing right-side reference s
 ## Center warnings
 
 Boss chat retains its existing chat consumer and also enters RaidWarnings. The pure model substitutes `%s`, retains four lines and computes fade-in/hold/fade-out alpha from elapsed frame time. A shared-HUD RegistryUi owns RaidWarningFrame; text never captures mouse input. Start/End and world transitions clear its data. The pinned protocol has no player RaidWarning variant; the generic warning view's raid-warning colour has no corresponding wire ingress.
+
+## Scheduler timeline — verified 2026-10-11
+
+`EncounterTimelineEvent` shares the lifecycle channel's ordering. SmartAi projects its actual `EventState.timer_ms` and selected repeat duration after scheduling/phase changes and refreshes once per second; script BossAi projects EventMap's selected due time through literal script event→spell bindings. Has-aura/health conditions have no known deadline and are absent. No second cooldown generator or probability pre-roll exists. The conditional marker means an attempt can skip/defer; reaching zero never invents a cast. Ctx emits a cast event only when `creature_cast` accepts it for an active instance boss; actual SmartAI phase assignments emit their number.
+
+The pure native model replaces timers per caster, subtracts UTC delivery age from server samples before counting down between receipts, and replaces warnings per severity. The UTC domain matches existing group countdowns; comparable client/server clocks are required, not a new clock-sync protocol. A separate RegistryUi hosts bars/track plus three warning roots. Each root must be viewport-anchored: a percent-sized relative wrapper with only absolute children collapsed to zero, centering warnings offscreen. Native geometry regression covers the corrected root forest. Timer text draws above fill, not at its parent's level. Audio uses the actual local SoundKit12197 row and SoundKitEntry15068→567394; registered UI sound players read `sounds/ui/567394.ogg`. Exact native Retail severity→sound mappings are not available from Lua; the [contract](../../specs/encounter-timeline.md) records that boundary.
+
+HUD options draft/apply/save the enable, explicit Timeline1/Bars2 view, warnings and sound controls. Existing Edit Mode registration handles placement/persistence for the timeline and three severity roots in both skins. The current [native acceptance ledger](../../specs/encounter-timeline.md#sources--acceptance) owns screenshots/proof and remaining cases.
 
 ## Retail sources
 
@@ -33,6 +41,7 @@ Verified: 2026-10-07. Targeted RED reproduced unhandled native Account messages,
 
 ## Sources
 - [Contract and behavioral tests](../../specs/boss-encounters.md).
+- [Timeline contract, cached Retail sources and current acceptance](../../specs/encounter-timeline.md).
 - Native sources listed in the contract; cached Retail files above.
 
 ## See Also

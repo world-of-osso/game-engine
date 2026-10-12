@@ -457,7 +457,7 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
     }
 }
 
-fn parse_achievement_links(value: &str) -> Vec<ChatSpan> {
+pub(crate) fn parse_achievement_links(value: &str) -> Vec<ChatSpan> {
     const PREFIX: &str = "|Hachievement:";
     let mut spans = Vec::new();
     let mut remaining = value;

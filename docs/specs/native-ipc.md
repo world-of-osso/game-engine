@@ -16,6 +16,10 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 - [ ] Requests the client does not serve dispatch to `Response::Error` (`native IPC: unported request …`), not successful placeholders or gameplay side effects; the unported set and reasons are in the [conversion wiki](../wiki/systems/godot-conversion.md#native-ipc-request-coverage). All 129 variants deserialize through shared definitions; exhaustive runtime coverage remains unproved.
 - [x] The unchanged fixture exits normally within its 10-second bound and removes its own-PID socket.
 
+### Windows release transport
+
+Windows uses a local-only named pipe `\\\\.\\pipe\\game-engine-<pid>` instead of the Unix own-PID socket. It retains the same 4-byte little-endian length prefix, MessagePack values, 4 MiB receive limit, worker cancellation and main-thread dispatch. Closing the server releases the pipe; no Unix filesystem cleanup runs on Windows. The existing Linux CLI is not a Windows client.
+
 ### Diagnostic surface
 
 - [x] `Ping` returns the original `Response::Pong`, preserving plain CLI `pong` and JSON `"Pong"`.
