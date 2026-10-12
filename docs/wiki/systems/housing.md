@@ -22,7 +22,19 @@ Display137392's real model535052 initially could not render because extracted-on
 
 ## Authored cornerstone discovery
 
-Local GameObjects DB2 FDID841620, layout44BD453C, has 31,736 readable rows at the pinned Retail build. Plot417's cornerstone GO527268 is present there despite the missing TDB template: OwnerID2735, TypeID48, display110660. Authenticated GameObjectDisplayInfo resolves display110660 to model6935310. This is source availability, not a spawned/native interaction claim. Receipt and local bytes: `data/diagnostics/housing-core-2026-10-11/`.
+Local GameObjects DB2 FDID841620, layout44BD453C, has 31,736 readable rows at the pinned Retail build. Plot417's cornerstone GO527268 is present there despite the missing TDB template: OwnerID2735, TypeID48, display110660. Authenticated GameObjectDisplayInfo resolves display110660 to model6935310. Private runtime now spawns and replicates these objects from HousingAvailability on first-copy transfer/login, independently of generic startup population. Receipt and local bytes: `data/diagnostics/housing-core-2026-10-11/`.
+
+## Neighborhood and paid plot proof
+
+Verified: 2026-10-11. Modern Houseproof and Forever Housevisitor physically open the Finder, enter authored map2735, pick GameObjects527268/527310, confirm paid claims417/418, debit10,000,000 copper each, then reauthenticate into the same persisted neighborhood with one owned plot. Native fixtures grant no house/decor/items; money and DB2 teleport coordinates are explicit private setup. Seven1280px captures per skin: `/syncthing/AgentShared/2026-10-11/housing/housing-core-{modern,forever}-property-{finder,neighborhood-entry,cornerstone,purchase-confirm,purchased,owned,relogged}.png`. Full private logs/receipts: `/home/osso/.worktrees/housing-core-evidence/property/{modern,forever}/triangles/`.
+
+Cornerstone pick diagnosis: authenticated model6935310 includes a tall plot beam; its M2 header-box centre is empty space. Native triangle picking correctly rejects that ray. The physical fixture now projects real visible mesh triangle centroids and requires UnitPicker to return the exact object before right-clicking. Earlier priming accidentally passed a map argument to the XYZ-only admin set-position command; corrected coordinates and explicit revive restored that private actor after lethal fall. No picker, collision, visibility, grant or model policy was relaxed.
+
+## Private authenticated terrain closure
+
+Existing local-CASC walkers extracted1329 ground dependencies and closed17,227 total assets with zero missing payloads for maps2735,2736,2783. Real WDT roots210/225/25 parse. Existing LOS baker produced21,100,583/28,571,544/1,638,400 triangles respectively; output788,377,372/1,085,813,396/57,011,000 bytes. Source authentication, private publication receipts and bake metadata remain under `/home/osso/.worktrees/housing-core-evidence/{map-assets,map-closure,housing-map-bakes.json}`. This is real authored terrain, not invented floor or a component grant. Textured Founder's terrain/WMO is visible on both relog captures; Razorwind/interior rendered admission is not yet proved.
+
+Lead promotion commands live in the [server catalog contract](../../../../game-server/docs/specs/housing-catalog.md#authored-map-ground); supplemental cornerstone import uses `qualified-cornerstones`. Isolated client receipt fragment `model-asset-index-housing-core-neighborhood-maps.json` and staged manifest `housing-models-staged.json` require the maintained importer before any canonical publication. No canonical data was changed.
 
 ## Sources
 

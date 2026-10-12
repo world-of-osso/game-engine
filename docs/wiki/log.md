@@ -3295,3 +3295,5 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-11 — integrated native gathering baseline
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
+
+- 2026-10-11 — Housing neighborhood/private ground: both-skin real Finder/admission/physical cornerstone/10M-copper claim/relog proof; authenticated three-map ground/bake closure and triangle-centroid fixture diagnosis in systems/housing.md. House-component grants/editor/visitor convergence remain open.
