@@ -167,10 +167,11 @@ func click_at(point: Vector2, button: int) -> void:
 	if button == MOUSE_BUTTON_RIGHT:
 		var state: Dictionary = client.account_state()
 		var hovered := root.gui_get_hovered_control()
-		print("CRAFTING PICK_BEFORE point=", point, " mouse=", root.get_mouse_position(), " gui=", hovered.get_path() if hovered != null else "none", " allowed=", state.gameplay_input_allowed, " player=", state.local_player_position)
+		print("CRAFTING PICK_BEFORE point=", point, " mouse=", root.get_mouse_position(), " gui=", hovered.get_path() if hovered != null else "none", " allowed=", state.gameplay_input_allowed, " assets_starting=", state.assets_starting, " player=", state.local_player_position, " unhandled=", client.is_processing_unhandled_input())
 		for npc in client.find_children(OS.get_environment("CRAFTING_BROKER"), "Node3D", true, false):
-			if npc.has_meta("unit_server_id"):
-				var id: int = npc.get_meta("unit_server_id")
+			var area := npc.find_child("UnitPick", true, false)
+			if area != null and area.has_meta("unit_server_id"):
+				var id: int = area.get_meta("unit_server_id")
 				print("CRAFTING BROKER id=", id, " position=", npc.global_position, " distance=", npc.global_position.distance_to(state.local_player_position), " rules=", client.nameplate_rules(id))
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
@@ -178,6 +179,9 @@ func click_at(point: Vector2, button: int) -> void:
 	root.push_input(motion, true)
 	Input.warp_mouse(point)
 	await create_timer(0.03).timeout
+	if button == MOUSE_BUTTON_RIGHT:
+		var hovered := root.gui_get_hovered_control()
+		print("CRAFTING GUI_AT_CLICK ", hovered.get_path() if hovered != null else "none")
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.position = point
@@ -185,6 +189,8 @@ func click_at(point: Vector2, button: int) -> void:
 		event.button_index = button
 		event.pressed = pressed
 		root.push_input(event, true)
+		if button == MOUSE_BUTTON_RIGHT:
+			print("CRAFTING EVENT_HANDLED pressed=", pressed, " handled=", root.is_input_handled())
 		await create_timer(0.05).timeout
 	await wait_frames(3)
 	if button == MOUSE_BUTTON_RIGHT:
