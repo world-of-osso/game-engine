@@ -1,3 +1,18 @@
+## 2026-10-12 — Retail Cleanup mode both-skin native proof
+
+[Cleanup](systems/housing.md#cleanup-editor-input): source mode entry/storage hidden, visible-mesh hover highlight/name, exact-target single-click owned removal, visitor refusal, quantity conservation and real relog/re-place in both skins. Model21/registry11 and two focused server conservation/paid-variant tests pass; eight inspected PNGs. Highlight styling is native feedback, not certified Retail shader art. Evidence core9; independent gate lead-owned; broader housing remains open.
+
+## 2026-10-12 — Housing atomic dye backend (not native feature)
+
+[Dye authority](systems/housing.md#dye-authority-without-native-recoloring): source slot/item binding and any-category rule, transient player-scoped preview/cancel, atomic per-changed-slot owned dye commit, real bag-placement rollback, preserved dyed variants through remove/store/reopen/re-place, and schema3 nonzero undyed count preservation. Native recoloring/variant controls and live acquisition remain explicitly unavailable; no user-visible feature claim.
+
+## 2026-10-12 — Deephaul both-skin private lifecycle
+
+[Deephaul](systems/battlegrounds.md#deephaul-ravine--bounded-both-skin-proof-2026-10-12):10realaccounts per skin, visible authenticated5770750/603231, source crystal capture/cart presence/motion/replacement, natural1500–418/1020=1/1021=2, automaticVictory/exact origin/nine-peer clear/10ACKs then periodic save.24 inspected PNGs;1,346floor-proved route samples plus flag/trigger approaches.11crystal assets/4aliases staged privately; lead publication, vehicle/preparation/aura/reward/art boundaries remain explicit. Own runtimes stopped; epics then authored Seething transport remain in scope.
+
+## 2026-10-12 — Seething objectives and transport entry boundary
+
+[Seething](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12): source dynamic nodes,40s geysers, six-second Gathering,100resources/744 and pure victory; grounded channel fixture remains partial. Starts6337/6380 are transport-relative35/36, not world-space coordinates. Retain TransportSpawnId/refuse unresolved entry/hide894; return to authored transport spawns/transforms/attachment/collision after Deephaul/epics. No native lifecycle or full Retail claim.
 ## 2026-10-12 — Housing HouseSettings access authority
 
 [HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
