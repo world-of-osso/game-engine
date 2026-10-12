@@ -1649,6 +1649,17 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_world_quest_toast(
+        &mut self,
+        state: game_engine_ui_model::world_quest_ui::WorldQuestToast,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::world_quest_ui::toast_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     pub fn show_achievement_toast(
         &mut self,
         state: shared::protocol::AchievementToastSnapshot,

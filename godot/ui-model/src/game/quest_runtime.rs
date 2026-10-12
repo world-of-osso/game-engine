@@ -92,6 +92,8 @@ pub struct QuestRuntime {
     pub giver_status: HashMap<u64, QuestGiverStatus>,
     pub dialog: Option<QuestDialog>,
     pub server_clock_offset: i64,
+    pub world_quests: Vec<shared::protocol::AvailableWorldQuest>,
+    pub world_quest_titles: HashMap<u32, String>,
 }
 
 /// A role frame (auction house, vendor, ...) the server opened for an NPC interaction,
@@ -283,6 +285,25 @@ impl QuestRuntime {
             areas.extend(self.selected_objective_areas(ui.highlighted));
         }
         areas
+    }
+
+    pub fn apply_availability(
+        &mut self,
+        snapshot: shared::protocol::WorldQuestAvailability,
+        local_now: i64,
+    ) {
+        self.server_clock_offset = snapshot.server_time - local_now;
+        self.world_quest_titles.extend(
+            snapshot
+                .quests
+                .iter()
+                .map(|quest| (quest.quest_id, quest.title.clone())),
+        );
+        self.world_quests = snapshot.quests;
+    }
+
+    pub fn is_world_quest(&self, id: u32) -> bool {
+        self.world_quest_titles.contains_key(&id)
     }
 
     pub fn apply_snapshot(&mut self, snapshot: QuestLogSnapshot) {
