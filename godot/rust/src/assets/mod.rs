@@ -349,6 +349,8 @@ pub(crate) fn wow_vec3(value: [f32; 3]) -> Vector3 {
 
 /// Root metadata: the M2 header bounding box in the model root's axes.
 pub(crate) const M2_BOUNDS_META: &str = "m2_bounds";
+/// Authored MD20 collision bounds, when the model has static collision geometry.
+pub(crate) const M2_COLLISION_BOUNDS_META: &str = "m2_collision_bounds";
 /// Root metadata: the bind-pose above-character attachment (`m2::above_character_position`)
 /// in the model root's axes, on models that have one.
 pub(crate) const M2_ABOVE_CHARACTER_META: &str = "m2_above_character";
@@ -510,6 +512,10 @@ pub(super) fn build_model_filtered_with_textures(
     let bounds = m2_bounds(model);
     let mut root = Node3D::new_alloc();
     root.set_meta(M2_BOUNDS_META, &bounds.to_variant());
+    if let Some(collision) = &model.collision {
+        let bounds = wow_aabb(collision.bounds_min, collision.bounds_max);
+        root.set_meta(M2_COLLISION_BOUNDS_META, &bounds.to_variant());
+    }
     if let Some(position) = m2::above_character_position(model) {
         root.set_meta(M2_ABOVE_CHARACTER_META, &wow_vec3(position).to_variant());
     }

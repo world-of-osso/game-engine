@@ -7,6 +7,7 @@ use crate::{
         read_model,
     },
     lighting::TerrainLight,
+    particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
     world_models::bind_visual_light,
 };
 use game_engine_core::csv_util::parse_csv_line;
@@ -20,10 +21,10 @@ use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
     GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE,
-    GAMEOBJECT_TYPE_RITUAL, GameObjectAnimation, GameObjectCollision, GameObjectInfo,
-    GameObjectVisible,
+    GAMEOBJECT_TYPE_RITUAL, GAMEOBJECT_TYPE_SPELL_FOCUS, GameObjectAnimation, GameObjectCollision,
+    GameObjectInfo, GameObjectVisible,
 };
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 /// Separate from baked scenery: only these live meshes follow GO collision state.
 pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
@@ -33,12 +34,14 @@ struct ObjectNode {
     display_id: u32,
     node: Gd<Node3D>,
     animation: Option<GameObjectAnimation>,
+    particles: Option<PlacedParticles>,
 }
 pub(crate) struct GameObjects {
     data_root: PathBuf,
     displays: Option<Result<HashMap<u32, u32>, String>>,
     objects: HashMap<u64, ObjectNode>,
     light: Option<TerrainLight>,
+    particles: Option<ParticlePools>,
 }
 
 fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
@@ -101,7 +104,10 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
 fn game_object_is_renderable(go_type: u8) -> bool {
     matches!(
         go_type,
-        0 | 6 | GAMEOBJECT_TYPE_GENERIC | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR
+        0 | 6
+            | GAMEOBJECT_TYPE_GENERIC
+            | GAMEOBJECT_TYPE_SPELL_FOCUS
+            | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR
     ) || game_object_cursor(go_type).is_some()
 }
 
@@ -119,6 +125,15 @@ impl GameObjects {
             displays: None,
             objects: HashMap::new(),
             light: None,
+            particles: None,
+        }
+    }
+    pub fn enable_particles(&mut self, density: f32) {
+        self.particles = Some(ParticlePools::new(density));
+    }
+    pub fn set_particle_density(&mut self, density: f32) {
+        if let Some(pools) = &mut self.particles {
+            pools.set_density(density);
         }
     }
     /// Whether `id` is a shown usable game object.
@@ -176,7 +191,7 @@ impl GameObjects {
             .get(&id)
             .is_none_or(|old| old.display_id != info.display_id);
         if changed {
-            let visual = self.load_visual(info)?;
+            let (visual, particle_model) = self.load_visual(info)?;
             if game_object_cursor(info.go_type).is_some()
                 && let Err(error) = crate::targeting::attach_pick_area(&visual, id)
             {
@@ -195,12 +210,20 @@ impl GameObjects {
             );
             node.add_child(&visual);
             parent.add_child(&node);
+            let particles = match self.place_particles(parent, &visual, id, particle_model) {
+                Ok(particles) => particles,
+                Err(error) => {
+                    node.free();
+                    return Err(error);
+                }
+            };
             self.objects.insert(
                 id,
                 ObjectNode {
                     display_id: info.display_id,
                     node,
                     animation: None,
+                    particles,
                 },
             );
         }
@@ -223,7 +246,29 @@ impl GameObjects {
         }
         Ok(())
     }
-    fn load_visual(&mut self, info: &GameObjectInfo) -> Result<Gd<Node3D>, String> {
+    fn place_particles(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        model: &Gd<Node3D>,
+        id: u64,
+        source: Option<Rc<ModelParticles>>,
+    ) -> Result<Option<PlacedParticles>, String> {
+        let Some((pools, source)) = self.particles.as_mut().zip(source) else {
+            return Ok(None);
+        };
+        pools.attach(parent);
+        let (placed, errors) =
+            pools.place(&source, model, id as u32, &self.data_root.join("textures"));
+        if errors.is_empty() {
+            Ok(Some(placed))
+        } else {
+            Err(format!("Game object {id} particles: {}", errors.join("; ")))
+        }
+    }
+    fn load_visual(
+        &mut self,
+        info: &GameObjectInfo,
+    ) -> Result<(Gd<Node3D>, Option<Rc<ModelParticles>>), String> {
         let path = self
             .data_root
             .join("db2/12.1.0.69933/GameObjectDisplayInfo.csv");
@@ -273,7 +318,38 @@ impl GameObjects {
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
         bind_visual_light(&model, self.light.as_ref());
-        Ok(model)
+        Ok((model, ModelParticles::from_model(fdid, &parsed)))
+    }
+    /// Advance the source emitters of each replicated, loaded game-object model.
+    pub fn update_particles(&mut self, camera: Transform3D, delta: f32) {
+        let Some(pools) = &mut self.particles else {
+            return;
+        };
+        let view = view_basis(camera);
+        pools.begin_frame();
+        for object in self.objects.values_mut() {
+            let Some(placed) = &mut object.particles else {
+                continue;
+            };
+            let model = object.node.get_node_as::<Node3D>("GameObjectModel");
+            placed.update_and_draw(&model, delta, 1.0, &view, pools);
+            object.node.set_meta(
+                "game_object_particle_emitters",
+                &(placed.emitter_count() as i64).to_variant(),
+            );
+            object.node.set_meta(
+                "game_object_particle_quads",
+                &(placed.drawn() as i64).to_variant(),
+            );
+        }
+        pools.end_frame();
+    }
+    pub fn particle_state(&self) -> Option<VarDictionary> {
+        let pools = self.particles.as_ref()?;
+        let mut state = VarDictionary::new();
+        state.set("drawn", pools.drawn() as i64);
+        state.set("pools", pools.pool_count() as i64);
+        Some(state)
     }
     /// Models read the scene light (`TerrainLight::bind_scene`), so only its arrival or
     /// removal rebinds them.
@@ -282,6 +358,9 @@ impl GameObjects {
             for object in self.objects.values() {
                 bind_visual_light(&object.node, light.as_ref());
             }
+        }
+        if let Some((pools, light)) = self.particles.as_mut().zip(light.as_ref()) {
+            pools.update_lighting(light);
         }
         self.light = light;
     }
@@ -293,6 +372,9 @@ impl GameObjects {
     pub fn reset(&mut self) {
         for (_, object) in self.objects.drain() {
             object.node.free();
+        }
+        if let Some(pools) = &mut self.particles {
+            pools.reset();
         }
         self.light = None;
     }
@@ -449,8 +531,6 @@ mod tests {
         // Fishing Chair33223 and MOLL-E40768 retain their existing interaction.
         assert!(game_object_is_renderable(GAMEOBJECT_TYPE_CHAIR));
         assert!(game_object_is_renderable(GAMEOBJECT_TYPE_MAILBOX));
-        // Unsupported spell-focus objects are not silently admitted by this fix.
-        assert!(!game_object_is_renderable(8));
     }
 
     #[test]

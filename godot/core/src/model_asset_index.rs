@@ -113,7 +113,7 @@ fn is_hex(value: &str, length: usize) -> bool {
 fn validate_receipt(receipt: &ModelAssetReceipt) -> Result<(), String> {
     let directory = match receipt.kind.as_str() {
         "blp" => "textures",
-        "m2" | "skin" | "skel" | "anim" | "bone" => "models",
+        "m2" | "wmo" | "skin" | "skel" | "anim" | "bone" => "models",
         kind => return Err(format!("Unsupported model-chain asset kind {kind}")),
     };
     let expected = format!(
@@ -214,6 +214,26 @@ mod tests {
             assert_eq!(asset.build, build);
         }
         assert!(index.receipt(AssetProduct::Forever, 1100258, "m2").is_err());
+    }
+
+    #[test]
+    fn model_asset_index_reads_verified_wmo_receipts_in_their_own_namespace() {
+        let key = "dcfc90fffd79ba00406ae46f5f657592";
+        let mut wmo = receipt("wow", "12.1.0.69933", key);
+        wmo["fdid"] = json!(6429362);
+        wmo["kind"] = json!("wmo");
+        wmo["path"] = json!(format!("products/wow/{key}/models/6429362.wmo"));
+        let index =
+            ModelAssetIndex::from_json(&json!({"version": 1, "assets": [wmo.clone()]}).to_string())
+                .unwrap();
+        let asset = index.receipt(AssetProduct::Retail, 6429362, "wmo").unwrap();
+        assert_eq!(asset.path, format!("products/wow/{key}/models/6429362.wmo"));
+        assert!(index.receipt(AssetProduct::Retail, 6429362, "m2").is_err());
+        wmo["path"] = json!("models/6429362.wmo");
+        assert!(
+            ModelAssetIndex::from_json(&json!({"version": 1, "assets": [wmo]}).to_string(),)
+                .is_err()
+        );
     }
 
     #[test]

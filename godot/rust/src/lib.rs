@@ -48,6 +48,7 @@ mod housing;
 mod housing_decor;
 mod housing_editor;
 mod housing_mouse;
+mod housing_preview;
 mod hud_edit;
 mod input;
 mod input_keys;
@@ -371,10 +372,12 @@ impl INode3D for GameClient {
         );
         let graphics = &client_options.graphics;
         let mut world = world::WorldUnits::new(data_root.clone());
+        let mut game_objects = game_objects::GameObjects::new(data_root.clone());
         if graphics.particle_effects_enabled {
             let density = f32::from(graphics.particle_density) / 100.0;
             world_objects.enable_particles(density);
             world.enable_particles(density);
+            game_objects.enable_particles(density);
         }
         Self {
             base,
@@ -484,7 +487,7 @@ impl INode3D for GameClient {
             guild_charters: guild_charters::GuildCharters::default(),
             achievements: achievements::Achievements::default(),
             raid_info: raid_info::RaidInfo::new(&data_root),
-            game_objects: game_objects::GameObjects::new(data_root.clone()),
+            game_objects,
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
@@ -1017,6 +1020,9 @@ impl GameClient {
         state.set("horizon_tiles", self.horizon.shown_count() as i64);
         if let Some(particles) = self.world.particle_state() {
             state.set("unit_particles", &particles);
+        }
+        if let Some(particles) = self.game_objects.particle_state() {
+            state.set("game_object_particles", &particles);
         }
         state.set(
             "unit_visuals_pending",
@@ -2634,6 +2640,7 @@ impl GameClient {
                 self.world_objects
                     .update_particles(transform, &frustum, delta);
                 self.world.update_particles(transform, &frustum, delta);
+                self.game_objects.update_particles(transform, delta);
             }
             let _span = profile::span(|| "cull.unit_animation_lod".to_owned());
             self.world.apply_animation_lod(camera, &frustum, frame);
