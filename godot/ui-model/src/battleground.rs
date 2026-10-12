@@ -240,9 +240,7 @@ fn frame(name: &str, size: (f32, f32), position: (f32, f32), children: Element) 
 fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
         .into_iter()
-        .filter(|template| {
-            !shared::battleground::objective_object_entries(template.map_id).is_empty()
-        })
+        .filter(|template| shared::battleground::has_implemented_objectives(template.map_id))
         .collect()
 }
 
@@ -548,7 +546,31 @@ fn kotmogu_hud(bg: &BattlegroundSnapshot) -> Element {
     hud_cells(cells)
 }
 
+fn silvershard_hud(bg: &BattlegroundSnapshot) -> Element {
+    let cells = shared::battleground::SILVERSHARD_CARTS
+        .iter()
+        .enumerate()
+        .map(|(index, cart)| {
+            let owner = if world_state(bg, cart.world_states[0]) == Some(1) {
+                "Alliance"
+            } else if world_state(bg, cart.world_states[1]) == Some(1) {
+                "Horde"
+            } else {
+                "Neutral"
+            };
+            (
+                format!("WorldStateCart{index}"),
+                format!("{}\n{owner}", cart.name),
+            )
+        })
+        .collect();
+    hud_cells(cells)
+}
+
 fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if bg.map_id == 727 {
+        return silvershard_hud(bg);
+    }
     if bg.map_id == 998 {
         return kotmogu_hud(bg);
     }
