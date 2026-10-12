@@ -64,10 +64,12 @@ func mouse_stage_all_axes() -> bool:
 	for axis in [Vector3.RIGHT, Vector3.UP, Vector3.BACK]:
 		if not await drag_selected_axis(axis): return false
 		await tap(KEY_X)
+	if not await capture_housing("mouse-translate"): return false
 	await tap(KEY_2)
 	for rotation in ["pitch", "yaw", "roll"]:
 		if not await hold_mouse_rotation(rotation): return false
 		await tap(KEY_X)
+	if not await capture_housing("mouse-rotation"): return false
 	await tap(KEY_3)
 	if not await wait_housing(func(): return housing_control("HouseEditorScaleThumb") != null, "sourced scale thumb"): return false
 	var thumb: Control = housing_control("HouseEditorScaleThumb")
