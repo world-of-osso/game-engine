@@ -38,8 +38,12 @@ impl GameClient {
                 if action.is_empty() {
                     break;
                 }
-                if let Some(request) = self.battleground.view.action(&action) {
-                    self.account.send_pvp(request)?;
+                match self.battleground.view.action(&action) {
+                    Some(game_engine_ui_model::battleground::PvpAction::Target(entity)) => {
+                        self.set_target(Some(entity));
+                    }
+                    Some(request) => self.account.send_pvp(request)?,
+                    None => {}
                 }
             }
         }
