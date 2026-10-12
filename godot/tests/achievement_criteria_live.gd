@@ -26,7 +26,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Login: " + error)
 		return
-	if not await wait_for(func(): return client.account_state().screen == "CharacterSelect", "character select", 30000):
+	if not await wait_for(func(): return client.account_state().screen == "CharacterSelect" and client.get_node_or_null("CharacterSelectUI") != null, "character select frame", 30000):
 		return
 	var ui = client.get_node("CharacterSelectUI")
 	await click_control(ui.find_child("CharCard_0", true, false))
