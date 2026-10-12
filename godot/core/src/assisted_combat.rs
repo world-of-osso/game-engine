@@ -64,64 +64,72 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         15 => Ok(!facts.target_auras.contains(&rule.values[0])),
         16 => Ok(!facts.player_auras.contains(&rule.values[0])),
         56 => read_boolean(&facts.in_range, spell, "spell range"),
-        7 | 8 | 68 | 69 => {
-            require_zero_tail(rule)?;
-            let value = if rule.condition_type < 68 {
-                facts.target_health_pct
-            } else {
-                facts.player_health_pct
-            };
-            compare_number(
-                rule,
-                value.ok_or_else(|| format!("rule {}: health percentage not received", rule.id))?,
-                f64::from(rule.values[0]),
-                matches!(rule.condition_type, 7 | 68),
-            )
-        }
-        65 | 66 => {
-            if rule.values[0] == 0 || rule.values[2] != 0 {
-                return Err(format!(
-                    "rule {}: cooldown operands are unverified",
-                    rule.id
-                ));
-            }
-            let value = facts
-                .cooldowns_ms
-                .get(&rule.values[0])
-                .copied()
-                .ok_or_else(|| format!("rule {}: cooldown clock not received", rule.id))?;
-            compare_number(
-                rule,
-                value,
-                f64::from(rule.values[1]),
-                rule.condition_type == 65,
-            )
-        }
-        63 | 64 => {
-            if rule.values[1] != 0 {
-                return Err(format!(
-                    "rule {}: charge encoding with value2 is unverified",
-                    rule.id
-                ));
-            }
-            require_zero_tail(rule)?;
-            let value = facts
-                .charges
-                .get(&rule.step_spell)
-                .copied()
-                .ok_or_else(|| format!("rule {}: charges not received", rule.id))?;
-            compare_number(
-                rule,
-                f64::from(value),
-                f64::from(rule.values[0]),
-                rule.condition_type == 63,
-            )
-        }
+        7 | 8 | 68 | 69 => evaluate_health(rule, facts),
+        65 | 66 => evaluate_cooldown(rule, facts),
+        63 | 64 => evaluate_charges(rule, facts),
         _ => Err(format!(
             "AssistedCombatRule {}: condition {} has unverified numeric/predictive semantics",
             rule.id, rule.condition_type
         )),
     }
+}
+
+fn evaluate_health(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
+    require_zero_tail(rule)?;
+    let reading = if rule.condition_type < 68 {
+        facts.target_health_pct
+    } else {
+        facts.player_health_pct
+    };
+    let value =
+        reading.ok_or_else(|| format!("rule {}: health percentage not received", rule.id))?;
+    compare_number(
+        rule,
+        value,
+        f64::from(rule.values[0]),
+        matches!(rule.condition_type, 7 | 68),
+    )
+}
+
+fn evaluate_cooldown(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
+    if rule.values[0] == 0 || rule.values[2] != 0 {
+        return Err(format!(
+            "rule {}: cooldown operands are unverified",
+            rule.id
+        ));
+    }
+    let value = facts
+        .cooldowns_ms
+        .get(&rule.values[0])
+        .copied()
+        .ok_or_else(|| format!("rule {}: cooldown clock not received", rule.id))?;
+    compare_number(
+        rule,
+        value,
+        f64::from(rule.values[1]),
+        rule.condition_type == 65,
+    )
+}
+
+fn evaluate_charges(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
+    if rule.values[1] != 0 {
+        return Err(format!(
+            "rule {}: charge encoding with value2 is unverified",
+            rule.id
+        ));
+    }
+    require_zero_tail(rule)?;
+    let value = facts
+        .charges
+        .get(&rule.step_spell)
+        .copied()
+        .ok_or_else(|| format!("rule {}: charges not received", rule.id))?;
+    compare_number(
+        rule,
+        f64::from(value),
+        f64::from(rule.values[0]),
+        rule.condition_type == 63,
+    )
 }
 
 fn power_comparison(kind: u32) -> Option<(u8, bool)> {
