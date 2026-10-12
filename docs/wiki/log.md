@@ -1,6 +1,6 @@
 ## 2026-10-12 — Silvershard both-skin private lifecycle
 
-[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Canonical assets/cache remain lead-owned; broader preparation/graveyard/visual-aura parity remains open.
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Lead has published canonical assets/cache; public708 remains hidden until the blocked client bundle publishes. Broader preparation/graveyard/visual-aura parity remains open.
 
 ## 2026-10-12 — Silvershard private content prerequisites
 
