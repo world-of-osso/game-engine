@@ -113,7 +113,13 @@ fn quest_objects_and_meetingstones_udp_use_and_combat_answers_both_skins() {
         account.bridge =
             Some(NetworkBridge::connect(server.address(), 49301 + index as u64).unwrap());
         await_connected(&mut account, &mut server);
-        for kind in [GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, 3, 10] {
+        for kind in [
+            GAMEOBJECT_TYPE_MEETINGSTONE,
+            GAMEOBJECT_TYPE_RITUAL,
+            3,
+            10,
+            shared::protocol::GAMEOBJECT_TYPE_HOUSING_PLOT,
+        ] {
             let info = GameObjectInfo {
                 entry: 178834,
                 go_type: kind,

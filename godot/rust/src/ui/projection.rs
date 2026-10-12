@@ -162,6 +162,7 @@ pub struct UiProjection {
     arrived: u64,
     /// Skin the projected visuals were drawn under.
     skin: atlas::ActiveSkin,
+    assisted_elapsed: HashMap<u64, f64>,
 }
 
 impl UiProjection {
@@ -180,6 +181,39 @@ impl UiProjection {
             waiting: HashSet::new(),
             arrived: 0,
             skin: atlas::thread_skin(),
+            assisted_elapsed: HashMap::new(),
+        }
+    }
+
+    /// Retail ants restart when shown; hidden surfaces never advance their flipbook.
+    pub fn advance_assisted_highlights(&mut self, delta: f64, registry: &FrameRegistry) {
+        self.assisted_elapsed
+            .retain(|id, _| self.nodes.contains_key(id));
+        for frame in registry.frames_iter().filter(|frame| {
+            frame
+                .name
+                .as_deref()
+                .is_some_and(|name| name.ends_with("AssistedHighlightFlipbook"))
+        }) {
+            let Some(node) = self.nodes.get(&frame.id) else {
+                continue;
+            };
+            if !node.is_visible_in_tree() {
+                self.assisted_elapsed.remove(&frame.id);
+                continue;
+            }
+            let Some(rect) = node.try_get_node_as::<TextureRect>("Parts/Part0") else {
+                continue;
+            };
+            let Some(texture) = rect.get_texture() else {
+                continue;
+            };
+            if let Ok(mut atlas) = texture.try_cast::<godot::classes::AtlasTexture>() {
+                let elapsed = self.assisted_elapsed.entry(frame.id).or_insert(0.0);
+                let [x, y, w, h] = game_engine_ui_model::assisted_highlight::frame_region(*elapsed);
+                *elapsed += delta;
+                atlas.set_region(Rect2::new(Vector2::new(x, y), Vector2::new(w, h)));
+            }
         }
     }
 
@@ -506,6 +540,7 @@ impl UiProjection {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
                         || action.starts_with("mount:select:")
+                        || action.starts_with("transmog:outfit:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
                         || action.starts_with(
                             game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST,

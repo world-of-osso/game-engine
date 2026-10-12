@@ -376,6 +376,7 @@ mod tests {
     fn defias_thug() -> CreatureTooltip {
         CreatureTooltip {
             entry: 38,
+            name: "Defias Thug".into(),
             subname: String::new(),
             creature_type: 7,
             drops: vec![
@@ -426,6 +427,7 @@ mod tests {
         super::super::set_test_data_root();
         let data = CreatureTooltip {
             entry: 1_132,
+            name: "Timber".into(),
             subname: String::new(),
             creature_type: 1,
             drops: Vec::new(),
@@ -454,6 +456,7 @@ mod tests {
         super::super::set_test_data_root();
         let data = CreatureTooltip {
             entry: 2_955,
+            name: "Plainstrider".into(),
             subname: String::new(),
             creature_type: 1,
             drops: Vec::new(),
@@ -558,6 +561,7 @@ mod tests {
         super::super::set_test_data_root();
         let data = CreatureTooltip {
             entry: 54,
+            name: "Corina Steele".into(),
             subname: "Armorer".into(),
             creature_type: 7,
             drops: Vec::new(),

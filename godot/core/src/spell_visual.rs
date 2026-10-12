@@ -29,7 +29,7 @@ pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 11;
+const CACHE_FORMAT: u32 = 13;
 
 const SOURCE_TABLES: [&str; 25] = [
     "ChrSpecialization",
@@ -89,6 +89,9 @@ pub enum VisualEvent {
     ChannelEnd,
     OneShot,
     Other(u32),
+    /// Client display-state lifecycle, not a SpellVisualEvent DB2 row.
+    DisplayStart,
+    DisplayEnd,
 }
 
 impl VisualEvent {
@@ -250,6 +253,8 @@ pub struct KitModel {
     pub roll: f32,
     /// `SpellVisualKitModelAttach.Scale` × `SpellVisualEffectName.Scale`.
     pub scale: f32,
+    /// SpellVisualEffectName.Alpha, applied to both meshes and particles.
+    pub alpha: f32,
     /// Seconds after the kit starts before the model appears.
     pub start_delay: f32,
     /// `StartAnimID`, `AnimID` and `EndAnimID`: the model's clip when the kit starts,
@@ -346,6 +351,7 @@ struct MissileRow {
 struct EffectName {
     model_fdid: u32,
     scale: f32,
+    alpha: f32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -365,6 +371,8 @@ pub struct SpellVisualCatalog {
     sound_kits: HashMap<u32, KitSound>,
     voices: voice::Voices,
     melee: melee::MeleeSounds,
+    /// CreatureDisplayInfo.StateSpellVisualKitID, held while that display is visible.
+    display_state_kits: HashMap<u32, u32>,
 }
 
 /// Rows of one exported CSV with named column access.
@@ -517,9 +525,20 @@ impl SpellVisualCatalog {
         catalog.read_specializations(dir)?;
         catalog.read_speeds(dir)?;
         catalog.read_voices(dir)?;
+        catalog.read_display_state_kits(dir)?;
         catalog.read_melee(dir)?;
         catalog.read_sound_kits(dir)?;
         Ok(catalog)
+    }
+
+    fn read_display_state_kits(&mut self, dir: &Path) -> Result<(), String> {
+        self.display_state_kits = Table::read(dir, "CreatureDisplayInfo")?
+            .ints(["ID", "StateSpellVisualKitID"])?
+            .into_iter()
+            .filter(|[_, kit]| *kit != 0)
+            .map(|[display, kit]| (display as u32, kit as u32))
+            .collect();
+        Ok(())
     }
 
     fn read_spell_visuals(&mut self, dir: &Path) -> Result<(), String> {
@@ -646,26 +665,39 @@ impl SpellVisualCatalog {
             .events
             .iter()
             .filter(|row| row.start == event)
-            .map(|row| {
-                let kit = self.kits.get(&row.kit_id);
-                VisualKit {
-                    kit_id: row.kit_id,
-                    target: row.target,
-                    end: row.end,
-                    models: kit.map(|kit| kit.models.clone()).unwrap_or_default(),
-                    animation: kit
-                        .and_then(|kit| kit.anim)
-                        .and_then(|anim| self.kit_animation(anim, row.end)),
-                    sounds: kit
-                        .into_iter()
-                        .flat_map(|kit| &kit.sound_kits)
-                        .filter_map(|id| self.sound_kits.get(id))
-                        .cloned()
-                        .collect(),
-                    unit_sounds: kit.map(|kit| kit.unit_sounds.clone()).unwrap_or_default(),
-                }
-            })
+            .map(|row| self.resolve_kit(row.kit_id, row.target, row.end))
             .collect()
+    }
+
+    /// Source ID lookup without cloning kit assets during per-frame synchronization.
+    pub fn display_state_kit_id(&self, display_id: u32) -> Option<u32> {
+        self.display_state_kits.get(&display_id).copied()
+    }
+
+    /// A display's authored ambient kit, independent from a cast or unit aura.
+    pub fn display_state_kit(&self, display_id: u32) -> Option<VisualKit> {
+        let kit_id = self.display_state_kit_id(display_id)?;
+        Some(self.resolve_kit(kit_id, KitTarget::Caster, VisualEvent::DisplayEnd))
+    }
+
+    fn resolve_kit(&self, kit_id: u32, target: KitTarget, end: VisualEvent) -> VisualKit {
+        let kit = self.kits.get(&kit_id);
+        VisualKit {
+            kit_id,
+            target,
+            end,
+            models: kit.map(|kit| kit.models.clone()).unwrap_or_default(),
+            animation: kit
+                .and_then(|kit| kit.anim)
+                .and_then(|anim| self.kit_animation(anim, end)),
+            sounds: kit
+                .into_iter()
+                .flat_map(|kit| &kit.sound_kits)
+                .filter_map(|id| self.sound_kits.get(id))
+                .cloned()
+                .collect(),
+            unit_sounds: kit.map(|kit| kit.unit_sounds.clone()).unwrap_or_default(),
+        }
     }
 
     /// The first missile of `visual_id`'s missile set.

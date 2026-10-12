@@ -1,6 +1,6 @@
 # Player Ground
 
-This page covers how the client and the server find the surface a player stands on: ADT terrain plus WMO collision floors, under one rule in shared-protocol `shared::ground`. The contract is in [wmo floor collision](../../specs/wmo-floor-collision.md).
+Client and server resolve ADT terrain, WMO floors and authored M2 doodad floors with shared step/search rules. Contracts: [WMO floor collision](../../specs/wmo-floor-collision.md), [M2 floor collision](../../specs/m2-floor-collision.md).
 
 ## Rule
 
@@ -24,7 +24,17 @@ A face is walkable when its world normal satisfies `|n.y| >= cos(MAX_SLOPE_ANGLE
 
 The engine's former `wmo_format/bsp.rs` read axis 0x01 as X and 0x02 as Y, and nothing called it. It was removed.
 
-## Client
+## Native M2 floors — verified 2026-10-12
+
+`los-bake` writes a companion under `los/<map>/m2/*.los`; `--m2-only` updates only that companion. The bake reads MD20 indices/vertices/face normals at0xD8/0xE0/0xE8 and places MDDF and active WMO doodad sets using their composed position/rotation/scale. Only authored normals facing upward within the shared slope limit admit a floor. Geometry outside a global WMO's group bounds still bakes; empty hulls never become render-mesh floors.
+
+Server `GroundMap::ground_at` loads/caches these BVH tiles, querying one neighbour ring for overhangs; highest admitted height competes with existing terrain/WMO support. Native `NativeTerrainAssets` reads the same companion on its worker before a tile is published. `TerrainGround::sample` combines its heights with existing WMO/terrain candidates, tagged `Surface::M2` so terrain-only slope policy is not incorrectly applied. Ground remains available before model nodes spawn and independent of render culling. Corrupt companion files report errors, not render-geometry substitutions. Visible LOS and navigation obstacle classification are unchanged.
+
+Real tests cover EotS model193193/MDDF995848 and995856, Northshire stonepyre198581/10325, pre-render standing/walking, signed authored normals, and a global-WMO container with a real hull beyond its group bounds. Private Modern/Forever UDP5893 geometry proof: EotS Alliance feet1247.701/full292HP after20s; stonepyre walk≈1.05yd, feet86.94 rather than terrain80.96. PNGs: `/syncthing/AgentShared/2026-10-12/m2-floor-collision/`.
+
+**Proof boundary:** lead approved private copied map566 classification plus identical diagnostic-only hosting override to enter directly. Neither override is committed or changes canonical data. This is floor geometry, not battleground lifecycle; bg-coverage owns real matched entry. Quick same-account relog exposed existing `mount_journal.rs:188` stale-entity panic; private server restart between skins isolates that unrelated defect. Detailed command/revision ledger and tick measurements: `/home/osso/.worktrees/handoff-m2-floor-collision.md`.
+
+## Historical Bevy client
 
 - **WMO floors:** `wmo::load_wmo_group_with_root` parses `WmoGroupData.collision` from the same bytes as the render data. `finish_wmo_root` inserts `collision::WmoFloors` on the WMO root, with the root `Transform` (roots are top-level entities). Each tile's spawn does this, so every spawned copy of a WMO carries its own floors.
 - **`WorldGround`:** it borrows `TerrainHeightmap` and every `WmoFloors`. `probe(feet)` returns one of three results:
@@ -34,7 +44,7 @@ The engine's former `wmo_format/bsp.rs` read axis 0x01 as X and 0x02 as Y, and n
 - **Callers:** `update_grounded`, `apply_gravity_and_ground_snap`, `validate_movement_slope`, `should_end_jump` and `is_swimming` all use `WorldGround`. Godot swimming: [[swimming]]. The slope limit applies only terrain to terrain. A grounded move snaps onto a destination at most 1.6 yd below and otherwise walks off the ledge.
 - **Timing:** terrain heights register in the same system that queues the tile's WMO spawn. For at most one frame the terrain is known and the floors are not. Gravity starts from rest and a frame is capped at 250 ms, so the player falls at most about 1.2 yd in that frame, and the floor is still within step reach.
 
-## Server
+## Server ADT/WMO ground
 
 - **`GroundMap`:** a resource that holds the tiles players have stood on. Each tile loads on first `ground_at`:
   1. The tile's root/obj0 FDIDs come from the azeroth WDT MAID (FDID 775971), indexed `col * 64 + row`.
@@ -58,6 +68,9 @@ After the fall-tracking fix, a 40 yd downward reposition left HP unchanged at 77
 
 ## Sources
 
+- [M2 floor contract](../../specs/m2-floor-collision.md), `godot/rust/src/ground.rs`, `terrain/assets.rs` — native ground and worker loading
+- `game-server/crates/los/src/bake/{m2,mod}.rs`, `crates/server/src/ground.rs`; `shared-protocol/src/los/{tile,map}.rs` — authored-normal bake and height lookup
+- Local solarityclient `crates/systems/src/collision/m2_model.rs:171–202` — composed MODD/MDDF vertices and authored face normals for movement; `crates/runtime/src/application/terrain_coordinator/camera.rs:41–55` — retained M2 camera rays
 - [wowee-collision.md](../../wowee-collision.md): the WoWee floor query and step budget
 - AzerothCore `src/tools/vmap4_extractor/wmo.cpp` and `Map.cpp`, in `~/Repos/azerothcore`: the MOPY rule, group skips and search depth
 

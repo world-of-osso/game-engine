@@ -41,6 +41,7 @@ mod client_options_data_tests;
 mod component_file_data;
 pub mod cooldown_assist;
 pub mod cooldown_conditions;
+mod cooldown_modifiers;
 #[path = "scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "game/creatures/creature_display_cache.rs"]
@@ -74,6 +75,9 @@ pub mod ground_effect_data;
 #[cfg(test)]
 mod ground_effect_data_tests;
 pub mod horizon;
+pub mod housing;
+#[cfg(test)]
+mod housing_tests;
 #[path = "input_bindings_data.rs"]
 pub mod input_bindings_data;
 #[path = "rendering/lighting/light_lookup_data.rs"]
