@@ -46,6 +46,64 @@ fn draft() -> SpecializationDraft {
     }
 }
 #[test]
+fn specialization_query_uses_learned_specialization_tier_not_selected_classic_recipe() {
+    use crate::professions::{ProfessionBook, Recipe};
+    use crate::professions_catalog::RecipeCatalog;
+    use shared::profession::ProfessionSkillLine;
+    let catalog = RecipeCatalog::load(
+        &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+    )
+    .unwrap();
+    let book = ProfessionBook {
+        selected: Some(2153),
+        recipes: vec![Recipe {
+            spell_id: 2153,
+            skill_line: 2532,
+            profession: 165,
+            category: "Leather Armor".into(),
+            category_order: 0,
+            name: "Handstitched Leather Pants".into(),
+            min_rank: 30,
+            trivial_low: 45,
+            trivial_high: 75,
+            output: (2303, 1),
+            reagents: vec![(2318, 4), (2320, 1)],
+        }],
+        snapshot: ProfessionSnapshot {
+            spells: vec![2153],
+            lines: vec![
+                ProfessionSkillLine {
+                    skill_line: 165,
+                    step: 1,
+                    rank: 1,
+                    max_rank: 75,
+                },
+                ProfessionSkillLine {
+                    skill_line: 2532,
+                    step: 1,
+                    rank: 300,
+                    max_rank: 300,
+                },
+                ProfessionSkillLine {
+                    skill_line: 2830,
+                    step: 1,
+                    rank: 25,
+                    max_rank: 100,
+                },
+            ],
+        },
+        ..Default::default()
+    };
+    assert_eq!(catalog.specialization_skill_line(&book), Some(2830));
+    let mut classic_only = book;
+    classic_only
+        .snapshot
+        .lines
+        .retain(|line| line.skill_line != 2830);
+    assert_eq!(catalog.specialization_skill_line(&classic_only), None);
+}
+
+#[test]
 fn specialization_stages_absolute_ranks_and_spends_only_pending_knowledge() {
     let mut draft = draft();
     assert!(draft.stage_rank());
