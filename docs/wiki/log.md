@@ -1,3 +1,7 @@
+## 2026-10-11 — Authored boss-mod warnings
+
+[Boss encounters](systems/boss-encounters.md#boss-mod-continuation--verified2026-10-11): display required rendered enUS warning_text with the spell icon, not a locale key/generic name. Model RED→GREEN, both-skin screen, actual UDP order/native geometry and check/fmt pass. Private5906 Hydrospawn/Zevrim bars/warnings in both skins have eight inspected1280PNG receipts; [server coverage](../../../game-server/docs/bossmod-data-coverage.md) owns outstanding native-input clocks. No shared realm changes.
+
 ## 2026-10-11 — AchievementFrame art
 
 [Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.

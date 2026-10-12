@@ -12,7 +12,7 @@ Retail Mainline `Blizzard_EncounterTimeline`, `Blizzard_EncounterWarnings` and g
 
 ## Boss-mod warning continuation
 
-Model RED→GREEN proves an incoming `Casting Lightning Bolt` alert displays that authored text while retaining the spell icon. Both-skin native screen/state tests pass. Server private-copy Hydrospawn/Zevrim test proves actual CastState/effects and scoped rendered warning transport. Protocol now requires warning_text on Cast; consumers must build against the matching shared-protocol revision. Private5906 live acceptance is still open.
+Model RED→GREEN proves an incoming `Casting Lightning Bolt` alert displays that authored text while retaining the spell icon. Both-skin native screen/state tests pass. Server private-copy Hydrospawn/Zevrim test proves actual CastState/effects and scoped rendered warning transport. Protocol now requires warning_text on Cast; consumers must build against the matching shared-protocol revision. Private5906 Modern/Forever Hydrospawn/Zevrim bars and actual-cast warnings pass in eight inspected PNGs; [source coverage/proof](../../../game-server/docs/bossmod-data-coverage.md) retains the open native-input schedule boundary.
 
 ## Sources / acceptance
 Cached `EncounterTimelineTimerView.xml` (300×300/max10), `EncounterTimelineTimerEvent.xml` (34px events/26px fill), `EncounterTimelineConstants.lua` (spacing2/highlight5), generated view enum Timeline1/Bars2; `EncounterWarnings.xml` (600×48/550×36/500×36), `EncounterWarningsView.lua` (per-severity replacement, expiration, sound), `Blizzard_SharedXML/Mainline/SoundKitConstants.lua:90` (12197).
