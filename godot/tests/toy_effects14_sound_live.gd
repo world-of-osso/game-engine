@@ -17,7 +17,12 @@ func activate_named(title: String) -> void:
 	await click("ToyBoxSearchBox")
 	var edit := control("ToyBoxSearchBox") as LineEdit
 	edit.select_all()
+	var target_before = client.target_state().target
+	if not edit.has_focus(): fail("source toy search has no keyboard focus"); return
 	await type_text(title)
+	if client.target_state().target != target_before:
+		receipts.append({"phase": "search-target-regression", "before": target_before, "after": client.target_state(), "title": title, "focused": edit.has_focus()})
+		fail("focused toy search changed unit selection"); return
 	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == title, "source toy search"): return
 	await click("ToySpellButton1")
 	await click("CollectionsMicroButton")
