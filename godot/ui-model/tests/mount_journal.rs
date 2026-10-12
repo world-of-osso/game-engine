@@ -45,9 +45,15 @@ fn mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening() {
         mount.active = active;
         mount.favourite = true;
         view.receive(MountJournalUpdate {
+            complete: false,
             mounts: vec![mount],
             error: None,
         });
+        assert_eq!(
+            view.catalog.len(),
+            2,
+            "Compact feedback must retain the other catalog rows"
+        );
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         let button = registry
@@ -73,6 +79,7 @@ fn view() -> MountJournalView {
     horse.collected = false;
     horse.usable = false;
     view.receive(MountJournalUpdate {
+        complete: true,
         mounts: vec![mare(), horse],
         error: None,
     });
@@ -100,6 +107,7 @@ fn mount_journal_known_item_feedback_tracks_authoritative_ownership_and_source()
     let mut mare = mare();
     mare.collected = false;
     view.receive(MountJournalUpdate {
+        complete: false,
         mounts: vec![mare.clone()],
         error: None,
     });
@@ -111,6 +119,7 @@ fn mount_journal_known_item_feedback_tracks_authoritative_ownership_and_source()
     mare.collected = true;
     mare.usable = false;
     view.receive(MountJournalUpdate {
+        complete: false,
         mounts: vec![mare],
         error: None,
     });
@@ -251,6 +260,7 @@ fn mount_journal_authoritative_favourite_and_active_refresh_preserve_selection()
     selected.favourite = true;
     selected.active = true;
     view.receive(MountJournalUpdate {
+        complete: false,
         mounts: vec![selected],
         error: Some("InCombat".into()),
     });

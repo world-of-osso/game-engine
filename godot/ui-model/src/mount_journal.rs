@@ -97,11 +97,15 @@ impl MountJournalView {
     }
 
     pub fn receive(&mut self, update: MountJournalUpdate) {
-        self.catalog = update
-            .mounts
-            .into_iter()
-            .map(|mount| (mount.mount_id, mount))
-            .collect();
+        if update.complete {
+            self.catalog.clear();
+        }
+        self.catalog.extend(
+            update
+                .mounts
+                .into_iter()
+                .map(|mount| (mount.mount_id, mount)),
+        );
         self.error = update.error.unwrap_or_default();
         self.reselect();
     }
