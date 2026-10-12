@@ -1,3 +1,7 @@
+## 2026-10-12 — Mount Journal final acceptance
+
+[Mounts](systems/mounts.md#mount-journal): merged master; both-skin private vendor learn/favourite/summon/random, alternate-character persistence and two-account AH buy/mail/learn pass at the merged revision. Remaining preview receipt coverage is recorded in the [contract](../specs/mount-journal.md#known-gaps-current-cycle).
+
 ## 2026-10-11 — Mount Journal implementation/data checkpoint
 
 [Mounts](systems/mounts.md#mount-journal): account-authoritative native journal, strict local mount-root appearance extension and private Modern item/preview observation. Behavioural and cache-preservation proof recorded; both-skin acceptance/final gate remain open in the [contract](../specs/mount-journal.md).
