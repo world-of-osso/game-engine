@@ -1,9 +1,14 @@
 //! Server-authoritative Transmogrify pending state; staging never mutates equipment.
 use shared::protocol::{
-    ApplyTransmog, EquipmentSlot, TransmogChange, TransmogChoice, TransmogError, TransmogFailed,
-    TransmogSlot, TransmogSource, TransmogState,
+    ApplyTransmog, EquipmentSlot, SaveTransmogOutfit, TransmogCatalogueSource, TransmogChange,
+    TransmogChoice, TransmogError, TransmogFailed, TransmogSlot, TransmogSource, TransmogState,
 };
 use std::collections::BTreeMap;
+
+mod wardrobe;
+pub use wardrobe::{
+    ItemEntry, OutfitRow, SETS_PER_PAGE, SaveKind, SetProgress, TransmogSend, WardrobeTab,
+};
 
 /// Retail12.1 TransmogItemModelTemplate100×132 in584×640 PagedContent, padding20.
 /// Five columns and four rows; only visible cells own native subviewports.
@@ -19,6 +24,17 @@ pub struct TransmogBook {
     pub error: String,
     pub page: usize,
     pub search: String,
+    pub tab: WardrobeTab,
+    /// The selected weapon's illusion location is active (TransmogIllusionSlotTemplate).
+    pub illusion_selected: bool,
+    /// Staged TransmogIllusion IDs; None clears the slot's saved illusion.
+    pub pending_illusions: BTreeMap<EquipmentSlot, Option<u32>>,
+    /// Currently viewed authored outfit entry (C_TransmogOutfitInfo viewed outfit).
+    pub viewed_outfit: Option<u32>,
+    pub saving: Option<SaveKind>,
+    pub queued_save: Option<SaveTransmogOutfit>,
+    /// TRANSMOG_CUSTOM_SET_NAME popup is shown.
+    pub naming_custom_set: bool,
 }
 
 impl TransmogBook {
@@ -29,6 +45,24 @@ impl TransmogBook {
             .is_none_or(|previous| previous.npc != state.npc);
         if new_service {
             self.search.clear();
+            self.tab = WardrobeTab::Items;
+            self.illusion_selected = false;
+            self.viewed_outfit = None;
+            self.pending_illusions.clear();
+            self.queued_save = None;
+            self.saving = None;
+            self.naming_custom_set = false;
+        }
+        match self.saving.take() {
+            Some(SaveKind::Outfit) => {
+                self.pending_illusions.clear();
+                self.error.clear();
+            }
+            Some(SaveKind::CustomSet) => {
+                self.naming_custom_set = false;
+                self.error.clear();
+            }
+            None => {}
         }
         if new_service || self.applying {
             self.pending.clear();
@@ -50,10 +84,27 @@ impl TransmogBook {
             .any(|slot| Some(slot.slot) == self.selected)
         {
             self.selected = state.slots.first().map(|slot| slot.slot);
+            self.illusion_selected = false;
             self.page = 0;
         }
         self.applying = false;
         self.state = Some(state);
+        if self.illusion_selected
+            && !self
+                .selected
+                .is_some_and(|slot| self.illusion_allowed(slot))
+        {
+            self.illusion_selected = false;
+        }
+        let pending = std::mem::take(&mut self.pending_illusions);
+        self.pending_illusions = pending
+            .into_iter()
+            .filter(|(slot, illusion)| {
+                self.illusion_allowed(*slot)
+                    && illusion.is_none_or(|id| self.illusion(id).is_some_and(|i| i.collected))
+            })
+            .collect();
+        self.viewed_outfit = self.default_viewed_outfit();
         self.page = self.page.min(self.pages() - 1);
     }
 
@@ -72,12 +123,14 @@ impl TransmogBook {
             .is_some_and(|state| state.slots.iter().any(|entry| entry.slot == slot))
         {
             self.selected = Some(slot);
+            self.illusion_selected = false;
+            self.set_tab(WardrobeTab::Items);
             self.page = 0;
         }
     }
 
     pub fn stage(&mut self, choice: TransmogChoice) -> bool {
-        if self.applying {
+        if self.busy() || self.illusion_selected {
             return false;
         }
         let Some(slot) = self.selected_slot() else {
@@ -160,6 +213,7 @@ impl TransmogBook {
             return;
         }
         self.applying = false;
+        self.queued_save = None;
         self.error = match failure.error {
             TransmogError::NotInteracting => "You are too far away.",
             TransmogError::InvalidSlot => "This item cannot be transmogrified.",
@@ -175,9 +229,11 @@ impl TransmogBook {
         .into();
     }
 
+    /// ClearAllPendingButton: ClearAllPendingTransmogs.
     pub fn undo(&mut self) {
-        if !self.applying {
+        if !self.busy() {
             self.pending.clear();
+            self.pending_illusions.clear();
             self.error.clear();
         }
     }
@@ -199,10 +255,14 @@ impl TransmogBook {
             .filter(move |source| query.is_empty() || source.name.to_lowercase().contains(&query))
     }
 
+    /// Appearance sources on the current Items page (without the hidden visual entry).
     pub fn page_sources(&self) -> Vec<&TransmogSource> {
-        self.matching_sources()
-            .skip(self.page * SOURCES_PER_PAGE)
-            .take(SOURCES_PER_PAGE)
+        self.page_items()
+            .into_iter()
+            .filter_map(|entry| match entry {
+                ItemEntry::Source(source) => Some(source),
+                _ => None,
+            })
             .collect()
     }
 
@@ -265,10 +325,21 @@ impl TransmogBook {
     }
 
     pub fn pages(&self) -> usize {
-        self.matching_sources()
-            .count()
-            .div_ceil(SOURCES_PER_PAGE)
-            .max(1)
+        let (count, per_page) = match self.tab {
+            WardrobeTab::Items => (self.item_entry_count(), SOURCES_PER_PAGE),
+            WardrobeTab::Sets => (self.available_sets().len(), SETS_PER_PAGE),
+            WardrobeTab::CustomSets => (self.custom_sets().len(), SETS_PER_PAGE),
+            WardrobeTab::Situations => (0, 1),
+        };
+        count.div_ceil(per_page).max(1)
+    }
+
+    pub fn catalogue_source(&self, source_id: u32) -> Option<&TransmogCatalogueSource> {
+        self.state
+            .as_ref()?
+            .catalogue
+            .iter()
+            .find(|entry| entry.source.source_id == source_id)
     }
 }
 
