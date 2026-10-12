@@ -19,6 +19,9 @@ pub struct HousingView {
 
 pub fn housing_screen(context: &SharedContext) -> Element {
     let view = context.get::<HousingView>().expect("HousingView required");
+    if view.model.surface != crate::housing::HousingSurface::Dashboard {
+        return crate::housing_navigation_component::navigation_screen(view);
+    }
     let title = match view.model.tab {
         DashboardTab::HouseInfo => "Housing Dashboard",
         DashboardTab::Catalog => "Housing Catalog",
@@ -65,7 +68,12 @@ fn house_info(view: &HousingView) -> Element {
         ),
         None => "House ownership has not been confirmed by the server. Catalog browsing does not grant a house.".into(),
     };
-    unavailable("HouseInfoContent", &message)
+    let status = unavailable("HouseInfoContent", &message);
+    rsx! { {status}
+        button { name: "HousingDashboardHouseFinderButton", text: "Find a Home",
+            width: 160.0, height: 32.0, pos_type: "absolute", left: 327.0, top: 350.0,
+            onclick: "housing:finder" }
+    }
 }
 
 fn unavailable(name: &str, message: &str) -> Element {
