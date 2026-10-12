@@ -1,0 +1,18 @@
+[package]
+name = "windows-ipc-test"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Run the real Windows transport alone; no Godot installation or Unix-only test fixtures.
+[lib]
+path = "../../godot/rust/src/ipc/windows.rs"
+
+[dependencies]
+tokio = { version = "=1.53.1", features = ["rt", "macros", "sync", "net", "io-util", "time"] }
+serde = { version = "1", features = ["derive"] }
+rmp-serde = "1"
+
+[[test]]
+name = "transport"
+path = "transport.rs"
