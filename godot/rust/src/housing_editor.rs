@@ -298,7 +298,7 @@ impl GameClient {
                 row.set("pitch", draft.pitch);
                 row.set("roll", draft.roll);
                 row.set("scale", draft.scale);
-                output.set("draft", row);
+                output.set("draft", &row.to_variant());
             }
             output.set("pending", model.pending);
             output.set("finder_plot", model.finder_plot.map_or(0, |id| id as i64));
