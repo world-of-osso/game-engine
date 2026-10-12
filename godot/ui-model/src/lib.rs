@@ -67,6 +67,8 @@ pub mod group_loot_component;
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod mount_journal;
+mod mount_source;
 pub mod mythic_mentor;
 pub mod pet_journal;
 pub mod pet_stable;
@@ -150,6 +152,7 @@ pub mod flight_map;
 pub mod flight_map_component;
 #[path = "world_map_view_data.rs"]
 pub mod world_map_view_data;
+pub mod world_quest_ui;
 
 /// Retail reaction colours for the unit frames, shared with the server's rules.
 pub mod faction_reaction {

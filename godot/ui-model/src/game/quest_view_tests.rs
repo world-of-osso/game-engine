@@ -32,6 +32,7 @@ fn entry(quest_id: u32, title: &str, sort_id: i32) -> QuestEntrySnapshot {
             completed: false,
             kind: QuestObjectiveKind::Monster,
             object_id: 6,
+            optional: false,
         }],
         level: 2,
         sort_id,

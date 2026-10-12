@@ -136,6 +136,7 @@ fn toy(id: u32, name: &str, learned: bool) -> ToySnapshot {
         source_type: (id % 2) as i32,
         source_text: "Quest reward".into(),
         spell_id: Some(id + 1000),
+        requires_target_witness: false,
         learned,
         favourite: false,
         unavailable_reason: None,

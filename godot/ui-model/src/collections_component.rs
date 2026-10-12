@@ -87,7 +87,7 @@ fn journal_tab(index: usize, active: usize, title: &str, left: f32, width: f32) 
         &format!("{prefix}-right"),
         (right, 0.0, 37.0, height),
     ));
-    let enabled = matches!(index, 1 | 2);
+    let enabled = matches!(index, 0 | 1 | 2);
     let color = if selected {
         "1.0,1.0,1.0,1.0"
     } else if enabled {
@@ -95,10 +95,10 @@ fn journal_tab(index: usize, active: usize, title: &str, left: f32, width: f32) 
     } else {
         "0.5,0.5,0.5,1.0"
     };
-    let action = if index == 1 {
-        "collections:pets"
-    } else {
-        "collections:toys"
+    let action = match index {
+        0 => "collections:mounts",
+        1 => "collections:pets",
+        _ => "collections:toys",
     };
     rsx! { button { name: {DynName(name.clone())}, width, height: 32.0, pos_type: "absolute", left, top: 604.0,
         button_default_skin: false, disabled: {!enabled}, onclick: action, {art}
