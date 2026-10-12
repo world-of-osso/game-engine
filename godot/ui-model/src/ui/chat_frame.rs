@@ -114,6 +114,12 @@ pub enum ChatSpan {
     SpellLink { id: u32, color: [f32; 4] },
     /// Achievement chat label; its ID opens authoritative own-character state, never comparison.
     AchievementLink { id: u32, display: String },
+    /// Authored received item label and optional inline colour; input/tooltip behaviour is separate.
+    ItemLink {
+        id: u32,
+        display: String,
+        color: Option<[f32; 4]>,
+    },
 }
 
 fn text(value: impl Into<String>) -> ChatSpan {
@@ -145,7 +151,9 @@ impl ChatLine {
             .map(|span| match span {
                 ChatSpan::Text(value) | ChatSpan::Colored(_, value) => value.clone(),
                 ChatSpan::SpellLink { id, .. } => spell_name(*id),
-                ChatSpan::AchievementLink { display, .. } => display.clone(),
+                ChatSpan::AchievementLink { display, .. } | ChatSpan::ItemLink { display, .. } => {
+                    display.clone()
+                }
             })
             .collect()
     }
@@ -453,7 +461,75 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
     };
     ChatLine {
         color: msg.channel_type.color(),
-        spans: parse_achievement_links(&value),
+        spans: parse_received_chat_links(&value),
+    }
+}
+
+fn parse_received_chat_links(value: &str) -> Vec<ChatSpan> {
+    parse_achievement_links(value)
+        .into_iter()
+        .flat_map(|span| match span {
+            ChatSpan::Text(value) => parse_item_links(&value),
+            other => vec![other],
+        })
+        .collect()
+}
+
+fn parse_item_links(value: &str) -> Vec<ChatSpan> {
+    const PREFIX: &str = "|Hitem:";
+    let mut spans = Vec::new();
+    let mut remaining = value;
+    while let Some(start) = remaining.find(PREFIX) {
+        let Some((id, label, tail)) = split_item_link(&remaining[start + PREFIX.len()..]) else {
+            break;
+        };
+        let (prefix, outer_color) = strip_item_prefix_colour(&remaining[..start]);
+        let (display, inner_color) = strip_item_label_colour(label);
+        spans.push(text(prefix));
+        spans.push(ChatSpan::ItemLink {
+            id,
+            display: display.into(),
+            color: inner_color.or(outer_color),
+        });
+        remaining = tail.strip_prefix("|r").unwrap_or(tail);
+    }
+    spans.push(text(remaining));
+    spans
+}
+
+fn split_item_link(value: &str) -> Option<(u32, &str, &str)> {
+    let (payload, label) = value.split_once("|h")?;
+    let id: u32 = payload.split(':').next()?.parse().ok()?;
+    let (display, tail) = label.split_once("|h")?;
+    (id != 0 && !display.is_empty()).then_some((id, display, tail))
+}
+
+fn item_argb_colour(code: &str) -> Option<[f32; 4]> {
+    let hex = code.strip_prefix("|c")?;
+    if hex.len() != 8 {
+        return None;
+    }
+    let [alpha, red, green, blue] = u32::from_str_radix(hex, 16).ok()?.to_be_bytes();
+    Some([red, green, blue, alpha].map(|channel| f32::from(channel) / 255.0))
+}
+
+fn strip_item_prefix_colour(prefix: &str) -> (&str, Option<[f32; 4]>) {
+    let start = prefix.len().saturating_sub(10);
+    let color = prefix.get(start..).and_then(item_argb_colour);
+    if color.is_some() {
+        (&prefix[..start], color)
+    } else {
+        (prefix, None)
+    }
+}
+
+fn strip_item_label_colour(label: &str) -> (&str, Option<[f32; 4]>) {
+    let color = label.get(..10).and_then(item_argb_colour);
+    if color.is_some() {
+        let display = &label[10..];
+        (display.strip_suffix("|r").unwrap_or(display), color)
+    } else {
+        (label, None)
     }
 }
 
@@ -967,6 +1043,9 @@ fn line_tokens(
             }
             ChatSpan::AchievementLink { id, display } => {
                 tokens.push((display.clone(), [1.0, 1.0, 0.0, 1.0], None, Some(*id)))
+            }
+            ChatSpan::ItemLink { display, color, .. } => {
+                tokens.push((display.clone(), color.unwrap_or(line.color), None, None))
             }
             ChatSpan::Text(value) => tokens.extend(words(value, line.color)),
             ChatSpan::Colored(color, value) => tokens.extend(words(value, *color)),
