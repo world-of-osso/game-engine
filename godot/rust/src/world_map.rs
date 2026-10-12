@@ -518,7 +518,17 @@ impl GameClient {
         self.load_world_map_data()?;
         let player = self.world_map_player();
         let data = self.world_map.data().ok_or("World map data not loaded")?;
-        let opened = player.as_ref().and_then(|player| player_map(data, player));
+        // Auto-watched tasks author their own UiMapID, including phased task maps.
+        let task = self
+            .account
+            .quests
+            .world_quests
+            .iter()
+            .find(|quest| self.account.quests.is_watched(quest.quest_id));
+        let opened = match task {
+            Some(quest) => Some(quest.ui_map_id),
+            None => player.as_ref().and_then(|player| player_map(data, player)),
+        };
         self.world_map.map_id = opened.ok_or("World map: no map under the player")?;
         self.world_map.hovered = None;
         let id = self
