@@ -345,12 +345,6 @@ impl GameClient {
                 row.set("scale", draft.scale);
                 output.set("draft", &row.to_variant());
             }
-            output.set("storage_category", model.storage_category.unwrap_or(0));
-            output.set(
-                "storage_subcategory",
-                model.storage_subcategory.unwrap_or(0),
-            );
-            output.set("storage_search", model.storage_search.as_str());
             output.set("pending", model.pending);
             output.set("finder_plot", model.finder_plot.map_or(0, |id| id as i64));
         }

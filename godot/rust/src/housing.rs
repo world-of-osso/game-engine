@@ -311,17 +311,12 @@ impl GameClient {
         if !model.storage_focus_action(action, &self.housing.authority)? {
             return Ok(false);
         }
-        let text = model.storage_search.clone();
-        let control = self
-            .housing
-            .ui
-            .as_ref()
-            .and_then(|ui| ui.bind().frame_control(STORAGE_SEARCH_FIELD));
-        if let Some(control) = control {
-            let mut search = control
-                .try_cast::<godot::classes::LineEdit>()
-                .map_err(|_| "Storage search is not a native editbox.")?;
-            search.set_text(&text);
+        let clear_search = model.storage_search.is_empty();
+        if clear_search && let Some(ui) = &mut self.housing.ui {
+            let mut host = ui.bind_mut();
+            if host.frame_control(STORAGE_SEARCH_FIELD).is_some() {
+                host.clear_editbox_named(STORAGE_SEARCH_FIELD)?;
+            }
         }
         Ok(true)
     }
