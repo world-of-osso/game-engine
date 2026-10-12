@@ -60,14 +60,14 @@ pub mod encounter_timeline_component;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;
-pub mod housing;
-pub mod housing_component;
-#[cfg(test)]
-mod housing_tests;
 #[path = "game/group_state.rs"]
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod housing;
+pub mod housing_component;
+#[cfg(test)]
+mod housing_tests;
 pub mod mythic_mentor;
 pub mod pet_journal;
 pub mod pet_stable;
