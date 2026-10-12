@@ -9,6 +9,8 @@ func prove_toy(sample: Array) -> void:
 	if not await wait_until(func(): return state_model() != null, "source CDI state kit236744/model1952826", 30000): return
 	var effect := state_model()
 	if abs(effect.scale.x - 0.25) > 0.00001: fail("state kit attachment scale lost"); return
+	var unit := scenery(str(sample[3]))
+	if effect.global_position.distance_to(unit.global_position) > 0.01: fail("GROUND19 did not use actual unit origin"); return
 	await create_timer(2.0).timeout
 	var starts := 0
 	for kit in client.spell_visuals_state().started:

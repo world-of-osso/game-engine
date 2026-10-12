@@ -285,15 +285,20 @@ pub(super) fn phase_at(
     (seconds < clips.particle_tail).then(|| (Phase::Tail(clips.particle_tail - seconds), None))
 }
 
-/// The node a kit model on unit `id`'s `attachment` hangs from: the model's
-/// `Attachment{id}` point, or the unit's root for `None`.
+/// Attachment19 is GROUND (`wow.export/src/js/wow/EquipmentSlots.js:97`).
+/// It anchors to the observed unit ground origin, including static scenery whose
+/// M2 has no attachment table (Sealamp2358259, Spire1625030). No authored bone
+/// or alternate position is synthesized; other attachment IDs require their rig.
+const GROUND_ATTACHMENT: u8 = 19;
+
+/// Authored rig attachment, or the unit ground origin for GROUND/no attachment.
 pub(super) fn attachment_node(
     world: &WorldUnits,
     id: u64,
     attachment: Option<u8>,
 ) -> Option<Gd<Node3D>> {
     match attachment {
-        None => world.unit_node(id),
+        None | Some(GROUND_ATTACHMENT) => world.unit_node(id),
         Some(attachment) => world
             .unit_model_node(id)?
             .try_get_node_as::<Node3D>(&format!(
