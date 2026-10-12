@@ -53,11 +53,12 @@ func run_fixture() -> void:
 		search.emit_signal("text_changed", target.name)
 		var row := "MountJournalRow%d" % int(target.mount_id)
 		if not await wait_until(func(): return control(row) != null, 15000):
-			failures.append({"mount_id": target.mount_id, "reason": "authentic catalog row not visible after exact-name search"})
+			root.get_texture().get_image().save_png(out + "/missing-row-%d.png" % int(target.mount_id))
+			failures.append({"mount_id": target.mount_id, "reason": "authentic catalog row not visible after exact-name search", "search_text": str(control("MountJournalSearchBox").text)})
 			continue
 		await click(row)
 		if not await wait_until(func(): return int(client.mount_journal_state().selected) == int(target.mount_id) and client.mount_journal_state().preview_ready, 90000):
-			failures.append({"mount_id": target.mount_id, "reason": "detached preview did not become ready", "state": client.mount_journal_state()})
+			failures.append({"mount_id": target.mount_id, "reason": "detached preview did not become ready", "selected": client.mount_journal_state().selected})
 			continue
 		await frames(6)
 		var model_host = control("MountJournalModelScene")
