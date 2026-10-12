@@ -30,6 +30,8 @@ class JournalImportTests(unittest.TestCase):
                 self.assertEqual(conn.execute('SELECT build FROM source').fetchone()[0], '12.1.0.69933')
                 self.assertIsNotNone(conn.execute("SELECT name FROM sqlite_master WHERE name='challenge_dungeon'").fetchone(), 'Owned keystones require authentic challenge-to-Journal map data')
                 self.assertEqual(conn.execute('SELECT map_id,name,time_limit_ms FROM challenge_dungeon WHERE ID=401').fetchone(), (2515, 'The Azure Vault', 2250000))
+                self.assertIsNotNone(conn.execute("SELECT name FROM sqlite_master WHERE name='ItemSetSpell'").fetchone(), 'Retail set tooltip bonus thresholds must come from ItemSetSpell')
+                self.assertEqual(conn.execute('SELECT SpellID,Threshold FROM ItemSetSpell WHERE ItemSetID=900 ORDER BY Threshold').fetchall(), [(70765, 2), (70762, 4)])
                 self.assertEqual(conn.execute('SELECT instance_type FROM map_type WHERE ID=43').fetchone(), (1,))
                 self.assertEqual(conn.execute('SELECT instance_type FROM map_type WHERE ID=409').fetchone(), (2,))
                 self.assertEqual(conn.execute('SELECT COUNT(*) FROM JournalInstance j LEFT JOIN map_type m ON m.ID=j.MapID WHERE m.ID IS NULL').fetchone(), (0,))

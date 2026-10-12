@@ -114,16 +114,11 @@ impl View {
         let (set, item) = frame_name.strip_prefix("JournalSet")?.split_once("Item")?;
         let set: u32 = set.parse().ok()?;
         let item: u32 = item.parse().ok()?;
-        let member = self
-            .catalog
+        self.catalog
             .sets
             .iter()
-            .any(|row| row.id == set && row.items.contains(&item));
-        if member {
-            self.catalog.items.get(&item)
-        } else {
-            None
-        }
+            .find(|row| row.id == set && row.items.contains(&item))?;
+        self.catalog.items.get(&item)
     }
     pub fn item_sets(&self) -> Vec<&ItemSet> {
         let search = self.search.to_lowercase();

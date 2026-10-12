@@ -30,6 +30,7 @@ TABLES = {
     'JournalSectionXDifficulty': (1121900, 0x9A12141A),
     'JournalEncounterXDifficulty': (1121901, 0xC038156D),
     'ItemSet': (1343609, 0xF79068A4),
+    'ItemSetSpell': (1314689, 0x2666A73F),
     'ItemSpec': (1135120, 0x83F3D113),
     'ItemSpecOverride': (1134576, 0xB292998C),
 }
@@ -190,7 +191,7 @@ def import_presentation(connection, items):
     with (items / 'GlobalStrings.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO journal_text VALUES(?,?)',
             ((row['BaseTag'], row['TagText_lang'].replace('|n', '\n')) for row in csv.DictReader(handle)
-             if row['BaseTag'].startswith('INVTYPE_') or row['BaseTag'] in ('RPE_TITLE', 'RPE_TUTORIAL_TEXT', 'RPE_START_EXPERIENCE')))
+             if row['BaseTag'].startswith(('INVTYPE_', 'ITEM_SET_')) or row['BaseTag'] in ('RPE_TITLE', 'RPE_TUTORIAL_TEXT', 'RPE_START_EXPERIENCE')))
 
 
 def read_challenge_dungeons(world):
