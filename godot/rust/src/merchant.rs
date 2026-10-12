@@ -662,7 +662,7 @@ impl GameClient {
         if session.merchant.tab == MerchantTab::Merchant {
             for (cell, item) in frame.cells.iter_mut().zip(session.merchant.page_items()) {
                 cell.name = self.mount_journal.view.item_label(
-                    item.definition_source,
+                    shared::item_data::ItemDefinitionSource::Retail,
                     item.item_id,
                     &cell.name,
                 );
