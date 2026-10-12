@@ -1,6 +1,8 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
+#[cfg(test)]
+mod adventure_guide_wire_tests;
 #[path = "ui/automation_data.rs"]
 pub mod automation_data;
 #[path = "game/state/game_state_enum.rs"]
@@ -240,6 +242,7 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
+            .receive::<protocol::AdventureGuideSnapshot>()
             .receive::<protocol::PartyKeystoneSnapshot>()
             .receive::<protocol::ScenarioProgress>()
             .receive_encounters()

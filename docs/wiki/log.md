@@ -1,6 +1,9 @@
 ## 2026-10-11 — Retail talent placement
 
 [Talents placement](systems/talents.md#retail-placement-correction-2026-10-11): source-derived class pan and DB2 centers replace fit zoom/126px row rebasing; BOTTOM-centered page,200px PvP tray/4px gaps and label. Ret/Arcane both-skin behavioral regression and private5921 before/after proof tracked in the talent-centering evidence ledger.
+## 2026-10-11 — Adventure Guide realm continuation
+
+[Guide](systems/adventure-guide.md#realm-activities-and-suggestions): signed activity priorities, monthly account criteria/tracking, eligible display-only suggestions and authoritative key refresh. Server5/5, UI20/20, final UDP1/1, native build/check/fmt; both-skin945-row/Track/relog, TrainingGrounds852, owned Azure, first-boss/saved-mask1 and ItemSet reset/tooltip proof. Independent artifact wiring passes; source/calendar/criteria/reward/RPE/icon/token limits remain explicit.
 
 ## 2026-10-11 — Crafting UI private acceptance
 
