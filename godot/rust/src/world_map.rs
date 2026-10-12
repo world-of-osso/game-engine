@@ -318,6 +318,42 @@ impl GameClient {
                 vignettes: &vignettes,
             },
         );
+        let now = crate::account::quest_local_unix();
+        state
+            .pins
+            .extend(game_engine_ui_model::world_quest_ui::map_pins(
+                &data.catalog,
+                state.map_id,
+                &self.account.quests,
+                now,
+            ));
+        if let Some(uv) = self.world_map.hovered {
+            let layout =
+                WorldMapLayout::new(state.viewport, self.world_map.display.maximized, true);
+            let [_, _, w, h] = layout.canvas_rect();
+            let hovered = state.pins.iter().find(|pin| {
+                pin.pin_type == MapPinType::WorldQuest
+                    && ((pin.x - uv[0]) * w).abs() < 16.
+                    && ((pin.y - uv[1]) * h).abs() < 16.
+            });
+            if let Some(quest) = hovered.and_then(|pin| {
+                self.account
+                    .quests
+                    .world_quests
+                    .iter()
+                    .find(|quest| Some(quest.quest_id) == pin.quest_id)
+            }) {
+                let position = [
+                    (uv[0] * w + 18.).min((w - 300.).max(0.)),
+                    (uv[1] * h + 18.).min((h - 160.).max(0.)),
+                ];
+                state.world_quest_tooltip = Some(game_engine_ui_model::world_quest_ui::tooltip(
+                    quest,
+                    now + self.account.quests.server_clock_offset,
+                    position,
+                ));
+            }
+        }
         state.highlighted_quest = self.quests.ui.highlighted;
         state
             .pins
