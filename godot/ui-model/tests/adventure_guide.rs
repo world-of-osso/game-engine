@@ -21,6 +21,7 @@ fn journal() -> View {
 #[test]
 fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
     let mut view = journal();
+    view.visible = true;
     for tab in ["monthly", "suggested"] {
         view.apply(&format!("journal:tab:{tab}"))
             .expect("server-backed tab");
