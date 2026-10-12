@@ -9,6 +9,141 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_house_settings_both_skins_stage_without_changing_confirmed_authority() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use shared::protocol::{HouseAccess, HousingHouse, HousingState};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let access = HouseAccess {
+            friends: true,
+            ..Default::default()
+        };
+        let authority = HousingAuthority {
+            state: Some(HousingState {
+                build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                owned_houses: vec![HousingHouse {
+                    house_id: 41,
+                    neighborhood_id: 1,
+                    plot_id: 417,
+                    owner_character_id: 32,
+                    can_edit: true,
+                    house_access: Some(access),
+                    exterior_grant_available: false,
+                    interior_grant_available: false,
+                }],
+                ..Default::default()
+            }),
+            error: None,
+        };
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        assert!(
+            model
+                .settings_request(&authority, "housing:settings:open:42")
+                .is_err()
+        );
+        model
+            .settings_request(&authority, "housing:settings:open:41")
+            .unwrap();
+        assert_eq!(model.surface, HousingSurface::HouseSettings);
+        let mut view = HousingView {
+            model,
+            authority,
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(housing_screen);
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        let panel = registry
+            .get(registry.get_by_name("HousingHouseSettingsFrame").unwrap())
+            .unwrap();
+        assert_eq!(panel.width, Dimension::Fixed(600.0));
+        assert_eq!(panel.height, Dimension::Fixed(550.0));
+        let disabled = |registry: &FrameRegistry, name: &str| matches!(&registry.get(registry.get_by_name(name).unwrap()).unwrap().widget_data,Some(WidgetData::Button(data)) if data.state == ui_toolkit::widgets::button::ButtonState::Disabled);
+        assert!(
+            registry
+                .get_by_name("HousingSettingsFlagfriendsTick")
+                .is_some()
+        );
+        assert!(!disabled(&registry, "HousingSettingsFlagfriends"));
+        for name in [
+            "HousingSettingsPlotMode",
+            "HousingSettingsBlueprintMode",
+            "HousingSettingsOwner",
+            "HousingSettingsAbandon",
+        ] {
+            assert!(disabled(&registry, name));
+        }
+        view.model
+            .settings_request(&view.authority, "housing:settings:anyone")
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        for key in ["neighbors", "guild", "friends", "party"] {
+            assert!(disabled(&registry, &format!("HousingSettingsFlag{key}")));
+            assert!(
+                registry
+                    .get_by_name(&format!("HousingSettingsFlag{key}Tick"))
+                    .is_some()
+            );
+        }
+        assert_eq!(
+            view.authority.state.as_ref().unwrap().owned_houses[0].house_access,
+            Some(access)
+        );
+        assert_eq!(
+            view.model
+                .settings_request(&view.authority, "housing:settings:save")
+                .unwrap(),
+            Some(shared::protocol::HousingCommand::SaveHouseAccess {
+                house_id: 41,
+                access: HouseAccess {
+                    anyone: true,
+                    neighbors: true,
+                    guild: true,
+                    friends: true,
+                    party: true
+                }
+            })
+        );
+        view.model
+            .settings_request(&view.authority, "housing:settings:none")
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HousingSettingsFlagfriendsTick")
+                .is_none()
+        );
+        assert!(disabled(&registry, "HousingSettingsFlagfriends"));
+        view.model
+            .settings_request(&view.authority, "housing:settings:limited")
+            .unwrap();
+        view.model
+            .settings_request(&view.authority, "housing:settings:toggle:friends")
+            .unwrap();
+        assert_eq!(
+            view.model
+                .settings_request(&view.authority, "housing:settings:save")
+                .unwrap(),
+            Some(shared::protocol::HousingCommand::SaveHouseAccess {
+                house_id: 41,
+                access
+            })
+        );
+    }
+}
+
+#[test]
 fn housing_catalog_model_scene_replaces_the_thumbnail_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
