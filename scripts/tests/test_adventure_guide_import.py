@@ -18,7 +18,7 @@ class JournalImportTests(unittest.TestCase):
         source = Path(os.environ['ADVENTURE_GUIDE_SOURCE'])
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / 'journal.sqlite'
-            module.import_cache(source / 'db2', source, output, Path(os.environ['ADVENTURE_GUIDE_ITEMS']), Path(os.environ['ADVENTURE_GUIDE_WORLD']))
+            module.import_cache(source / 'db2', Path(os.environ['ADVENTURE_GUIDE_DEFINITIONS']), output, Path(os.environ['ADVENTURE_GUIDE_ITEMS']), Path(os.environ['ADVENTURE_GUIDE_WORLD']))
             with closing(sqlite3.connect(output)) as conn:
                 encounter = conn.execute('SELECT ID,Name_lang,JournalInstanceID,FirstSectionID FROM JournalEncounter WHERE ID=663').fetchone()
                 self.assertEqual(encounter[1], 'Jandice Barov')
@@ -44,7 +44,7 @@ class JournalImportTests(unittest.TestCase):
             out = Path(tmp) / 'journal.sqlite'
             out.write_bytes(b'old cache')
             with self.assertRaisesRegex(ValueError, 'layout'):
-                module.read_table('JournalTier', source / 'db2/1237438.db2', source / 'JournalTier.dbd')
+                module.read_table('JournalTier', source / 'db2/1237438.db2', Path(os.environ['ADVENTURE_GUIDE_DEFINITIONS']) / 'JournalTier.dbd')
             self.assertEqual(out.read_bytes(), b'old cache')
 
 
