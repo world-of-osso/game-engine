@@ -17,6 +17,8 @@ pub struct RecipeCatalog {
     pub primary_skills: BTreeSet<u32>,
     pub profession_skills: BTreeSet<u32>,
     pub crafting_quality: BTreeMap<u32, crate::professions_quality::CraftingQuality>,
+    /// SkillLine ID -> (ParentSkillLineID, ParentTierIndex), for nonzero trait-tree variants.
+    pub specialization_lines: BTreeMap<u32, (u32, i32)>,
 }
 
 impl RecipeCatalog {
@@ -32,8 +34,29 @@ impl RecipeCatalog {
             .then_some(recipe)
     }
 
+    pub fn specialization_skill_line(
+        &self,
+        book: &crate::professions::ProfessionBook,
+    ) -> Option<u32> {
+        let profession = book.selected_recipe().map(|recipe| recipe.profession);
+        book.snapshot
+            .lines
+            .iter()
+            .filter(|line| line.rank > 0)
+            .filter(|line| {
+                self.specialization_lines
+                    .get(&line.skill_line)
+                    .is_some_and(|&(parent, _)| {
+                        profession.is_none_or(|profession| parent == profession)
+                    })
+            })
+            .max_by_key(|line| self.specialization_lines[&line.skill_line].1)
+            .map(|line| line.skill_line)
+    }
+
     pub fn load(dir: &Path) -> Result<Self, String> {
         let mut catalog = Self::default();
+        let mut skill_tiers = BTreeMap::new();
         read_rows(
             dir,
             "SkillLine",
@@ -43,12 +66,17 @@ impl RecipeCatalog {
                 "SpellBookSpellID",
                 "CategoryID",
                 "ParentSkillLineID",
+                "ParentTierIndex",
             ],
             |row| {
                 let skill = number(row[0])?;
                 catalog.skill_names.insert(skill, row[1].into());
                 let category = number(row[3])?;
                 let parent = number(row[4])?;
+                let tier = row[5]
+                    .parse::<i32>()
+                    .map_err(|error| format!("SkillLine tier index: {error}"))?;
+                skill_tiers.insert(skill, (parent, tier));
                 if category == PRIMARY_PROFESSION && parent == 0 {
                     catalog.primary_skills.insert(skill);
                 }
@@ -65,6 +93,7 @@ impl RecipeCatalog {
                 Ok(())
             },
         )?;
+        catalog.specialization_lines = load_specialization_lines(dir, &skill_tiers)?;
         catalog.crafting_quality = crate::professions_quality::load(dir)?;
         let categories = load_categories(dir)?;
         let outputs = load_outputs(dir)?;
@@ -73,6 +102,29 @@ impl RecipeCatalog {
             load_recipes(dir, &catalog.skill_names, &categories, &outputs, &reagents)?;
         Ok(catalog)
     }
+}
+
+fn load_specialization_lines(
+    dir: &Path,
+    skills: &BTreeMap<u32, (u32, i32)>,
+) -> Result<BTreeMap<u32, (u32, i32)>, String> {
+    let mut lines = BTreeMap::new();
+    read_rows(
+        dir,
+        "SkillLineXTraitTree",
+        &["SkillLineID", "Variant"],
+        |row| {
+            if number(row[1])? > 0 {
+                let skill = number(row[0])?;
+                let metadata = skills.get(&skill).ok_or_else(|| {
+                    format!("Specialization tree references missing SkillLine {skill}")
+                })?;
+                lines.insert(skill, *metadata);
+            }
+            Ok(())
+        },
+    )?;
+    Ok(lines)
 }
 
 fn load_categories(dir: &Path) -> Result<BTreeMap<u32, (String, i32)>, String> {
