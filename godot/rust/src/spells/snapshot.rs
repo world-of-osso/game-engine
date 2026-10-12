@@ -91,6 +91,17 @@ impl GameClient {
             .map(|event| event.amount.max(0) as u32)
             .collect();
         state.set("damage_dealt", &packed_ids(&damage));
+        let successes: Vec<_> = self
+            .account
+            .combat_log
+            .iter()
+            .filter(|event| {
+                event.kind == CombatLogKind::CastSuccess
+                    && event.source == self.world.local_player_id()
+            })
+            .filter_map(|event| event.spell_id)
+            .collect();
+        state.set("cast_success", &packed_ids(&successes));
     }
 
     fn write_spell_ui_snapshot(&self, state: &mut VarDictionary) {

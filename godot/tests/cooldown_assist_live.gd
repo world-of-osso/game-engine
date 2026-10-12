@@ -142,7 +142,7 @@ func run_fixture() -> void:
 	if failed:
 		return
 	await key(KEY_TAB)
-	var attack_error: String = client.use_spell(20271)
+	var attack_error: String = client.use_spell(6603)
 	if not attack_error.is_empty():
 		fail(attack_error)
 		return
@@ -165,11 +165,15 @@ func run_fixture() -> void:
 		return
 	expected = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
+	var successes_before: int = client.spells_state().cast_success.size()
 	await click("ActionButton6")
 	await create_timer(0.6).timeout
 	var after: Dictionary = client.spells_state()
 	if after.sent.size() != before + 1 or int(after.sent[after.sent.size() - 1]) != expected:
 		fail("Assistant did not send exactly its authored recommendation")
+		return
+	if after.cast_success.size() != successes_before + 1 or int(after.cast_success[after.cast_success.size() - 1]) != expected:
+		fail("Assistant request did not resolve as the exact server CastSuccess")
 		return
 	await capture("assisted-cast")
 	print("PASS: real manager clocks, authored single-button cast and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
@@ -182,7 +186,7 @@ func prove_highlights(expected: int) -> bool:
 			viewer_name = "CooldownViewer%dAssistedHighlightFlipbook" % int(icon.cooldown_id)
 			break
 	var action_name := ""
-	var slots: Array = client.spells_state().bar
+	var slots: PackedInt64Array = client.spells_state().bar
 	for slot in range(12):
 		if int(slots[slot]) == expected:
 			var name := "ActionButton%dAssistedHighlightFlipbook" % (slot + 1)
