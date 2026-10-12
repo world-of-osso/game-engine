@@ -4,7 +4,9 @@ use crate::bank_art::{WHITE, label};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagState};
-use shared::protocol::{ArenaQueueMode, BattlegroundSnapshot, PvpSnapshot, PvpStateUpdate};
+use shared::protocol::{
+    ArenaQueueMode, BattlegroundSnapshot, PvpBracketSnapshot, PvpSnapshot, PvpStateUpdate,
+};
 #[path = "arena_ui.rs"]
 mod arena_ui;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
@@ -16,6 +18,7 @@ pub enum PvpAction {
     SelectTalent { slot: u8, talent_id: u32 },
     Queue(u32),
     Arena(ArenaQueueMode),
+    Rated(PvpBracketSnapshot),
     Target(u64),
     Dequeue,
     Respond { match_id: u64, accepted: bool },
@@ -41,6 +44,7 @@ pub struct PvpView {
     pub talent_slot: Option<u8>,
     pub category: PvpCategory,
     pub selected_arena: Option<ArenaQueueMode>,
+    pub rated_bracket: PvpBracketSnapshot,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -56,6 +60,7 @@ impl Default for PvpView {
             talent_slot: None,
             category: PvpCategory::QuickMatch,
             selected_arena: None,
+            rated_bracket: PvpBracketSnapshot::Arena2v2,
         }
     }
 }
@@ -175,6 +180,14 @@ impl PvpView {
         if self.pending {
             return None;
         }
+        if action == "pvp:rated:2v2" || action == "pvp:rated:3v3" {
+            self.rated_bracket = if action == "pvp:rated:2v2" {
+                PvpBracketSnapshot::Arena2v2
+            } else {
+                PvpBracketSnapshot::Arena3v3
+            };
+            return None;
+        }
         if action.starts_with("pvp:activity:") {
             self.selected_arena = match action {
                 "pvp:activity:warsong" => None,
@@ -211,6 +224,15 @@ impl PvpView {
         }
         let request = match action {
             "pvp:query" => PvpAction::Query,
+            "pvp:rated:queue"
+                if self.battleground().is_none()
+                    && self
+                        .snapshot
+                        .as_ref()
+                        .is_none_or(|snapshot| snapshot.queue.is_none()) =>
+            {
+                PvpAction::Rated(self.rated_bracket.clone())
+            }
             "pvp:warmode" => {
                 let mode = self.snapshot.as_ref()?.war_mode.as_ref()?;
                 let permitted = if mode.desired {
@@ -357,25 +379,7 @@ fn category_panel(view: &PvpView) -> Element {
             (194.0, 52.0, 340.0, 100.0),
         );
     }
-    let mut children = text("ConquestFrameTitle", "Rated", (194.0, 52.0, 340.0, 22.0));
-    if let Some(wallet) = &view.snapshot {
-        children.extend(text(
-            "ConquestFrameBalance",
-            &format!("Conquest: {}", wallet.conquest),
-            (194.0, 90.0, 340.0, 22.0),
-        ));
-    }
-    children.extend(text(
-        "ConquestFramePolicy",
-        "Season progress and rating policy unavailable",
-        (194.0, 128.0, 340.0, 44.0),
-    ));
-    children.extend(text(
-        "ConquestFrameBrackets",
-        "2v2\n3v3\nRated Battlegrounds\nPlayed-match rating service unavailable",
-        (194.0, 190.0, 340.0, 120.0),
-    ));
-    children
+    arena_ui::rated_panel(view)
 }
 fn invite(view: &PvpView) -> Element {
     if !view.invitation() {
@@ -515,9 +519,20 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
-        if bg.arena.is_some() && i >= 7 {
+        let rated = bg
+            .arena
+            .as_ref()
+            .is_some_and(|arena| !arena.rating_changes.is_empty());
+        if bg.arena.is_some() && !rated && i >= 7 {
             continue;
         }
+        let title = if rated && i == 7 {
+            "Rating"
+        } else if rated && i == 8 {
+            "MMR"
+        } else {
+            title
+        };
         let (x, width) = column(i);
         children.extend(text(
             &format!("PVPMatchCategory{i}"),
@@ -534,6 +549,13 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
+        let title = if bg.arena.is_some() && i == 1 {
+            "Gold"
+        } else if bg.arena.is_some() && i == 2 {
+            "Green"
+        } else {
+            title
+        };
         children.extend(panel_button(
             format!("PVPScoreboardTab{}", i + 1),
             title,
@@ -598,7 +620,17 @@ fn score_rows(
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
     let mut content = Vec::new();
+    let rated = bg
+        .arena
+        .as_ref()
+        .is_some_and(|arena| !arena.rating_changes.is_empty());
     for (index, player) in players.iter().enumerate() {
+        let rating = bg.arena.as_ref().and_then(|arena| {
+            arena
+                .rating_changes
+                .iter()
+                .find(|change| change.character_id == player.character_id)
+        });
         // Combat counters remain uninstrumented. Dashes mean unknown, not measured zero.
         let values = [
             player.name.clone(),
@@ -612,14 +644,32 @@ fn score_rows(
             player.honor_level.map_or("—".into(), |n| n.to_string()),
             "—".into(),
             "—".into(),
-            player.flag_captures.to_string(),
-            player.flag_returns.to_string(),
+            rating.map_or_else(
+                || player.flag_captures.to_string(),
+                |change| {
+                    format!(
+                        "{} ({:+})",
+                        change.rating_after,
+                        i64::from(change.rating_after) - i64::from(change.rating_before)
+                    )
+                },
+            ),
+            rating.map_or_else(
+                || player.flag_returns.to_string(),
+                |change| change.mmr_after.to_string(),
+            ),
         ];
-        let suffixes = [
-            "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
-        ];
+        let suffixes = if rated {
+            [
+                "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Rating", "MMR",
+            ]
+        } else {
+            [
+                "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
+            ]
+        };
         for (i, value) in values.iter().enumerate() {
-            if bg.arena.is_some() && i >= 7 {
+            if bg.arena.is_some() && !rated && i >= 7 {
                 continue;
             }
             let (x, width) = column(i);

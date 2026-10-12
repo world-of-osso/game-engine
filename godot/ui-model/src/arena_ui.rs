@@ -9,6 +9,72 @@ use ui_toolkit::{rsx, strata::FrameStrata, widget_def::Element};
 const WIDTH: f32 = 98.0;
 const HEIGHT: f32 = 44.0;
 
+pub(super) fn rated_panel(view: &PvpView) -> Element {
+    let mut elements = text("ConquestFrameTitle", "Rated", (194.0, 52.0, 340.0, 22.0));
+    if let Some(snapshot) = &view.snapshot {
+        elements.extend(text(
+            "ConquestFrameBalance",
+            &format!("Conquest: {}", snapshot.conquest),
+            (194.0, 90.0, 340.0, 22.0),
+        ));
+    }
+    let selected = if view.rated_bracket == shared::protocol::PvpBracketSnapshot::Arena2v2 {
+        "2v2"
+    } else {
+        "3v3"
+    };
+    elements.extend(text(
+        "ConquestFramePolicy",
+        &format!(
+            "{selected} • Full max-level group; leader queues\nRating uses the pinned TC reference"
+        ),
+        (194.0, 122.0, 340.0, 36.0),
+    ));
+    for (name, title, action, top) in [
+        ("ConquestFrameArena2v2", "2v2", "pvp:rated:2v2", 164.0),
+        ("ConquestFrameArena3v3", "3v3", "pvp:rated:3v3", 210.0),
+    ] {
+        elements.extend(panel_button(
+            name.into(),
+            title,
+            action,
+            !view.pending,
+            (194.0, top, 340.0, 40.0),
+        ));
+    }
+    elements.extend(panel_button(
+        "ConquestFrameRatedSoloShuffle".into(),
+        "Solo Shuffle — round policy unavailable",
+        "",
+        false,
+        (194.0, 256.0, 340.0, 40.0),
+    ));
+    elements.extend(panel_button(
+        "ConquestFrameRatedBG".into(),
+        "Rated Battlegrounds — unavailable",
+        "",
+        false,
+        (194.0, 302.0, 340.0, 40.0),
+    ));
+    elements.extend(text("PVPUIError", &view.error, (194.0, 348.0, 340.0, 32.0)));
+    let queued = view
+        .snapshot
+        .as_ref()
+        .is_some_and(|snapshot| snapshot.queue.is_some());
+    elements.extend(panel_button(
+        "ConquestFrameJoinButton".into(),
+        if queued { "Leave Queue" } else { "Join Battle" },
+        if queued {
+            "pvp:dequeue"
+        } else {
+            "pvp:rated:queue"
+        },
+        !view.pending && view.battleground().is_none(),
+        (365.0, 388.0, 170.0, 22.0),
+    ));
+    elements
+}
+
 pub(super) fn queue_choices(view: &PvpView) -> Element {
     [
         (
