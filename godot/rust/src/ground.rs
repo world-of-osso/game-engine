@@ -58,7 +58,7 @@ impl TerrainGround<'_> {
     }
 
     fn sample(&self, feet: Vec3) -> Option<Ground> {
-        shared::ground::ground_at(
+        let base = shared::ground::ground_at(
             feet,
             self.terrain_height(feet),
             self.terrain
@@ -73,7 +73,28 @@ impl TerrainGround<'_> {
                         .values()
                         .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
                 ),
-        )
+        );
+        let m2 = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .into_iter()
+            .flat_map(|map| &map.m2_floors)
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| &tile.m2_floors),
+            )
+            .filter_map(|tile| tile.floor_height(feet))
+            .max_by(f32::total_cmp)
+            .map(|height| Ground {
+                height,
+                surface: Surface::M2,
+            });
+        base.into_iter()
+            .chain(m2)
+            .max_by(|a, b| a.height.total_cmp(&b.height))
     }
 
     /// The original order: stop short of a WMO wall, then apply the slope and step rules.
