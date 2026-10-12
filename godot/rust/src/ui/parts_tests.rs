@@ -174,6 +174,27 @@ fn unskinned_button_without_textures_draws_nothing() {
 }
 
 #[test]
+fn transmog_hover_borders_add_light_without_covering_the_preview() {
+    for (atlas, size) in [
+        ("transmog-itemcard-default", [114.0, 146.0]),
+        ("transmog-setcard-default", [194.0, 234.0]),
+        ("transmog-setcard-incomplete", [194.0, 234.0]),
+    ] {
+        let frame = button(ButtonData {
+            use_default_skin: false,
+            highlight_texture: Some(TextureSource::Atlas(atlas.into())),
+            hovered: true,
+            highlight_size: Some(size),
+            ..Default::default()
+        });
+        let parts = project_images(&frame, size[0] - 14.0, size[1] - 14.0);
+        let hover = parts.last().expect("hover border");
+        assert!(hover.additive, "{atlas} hover must add light to the model");
+        assert_eq!(hover.rect, [-7.0, -7.0, size[0], size[1]]);
+    }
+}
+
+#[test]
 fn unskinned_button_with_authored_slice_overlays_its_highlight() {
     let glow = TextureSource::File("data/ui/glow.ktx2".into());
     let mut frame = button(ButtonData {

@@ -356,7 +356,7 @@ fn item_card(
     let disabled = book.busy();
     rsx! { button { name: {DynName(prefix)}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
     left: x, top: y, pos_type: "absolute", disabled, button_default_skin: false,
-    button_atlas_highlight: "transmog-itemcard-hover", onclick: {action.as_str()}, {children} } }
+    button_atlas_highlight: "transmog-itemcard-default", onclick: {action.as_str()}, {children} } }
 }
 
 fn source_card(book: &TransmogBook, source: &TransmogSource, index: usize) -> Element {
@@ -638,16 +638,41 @@ pub(super) fn name_popup(book: &TransmogBook) -> Element {
 /// Native-only button data the RSX attributes do not cover.
 pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_paging_art(registry);
-    if view.book.tab != WardrobeTab::Items {
-        return;
-    }
-    // TransmogItemModelTemplate HighlightTexture uses the authored114×146 hover atlas size.
-    for entry in view.book.page_items() {
-        let name = match entry {
-            ItemEntry::Hidden => "TransmogHiddenVisual".to_string(),
-            ItemEntry::Source(source) => format!("TransmogSource{}", source.source_id),
-            ItemEntry::Illusion(illusion) => format!("TransmogIllusionEntry{}", illusion.id),
-        };
+    let (names, size): (Vec<String>, [f32; 2]) = match view.book.tab {
+        WardrobeTab::Items => (
+            view.book
+                .page_items()
+                .into_iter()
+                .map(|entry| match entry {
+                    ItemEntry::Hidden => "TransmogHiddenVisual".to_string(),
+                    ItemEntry::Source(source) => format!("TransmogSource{}", source.source_id),
+                    ItemEntry::Illusion(illusion) => {
+                        format!("TransmogIllusionEntry{}", illusion.id)
+                    }
+                })
+                .collect(),
+            [114.0, 146.0],
+        ),
+        WardrobeTab::Sets => (
+            view.book
+                .page_sets()
+                .into_iter()
+                .map(|(set, _)| format!("TransmogSet{}", set.set_id))
+                .collect(),
+            [194.0, 234.0],
+        ),
+        WardrobeTab::CustomSets => (
+            view.book
+                .page_custom_sets()
+                .into_iter()
+                .map(|set| format!("TransmogCustomSet{}", set.id))
+                .collect(),
+            [194.0, 234.0],
+        ),
+        WardrobeTab::Situations => return,
+    };
+    // Blizzard_TransmogTemplates.xml: useAtlasSize, centred on item/set models.
+    for name in names {
         let id = registry
             .get_by_name(&name)
             .expect("registered transmog card");
@@ -655,7 +680,7 @@ pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::regist
         let Some(ui_toolkit::frame::WidgetData::Button(button)) = &mut frame.widget_data else {
             panic!("Transmog card {name} is not a button");
         };
-        button.highlight_size = Some([114.0, 146.0]);
+        button.highlight_size = Some(size);
     }
 }
 
