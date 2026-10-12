@@ -31,6 +31,35 @@ class MergeNpcAppearanceTests(unittest.TestCase):
             with sqlite3.connect(output) as conn:
                 self.assertEqual(conn.execute("SELECT count(*) FROM display_coverage").fetchone()[0], 3)
 
+    def test_recovered_profile_without_coverage_is_preserved_when_coverage_is_added(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base, incoming, output = (Path(directory) / name for name in
+                                      ("base.sqlite", "incoming.sqlite", "output.sqlite"))
+            profile = (4289, 6, 0, 0, 980855)
+            importer.write_database(base, ([profile], [], [], []))
+            importer.write_database(incoming, ([profile], [], [], [(4289, 1), (22132, 0)]))
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/merge_npc_appearance.py"),
+                 str(base), str(incoming), str(output)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with sqlite3.connect(output) as connection:
+                self.assertEqual(connection.execute("SELECT * FROM appearances").fetchall(), [profile])
+                self.assertEqual(connection.execute("SELECT * FROM display_coverage ORDER BY display_id").fetchall(),
+                                 [(4289, 1), (22132, 0)])
+
+    def test_conflicting_recovered_profile_refuses_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base, incoming, output = (Path(directory) / name for name in
+                                      ("base.sqlite", "incoming.sqlite", "output.sqlite"))
+            importer.write_database(base, ([(4289, 6, 0, 0, 980855)], [], [], []))
+            importer.write_database(incoming, ([(4289, 6, 0, 0, 1060054)], [], [], [(4289, 1)]))
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/merge_npc_appearance.py"),
+                 str(base), str(incoming), str(output)], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(output.exists())
+            self.assertIn("conflicting existing appearances row (4289,)", result.stderr)
+
     def test_local_companion_catalog_drives_strict_importer_display_roots(self):
         source = ROOT / "data/diagnostics/pets-2026-10-10"
         with tempfile.TemporaryDirectory() as directory:
