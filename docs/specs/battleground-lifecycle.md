@@ -1,6 +1,6 @@
 # Native battleground lifecycle
 
-Native Retail Mainline Warsong Gulch PvP UI, backed by existing shared PvP messages and the [server lifecycle contract](../../../game-server/docs/specs/battleground-lifecycle.md). Source UI lives under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_PVPUI/Mainline`, `Blizzard_GroupFinder/Mainline/PVPHelper.*` and `Blizzard_PVPMatch`. [Implementation and proof](../wiki/systems/battlegrounds.md).
+Native Retail Mainline battleground PvP UI, backed by existing shared PvP messages and the [server lifecycle contract](../../../game-server/docs/specs/battleground-lifecycle.md). Source UI lives under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_PVPUI/Mainline`, `Blizzard_GroupFinder/Mainline/PVPHelper.*` and `Blizzard_PVPMatch`. [Implementation and proof](../wiki/systems/battlegrounds.md).
 
 ## What it must do
 
@@ -10,7 +10,7 @@ Native Retail Mainline Warsong Gulch PvP UI, backed by existing shared PvP messa
 - [x] Display retained roster/objective columns, All/Alliance/Horde filters and winner/defeat results. Ended opens results even after closing the live scoreboard; unknown honor is absent and uninstrumented combat columns are explicitly unknown.
 - [x] Submit leave for an accepted match, including Waiting; the server decides whether arrival is complete and performs the authoritative origin transfer. Modern and Forever share the same native behavior.
 
-Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 accept/leave buttons, PVPMatchScoreboard1024×420, PVPMatchResults1024×620. WSG is the only exposed selectable mode; unsupported queue modes are not fabricated.
+Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 accept/leave buttons, PVPMatchScoreboard1024×420, PVPMatchResults1024×620. The Mainline SpecificScrollBox selects implemented source-backed modes: WSG1014, Arathi1018 and Gilneas120. Selection is retained in the queue request; unsupported modes are not fabricated. Node maps display authoritative POI states,1500-resource limits and measured Bases Assaulted/Defended columns rather than WSG flags/captures.
 
 ## How it works
 
@@ -32,6 +32,13 @@ Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 a
 - Server `crates/server/src/maps/tests.rs::ten_warsong_players_accept_over_the_channel_then_ack_one_reserved_map` — retained ten-player typed-channel entry, physical source objectives, outcome and origin return.
 - Native private UDP5710 runs,2026-10-11: Modern and Forever, ten real accounts each; source-position travel acceleration, native object use, three captures, complete roster/outcome and all-player origin-map returns. Native invite decline in both skins; Modern automatic end-results regression. [Receipt boundaries](../wiki/systems/battlegrounds.md#bounded-live-proof).
 
+## Coverage expansion — active2026-10-12
+
+- [ ] Entire source-backed random/epic coverage is in scope: Arathi Basin, Battle for Gilneas, Twin Peaks, Eye of the Storm, Temple of Kotmogu, Silvershard Mines, Seething Shore, Deephaul Ravine, Alterac Valley and Isle of Conquest. Deepwind Gorge lacks TDB authored placements; record this source gap, never fabricate a layout.
+- [ ] Per-BG server behavior tests and private real-UDP Modern/Forever native queue/invite/entry/objectives/scoreboard/end/leave proof, with inspected PNGs under `/syncthing/AgentShared/2026-10-12/bg-coverage/`.
+
+Arathi/Gilneas native selection, objective HUD, map-specific counters and type42 render/interaction are implemented; new native proof remains pending. The older WSG receipts below are not evidence for another map. See [server source and promotion contract](../../../game-server/docs/specs/battleground-lifecycle.md#coverage-expansion--active-2026-10-12).
+
 ## Known gaps (current cycle)
 
 - [ ] Integration review remains lead-owned. Scoped UI/object tests, native builds, helper cargo check and changed-Rust formatting pass; full suites are periodic master gates, not per-agent branch runs. No master merge performed.
@@ -39,4 +46,4 @@ Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 a
 
 ## Out of scope
 
-Numeric preparation/invitation/match/drop/reset/exit timers and honor rewards lack source policy; never fabricate countdowns or grants. Current server combat counters are not instrumented; native columns do not claim measured zero. Other battleground/rated modes, durable reconnect/origin recovery and Retail dropped-flag visual parity are not implemented by this UI scope. See the server contract for those boundaries.
+Numeric preparation/invitation/match/drop/reset/exit timers and honor rewards lack source policy; never fabricate countdowns or grants. Current server combat counters are not instrumented; native columns do not claim measured zero. Rated modes, durable reconnect/origin recovery and Retail dropped-flag visual parity are not implemented by this UI scope. See the server contract for those boundaries.
