@@ -41,7 +41,7 @@ Arathi/Gilneas native selection, objective HUD, map-specific counters and type 4
 
 ## Kotmogu continuation — active 2026-10-12
 
-Queue 699/map 998 uses the same native Retail specific queue/invitation/result controls in both skins. Its four Orb of Power cells display authoritative source WorldStates as Alliance/Horde/At base; score limit is 1500. Scoreboard uses DB2 column order: Orb Possessions 418, Victory Points 419. Source type 24 flagstand orb M2s render and offer normal object use. Server channel/protocol rules are proved separately; private native both-skin proof and canonical source-content publication remain pending. Orb combat aura/kill credit is not certified.
+Queue 699/map 998 uses the same native Retail specific queue/invitation/result controls in both skins. Its four Orb of Power cells display authoritative source WorldStates as Alliance/Horde/At base; score limit is 1500. Scoreboard uses DB2 column order: Orb Possessions 418, Victory Points 419. Source type 24 flagstand orb M2s render and offer normal object use. Server channel/protocol rules are proved separately. Private UDP 5712 Modern/Forever proof uses four real accounts: source orb use, natural center ticks, 1500 victory, measured 418=1/419=1500, automatic results after closing the scoreboard and origin return. Eighteen inspected 1280×720 PNGs and `kotmogu-live-proof.json` record boundaries. Fixture baseline level/alive/source-origin setup precedes matching; in-match admin only accelerates authored travel. Canonical source publication, orb combat aura/kill credit and scenery/art parity are not certified; source NPC appearance/asset diagnostics and visible checker geometry remain explicit gaps.
 
 ## Known gaps (current cycle)
 
