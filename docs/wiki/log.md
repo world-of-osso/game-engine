@@ -32,6 +32,10 @@
 ## 2026-10-12 — Source-backed battleground node maps
 
 [Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+## 2026-10-12 — Source dice and item-label rendering
+
+[Dice](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12): actual-use source one1–100/two1–6 scripts, party/self result audience,40yd emotes and data/context/signature refusal boundaries. Native raw-item-markup RED fixed through received label/colour parsing;25 scoped chat regressions, both-skin actual journal/chat proof and current check/fmt pass. Canonical327 preflight candidates are not1166 certification; item interaction and stronger sign composition remain separate.
+
 ## 2026-10-12 — Source warning-sign batches
 
 [Warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12): four source actor identities, both-skin real learning/use/mesh/scale/natural expiry. Swarthy195897 additionally proves one start/two authored models/scales/root offsets/scene-wide cleanup. Weak first-three captures await genuine cooldowns; per-effect pixel/particle certification remains separate. Prepared325 is not1166 completion; authenticated private preparation and source admission preserve existing gates.
