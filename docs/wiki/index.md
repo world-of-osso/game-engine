@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural4524/246 census, remaining producers and source gaps explicit.
+
 - [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
 - [Cooking focus and replicated-object fire](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12) — real both-skin journal/recipe/emitter proof; linked-trap and per-variant pixel boundaries explicit.
 
