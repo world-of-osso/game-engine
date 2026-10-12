@@ -84,6 +84,8 @@ func track(offset: int, value_size: int) -> Dictionary:
 	var times := array_at(md20, offset + 4)
 	var values := array_at(md20, offset + 12)
 	var sequence: int = 0 if result.global >= 0 else playing_sequence
+	if sequence >= times.x:
+		sequence = 0
 	if sequence >= times.x or sequence >= values.x:
 		return result
 	var inner_times := array_at(md20, times.y + sequence * 8)
