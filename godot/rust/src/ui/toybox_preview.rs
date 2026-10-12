@@ -28,6 +28,7 @@ impl RegistryUi {
                 source_type: 0,
                 source_text: "|cFFFFD200Drop: |rTerokk|n|cFFFFD200Zone: |rTerokkar Forest".into(),
                 spell_id: Some(41301),
+                requires_target_witness: false,
                 learned: true,
                 favourite: true,
                 unavailable_reason: None,
