@@ -452,7 +452,12 @@ impl GameClient {
         side: OwnerSide,
         item: InventorySlot,
     ) -> Option<HoveredTooltip> {
-        let tooltip = item_game_tooltip(&item, self.player_level());
+        let mut tooltip = item_game_tooltip(&item, self.player_level());
+        tooltip.content = self.mount_journal.view.item_tooltip(
+            item.definition_source,
+            item.item_id,
+            tooltip.content,
+        );
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, side, tooltip)?,
             item: Some(item),
@@ -739,7 +744,12 @@ impl GameClient {
             auction_row_item(frame.onclick.as_deref()?, &self.auction.session.net)
         })?;
         drop(ui);
-        let tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
+        let mut tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
+        tooltip.content = self.mount_journal.view.item_tooltip(
+            item.definition_source,
+            item.item_id,
+            tooltip.content,
+        );
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
             item: Some(item),

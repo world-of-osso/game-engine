@@ -222,6 +222,7 @@ fn send_catalog(app: &mut App, npc: u64, count: u32, stock: u32) {
             guild_repair_money: None,
             items: vec![
                 VendorItem {
+                    extra_costs: Vec::new(),
                     slot: 0,
                     item_id: 2589,
                     name: "Fixture Linen Bundle".into(),
@@ -234,6 +235,7 @@ fn send_catalog(app: &mut App, npc: u64, count: u32, stock: u32) {
                     max_durability: None,
                 },
                 VendorItem {
+                    extra_costs: Vec::new(),
                     slot: 1,
                     item_id: 4865,
                     name: "Fixture Single Pelt".into(),
@@ -247,6 +249,7 @@ fn send_catalog(app: &mut App, npc: u64, count: u32, stock: u32) {
                 },
                 // Worn Shortsword: SetMerchantItem shows a new item's full stats and durability.
                 VendorItem {
+                    extra_costs: Vec::new(),
                     slot: 2,
                     item_id: 25,
                     name: "Fixture Vendor Sword".into(),
