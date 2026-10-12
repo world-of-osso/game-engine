@@ -3443,3 +3443,7 @@ All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; a
 ## 2026-10-12 — Mount asset native census complete
 
 Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered in each skin, including152 dependency-only recoveries and native quarter-turn proof for two small default silhouettes. Hash-guarded package default validation passes12,170 artifacts; lead publication remains pending. Nine inspected PNGs shared; missing journal identities and normal-host scroll boundary remain explicit. [Proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
+
+- 2026-10-12: [Toy Box](systems/toy-box.md#source-warning-sign-batches-2026-10-12): front-facing actual-use sign captures/natural expiry in both skins; carving/148628/shared-visibility remains explicitly uncertified.
+
+- 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
