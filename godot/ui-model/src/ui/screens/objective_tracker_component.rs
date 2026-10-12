@@ -147,16 +147,25 @@ impl ObjectiveTrackerState {
                 let entry = runtime
                     .entry(block.quest_id)
                     .expect("tracked world quest entry");
-                let current = entry
-                    .objectives
-                    .iter()
-                    .map(|objective| objective.current)
-                    .sum();
-                let total = entry
-                    .objectives
-                    .iter()
-                    .map(|objective| objective.required)
-                    .sum();
+                let (current, total) = match entry.objectives.iter().find(|objective| {
+                    objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar
+                }) {
+                    Some(bar) => (bar.current, bar.required),
+                    None => (
+                        entry
+                            .objectives
+                            .iter()
+                            .filter(|objective| !objective.optional)
+                            .map(|objective| objective.current)
+                            .sum(),
+                        entry
+                            .objectives
+                            .iter()
+                            .filter(|objective| !objective.optional)
+                            .map(|objective| objective.required)
+                            .sum(),
+                    ),
+                };
                 (block, (current, total))
             })
             .collect();

@@ -86,6 +86,7 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
                     completed: false,
                     kind: QuestObjectiveKind::Monster,
                     object_id: 46327,
+                    optional: false,
                 }],
                 level: -1,
                 sort_id: 4922,
