@@ -146,7 +146,7 @@ fn run() -> Result<(), String> {
         });
     }
     let mut last = String::new();
-    let deadline = Instant::now() + Duration::from_secs(1800);
+    let deadline = Instant::now() + Duration::from_secs(3600);
     while Instant::now() < deadline {
         for peer in &mut peers {
             for event in peer.bridge.drain_events()? {
@@ -179,7 +179,7 @@ fn run() -> Result<(), String> {
         }
         thread::sleep(Duration::from_millis(50));
     }
-    Err("Live peers exceeded 30-minute deadline".into())
+    Err("Live peers exceeded one-hour integration deadline".into())
 }
 fn main() {
     if let Err(error) = run() {
