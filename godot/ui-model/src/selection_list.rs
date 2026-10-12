@@ -3,7 +3,7 @@
 //! `groupfinder-highlightbar-blue`. Atlas resolution selects Forever art only
 //! when that skin has an authored member for the same atlas name.
 use crate::bank_art::label;
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR};
 use ui_toolkit::{
     frame::{Frame, WidgetData},
     rsx,
@@ -32,6 +32,14 @@ pub fn row(
     } }
 }
 
+/// Keep the atlas identity for Retail's ADD blend, at the same depth as the label.
+pub fn selection_background(name: String, selected: bool, rect: (f32, f32, f32, f32)) -> Element {
+    let (left, top, width, height) = rect;
+    let hidden = !selected;
+    rsx! { texture { name: {DynName(name)}, width, height, left, top, hidden,
+    pos_type: "absolute", texture_atlas: SELECTED } }
+}
+
 pub fn text_row(
     name: String,
     text: &str,
@@ -42,20 +50,35 @@ pub fn text_row(
 ) -> Element {
     let (_, _, width, height) = rect;
     let hidden = !selected;
-    let mut content = rsx! { r#frame { name: {DynName(format!("{name}Selected"))}, width, height,
-        hidden, pos_type: "absolute", left: 0.0, top: 0.0,
-        {named_atlas_texture(format!("{name}SelectedArt"), SELECTED, (0.0,0.0,width,height))}
-        {named_atlas_texture(format!("{name}Check"), "groupfinder-icon-greencheckmark", (width-22.0,(height-16.0)/2.0,16.0,16.0))}
-    } };
+    let mut content = selection_background(
+        format!("{name}Selected"),
+        selected,
+        (0.0, 0.0, width, height),
+    );
+    content.extend(
+        rsx! { texture { name: {DynName(format!("{name}Check"))}, width: 16.0, height: 16.0,
+        left: {width-22.0}, top: {(height-16.0)/2.0}, hidden, pos_type: "absolute",
+        texture_atlas: "groupfinder-icon-greencheckmark" } },
+    );
     let color = if enabled {
         NORMAL_FONT_COLOR
     } else {
         "0.5,0.5,0.5,1"
     };
+    let label_height = if text.contains('\n') {
+        height
+    } else {
+        height.min(20.0)
+    };
     content.extend(label(
         format!("{name}Name"),
         text,
-        (8.0, 0.0, width - 32.0, height),
+        (
+            8.0,
+            (height - label_height) / 2.0,
+            width - 32.0,
+            label_height,
+        ),
         (12.0, color, "LEFT"),
     ));
     row(name, action, enabled, rect, content)

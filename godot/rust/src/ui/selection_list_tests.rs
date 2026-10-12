@@ -22,6 +22,16 @@ fn selection_row_hover_and_keyboard_focus_draw_without_push_button_chrome() {
         postsetup: ScreenPostsetup::None,
     };
     tests::rebuild(&mut model);
+    let selected = model
+        .registry
+        .get_by_name("HonorFrameSpecificBattlegroundButton1014Selected")
+        .unwrap();
+    let artwork = parts::project_images(model.registry.get(selected).unwrap(), 324.0, 40.0);
+    assert_eq!(artwork.len(), 1);
+    assert!(
+        artwork[0].additive,
+        "selected highlight must not paint an opaque rectangle over the label"
+    );
     let id = model
         .registry
         .get_by_name("HonorFrameSpecificBattlegroundButton699")

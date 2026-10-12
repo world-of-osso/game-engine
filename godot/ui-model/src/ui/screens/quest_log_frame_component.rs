@@ -317,17 +317,11 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
     };
     let mut elements = Vec::new();
     if row.selected {
-        elements.extend(rsx! {
-            r#frame {
-                name: {DynName(format!("{name}Selected"))},
-                width: list_w,
-                height: ROW_H,
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-                {named_atlas_texture(format!("{name}SelectedArt"), crate::selection_list::SELECTED, (0.0, 0.0, list_w, ROW_H))}
-            }
-        });
+        elements.extend(crate::selection_list::selection_background(
+            format!("{name}Selected"),
+            true,
+            (0.0, 0.0, list_w, ROW_H),
+        ));
     }
     elements.extend(atlas_texture(
         format!("{name}Icon"),

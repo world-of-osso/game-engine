@@ -268,9 +268,9 @@ fn saved_row(
     let name = format!("RaidInfoRow{index}");
     let selected = selected == Some((row.lock.map_id, row.lock.difficulty_id));
     let mut background = if selected {
-        crate::quest_art::named_atlas_texture(
+        crate::selection_list::selection_background(
             format!("{name}Selected"),
-            crate::selection_list::SELECTED,
+            true,
             (0.0, 0.0, 292.0, 40.0),
         )
     } else {

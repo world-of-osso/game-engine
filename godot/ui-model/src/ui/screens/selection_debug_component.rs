@@ -209,18 +209,11 @@ fn selection_row(index: usize, entry: &SelectionDebugEntry, selected: bool) -> E
 }
 
 fn selection_row_selected_accent(index: usize, hide_selected: bool) -> Element {
-    rsx! {
-        r#frame {
-            name: {row_selected_name(index)},
-            width: 402.0,
-            height: 80.0,
-            hidden: hide_selected,
-            pos_type: "absolute",
-            left: 0.0,
-            top: 0.0,
-            {crate::quest_art::named_atlas_texture(format!("SelectionDebugRow{index}SelectedArt"), crate::selection_list::SELECTED, (0.0, 0.0, 402.0, 80.0))}
-        }
-    }
+    crate::selection_list::selection_background(
+        row_selected_name(index).0,
+        !hide_selected,
+        (0.0, 0.0, 402.0, 80.0),
+    )
 }
 
 fn selection_row_label(index: usize, label: &str) -> Element {
