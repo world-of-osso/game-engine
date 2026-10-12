@@ -130,6 +130,33 @@ fn tree350_view() -> ProfessionView {
     view
 }
 #[test]
+fn specialization_dial_shows_only_selected_path_source_perks() {
+    let mut view = state();
+    let tree = &mut view.specializations.snapshot.as_mut().unwrap().trees[0];
+    let mut perk = tree.nodes[0].clone();
+    perk.node_id = 28534;
+    perk.entry_id = 36325;
+    perk.name = "Leather armor skill bonus".into();
+    perk.description = "Gain 5 Skill when crafting leather armor.".into();
+    perk.rank = 0;
+    perk.max_rank = 1;
+    perk.perk = Some(ProfessionSpecPerk {
+        path_node_id: 100,
+        required_points: 2,
+        unlocks_subpath: false,
+    });
+    let mut other = perk.clone();
+    other.node_id = 28533;
+    other.perk.as_mut().unwrap().path_node_id = 28540;
+    tree.nodes.extend([perk, other]);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(view.clone(), skin);
+        assert!(registry.get_by_name("ProfessionSpecPerk28534").is_some());
+        assert!(registry.get_by_name("ProfessionSpecPerk28533").is_none());
+    }
+}
+
+#[test]
 fn specialization_tree350_uses_retail_radial_positions_and_one_button_per_path() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(tree350_view(), skin);
