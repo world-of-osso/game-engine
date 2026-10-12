@@ -241,7 +241,7 @@ fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
         .into_iter()
         .filter(|template| {
-            template.id == 1014 || shared::battleground::node_rules(template.map_id).is_some()
+            !shared::battleground::objective_object_entries(template.map_id).is_empty()
         })
         .collect()
 }
@@ -504,27 +504,15 @@ fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
         (12.0, WHITE, "CENTER"),
     )
 }
-fn objective_titles(bg: &BattlegroundSnapshot) -> [&'static str; 2] {
-    if shared::battleground::node_rules(bg.map_id).is_some() {
-        ["Bases Assaulted", "Bases Defended"]
-    } else {
-        ["Captures", "Returns"]
-    }
-}
 fn objective_value(
-    bg: &BattlegroundSnapshot,
     player: &shared::protocol::BattlegroundPlayerScoreSnapshot,
-    index: usize,
+    stat: u32,
 ) -> String {
-    if let Some(rules) = shared::battleground::node_rules(bg.map_id) {
-        let id = [rules.assault_stat, rules.defense_stat][index];
-        return player
-            .objective_scores
-            .iter()
-            .find(|(stat, _)| *stat == id)
-            .map_or("—".into(), |(_, value)| value.to_string());
-    }
-    [player.flag_captures, player.flag_returns][index].to_string()
+    player
+        .objective_scores
+        .iter()
+        .find(|(id, _)| *id == stat)
+        .map_or("—".into(), |(_, value)| value.to_string())
 }
 
 fn hud(view: &PvpView) -> Element {
@@ -588,22 +576,13 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
             ));
         }
     }
-    let objective_titles = objective_titles(bg);
-    for (i, title) in [
-        "Name",
-        "KB",
-        "HK",
-        "Deaths",
-        "Honor",
-        "Damage",
-        "Healing",
-        objective_titles[0],
-        objective_titles[1],
-    ]
-    .iter()
-    .enumerate()
-    {
-        let (x, width) = column(i);
+    let stats = shared::battleground::pvp_stat_columns(bg.map_id);
+    let titles = BASE_TITLES
+        .iter()
+        .copied()
+        .chain(stats.iter().map(|stat| stat.title));
+    for (i, title) in titles.enumerate() {
+        let (x, width) = column(i, stats.len());
         children.extend(text(
             &format!("PVPMatchCategory{i}"),
             title,
@@ -649,18 +628,23 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         children,
     )
 }
-fn column(index: usize) -> (f32, f32) {
-    [
-        (0.0, 188.0),
-        (188.0, 55.0),
-        (243.0, 55.0),
-        (298.0, 65.0),
-        (363.0, 65.0),
-        (428.0, 125.0),
-        (553.0, 125.0),
-        (678.0, 125.0),
-        (803.0, 125.0),
-    ][index]
+const BASE_TITLES: [&str; 7] = ["Name", "KB", "HK", "Deaths", "Honor", "Damage", "Healing"];
+const BASE_COLUMNS: [(f32, f32); 7] = [
+    (0.0, 188.0),
+    (188.0, 55.0),
+    (243.0, 55.0),
+    (298.0, 65.0),
+    (363.0, 65.0),
+    (428.0, 125.0),
+    (553.0, 125.0),
+];
+/// Source stat columns share the remaining scroll-child width after the base columns.
+fn column(index: usize, stats: usize) -> (f32, f32) {
+    if let Some(base) = BASE_COLUMNS.get(index) {
+        return *base;
+    }
+    let width = 250.0 / stats as f32;
+    (678.0 + (index - BASE_COLUMNS.len()) as f32 * width, width)
 }
 fn score_rows(
     context: &SharedContext,
@@ -678,28 +662,36 @@ fn score_rows(
     let offset = geometry.clamp(context.scroll_first_row("PVPMatchScrollBox"));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
+    let stats = shared::battleground::pvp_stat_columns(bg.map_id);
     let mut content = Vec::new();
     for (index, player) in players.iter().enumerate() {
         // Combat counters remain uninstrumented. Dashes mean unknown, not measured zero.
-        let values = [
-            player.name.clone(),
-            "—".into(),
-            player.honorable_kills.map_or("—".into(), |n| n.to_string()),
-            "—".into(),
-            player.honor_level.map_or("—".into(), |n| n.to_string()),
-            "—".into(),
-            "—".into(),
-            objective_value(bg, player, 0),
-            objective_value(bg, player, 1),
+        let base = [
+            (String::new(), player.name.clone()),
+            ("KB".into(), "—".into()),
+            (
+                "HK".into(),
+                player.honorable_kills.map_or("—".into(), |n| n.to_string()),
+            ),
+            ("Deaths".into(), "—".into()),
+            (
+                "Honor".into(),
+                player.honor_level.map_or("—".into(), |n| n.to_string()),
+            ),
+            ("Damage".into(), "—".into()),
+            ("Healing".into(), "—".into()),
         ];
-        let suffixes = [
-            "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
-        ];
-        for (i, value) in values.iter().enumerate() {
-            let (x, width) = column(i);
+        let objectives = stats.iter().map(|stat| {
+            (
+                format!("Stat{}", stat.stat),
+                objective_value(player, stat.stat),
+            )
+        });
+        for (i, (suffix, value)) in base.into_iter().chain(objectives).enumerate() {
+            let (x, width) = column(i, stats.len());
             content.extend(text(
-                &format!("PVPMatchPlayer{}{}", player.character_id, suffixes[i]),
-                value,
+                &format!("PVPMatchPlayer{}{suffix}", player.character_id),
+                &value,
                 (x, index as f32 * 22.0, width, 22.0),
             ));
         }
