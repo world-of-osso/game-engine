@@ -13,6 +13,7 @@ use godot::{
 impl SpellsHud {
     pub(super) fn cancel_ground_target(&mut self) {
         self.ground.cancel();
+        self.ground_toy = None;
         self.item.cancel();
         if let Some(reticle) = self.reticle.take() {
             reticle.free();
@@ -21,6 +22,26 @@ impl SpellsHud {
 }
 
 impl GameClient {
+    pub(crate) fn begin_ground_toy(&mut self, item_id: u32, spell_id: u32) -> bool {
+        let Some(spell) = self.spells.catalog().and_then(|data| data.get(spell_id)) else {
+            return false;
+        };
+        if !spell.ground_targeted {
+            return false;
+        }
+        let name = spell.name.to_string();
+        self.spells.ground.begin(shared::protocol::SpellCastIntent {
+            spell_id: Some(spell_id),
+            spell: name,
+            target_entity: None,
+            target_item_guid: None,
+            witness: None,
+            destination: None,
+        });
+        self.spells.ground_toy = Some(item_id);
+        true
+    }
+
     pub(crate) fn cancel_ground_target(&mut self) -> bool {
         let active = self.spells.ground.active() || self.spells.item.active();
         self.spells.cancel_ground_target();
@@ -83,7 +104,11 @@ impl GameClient {
             return Ok(());
         };
         let id = intent.spell_id.expect("ground cursor stores a spell ID");
-        self.account.send_spell_intent(intent)?;
+        if let Some(item_id) = self.spells.ground_toy.take() {
+            self.account.send_use_toy(item_id, intent.destination)?;
+        } else {
+            self.account.send_spell_intent(intent)?;
+        }
         self.spells.sent.push(id);
         self.spells.cancel_ground_target();
         Ok(())
