@@ -66,7 +66,7 @@ fn parse_tile_objects(
         .transpose()
 }
 
-fn m2_floor_neighbour_paths(dir: &Path, (row, col): (u32, u32)) -> Vec<PathBuf> {
+fn build_m2_floor_neighbour_paths(dir: &Path, (row, col): (u32, u32)) -> Vec<PathBuf> {
     const LAST_TILE: u32 = shared::los::MAP_TILES - 1;
     (row.saturating_sub(1)..=(row + 1).min(LAST_TILE))
         .flat_map(|r| (col.saturating_sub(1)..=(col + 1).min(LAST_TILE)).map(move |c| (r, c)))
@@ -247,7 +247,7 @@ impl NativeTerrainAssets {
     ) -> Result<Vec<shared::los::LosTile>, String> {
         let dir = self.data_root.join(format!("los/{map_id}/m2"));
         let paths = match tile {
-            Some(tile) => m2_floor_neighbour_paths(&dir, tile),
+            Some(tile) => build_m2_floor_neighbour_paths(&dir, tile),
             None => read_m2_floor_paths(&dir)?,
         };
         let mut floors = Vec::new();
