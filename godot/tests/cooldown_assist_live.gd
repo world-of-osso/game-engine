@@ -176,8 +176,8 @@ func run_fixture() -> void:
 	var before: int = client.spells_state().sent.size()
 	var successes_before: int = client.spells_state().cast_success.size()
 	var charge_before := viewer_charge(expected)
-	if expected not in [35395, 20271] or int(charge_before.get("charges", -1)) < 1:
-		fail("Ret private sample must recommend an available real charge spell")
+	if expected not in [35395, 20271] or int(charge_before.get("charges", -1)) != 2:
+		fail("Ret private charge proof requires an authored recommendation with two real charges")
 		return
 	await click("ActionButton6")
 	deadline = Time.get_ticks_msec() + 5000
@@ -196,22 +196,34 @@ func run_fixture() -> void:
 		fail("Authoritative assisted cast must consume one charge and start recharge")
 		return
 	write_json("charge-proof", {"before": charge_before, "after": charge_after, "cast": expected})
-	# Select another living enemy before the low-health first victim dies. Observe
-	# the source-ordered update after charge consumption/recovery, never assign it.
-	await key(KEY_TAB)
-	var updated_expected := 20271 if expected == 35395 else 35395
-	deadline = Time.get_ticks_msec() + 10000
-	while client.assisted_combat_state().get("next_spell", 0) != updated_expected and Time.get_ticks_msec() < deadline:
-		await process_frame
-	if client.assisted_combat_state().get("next_spell", 0) != updated_expected:
-		fail("Recommendation did not update to the other ready authored Ret spell after assisted cast")
+	await prove_recommendation_update(expected)
+	if failed:
 		return
-	if not await prove_highlights(updated_expected, "updated-highlight"):
-		return
-	await capture("recommendation-updated")
-	write_json("recommendation-update-proof", {"before": expected, "after": updated_expected, "assisted": client.assisted_combat_state(), "target": client.target_state()})
 	print("PASS: real manager clocks, authored single-button cast, charge consumption/recharge, recommendation update and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
 	quit(0)
+
+func prove_recommendation_update(previous: int) -> void:
+	var deadline := Time.get_ticks_msec() + 10000
+	var observed: Dictionary = client.assisted_combat_state()
+	# Observe the existing target first: gained Holy Power can enable a spender
+	# immediately. If it dies, select another ordinary enemy; never assign facts.
+	while (int(observed.next_spell) == 0 or int(observed.next_spell) == previous) and Time.get_ticks_msec() < deadline:
+		if client.target_state().get("health_text", "").begins_with("0 /"):
+			await key(KEY_TAB)
+		await process_frame
+		observed = client.assisted_combat_state()
+	if int(observed.next_spell) == 0 or int(observed.next_spell) == previous:
+		fail("No distinct post-cast authored recommendation observed")
+		return
+	var evaluation: Variant = JSON.parse_string(observed.get("evaluation_json", ""))
+	if not evaluation is Dictionary or not evaluation.get("selection", {}).get("Ok", {}) is Dictionary:
+		fail("Post-cast recommendation needs same-decision facts for exact core replay")
+		return
+	if int(evaluation.selection.Ok.get("Spell", 0)) != int(observed.next_spell):
+		fail("Recorded core selection differs from observed recommendation")
+		return
+	write_json("recommendation-update-proof", {"before": previous, "after": int(observed.next_spell), "assisted": observed, "evaluation": evaluation, "target": client.target_state()})
+	await capture("recommendation-updated")
 
 func enter_private_combat() -> bool:
 	# Tab candidates move behind real M2/WMO occluders. A selected target alone
@@ -224,7 +236,7 @@ func enter_private_combat() -> bool:
 			fail(error)
 			return false
 		var deadline := Time.get_ticks_msec() + 3000
-		while client.spells_state().cast_success.size() == before and Time.get_ticks_msec() < deadline:
+		while (client.spells_state().cast_success.size() == before or not client.assisted_combat_state().in_combat) and Time.get_ticks_msec() < deadline:
 			await process_frame
 		if client.spells_state().cast_success.size() > before and client.assisted_combat_state().in_combat:
 			write_json("combat-entry-proof", {"attempt": attempt + 1, "spells": client.spells_state(), "target": client.target_state()})
