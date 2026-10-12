@@ -1,3 +1,7 @@
+## 2026-10-12 — Twin Peaks and sourced scoreboard columns
+
+[Flag maps](systems/battlegrounds.md#source-node-maps--implementation-proof2026-10-12): Twin Peaks108/map726 joins WSG on one shared flag rule set with its PvpStats290/291 and TC's15-minute end; scoreboard columns now come from PvpStat/PvpScoreboardLayout for every map. Both-skin private proof: 10 accounts, three physical captures, Victory, return.
+
 ## 2026-10-12 — Source-backed battleground node maps
 
 [Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type42 native rendering.82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private5712 both-skin16-account source capture/resource/victory/return proof adds14 inspected PNGs; Gilneas private5712 both-skin6-account proof (three physical nodes,1500 victory, return) adds14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
