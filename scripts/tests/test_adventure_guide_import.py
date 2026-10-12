@@ -1,4 +1,5 @@
 """Pinned local journal cache acceptance; no guessed encounter or item identities."""
+from contextlib import closing
 import importlib.util
 import os
 from pathlib import Path
@@ -18,7 +19,7 @@ class JournalImportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / 'journal.sqlite'
             module.import_cache(source / 'db2', source, output, Path(os.environ['ADVENTURE_GUIDE_ITEMS']), Path(os.environ['ADVENTURE_GUIDE_WORLD']))
-            with sqlite3.connect(output) as conn:
+            with closing(sqlite3.connect(output)) as conn:
                 encounter = conn.execute('SELECT ID,Name_lang,JournalInstanceID,FirstSectionID FROM JournalEncounter WHERE ID=663').fetchone()
                 self.assertEqual(encounter[1], 'Jandice Barov')
                 self.assertEqual(conn.execute('SELECT Name_lang FROM JournalInstance WHERE ID=?', (encounter[2],)).fetchone()[0], 'Scholomance')
