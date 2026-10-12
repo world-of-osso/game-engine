@@ -67,7 +67,7 @@ func run_fixture() -> void:
 		if OS.get_environment("MOUNT_VENDOR") == "1":
 			await tap(KEY_ESCAPE)
 			if not await open_vendor(): return
-			await motion(control("MerchantItem2ItemButton").get_global_rect().get_center(), false)
+			await motion(control("MerchantItem2").get_global_rect().get_center(), false)
 			if not await wait_until(func(): return "Already known|" in client.tooltip_state().lines, "vendor known tooltip"): return
 			if "Already known" not in control("MerchantItem2Name").text: fail("Vendor name lacks known feedback"); return
 			await capture("vendor-already-known")
@@ -112,11 +112,11 @@ func run_fixture() -> void:
 func buy_mare() -> bool:
 	if not await open_vendor(): return false
 	var before := int(client.merchant_state().money)
-	await motion(control("MerchantItem2ItemButton").get_global_rect().get_center(), false)
+	await motion(control("MerchantItem2").get_global_rect().get_center(), false)
 	if not await wait_until(func(): return client.tooltip_state().title == "Chestnut Mare Bridle", "unknown vendor mount tooltip"): return false
 	if "Already known|" in client.tooltip_state().lines: fail("Unknown account showed known mount"); return false
 	await capture("vendor-before-buy")
-	await click("MerchantItem2ItemButton", MOUSE_BUTTON_RIGHT)
+	await click("MerchantItem2", MOUSE_BUTTON_RIGHT)
 	if not await wait_until(func(): return int(client.merchant_state().money) == before - 10000, "authentic one-gold vendor payment"): return false
 	var found := false
 	for item in client.merchant_state().bags:
@@ -133,7 +133,7 @@ func open_vendor() -> bool:
 	# TDB1210 Katie Hunter uses quest greeting menu4004 option0 (vendor).
 	if not await wait_until(func(): return control("GossipOption0Text") != null, "Katie Hunter authored vendor greeting"): return false
 	await click("GossipOption0Text")
-	return await wait_until(func(): return client.merchant_state().open and control("MerchantItem2ItemButton") != null, "projected Katie Hunter mount inventory")
+	return await wait_until(func(): return client.merchant_state().open and control("MerchantItem2") != null, "projected Katie Hunter mount inventory")
 
 func ipc(arguments: Array) -> String:
 	var worker := Thread.new()
