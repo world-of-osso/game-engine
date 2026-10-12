@@ -15,7 +15,7 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 
 - [ ] Authentic vendors sell mount teaching items/direct-learn mounts under existing cost, ExtendedCost, faction and reputation requirements; buying/learning is proved natively in both skins.
 - [ ] Mount teaching items list/sell/buy under Retail AH Miscellaneous→Mounts; buying/delivery/UseItem adds ownership, with both-skin live proof.
-- [ ] Already-collected mounts show “Already known” in item tooltips, vendor entries and AH presentation, reflecting authoritative account state.
+- [ ] Already-collected mounts show “Already known” in item tooltips, vendor entries and AH presentation, reflecting authoritative account state. Teaching-item identities come from the server's authentic Retail ItemEffect links; same-ID Forever items remain separate.
 - [ ] Mount items grant no transmog appearance; Mounts shares the Collections frame with the existing Pets/Toys/Appearances integration. Note authored mount-equipment slot/data support without inventing unsupported behaviour.
 
 ## How it works
