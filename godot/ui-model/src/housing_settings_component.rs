@@ -1,0 +1,142 @@
+//! Blizzard_HousingHouseSettings.xml: 600x550, three 160px access columns.
+use crate::housing_component::HousingView;
+use crate::housing_settings::{AccessMode, HouseSettings};
+use crate::quest_art::{DynName, named_atlas_texture};
+use crate::ui::strata::FrameStrata;
+use ui_toolkit::{rsx, widget_def::Element};
+
+pub fn settings_screen(view: &HousingView) -> Element {
+    let Some(draft) = &view.model.settings else {
+        return Vec::new();
+    };
+    let left = ((view.viewport[0] - 600.0) / 2.0).max(0.0);
+    let top = ((view.viewport[1] - 550.0) / 2.0).max(0.0);
+    let background = named_atlas_texture(
+        "HousingSettingsBackground".into(),
+        "housing-basic-container",
+        (0.0, 0.0, 600.0, 550.0),
+    );
+    let header = named_atlas_texture(
+        "HousingSettingsHeader".into(),
+        "housing-basic-container-woodheader",
+        (6.0, 6.0, 588.0, 39.0),
+    );
+    let columns = access_columns(draft, view.model.pending);
+    let save_disabled = view.model.pending || draft.access.is_none();
+    rsx! { r#frame { name: "HousingRoot", stretch: true,
+        r#frame { name: "HousingHouseSettingsFrame", width: 600.0, height: 550.0,
+            pos_type: "absolute", left, top, strata: FrameStrata::Dialog, mouse_enabled: true,
+            {background} {header} {columns}
+            fontstring { name: "HousingSettingsTitle", text: "House Settings", width: 400.0, height: 30.0,
+                pos_type: "absolute", left: 100.0, top: 14.0, font_size: 17.0 }
+            button { name: "HousingSettingsClose", text: "X", width: 32.0, height: 32.0,
+                pos_type: "absolute", left: 564.0, top: 4.0, onclick: "housing:close" }
+            fontstring { name: "HousingSettingsOwnerLabel", text: "House Owner", width: 200.0, height: 20.0,
+                pos_type: "absolute", left: 46.0, top: 104.0, font_size: 15.0, justify_h: "LEFT" }
+            button { name: "HousingSettingsOwner", text: "Owner assignment unavailable", width: 200.0, height: 28.0,
+                pos_type: "absolute", left: 46.0, top: 132.0, disabled: true }
+            button { name: "HousingSettingsAbandon", text: "Abandon House", width: 152.0, height: 28.0,
+                pos_type: "absolute", left: 401.0, top: 132.0, disabled: true }
+            fontstring { name: "HousingSettingsUnavailable", text: "Plot / blueprint access and owner assignment are unavailable; Save changes house access only.",
+                width: 508.0, height: 35.0, pos_type: "absolute", left: 46.0, top: 465.0, font_size: 12.0 }
+            button { name: "HousingSettingsIgnoreList", text: "Ignore List", width: 152.0, height: 28.0,
+                pos_type: "absolute", left: 46.0, top: 488.0, disabled: true }
+            button { name: "HousingSettingsSave", text: "Save", width: 152.0, height: 28.0,
+                pos_type: "absolute", left: 402.0, top: 488.0, onclick: "housing:settings:save", disabled: save_disabled }
+        }
+    } }
+}
+
+fn access_columns(draft: &HouseSettings, pending: bool) -> Element {
+    let house = house_access(draft, pending);
+    let plot = unavailable_column("Plot", "Plot Access", 46.0);
+    let blueprint = unavailable_column("Blueprint", "Blueprint Export", 406.0);
+    rsx! { {plot} {house} {blueprint} }
+}
+
+fn unavailable_column(key: &str, label: &str, left: f32) -> Element {
+    rsx! { r#frame { name: {DynName(format!("HousingSettings{key}Access"))}, width: 160.0, height: 225.0,
+        pos_type: "absolute", left, top: 215.0,
+        fontstring { name: {DynName(format!("HousingSettings{key}Label"))}, text: label,
+            width: 160.0, height: 20.0, font_size: 15.0, justify_h: "LEFT" }
+        button { name: {DynName(format!("HousingSettings{key}Mode"))}, text: "Unavailable", width: 160.0, height: 28.0,
+            pos_type: "absolute", top: 25.0, disabled: true }
+    } }
+}
+
+fn house_access(draft: &HouseSettings, pending: bool) -> Element {
+    let mode = draft.mode.label();
+    let access = draft.access.unwrap_or_default();
+    let disabled = pending || draft.mode != AccessMode::Limited;
+    let choices: Element = [
+        ("neighbors", "Neighbors", access.neighbors),
+        ("guild", "Guild", access.guild),
+        ("friends", "Friends", access.friends),
+        ("party", "Party", access.party),
+    ]
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, (key, label, checked))| {
+        choice(key, label, checked, disabled, 77.0 + index as f32 * 44.0)
+    })
+    .collect();
+    let menu = if draft.menu_open {
+        access_menu()
+    } else {
+        Vec::new()
+    };
+    rsx! { r#frame { name: "HousingSettingsHouseAccess", width: 160.0, height: 225.0,
+        pos_type: "absolute", left: 226.0, top: 215.0,
+        fontstring { name: "HousingSettingsHouseLabel", text: "House Access", width: 160.0, height: 20.0,
+            font_size: 15.0, justify_h: "LEFT" }
+        button { name: "HousingSettingsHouseMode", text: mode, width: 160.0, height: 28.0,
+            pos_type: "absolute", top: 25.0, onclick: "housing:settings:menu", disabled: pending }
+        {choices} {menu}
+    } }
+}
+
+fn choice(key: &str, label: &str, checked: bool, disabled: bool, top: f32) -> Element {
+    let name = format!("HousingSettingsFlag{key}");
+    let mut art = named_atlas_texture(
+        format!("{name}Box"),
+        "checkbox-minimal",
+        (0.0, 0.0, 30.0, 29.0),
+    );
+    if checked {
+        let atlas = if disabled {
+            "checkmark-minimal-disabled"
+        } else {
+            "checkmark-minimal"
+        };
+        art.extend(named_atlas_texture(
+            format!("{name}Tick"),
+            atlas,
+            (0.0, 0.0, 30.0, 29.0),
+        ));
+    }
+    let action = format!("housing:settings:toggle:{key}");
+    rsx! { button { name: {DynName(name.clone())}, width: 140.0, height: 30.0,
+        pos_type: "absolute", left: 20.0, top, onclick: action, disabled, button_default_skin: false,
+        {art}
+        fontstring { name: {DynName(format!("{name}Label"))}, text: label, width: 105.0, height: 29.0,
+            pos_type: "absolute", left: 35.0, font_size: 13.0, justify_h: "LEFT" }
+    } }
+}
+
+fn access_menu() -> Element {
+    let background = named_atlas_texture(
+        "HousingSettingsAccessMenuBackground".into(),
+        "common-dropdown-bg",
+        (0.0, 0.0, 160.0, 76.0),
+    );
+    let rows: Element = [("anyone", "Anyone"), ("none", "No One"), ("limited", "Limited")].into_iter().enumerate().flat_map(|(index, (key, label))| {
+        let top = 4.0 + index as f32 * 22.0;
+        let action = format!("housing:settings:{key}");
+        rsx! { button { name: {DynName(format!("HousingSettingsMode{key}"))}, text: label, width: 152.0, height: 22.0,
+            pos_type: "absolute", left: 4.0, top, onclick: action, button_default_skin: false } }
+    }).collect();
+    rsx! { r#frame { name: "HousingSettingsAccessMenu", width: 160.0, height: 76.0,
+        pos_type: "absolute", left: 0.0, top: 54.0, strata: FrameStrata::Tooltip, mouse_enabled: true,
+        {background} {rows}
+    } }
+}

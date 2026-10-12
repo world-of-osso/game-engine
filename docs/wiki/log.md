@@ -5,6 +5,9 @@
 ## 2026-10-12 — Seething objectives and transport entry boundary
 
 [Seething](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12): source dynamic nodes,40s geysers, six-second Gathering,100resources/744 and pure victory; grounded channel fixture remains partial. Starts6337/6380 are transport-relative35/36, not world-space coordinates. Retain TransportSpawnId/refuse unresolved entry/hide894; return to authored transport spawns/transforms/attachment/collision after Deephaul/epics. No native lifecycle or full Retail claim.
+## 2026-10-12 — Housing HouseSettings access authority
+
+[HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
 
 ## 2026-10-12 — Eye both-skin private lifecycle
 
@@ -20,6 +23,10 @@
 ## 2026-10-12 — Silvershard private content prerequisites
 
 [Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): actual promoted switches pass source three-second casts/cancellation/copy checks;1,758 real-floor route approaches replace unsafe NPC-pivot travel. Modern private lifecycle reaches1500/428/exact return, but its carts were invisible. Two ordinary appearance rows and authenticated Retail model chains are staged privately; both-skin rendered acceptance remains open. Eye matched live rerun is now unblocked by landed M2 floors.
+
+## 2026-10-12 — Housing receipt-backed catalog model preview
+
+[Housing](systems/housing.md#catalog-model-preview): isolated M2/WMO previews, authored collision framing instead of emitter envelopes, physical drag with unchanged gameplay camera, selection/tab/search/close teardown and retained filter across unmounted tab transitions. Both-skin private5870 proof preserves exact owned quantities/layout;12inspected1280PNG published. MOMT22/23 closure correction fixes omitted/invented auxiliary textures; WMO receipt publication retains kind/build identity.34payloads authenticated against frozen source hashes; canonical promotion is lead-only. WMO pixel20's black AO TODO is a named reference-source gap, not an alleged lighting fix or certified Retail appearance.
 
 ## 2026-10-12 — Transmog icon and relog completion
 
@@ -3447,3 +3454,7 @@ All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; a
 ## 2026-10-12 — Mount asset native census complete
 
 Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered in each skin, including152 dependency-only recoveries and native quarter-turn proof for two small default silhouettes. Hash-guarded package default validation passes12,170 artifacts; lead publication remains pending. Nine inspected PNGs shared; missing journal identities and normal-host scroll boundary remain explicit. [Proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
+
+- 2026-10-12: [Toy Box](systems/toy-box.md#source-warning-sign-batches-2026-10-12): front-facing actual-use sign captures/natural expiry in both skins; carving/148628/shared-visibility remains explicitly uncertified.
+
+- 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
