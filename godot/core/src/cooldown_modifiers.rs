@@ -6,6 +6,19 @@ use crate::spell_catalog::csv_records::CsvTable;
 use std::collections::BTreeMap;
 use std::path::Path;
 
+type ModifierRows = BTreeMap<u32, [i64; 6]>;
+type ModifierChildren = BTreeMap<u32, Vec<u32>>;
+const MODIFIER_FIELDS: [&str; 8] = [
+    "ID",
+    "Parent",
+    "Operator",
+    "Amount",
+    "Type",
+    "Asset",
+    "SecondaryAsset",
+    "TertiaryAsset",
+];
+
 #[derive(Clone, Debug)]
 enum Predicate {
     False,
@@ -44,38 +57,7 @@ impl CooldownModifiers {
         if roots.is_empty() {
             return Ok(Self::default());
         }
-        let table = CsvTable::read(&dir.join("ModifierTree.csv"))?;
-        let columns = [
-            "ID",
-            "Parent",
-            "Operator",
-            "Amount",
-            "Type",
-            "Asset",
-            "SecondaryAsset",
-            "TertiaryAsset",
-        ]
-        .map(|name| table.column(name))
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
-        let mut rows = BTreeMap::new();
-        let mut children: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
-        for record in table.records() {
-            let values = columns
-                .iter()
-                .map(|column| {
-                    record
-                        .get(*column)
-                        .ok_or("ModifierTree missing cell")?
-                        .parse::<i64>()
-                        .map_err(|error| format!("ModifierTree: {error}"))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            let [id, parent, op, amount, kind, asset, second, third]: [i64; 8] =
-                values.try_into().expect("eight fields requested");
-            rows.insert(id as u32, [op, amount, kind, asset, second, third]);
-            children.entry(parent as u32).or_default().push(id as u32);
-        }
+        let (rows, children) = read_modifier_index(dir)?;
         let trees = roots
             .iter()
             .map(|id| Ok((*id, build_predicate(*id, &rows, &children)?)))
@@ -94,37 +76,68 @@ impl CooldownModifiers {
     }
 }
 
+fn read_modifier_index(dir: &Path) -> Result<(ModifierRows, ModifierChildren), String> {
+    let table = CsvTable::read(&dir.join("ModifierTree.csv"))?;
+    let columns = MODIFIER_FIELDS
+        .map(|name| table.column(name))
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut rows = BTreeMap::new();
+    let mut children: ModifierChildren = BTreeMap::new();
+    for record in table.records() {
+        let values = columns
+            .iter()
+            .map(|column| {
+                record
+                    .get(*column)
+                    .ok_or("ModifierTree missing cell")?
+                    .parse::<i64>()
+                    .map_err(|error| format!("ModifierTree: {error}"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let [id, parent, op, amount, kind, asset, second, third]: [i64; 8] =
+            values.try_into().expect("eight fields requested");
+        rows.insert(id as u32, [op, amount, kind, asset, second, third]);
+        children.entry(parent as u32).or_default().push(id as u32);
+    }
+    Ok((rows, children))
+}
+
+fn build_leaf(id: u32, fields: [i64; 6]) -> Result<Predicate, String> {
+    let [op, _, kind, asset, second, third] = fields;
+    if kind == 0 {
+        return Ok(Predicate::False);
+    }
+    if second != 0 || third != 0 {
+        return Err(format!(
+            "ModifierTree {id}: unsupported secondary/tertiary asset"
+        ));
+    }
+    let asset =
+        u32::try_from(asset).map_err(|error| format!("ModifierTree {id} asset: {error}"))?;
+    let leaf = match kind {
+        8 => Predicate::Aura(asset),
+        104 => Predicate::KnownSpell(asset),
+        _ => return Err(format!("ModifierTree {id}: unsupported type {kind}")),
+    };
+    Ok(if op == 3 {
+        Predicate::Not(Box::new(leaf))
+    } else {
+        leaf
+    })
+}
+
 fn build_predicate(
     id: u32,
-    rows: &BTreeMap<u32, [i64; 6]>,
-    children: &BTreeMap<u32, Vec<u32>>,
+    rows: &ModifierRows,
+    children: &ModifierChildren,
 ) -> Result<Predicate, String> {
-    let [op, amount, kind, asset, second, third] = *rows
+    let fields = *rows
         .get(&id)
         .ok_or_else(|| format!("ModifierTree {id}: absent authored row"))?;
+    let [op, amount, _, _, _, _] = fields;
     match op {
-        2 | 3 => {
-            if kind == 0 {
-                return Ok(Predicate::False);
-            }
-            if second != 0 || third != 0 {
-                return Err(format!(
-                    "ModifierTree {id}: unsupported secondary/tertiary asset"
-                ));
-            }
-            let asset = u32::try_from(asset)
-                .map_err(|error| format!("ModifierTree {id} asset: {error}"))?;
-            let leaf = match kind {
-                8 => Predicate::Aura(asset),
-                104 => Predicate::KnownSpell(asset),
-                _ => return Err(format!("ModifierTree {id}: unsupported type {kind}")),
-            };
-            Ok(if op == 3 {
-                Predicate::Not(Box::new(leaf))
-            } else {
-                leaf
-            })
-        }
+        2 | 3 => build_leaf(id, fields),
         4 | 8 => {
             let predicates = children
                 .get(&id)
