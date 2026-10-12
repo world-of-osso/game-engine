@@ -58,7 +58,7 @@ Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544
 
 Owned storage has independent Dyeable Only and alphabetical ordering controls. Dyeable requires authentic DecorDyeSlot membership, not an item/source guess. Reset clears filtering without changing search, category or selected sort. Browsing cannot mutate confirmed quantities or layout. Collection and first-acquisition filters are absent (`SetCollectionFiltersAvailable(false)`). Date Added remains unavailable without authenticated acquisition timestamps; indoor/outdoor and tag mappings are not invented. Catalog filters and storage filters never share state.
 
-Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Native controls and both-skin physical proof remain required before claiming this slice complete.
+Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Both-skin physical acceptance exercises alphabetical actual tiles, paid nondyeable stacks excluded, hidden/remounted filter retention, reset/search composition, conservation and normal paid-copy replacement. Dropdowns outside the drawer must remain UI input, never world-edit clicks. Cross-process saved filter/CVar persistence remains separate.
 
 ## Owned storage search
 
