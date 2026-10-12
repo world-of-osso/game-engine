@@ -1530,6 +1530,7 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
         can_repair: true,
         guild_repair_money: None,
         items: vec![VendorItem {
+            extra_costs: Vec::new(),
             slot: 0,
             item_id: 2488,
             name: "Gladius".into(),

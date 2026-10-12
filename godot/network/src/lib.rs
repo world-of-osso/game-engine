@@ -226,6 +226,7 @@ impl NetworkBridge {
             // Quest log for the quest log, the objective tracker and the map quest areas;
             // quest giver markers; the quest giver dialog pages and turn-in results.
             .receive::<QuestLogSnapshot>()
+            .receive::<protocol::WorldQuestAvailability>()
             .receive::<QuestLogUpdate>()
             .receive::<QuestGiverStatusMultiple>()
             .receive::<QuestFailed>()
@@ -319,6 +320,7 @@ impl NetworkBridge {
             .receive::<protocol::AppearanceCollectionUpdate>()
             .receive::<protocol::TransmogState>()
             .receive::<protocol::TransmogFailed>()
+            .receive::<protocol::MountJournalUpdate>()
             .receive::<protocol::ToyCollectionUpdate>()
             .receive::<protocol::ToyResult>()
             .receive::<protocol::HousingReply>()

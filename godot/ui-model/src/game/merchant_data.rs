@@ -161,6 +161,7 @@ mod tests {
 
     fn item(slot: u32) -> VendorItem {
         VendorItem {
+            extra_costs: Vec::new(),
             slot,
             item_id: 2320 + slot,
             name: format!("Item {slot}"),

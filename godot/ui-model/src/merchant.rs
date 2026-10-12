@@ -536,6 +536,7 @@ fn merchant_cells(merchant: &MerchantState, money: u64) -> Vec<MerchantCell> {
             count: item.stack_count,
             stock: item.num_available,
             price: u64::from(item.price),
+            extra_costs: item.extra_costs.clone(),
             // `canAfford == false` greys the price (MF.lua:316).
             price_gray: money < u64::from(item.price),
             tint: if item.usable {
@@ -557,6 +558,7 @@ fn buyback_cell(item: &BuybackItem, money: u64, index: usize) -> MerchantCell {
         count: item.count,
         stock: None,
         price: u64::from(item.price),
+        extra_costs: Vec::new(),
         price_gray: money < u64::from(item.price),
         tint: CellTint::Normal,
         action: format!("{ACTION_ITEM_PREFIX}{index}"),

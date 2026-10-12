@@ -15,7 +15,7 @@ Local-only Python stdlib importer in `scripts/import_npc_appearance.py`. Produce
 - [x] Coverage extension preserves recovered profiles already present without coverage. Equal existing rows are retained; conflicting appearance/choice/geoset rows reject publication before creating output. Required incoming coverage still needs an authentic profile; no ordinary substitute.
 - [x] Reader returns `None` only for covered ordinary creatures. Covered required appearances without a profile and displays outside coverage return explicit errors, never raw-model fallback.
 - [x] Require an explicit new output path, refuse replacement, and report failures without producing an incomplete database.
-- [ ] An explicit read-only base cache may extend validated mount coverage into a new output while preserving all prior profiles, choices, geosets and coverage; conflicting rows must fail instead of downgrading required appearances.
+- [x] An explicit read-only base cache extends validated MountXDisplay coverage into a new output, preserving all prior profiles/choices/geosets/coverage; conflicts fail instead of downgrading required appearances. `import_mount_appearance.py` selects authentic mount roots; file-backed tests prove extension, base preservation and conflict/replacement refusal. See [Mount Journal data/proof](../wiki/systems/mounts.md#mount-journal).
 
 ## How it works
 

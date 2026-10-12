@@ -65,6 +65,8 @@ mod merchant;
 mod merchant_window;
 mod minimap;
 mod mirror_timers;
+mod mount_journal;
+mod mount_journal_snapshot;
 mod mythic_mentor;
 mod nameplate_auras;
 mod nameplate_cast_bar;
@@ -243,6 +245,7 @@ pub struct GameClient {
     flight_map: flight_map::FlightMap,
     toybox: toybox::ToyJournal,
     housing: housing::HousingHud,
+    mount_journal: mount_journal::MountJournal,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
     challenge_ui: challenge::ChallengeUi,
@@ -405,6 +408,7 @@ impl INode3D for GameClient {
             flight_map: flight_map::FlightMap::default(),
             toybox: toybox::ToyJournal::default(),
             housing: housing::HousingHud::default(),
+            mount_journal: mount_journal::MountJournal::default(),
             minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             challenge_ui: challenge::ChallengeUi::default(),
@@ -528,6 +532,7 @@ impl INode3D for GameClient {
             }
         }
         if self.housing_pointer(&event)
+            || self.mount_journal_pointer(&event)
             || self.toybox_pointer(&event)
             || self.flight_map_pointer(&event)
             || self.world_map_pointer(&event)
@@ -1445,6 +1450,7 @@ impl GameClient {
         self.guild_charters.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
+        self.mount_journal.visit_uis(&mut visit)?;
         self.adventure_guide.visit_uis(&mut visit)?;
         self.battleground.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
@@ -1999,6 +2005,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
+            ("Mount Journal", |c, _| c.update_mount_journal()),
             ("Adventure Guide", |c, _| c.update_adventure_guide()),
             ("Battleground", |c, _| c.update_battleground()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
@@ -2156,6 +2163,8 @@ impl GameClient {
                 self.close_professions();
                 self.close_trainer();
                 self.close_pet_journal();
+                self.close_mount_journal();
+                self.mount_journal = Default::default();
                 self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
                 self.close_adventure_guide();
@@ -2210,6 +2219,7 @@ impl GameClient {
             }
             AccountEvent::CraftingOrders(update) => self.professions.orders.receive(update),
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
+            AccountEvent::MountJournal(update) => self.receive_mount_journal(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
             AccountEvent::Pvp(update) => {
