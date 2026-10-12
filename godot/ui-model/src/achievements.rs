@@ -1068,7 +1068,7 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
         "AchievementFilterDropdown".into(),
         title,
         "achievement:filter_menu",
-        false,
+        true,
         (228.0, 29.0, 112.0, 22.0),
     );
     if window.filter_menu {
@@ -1085,7 +1085,7 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
                 format!("AchievementFilter{action}"),
                 text,
                 &format!("achievement:filter:{action}"),
-                false,
+                true,
                 (0.0, index as f32 * 24.0, 112.0, 24.0),
             ));
         }
