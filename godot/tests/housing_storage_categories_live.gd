@@ -25,7 +25,10 @@ func run_test() -> void:
 	if hit.is_empty():
 		fail("Category proof has no visible actual decor pick triangle")
 		return
+	print("STORAGE_CATEGORY_REMOVE_BEFORE picked=", UnitPicker.pick(camera(), hit.point), " expected=", client.housing_state().decor[0].instance_id, " state=", category_debug_state())
 	await click(hit.point, MOUSE_BUTTON_LEFT)
+	await frames(10)
+	print("STORAGE_CATEGORY_REMOVE_AFTER state=", category_debug_state())
 	if not await wait_housing(func(): return stored_bookcases() == 1 and client.housing_state().decor.is_empty() and not client.housing_state().get("pending", true), "paid decor moved into storage"): return
 	if not await click_exposed_control(housing_control("HouseEditorBasicDecorModeButton")): return
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageCategory18") != null and housing_control("HouseEditorStorageCategory1") != null and housing_control("HouseEditorStorageCategory2") != null, "only actual owned category roots"): return
@@ -71,6 +74,14 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func category_debug_state() -> Dictionary:
+	var state: Dictionary = client.housing_state()
+	return {"house":state.get("house_id"), "can_edit":state.get("can_edit"), "category":state.get("storage_category"), "search":state.get("storage_search"), "pending":state.get("pending"), "stored":state.get("stored"), "decor":state.get("decor"), "error":state.get("error")}
+
 func choose_storage_category(id: int, title: String, shown: int, hidden: int) -> bool:
+	print("STORAGE_CATEGORY_CLICK_BEFORE id=", id, " rect=", housing_control("HouseEditorStorageCategory%d" % id).get_global_rect(), " state=", category_debug_state())
 	if not await click_exposed_control(housing_control("HouseEditorStorageCategory%d" % id)): return false
+	await frames(20)
+	print("STORAGE_CATEGORY_CLICK_AFTER id=", id, " path=", housing_text("HouseEditorStorageCategoryPath"), " back=", housing_control("HouseEditorStorageCategoryBack"), " shown=", housing_control("HouseEditorStored%d" % shown), " hidden=", housing_control("HouseEditorStored%d" % hidden), " state=", category_debug_state())
+	if not await capture_housing("storage-category-click-%d-diagnostic" % id): return false
 	return await wait_housing(func(): return housing_text("HouseEditorStorageCategoryPath") == title and housing_control("HouseEditorStorageCategoryBack") != null and housing_control("HouseEditorStored%d" % shown) != null and housing_control("HouseEditorStored%d" % hidden) == null, "source category " + title)
