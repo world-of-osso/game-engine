@@ -240,8 +240,11 @@ mod tests {
     fn stockade_worker_floor_support_respects_bounds_and_reset() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut terrain = StreamedTerrain::new(data_root.clone());
-        let inside = Vec3::new(103.0, -34.5, -76.0);
-        let outside = Vec3::new(99.0, -34.5, -77.0);
+        // (103, 76) is inside Jail18, under barrel01.m2 (FDID 199563), MODD 523
+        // of WMO 108631's selected/default set 0. Keep the bare WMO floor probe
+        // off its authored collision hull, whose top is -33.924946.
+        let inside = Vec3::new(104.5, -34.5, -77.3);
+        let barrel = Vec3::new(103.0, -34.5, -76.0);
         assert_eq!(
             TerrainGround {
                 terrain: &terrain,
@@ -276,7 +279,22 @@ mod tests {
             GroundState::Supported(height) => assert!((height + 34.9).abs() < 0.2, "{height}"),
             other => panic!("Stockade floor unsupported: {other:?}"),
         }
-        assert_eq!(ground.probe(outside), GroundState::Unsupported);
+        match ground.probe(barrel) {
+            GroundState::Supported(height) => {
+                assert!((height + 33.924946).abs() < 0.01, "{height}")
+            }
+            other => panic!("Stockade barrel floor unsupported: {other:?}"),
+        }
+        // These columns have no terrain, WMO or M2 face with the full bake.
+        for (x, y) in [(97.0, 76.0), (99.0, 77.0), (101.0, 78.0), (74.0, -16.0)] {
+            for z in [-40.0, -35.0, -30.0, -26.0, -20.0, -10.0, 0.0, 10.0] {
+                assert_eq!(
+                    ground.probe(Vec3::new(x, z, -y)),
+                    GroundState::Unsupported,
+                    "({x}, {y}, {z})"
+                );
+            }
+        }
         terrain.reset().unwrap();
         assert_eq!(
             TerrainGround {

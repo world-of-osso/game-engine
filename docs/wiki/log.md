@@ -1,3 +1,7 @@
+## 2026-10-12 — Stockade full-bake regression
+
+[Stockade floor fall](investigations/stockade-floor-fall.md#full-m2-bake-authentic-barrel-support--verified-2026-10-12): barrel199563/MODD523 in the sole selected/default set0 authentically supports(103,76) at-33.924946. Existing fall columns remain unsupported; server/native tests move bare WMO controls off the barrel and explicitly assert its hull support. No rebake or loader changes.
+
 ## 2026-10-12 — Authored M2 doodad floors
 
 [Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
