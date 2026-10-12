@@ -26,6 +26,16 @@ Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG c
 
 The dashboard's Find a Home action opens a954×490 House Finder shell with the two authored map locations and authoritative plot counts. Its Visit Neighborhood action requests real housing admission; browsing never ports or grants ownership. The dedicated System2 map uses authored UiMapAssignment relations and tile art; missing relations/art remain explicitly unavailable. Ordinary world cornerstone interaction sends UseGameObject; only its authenticated HousingReply inspection opens the340×320 purchase controls. Display the actual plot index and copper cost, confirm the irreversible purchase, disable repeat submission while pending and show ownership only after the server's paid claim. Both skins share controls/layout/behavior. Default house component grants remain unavailable.
 
+## Catalog model preview
+
+Catalog selection mounts the authenticated decor model in a transparent, isolated 3D viewport. Replace the previous actor on selection, clear it when search has no results, and tear down before its UI parent disappears on tab switch, close or logout. Missing/unsupported models or required texture receipts show Retail's Preview unavailable state; never substitute a thumbnail or retain the previous actor. Browsing/drag rotation cannot change owned quantities, placements or gameplay camera. Tile thumbnails remain tile art only.
+
+Source: `Blizzard_HousingModelPreview.lua` ApplyCurrentVariant/ClearPreviewData and its XML ModelScene anchors (TOPLEFT30,-100; BOTTOMRIGHT-30,55). Native camera framing/drag sensitivity use the existing isolated model-scene renderer; they do not claim authenticated UiModelScene camera-preset parity. Dyed variants, source preset cameras and scene-control zoom remain separate capabilities.
+
+## Verified default unlocks versus starter assembly
+
+Generated `PlayerHousingConstantsDocumentation.lua` explicitly names RoomFlags.UnlockedByDefault4, HouseExteriorWMODataFlags.UnlockedByDefault1, HousingFixtureFlags.IsDefaultFixture1/UnlockedByDefault2, HousingThemeFlags.UnlockedByDefault1 and HousingRoomComponentTextureFlags.UnlockedByDefault1. Pinned DB2 flags therefore identify default unlock availability; the earlier blanket claim that default component availability was unknown is too broad. Unlocks do not establish instance quantities, a particular first exterior choice, a starting layout transform or room budget. Assembly/grant authority remains unavailable until those contracts are sourced; do not infer them from UnlockItemID0 or unnamed NeighborhoodPlot vectors.
+
 ## Local catalog promotion (lead-owned canonical writes)
 
 After landing the server importer, run it with the audit evidence and pinned build/key as described in game-server `docs/specs/housing-catalog.md`, using `--db /home/osso/Projects/world-of-osso/game-engine/data/cache/housing.sqlite` for the client cache. Agents test with isolated output only.

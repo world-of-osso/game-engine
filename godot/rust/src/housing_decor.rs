@@ -14,7 +14,11 @@ pub(crate) struct HousingDecor {
     saved: Option<HouseLayout>,
 }
 
-fn load_visual(data: &Path, catalog: &HousingCatalog, decor_id: u32) -> Result<Gd<Node3D>, String> {
+pub(crate) fn load_visual(
+    data: &Path,
+    catalog: &HousingCatalog,
+    decor_id: u32,
+) -> Result<Gd<Node3D>, String> {
     let decor = catalog
         .decor
         .iter()

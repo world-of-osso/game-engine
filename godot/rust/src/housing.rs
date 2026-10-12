@@ -21,6 +21,7 @@ pub(crate) struct HousingHud {
     pub ui: Option<Gd<RegistryUi>>,
     pub authority: HousingAuthority,
     pub(super) decor: crate::housing_decor::HousingDecor,
+    pub(super) catalog_preview: crate::housing_preview::CatalogPreview,
     pub(super) expert_held: [bool; 8],
     pub(super) mouse_pointer: Option<crate::housing_mouse::ExpertPointer>,
     next_request_id: u64,
@@ -138,6 +139,7 @@ impl GameClient {
     }
 
     pub(super) fn close_housing(&mut self) {
+        self.housing.catalog_preview.reset();
         self.housing.decor.clear_preview();
         self.housing.expert_held = [false; 8];
         self.housing.mouse_pointer = None;
@@ -241,6 +243,7 @@ impl GameClient {
         }
         drop(host);
         self.query_housing_vendor_names()?;
+        self.clear_inactive_housing_preview();
         let view = self.housing_view()?;
         self.cache_housing_textures(&view);
         let scale = self.effective_ui_scale();
@@ -251,6 +254,7 @@ impl GameClient {
             .ok_or("Housing UI disappeared during update")?;
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
+        self.sync_housing_catalog_preview()?;
         Ok(())
     }
 
@@ -406,6 +410,10 @@ impl GameClient {
     }
 
     pub(super) fn housing_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.housing_catalog_pointer(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         match self.housing_editor_pointer(event) {
             Ok(true) => {
                 self.mark_viewport_input_handled();
