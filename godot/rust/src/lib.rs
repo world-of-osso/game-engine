@@ -45,6 +45,8 @@ mod ground;
 mod guild_charters;
 mod guild_ranks;
 mod housing;
+mod housing_decor;
+mod housing_editor;
 mod hud_edit;
 mod input;
 mod input_keys;
