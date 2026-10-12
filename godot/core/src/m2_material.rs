@@ -302,7 +302,14 @@ fn animate<T: Copy>(
     lerp: impl Fn(T, T, f32) -> T,
 ) -> Option<T> {
     let (sequence, time) = tracks.track_time(track, time)?;
-    let (times, values) = track.sequences.get(sequence)?;
+    // animate.h selects timeline 0 when the playing index exceeds the track table.
+    // An existing empty timeline remains empty and samples the authored default.
+    let timeline = if sequence < track.sequences.len() {
+        sequence
+    } else {
+        0
+    };
+    let (times, values) = track.sequences.get(timeline)?;
     if times.is_empty() || values.len() < times.len() {
         return None;
     }
