@@ -46,11 +46,17 @@ impl GameClient {
                 .active
                 .as_ref()
                 .map(|start| start.encounter_id);
-            self.account
-                .send_request_raid_info()
-                .map_err(|e| e.to_string())?;
+            self.request_adventure_guide_state()?;
         }
         Ok(())
+    }
+    fn request_adventure_guide_state(&self) -> Result<(), String> {
+        self.account
+            .send_request_raid_info()
+            .map_err(|error| error.to_string())?;
+        self.account
+            .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
+            .map_err(|error| error.to_string())
     }
     fn load_adventure_guide(&mut self) -> Result<(), String> {
         if self.adventure_guide.loaded {
@@ -77,9 +83,7 @@ impl GameClient {
         self.adventure_guide.view.visible = true;
         self.adventure_guide.view.loading = !self.adventure_guide.loaded;
         self.adventure_guide.queued_encounter = Some(dungeon_encounter);
-        self.account
-            .send_request_raid_info()
-            .map_err(|error| error.to_string())?;
+        self.request_adventure_guide_state()?;
         Ok(())
     }
     fn select_queued_journal_encounter(&mut self) -> Result<(), String> {
@@ -146,6 +150,7 @@ impl GameClient {
             self.adventure_guide.view.loading = false;
         }
         self.select_queued_journal_encounter()?;
+        self.adventure_guide.view.activities = self.account.adventure_guide.clone();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
@@ -216,7 +221,30 @@ impl GameClient {
                 self.adventure_guide.view.class,
                 self.adventure_guide.view.spec,
             );
+            if let Some(tracking) = action.strip_prefix("journal:activity-track:") {
+                let (id, tracked) = tracking
+                    .split_once(':')
+                    .ok_or("Missing activity tracking state")?;
+                self.account
+                    .send_adventure_guide(shared::protocol::AdventureGuideRequest::TrackActivity {
+                        activity_id: id.parse().map_err(|_| "Invalid activity ID")?,
+                        tracked: match tracked {
+                            "0" => false,
+                            "1" => true,
+                            _ => return Err("Invalid activity tracking state".into()),
+                        },
+                    })
+                    .map_err(|error| error.to_string())?;
+                continue;
+            }
+            let previous_filters = self.adventure_guide.view.activity_filters.clone();
+            let previous_tab = self.adventure_guide.view.tab;
             self.adventure_guide.view.apply(&action)?;
+            if previous_filters != self.adventure_guide.view.activity_filters
+                || previous_tab != self.adventure_guide.view.tab
+            {
+                ui.bind_mut().reset_journal_set_scroll();
+            }
             let view = &self.adventure_guide.view;
             if view.tab == game_engine_ui_model::adventure_guide::Tab::ItemSets
                 && filters != (view.class, view.spec)

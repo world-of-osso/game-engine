@@ -16,6 +16,8 @@ Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern
 
 Trading Post / Traveler's Log is available to every character (user/lead decision, October 11, 2026). The active interval is a UTC calendar month, beginning on the first at `GAME_SERVER_DAILY_RESET_HOUR_UTC`, mirroring Retail's monthly rotation. No entitlement fiction is introduced. The pinned PerksActivityXInterval layout names its interval value only `Field_10_0_5_47118_002`; no verified year/month assignment is available. Apply the explicitly approved policy of showing all authentic activity rows until a calendar binding is sourced; retain that gap in the census/spec instead of guessing an interval ID.
 
+The native Guide offers Traveler's Log and Suggested tabs, loads their authoritative snapshot on open, and sends Track/Untrack requests rather than changing progress locally. Activity tags, tracked-only and text filters share the same rows in both skins. Snapshot state is cleared on account/network reset. Suggestions remain display-only when action bindings are unsupported; no quest/queue action is fabricated. Pinned activity priority is signed (including -500).
+
 Progress reuses the achievement criteria engine and durable contributions. Real events are attributed to their active month; historical quest-login reconstruction must not earn monthly credit. Track the observation start explicitly: no pre-tracking progress is inferred. Unsupported trees/conditions remain unavailable. Contribution points are source values, not invented currency or reward grants; absent reward-interval binding stays a gap.
 
 ## Sources
