@@ -78,7 +78,7 @@ func run_test() -> void:
 	if not await wait_for(func(_s): return control("TransmogSlot16") != null, "native Transmogrify frame", 60000):
 		return
 	ui = client.get_node("TransmogUI")
-	for step in ["check_layout", "check_preview_controls", "check_items", "check_outfits", "check_outfit_load", "check_sets", "check_custom_sets"]:
+	for step in ["check_layout", "check_preview_controls", "check_items", "check_filters", "check_outfits", "check_outfit_load", "check_sets", "check_custom_sets"]:
 		if not await Callable(self, step).call():
 			return
 	await tap(KEY_ESCAPE)
@@ -171,6 +171,40 @@ func check_items() -> bool:
 		return false
 	print("TRANSMOG_SEARCH_AND_MODEL_RESTORE_READY")
 	return true
+
+## Real Enum.TransmogSource toggles; filtering changes no pending choice or quote.
+func check_filters() -> bool:
+	await click_control(control("TransmogSource1181"), MOUSE_BUTTON_LEFT)
+	var pending_before := transmog().pending
+	var cost_before: String = ui.frame_text("TransmogPendingCostAmount0")
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogFilterSource4") != null, "Sources menu"):
+		return false
+	await save_shot("11-source-filters.png")
+	await click_control(control("TransmogFilterSource4"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogSource1181") == null and control("TransmogSource821") != null, "World Drop filtered out"):
+		return false
+	if transmog().pending != pending_before or ui.frame_text("TransmogPendingCostAmount0") != cost_before:
+		fail("Sources filter changed staged appearances or quote")
+		return false
+	await click_control(control("TransmogFilterNone"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogSource821") == null and ui.frame_text("TransmogNoSources") == "No matches.", "Uncheck All"):
+		return false
+	await click_control(control("TransmogFilterAll"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_card_models("TransmogSource*ModelScene"):
+		return false
+	await hover_point(control("TransmogSource821").get_global_rect().get_center())
+	var hovered_pixels := await measure_collection_pixels(821)
+	if hovered_pixels < 5:
+		fail("Item hover border covered its model")
+		return false
+	await save_shot("12-source-hover.png")
+	await hover_point(Vector2(5, 5))
+	if transmog().pending > 0:
+		await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
+	print("TRANSMOG_FILTERS_READY pending=", pending_before, " cost=", cost_before, " hover_pixels=", hovered_pixels)
+	return await wait_for(func(_s): return transmog().pending == 0, "filtered staging cleared")
 
 ## Save Outfit (CommitAndApplyAllPending): paid ApplyTransmog, then the outfit commit
 ## with its weapon illusion. Each outfit gets a different appearance and illusion.
@@ -278,6 +312,18 @@ func check_sets() -> bool:
 		return false
 	await save_shot("07-set-tooltip.png")
 	await hover_point(Vector2(5, 5))
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogFilterUncollected") != null, "Set completion menu"):
+		return false
+	await click_control(control("TransmogFilterUncollected"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control(card) == null and control("TransmogFilterButton") != null, "incomplete set excluded, filter retained"):
+		return false
+	await save_shot("13-set-filters.png")
+	await click_control(control("TransmogFilterUncollected"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return preview_model(card + "ModelScene") != null, "incomplete set restored", 60000):
+		return false
+	print("TRANSMOG_SET_FILTERS_READY")
 	return true
 
 ## Custom Sets tab: New Custom Set names the current appearances (TRANSMOG_CUSTOM_SET_NAME).
