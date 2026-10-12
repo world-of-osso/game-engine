@@ -403,7 +403,7 @@ fn context_menu(view: &MountJournalView) -> Element {
         (5.0, 53.0, 180.0, 22.0),
     ));
     rsx! { r#frame { name: "MountJournalContextMenu",width: 190.0,height: 80.0,left,top,pos_type: "absolute",
-    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
+    strata: crate::ui::strata::FrameStrata::Dialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
 }
 
 fn source_name(source: i32) -> &'static str {
