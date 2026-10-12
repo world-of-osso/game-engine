@@ -70,6 +70,7 @@ func pointer(point: Vector2, button: MouseButton) -> void:
 		event.position = point
 		event.global_position = point
 		event.button_index = button
+		event.button_mask = (1 << (button - 1)) if pressed else 0
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
