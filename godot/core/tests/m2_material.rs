@@ -99,7 +99,8 @@ fn avenging_wrath_batches_bind_authored_glows_and_premultiplied_blending() {
         assert_eq!(binding.texture_wrap, wrap);
         assert!(binding.apply_weight);
         if index > 0 {
-            let sample = m2_material::sample_material(&MaterialTracks::of(&wings), &binding, 900);
+            let tracks = MaterialTracks::of(&wings);
+            let sample = m2_material::sample_material(&tracks, &binding, tracks.stand_time(900));
             assert_eq!(
                 sample.opacity, 0.0,
                 "Authored inactive feather sheet {index}"
@@ -129,8 +130,38 @@ fn avenging_wrath_local_opacity_follows_start_hold_and_decay_not_application_age
     assert_eq!(sample(0, 150, 900).opacity, 0.0);
     assert_eq!(sample(1, 150, 900).opacity, 1.0);
     assert_eq!(sample(1, 150, 10_000).opacity, 1.0);
+    let scrolling = sample(1, 150, 450);
+    assert_eq!(scrolling.texture_matrices[1][5], 0.5);
+    assert_eq!(
+        scrolling.texture_matrices,
+        sample(2, 120, 450).texture_matrices
+    );
     let decay = sample(2, 120, 900).opacity;
     assert!((decay - 47.0 / 167.0).abs() < 1.0 / 32767.0, "{decay}");
+}
+
+#[test]
+fn constant_local_material_keys_still_update_when_the_playing_clip_changes() {
+    use m2_material::MaterialTime;
+
+    let wings = model(2368645);
+    let mut tracks = MaterialTracks::of(&wings);
+    let binding = m2_material::batch_binding(&wings, &wings.batches[1], &[0; 3]).unwrap();
+    let color = binding.color.unwrap();
+    tracks.colors[color].opacity.sequences = vec![(vec![0], vec![32767]), (vec![0], vec![0])];
+    assert!(m2_material::material_animates(&tracks, &binding));
+    for (sequence, opacity) in [(0, 1.0), (1, 0.0)] {
+        let sample = m2_material::sample_material(
+            &tracks,
+            &binding,
+            MaterialTime {
+                sequence,
+                time_ms: 0,
+                global_ms: 0,
+            },
+        );
+        assert_eq!(sample.opacity, opacity);
+    }
 }
 
 #[test]
@@ -193,8 +224,9 @@ fn portal_texture_rotation_turns_about_the_centre_and_loops_stand() {
         -0.132_431_2,
         0.183_723_5,
     ];
+    let tracks = MaterialTracks::of(&portal);
     for elapsed in [900, 900 + 16667] {
-        let sample = m2_material::sample_material(&MaterialTracks::of(&portal), &binding, elapsed);
+        let sample = m2_material::sample_material(&tracks, &binding, tracks.stand_time(elapsed));
         for (actual, wanted) in sample.texture_matrices[0].iter().zip(expected) {
             assert!(
                 (actual - wanted).abs() < 1e-5,
@@ -218,10 +250,10 @@ fn waterfall_single_texture_scrolls_and_loops_stand() {
     let binding = m2_material::batch_binding(&waterfall, &waterfall.batches[0], &[0; 3]).unwrap();
     assert_eq!((binding.pixel_shader, binding.vertex_shader), (1, 0));
     assert_eq!(binding.texture_wrap, 3);
+    let tracks = MaterialTracks::of(&waterfall);
     for elapsed in [700, 700 + 2634 * 3] {
-        let matrix =
-            m2_material::sample_material(&MaterialTracks::of(&waterfall), &binding, elapsed)
-                .texture_matrices[0];
+        let matrix = m2_material::sample_material(&tracks, &binding, tracks.stand_time(elapsed))
+            .texture_matrices[0];
         assert_eq!(&matrix[..4], &[1.0, 0.0, 0.0, 1.0]);
         assert!(matrix[4].abs() < 1e-6);
         assert!(
