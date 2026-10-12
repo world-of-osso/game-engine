@@ -16,6 +16,54 @@ fn whisper(target: &str, body: &str) -> ChatCommand {
 }
 
 #[test]
+fn toyfx14_dice_received_item_markup_renders_authored_label_colour_and_unsplit_text() {
+    for (body, expected, label, color) in [
+        (
+            "rubs his |Hitem:36863|h|cFFFFFFFF[Decahedral Dwarven Dice]|r|h between his hands and rolls.",
+            "Alice rubs his [Decahedral Dwarven Dice] between his hands and rolls.",
+            "[Decahedral Dwarven Dice]",
+            [1.0, 1.0, 1.0, 1.0],
+        ),
+        (
+            "casually tosses her |Hitem:36862|h|cFFFFFFFF[Worn Troll Dice]|r|h.",
+            "Alice casually tosses her [Worn Troll Dice].",
+            "[Worn Troll Dice]",
+            [1.0, 1.0, 1.0, 1.0],
+        ),
+        (
+            "shows |cff0070dd|Hitem:36862:0:0|h[Worn Troll Dice]|h|r.",
+            "Alice shows [Worn Troll Dice].",
+            "[Worn Troll Dice]",
+            [0.0, 112.0 / 255.0, 221.0 / 255.0, 1.0],
+        ),
+    ] {
+        let mut received = message(ChatChannelType::Emote, "Alice", "");
+        received.text = body.into();
+        let line = chat_message_line(&received);
+        assert_eq!(line.plain_text(|_| String::new()), expected);
+        let rows = wrap_chat_line(
+            &line,
+            |_| String::new(),
+            30.0,
+            |value| value.chars().count() as f32,
+        );
+        let labels: Vec<_> = rows
+            .iter()
+            .flat_map(|row| &row.runs)
+            .filter(|run| run.text == label)
+            .collect();
+        assert_eq!(labels.len(), 1, "authored item label must stay one piece");
+        assert_eq!(labels[0].color, color);
+        let flattened: String = rows
+            .iter()
+            .flat_map(|row| &row.runs)
+            .map(|run| run.text.as_str())
+            .collect();
+        assert_eq!(flattened, expected);
+    }
+}
+
+#[test]
 fn plain_text_is_said_and_channel_commands_pick_their_channel() {
     assert_eq!(parse_chat_input("hello there", None), say("hello there"));
     assert_eq!(parse_chat_input("/s hi", None), say("hi"));

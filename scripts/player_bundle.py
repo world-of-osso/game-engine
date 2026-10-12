@@ -49,22 +49,25 @@ def copy_file(source, target):
         shutil.copy2(source, target)
 
 
-def copy_selected(root, destination, files):
+def copy_selected(root, destination, files, link=False):
     if sys.platform != 'linux':
         for relative in files:
             copy_file(root / relative, destination / relative)
         return
+    mode = ['--link'] if link else ['-p', '--reflink=auto']
     # Batch argv, not one cp process per asset (the shipped set exceeds a million files).
     files = iter(files)
     while batch := list(itertools.islice(files, 512)):
-        subprocess.run(['cp', '-Lp', '--parents', '--reflink=auto', '-t', str(destination),
+        subprocess.run(['cp', '-L', *mode, '--parents', '-t', str(destination),
                         *map(str, batch)], cwd=root, check=True)
 
 
 def copy_data(root, bundle):
     for name in DATA_DIRS:
         (bundle / 'data' / name).mkdir(parents=True, exist_ok=True)
-    copy_selected(root / 'data', bundle / 'data', data_files(root))
+    # Hard links: the ~190 GiB data set is only read by the publish, and the host's ext4
+    # cannot reflink, so copies would double its disk use. Nothing writes bundle data.
+    copy_selected(root / 'data', bundle / 'data', data_files(root), link=True)
 
 
 def project_files(root):

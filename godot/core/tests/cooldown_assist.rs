@@ -5,6 +5,35 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 #[test]
+fn cooldown_assist_recorded_facts_preserve_resources_cost_errors_and_selection() {
+    let mut facts = AssistedFacts::default();
+    facts.known.insert(35395);
+    facts.powers.insert(9, 4.0);
+    facts.charges.insert(35395, 1);
+    facts.cooldowns_ms.insert(20271, 2345.0);
+    facts.player_health_pct = Some(80.0);
+    facts.target_health_pct = Some(25.0);
+    facts.target_hostile = Some(true);
+    facts.player_auras.insert(137027);
+    facts.target_auras.insert(197277);
+    facts.ready.insert(35395, Ok(true));
+    facts
+        .affordable
+        .insert(35395, Err("cost not received".into()));
+    facts.in_range.insert(35395, Ok(true));
+    let encoded = serde_json::to_value(&facts).unwrap();
+    let decoded: AssistedFacts = serde_json::from_value(encoded.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&decoded).unwrap(), encoded);
+    assert_eq!(decoded.powers.get(&9), Some(&4.0));
+    assert_eq!(decoded.charges.get(&35395), Some(&1));
+    assert_eq!(decoded.affordable[&35395], Err("cost not received".into()));
+    let selection: Result<Recommendation, String> = Err("cost not received".into());
+    let decoded_selection: Result<Recommendation, String> =
+        serde_json::from_value(serde_json::to_value(&selection).unwrap()).unwrap();
+    assert_eq!(decoded_selection, selection);
+}
+
+#[test]
 fn cooldown_assist_ret_authored_next_spell_changes_with_server_readiness() {
     let data = catalog();
     let mut facts = AssistedFacts::default();

@@ -75,19 +75,19 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
     elements
 }
 
-pub(super) fn queue_choices(view: &PvpView) -> Element {
+pub(super) fn queue_choices(view: &PvpView, top: f32) -> Element {
     [
         (
             "HonorFrameArena2v2Button",
             "Arena Skirmish 2v2",
             "pvp:activity:2v2",
-            136.0,
+            top,
         ),
         (
             "HonorFrameArena3v3Button",
             "Arena Skirmish 3v3",
             "pvp:activity:3v3",
-            182.0,
+            top + 40.0,
         ),
     ]
     .into_iter()
@@ -97,7 +97,7 @@ pub(super) fn queue_choices(view: &PvpView) -> Element {
             title,
             action,
             !view.pending,
-            (194.0, top, 340.0, 40.0),
+            (0.0, top, 324.0, 40.0),
         )
     })
     .collect()
