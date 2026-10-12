@@ -3348,3 +3348,7 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-12 — Mount model assets staged
 
 All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; additive package contains566 new M2 receipts and complete skins/textures/animations, with hash-guarded lead-only publication. Both-skin native census remains in progress;170 newly missing identities lack readable Mount rows. [Scope and proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
+
+## 2026-10-12 — Mount asset native census complete
+
+Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered in each skin, including152 dependency-only recoveries and native quarter-turn proof for two small default silhouettes. Hash-guarded package default validation passes12,170 artifacts; lead publication remains pending. Nine inspected PNGs shared; missing journal identities and normal-host scroll boundary remain explicit. [Proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
