@@ -86,8 +86,9 @@ func prove_owner_settings() -> bool:
 		fail("Saved access did not survive real reauthentication")
 		return false
 	var expected_label: String = {"anyone": "Anyone", "none": "No One", "friends": "Limited"}[access_mode]
-	var mode_button: Button = housing_control("HousingSettingsHouseMode") as Button
-	if mode_button == null or mode_button.text != expected_label:
+	var mode_button: Control = housing_control("HousingSettingsHouseMode")
+	var mode_label: Label = mode_button.find_child("Text", true, false) as Label if mode_button != null else null
+	if mode_label == null or mode_label.text != expected_label:
 		fail("Reopened mode differs from saved Retail settings")
 		return false
 	return await record_editor("saved-relogged")
