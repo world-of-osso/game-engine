@@ -31,7 +31,7 @@ impl GameClient {
         };
         let spell_id = self.effective_spell(spell_id);
         self.spells.cancel_ground_target();
-        if self.open_profession_spell(spell_id) {
+        if self.open_profession_spell(spell_id)? {
             return Ok(());
         }
         if self.riding_mount_of(spell_id) {
