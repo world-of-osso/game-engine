@@ -5,6 +5,10 @@ use shared::protocol::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+mod outfit_info;
+#[cfg(test)]
+mod outfit_info_tests;
+pub use outfit_info::OutfitInfoDraft;
 mod filters;
 pub use filters::SOURCE_FILTERS;
 mod wardrobe;
@@ -41,6 +45,8 @@ pub struct TransmogBook {
     pub queued_save: Option<SaveTransmogOutfit>,
     /// TRANSMOG_CUSTOM_SET_NAME popup is shown.
     pub naming_custom_set: bool,
+    pub outfit_menu: Option<u32>,
+    pub outfit_info: Option<OutfitInfoDraft>,
 }
 
 impl TransmogBook {
@@ -62,6 +68,8 @@ impl TransmogBook {
             self.queued_save = None;
             self.saving = None;
             self.naming_custom_set = false;
+            self.outfit_menu = None;
+            self.outfit_info = None;
         }
         match self.saving.take() {
             Some(SaveKind::Outfit) => {
@@ -72,6 +80,7 @@ impl TransmogBook {
                 self.naming_custom_set = false;
                 self.error.clear();
             }
+            Some(SaveKind::OutfitInfo) => self.error.clear(),
             None => {}
         }
         if new_service || self.applying {

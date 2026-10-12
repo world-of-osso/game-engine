@@ -64,9 +64,10 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 26] = [
+        const SOURCES: [Source; 27] = [
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
+            GameClient::transmog_source_tooltip,
             GameClient::transmog_illusion_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
@@ -146,6 +147,71 @@ impl GameClient {
             OwnerSide::Right,
             tooltip,
         )?))
+    }
+
+    /// ItemModelBaseMixin:OnEnter and TransmogAppearanceSlotMixin item tooltips.
+    fn transmog_source_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        enum Target {
+            Source(u32),
+            Slot(u8),
+        }
+        let ui = hit.ui.bind();
+        let (owner, target) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            if let Some(id) = name.strip_prefix("TransmogSource") {
+                id.parse().ok().map(Target::Source)
+            } else {
+                name.strip_prefix("TransmogSlot")?
+                    .parse()
+                    .ok()
+                    .map(Target::Slot)
+            }
+        })?;
+        drop(ui);
+        let book = &self.transmog.book;
+        let state = book.state.as_ref()?;
+        let source = match target {
+            Target::Source(id) => state
+                .slots
+                .iter()
+                .flat_map(|slot| &slot.sources)
+                .find(|source| source.source_id == id),
+            Target::Slot(inv) => {
+                let slot = state
+                    .slots
+                    .iter()
+                    .find(|slot| slot.slot.inv_slot_id() == inv)?;
+                match book.effective_choice(slot) {
+                    shared::protocol::TransmogChoice::Source(id) => {
+                        slot.sources.iter().find(|source| source.source_id == id)
+                    }
+                    _ => None,
+                }
+            }
+        };
+        let (definition, item, name) = if let Some(source) = source {
+            (
+                shared::item_data::ItemDefinitionSource::Retail,
+                source.item_id,
+                source.name.clone(),
+            )
+        } else if let Target::Slot(inv) = target {
+            let slot = state
+                .slots
+                .iter()
+                .find(|slot| slot.slot.inv_slot_id() == inv)?;
+            let catalog = game_engine_ui_model::item_catalog::item_catalog_entry_for(
+                slot.definition_source,
+                slot.item_id,
+            )?;
+            (slot.definition_source, slot.item_id, catalog.name.clone())
+        } else {
+            return None;
+        };
+        let quality =
+            game_engine_ui_model::item_catalog::item_catalog_entry_for(definition, item)?.quality;
+        let item = named_item_for(definition, item, &name, quality, 1, 0);
+        self.item_owned(hit, owner, OwnerSide::Right, item)
     }
 
     /// An illusion card or a weapon's illusion slot, `ANCHOR_RIGHT`.

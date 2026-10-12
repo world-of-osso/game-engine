@@ -28,6 +28,7 @@ pub enum WardrobeTab {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SaveKind {
     Outfit,
+    OutfitInfo,
     CustomSet,
 }
 
@@ -279,7 +280,7 @@ impl TransmogBook {
             && self.pending_cost().is_some_and(|cost| cost <= self.money)
     }
 
-    fn outfit_snapshot(&self) -> Option<TransmogOutfit> {
+    pub(super) fn outfit_snapshot(&self) -> Option<TransmogOutfit> {
         let state = self.state.as_ref()?;
         let id = self.viewed_outfit?;
         let name = self

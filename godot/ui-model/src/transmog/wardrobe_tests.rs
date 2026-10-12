@@ -194,7 +194,7 @@ fn wardrobe() -> TransmogState {
     }
 }
 
-fn book() -> TransmogBook {
+pub(super) fn book() -> TransmogBook {
     let mut book = TransmogBook::default();
     book.receive(wardrobe());
     book.money = 5000;
@@ -242,11 +242,13 @@ fn transmog_outfit_list_shows_awarded_entries_and_defaults_to_the_first() {
         vec![
             OutfitRow {
                 id: 2,
-                name: "Outfit 1".into()
+                name: "Outfit 1".into(),
+                icon_fdid: 0,
             },
             OutfitRow {
                 id: 3,
-                name: "Outfit 2".into()
+                name: "Outfit 2".into(),
+                icon_fdid: 0,
             },
         ]
     );

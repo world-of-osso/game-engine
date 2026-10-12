@@ -506,6 +506,7 @@ impl UiProjection {
                     action.starts_with("bank_slot:")
                         || action.starts_with("guild:member:")
                         || action.starts_with("mount:select:")
+                        || action.starts_with("transmog:outfit:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
                         || action.starts_with(
                             game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST,
