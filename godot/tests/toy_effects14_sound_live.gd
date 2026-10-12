@@ -28,11 +28,8 @@ func prove_enemy_marker(sample: Array) -> void:
 			actor = unit
 			break
 	if actor == null: fail("native player missing"); return
-	var closest: Node3D
-	for unit in client.find_children("Blackrock Invader", "Node3D", true, false):
-		if unit.get_node_or_null("NpcVisualRoot") == null: continue
-		if closest == null or actor.position.distance_to(unit.position) < actor.position.distance_to(closest.position): closest = unit
-	if closest == null: fail("authored hostile invader absent"); return
+	if not await wait_until(func(): return visible_invader() != null, "authored hostile visual readiness", 120000): return
+	var closest := visible_invader()
 	var forward := -root.get_camera_3d().global_basis.z
 	forward.y = 0.0
 	var destination := closest.position - forward.normalized() * 12.0
@@ -55,6 +52,13 @@ func prove_enemy_marker(sample: Array) -> void:
 	if not native_display(-1): fail("enemy marker replaced the player"); return
 	receipts.append({"phase": "enemy-marker", "target": client.target_state(), "rules": client.nameplate_rules(target)})
 	await capture("enemy-toy122120-source165877")
+
+func visible_invader() -> Node3D:
+	var closest: Node3D
+	for unit in client.find_children("Blackrock Invader", "Node3D", true, false):
+		if unit.get_node_or_null("NpcVisualRoot") == null: continue
+		if closest == null or actor.position.distance_to(unit.position) < actor.position.distance_to(closest.position): closest = unit
+	return closest
 
 func target_marker(target: int) -> bool:
 	for active in client.spell_visuals_state().active:
