@@ -77,3 +77,141 @@ fn housing_refuses_different_build_and_malformed_authoritative_catalog() {
     db.execute("UPDATE housing_catalog_record SET fields_json=? WHERE table_name='HouseDecor' AND record_id=80", [json!({"ID":"80", "Name_lang":"Fireplace", "ModelFileDataID":"not an ID"}).to_string()]).unwrap();
     assert!(load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").is_err());
 }
+
+fn insert(db: &Connection, table: &str, id: u32, fields: serde_json::Value) {
+    db.execute(
+        "INSERT INTO housing_catalog_record VALUES ('dcfc90fffd79ba00406ae46f5f657592', ?, ?, ?)",
+        rusqlite::params![table, id, fields.to_string()],
+    )
+    .unwrap();
+}
+
+fn import_sources(db: &Connection) {
+    for table in [
+        "CollectableSourceInfo",
+        "CollectableSourceVendorSparse",
+        "CollectableSourceEncounterSparse",
+        "AreaTable",
+        "JournalEncounter",
+        "JournalInstance",
+        "Difficulty",
+    ] {
+        db.execute(
+            "INSERT INTO housing_catalog_source VALUES ('dcfc90fffd79ba00406ae46f5f657592', ?, 'exported', 0)",
+            [table],
+        )
+        .unwrap();
+    }
+    // Local Retail 12.1.0.69933 rows: Pawdo sells decor 80 in Stormwind and
+    // Orgrimmar (the same pair twice through a second source-info row) and decor 81
+    // drops from Mythic Gallywix.
+    insert(
+        db,
+        "CollectableSourceInfo",
+        175962,
+        json!({"ID":"175962", "SourceTypeEnum":"3", "HouseDecorID":"80", "Description":"House Decor:: (80)", "ItemModifiedAppearanceID":"0"}),
+    );
+    insert(
+        db,
+        "CollectableSourceInfo",
+        175963,
+        json!({"ID":"175963", "SourceTypeEnum":"3", "HouseDecorID":"80", "Description":"House Decor:: (80)", "ItemModifiedAppearanceID":"0"}),
+    );
+    insert(
+        db,
+        "CollectableSourceInfo",
+        175628,
+        json!({"ID":"175628", "SourceTypeEnum":"1", "HouseDecorID":"81", "Description":"House Decor: (81)", "ItemModifiedAppearanceID":"0"}),
+    );
+    for (id, info, area) in [
+        (239602, 175962, 1519),
+        (239603, 175962, 1637),
+        (239604, 175963, 1519),
+    ] {
+        insert(
+            db,
+            "CollectableSourceVendorSparse",
+            id,
+            json!({"ID": id.to_string(), "CreatureID":"252312", "AreaTableID": area.to_string(), "VendorMapID":"0", "CollectableSourceInfoID": info.to_string()}),
+        );
+    }
+    insert(
+        db,
+        "CollectableSourceEncounterSparse",
+        2507,
+        json!({"ID":"2507", "JournalEncounterID":"2646", "DifficultyID":"16", "CollectableSourceInfoID":"175628"}),
+    );
+    insert(
+        db,
+        "AreaTable",
+        1519,
+        json!({"ID":"1519", "AreaName_lang":"Stormwind City"}),
+    );
+    insert(
+        db,
+        "AreaTable",
+        1637,
+        json!({"ID":"1637", "AreaName_lang":"Orgrimmar"}),
+    );
+    insert(
+        db,
+        "JournalEncounter",
+        2646,
+        json!({"ID":"2646", "Name_lang":"Chrome King Gallywix", "JournalInstanceID":"1296"}),
+    );
+    insert(
+        db,
+        "JournalInstance",
+        1296,
+        json!({"ID":"1296", "Name_lang":"Liberation of Undermine"}),
+    );
+    insert(
+        db,
+        "Difficulty",
+        16,
+        json!({"ID":"16", "Name_lang":"Mythic"}),
+    );
+}
+
+#[test]
+fn housing_joins_authored_collection_sources_without_inventing_vendor_names() {
+    use crate::housing::DecorSource;
+    let db = catalog_connection();
+    let catalog = load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    assert!(!catalog.sources_imported);
+    assert!(catalog.decor.iter().all(|decor| decor.sources.is_empty()));
+    import_sources(&db);
+    // Display order differs from record order: joins must follow decor identity.
+    db.execute(
+        "UPDATE housing_catalog_record SET fields_json=? WHERE table_name='HouseDecor' AND record_id=80",
+        [json!({"ID":"80", "Name_lang":"Ornate Stonework Fireplace", "ItemID":"235994", "ModelType":"1", "ModelFileDataID":"6033663", "ThumbnailFileDataID":"7415905", "StartingQuantity":"1", "OrderIndex":"3"}).to_string()],
+    )
+    .unwrap();
+    let catalog = load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    let decor = |id| catalog.decor.iter().find(|decor| decor.id == id).unwrap();
+    assert_eq!(catalog.decor[0].id, 81);
+    assert!(catalog.sources_imported);
+    let vendor = |area: &str| DecorSource::Vendor {
+        creature_id: 252312,
+        area: Some(area.into()),
+    };
+    assert_eq!(
+        decor(80).sources,
+        vec![vendor("Stormwind City"), vendor("Orgrimmar")]
+    );
+    assert_eq!(
+        decor(81).sources,
+        vec![DecorSource::Encounter {
+            encounter: "Chrome King Gallywix".into(),
+            instance: "Liberation of Undermine".into(),
+            difficulty: Some("Mythic".into()),
+        }]
+    );
+    // A source naming an area the catalog lacks is malformed, not an unnamed zone.
+    db.execute(
+        "DELETE FROM housing_catalog_record WHERE table_name='AreaTable' AND record_id=1637",
+        [],
+    )
+    .unwrap();
+    assert!(load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").is_err());
+}
