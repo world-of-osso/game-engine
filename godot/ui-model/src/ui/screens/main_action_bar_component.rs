@@ -539,10 +539,9 @@ fn button(
             frame_art,
             !view.hovered,
         ),
-        art(
+        crate::assisted_highlight::highlight(
             format!("{name}AssistedHighlight"),
-            HIGHLIGHT,
-            frame_art,
+            size,
             !view.assisted_highlight,
         ),
         hotkey(&name, view.hotkey, style.skin, scale, HOTKEY_ANCHOR),

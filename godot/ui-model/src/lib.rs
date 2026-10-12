@@ -43,6 +43,7 @@ pub mod ui {
 pub mod adventure_activities;
 pub mod adventure_guide;
 pub mod adventure_guide_tooltip;
+pub mod assisted_highlight;
 pub mod battleground;
 pub mod challenge;
 #[path = "game/chat_data.rs"]

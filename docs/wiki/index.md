@@ -2,8 +2,15 @@
 
 - [Native player housing](systems/housing.md) — qualified catalog with authored vendor/encounter sources and both-skin vendor/bag collection, basic editor, visitor and live observer proof; first-house grants and outdoor plot bounds have no source contract.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 
-- [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview, five data-derived filters and strict MountXDisplay appearance closure; acceptance tracked in the linked contract.
+- [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits M2 floors.
+- [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
+
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
+
+- [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
 - [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
 
@@ -11,7 +18,7 @@
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
-- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — authored DB2 joins; both-skin private four-category clocks/settings/Edit Mode/assistant placement proof; exact rotation and hostile combat acceptance remain open.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored category inventories/ModifierTree gates, effective server costs, both-skin real assistant CastSuccess/charge depletion/animated Retail ants; exact unresolved rule boundaries and assistant GCD-origin remain gaps.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
 - [Native Mythic Mentor](systems/mythic-mentor.md) — built-in party Keys panel, server bag authority, loading lifetime and icon overlay ordering.
@@ -165,7 +172,7 @@ Engine subsystems and how they work.
 - [elastic-trees](systems/elastic-trees.md) — accepted coarse Barrens FDID 201394 prototype; lit deformation/recovery and private mounted-input/network proof, material-uniform buffer root cause, revision-scoped checks and remaining prototype boundaries
 - [mounts](systems/mounts.md) — Mount model with the rider on MountMain (attachment 0), Mount/MountFlight clips, steady flight controls (Space take off/ascend, X descend, pitch steering, landing), recast dismount
 - [swimming](systems/swimming.md) — Godot swim path: Space/X ascend/descend, float at `SWIM_DEPTH` under the surface, pitch steering, server-adopted swim height, climb capped at `SWIM_SPEED`; server-driven MirrorTimer breath/fatigue/feign-death bars
-- [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
+- [player-ground](systems/player-ground.md) — shared terrain/WMO/M2 support, authored-normal doodad floor bake, pre-render native loading, real EotS/Northshire both-skin geometry proof and tick-cost boundaries
 - [terrain](systems/terrain.md) — Forever Zephras FDID streaming/provisioning and product-isolated liquid catalogs/texture closure, ADT loading, ground detail (clutter) scatter, split files, authored MCVT axes, native per-chunk terrain and WMO placement surface queries, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys; shared-cache legacy `.missing` repair `c24d035`, standalone `25debb1` cold-marker bounded PASS; accepted saved native compile/load/eight Options helpers/Menu/UDP/Exit bounded PASS (Depot `s1q4qhb120`), not native cold-marker/full-conversion/deploy/unfrozen whole-tree acceptance
 - [character-rendering](systems/character-rendering.md) — grounded appearance pixel oracle, 78-cell isolated garment matrix with bounded rendered/region PASS and six inspected sheets, race/sex item file selection, all-race equipped fixtures, HD skeletons, shared Godot/Bevy outfit catalog with serialized cache imports, player model-completion appearance boundary, authored NPC selected-type canvas composition, four creature variations and tabard-enabled batches with linked native per-type/world-consumer acceptance, geosets, helmet hiding, target circles
@@ -198,7 +205,7 @@ Architecture decisions and feature designs.
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [ui-frame-order](design/ui-frame-order.md) — implemented shared plugin ordering; standalone setup preserved, named scheduling sets and revision-scoped verification
 - [nameplate-design](design/nameplate-design.md) — `NameplateStyle` sizes/colours (Options > Nameplates, Thin/Thick presets), FactionTemplate reaction tints, name centred above the bar in overlay units, half-scale reference calibration, local-owner exclusion, shared name/health/cast distance policy, registry-first plate-owner selection, and offline cast/channel preview; rendered/test verification remains open; Godot Retail CVar visibility (target/combat only, enemies, 60 yd) and 0.4 occluded alpha
-- [collision-system](design/collision-system.md) — collision layers: terrain and WMO floors (see player-ground), horizontal WMO/M2 blocking; no M2 floors
+- [collision-system](design/collision-system.md) — terrain/WMO/M2 floor layers, native WMO wall rays and unchanged complete M2 camera hulls (see player-ground)
 
 ## Investigations
 
@@ -245,7 +252,7 @@ Architecture decisions and feature designs.
 - [wmo-retail-lighting](investigations/wmo-retail-lighting.md) — Retail WMO light model (ambient + 2×MOCV + sun, interior/exterior blend by MOCV alpha), fixup, two-layer MOCV2 shaders, alpha test, metal and uniqueId placement dedup, per WebWowViewerCpp; Godot implements every MOMT shader 0-23 (DFShader, Parallax, env/emissive); Godot WMO doodads take WWV's MODD colour/MOLT/MDDI interior light
 - [stormwind-hilly-plaza](investigations/stormwind-hilly-plaza.md) — Trade District drawn as bare hilly terrain: antiportal AABB occlusion and bbox-only camera group hid every `sw_tradedistrict` group; portal culling now follows the Retail interior/exterior traversal; MOBA large material ids and MOMT texture_2 offset fixed (one wall texture everywhere, no roofs)
 - [stockade-entrance](investigations/stockade-entrance.md) — missing instance portal (MODI-only WMOs spawned no doodads) and camera escaping the stairwell (collision ignored portal-culled groups, unchecked smoothing path, corner-only portal test); Godot portal sheet blend 7/colour track fixed, WMO doodads and particles still absent in Godot
-- [stockade-floor-fall](investigations/stockade-floor-fall.md) — falls at teleport points outside the Stockade WMO (no face in those columns); sky from the exterior-only portal view; server void fall not bounded
+- [stockade-floor-fall](investigations/stockade-floor-fall.md) — genuine unsupported teleport columns; full M2 bake correctly supports authored barrel199563/MODD523 at(103,76); bare WMO controls moved off barrel; void fall fixed
 - [stormwind-vram](investigations/stormwind-vram.md) — 6.8 GB VRAM on the Stormwind login: bevy_hanabi gives every EffectAsset a ≥65536-particle slab (~4 MiB), and uncomposited M2/WMO textures were decoded to RGBA8; GPU memory log and per-process VRAM measurement
 - [release-spirit-oom](investigations/release-spirit-oom.md) — client "crash" on Stockade spirit release was an earlyoom SIGTERM: every NPC built its own clips for all its sequences and cloned its model's bone tracks (6.8 GB in the Stockade); both are now shared per model
 - [npc-motion-validation](investigations/npc-motion-validation.md) — Revision-pinned Northshire NPC idle/facing, landing, fog, picking, WMO basis, and terrain-streaming evidence with explicit remaining boundaries.
