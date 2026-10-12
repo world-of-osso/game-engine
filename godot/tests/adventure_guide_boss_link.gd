@@ -38,8 +38,8 @@ func run() -> void:
 	await pointer(boss.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	deadline = Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
-		var state = client.adventure_guide_state()
-		if state.loaded and state.lockout_count == int(locks_text): break
+		var observed = client.adventure_guide_state()
+		if observed.loaded and observed.lockout_count == int(locks_text): break
 		await process_frame
 	var state = client.adventure_guide_state()
 	if not state.visible or state.encounter != int(encounter_text) or state.lockout_count != int(locks_text):
