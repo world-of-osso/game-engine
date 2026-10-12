@@ -5,6 +5,9 @@ use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub fn editor_screen(view: &HousingView) -> Element {
+    if view.model.editor.mode == crate::housing_editor::EditorMode::Expert {
+        return expert_screen(view);
+    }
     let layout = view
         .authority
         .state
@@ -37,7 +40,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
     } else {
         "Select stored decor to place, or select placed decor in the world."
     };
-    let left = ((view.viewport[0] - 660.0) / 2.0).max(0.0);
+    let left = ((view.viewport[0] - 730.0) / 2.0).max(0.0);
     let top = (view.viewport[1] - 70.0).max(0.0);
     let instructions_left = (view.viewport[0] - 330.0).max(610.0);
     rsx! { r#frame { name: "HouseEditorFrame", stretch: true,
@@ -49,7 +52,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
         }
         fontstring { name: "HouseEditorInstructions", text: instruction, width: 300.0, height: 100.0,
             pos_type: "absolute", left: instructions_left, top: 40.0, font_size: 14.0 }
-        r#frame { name: "HouseEditorModeBar", width: 660.0, height: 60.0,
+        r#frame { name: "HouseEditorModeBar", width: 730.0, height: 60.0,
             pos_type: "absolute", left, top, mouse_enabled: true, strata: FrameStrata::Dialog,
             button { name: "HouseEditorBasicDecorModeButton", text: "Basic Decor", width: 120.0, height: 40.0,
                 pos_type: "absolute", left: 0.0, top: 10.0, disabled: true }
@@ -63,6 +66,8 @@ pub fn editor_screen(view: &HousingView) -> Element {
                 pos_type: "absolute", left: 480.0, top: 10.0, onclick: "housing:cancel" }
             button { name: "HouseEditorDone", text: "Done", width: 80.0, height: 40.0,
                 pos_type: "absolute", left: 565.0, top: 10.0, onclick: "housing:info" }
+            button { name: "HouseEditorExpertDecorModeButton", text: "Expert Decor", width: 64.0, height: 64.0,
+                pos_type: "absolute", left: 650.0, top: 0.0, onclick: "housing:expert", disabled }
         }
     } }
 }
@@ -101,4 +106,106 @@ fn stored_entries(view: &HousingView, disabled: bool) -> Element {
             } }
         })
         .collect()
+}
+
+/// Expert XML: 64px mode/submode buttons, submode bar18 above the mode button;
+/// OnShow hides the storage drawer. Unselected/selected instructions share the right.
+fn expert_screen(view: &HousingView) -> Element {
+    use crate::housing_editor::{PrecisionSubmode, RotationAxis};
+    let editor = &view.model.editor;
+    let can_edit = view
+        .authority
+        .state
+        .as_ref()
+        .and_then(|state| state.layout.as_ref())
+        .is_some_and(|layout| layout.can_edit);
+    let disabled = !can_edit || view.model.pending;
+    let scale_disabled = disabled || (editor.selected.is_some() && !editor.scale_allowed);
+    let left = ((view.viewport[0] - 128.0) / 2.0).max(0.0);
+    let top = (view.viewport[1] - 84.0).max(0.0);
+    let sub_left = left - 32.0;
+    let sub_top = top - 82.0;
+    let axis = match editor.rotation_axis() {
+        RotationAxis::X => "X",
+        RotationAxis::Y => "Y",
+        RotationAxis::Z => "Z",
+    };
+    let instruction = if editor.selected.is_none() {
+        "Select placed decor to edit in Expert Mode.".to_string()
+    } else {
+        format!(
+            "1 Move: arrows / Page Up / Page Down\n2 Rotate ({axis} axis): hold Q / E; X next axis\n3 Scale: hold Q / E\nEnter saves; Esc cancels staged changes"
+        )
+    };
+    let mut controls = mode_icon(
+        "HouseEditorBasicDecorModeButton",
+        "decor-ability-move-default",
+        "housing:basic",
+        (0.0, 0.0),
+        view.model.pending,
+    );
+    controls.extend(mode_icon(
+        "HouseEditorExpertDecorModeButton",
+        "decor-ability-expertmode-active",
+        "housing:expert",
+        (64.0, 0.0),
+        view.model.pending,
+    ));
+    let mut submodes = Element::default();
+    for (index, (name, atlas, action, mode, restricted)) in [
+        (
+            "TranslateSubmodeButton",
+            "horzmove",
+            "housing:precision:translate",
+            PrecisionSubmode::Translate,
+            disabled,
+        ),
+        (
+            "RotateSubmodeButton",
+            "rotate",
+            "housing:precision:rotate",
+            PrecisionSubmode::Rotate,
+            disabled,
+        ),
+        (
+            "ScaleSubmodeButton",
+            "scale",
+            "housing:precision:scale",
+            PrecisionSubmode::Scale,
+            scale_disabled,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let state = if editor.submode == mode {
+            "active"
+        } else {
+            "default"
+        };
+        submodes.extend(mode_icon(
+            name,
+            &format!("decor-ability-expert-{atlas}-{state}"),
+            action,
+            (index as f32 * 64.0, 0.0),
+            restricted,
+        ));
+    }
+    rsx! { r#frame { name:"HouseEditorFrame",stretch:true,
+        r#frame {name:"HouseEditorModeBar",width:128.0,height:64.0,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,{controls}}
+        r#frame {name:"HouseEditorExpertSubmodeBar",width:192.0,height:64.0,pos_type:"absolute",left:sub_left,top:sub_top,mouse_enabled:true,strata:FrameStrata::Dialog,{submodes}}
+        fontstring {name:"HouseEditorInstructions",text:instruction,width:330.0,height:150.0,pos_type:"absolute",left:{(view.viewport[0]-350.0).max(0.0)},top:40.0,font_size:14.0}
+    } }
+}
+
+fn mode_icon(
+    name: &str,
+    atlas: &str,
+    action: &str,
+    position: (f32, f32),
+    disabled: bool,
+) -> Element {
+    let (left, top) = position;
+    let image = named_atlas_texture(format!("{name}Icon"), atlas, (0.0, 0.0, 64.0, 64.0));
+    rsx! {button {name:{DynName(name.into())},width:64.0,height:64.0,pos_type:"absolute",left,top,onclick:action,disabled,button_default_skin:false,{image}}}
 }

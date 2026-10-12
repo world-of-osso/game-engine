@@ -42,11 +42,33 @@ fn load_visual(data: &Path, catalog: &HousingCatalog, decor_id: u32) -> Result<G
 }
 
 fn apply_transform(node: &mut Gd<Node3D>, decor: &PlacedDecor) {
-    node.set_position(Vector3::from_array(decor.transform.position));
-    node.set_rotation(Vector3::new(0.0, decor.transform.yaw, 0.0));
+    apply_precision(node, decor.transform);
+}
+
+fn apply_precision(node: &mut Gd<Node3D>, transform: shared::protocol::DecorTransform) {
+    node.set_position(Vector3::from_array(transform.position));
+    node.set_rotation(Vector3::new(transform.pitch, transform.yaw, transform.roll));
+    node.set_scale(Vector3::ONE * transform.scale);
 }
 
 impl HousingDecor {
+    pub(crate) fn restore_saved(&mut self) {
+        self.saved = None;
+    }
+
+    pub(crate) fn stage(
+        &mut self,
+        instance: u64,
+        transform: shared::protocol::DecorTransform,
+    ) -> Result<(), String> {
+        let node = self
+            .nodes
+            .get_mut(&instance)
+            .ok_or("Selected decor visual is unavailable.")?;
+        apply_precision(node, transform);
+        Ok(())
+    }
+
     pub(crate) fn contains(&self, instance: u64) -> bool {
         self.nodes.contains_key(&instance)
     }
@@ -71,8 +93,7 @@ impl HousingDecor {
         data: &Path,
         catalog: &HousingCatalog,
         decor_id: u32,
-        point: Vector3,
-        yaw: f32,
+        transform: shared::protocol::DecorTransform,
     ) -> Result<(), String> {
         if self.preview.is_none() {
             let mut visual = load_visual(data, catalog, decor_id)?;
@@ -81,8 +102,7 @@ impl HousingDecor {
             self.preview = Some(visual);
         }
         let preview = self.preview.as_mut().ok_or("Decor preview disappeared.")?;
-        preview.set_position(point);
-        preview.set_rotation(Vector3::new(0.0, yaw, 0.0));
+        apply_precision(preview, transform);
         Ok(())
     }
 

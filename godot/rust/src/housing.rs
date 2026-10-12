@@ -21,6 +21,7 @@ pub(crate) struct HousingHud {
     pub ui: Option<Gd<RegistryUi>>,
     pub authority: HousingAuthority,
     pub(super) decor: crate::housing_decor::HousingDecor,
+    pub(super) expert_held: [bool; 8],
     next_request_id: u64,
     confirming_plot: Option<u32>,
 }
@@ -131,6 +132,7 @@ impl GameClient {
 
     pub(super) fn close_housing(&mut self) {
         self.housing.decor.clear_preview();
+        self.housing.expert_held = [false; 8];
         self.group_frames.popups.hide(PURCHASE_POPUP);
         self.housing.confirming_plot = None;
         if let Some(ui) = self.housing.ui.take() {
@@ -205,6 +207,7 @@ impl GameClient {
             return Ok(());
         }
         self.sync_housing_layout()?;
+        self.advance_housing_precision()?;
         let Some(ui) = &mut self.housing.ui else {
             return Ok(());
         };
