@@ -130,6 +130,13 @@ func open_vendor() -> bool:
 	# Setup sends the existing NPC interaction request; purchase/use remains native input.
 	var reply := await ipc(["quest", "interact", "--npc", "Katie Hunter"])
 	if reply.is_empty(): return false
+	if not await wait_until(func(): return client.merchant_state().open or control("AuctionGossip") != null, "vendor interaction response"): return false
+	if not client.merchant_state().open:
+		var option: Control = null
+		for button in client.find_children("AuctionGossipOption*", "Button", true, false):
+			if button.is_visible_in_tree() and ("goods" in button.text.to_lower() or "browse" in button.text.to_lower()): option = button
+		if option == null: fail("Authentic vendor gossip option missing"); return false
+		await click(str(option.name))
 	return await wait_until(func(): return client.merchant_state().open, "authentic Katie Hunter vendor")
 
 func ipc(arguments: Array) -> String:
