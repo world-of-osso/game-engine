@@ -147,14 +147,15 @@ func run_fixture() -> void:
 	if failed:
 		return
 	await key(KEY_TAB)
-	var attack_error: String = client.use_spell(6603)
+	var attack_error: String = client.use_spell(20271)
 	if not attack_error.is_empty():
 		fail(attack_error)
 		return
-	deadline = Time.get_ticks_msec() + 10000
-	while client.assisted_combat_state().get("next_spell", 0) == 0 and Time.get_ticks_msec() < deadline:
+	# Wait through the setup Judgment's authored recharge and authoritative combat entry.
+	deadline = Time.get_ticks_msec() + 30000
+	while (client.assisted_combat_state().get("next_spell", 0) == 0 or not client.assisted_combat_state().in_combat) and Time.get_ticks_msec() < deadline:
 		await process_frame
-	if client.assisted_combat_state().get("next_spell", 0) == 0:
+	if client.assisted_combat_state().get("next_spell", 0) == 0 or not client.assisted_combat_state().in_combat:
 		write_json("assisted-blocker", {"assisted": client.assisted_combat_state(), "target": client.target_state()})
 		await capture("assistant-unresolved")
 		var before_blocked: int = client.spells_state().sent.size()
