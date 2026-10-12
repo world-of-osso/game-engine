@@ -509,7 +509,7 @@ fn set_base_card(
     children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: {status.as_str()}, hidden: true } });
     rsx! { button { name: {DynName(prefix)}, width: SET_WIDTH, height: SET_HEIGHT, left: x, top: y,
     pos_type: "absolute", disabled: busy, button_default_skin: false,
-    button_atlas_highlight: border, onclick: {action.as_str()}, {children} } }
+    button_atlas_highlight: "transmog-itemcard-default", onclick: {action.as_str()}, {children} } }
 }
 
 fn set_card(

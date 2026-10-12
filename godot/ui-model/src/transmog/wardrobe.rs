@@ -44,6 +44,7 @@ pub enum TransmogSend {
 pub struct OutfitRow {
     pub id: u32,
     pub name: String,
+    pub icon_fdid: u32,
 }
 
 /// C_TransmogSets set source counts: collected primary appearances of all of them.
@@ -87,6 +88,11 @@ impl TransmogBook {
             .into_iter()
             .map(|entry| OutfitRow {
                 id: entry.id,
+                icon_fdid: state
+                    .outfits
+                    .iter()
+                    .find(|outfit| outfit.id == entry.id)
+                    .map_or(0, |outfit| outfit.icon_fdid),
                 name: state
                     .outfits
                     .iter()
@@ -305,6 +311,7 @@ impl TransmogBook {
         Some(TransmogOutfit {
             id,
             name,
+            icon_fdid: self.viewed_record().map_or(0, |outfit| outfit.icon_fdid),
             choices,
             illusions,
         })
