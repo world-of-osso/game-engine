@@ -26,7 +26,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, 120000):
 		finish("character select timeout")
 		return
-	await click("CharCard_0")
+	await click("CharCard_1")
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0 and control("MinimapLauncherButton") != null, 180000):
 		finish("world/catalog timeout")
@@ -52,7 +52,17 @@ func run_fixture() -> void:
 		search.text = target.name
 		search.emit_signal("text_changed", target.name)
 		var row := "MountJournalRow%d" % int(target.mount_id)
-		if not await wait_until(func(): return control(row) != null, 15000):
+		await frames(8)
+		for _scroll in 30:
+			if control(row) != null:
+				break
+			await wheel_list(MOUSE_BUTTON_WHEEL_DOWN)
+		if control(row) == null:
+			for _scroll in 30:
+				if control(row) != null:
+					break
+				await wheel_list(MOUSE_BUTTON_WHEEL_UP)
+		if control(row) == null:
 			root.get_texture().get_image().save_png(out + "/missing-row-%d.png" % int(target.mount_id))
 			failures.append({"mount_id": target.mount_id, "reason": "authentic catalog row not visible after exact-name search", "search_text": str(control("MountJournalSearchBox").text)})
 			continue
@@ -102,6 +112,18 @@ func click(name: String) -> void:
 		button.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
 		root.push_input(button)
 		await frames(2)
+
+func wheel_list(button_index: int) -> void:
+	var list = control("MountJournalScrollBox")
+	if list == null:
+		return
+	var at := list.get_global_rect().get_center()
+	var wheel := InputEventMouseButton.new()
+	wheel.position = at
+	wheel.button_index = button_index
+	wheel.pressed = true
+	root.push_input(wheel)
+	await frames(4)
 
 func find_viewport(node: Node) -> SubViewport:
 	if node is SubViewport:
