@@ -90,6 +90,21 @@ pub struct AchievementComparison {
     pub entries: BTreeMap<u32, Option<AchievementCatalogEntry>>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AchievementFilter {
+    #[default]
+    All,
+    Completed,
+    Incomplete,
+}
+
+// The requested Mainline top-level set. Guild/Statistics have separate trees;
+// DB2 Housing (15606) is outside this screen's specified top-level set.
+const RETAIL_CATEGORIES: [u32; 14] = [
+    92, 96, 97, 15522, 95, 168, 169, 201, 155, 15117, 15246, 15301, 15234, 81,
+];
+const GUILD_CATEGORY: i32 = 15076;
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AchievementWindow {
     pub visible: bool,
@@ -110,6 +125,9 @@ pub struct AchievementWindow {
     pub tracked_ids: Vec<u32>,
     pub tracking_error: Option<String>,
     pub statistics: bool,
+    pub guild: bool,
+    pub filter: AchievementFilter,
+    pub filter_menu: bool,
     pub search_text: String,
     pub search_results: CategoryPage,
     categories_loaded: bool,
@@ -129,7 +147,12 @@ impl AchievementWindow {
             }
             "achievement:stop_compare" => self.comparison = None,
             "achievement:statistics" => self.change_statistics(true),
-            "achievement:achievements" => self.change_statistics(false),
+            "achievement:achievements" => self.change_tab(false, false),
+            "achievement:guild" => self.change_tab(false, true),
+            "achievement:filter_menu" => self.filter_menu = !self.filter_menu,
+            "achievement:filter:all" => self.change_filter(AchievementFilter::All),
+            "achievement:filter:completed" => self.change_filter(AchievementFilter::Completed),
+            "achievement:filter:incomplete" => self.change_filter(AchievementFilter::Incomplete),
             "achievement:summary" => {
                 self.selected_category = None;
                 self.selected_achievement = None;
@@ -157,11 +180,25 @@ impl AchievementWindow {
         }
         self.enqueue(requests)
     }
+    fn change_filter(&mut self, filter: AchievementFilter) {
+        self.filter = filter;
+        self.filter_menu = false;
+        self.expanded_achievement = None;
+        self.selected_achievement = None;
+        self.select_first();
+    }
+
     fn change_statistics(&mut self, statistics: bool) {
-        if self.statistics == statistics {
+        self.change_tab(statistics, false);
+    }
+
+    fn change_tab(&mut self, statistics: bool, guild: bool) {
+        if self.statistics == statistics && self.guild == guild {
             return;
         }
         self.statistics = statistics;
+        self.guild = guild;
+        self.filter_menu = false;
         self.expanded_category = None;
         self.pages.clear();
         self.selected_category = None;
@@ -283,7 +320,7 @@ impl AchievementWindow {
                 return;
             }
             let category = &self.categories[&id];
-            if category.parent_id == -1 || (self.statistics && category.parent_id == 1) {
+            if category.parent_id == self.category_root() {
                 self.expanded_category = if self.expanded_category == Some(id) {
                     None
                 } else {
@@ -824,6 +861,15 @@ impl AchievementWindow {
         self.entries()
             .iter()
             .filter(|entry| {
+                self.statistics
+                    || match self.filter {
+                        AchievementFilter::All => true,
+                        AchievementFilter::Completed => entry.earned,
+                        AchievementFilter::Incomplete => !entry.earned,
+                    }
+            })
+            .filter(|entry| !matches!(self.selected_category, Some(81 | 15093)) || entry.earned)
+            .filter(|entry| {
                 let account = entry.flags & 0x20000 != 0;
                 match self.scope {
                     AchievementScope::All => true,
@@ -838,9 +884,18 @@ impl AchievementWindow {
             .iter()
             .find(|entry| Some(entry.achievement_id) == self.selected_achievement)
     }
+    fn category_root(&self) -> i32 {
+        if self.statistics {
+            1
+        } else if self.guild {
+            GUILD_CATEGORY
+        } else {
+            -1
+        }
+    }
     pub fn category_tree(&self) -> Vec<(&AchievementCategoryEntry, usize)> {
         let mut rows = Vec::new();
-        self.append_children(if self.statistics { 1 } else { -1 }, 0, &mut rows);
+        self.append_children(self.category_root(), 0, &mut rows);
         rows
     }
     fn append_children<'a>(
@@ -854,7 +909,16 @@ impl AchievementWindow {
             .values()
             .filter(|row| row.parent_id == parent && (self.statistics || row.category_id != 1))
             .collect();
-        children.sort_by_key(|row| (row.order_index, row.category_id));
+        if parent == -1 {
+            children.retain(|row| RETAIL_CATEGORIES.contains(&row.category_id));
+            children.sort_by_key(|row| {
+                RETAIL_CATEGORIES
+                    .iter()
+                    .position(|id| *id == row.category_id)
+            });
+        } else {
+            children.sort_by_key(|row| (row.order_index, row.category_id));
+        }
         for row in children {
             rows.push((row, depth));
             if self.expanded_category == Some(row.category_id) {
@@ -998,10 +1062,13 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         && !window.statistics;
     let mut content = artwork::chrome(show_summary);
     content.extend(points_header(
-        window.summary.as_ref().map(|summary| summary.points),
+        window
+            .summary
+            .as_ref()
+            .filter(|_| !window.guild)
+            .map(|summary| summary.points),
     ));
     content.extend(category_panel(ctx, window));
-    content.extend(scope_tabs(window));
     content.extend(browse_controls(window));
     if window.comparison.is_some() {
         content.extend(comparison_view::content(ctx, window, show_summary));
@@ -1010,6 +1077,9 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     } else {
         content.extend(achievement_rows(ctx, window));
     }
+    // Godot Control input follows scene order, not CanvasItem z_index. Mount
+    // dropdown controls after the rows they overlap, matching their visual order.
+    content.extend(filter_controls(window, show_summary));
     let width = if window.comparison.is_some() {
         888.0
     } else {
@@ -1084,6 +1154,15 @@ fn category_panel(ctx: &SharedContext, window: &AchievementWindow) -> Element {
 
 // Retail AchievementUI.lua:28,2334-2512: latest three, overall progress, authored summary categories.
 fn summary_panel(window: &AchievementWindow) -> Element {
+    if window.guild {
+        return label(
+            "AchievementGuildSummaryUnavailable".into(),
+            "Guild achievement progress is not available from this server.",
+            (234.0, 90.0, 470.0, 60.0),
+            WHITE,
+            "",
+        );
+    }
     let Some(summary) = &window.summary else {
         return label(
             "AchievementSummaryLoading".into(),
@@ -1171,21 +1250,49 @@ fn summary_category_counts(window: &AchievementWindow, summary: &AchievementSumm
     content
 }
 
-fn scope_tabs(window: &AchievementWindow) -> Element {
-    let tabs = [
-        (AchievementScope::All, "All", "all"),
-        (AchievementScope::Account, "Account", "account"),
-        (AchievementScope::Character, "Character", "character"),
-    ];
-    let mut content = Vec::new();
-    for (index, (scope, title, action)) in tabs.into_iter().enumerate() {
-        content.extend(panel_button(
-            format!("AchievementScope{action}"),
-            title,
-            &format!("achievement:scope:{action}"),
-            window.scope != scope,
-            (228.0 + index as f32 * 102.0, 29.0, 96.0, 22.0),
-        ));
+fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
+    if summary || window.statistics || matches!(window.selected_category, Some(81 | 15093)) {
+        return Vec::new();
+    }
+    let title = match window.filter {
+        AchievementFilter::All => "All",
+        AchievementFilter::Completed => "Completed",
+        AchievementFilter::Incomplete => "Incomplete",
+    };
+    let mut content = panel_button(
+        "AchievementFilterDropdown".into(),
+        title,
+        "achievement:filter_menu",
+        true,
+        (228.0, 29.0, 112.0, 22.0),
+    );
+    if window.filter_menu {
+        let mut choices = Vec::new();
+        for (index, (text, action)) in [
+            ("All", "all"),
+            ("Completed", "completed"),
+            ("Incomplete", "incomplete"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let name = DynName(format!("AchievementFilter{action}"));
+            let action = format!("achievement:filter:{action}");
+            choices.extend(rsx! { button {
+                name, text, width:112.0, height:24.0, font_size:12.0,
+                onclick:action.as_str(), strata:FrameStrata::Dialog, mouse_enabled:true,
+                button_atlas_up:"defaultbutton-nineslice-up",
+                button_atlas_pressed:"defaultbutton-nineslice-pressed",
+                button_atlas_highlight:"defaultbutton-nineslice-highlight",
+                pos_type:"absolute", left:0.0, top:{index as f32 * 24.0},
+            }});
+        }
+        content.extend(
+            rsx! {r#frame {name:"AchievementFilterMenu",width:112.0,height:72.0,
+                strata:FrameStrata::Dialog,frame_level:30.0,mouse_enabled:true,
+            pos_type:"absolute",left:228.0,top:51.0, {choices}
+            }},
+        );
     }
     content
 }
@@ -1263,16 +1370,24 @@ fn browse_controls(window: &AchievementWindow) -> Element {
         "AchievementTabAchievements",
         "Achievements",
         "achievement:achievements",
-        !window.statistics,
+        !window.statistics && !window.guild,
         17.0,
         115.0,
     );
+    content.extend(artwork::tab(
+        "AchievementTabGuild",
+        "Guild",
+        "achievement:guild",
+        window.guild,
+        136.0,
+        70.0,
+    ));
     content.extend(artwork::tab(
         "AchievementTabStatistics",
         "Statistics",
         "achievement:statistics",
         window.statistics,
-        136.0,
+        210.0,
         115.0,
     ));
     content.extend(artwork::search_box(&window.search_text));
@@ -1420,6 +1535,12 @@ fn empty_message(window: &AchievementWindow) -> &'static str {
         } else {
             "Searching..."
         };
+    }
+    if matches!(window.selected_category, Some(81 | 15093)) {
+        return "Feats of Strength recognize exceptional accomplishments. Only earned feats are shown.";
+    }
+    if window.guild {
+        return "Guild achievement progress is not available from this server.";
     }
     if let Some(achievement_id) = window
         .selected_achievement

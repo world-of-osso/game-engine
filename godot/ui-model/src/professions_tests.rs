@@ -221,8 +221,9 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
         ("Item", "ID,CraftingQualityID\n244634,14\n2589,0\n"),
         (
             "SkillLine",
-            "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID\n197,Tailoring,3908,11,0\n2540,Classic Tailoring,0,11,197\n",
+            "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID,ParentTierIndex\n197,Tailoring,3908,11,0,0\n2540,Classic Tailoring,0,11,197,0\n",
         ),
+        ("SkillLineXTraitTree", "ID,SkillLineID,Variant\n"),
         (
             "TradeSkillCategory",
             "ID,Name_lang,OrderIndex\n1089,Bandages,20\n1090,Weaving,10\n",

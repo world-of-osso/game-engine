@@ -157,7 +157,10 @@ fn talent_mask(mask: Mask) -> Result<GrayImage, String> {
     Ok(mask_alpha(&image))
 }
 fn mask_of(name: &str) -> Option<Mask> {
-    if name.starts_with("TalentNode") && name.ends_with("RoundIcon") {
+    let talent_circle = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
+    let profession_circle = (name.starts_with("ProfessionSpecNode") && name.ends_with("Icon"))
+        || name == "ProfessionSpecDetailedIcon";
+    if talent_circle || profession_circle {
         Some(Mask::TalentCircle)
     } else if name.ends_with("ChoiceLeftIcon") {
         Some(Mask::TalentChoiceLeft)
@@ -239,6 +242,102 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
         let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
         RgbaImage::from_raw(image.width, image.height, image.pixels).unwrap()
+    }
+
+    #[test]
+    fn professions_specialization_icons_cut_corners_with_authored_circle_mask() {
+        use game_engine_ui_model::professions_frame::{
+            ProfessionPage, ProfessionView, professions_screen,
+        };
+        use shared::protocol::*;
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let unlock = ProfessionSpecNodeSnapshot {
+            node_id: 28546,
+            entry_id: 36338,
+            name: "Leather Armor Crafting".into(),
+            description: String::new(),
+            icon: 4635265,
+            spell_id: 0,
+            rank: 1,
+            granted_rank: 0,
+            max_rank: 1,
+            pos_x: 0,
+            pos_y: 0,
+            kind: 1,
+            available: false,
+            unavailable_reason: None,
+            costs: vec![],
+            path: None,
+            perk: None,
+        };
+        let mut knowledge = unlock.clone();
+        knowledge.entry_id = 36327;
+        knowledge.rank = 0;
+        knowledge.max_rank = 30;
+        knowledge.available = true;
+        let mut view = ProfessionView {
+            page: ProfessionPage::Specializations,
+            profession_name: "Leatherworking".into(),
+            ..Default::default()
+        };
+        view.book.visible = true;
+        view.specializations.selected_tree = Some(350);
+        view.specializations.selected_node = Some(28546);
+        view.specializations.snapshot = Some(ProfessionSpecializationsSnapshot {
+            skill_line: 2830,
+            knowledge_currency_id: 2025,
+            knowledge_available: 1,
+            currencies: vec![ProfessionSpecCurrencySnapshot {
+                trait_currency_id: 9,
+                currency_id: 2025,
+                available: 1,
+            }],
+            trees: vec![ProfessionSpecTreeSnapshot {
+                tree_id: 350,
+                name: "Leather Armor Crafting".into(),
+                root_node_id: 28546,
+                unlocked: true,
+                nodes: vec![unlock, knowledge],
+                edges: vec![],
+            }],
+        });
+        let mut shared = SharedContext::new();
+        shared.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 900.0);
+        Screen::new(professions_screen).sync(&shared, &mut registry);
+        IconMasks::default().apply(&mut registry);
+        for name in ["ProfessionSpecNode28546Icon", "ProfessionSpecDetailedIcon"] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(rendered)) = &frame.widget_data else {
+                panic!("path icon texture")
+            };
+            let rgba = match rendered.source {
+                TextureSource::FileDataId(fdid) => texture(fdid),
+                TextureSource::Dynamic(id) => {
+                    let pixels = registry.dynamic_texture(id).unwrap();
+                    RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap()
+                }
+                _ => panic!("path icon must retain its authored pixels"),
+            };
+            assert_eq!(rgba.get_pixel(0, 0)[3], 0, "{name} top-left corner");
+            assert_eq!(
+                rgba.get_pixel(rgba.width() / 10, rgba.height() / 10)[3],
+                0,
+                "{name} diagonal outside circle"
+            );
+            assert_eq!(
+                rgba.get_pixel(rgba.width() - 1, rgba.height() - 1)[3],
+                0,
+                "{name} bottom-right corner"
+            );
+            assert!(
+                rgba.get_pixel(rgba.width() / 2, rgba.height() / 2)[3] > 200,
+                "{name} opaque centre"
+            );
+        }
     }
 
     #[test]

@@ -7,7 +7,7 @@ use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
 use game_engine_ui_model::professions_catalog::RecipeCatalog;
 use game_engine_ui_model::professions_frame::{
-    ItemDisplay, ProfessionView, QUANTITY, SEARCH, professions_screen,
+    ItemDisplay, ProfessionPage, ProfessionView, QUANTITY, SEARCH, professions_screen,
 };
 use godot::prelude::*;
 use shared::casting::CastState;
@@ -24,6 +24,12 @@ pub(crate) struct Professions {
     ui: Option<Gd<RegistryUi>>,
     pub(crate) error: String,
     collapsed: BTreeSet<String>,
+    page: ProfessionPage,
+    pub(crate) specializations:
+        game_engine_ui_model::professions_specializations::SpecializationDraft,
+    pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
+    order_search: String,
+    order_form_initialized: bool,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -98,10 +104,26 @@ impl GameClient {
     pub(super) fn close_professions(&mut self) -> bool {
         let visible = self.professions.book.visible;
         self.professions.book.visible = false;
+        self.professions.page = ProfessionPage::Recipes;
+        self.professions.order_form_initialized = false;
+        self.professions.orders.menu = None;
+        self.professions.orders.npc = None;
+        self.professions.orders.customer = false;
+        self.professions.specializations.confirming_unlock = false;
+        self.professions.specializations.purchases.clear();
         self.professions.free_ui();
         visible
     }
-    pub(super) fn open_profession_spell(&mut self, spell_id: u32) -> bool {
+    pub(super) fn close_professions_window(&mut self) -> Result<bool, FrameError> {
+        if let Some(npc) = self.professions.orders.npc {
+            self.account.send_close_interaction(npc)?;
+        }
+        Ok(self.close_professions())
+    }
+    pub(super) fn open_profession_spell(
+        &mut self,
+        spell_id: u32,
+    ) -> Result<bool, crate::frame_error::SessionError> {
         let opener = self
             .professions
             .catalog
@@ -109,11 +131,15 @@ impl GameClient {
             .is_some_and(|catalog| catalog.openers.contains_key(&spell_id));
         let known = self.professions.book.snapshot.spells.contains(&spell_id);
         if opener && known {
+            if let Some(npc) = self.professions.orders.npc {
+                self.account.send_close_interaction(npc)?;
+            }
+            self.close_professions();
             self.professions.book.visible = true;
             self.professions.book.quantity = 1;
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
     pub(super) fn profession_spell_ids(&self) -> Vec<u32> {
         self.professions
@@ -135,7 +161,7 @@ impl GameClient {
         }
         self.professions.poll_catalog(&self.data_root)?;
         self.refresh_profession_recipes();
-        self.apply_profession_key();
+        self.apply_profession_key()?;
         if !self.professions.book.visible {
             return Ok(());
         }
@@ -179,9 +205,9 @@ impl GameClient {
                 .map(|recipe| recipe.spell_id);
         }
     }
-    fn apply_profession_key(&mut self) {
+    fn apply_profession_key(&mut self) -> Result<(), FrameError> {
         if self.game_menu_ui.is_some() || !self.account.session.gameplay_input_allowed() {
-            return;
+            return Ok(());
         }
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         if self
@@ -190,34 +216,57 @@ impl GameClient {
             .is_just_pressed(InputAction::ToggleProfessions, &input)
         {
             if self.professions.book.visible {
-                self.close_professions();
+                self.close_professions_window()?;
             } else {
                 self.professions.book.visible = true;
                 self.professions.book.quantity = 1;
             }
         }
+        Ok(())
     }
     fn poll_profession_inputs(&mut self) -> Result<(), FrameError> {
         let Some(mut ui) = self.professions.ui.clone() else {
             return Ok(());
         };
-        self.professions.book.search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
-        self.professions.book.quantity = ui
-            .bind_mut()
-            .frame_text(QUANTITY.into())
-            .to_string()
-            .parse()
-            .unwrap_or(0);
+        if self.professions.page == ProfessionPage::Recipes {
+            self.professions.book.search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
+            self.professions.book.quantity = ui
+                .bind_mut()
+                .frame_text(QUANTITY.into())
+                .to_string()
+                .parse()
+                .unwrap_or(0);
+        }
+        self.read_order_form(&mut ui)?;
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
                 break;
             }
             if action == "profession:close" {
-                self.close_professions();
+                self.close_professions_window()?;
                 break;
             }
-            if let Some(raw) = action.strip_prefix("profession:select:") {
+            if let Some(tab) = action.strip_prefix("profession:tab:") {
+                self.professions.page = match tab {
+                    "recipes" => ProfessionPage::Recipes,
+                    "specializations" => ProfessionPage::Specializations,
+                    "orders" => ProfessionPage::Orders,
+                    _ => return Err(format!("Unknown profession tab: {tab}").into()),
+                };
+                if self.professions.page == ProfessionPage::Specializations {
+                    self.query_profession_specializations()?;
+                } else if self.professions.page == ProfessionPage::Orders {
+                    self.professions.orders.customer = false;
+                    self.query_crafting_orders()?;
+                }
+            } else if let Some(action) = action.strip_prefix("profession:order:") {
+                self.apply_crafting_order_action(action)?;
+            } else if action == "profession:recraft" {
+                self.professions.page = ProfessionPage::Recraft;
+            } else if let Some(action) = action.strip_prefix("profession:spec:") {
+                self.apply_specialization_action(action)?;
+            } else if let Some(raw) = action.strip_prefix("profession:select:") {
                 self.professions.book.selected = Some(
                     raw.parse()
                         .map_err(|_| format!("Invalid recipe selection: {action}"))?,
@@ -258,6 +307,67 @@ impl GameClient {
         }
         Ok(())
     }
+    fn query_profession_specializations(&mut self) -> Result<(), FrameError> {
+        let skill_line = self
+            .professions
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.specialization_skill_line(&self.professions.book));
+        if let Some(skill_line) = skill_line {
+            self.account.send_profession_specialization(
+                shared::protocol::ProfessionSpecializationRequest::Query { skill_line },
+            )?;
+            self.professions.specializations.pending = true;
+        } else {
+            self.professions.specializations =
+                game_engine_ui_model::professions_specializations::SpecializationDraft {
+                    status: "No learned specialization tier for the selected profession.".into(),
+                    ..Default::default()
+                };
+        }
+        Ok(())
+    }
+    fn apply_specialization_action(&mut self, action: &str) -> Result<(), FrameError> {
+        let state = &mut self.professions.specializations;
+        if let Some(id) = action.strip_prefix("tree:") {
+            state.selected_tree = Some(
+                id.parse()
+                    .map_err(|_| format!("Invalid specialization tree: {id}"))?,
+            );
+            state.selected_node = state.tree().map(|t| t.root_node_id);
+        } else if let Some(id) = action.strip_prefix("node:") {
+            state.selected_node = Some(
+                id.parse()
+                    .map_err(|_| format!("Invalid specialization node: {id}"))?,
+            );
+        } else {
+            let request = match action {
+                "spend" => {
+                    state.stage_rank();
+                    None
+                }
+                "undo" => {
+                    state.undo();
+                    None
+                }
+                "apply" => state.commit_request(),
+                "unlock" => {
+                    state.confirming_unlock = state.can_unlock();
+                    None
+                }
+                "cancel-unlock" => {
+                    state.confirming_unlock = false;
+                    None
+                }
+                "confirm-unlock" => state.confirm_unlock(),
+                _ => return Err(format!("Unknown specialization action: {action}").into()),
+            };
+            if let Some(request) = request {
+                self.account.send_profession_specialization(request)?;
+            }
+        }
+        Ok(())
+    }
     fn profession_view(&mut self) -> ProfessionView {
         let book = self.professions.book.clone();
         let inventory = &self.merchant.session.inventory;
@@ -282,6 +392,9 @@ impl GameClient {
             })
             .collect();
         let mut view = ProfessionView {
+            page: self.professions.page,
+            now_unix: godot::classes::Time::singleton().get_unix_time_from_system() as u64,
+            specializations: self.professions.specializations.clone(),
             crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
@@ -306,6 +419,7 @@ impl GameClient {
             items,
             ..Default::default()
         };
+        self.project_order_view(&mut view);
         self.cache_profession_icons(&mut view);
         view
     }
@@ -327,6 +441,13 @@ impl GameClient {
         if let Some(icon) = icon {
             view.profession_icon = self.drawable_fdid(icon);
         }
+        if let Some(snapshot) = &mut view.specializations.snapshot {
+            for tree in &mut snapshot.trees {
+                for node in &mut tree.nodes {
+                    node.icon = self.drawable_fdid(node.icon);
+                }
+            }
+        }
         for item in view.items.values_mut() {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);
         }
@@ -340,7 +461,8 @@ impl GameClient {
         ));
         if let Some(ui) = &mut self.professions.ui {
             ui.bind_mut().set_ui_scale(scale)?;
-            return ui.bind_mut().set_state(view);
+            ui.bind_mut().set_state(view)?;
+            return self.initialize_order_form();
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("ProfessionsUI");
@@ -354,11 +476,16 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
-        ui.bind_mut().set_editbox_text(QUANTITY, "1")?;
+        if self.professions.page == ProfessionPage::Recipes {
+            ui.bind_mut().set_editbox_text(QUANTITY, "1")?;
+        }
         self.professions.ui = Some(ui);
-        Ok(())
+        self.initialize_order_form()
     }
 }
+
+#[path = "professions_orders.rs"]
+mod orders;
 
 fn recipe_craftable_counts(
     book: &ProfessionBook,

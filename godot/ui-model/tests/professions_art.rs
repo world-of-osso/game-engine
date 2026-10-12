@@ -90,6 +90,21 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
     }
 }
 #[test]
+fn professions_retail_page_tabs_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view(1));
+        for (name, caption) in [
+            ("ProfessionsRecipesTabText", "Recipes"),
+            ("ProfessionsSpecializationsTabText", "Specializations"),
+            ("ProfessionsOrdersTabText", "Crafting Orders"),
+        ] {
+            assert_eq!(text(&registry, name).0, caption);
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn professions_authored_midnight_reagent_quality_overlay_in_both_skins() {
     use game_engine_ui_model::professions_catalog::RecipeCatalog;
     let dir =
