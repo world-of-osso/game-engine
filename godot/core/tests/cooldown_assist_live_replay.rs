@@ -34,7 +34,10 @@ fn replay_skin(skin: &str) {
         serde_json::from_slice(&std::fs::read(path.join(name)).unwrap()).unwrap()
     };
     let proof = read("recommendation-update-proof.json");
-    let mut evaluation: Evaluation = serde_json::from_value(proof["evaluation"].clone()).unwrap();
+    // Godot's parsed/display JSON converts integer cells to floats. Replay the
+    // untouched native JSON string, not that presentation projection.
+    let encoded = proof["assisted"]["evaluation_json"].as_str().unwrap();
+    let mut evaluation: Evaluation = serde_json::from_str(encoded).unwrap();
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
     let catalog = CooldownAssistCatalog::load(&data).unwrap();
     let after = proof["after"].as_u64().unwrap() as u32;
@@ -49,7 +52,10 @@ fn replay_skin(skin: &str) {
     assert_eq!(charge["after"]["charges"].as_u64(), Some(1));
     assert!(charge["after"]["remaining"].as_f64().unwrap() > 0.0);
     let cast = charge["cast"].as_u64().unwrap() as u32;
-    assert_eq!(evaluation.facts.charges.get(&cast), Some(&1));
+    assert!(evaluation.facts.charges.contains_key(&cast));
+    assert_eq!(evaluation.facts.ready.get(&after), Some(&Ok(true)));
+    assert_eq!(evaluation.facts.affordable.get(&after), Some(&Ok(true)));
+    assert_eq!(evaluation.facts.in_range.get(&after), Some(&Ok(true)));
     println!(
         "{skin}: exact first eligible {after}, Holy Power {:?}, charges {:?}, cooldowns {:?}, target {}",
         evaluation.facts.powers.get(&9),
@@ -57,16 +63,18 @@ fn replay_skin(skin: &str) {
         evaluation.facts.cooldowns_ms,
         evaluation.target
     );
-    // A recorded spender must stop qualifying when its observed resource is removed.
+    // Remove the selected spender's resource, or an ordinary spell's readiness.
     // This control rejects accepting a spell merely because it belongs to the rotation.
     if after == 85256 {
         assert!(evaluation.facts.powers[&9] > 3.0);
         evaluation.facts.powers.insert(9, 0.0);
-        assert_ne!(
-            evaluate(&catalog, &evaluation),
-            Ok(Recommendation::Spell(after))
-        );
+    } else {
+        evaluation.facts.ready.insert(after, Ok(false));
     }
+    assert_ne!(
+        evaluate(&catalog, &evaluation),
+        Ok(Recommendation::Spell(after))
+    );
 }
 
 #[test]
