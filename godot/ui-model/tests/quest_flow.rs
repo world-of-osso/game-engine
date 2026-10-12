@@ -54,6 +54,7 @@ fn worgs(current: u32) -> QuestEntrySnapshot {
             completed: current >= 6,
             kind: QuestObjectiveKind::Monster,
             object_id: 49871,
+            optional: false,
         }],
         level: -1,
         sort_id: 6170,

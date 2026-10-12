@@ -15,11 +15,17 @@ pub(crate) fn is_unit(unit: Unit) -> bool {
     unit.has::<Player>() || unit.has::<Npc>()
 }
 
-/// The controlled pet frame must not bind a non-combat companion's SummonedBy.
+/// Ownership alone includes stationary toy scenery. A pet must be player-controlled.
 pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
+    const UNIT_FLAG_PLAYER_CONTROLLED: u32 = 0x8;
     replica
         .units()
-        .find(|unit| unit.summoned_by() == Some(player) && !is_non_combat_companion(*unit))
+        .find(|unit| {
+            let controlled = unit
+                .unit_flags()
+                .is_some_and(|flags| flags & UNIT_FLAG_PLAYER_CONTROLLED != 0);
+            unit.summoned_by() == Some(player) && controlled && !is_non_combat_companion(*unit)
+        })
         .map(|unit| unit.server_id)
 }
 
@@ -177,13 +183,34 @@ mod tests {
     }
 
     #[test]
+    fn toyfx14_stationary_scarecrow_does_not_take_the_combat_pet_frame() {
+        let mut replica = Replica::for_tests();
+        let scarecrow = BOAR;
+        replica.insert(
+            scarecrow,
+            Npc {
+                template_id: 66768,
+                name: "Pandaren Scarecrow".into(),
+            },
+        );
+        replica.insert(scarecrow, UnitSummonedBy(HUNTER));
+        assert_eq!(local_pet(&replica, HUNTER), None);
+        replica.insert(WOLF, npc("Wolf"));
+        replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(WOLF, UnitFlags(0x8));
+        assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
+    }
+
+    #[test]
     fn local_pet_is_the_unit_summoned_by_the_local_player() {
         let mut replica = Replica::for_tests();
         replica.insert(BOAR, npc("Young Boar"));
         replica.insert(OTHER_WOLF, npc("Wolf"));
         replica.insert(OTHER_WOLF, UnitSummonedBy(OTHER_HUNTER));
+        replica.insert(OTHER_WOLF, UnitFlags(0x8));
         replica.insert(WOLF, npc("Wolf"));
         replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(WOLF, UnitFlags(0x8));
         replica.insert(
             WOLF,
             Health {
