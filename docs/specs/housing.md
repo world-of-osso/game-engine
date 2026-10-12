@@ -40,7 +40,7 @@ Expert uses the same owned decor and server conservation rules as Basic. Retail 
 
 ### Mouse precision continuation
 
-Start/Change/Complete mouse manipulation stages an axis transform from its press-time value, never accumulates prior motion twice and never saves on release. Explicit commit remains authoritative; cancel restores saved state. Visitors, unselected targets and WMO scale are refused. Parent-approved2026-10-12 scope uses sourced unsnapped controls only: Retail transform axes/events and scale/rotate widget art. Shift snap increments and native3D handle identity remain named source gaps; do not invent increments, interpret unnamed GameParameter rows or draw substitute3D handles.
+Start/Change/Complete mouse manipulation stages an axis transform from its press-time value, never accumulates prior motion twice and never saves on release. Explicit commit remains authoritative; cancel restores saved state. Visitors, unselected targets and WMO scale are refused. Parent-approved2026-10-12 scope uses sourced unsnapped controls only: Retail transform axes/events and scale/rotate widget art. Shift snap increments and native3D handle identity remain named source gaps; do not invent increments, interpret unnamed GameParameter rows or draw substitute3D handles. Source widgets retain rotation80×20/13px arrows and scale200×19/32px thumb/80×20 percentage amount. Mouse arrows hold the same existing native incremental rate until release; the scale bar uses relative dragging, not invented per-decor extrema. Direct dragging of selected decor projects the chosen X/Y/Z axis into the viewport; X selects the next axis. These input mappings are native tuning, not certified Retail3D handle identity or slider-range parity.
 
 ## Neighborhood source boundary
 

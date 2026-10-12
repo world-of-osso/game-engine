@@ -548,6 +548,111 @@ fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
 }
 
 #[test]
+fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let authority = HousingAuthority {
+            state: Some(shared::protocol::HousingState {
+                layout: Some(shared::protocol::HouseLayout {
+                    house_id: 41,
+                    can_edit: true,
+                    decor: vec![shared::protocol::PlacedDecor {
+                        instance_id: 7,
+                        decor_id: 1693,
+                        transform: shared::protocol::DecorTransform {
+                            position: [1.0, 2.0, 3.0],
+                            yaw: 0.0,
+                            pitch: 0.0,
+                            roll: 0.0,
+                            scale: 1.2,
+                        },
+                    }],
+                }),
+                ..Default::default()
+            }),
+            error: None,
+        };
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.surface = HousingSurface::Editor;
+        model.editor.set_mode(EditorMode::Expert);
+        model.editor.select(&authority, 7).unwrap();
+        model.editor.scale_allowed = true;
+        model.editor.mouse_control_anchor = Some([640.0, 300.0]);
+        let mut view = HousingView {
+            model,
+            authority,
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: Default::default(),
+            vendor_names: Default::default(),
+        };
+        for (submode, frame_name, value_name, expected, width, height) in [
+            (
+                PrecisionSubmode::Rotate,
+                "HouseEditorRotateControl",
+                "HouseEditorRotateAmount",
+                "0°",
+                80.0,
+                20.0,
+            ),
+            (
+                PrecisionSubmode::Scale,
+                "HouseEditorScaleControl",
+                "HouseEditorScaleAmount",
+                "120%",
+                200.0,
+                19.0,
+            ),
+        ] {
+            view.model.editor.set_submode(submode);
+            let mut context = SharedContext::new();
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name(frame_name)
+                        .expect("sourced mouse control"),
+                )
+                .unwrap();
+            assert_eq!(frame.width, Dimension::Fixed(width));
+            assert_eq!(frame.height, Dimension::Fixed(height));
+            let amount = registry
+                .get(registry.get_by_name(value_name).unwrap())
+                .unwrap();
+            let Some(WidgetData::FontString(text)) = &amount.widget_data else {
+                panic!("missing actual transform amount")
+            };
+            assert_eq!(text.text, expected);
+            for side in ["Left", "Right"] {
+                let arrow = registry
+                    .get(
+                        registry
+                            .get_by_name(&format!("{frame_name}{side}"))
+                            .unwrap(),
+                    )
+                    .unwrap();
+                assert_eq!(arrow.width, Dimension::Fixed(13.0));
+                assert_eq!(arrow.height, Dimension::Fixed(13.0));
+            }
+        }
+        view.model.pending = true;
+        let mut context = SharedContext::new();
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        assert!(registry.get_by_name("HouseEditorScaleControl").is_none());
+    }
+}
+
+#[test]
 fn housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

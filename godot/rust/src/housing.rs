@@ -22,6 +22,7 @@ pub(crate) struct HousingHud {
     pub authority: HousingAuthority,
     pub(super) decor: crate::housing_decor::HousingDecor,
     pub(super) expert_held: [bool; 8],
+    pub(super) mouse_pointer: Option<crate::housing_mouse::ExpertPointer>,
     next_request_id: u64,
     confirming_plot: Option<u32>,
 }
@@ -139,6 +140,7 @@ impl GameClient {
     pub(super) fn close_housing(&mut self) {
         self.housing.decor.clear_preview();
         self.housing.expert_held = [false; 8];
+        self.housing.mouse_pointer = None;
         if let Some(model) = &mut self.housing.model {
             model.surface = HousingSurface::Dashboard;
             model.editor = Default::default();
@@ -159,12 +161,14 @@ impl GameClient {
             .get_visible_rect()
             .size;
         let scale = self.effective_ui_scale();
-        let model = self
+        let mut model = self
             .housing
             .model
             .as_ref()
             .ok_or("Housing catalog is not loaded")?
             .clone();
+        model.editor.mouse_control_anchor =
+            self.project_housing_control_anchor(model.editor.expert_transform(), scale);
         let authority = &self.housing.authority;
         let missing_thumbnails = model
             .visible(authority)

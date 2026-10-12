@@ -191,7 +191,9 @@ fn expert_screen(view: &HousingView) -> Element {
             restricted,
         ));
     }
+    let mouse_controls = crate::housing_mouse_component::mouse_controls(view);
     rsx! { r#frame { name:"HouseEditorFrame",stretch:true,
+        {mouse_controls}
         r#frame {name:"HouseEditorModeBar",width:128.0,height:64.0,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,{controls}}
         r#frame {name:"HouseEditorExpertSubmodeBar",width:192.0,height:64.0,pos_type:"absolute",left:sub_left,top:sub_top,mouse_enabled:true,strata:FrameStrata::Dialog,{submodes}}
         fontstring {name:"HouseEditorInstructions",text:instruction,width:330.0,height:150.0,pos_type:"absolute",left:{(view.viewport[0]-350.0).max(0.0)},top:40.0,font_size:14.0}
