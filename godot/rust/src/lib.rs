@@ -2187,7 +2187,9 @@ impl GameClient {
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
-            AccountEvent::ProfessionSpecializations(update) => self.professions.specializations.receive(update),
+            AccountEvent::ProfessionSpecializations(update) => {
+                self.professions.specializations.receive(update)
+            }
             AccountEvent::CraftingOrders(update) => self.professions.orders.receive(update),
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
