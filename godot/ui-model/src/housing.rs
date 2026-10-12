@@ -102,6 +102,21 @@ impl HousingDashboard {
         action: &str,
     ) -> Result<Option<shared::protocol::HousingCommand>, String> {
         use shared::protocol::HousingCommand;
+        if let Some(value) = action.strip_prefix("housing:access:") {
+            let (house, access) = value
+                .split_once(':')
+                .ok_or("Invalid house access action.")?;
+            let house_id = house.parse().map_err(|_| "Invalid house identity.")?;
+            let allowed = match access {
+                "on" => true,
+                "off" => false,
+                _ => return Err("Invalid house access setting.".into()),
+            };
+            return Ok(Some(HousingCommand::SetHouseAccessAnyone {
+                house_id,
+                allowed,
+            }));
+        }
         if action == "housing:leave" {
             return Ok(Some(HousingCommand::LeaveHouse));
         }
