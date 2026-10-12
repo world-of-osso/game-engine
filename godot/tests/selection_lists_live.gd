@@ -84,8 +84,9 @@ func run_fixture() -> void:
 	await pointer("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld", "world", 180.0): return
 	if client.account_state().ui_skin.to_lower() != skin: fail("Wrong skin: " + str(client.account_state())); return
-	if not await wait_until(func(): return control("LFDMicroButton") != null, "inworld HUD"): return
-	await pointer("LFDMicroButton")
+	if not await wait_until(func(): return control("MinimapLauncherButton") != null, "inworld HUD"): return
+	await pointer("MinimapLauncherButton")
+	await pointer("LauncherEntryLFDMicroButton")
 	if not await wait_until(func(): return control("HonorFrameSpecificBattlegroundButton699") != null, "queue list"): return
 	await pointer("HonorFrameSpecificBattlegroundButton699")
 	await motion(Vector2(650, 480))
