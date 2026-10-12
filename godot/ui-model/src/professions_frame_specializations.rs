@@ -10,6 +10,8 @@ use ui_toolkit::{
 
 #[path = "professions_specializations_layout.rs"]
 mod layout;
+#[path = "professions_frame_perks.rs"]
+mod perks;
 
 pub(super) fn page(view: &ProfessionView) -> Element {
     let state = &view.specializations;
@@ -265,6 +267,7 @@ fn detailed_path(view: &ProfessionView) -> Element {
         &node.description,
         (745.0, 518.0, 365.0, 50.0),
     ));
+    out.extend(perks::dial(view));
     out.extend(panel_button(
         "ProfessionSpecSpend".into(),
         if state.path_unlocked(node.node_id) {
