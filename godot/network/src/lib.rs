@@ -23,6 +23,8 @@ pub mod meetingstones_fixture;
 pub mod movement_control;
 #[cfg(test)]
 mod professions_wire_tests;
+#[cfg(test)]
+mod professions_workflow_wire_tests;
 pub mod replica;
 #[path = "../../core/src/screen_arg_data.rs"]
 pub mod screen_arg_data;
@@ -257,6 +259,8 @@ impl NetworkBridge {
             .receive::<protocol::ResurrectionOffer>()
             .receive::<protocol::SummonRequest>()
             .receive::<protocol::ProfessionSnapshot>()
+            .receive::<protocol::ProfessionSpecializationStateUpdate>()
+            .receive::<protocol::CraftingOrderStateUpdate>()
             .receive::<protocol::CollectionStateUpdate>()
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()
