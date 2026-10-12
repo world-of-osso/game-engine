@@ -13,6 +13,7 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 - Drag copies ToyAction to any existing action bar slot. Retail PickupToyBoxItem is persisted as ActionRef::Item(ItemID), using existing SetActionButton and server persistence. A catalog toy slot activates through the same UseToy path, not UseItem or bag possession. Ground-targeted toy activations carry their clicked destination in UseToy.
 - Hover displays toy identity, source, ownership and unavailable reason. Collections micro-menu opens/closes the journal.
 
+- Source-scaled stationary summons preserve the TDB template-model display multiplier independently of native ModelData/CDI visual scale. Underlight Sealamp170476 uses replicated root multiplier.35; no reskin or substitute model. Aura object-scale changes compose with and restore that source multiplier, without assigning scenery to the combat-pet frame.
 - Replicated UnitScale applies aura61 additive scale to the unit root, preserving each native visual's own scale and restoring1 on removal. Both skins share this world presentation.
 
 - Replicated FeatherFall caps only downward player prediction at7yd/s while aura105 is active; upward jumps retain their impulse and removal restores ordinary gravity. Reference: TrinityCore MovementUtil.cpp terminalSafefallVelocity and a352b1fa HandleAuraFeatherFall.
