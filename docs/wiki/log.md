@@ -1,3 +1,7 @@
+## 2026-10-11 — World-quest criteria and reward caps
+
+[World quests](investigations/world-quest-availability.md): all3 current single-leaf criteria trees use fresh persisted task counters, including real420847 aura application. Source standing caps now gate reputation gains without suppressing losses. New master merges retain staged numeric+profession wallet rewards; strict NPC-map fixtures restored and17 tests pass. Private import239/244 polygons; remaining3 trigger tasks lack template bindings and2 labels have no local memberships.22 current post-merge world-quest tests pass; current native UI test/build pass. Fresh natural/living proof and final gates remain open.
+
 ## 2026-10-11 — World-quest dynamic objectives
 
 [World quests](investigations/world-quest-availability.md): dynamic rows replace legacy slot loss; authored optional/hidden/weighted/sequenced/quest-bound flags retained. Authoritative TalkTo, personal PvP death and difficulty-specific authentic creature-label credit added. Bound loot persists counters without bag creation or unrelated reward-time consumption; accepted tasks settle outside the polygon. Targeted RED→GREEN runtime/import proofs; refreshed read-only private import236/244 polygon quests,8 unresolved sources,12 without supported rewards. Older both-skin administrator-fed PNGs are not current natural-gameplay proof. Whole goal remains open.

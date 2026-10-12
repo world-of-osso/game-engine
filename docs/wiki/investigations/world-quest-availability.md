@@ -12,16 +12,16 @@ Pinned local DB2 `12.1.0.69933` QuestInfo.Modifiers&256 and the TDB1210 archive 
 | No POI blob | 799 |
 | Point-only pins, no polygon | 3,164 |
 | Authentic polygon quests | 244 |
-| Imported existing-system-compatible quests | 236 |
-| Authentic polygon quests excluded by unresolved objectives | 8 |
-| Imported authentic-duration / policy-duration quests | 0 / 236 |
+| Imported existing-system-compatible quests | 239 |
+| Authentic polygon quests excluded by unresolved objectives | 5 |
+| Imported authentic-duration / policy-duration quests | 0 / 239 |
 | Imported quests without supported reward data | 12 |
 
-Dynamic objective vectors now preserve every authored row, order, optional/hidden/contributor/sequenced flags, Flags2 and weights, removing the4NPC/6item slot loss. Types0/1/2/3/9/15/21 are admitted with required source joins. Remaining8 quests:3 criteria trees,3 area-trigger tasks, plus86938/86945 whose labels4346/4348 have no local CreatureLabel rows. Whole coverage remains open; unresolved objectives are never silently dropped.
+Dynamic objective vectors now preserve every authored row, order, optional/hidden/contributor/sequenced flags, Flags2 and weights, removing the4NPC/6item slot loss. Types0/1/2/3/9/14/15/21 are admitted with required source joins. All3 criteria trees have one unconditional amount-one leaf; task objective counters persist fresh kill/script or GainAura completion rather than reading lifetime achievements. Remaining5 quests:3 area-trigger tasks, plus86938/86945 whose labels4346/4348 have no local CreatureLabel rows. Whole coverage remains open; unresolved objectives are never silently dropped.
 
 Four definitions have authentic ManagedWorldState durations:52847→113,52848→12,54895→114,54896→115, all604800 seconds. All four have only point pins, so none is currently polygon-admitted. Policy durations cover the imported subset; authentic values would take precedence for any polygon-admitted definition with that join.
 
-Receipt and immutable private database: `/home/osso/.worktrees/world-quests-data/diagnostics/poi-census-v5.json` and `polygon-world-v5.db`. [Server notes](../../../../game-server/docs/world-quests.md) own the reproducible lead import command; canonical world.db is unchanged.
+Receipt and immutable private database: `/home/osso/.worktrees/world-quests-data/diagnostics/poi-census-v6.json` and `polygon-world-v6.db`. [Server notes](../../../../game-server/docs/world-quests.md) own the reproducible lead import command; canonical world.db is unchanged.
 
 ## Runtime and source rewards
 
@@ -29,9 +29,11 @@ Receipt and immutable private database: `/home/osso/.worktrees/world-quests-data
 
 Existing objective credit and quest settlement handle admitted tasks. Completed accepted tasks settle even outside the original polygon; network giver Complete/Choose requests cannot settle tasks. Sequencing gates apply to credit, including progress-bar prerequisites and derived bar completion. Successful validated NPC openings credit TalkTo; authoritative combat death credits player kills. CreatureLabel3055733/layout25B2B438 joins TDB difficulty-row CreatureDifficultyID to entry/mode; only real tapped deaths credit those labels. Label membership is not a KillCredit alias. Quest-bound item Flags2=1 uses persisted counts; valid loot updates them without creating bag items for a single non-source bound objective and reward settlement leaves unrelated bag copies intact. Real-message/temp-redb RED→GREEN tests cover those paths; other item-acquisition routes remain unverified. Completion history uses the exact active window, not permanent/daily one-time gating. Items/money and imported currency/reputation persist with quest history in the reward transaction. Quest XP uses pinned QuestXP and the TDB difficulty/multiplier instead of guessed XP. Raw TDB templates remain inspectable; TDB addon/request/reward children replace corresponding imported rows without AzerothCore reward substitution.
 
-Local CASC QuestFactionReward FDID1282622/layout572521898 supplies two signed16-bit difficulty arrays. TrinityCore Player.cpp6627–6638 uses RewardFactionOverride/100 or signed RewardFactionValue to select difficulty row1/2. The importer follows that source. Unknown currency definitions cannot be manufactured by the existing wallet implementation; all currently imported real templates have zero currency quantities.
+Local CASC QuestFactionReward FDID1282622/layout572521898 supplies two signed16-bit difficulty arrays. TrinityCore Player.cpp6627–6638 uses RewardFactionOverride/100 or signed RewardFactionValue to select difficulty row1/2. The importer follows that source. Unknown currency definitions cannot be manufactured by the existing wallet implementation; all239 currently imported real templates have zero currency quantities. Only45068 pays reputation; source cap7 suppresses positive rewards once Exalted (`Player.cpp:6645`) without blocking losses. Persisted RED→GREEN regression covers that source case. Merged profession knowledge awards use the staged numeric wallet to avoid same-transaction overwrite; ordinary master knowledge-only batch behavior was not changed.
 
 `WorldQuestAvailability` carries per-character active IDs/title, map/zone/UiMapID, polygon-derived pin position, expiry, items/money/XP/currency/reputation previews and server time. Completed windows disappear from the character's availability list. Native bridge/account reducers retain task identity for tracker/toast routing.
+
+Type19 uses `AreaTrigger::HandleUnitEnter` and `GetTemplate()->Id.Id` (`reference/AreaTrigger.cpp:167–170,1017`), not the static-position DB2 namespace. Required entries32539/35987–35990/40181 lack template/create-property bindings in inspected data. Their Amount0 is boolean source semantics; no task polygon is substituted for trigger geometry. Tasks82468/86610/91804 remain excluded pending authentic bindings.
 
 ## Native presentation and private proof
 
