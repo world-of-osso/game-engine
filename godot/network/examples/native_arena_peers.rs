@@ -1,4 +1,4 @@
-//! Three lightweight real-UDP account peers alongside one native Godot client.
+//! Real-UDP skirmish 2v2/3v3 peers alongside one native Godot client.
 //! No simulated match state, synthetic roster or server shortcuts.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage};
 use shared::protocol::*;
@@ -10,6 +10,7 @@ use std::{
 };
 struct Peer {
     index: usize,
+    mode: ArenaQueueMode,
     bridge: NetworkBridge,
     entered: bool,
     map: Option<u32>,
@@ -65,9 +66,9 @@ impl Peer {
             return Err(format!("fb_arena{} has not entered", self.index));
         }
         match action {
-            "queue" => self.bridge.send::<_, PvpChannel>(QueueForArena {
-                mode: ArenaQueueMode::Skirmish2v2,
-            }),
+            "queue" => self
+                .bridge
+                .send::<_, PvpChannel>(QueueForArena { mode: self.mode }),
             "accept" | "decline" => {
                 let match_id = self
                     .snapshot
@@ -113,12 +114,17 @@ fn run() -> Result<(), String> {
     if !address.ip().is_loopback() || address.port() != 5786 {
         return Err("Private UDP5786 only".into());
     }
+    let (mode, team_size) = match std::env::var("ARENA_MODE").as_deref() {
+        Ok("2v2") => (ArenaQueueMode::Skirmish2v2, 2),
+        Ok("3v3") => (ArenaQueueMode::Skirmish3v3, 3),
+        _ => return Err("ARENA_MODE must explicitly select 2v2 or 3v3".into()),
+    };
     let mut peers = Vec::new();
     let clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos() as u64;
-    for index in 1..=3 {
+    for index in 1..team_size * 2 {
         let bridge = BridgeConfig::new()
             .receive::<LoginResponse>()
             .receive::<EnterWorldResponse>()
@@ -132,6 +138,7 @@ fn run() -> Result<(), String> {
         })?;
         peers.push(Peer {
             index,
+            mode,
             bridge,
             entered: false,
             map: None,
