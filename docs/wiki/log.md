@@ -1,3 +1,7 @@
+## 2026-10-11 — World-quest dynamic objectives
+
+[World quests](investigations/world-quest-availability.md): dynamic rows replace legacy slot loss; authored optional/hidden/weighted/sequenced/quest-bound flags retained. Authoritative TalkTo, personal PvP death and difficulty-specific authentic creature-label credit added. Bound loot persists counters without bag creation or unrelated reward-time consumption; accepted tasks settle outside the polygon. Targeted RED→GREEN runtime/import proofs; refreshed read-only private import236/244 polygon quests,8 unresolved sources,12 without supported rewards. Older both-skin administrator-fed PNGs are not current natural-gameplay proof. Whole goal remains open.
+
 ## 2026-10-11 — World-quest polygon/native continuation
 
 [World quests](investigations/world-quest-availability.md): implement authenticated POI polygons, approved duration defaults, window-scoped completion, pinned XP/numeric rewards, availability transport and both-skin pins/tooltips/tracker/timer/toasts. Private5861 real86941 completes through administrator-supplied authentic objective items, consumes6items and pays11765 XP in Modern/Forever; replay suppressed, six inspected PNGs published. Native/WoW coordinate conversion and signed sort category startup failures repaired. Whole coverage remains open:106 authentic objective shapes excluded by existing representation; natural collection/living actors not certified. Private actors expose existing terrain/death limitation. All owned processes stopped; no canonical world.db/5000 operations.
