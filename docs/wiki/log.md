@@ -1,6 +1,9 @@
 ## 2026-10-11 — Mount Journal implementation/data checkpoint
 
 [Mounts](systems/mounts.md#mount-journal): account-authoritative native journal, strict local mount-root appearance extension and private Modern item/preview observation. Behavioural and cache-preservation proof recorded; both-skin acceptance/final gate remain open in the [contract](../specs/mount-journal.md).
+## 2026-10-11 — Whole-world NPC appearance
+
+[Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
 
 ## 2026-10-11 — AchievementFrame art
 
