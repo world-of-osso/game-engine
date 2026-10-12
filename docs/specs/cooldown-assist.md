@@ -33,7 +33,7 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. [Au
 - `scripts/tests/test_cooldown_assist_export.py`: authentic DB2 values and joins; no encrypted rows dropped.
 - `godot/core/tests/cooldown_assist.rs`: categories/links, authored order, unknown-rule refusal, readiness, missing specs, all referenced condition loading, signed masks and inactive ContentTuning flags.
 - `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, aura precedence/expiry, both-skin frame inventory/highlight visibility, per-spec selection/order and registry click emission.
-- `godot/tests/cooldown_assist_live.gd`: real private authentication; grounded authority/prediction, options/settings/reorder, Edit Mode/persistence, spellbook drag, real aura/cooldown clocks, matching animated surfaces and own authoritative CastSuccess. Partial runs exit2, never PASS combat acceptance.
+- `godot/tests/cooldown_assist_live.gd`: real private authentication; grounded authority/prediction, options/settings/reorder, Edit Mode/persistence, spellbook drag, real aura/cooldown clocks, matching animated surfaces and own authoritative CastSuccess. Asserts Crusader Strike charges2→1 with positive recharge and the subsequent authored Judgment recommendation with matching advancing highlights. Partial runs exit2, never PASS combat acceptance.
 - `scripts/tests/run_cooldown_assist_live.py`: private orchestration, owner-checked build-qualified placement before login, marker rendezvous and owned client cleanup.
 
 ## Known gaps (current cycle)
