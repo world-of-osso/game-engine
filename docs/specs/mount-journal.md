@@ -39,6 +39,10 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 - Server `mount_journal_tests.rs`, `item_use_tests.rs`, `item_templates_tests.rs`, `persistence_mounts.rs`, `collection_tests.rs`.
 - Protocol `tests/mount_journal.rs`; existing server `auras/mount_tests.rs` owns flight/riding rules.
 
+## Feedback authority
+
+World entry receives one complete catalog. Learning, favourites and mount-state changes replace changed rows only; the retained client view advances SharedContext state and Screen output without reopening the journal. Character changes reset the catalog boundary.
+
 ## Known gaps (current cycle)
 
 - [ ] Reliable live account-change/dismount feedback, both-skin vendor/AH acquisition acceptance and final integration/check/fmt/protocol gate.

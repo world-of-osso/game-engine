@@ -22,7 +22,9 @@ Rebuild into a new output, never directly overwrite a cache:
 python3 scripts/import_mount_appearance.py --mount-catalog data/db2/12.1.0.69933/MountXDisplay.csv --db2-dir data/diagnostics/mount-journal-2026-10-11/import-db2 --data-dir data/diagnostics/mount-journal-2026-10-11/import-data --model-cache data/cache/creature_display.sqlite --base-cache data/cache/npc_appearance.sqlite --output data/diagnostics/mount-journal-2026-10-11/npc_appearance-rebuilt.sqlite
 ```
 
-Proof checkpoint: five UI model tests, three file-backed importer tests and five server journal boundary tests pass. Modern native item5655→Mount18 learning/preview is observed; both-skin favourite/random/alternate-character acceptance is still pending. Current old PNGs are not final visual acceptance.
+Feedback continuation2026-10-11: the original SharedContext/Screen test passes repeated active/favourite snapshots, but real UDP vendor buy→learn→favourite stalled: server logged `(collected=true,favourite=true,active=false)` while the client retained favourite=false for30seconds and received no corresponding update. Repeated full1,694-row publications put immutable descriptions/source text into every ordered reliable response. Initial world entry now sends a complete catalog; subsequent responses merge changed authoritative rows into the retained view before normal SharedContext generation/Screen sync. The boundary resets when character selection replaces the player entity. `mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening` asserts retained catalog, selected mount, favourite art and Mount/Dismount output through successive compact updates (RED dropped the other catalog row).
+
+Already-known feedback uses authentic server teaching-item links and account ownership, not character usability; same-ID Forever items are distinct. Paid Katie Hunter item5655→Mount18 learning and vendor known tooltip are observed in Modern; full both-skin/AH acceptance remains pending. Older PNGs are not final acceptance.
 
 ## Passenger mounts
 
