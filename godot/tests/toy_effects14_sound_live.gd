@@ -1,7 +1,7 @@
 extends "res://tests/toy_effects14_visual_live.gd"
 # Actual Toy Box target marker and authored looping ocean audio, private5911.
 func proof_cases() -> Array:
-	return [[122120, 179869, 165877, "Gaze of the Darkmoon"], [168824, 298869, 2021674, "Ocean Simulator"]]
+	return [[168824, 298869, 2021674, "Ocean Simulator"], [122120, 179869, 165877, "Gaze of the Darkmoon"]]
 
 func prove_toy(sample: Array) -> void:
 	await learn_toy(int(sample[0]))
@@ -46,8 +46,17 @@ func prove_enemy_marker(sample: Array) -> void:
 			break
 	if target == 0: fail("living source hostile target absent"); return
 	if not await wait_until(func(): return client.target_state().server_target == target, "authoritative hostile selection"): return
+	# The 12yd forest viewpoint can be occluded by authored trees. Observe from the
+	# selected live unit's own source position, without bypassing server LoS checks.
+	var target_transform: Transform3D = client.unit_transform(target)
+	var near := target_transform.origin + Vector3(2.0, 0.0, 0.0)
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(near.x), str(-near.z), str(near.y)]): return
+	if not await wait_until(func(): return actor.global_position.distance_to(near) < 1.0, "unoccluded near-target observation"): return
 	await activate_named(str(sample[3]))
 	if failed: return
+	await create_timer(1.0).timeout
+	receipts.append({"phase": "enemy-request-diagnostic", "expected_target": target, "target_display": client.unit_display(target), "target": client.target_state(), "toys": client.toybox_state(), "visuals": client.spell_visuals_state(), "spells": client.spells_state()})
+	write_receipts()
 	if not await wait_until(func(): return target_marker(target), "source marker on selected enemy", 45000): return
 	if not native_display(-1): fail("enemy marker replaced the player"); return
 	receipts.append({"phase": "enemy-marker", "target": client.target_state(), "rules": client.nameplate_rules(target)})
