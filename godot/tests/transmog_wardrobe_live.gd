@@ -7,8 +7,9 @@ const SERVER := "127.0.0.1:5926"
 const SOURCES := [821, 1181]
 ## Smotts' Cutlass (TransmogSourceTypeEnum9): Retail lists only usable collected sources.
 const NON_COLLECTABLE := 1473
-## Battlegear of Heroism: the private character wears its Helm and Gauntlets.
-const SET_ID := 861
+## Battlegear of Might: the private character wears its Burnished Helm and Pauldrons.
+const SET_ID := 853
+const SET_NAME := "Battlegear of Might"
 const MAIN_HAND := 16
 ## OutfitEntry2 "Outfit 1" and3 "Outfit 2" (automatically awarded).
 const OUTFITS := [2, 3]
@@ -259,7 +260,7 @@ func check_sets() -> bool:
 	await frames(10)
 	await save_shot("06-sets.png")
 	await hover_point(control(card).get_global_rect().get_center())
-	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == "Battlegear of Heroism", "set tooltip", 10000):
+	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == SET_NAME, "set tooltip", 10000):
 		print("TRANSMOG_TOOLTIP ", client.tooltip_state())
 		return false
 	await save_shot("07-set-tooltip.png")
