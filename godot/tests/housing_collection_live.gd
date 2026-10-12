@@ -183,3 +183,21 @@ func write_housing_receipts() -> bool:
 		fail("Housing collection receipt write failed")
 		return false
 	return true
+
+# Source map pins can overlap. Prove a visible, unobscured portion with Godot's
+# real hover dispatch, rather than clicking a centre covered by another pin.
+func click_exposed_control(control: Control) -> bool:
+    if control == null:
+        fail("Missing source control to pick")
+        return false
+    var rect: Rect2 = control.get_global_rect()
+    for y in [0.5, 0.15, 0.85, 0.3, 0.7]:
+        for x in [0.5, 0.15, 0.85, 0.3, 0.7]:
+            var point: Vector2 = rect.position + rect.size * Vector2(x, y)
+            await hover_point(point)
+            var hovered: Control = root.gui_get_hovered_control()
+            if hovered == control or (hovered != null and control.is_ancestor_of(hovered)):
+                await click(point, MOUSE_BUTTON_LEFT)
+                return true
+    fail("Source control is fully obscured: " + control.name)
+    return false
