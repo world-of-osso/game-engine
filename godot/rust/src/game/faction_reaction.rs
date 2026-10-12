@@ -86,6 +86,27 @@ mod tests {
         parse_faction_template_csv(&text).expect("parse FactionTemplate.csv")
     }
 
+    #[test]
+    fn retail_vendor_is_neutral_with_authored_hostile_friendly_and_critter_controls() {
+        use shared::faction_reaction::{Unit, can_attack};
+        let rows = templates();
+        let player = Unit {
+            template: rows.get(&1),
+            is_player: true,
+        };
+        let npc = |id| Unit {
+            template: rows.get(&id),
+            is_player: false,
+        };
+        assert_eq!(
+            reaction(player.template, npc(2007).template),
+            Reaction::Neutral
+        );
+        assert!(can_attack(player, npc(31)));
+        assert!(can_attack(player, npc(14)));
+        assert!(!can_attack(player, npc(11)));
+    }
+
     // Template ids (FactionTemplate.csv, build 12.1.0.69933): 1 Human player (Faction 1),
     // 2 Orc player (Faction 2), 7 Defias Thug (Faction 7), 11 Stormwind guard (Faction 72),
     // 14 Monster (Faction 14).

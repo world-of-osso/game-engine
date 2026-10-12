@@ -47,7 +47,7 @@ pub(crate) fn player_can_attack(
         .get::<Health>()
         .is_none_or(|health| health.current > 0.0);
     let flags = UnitFlags(unit.unit_flags().unwrap_or_default());
-    if id == player || !alive || !flags.is_selectable() || !flags.is_attackable() {
+    if id == player || !alive || !flags.can_be_attacked_by(true) {
         return false;
     }
     let template = |id: Option<u32>| id.and_then(|id| templates.get(&id));
