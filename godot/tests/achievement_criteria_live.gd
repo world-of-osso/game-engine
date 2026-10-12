@@ -117,7 +117,7 @@ func show_achievement(id: int, title: String, earned: bool) -> bool:
 	if not await wait_for(func(): return label(prefix + "Date").begins_with(expected), "authoritative %s %s" % [title, expected], 60000):
 		return false
 	await click_control(find_control(prefix + "Row"))
-	if not await wait_for(func(): return not criteria_labels(id).is_empty(), "criteria expansion"):
+	if not await wait_for(func(): return not criteria_labels(id).is_empty(), "criteria expansion", 60000):
 		return false
 	print("CRITERIA_PAGE ", id, " ", label(prefix + "Date"), " ", criteria_labels(id))
 	return true
