@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
