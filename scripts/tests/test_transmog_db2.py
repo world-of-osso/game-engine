@@ -18,6 +18,7 @@ class TransmogDb2Tests(unittest.TestCase):
             ('TransmogOutfitEntry', 7320164, '2', {'Name_lang':'Outfit 1', 'Flags':'35', 'Cost':'0'}),
             ('TransmogOutfitSlotInfo', 7300046, '13', {'InventorySlotName':'MAINHANDSLOT', 'Flags':'3'}),
             ('TransmogOutfitSlotOption', 7299793, '1', {'Name_lang':'One Handed Weapon', 'TransmogOutfitSlotInfoID':'13'}),
+            ('SpellItemEnchantment', 1362771, '1898', {'Name_lang':'Lifestealing', 'IconFileDataID':'136130'}),
         ]
         source = Path(os.environ['TRANSMOG_DB2_DIR'])
         with tempfile.TemporaryDirectory() as directory:
