@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
+
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
