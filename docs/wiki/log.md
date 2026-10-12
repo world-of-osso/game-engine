@@ -11,6 +11,9 @@
 ## 2026-10-11 — Windows extension unload race
 
 [Investigation](investigations/windows-extension-unload.md): LLDB first exception confirms native import teardown races detached item/spell catalog workers while main thread unloads the DLL. Add Core-stage join barrier preserving nonblocking owner drops. Native early-quit RED→GREEN proves unload fix, shutdown unit1/1 passes. Private Windows login/world reaches authoritative InWorld but PNGs expose missing player/NPC visuals: product-qualified assets were omitted by the shared bundle allowlist. Add products and receipts (3.17GB); visual recheck pending. No sound leak workaround, world.db writes or publication.
+## 2026-10-11 — Private terrain destinations
+
+[Root cause and setup source](../../../game-server/docs/wiki/investigations/private-terrain-destinations.md): old private player Z is below the Retail surface; authority falls before client streaming. Collision unchanged. Maintained private5881 native fixture and four inspected Modern/Forever captures at original map/X/Y; source heights corrected before login, no live lift or canonical write.
 ## 2026-10-11 — Cooldown/assist authored-data audit
 
 [Audit](investigations/cooldown-assist-data.md): six readable local Retail tables; native Flags33 and settings-input routing fixes. Private5860 Modern/Forever prove all four category clocks, settings/reordering, four Edit Mode movers with saved drag, and real assistant spellbook→action-slot placement; inspected1280PNG evidence.10 core/5 model/2 export tests pass. Exact rotation, assistant GCD penalty, Retail ants art, charges and hostile combat acceptance remain open; clients fell below terrain and selected no target. origin/master merged into the feature branch, not landed; shared realm/5000 untouched.
