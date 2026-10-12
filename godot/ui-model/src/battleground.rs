@@ -344,11 +344,12 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
         .iter()
         .enumerate()
         .flat_map(|(index, template)| {
-            panel_button(
+            crate::selection_list::text_row(
                 format!("HonorFrameSpecificBattlegroundButton{}", template.id),
                 &template.name,
                 &format!("pvp:select:{}", template.id),
                 !view.pending,
+                view.selected_battleground == template.id,
                 (0.0, index as f32 * SPECIFIC_ROW_H, 324.0, SPECIFIC_ROW_H),
             )
         })

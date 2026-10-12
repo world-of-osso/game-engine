@@ -41,6 +41,8 @@ mod rosterfix_preview;
 #[cfg(test)]
 mod rosterfix_tests;
 mod scroll_lists;
+#[cfg(test)]
+mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
 mod toy_cooldown;

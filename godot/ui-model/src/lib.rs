@@ -94,6 +94,7 @@ pub mod professions_quality;
 pub mod professions_specializations;
 pub mod raid_manager_component;
 pub mod raid_warning;
+pub mod selection_list;
 pub mod spell_overrides;
 pub mod spell_targeting;
 pub mod summon;
