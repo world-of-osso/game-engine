@@ -10,6 +10,8 @@ use shared::protocol::{EquipmentSlot, TransmogChoice};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 mod collection;
+mod outfit_popup;
+pub const OUTFIT_ICON_EDITBOX: &str = outfit_popup::EDITBOX;
 mod filters;
 pub use collection::{
     NAME_POPUP_EDITBOX, apply_transmog_art, custom_set_model_scene, illusion_model_scene,
@@ -115,6 +117,7 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
     children.extend(character_region(&view));
     children.extend(collection::wardrobe_region(&view.book));
     children.extend(collection::name_popup(&view.book));
+    children.extend(outfit_popup::outfit_popups(&view.book));
     let left = ((view.viewport_width - WIDTH) * 0.5).max(0.0);
     rsx! { r#frame { name: "TransmogFrame", width: WIDTH, height: HEIGHT, left, top: 41.0,
     pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }

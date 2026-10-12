@@ -126,10 +126,13 @@ impl GameClient {
         state.set("error", book.error.as_str());
         state.set("viewed_outfit", book.viewed_outfit.map_or(-1, i64::from));
         let mut outfits = VarDictionary::new();
+        let mut icons = VarDictionary::new();
         for row in book.outfit_rows() {
             outfits.set(i64::from(row.id), row.name.as_str());
+            icons.set(i64::from(row.id), i64::from(row.icon_fdid));
         }
         state.set("outfits", &outfits);
+        state.set("outfit_icons", &icons);
         let mut sets = VarDictionary::new();
         for (set, progress) in book.available_sets() {
             sets.set(
@@ -237,6 +240,20 @@ impl GameClient {
         if search != self.transmog.book.search {
             self.transmog.book.set_search(search);
         }
+        if let Some(draft) = &mut self.transmog.book.outfit_info {
+            draft.name = ui
+                .bind_mut()
+                .frame_text(game_engine_ui_model::transmog_frame::OUTFIT_ICON_EDITBOX.into())
+                .to_string();
+        }
+        while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
+            if right && let Some(id) = action.strip_prefix("transmog:outfit:") {
+                self.transmog.book.outfit_menu = Some(
+                    id.parse()
+                        .map_err(|error| format!("Invalid outfit menu: {error}"))?,
+                );
+            }
+        }
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -268,6 +285,19 @@ impl GameClient {
         let book = &mut self.transmog.book;
         match action {
             "transmog:save-outfit" => return Ok(book.save_outfit()),
+            "transmog:icon-okay" => return Ok(book.commit_outfit_info()),
+            "transmog:icon-cancel" => book.outfit_info = None,
+            "transmog:icon-previous" => {
+                if let Some(draft) = &mut book.outfit_info {
+                    draft.page = draft.page.saturating_sub(1);
+                }
+            }
+            "transmog:icon-next" => {
+                let pages = book.outfit_icons().len().div_ceil(80);
+                if let Some(draft) = &mut book.outfit_info {
+                    draft.page = (draft.page + 1).min(pages.saturating_sub(1));
+                }
+            }
             "transmog:undo" => book.undo(),
             "transmog:clear-search" => book.set_search(String::new()),
             "transmog:filters" => book.filters_open = !book.filters_open,
@@ -451,6 +481,8 @@ fn apply_transmog_id_action(book: &mut TransmogBook, action: &str) -> Result<(),
         .and_then(|rest| rest.rsplit_once(':'))
         .ok_or_else(|| format!("Unknown transmog action {action}"))?;
     let staged = match kind {
+        "edit-outfit" => book.edit_outfit_info(id(value, "outfit")?),
+        "outfit-icon" => book.select_outfit_icon(id(value, "icon")?),
         "slot" => {
             book.select(slot(value)?);
             true
