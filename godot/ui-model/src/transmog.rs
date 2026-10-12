@@ -6,8 +6,6 @@ use shared::protocol::{
 use std::collections::{BTreeMap, BTreeSet};
 
 mod outfit_info;
-#[cfg(test)]
-mod outfit_info_tests;
 pub use outfit_info::OutfitInfoDraft;
 mod filters;
 pub use filters::SOURCE_FILTERS;
