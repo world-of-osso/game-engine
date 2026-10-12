@@ -484,7 +484,7 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
             model.collection == filter,
             &format!("housing:filter:collection:{key}"),
             (
-                50.0 + index as f32 * 20.0,
+                62.0 + index as f32 * 20.0,
                 !ownership_known && filter != CollectionFilter::All,
             ),
         )
