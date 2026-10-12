@@ -194,7 +194,7 @@ func fulfill_public_order() -> bool:
 		return false
 	await capture("2-public-order-claimed")
 	await press("CraftingOrderFulfill")
-	if not await wait_until(func(): return text("CraftingOrderState") == "Completed", "real craft cast completion and mail delivery"):
+	if not await wait_until(func(): return text("CraftingOrdersStatus") == "Order completed" and not shown("CraftingOrderState"), "real craft cast completion and removal from open orders"):
 		return false
 	print("CRAFTING FULFILLED ", text("CraftingOrdersStatus"), " bags=", client.merchant_state().bags)
 	await capture("3-public-order-completed")
