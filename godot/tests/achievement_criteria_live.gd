@@ -185,6 +185,15 @@ func buy(vendor: String, title: String, item_id: int) -> bool:
 	return true
 
 func use_bag_item(id: int) -> void:
+	# Retail bag right-click sells while a merchant is open; close it before actual use.
+	await key(KEY_ESCAPE)
+	if not await wait_for(func(): return not client.merchant_state().open, "merchant close before item use"):
+		return
+	var bag := find_control("ContainerFrame0")
+	if bag == null or not bag.is_visible_in_tree():
+		await key(KEY_B)
+	if not await wait_for(func(): return find_control("ContainerFrame0") != null and find_control("ContainerFrame0").is_visible_in_tree(), "backpack for item use"):
+		return
 	var item := bag_item(id)
 	if item.is_empty():
 		fail("Missing purchased bag item " + str(id))
