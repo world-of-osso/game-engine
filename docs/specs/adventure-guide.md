@@ -30,7 +30,13 @@ Reference behavior: local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzar
 
 Targeted importer and UI/layout tests, extension check and format proof. Inspected both-skin PNGs showing dungeon abilities, loot and a raid on private UDP5890 with fb_* accounts; GPU free memory at least 1.5 GiB. No UDP5000 access or full suites. Gaps and exact proof scope recorded in the task handoff.
 
-## October 11 native checkpoint
+## October 11 continuation acceptance
+
+Private UDP5896/fb_adventure3m and fb_adventure3f, independently selected skins: first-unopened Cobrahn boss-frame right-click selects Journal475/Dungeons and fetches nonempty saved Molten Core9/mask1 data; owned Azure8/timer37:30; compact ItemSets/search/icons and hover membership/bonuses; class-filter scroll reset; Traveler's Log945 source rows, unavailable criteria notices, real Track3 request and relog persistence; eligible Training Grounds852 card with authored texture1523630 and no unsupported activation. Inspected PNGs under `/syncthing/AgentShared/2026-10-11/adventure-guide3/`; proof ledger/logs under canonical `data/diagnostics/adventure-guide3-2026-10-11/`. Live saved credit uses controlled private admin damage against authentic Lucifron/Cobrahn, not a natural combat-balance claim.
+
+Server5/5, UI20/20, final real-UDP bridge1/1, native builds/check/fmt pass. Independent read-only filesystem verifier passes bounded artifact wiring, not full Retail certification. Source interval calendar/reward binding, most criteria/conditions, RPE activation and complete boss asset closure remain explicit limits. Training Grounds is display-only; its PvP queue action is not implemented by this Guide. Warmonger source items270367–270374 have icon0; shared spell text still lacks some stat-name tokens. These bounds are not zero progress or replacement data.
+
+## October 11 initial native checkpoint
 
 - Both skins, privateUDP5890/fb_adventure: real micro-menu and J open/close; Ozruk overview/abilities/expand-collapse/role selection; difficulty2 six drops→Timewalking24 eight; Paladin Ret70 three→Neck one; textured Ozruk36475 and Lucifron13031 models; tier68 Molten Core741/Lucifron1519 at authored difficulty9; Item Sets wheel changes visible rows; authored Tutorials and Lucifron search result selection.
 - `godot/tests/adventure_guide_scroll.gd` passes in Modern and Forever: first-open readiness plus model→Classic raid list→five wheel notches moves Molten CoreY518.67→418.67 and selects Lucifron9. The pending-close path is asserted when catalog loading is observed.
