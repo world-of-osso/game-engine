@@ -431,6 +431,23 @@ def load_textures(csv_path, outfit_cache, needed):
     return textures
 
 
+def referenced_world_displays(path):
+    """All content-spawn alternatives and overrides, including inactive/map-copy roots."""
+    rows = read_sqlite(path, """
+        WITH entries AS (
+            SELECT id1 AS entry FROM content_creature WHERE id1 != 0
+            UNION SELECT id2 FROM content_creature WHERE id2 != 0
+            UNION SELECT id3 FROM content_creature WHERE id3 != 0
+        )
+        SELECT model.CreatureDisplayID
+        FROM content_creature_template_model model
+        JOIN entries ON entries.entry = model.CreatureID
+        WHERE model.CreatureDisplayID != 0
+        UNION SELECT modelid FROM content_creature WHERE modelid != 0
+    """)
+    return {int(row[0]) for row in rows}
+
+
 def import_files(args):
     if args.pet_catalog:
         catalog = json.loads(args.pet_catalog.read_text())
@@ -457,6 +474,13 @@ def import_files(args):
         if display in displays:
             raise ValueError(f"duplicate display {display}")
         displays[display] = int(row["ExtendedDisplayInfoID"])
+    world_displays = referenced_world_displays(args.world_db) if args.world_db else None
+    world_missing = sorted(world_displays - displays.keys()) if world_displays is not None else []
+    if world_displays is not None:
+        selected = world_displays & displays.keys()
+        if args.display_id:
+            selected &= set(args.display_id)
+        displays = {display: displays[display] for display in sorted(selected)}
     if args.display_id:
         missing = set(args.display_id) - displays.keys()
         if missing:
@@ -487,6 +511,8 @@ def import_files(args):
     write_database(args.output, rows)
     return {
         "output": str(args.output.resolve()),
+        "world_reference_count": len(world_displays) if world_displays is not None else None,
+        "world_displays_absent_from_source": world_missing,
         "decoded_records": {kind: len(records) for kind, records in decoded.items()},
         "skipped_sections": skipped,
         "counts": dict(
@@ -551,6 +577,10 @@ def main(argv=None):
         action="append",
         type=int,
         help="Limit output to these displays; repeatable, otherwise all displays",
+    )
+    parser.add_argument(
+        "--world-db", type=Path,
+        help="Read-only canonical content spawn roots: all maps, model alternatives and overrides",
     )
     parser.add_argument(
         "--pet-catalog", type=Path,
