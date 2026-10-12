@@ -250,7 +250,10 @@ impl GameClient {
             && model.surface == HousingSurface::Editor
             && host.frame_control(STORAGE_SEARCH_FIELD).is_some()
         {
-            model.storage_search = host.frame_text(STORAGE_SEARCH_FIELD.into()).to_string();
+            let search = host.frame_text(STORAGE_SEARCH_FIELD.into()).to_string();
+            if model.storage_search != search {
+                model.set_storage_search(search);
+            }
         }
         drop(host);
         self.query_housing_vendor_names()?;
@@ -299,6 +302,30 @@ impl GameClient {
         Ok(())
     }
 
+    fn dispatch_housing_storage_action(&mut self, action: &str) -> Result<bool, String> {
+        let model = self
+            .housing
+            .model
+            .as_mut()
+            .ok_or("Housing UI has no storage model.")?;
+        if !model.storage_focus_action(action, &self.housing.authority)? {
+            return Ok(false);
+        }
+        let text = model.storage_search.clone();
+        let control = self
+            .housing
+            .ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_control(STORAGE_SEARCH_FIELD));
+        if let Some(control) = control {
+            let mut search = control
+                .try_cast::<godot::classes::LineEdit>()
+                .map_err(|_| "Storage search is not a native editbox.")?;
+            search.set_text(&text);
+        }
+        Ok(true)
+    }
+
     pub(crate) fn housing_cursor_press(
         &mut self,
         owner: i64,
@@ -318,6 +345,9 @@ impl GameClient {
         }
         if action == "housing:purchase" {
             self.confirm_housing_purchase()?;
+            return Ok(true);
+        }
+        if self.dispatch_housing_storage_action(action)? {
             return Ok(true);
         }
         if self.dispatch_housing_editor_action(action)? {

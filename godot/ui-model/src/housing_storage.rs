@@ -3,7 +3,35 @@ use crate::housing::{ALL_CATEGORY, FEATURED_CATEGORY, HousingAuthority, HousingD
 use game_engine_core::housing::{Category, Decor, Subcategory};
 use std::collections::BTreeSet;
 
+fn parse_focus_id(value: &str, clear: &str) -> Result<Option<u32>, String> {
+    if value == clear {
+        return Ok(None);
+    }
+    value
+        .parse()
+        .map(Some)
+        .map_err(|_| "Invalid storage category identity.".into())
+}
+
 impl HousingDashboard {
+    pub fn storage_focus_action(
+        &mut self,
+        action: &str,
+        authority: &HousingAuthority,
+    ) -> Result<bool, String> {
+        if let Some(value) = action.strip_prefix("housing:storage:category:") {
+            let id = parse_focus_id(value, "back")?;
+            self.set_storage_category(id, authority)?;
+            return Ok(true);
+        }
+        if let Some(value) = action.strip_prefix("housing:storage:subcategory:") {
+            let id = parse_focus_id(value, "all")?;
+            self.set_storage_subcategory(id, authority)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     fn owned_storage_subcategory_ids(&self, authority: &HousingAuthority) -> BTreeSet<u32> {
         let Some(state) = &authority.state else {
             return BTreeSet::new();
