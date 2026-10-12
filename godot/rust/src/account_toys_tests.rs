@@ -13,6 +13,7 @@ fn toys_wire_dispatch_keeps_catalog_then_result_order() {
         source_type: 1,
         source_text: "Terokk".into(),
         spell_id: Some(41301),
+        requires_target_witness: false,
         learned: true,
         favourite: true,
         unavailable_reason: None,

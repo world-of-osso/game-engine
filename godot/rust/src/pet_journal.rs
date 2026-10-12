@@ -159,6 +159,10 @@ impl GameClient {
                     self.close_pet_journal();
                 }
                 "collections:pets" => {}
+                "collections:mounts" => {
+                    self.close_pet_journal();
+                    self.toggle_mount_journal();
+                }
                 "collections:toys" => {
                     self.close_pet_journal();
                     self.toggle_toybox()?;

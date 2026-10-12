@@ -74,6 +74,7 @@ fn quest(title: &str, completed: bool, pois: Vec<QuestPoiSnapshot>) -> QuestEntr
             completed: false,
             kind: shared::protocol::QuestObjectiveKind::Monster,
             object_id: 49871,
+            optional: false,
         }],
         level: 1,
         sort_id: 12,
@@ -421,6 +422,7 @@ fn completed_objective_does_not_keep_an_objective_pin() {
         completed: true,
         kind: shared::protocol::QuestObjectiveKind::Monster,
         object_id: 49871,
+        optional: false,
     }];
     let view = state_with_quests(data(), 37, &player(0.0), &[entry]);
     assert!(

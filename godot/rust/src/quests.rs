@@ -66,6 +66,9 @@ pub(crate) struct QuestHud {
     details: QuestDetailsCache,
     zone_names: HashMap<i32, String>,
     frame_ui: Option<Gd<RegistryUi>>,
+    toast_ui: Option<Gd<RegistryUi>>,
+    pending_toast: Option<game_engine_ui_model::world_quest_ui::WorldQuestToast>,
+    toast_deadline: Option<std::time::Instant>,
     log_ui: Option<Gd<RegistryUi>>,
     /// The quest the open `ABANDON_QUEST` popup is about.
     pending_abandon: Option<u32>,
@@ -87,7 +90,10 @@ impl QuestHud {
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
     ) -> Result<(), String> {
-        for ui in [&mut self.frame_ui, &mut self.log_ui].into_iter().flatten() {
+        for ui in [&mut self.frame_ui, &mut self.log_ui, &mut self.toast_ui]
+            .into_iter()
+            .flatten()
+        {
             visit(ui)?;
         }
         Ok(())
@@ -103,9 +109,13 @@ impl QuestHud {
     }
 
     fn reset(&mut self) {
-        for ui in [self.frame_ui.take(), self.log_ui.take()]
-            .into_iter()
-            .flatten()
+        for ui in [
+            self.frame_ui.take(),
+            self.log_ui.take(),
+            self.toast_ui.take(),
+        ]
+        .into_iter()
+        .flatten()
         {
             ui.free();
         }
@@ -207,6 +217,18 @@ impl GameClient {
                 self.account.quests.show_reward(name, offer);
             }
             QuestMessage::Complete(complete) => {
+                if let Some(title) = self
+                    .account
+                    .quests
+                    .world_quest_titles
+                    .get(&complete.quest_id)
+                {
+                    self.quests.pending_toast =
+                        Some(game_engine_ui_model::world_quest_ui::WorldQuestToast {
+                            title: title.clone(),
+                            completed: true,
+                        });
+                }
                 for line in self.account.quests.complete_quest(&complete) {
                     self.add_quest_notice(&line);
                 }
@@ -231,7 +253,56 @@ impl GameClient {
 
     /// A quest system line in the chat frame.
     pub(super) fn add_quest_notice(&mut self, text: &str) {
+        if let Some(title) = text.strip_prefix("Quest accepted: ")
+            && self
+                .account
+                .quests
+                .world_quest_titles
+                .values()
+                .any(|known| known == title)
+        {
+            self.quests.pending_toast =
+                Some(game_engine_ui_model::world_quest_ui::WorldQuestToast {
+                    title: title.into(),
+                    completed: false,
+                });
+        }
         add_system_line(&mut self.chat.model.log, text);
+    }
+
+    fn update_world_quest_toast(&mut self) -> Result<(), String> {
+        let expired = self
+            .quests
+            .toast_deadline
+            .is_some_and(|end| std::time::Instant::now() >= end);
+        let pending = self.quests.pending_toast.take();
+        if expired || pending.is_some() {
+            if let Some(ui) = self.quests.toast_ui.take() {
+                ui.free();
+            }
+            self.quests.toast_deadline = None;
+        }
+        let Some(state) = pending else {
+            return Ok(());
+        };
+        self.drawable_fdid(1_113_812);
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("WorldQuestToastUI");
+        ui.set_layer(10);
+        self.base_mut().add_child(&ui);
+        let shown = {
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(self.effective_ui_scale())
+                .and_then(|()| host.show_world_quest_toast(state))
+        };
+        if let Err(error) = shown {
+            ui.free();
+            return Err(error);
+        }
+        self.quests.toast_ui = Some(ui);
+        self.quests.toast_deadline =
+            Some(std::time::Instant::now() + std::time::Duration::from_secs(4));
+        Ok(())
     }
 
     pub(super) fn npc_name(&self, npc: u64) -> String {
@@ -248,6 +319,7 @@ impl GameClient {
             self.quests.reset();
             return Ok(());
         }
+        self.update_world_quest_toast()?;
         self.update_quest_poi_hover()?;
         self.load_and_apply_quest_pois()?;
         self.query_quest_givers()?;
