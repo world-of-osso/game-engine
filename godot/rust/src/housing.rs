@@ -4,13 +4,15 @@ use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::housing::{
-    DashboardTab, HousingAuthority, HousingDashboard, HousingSurface, SEARCH_FIELD,
+    CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard, HousingSurface,
+    SEARCH_FIELD,
 };
 use game_engine_ui_model::housing_component::{HousingView, housing_screen};
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
 use std::sync::Arc;
 const PURCHASE_POPUP: &str = "HOUSING_BUY_PLOT";
+const ATLAS_ELEMENTS: &str = "db2/12.1.0.69933/UiTextureAtlasElement.csv";
 
 #[derive(Default)]
 pub(crate) struct HousingHud {
@@ -45,7 +47,8 @@ impl GameClient {
 
     pub(super) fn ensure_housing_model(&mut self) -> Result<(), String> {
         if self.housing.model.is_none() {
-            let catalog = HousingCatalog::load(&self.data_root.join("cache/housing.sqlite"))?;
+            let mut catalog = HousingCatalog::load(&self.data_root.join("cache/housing.sqlite"))?;
+            catalog.resolve_icons(&self.data_root.join(ATLAS_ELEMENTS))?;
             self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
         }
         Ok(())
@@ -143,10 +146,11 @@ impl GameClient {
             .as_ref()
             .ok_or("Housing catalog is not loaded")?
             .clone();
+        let authority = &self.housing.authority;
         let missing_thumbnails = model
-            .visible()
+            .visible(authority)
             .into_iter()
-            .chain(model.selected())
+            .chain(model.selected(authority))
             .filter_map(|decor| {
                 let fdid = decor.thumbnail_fdid;
                 (!self
@@ -156,9 +160,22 @@ impl GameClient {
                 .then_some(fdid)
             })
             .collect();
+        let vendor_names = model
+            .selected(authority)
+            .into_iter()
+            .flat_map(|decor| &decor.sources)
+            .filter_map(|source| match source {
+                game_engine_core::housing::DecorSource::Vendor { creature_id, .. } => {
+                    let name = &self.tooltips.creature(*creature_id)?.name;
+                    Some((*creature_id, name.clone()))
+                }
+                game_engine_core::housing::DecorSource::Encounter { .. } => None,
+            })
+            .collect();
         Ok(HousingView {
             model,
             authority: self.housing.authority.clone(),
+            vendor_names,
             viewport: [size.x / scale, size.y / scale],
             money: self
                 .world
@@ -195,10 +212,11 @@ impl GameClient {
         {
             let search = host.frame_text(SEARCH_FIELD.into()).to_string();
             if model.search != search {
-                model.set_search(search);
+                model.set_search(search, &self.housing.authority);
             }
         }
         drop(host);
+        self.query_housing_vendor_names()?;
         let view = self.housing_view()?;
         self.cache_housing_textures(&view);
         let scale = self.effective_ui_scale();
@@ -209,6 +227,36 @@ impl GameClient {
             .ok_or("Housing UI disappeared during update")?;
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
+        Ok(())
+    }
+
+    /// Retail resolves decor vendor names through the creature query; ask once per
+    /// vendor of the previewed decor.
+    fn query_housing_vendor_names(&mut self) -> Result<(), FrameError> {
+        let Some(model) = &self.housing.model else {
+            return Ok(());
+        };
+        if model.tab != DashboardTab::Catalog {
+            return Ok(());
+        }
+        let Some(decor) = model.selected(&self.housing.authority) else {
+            return Ok(());
+        };
+        let vendors: Vec<u32> = decor
+            .sources
+            .iter()
+            .filter_map(|source| match source {
+                game_engine_core::housing::DecorSource::Vendor { creature_id, .. } => {
+                    Some(*creature_id)
+                }
+                game_engine_core::housing::DecorSource::Encounter { .. } => None,
+            })
+            .collect();
+        for entry in vendors {
+            if self.tooltips.creature(entry).is_none() && self.tooltips.take_unasked(entry) {
+                self.account.send_creature_tooltip_query(entry)?;
+            }
+        }
         Ok(())
     }
 
@@ -236,11 +284,10 @@ impl GameClient {
         if self.dispatch_housing_editor_action(action)? {
             return Ok(true);
         }
-        let model = self
-            .housing
-            .model
-            .as_mut()
-            .ok_or("Housing UI has no catalog model")?;
+        let HousingHud {
+            model, authority, ..
+        } = &mut self.housing;
+        let model = model.as_mut().ok_or("Housing UI has no catalog model")?;
         if model.pending {
             return Ok(true);
         }
@@ -253,11 +300,19 @@ impl GameClient {
             "housing:catalog" => model.tab = DashboardTab::Catalog,
             "housing:collection" => model.tab = DashboardTab::Collection,
             "housing:filters" => model.filters_open = !model.filters_open,
-            "housing:subcategory:all" => {
-                model.set_subcategory(None);
-                model.filters_open = false;
+            "housing:category:back" => model.set_category(None, authority),
+            "housing:subcategory:all" => model.set_subcategory(None, authority),
+            "housing:filter:dyeable" => model.toggle_dyeable(authority),
+            "housing:filter:collection:all" => {
+                model.set_collection(CollectionFilter::All, authority)
             }
-            _ => apply_catalog_action(model, action)?,
+            "housing:filter:collection:collected" => {
+                model.set_collection(CollectionFilter::Collected, authority)
+            }
+            "housing:filter:collection:uncollected" => {
+                model.set_collection(CollectionFilter::Uncollected, authority)
+            }
+            _ => apply_catalog_action(model, authority, action)?,
         }
         Ok(true)
     }
@@ -357,13 +412,17 @@ impl GameClient {
         if button.is_pressed()
             && let Some(model) = &mut self.housing.model
         {
-            model.scroll(rows);
+            model.scroll(rows, &self.housing.authority);
         }
         true
     }
 }
 
-fn apply_catalog_action(model: &mut HousingDashboard, action: &str) -> Result<(), String> {
+fn apply_catalog_action(
+    model: &mut HousingDashboard,
+    authority: &HousingAuthority,
+    action: &str,
+) -> Result<(), String> {
     let (kind, id) = action
         .rsplit_once(':')
         .ok_or_else(|| format!("Invalid housing action: {action}"))?;
@@ -371,17 +430,11 @@ fn apply_catalog_action(model: &mut HousingDashboard, action: &str) -> Result<()
         .parse::<u32>()
         .map_err(|_| format!("Invalid housing ID: {action}"))?;
     match kind {
-        "housing:category" => model.set_category(if model.category == Some(id) {
-            None
-        } else {
-            Some(id)
-        }),
-        "housing:subcategory" => {
-            model.set_subcategory(Some(id));
-            model.filters_open = false;
-        }
+        // Retail OnCategoryClicked focuses; BACK or the All category returns to the top level.
+        "housing:category" => model.set_category(Some(id), authority),
+        "housing:subcategory" => model.set_subcategory(Some(id), authority),
         "housing:select" => {
-            if !model.select(id) {
+            if !model.select(id, authority) {
                 return Err(format!("Decor {id} is not in the filtered housing catalog"));
             }
         }
