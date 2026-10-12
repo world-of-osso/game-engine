@@ -209,10 +209,19 @@ func prove_highlights(expected: int) -> bool:
 		if node == null or not node.is_visible_in_tree():
 			fail("Highlight not rendered: " + name)
 			return false
-		var rect := node.get_node("Parts/Part0") as TextureRect
-		var atlas := rect.texture as AtlasTexture
+		var deadline := Time.get_ticks_msec() + 5000
+		var atlas: AtlasTexture = null
+		while Time.get_ticks_msec() < deadline:
+			# Arriving art replaces native Parts children; re-observe each frame.
+			var part := control(name).get_node("Parts/Part0") as TextureRect
+			if part.texture != null:
+				atlas = part.texture as AtlasTexture
+				break
+			await process_frame
 		if atlas == null:
-			fail("Retail highlight art not loaded: " + name)
+			var part := control(name).get_node("Parts/Part0") as TextureRect
+			var actual := "not loaded" if part.texture == null else str(part.texture.get_class())
+			fail("Retail highlight must be a loaded crop: " + name + " (" + actual + ")")
 			return false
 		crops[name] = atlas.region
 	await capture("assisted-highlight-frame1")
