@@ -6,6 +6,17 @@
 
 [Transmog UI](systems/transmog-apply.md): sourced static portrait and set hover, tooltip-only set titles, player-selected persisted outfit icons with versioned legacy migration, real popup-over-card nonactivation, both Custom Sets pages, and separate-process paid gold/appearance/icon relog in both skins.38 inspected PNGs plus manifest republished; full global macro/spell icon catalogue and existing disabled policy boundaries remain explicit.
 
+## 2026-10-12 — Housing source Finder and precision continuation
+
+[Housing](systems/housing.md): dedicated System2 map/standard projection, real persisted friend discovery (no synthetic occupied-plot list), physical bulletin roster, both-skin staged XYZ/scale cancel/commit/relog and five-component live observer rendering. One-time sourced schema1 migration and plain-master relog crash isolation. Quest92572 criterion binding has CPU proof; unresolved vendor reference prevents live acquisition. No default grants, legal outdoor bounds or charter policy invented; final heads/gates remain in handoff.
+
+## 2026-10-11 — Housing paid collection both-skin proof
+
+[Housing](systems/housing.md): native private5870 real Pawdo pick/gossip/50g purchase, normal bag UseItem, exact decor1693 stored0→1 and reauthentication persistence in Modern/Forever. Eight inspected1280px PNGs. Authenticated missing Pawdo appearance/hat receipt chains instead of substituting assets; fixture corrected to actual clickable gossip text and separate BagsUI. No granted item/decor, canonical world.db writes, house-grant inference or completed whole-goal claim.
+
+## 2026-10-11 — Housing ownership/storage continuation
+
+[Housing](systems/housing.md): static both-skin catalog re-captured after category icon changes on private5870. Dedicated server property admission, wire/arrival cornerstone purchase, restart admission and bounded authentic bag collection added with focused behavioral tests. Native ownership storage bridge added; its fresh command/live gates remain separate. Local GameObjects DB2 resolves the previously missing cornerstone template/model chain. No default exterior/interior grants, canonical database writes or completed whole-goal claim.
 ## 2026-10-12 — Kotmogu both-skin private lifecycle
 
 [Kotmogu](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12): source queue699/map998, four real accounts, physical orb use and natural center ticks through1500, measured418/419, automatic results and exact native origin return; eighteen inspected PNGs. Private teardown waits for returned actors' periodic save. Combat aura/kill bonus and scenery/asset parity remain explicit gaps.
@@ -3401,6 +3412,7 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-12 — Retail12.1 transmog revamp
 
 [Native transmog](systems/transmog-apply.md#retail121-native-proof--verified2026-10-12): shared-skin outfit/illusion/preset save/load, exact paid Apply, source/completion filters, primary set membership and correct alpha/additive-hover art. Real native popup click ordering RED→GREEN; both-skin private5926 proof includes hidden1500-copper staging and a real second Custom Set page. PvE/PvP classification stays disabled without authoritative/exhaustively verified mapping; conditional acquisition and enchant-effect/price boundaries remain explicit.
+- 2026-10-11 — Housing neighborhood/private ground: both-skin real Finder/admission/physical cornerstone/10M-copper claim/relog proof; authenticated three-map ground/bake closure and triangle-centroid fixture diagnosis in systems/housing.md. House-component grants/editor/visitor convergence remain open.
 ## 2026-10-12 — Mount model assets staged
 
 All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; additive package contains566 new M2 receipts and complete skins/textures/animations, with hash-guarded lead-only publication. Both-skin native census remains in progress;170 newly missing identities lack readable Mount rows. [Scope and proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).

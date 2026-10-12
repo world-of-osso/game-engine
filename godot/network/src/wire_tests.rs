@@ -1,6 +1,42 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
 #[test]
+fn housing_default_bridge_receives_authoritative_storage_over_udp() {
+    use shared::protocol::{HousingChannel, HousingReply, HousingState, StoredDecor};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8302);
+    await_connected(&mut server, &mut host);
+    let expected = HousingReply {
+        request_id: 0,
+        state: HousingState {
+            build_key: "dcfc90fffd79ba00406ae46f5f657592".into(),
+            stored: vec![StoredDecor {
+                decor_id: 1693,
+                quantity: 1,
+            }],
+            ..Default::default()
+        },
+        error: None,
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<HousingReply>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<HousingChannel>(expected.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "authoritative housing storage on default bridge",
+        |event| matches!(event, Event::Message(message) if message.is::<HousingReply>()),
+    ) else {
+        panic!("expected housing snapshot")
+    };
+    assert_eq!(message.downcast::<HousingReply>().ok(), Some(expected));
+    host.stop();
+}
+
+#[test]
 fn meetingstones_default_bridge_receives_request_over_udp() {
     use shared::protocol::{InteractionChannel, SummonRequest};
     let (mut server, address) = start_fixture_server();

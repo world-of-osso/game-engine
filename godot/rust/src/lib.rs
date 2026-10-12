@@ -44,6 +44,9 @@ mod gameplay;
 mod ground;
 mod guild_charters;
 mod guild_ranks;
+mod housing;
+mod housing_decor;
+mod housing_editor;
 mod hud_edit;
 mod input;
 mod input_keys;
@@ -241,6 +244,7 @@ pub struct GameClient {
     world_map: world_map::WorldMap,
     flight_map: flight_map::FlightMap,
     toybox: toybox::ToyJournal,
+    housing: housing::HousingHud,
     mount_journal: mount_journal::MountJournal,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
@@ -403,6 +407,7 @@ impl INode3D for GameClient {
             world_map: world_map::WorldMap::default(),
             flight_map: flight_map::FlightMap::default(),
             toybox: toybox::ToyJournal::default(),
+            housing: housing::HousingHud::default(),
             mount_journal: mount_journal::MountJournal::default(),
             minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
@@ -526,7 +531,8 @@ impl INode3D for GameClient {
                 return;
             }
         }
-        if self.mount_journal_pointer(&event)
+        if self.housing_pointer(&event)
+            || self.mount_journal_pointer(&event)
             || self.toybox_pointer(&event)
             || self.flight_map_pointer(&event)
             || self.world_map_pointer(&event)
@@ -1453,6 +1459,7 @@ impl GameClient {
             &mut self.launcher.ui,
             &mut self.world_map.ui,
             &mut self.toybox.ui,
+            &mut self.housing.ui,
         ] {
             if let Some(ui) = ui {
                 visit(ui)?;
@@ -2064,6 +2071,7 @@ impl GameClient {
             ("Chat", |c, d| c.update_chat(d)),
             ("Flight map", |c, _| c.update_flight_map()),
             ("Toy Box", |c, d| c.update_toybox(d)),
+            ("Housing", |c, _| c.update_housing()),
             ("Encounter", |c, d| c.update_encounter(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
@@ -2330,6 +2338,7 @@ impl GameClient {
                 self.tooltips.receive_appearances(update);
                 self.refresh_transmog()?;
             }
+            AccountEvent::Housing(reply) => self.receive_housing_reply(reply)?,
             AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
             AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
@@ -2741,6 +2750,8 @@ impl GameClient {
     fn reset_world(&mut self) -> Result<(), String> {
         self.close_toybox();
         self.toybox.model = Default::default();
+        self.close_housing();
+        self.housing.model = None;
         self.cancel_ground_target();
         self.encounter.clear();
         self.stop_sound();
