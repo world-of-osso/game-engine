@@ -27,7 +27,7 @@ fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
         let mut shared = SharedContext::new();
         shared.insert(ActiveSkin::Modern);
         shared.insert(view.clone());
-        let mut registry = FrameRegistry::new();
+        let mut registry = FrameRegistry::new(1280., 720.);
         let mut screen = Screen::new(adventure_guide_screen);
         screen.sync(&shared, &mut registry);
         let name = if tab == "monthly" {
