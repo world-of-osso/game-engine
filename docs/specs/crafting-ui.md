@@ -5,20 +5,20 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 ## What it must do
 
 ### Specializations
-- [ ] Recipes, Specializations and Crafting Orders tabs share the Retail profession frame in both skins.
-- [ ] Authored trees, path positions, edges, names, descriptions, ranks and lock reasons come from authoritative snapshots; knowledge currency costs match TraitCurrencyIDs through the server currency mapping.
-- [ ] Spending stages absolute purchased ranks, updates pending knowledge, never mutates committed ranks, and cannot spend an unavailable/maxed path or an insufficient currency.
-- [ ] Apply submits selected-tree purchases once; Undo discards pending purchases without refunding committed knowledge. Tab unlock requires confirmation and server authority.
-- [ ] Hover path tooltips show source description, purchased plus granted rank, perk requirements and lock reason.
+- [x] Recipes, Specializations and Crafting Orders tabs share the Retail profession frame in both skins.
+- [x] Authored trees, edges, names, descriptions, ranks and lock reasons come from authoritative snapshots; zero-coordinate paths use the source Mainline radial layout. Knowledge costs match TraitCurrencyIDs through the server currency mapping.
+- [x] Spending stages absolute purchased ranks, updates pending knowledge, never mutates committed ranks, and cannot spend an unavailable/maxed path or an insufficient currency.
+- [x] Apply submits the complete selected-tree purchased configuration once, preserving committed entries and overlaying drafts; granted-only ranks are not purchases. Undo discards pending purchases without refunding committed knowledge. Tab unlock requires confirmation and server authority.
+- [x] Hover path/perk tooltips show source description, purchased plus granted knowledge ranks, source path requirements and lock reasons.
 
 ### Fixed-output orders
-- [ ] Customer NPC lifecycle opens a separate Retail customer view; crafter orders open from the profession tab.
-- [ ] Public/guild/personal filters and customer/crafter views preserve server-scoped visibility and eligibility.
-- [ ] Customer form sends exact authored reagent quantities/customer contributions, recipient, commission, duration and note. Server owns escrow and validation.
-- [ ] Claim/release/fulfill/cancel operate on selected authoritative order IDs; completion is observed through server order/mail/inventory state, never fabricated locally.
+- [x] Customer NPC lifecycle opens a separate Retail customer view; crafter orders open from the profession tab.
+- [x] Public/guild/personal filters and customer/crafter views preserve server-scoped visibility and eligibility (scoped behavior tests; public orders additionally proved live).
+- [x] Customer form sends exact authored reagent quantities/customer contributions, recipient, commission, duration and note. Server owns escrow and validation.
+- [x] Claim/release/fulfill/cancel operate on selected authoritative order IDs; completion is observed through server order/mail/inventory state, never fabricated locally.
 
 ### Recraft
-- [ ] Expose the Retail owned-item input/output element; submission stays disabled while source operation/lineage is unavailable. Never substitute CREATE_ITEM24 for recrafting.
+- [x] Expose the Retail owned-item input/output element; submission stays disabled while source operation/lineage is unavailable. Never substitute CREATE_ITEM24 for recrafting.
 
 ### Integration
 - [ ] Behavioral tests and private UDP5871 fb_* native proof cover both skins, followed by origin/master integration, targeted tests, native build and fmt.
@@ -42,7 +42,7 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 - `godot/tests/crafting_ui_live.gd` — private both-skin specialization, public order and receiving-mail phases.
 
 ## Known gaps (current cycle)
-- [ ] Customer/crafter screens and NPC service wiring have scoped behavioral proof; joint live proof remains pending.
+- [x] Both-skin private public-order/knowledge/mail proof complete; skills, knowledge and achievement were explicitly fixture-primed, not acquisition proof.
 - [ ] Recraft evaluator/owned-item lineage unsupported by current server contract; no submission message exists.
 
 ## Out of scope
