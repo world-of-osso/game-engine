@@ -2,6 +2,13 @@
 
 [Cleanup](systems/housing.md#cleanup-editor-input): source mode entry/storage hidden, visible-mesh hover highlight/name, exact-target single-click owned removal, visitor refusal, quantity conservation and real relog/re-place in both skins. Model21/registry11 and two focused server conservation/paid-variant tests pass; eight inspected PNGs. Highlight styling is native feedback, not certified Retail shader art. Evidence core9; independent gate lead-owned; broader housing remains open.
 
+## 2026-10-12 — All13 representative class gate
+
+[Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): rebuilt DH162243 damage/Fury and Evoker431443 Fire/Arcane repeat close all13 representative both-skin gates, with26 inspected requested PNGs. Private processes stopped, cache/products links restored. Full spell/talent goal remains open; this is not every legal build, coefficient or rotation.
+
+## 2026-10-12 — Class completeness continuation
+
+[Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): private both-skin spell receipts for nine additional classes; DH startup exposed authored133320→29124→display0 being dropped, then a nonexistent-display lookup. Native RED/GREEN preserves occupied no-visual slots without weakening missing/invalid metadata errors; targeted core6/shared renderer1 pass. DH/Evoker rebuilt native gates and full13/all40 goal remain open.
 ## 2026-10-12 — Housing atomic dye backend (not native feature)
 
 [Dye authority](systems/housing.md#dye-authority-without-native-recoloring): source slot/item binding and any-category rule, transient player-scoped preview/cancel, atomic per-changed-slot owned dye commit, real bag-placement rollback, preserved dyed variants through remove/store/reopen/re-place, and schema3 nonzero undyed count preservation. Native recoloring/variant controls and live acquisition remain explicitly unavailable; no user-visible feature claim.
