@@ -28,7 +28,7 @@ The dashboard's Find a Home action opens a954×490 House Finder shell with the t
 
 ## Catalog model preview
 
-Catalog selection mounts the authenticated decor model in a transparent, isolated 3D viewport. Replace the previous actor on selection, clear it when search has no results, and tear down before its UI parent disappears on tab switch, close or logout. Missing/unsupported models or required texture receipts show Retail's Preview unavailable state; never substitute a thumbnail or retain the previous actor. Browsing/drag rotation cannot change owned quantities, placements or gameplay camera. Tile thumbnails remain tile art only.
+Catalog selection mounts the authenticated decor model in a transparent, isolated 3D viewport. Replace the previous actor on selection, clear it when search has no results, and tear down before its UI parent disappears on tab switch, close or logout. Missing/unsupported models or required texture receipts show Retail's Preview unavailable state; never substitute a thumbnail or retain the previous actor. Browsing/drag rotation cannot change owned quantities, placements or gameplay camera. Tile thumbnails remain tile art only. Honor Retail SetPreferModelCollisionBounds(true): use authored collision bounds when present, otherwise the authored model header bounds; never include animation/particle envelopes in catalog framing.
 
 Source: `Blizzard_HousingModelPreview.lua` ApplyCurrentVariant/ClearPreviewData and its XML ModelScene anchors (TOPLEFT30,-100; BOTTOMRIGHT-30,55). Native camera framing/drag sensitivity use the existing isolated model-scene renderer; they do not claim authenticated UiModelScene camera-preset parity. Dyed variants, source preset cameras and scene-control zoom remain separate capabilities.
 

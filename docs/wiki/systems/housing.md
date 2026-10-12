@@ -18,6 +18,12 @@ The collector resolves each same-build HouseDecor.ItemID → on-use ItemEffect �
 
 Decor-reward quests preserve TDB objective14 as CriteriaTree. Supported unconditional one-leaf CompleteAll4/AcquireItem36 trees accumulate actual successful vendor delivery; missing/conditioned trees block completion rather than using empty legacy objectives. Furniture Favor92572's root216882/leaf216883/criterion109153/item253168 → reward253173/decor9247 has CPU source/credit proof, not live completion. Its vendor source references unresolved252826; no alias/stock is invented. Recipe1239278/1239321 lacks SkillLineAbility, and GnomishFence's collector has target0. See the server contract for these acquisition boundaries.
 
+## Catalog model preview
+
+`housing_preview` mounts the actual decor actor in the existing isolated transparent model-scene viewport, not in the gameplay world. Search/selection replaces the actor; tab/search-empty/close/logout clear it before registry parent teardown. Tile thumbnails stay tile art and no longer substitute for 3D preview. Missing models/textures produce Preview unavailable and a source-specific diagnostic, never a stale actor. Native drag yaw is presentation-only. Retail's collision-bounds preference excludes emitter/animation envelopes from camera fitting; UiModelScene presets, zoom controls and dyed variants remain separate capabilities.
+
+Live Modern preview exposed a tab-transition root cause: desired Catalog tab was set before its search control mounted, and `frame_text` returned empty for the absent control. Sampling only mounted search controls retains the actual filter instead of resetting selection to an unrelated entry. Private both-skin current proof is still pending; CPU lifecycle and UI tests are in `godot/tests/housing_preview_scene.gd` and `ui-model/tests/housing.rs`.
+
 ## Retail neighborhood discovery
 
 Finder954×490 draws its698×465 MapCanvas from the standard UiMap tile/projection catalog. Parent-approved dedicated housing interpretation uses NeighborhoodMap.MapID → UiMapAssignment, not names:2735/assignment68589→System2 UiMap2401/art2056;2736/68590→2402/art2057. Missing/ambiguous relations report unavailable; there is no normal-world-map fallback. These projection regions are NOT legal outdoor edit bounds.
