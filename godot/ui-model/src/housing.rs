@@ -101,6 +101,7 @@ pub enum HousingSurface {
     /// The roster from the server's reply to using the neighborhood's bulletin board.
     BulletinBoard,
     Editor,
+    HouseSettings,
 }
 
 /// Retail NeighborhoodRosterMixin column attributes (NEIGHBORHOOD_ROSTER_COLUMN_INFO).
@@ -178,6 +179,7 @@ pub struct HousingDashboard {
     pub editor: crate::housing_editor::EditorInteraction,
     /// The roster from the last bulletin board use; later snapshots do not carry it.
     pub bulletin_board: Option<BulletinBoard>,
+    pub settings: Option<crate::housing_settings::HouseSettings>,
 }
 
 impl HousingDashboard {
@@ -201,6 +203,7 @@ impl HousingDashboard {
             dyeable_only: false,
             editor: crate::housing_editor::EditorInteraction::default(),
             bulletin_board: None,
+            settings: None,
         }
     }
 
@@ -230,26 +233,52 @@ impl HousingDashboard {
         Ok(())
     }
 
+    pub fn settings_request(
+        &mut self,
+        authority: &HousingAuthority,
+        action: &str,
+    ) -> Result<Option<shared::protocol::HousingCommand>, String> {
+        use crate::housing_settings::{AccessMode, HouseSettings};
+        if let Some(id) = action.strip_prefix("housing:settings:open:") {
+            let id = id.parse::<u64>().map_err(|_| "Invalid house identity.")?;
+            let house = authority
+                .state
+                .as_ref()
+                .and_then(|state| {
+                    state
+                        .owned_houses
+                        .iter()
+                        .find(|house| house.house_id == id && house.can_edit)
+                })
+                .ok_or("Only a confirmed owner may open House Settings.")?;
+            self.settings = Some(HouseSettings::new(id, house.house_access));
+            self.surface = HousingSurface::HouseSettings;
+            return Ok(None);
+        }
+        let draft = self
+            .settings
+            .as_mut()
+            .ok_or("House Settings is not open.")?;
+        match action {
+            "housing:settings:menu" => draft.menu_open = !draft.menu_open,
+            "housing:settings:anyone" => draft.select_mode(AccessMode::Anyone),
+            "housing:settings:none" => draft.select_mode(AccessMode::NoOne),
+            "housing:settings:limited" => draft.select_mode(AccessMode::Limited),
+            "housing:settings:save" => return draft.save().map(Some),
+            _ => draft.toggle(
+                action
+                    .strip_prefix("housing:settings:toggle:")
+                    .ok_or("Unknown House Settings action.")?,
+            )?,
+        }
+        Ok(None)
+    }
+
     pub fn navigation_request(
         &mut self,
         action: &str,
     ) -> Result<Option<shared::protocol::HousingCommand>, String> {
         use shared::protocol::HousingCommand;
-        if let Some(value) = action.strip_prefix("housing:access:") {
-            let (house, access) = value
-                .split_once(':')
-                .ok_or("Invalid house access action.")?;
-            let house_id = house.parse().map_err(|_| "Invalid house identity.")?;
-            let allowed = match access {
-                "on" => true,
-                "off" => false,
-                _ => return Err("Invalid house access setting.".into()),
-            };
-            return Ok(Some(HousingCommand::SetHouseAccessAnyone {
-                house_id,
-                allowed,
-            }));
-        }
         if action == "housing:leave" {
             return Ok(Some(HousingCommand::LeaveHouse));
         }
