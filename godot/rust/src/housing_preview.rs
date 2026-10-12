@@ -123,11 +123,34 @@ fn load_catalog_actor(
         .iter()
         .find(|decor| decor.id == decor_id)
         .ok_or_else(|| format!("Decor {decor_id} is not in the authenticated catalog."))?;
-    let mut visual = crate::housing_decor::load_visual(data, catalog, decor_id)?;
+    let (mut visual, bounds) = match decor.model_type {
+        1 => load_m2_preview(data, catalog, decor_id)?,
+        2 => load_wmo_preview(data, decor.model_fdid)?,
+        model_type => {
+            return Err(format!(
+                "Decor {decor_id} model type {model_type} is not supported."
+            ));
+        }
+    };
     visual.set_name("HousingCatalogActor");
+    visual.set_meta("housing_decor_id", &(decor_id as i64).to_variant());
+    visual.set_meta(
+        "model_file_data_id",
+        &(decor.model_fdid as i64).to_variant(),
+    );
     visual.set_rotation(Vector3::from_array(decor.initial_rotation));
     visual.set_scale(Vector3::ONE * decor.initial_scale);
     bind_sheet_light(&visual);
+    let bounds = visual.get_transform() * bounds;
+    Ok((visual, bounds))
+}
+
+fn load_m2_preview(
+    data: &Path,
+    catalog: &HousingCatalog,
+    decor_id: u32,
+) -> Result<(Gd<Node3D>, Aabb), String> {
+    let visual = crate::housing_decor::load_visual(data, catalog, decor_id)?;
     // Retail SetPreferModelCollisionBounds(true): frame the solid body rather than
     // its animation/particle envelope. Models without collision retain header bounds.
     let bounds_key = if visual.has_meta(crate::assets::M2_COLLISION_BOUNDS_META) {
@@ -136,8 +159,22 @@ fn load_catalog_actor(
         crate::assets::M2_BOUNDS_META
     };
     let bounds = visual.get_meta(bounds_key).to::<Aabb>();
-    let bounds = visual.get_transform() * bounds;
     Ok((visual, bounds))
+}
+
+fn load_wmo_preview(data: &Path, fdid: u32) -> Result<(Gd<Node3D>, Aabb), String> {
+    let resolver = crate::assets::creature::local_resolver(data);
+    let asset = crate::wmo::assets::read_wmo(&resolver, data, fdid)?;
+    let bounds = crate::assets::wow_aabb(asset.root.bbox_min, asset.root.bbox_max);
+    let built = crate::wmo::scene::build_wmo_node(&asset, &resolver, data, &[], None)?;
+    if !built.batch_errors.is_empty() {
+        built.node.free();
+        return Err(format!(
+            "Decor WMO {fdid}: {}",
+            built.batch_errors.join("; ")
+        ));
+    }
+    Ok((built.node, bounds))
 }
 
 fn frame_catalog_bounds(scene: &mut Scene, bounds: Aabb) {
