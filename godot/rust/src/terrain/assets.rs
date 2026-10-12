@@ -66,6 +66,25 @@ fn parse_tile_objects(
         .transpose()
 }
 
+fn m2_floor_neighbour_paths(dir: &Path, (row, col): (u32, u32)) -> Vec<PathBuf> {
+    const LAST_TILE: u32 = shared::los::MAP_TILES - 1;
+    (row.saturating_sub(1)..=(row + 1).min(LAST_TILE))
+        .flat_map(|r| (col.saturating_sub(1)..=(col + 1).min(LAST_TILE)).map(move |c| (r, c)))
+        .map(|tile| dir.join(shared::los::tile_file_name(tile)))
+        .collect()
+}
+
+fn read_m2_floor_paths(dir: &Path) -> Result<Vec<PathBuf>, String> {
+    match fs::read_dir(dir) {
+        Ok(entries) => entries
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<_, _>>()
+            .map_err(|error| format!("{}: {error}", dir.display())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(format!("{}: {error}", dir.display())),
+    }
+}
+
 pub(crate) struct NativeTerrainAssets {
     resolver: CascListfileResolver,
     terrain_dir: PathBuf,
@@ -227,19 +246,9 @@ impl NativeTerrainAssets {
         tile: Option<(u32, u32)>,
     ) -> Result<Vec<shared::los::LosTile>, String> {
         let dir = self.data_root.join(format!("los/{map_id}/m2"));
-        let paths: Vec<_> = match tile {
-            Some((row, col)) => (row.saturating_sub(1)..=(row + 1).min(63))
-                .flat_map(|r| (col.saturating_sub(1)..=(col + 1).min(63)).map(move |c| (r, c)))
-                .map(|tile| dir.join(shared::los::tile_file_name(tile)))
-                .collect(),
-            None => match fs::read_dir(&dir) {
-                Ok(entries) => entries
-                    .map(|entry| entry.map(|entry| entry.path()))
-                    .collect::<Result<_, _>>()
-                    .map_err(|error| format!("{}: {error}", dir.display()))?,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-                Err(error) => return Err(format!("{}: {error}", dir.display())),
-            },
+        let paths = match tile {
+            Some(tile) => m2_floor_neighbour_paths(&dir, tile),
+            None => read_m2_floor_paths(&dir)?,
         };
         let mut floors = Vec::new();
         for path in paths
@@ -251,7 +260,8 @@ impl NativeTerrainAssets {
                     shared::los::LosTile::from_bytes(&bytes)
                         .map_err(|error| format!("{}: {error}", path.display()))?,
                 ),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                // An absent companion provides no baked floor; never substitute render faces.
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(error) => return Err(format!("{}: {error}", path.display())),
             }
         }
