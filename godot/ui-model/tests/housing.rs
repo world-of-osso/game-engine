@@ -48,6 +48,7 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
             viewport: [1280.0, 720.0],
             money: Some(20_000_000),
             missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
         };
         let mut context = SharedContext::new();
         context.insert(view.clone());
@@ -140,6 +141,8 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                     thumbnail_fdid: 7421877,
                     order: 328,
                     subcategories: vec![],
+                    sources: vec![],
+                    dyeable: false,
                 }],
                 ..Default::default()
             }));
@@ -167,6 +170,7 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                 viewport: [1280.0, 720.0],
                 money: None,
                 missing_thumbnails: BTreeSet::new(),
+                vendor_names: Default::default(),
             });
             let mut registry = FrameRegistry::new(1280.0, 720.0);
             Screen::new(housing_screen).sync(&context, &mut registry);
@@ -191,40 +195,52 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
 }
 
 #[test]
-fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() {
+fn catalog_preview_reports_owned_count_sources_and_missing_image_in_both_skins() {
+    use game_engine_core::housing::DecorSource;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        for stored in [None, Some(1)] {
+        for confirmed in [false, true] {
             set_thread_skin(skin);
+            // Local Retail rows: Pawdo sells the Small Val'sharah Bookcase in Stormwind.
             let catalog = HousingCatalog {
                 decor: vec![Decor {
-                    id: 80,
-                    name: "Ornate Stonework Fireplace".into(),
-                    item_id: 235994,
+                    id: 1693,
+                    name: "Small Val'sharah Bookcase".into(),
+                    item_id: 245259,
                     model_type: 1,
-                    model_fdid: 6033663,
-                    thumbnail_fdid: 7415905,
-                    order: 1,
+                    model_fdid: 1096761,
+                    thumbnail_fdid: 7421877,
+                    order: 328,
                     subcategories: vec![],
+                    sources: vec![DecorSource::Vendor {
+                        creature_id: 252312,
+                        area: Some("Stormwind City".into()),
+                    }],
+                    dyeable: false,
                 }],
+                sources_imported: confirmed,
                 ..HousingCatalog::default()
             };
             let mut model = HousingDashboard::new(Arc::new(catalog));
             model.tab = DashboardTab::Catalog;
             let mut authority = game_engine_ui_model::housing::HousingAuthority::default();
-            if let Some(quantity) = stored {
+            if confirmed {
+                let decor = |quantity| {
+                    vec![shared::protocol::StoredDecor {
+                        decor_id: 1693,
+                        quantity,
+                    }]
+                };
                 authority
                     .receive(shared::protocol::HousingReply {
                         request_id: 1,
                         state: shared::protocol::HousingState {
                             build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
-                            stored: vec![shared::protocol::StoredDecor {
-                                decor_id: 80,
-                                quantity,
-                            }],
+                            stored: decor(1),
+                            placed: decor(2),
                             ..Default::default()
                         },
                         error: None,
@@ -237,11 +253,16 @@ fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() 
                 authority,
                 viewport: [1920.0, 1080.0],
                 money: None,
-                missing_thumbnails: BTreeSet::from([7415905]),
+                missing_thumbnails: BTreeSet::from([7421877]),
+                vendor_names: [(252312, "Second Chair Pawdo".to_string())].into(),
             });
             let mut registry = FrameRegistry::new(1920.0, 1080.0);
             Screen::new(housing_screen).sync(&context, &mut registry);
             let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let text = |name| match &frame(name).widget_data {
+                Some(WidgetData::FontString(text)) => text.text.clone(),
+                _ => panic!("{name} is not a font string"),
+            };
             assert_eq!(
                 frame("HousingDashboardFrame").width,
                 Dimension::Fixed(814.0)
@@ -251,24 +272,30 @@ fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() 
                 Dimension::Fixed(544.0)
             );
             assert!(frame("HousingPreviewThumbnail").hidden);
-            assert!(!frame("HousingPreviewMissing").hidden);
-            let Some(WidgetData::FontString(name)) = &frame("HousingPreviewName").widget_data
-            else {
-                panic!("missing preview title")
-            };
-            assert_eq!(name.text, "Ornate Stonework Fireplace");
-            let Some(WidgetData::FontString(details)) = &frame("HousingPreviewDetails").widget_data
-            else {
-                panic!("missing preview details")
-            };
-            assert!(details.text.contains("Decor 80 · Item 235994"));
-            match stored {
-                None => assert!(details.text.contains("Ownership and acquisition unknown")),
-                Some(quantity) => {
-                    assert!(details.text.contains(&format!("Stored decor: {quantity}")))
-                }
+            assert_eq!(text("HousingPreviewMissing"), "Preview unavailable");
+            assert_eq!(text("HousingPreviewName"), "Small Val'sharah Bookcase");
+            if confirmed {
+                // Owned = stored 1 + placed 2; the tile shows the stored quantity.
+                assert_eq!(text("HousingPreviewNumOwned"), "3");
+                assert!(!frame("HousingPreviewNumOwnedIcon").hidden);
+                assert_eq!(text("HousingCatalogEntry1693Quantity"), "1");
+                assert!(!frame("HousingCatalogEntry1693Quantity").hidden);
+                assert_eq!(
+                    text("HousingPreviewSourceInfo"),
+                    "Vendor: Second Chair Pawdo in Stormwind City"
+                );
+            } else {
+                assert_eq!(
+                    text("HousingPreviewNumOwned"),
+                    "Ownership unconfirmed by the server."
+                );
+                assert!(registry.get_by_name("HousingPreviewNumOwnedIcon").is_none());
+                assert!(frame("HousingCatalogEntry1693Quantity").hidden);
+                assert_eq!(
+                    text("HousingPreviewSourceInfo"),
+                    "Collection sources are not in the housing catalog."
+                );
             }
-            assert!(details.text.contains("Model 6033663 (type 1)"));
             let search = frame("HousingCatalogSearchBox");
             assert!(matches!(search.widget_data, Some(WidgetData::EditBox(_))));
             let mut info = context.get::<HousingView>().unwrap().clone();
@@ -286,14 +313,95 @@ fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() 
             let Some(WidgetData::FontString(message)) = &message.widget_data else {
                 panic!("missing house info status")
             };
-            match stored {
-                None => assert!(
+            if confirmed {
+                assert!(message.text.contains("0 account-owned plot(s)"));
+            } else {
+                assert!(
                     message
                         .text
                         .contains("House ownership has not been confirmed by the server")
-                ),
-                Some(_) => assert!(message.text.contains("0 account-owned plot(s)")),
+                );
             }
         }
+    }
+}
+
+#[test]
+fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
+    use game_engine_core::housing::{Category, Subcategory};
+    use game_engine_ui_model::housing::HousingAuthority;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    // Local Retail DecorCategory 1 Furnishings with DecorSubcategory 1 Seating, 2 Beds.
+    let subcategory = |id, name: &str, icon: &str, order| Subcategory {
+        id,
+        category_id: 1,
+        name: name.into(),
+        order,
+        icon_element: 0,
+        icon: Some(icon.into()),
+    };
+    let catalog = HousingCatalog {
+        categories: vec![Category {
+            id: 1,
+            name: "Furnishings".into(),
+            order: 2,
+            icon_element: 29134,
+            icon: Some("category-icons_furnishings".into()),
+        }],
+        subcategories: vec![
+            subcategory(1, "Seating", "category-icons_seating", 0),
+            subcategory(2, "Beds", "category-icons_beds", 3),
+        ],
+        ..HousingCatalog::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let unknown = HousingAuthority::default();
+        let mut model = HousingDashboard::new(Arc::new(catalog.clone()));
+        model.tab = DashboardTab::Catalog;
+        model.set_category(Some(1), &unknown);
+        model.filters_open = true;
+        let mut context = SharedContext::new();
+        context.insert(HousingView {
+            model,
+            authority: unknown,
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        });
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let disabled = |name| {
+            matches!(&frame(name).widget_data, Some(WidgetData::Button(button))
+                if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+        };
+        assert!(registry.get_by_name("HousingCategory1").is_none());
+        assert_eq!(
+            frame("HousingCategoryBackButton").onclick.as_deref(),
+            Some("housing:category:back")
+        );
+        assert_eq!(
+            frame("HousingSubcategoryAll").onclick.as_deref(),
+            Some("housing:subcategory:all")
+        );
+        assert_eq!(
+            frame("HousingSubcategory2").onclick.as_deref(),
+            Some("housing:subcategory:2")
+        );
+        assert!(registry.get_by_name("HousingSubcategory2Icon").is_some());
+        assert!(!disabled("HousingFilterDyeable"));
+        assert!(!disabled("HousingFilterCollectionAll"));
+        assert!(disabled("HousingFilterCollectionCollected"));
+        assert!(disabled("HousingFilterCollectionUncollected"));
+        assert!(
+            registry
+                .get_by_name("HousingFilterCollectionAllTick")
+                .is_some()
+        );
     }
 }

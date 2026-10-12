@@ -1,9 +1,9 @@
 //! Native Retail 814x544 Housing Dashboard and three-column 97px catalog.
-use crate::housing::{DashboardTab, HousingDashboard};
+use crate::housing::{CollectionFilter, DashboardTab, HousingDashboard};
 use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
 use crate::ui::strata::FrameStrata;
 use game_engine_core::housing::Decor;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SIZE: [f32; 2] = [814.0, 544.0];
@@ -17,6 +17,8 @@ pub struct HousingView {
     pub money: Option<u64>,
     /// Missing extracted BLPs are explicit, never replaced by another decor icon.
     pub missing_thumbnails: BTreeSet<u32>,
+    /// Creature names the server's creature query returned, for decor vendor sources.
+    pub vendor_names: HashMap<u32, String>,
 }
 
 pub fn housing_screen(context: &SharedContext) -> Element {
@@ -187,15 +189,16 @@ fn catalog(view: &HousingView) -> Element {
         "catalog-main-divider",
         (429.0, 55.0, 48.0, 489.0),
     );
+    let authority = &view.authority;
     let categories = categories(model);
     let entries: Element = model
-        .visible()
+        .visible(authority)
         .into_iter()
         .enumerate()
         .flat_map(|(index, decor)| tile(view, index, decor))
         .collect();
     let preview = preview(view);
-    let filter = filter_menu(model);
+    let filter = filter_menu(model, authority.state.is_some());
     let category_title = model
         .category
         .and_then(|id| {
@@ -219,7 +222,7 @@ fn catalog(view: &HousingView) -> Element {
     };
     let footer = format!(
         "{} results · {ownership} · {} unreadable records",
-        model.matching().len(),
+        model.matching(authority).len(),
         model.catalog.encrypted_records
     );
     rsx! {
@@ -241,49 +244,98 @@ fn catalog(view: &HousingView) -> Element {
     }
 }
 
+/// Retail HousingCatalogCategories: the top-level column, or a focused category's
+/// BACK button, "All" stand-in and subcategories when it has more than one.
 fn categories(model: &HousingDashboard) -> Element {
+    if let Some(category) = model.expanded_category() {
+        return subcategories(model, category.id);
+    }
     model
         .catalog
         .categories
         .iter()
         .enumerate()
         .flat_map(|(index, category)| {
-            let action = format!("housing:category:{}", category.id);
             let selected = model.category == Some(category.id)
                 || (category.id == crate::housing::ALL_CATEGORY && model.category.is_none());
-            let top = 65.0 + index as f32 * 48.0;
-            let atlas = category_icon(category.id);
-            let art = named_atlas_texture(
-                format!("HousingCategory{}Icon", category.id),
-                atlas,
-                (0.0, 0.0, 48.0, 48.0),
-            );
-            let alpha = if selected { 1.0 } else { 0.7 };
-            rsx! { button { name: {DynName(format!("HousingCategory{}", category.id))},
-                width: 48.0, height: 48.0,
-                pos_type: "absolute", left: 11.0, top, onclick: {action.as_str()},
-                button_default_skin: false, alpha, {art}
-            } }
+            category_button(
+                format!("HousingCategory{}", category.id),
+                category.icon.as_deref(),
+                selected,
+                format!("housing:category:{}", category.id),
+                (11.0, 65.0 + index as f32 * 48.0, 48.0),
+            )
         })
         .collect()
 }
 
-/// DecorCategory.UiTextureAtlasElementID -> UiTextureAtlasElement.Name,
-/// authenticated local Retail 12.1.0.69933. No invented category artwork.
-fn category_icon(id: u32) -> &'static str {
-    match id {
-        1 => "category-icons_furnishings_active",
-        2 => "category-icons_structural_active",
-        3 => "category-icons_accents_active",
-        4 => "category-icons_lighting_active",
-        5 => "category-icons_interactive_active",
-        6 => "category-icons_plants_active",
-        8 => "category-icons_misc_active",
-        9 => "category-icons_rooms_active",
-        17 => "category-icons_featured_active",
-        18 => "category-icons_all_active",
-        _ => panic!("Unsupported pinned housing category {id}"),
+fn subcategories(model: &HousingDashboard, category_id: u32) -> Element {
+    let back_icon = named_atlas_texture(
+        "HousingCategoryBackIcon".into(),
+        "common-icon-backarrow",
+        (8.0, 13.0, 14.0, 14.0),
+    );
+    let divider = named_atlas_texture(
+        "HousingSubcategoriesDivider".into(),
+        "house-chest-parent-category-bg",
+        (0.0, 102.0, 70.0, 34.0),
+    );
+    let all = category_button(
+        "HousingSubcategoryAll".into(),
+        Some("category-icons_all"),
+        model.subcategory.is_none(),
+        "housing:subcategory:all".into(),
+        (15.0, 140.0, 40.0),
+    );
+    let children: Element = model
+        .catalog
+        .subcategories
+        .iter()
+        .filter(|subcategory| subcategory.category_id == category_id)
+        .enumerate()
+        .flat_map(|(index, subcategory)| {
+            category_button(
+                format!("HousingSubcategory{}", subcategory.id),
+                subcategory.icon.as_deref(),
+                model.subcategory == Some(subcategory.id),
+                format!("housing:subcategory:{}", subcategory.id),
+                (15.0, 184.0 + index as f32 * 44.0, 40.0),
+            )
+        })
+        .collect();
+    rsx! {
+        button { name: "HousingCategoryBackButton", width: 64.0, height: 40.0,
+            pos_type: "absolute", left: 3.0, top: 60.0, onclick: "housing:category:back",
+            button_default_skin: false, {back_icon}
+            fontstring { name: "HousingCategoryBackText", text: "BACK", width: 40.0, height: 40.0,
+                pos_type: "absolute", left: 24.0, top: 0.0, font_size: 12.0, justify_h: "LEFT" }
+        }
+        {divider} {all} {children}
     }
+}
+
+/// BaseHousingCatalogCategoryMixin state art: `{key}_active` focused, else `_inactive`.
+fn category_button(
+    name: String,
+    icon: Option<&str>,
+    active: bool,
+    action: String,
+    (left, top, size): (f32, f32, f32),
+) -> Element {
+    let state = if active { "_active" } else { "_inactive" };
+    let art: Element = icon
+        .map(|key| {
+            named_atlas_texture(
+                format!("{name}Icon"),
+                &format!("{key}{state}"),
+                (0.0, 0.0, size, size),
+            )
+        })
+        .unwrap_or_default();
+    rsx! { button { name: {DynName(name)}, width: size, height: size,
+        pos_type: "absolute", left, top, onclick: {action.as_str()},
+        button_default_skin: false, {art}
+    } }
 }
 
 fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
@@ -299,9 +351,15 @@ fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
         decor.thumbnail_fdid == 0 || view.missing_thumbnails.contains(&decor.thumbnail_fdid);
     let left = (index % 3) as f32 * 102.0;
     let top = (index / 3) as f32 * 107.0;
+    // HousingCatalogEntry InfoText: GetEntryQuantity (stored + redeemable) when positive.
+    let quantity = view.authority.quantity(decor.id).unwrap_or(0);
+    let quantity_text = quantity.to_string();
     rsx! { button { name: {DynName(name.clone())}, width: 97.0, height: 97.0,
         pos_type: "absolute", left, top, onclick: {action.as_str()}, button_default_skin: false,
         {art}
+        fontstring { name: {DynName(format!("{name}Quantity"))}, text: {quantity_text.as_str()},
+            width: 40.0, height: 20.0, pos_type: "absolute", left: 48.0, top: 70.0,
+            font_size: 16.0, justify_h: "RIGHT", hidden: {quantity == 0} }
         texture { name: {DynName(format!("{name}Icon"))}, texture_fdid: {decor.thumbnail_fdid},
             width: 87.0, height: 87.0, pos_type: "absolute", left: 5.0, top: 5.0, hidden: missing }
         fontstring { name: {DynName(format!("{name}Unavailable"))}, text: "Thumbnail unavailable",
@@ -309,75 +367,133 @@ fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
     } }
 }
 
+/// Retail HousingModelPreview: name, SourceInfo and NumOwned over the preview area.
+/// The decor thumbnail stands in for the unavailable 3D model scene.
 fn preview(view: &HousingView) -> Element {
-    let Some(decor) = view.model.selected() else {
+    let Some(decor) = view.model.selected(&view.authority) else {
         return rsx! { fontstring { name: "HousingPreviewEmpty", text: "No matching decor.",
         width: 350.0, height: 50.0, pos_type: "absolute", left: 457.0, top: 240.0 } };
     };
     let missing =
         decor.thumbnail_fdid == 0 || view.missing_thumbnails.contains(&decor.thumbnail_fdid);
-    let ownership = match view.authority.quantity(decor.id) {
-        Some(quantity) => {
-            format!("Stored decor: {quantity}; acquisition source details unavailable")
-        }
-        None => "Ownership and acquisition unknown".into(),
+    let source = if view.model.catalog.sources_imported {
+        crate::housing::source_lines(decor, &view.vendor_names).join("\n")
+    } else {
+        "Collection sources are not in the housing catalog.".into()
     };
-    let details = format!(
-        "Decor {} · Item {}\n{ownership}\nModel {} (type {})\nThumbnail preview; 3D preview not available",
-        decor.id, decor.item_id, decor.model_fdid, decor.model_type
+    let owned = view.authority.owned(decor.id);
+    let owned_text = match owned {
+        Some(count) => count.to_string(),
+        None => "Ownership unconfirmed by the server.".into(),
+    };
+    let hide_owned = owned == Some(0);
+    let hide_owned_icon = owned.is_none_or(|count| count == 0);
+    let source_height = 15.0 * source.lines().count() as f32;
+    let owned_top = 54.0 + source_height + if source.is_empty() { 0.0 } else { 6.0 };
+    let owned_left = if owned.is_some() { 38.0 } else { 20.0 };
+    let background = named_atlas_texture(
+        "HousingPreviewBackground".into(),
+        "catalog-list-preview-bg",
+        (0.0, 0.0, 361.0, 489.0),
     );
+    let owned_icon = named_atlas_texture(
+        "HousingPreviewNumOwnedIcon".into(),
+        "house-chest-icon",
+        (20.0, owned_top, 16.0, 16.0),
+    );
+    let owned_icon: Element = if hide_owned_icon { vec![] } else { owned_icon };
     rsx! { r#frame { name: "HousingCatalogPreviewFrame", width: 361.0, height: 489.0,
         pos_type: "absolute", left: 453.0, top: 55.0,
-        fontstring { name: "HousingPreviewName", text: {decor.name.as_str()}, width: 325.0, height: 64.0,
-            pos_type: "absolute", left: 18.0, top: 16.0, font_size: 16.0, justify_h: "CENTER" }
+        {background}
+        fontstring { name: "HousingPreviewName", text: {decor.name.as_str()}, width: 321.0, height: 20.0,
+            pos_type: "absolute", left: 20.0, top: 24.0, font_size: 16.0, justify_h: "LEFT" }
+        fontstring { name: "HousingPreviewSourceInfo", text: {source.as_str()}, width: 321.0,
+            height: {source_height}, pos_type: "absolute", left: 20.0, top: 54.0, font_size: 12.0,
+            justify_h: "LEFT", hidden: {source.is_empty()} }
+        {owned_icon}
+        fontstring { name: "HousingPreviewNumOwned", text: {owned_text.as_str()}, width: 300.0, height: 16.0,
+            pos_type: "absolute", left: owned_left, top: owned_top, font_size: 12.0, justify_h: "LEFT",
+            hidden: hide_owned, mouse_enabled: true }
         texture { name: "HousingPreviewThumbnail", texture_fdid: {decor.thumbnail_fdid},
-            width: 256.0, height: 256.0, pos_type: "absolute", left: 52.0, top: 88.0, hidden: missing }
-        fontstring { name: "HousingPreviewMissing", text: "Thumbnail not extracted", width: 325.0, height: 256.0,
-            pos_type: "absolute", left: 18.0, top: 88.0, font_size: 14.0, hidden: {!missing} }
-        fontstring { name: "HousingPreviewDetails", text: {details.as_str()}, width: 325.0, height: 110.0,
-            pos_type: "absolute", left: 18.0, top: 354.0, font_size: 12.0, justify_h: "LEFT" }
+            width: 256.0, height: 256.0, pos_type: "absolute", left: 52.0, top: 139.0, hidden: missing }
+        fontstring { name: "HousingPreviewMissing", text: "Preview unavailable", width: 301.0, height: 256.0,
+            pos_type: "absolute", left: 30.0, top: 139.0, font_size: 14.0, hidden: {!missing} }
     } }
 }
 
-fn filter_menu(model: &HousingDashboard) -> Element {
+/// Retail HousingCatalogFilters dropdown entries backed by authentic data: Dyeable Only
+/// and the Collection radio. Collection choices need confirmed ownership.
+fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
     if !model.filters_open {
         return vec![];
     }
-    let options: Element = model
-        .catalog
-        .subcategories
-        .iter()
-        .filter(|subcategory| {
-            model
-                .category
-                .is_none_or(|id| subcategory.category_id == id)
-        })
-        .enumerate()
-        .flat_map(|(index, subcategory)| {
-            let action = format!("housing:subcategory:{}", subcategory.id);
-            let top = 26.0 + index as f32 * 20.0;
-            rsx! { button { name: {DynName(format!("HousingSubcategory{}", subcategory.id))},
-            text: {subcategory.name.as_str()}, width: 190.0, height: 20.0,
-            pos_type: "absolute", left: 5.0, top, onclick: {action.as_str()}, font_size: 10.0 } }
-        })
-        .collect();
-    let height = 31.0
-        + model
-            .catalog
-            .subcategories
-            .iter()
-            .filter(|subcategory| {
-                model
-                    .category
-                    .is_none_or(|id| subcategory.category_id == id)
-            })
-            .count() as f32
-            * 20.0;
-    rsx! { r#frame { name: "HousingCatalogFilterMenu", width: 200.0, height,
-        pos_type: "absolute", left: 604.0, top: 54.0, strata: FrameStrata::Tooltip,
-        background_color: "0.05,0.04,0.03,1.0", mouse_enabled: true,
-        button { name: "HousingAllSubcategories", text: "All subcategories", width: 190.0, height: 20.0,
-            pos_type: "absolute", left: 5.0, top: 5.0, onclick: "housing:subcategory:all", font_size: 10.0 }
-        {options}
+    let background = named_atlas_texture(
+        "HousingCatalogFilterMenuBackground".into(),
+        "common-dropdown-bg",
+        (-10.0, -3.0, 220.0, 116.0),
+    );
+    let dyeable = filter_choice(
+        "HousingFilterDyeable",
+        "Dyeable Only",
+        "common-dropdown-ticksquare",
+        "common-dropdown-icon-checkmark-yellow",
+        model.dyeable_only,
+        "housing:filter:dyeable",
+        (8.0, false),
+    );
+    let collection: Element = [
+        (CollectionFilter::All, "All", "all"),
+        (CollectionFilter::Collected, "Collected", "collected"),
+        (CollectionFilter::Uncollected, "Uncollected", "uncollected"),
+    ]
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, (filter, label, key))| {
+        filter_choice(
+            &format!("HousingFilterCollection{label}"),
+            label,
+            "common-dropdown-tickradial",
+            "common-dropdown-icon-radialtick-yellow",
+            model.collection == filter,
+            &format!("housing:filter:collection:{key}"),
+            (
+                50.0 + index as f32 * 20.0,
+                !ownership_known && filter != CollectionFilter::All,
+            ),
+        )
+    })
+    .collect();
+    rsx! { r#frame { name: "HousingCatalogFilterMenu", width: 200.0, height: 110.0,
+        pos_type: "absolute", left: 604.0, top: 54.0, strata: FrameStrata::Tooltip, mouse_enabled: true,
+        {background} {dyeable}
+        fontstring { name: "HousingFilterCollectionLabel", text: "Collection", width: 180.0, height: 20.0,
+            pos_type: "absolute", left: 8.0, top: 30.0, font_size: 12.0, justify_h: "LEFT",
+            font_color: "1.0,0.82,0.0,1.0" }
+        {collection}
+    } }
+}
+
+fn filter_choice(
+    name: &str,
+    label: &str,
+    box_atlas: &str,
+    tick_atlas: &str,
+    checked: bool,
+    action: &str,
+    (top, disabled): (f32, bool),
+) -> Element {
+    let mut children = named_atlas_texture(format!("{name}Box"), box_atlas, (0.0, 4.0, 12.0, 12.0));
+    if checked {
+        children.extend(named_atlas_texture(
+            format!("{name}Tick"),
+            tick_atlas,
+            (0.5, 2.0, 15.0, 14.0),
+        ));
+    }
+    rsx! { button { name: {DynName(name.into())}, width: 184.0, height: 20.0,
+        pos_type: "absolute", left: 8.0, top, onclick: action, disabled,
+        button_default_skin: false, {children}
+        fontstring { name: {DynName(format!("{name}Label"))}, text: label, width: 160.0, height: 20.0,
+            pos_type: "absolute", left: 19.0, top: -1.0, font_size: 12.0, justify_h: "LEFT" }
     } }
 }
