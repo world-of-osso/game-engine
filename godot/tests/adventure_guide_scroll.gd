@@ -31,6 +31,36 @@ func pointer(point: Vector2, button: int) -> void:
 		root.push_input(event, true)
 		await process_frame
 	await settle()
+func first_set_row() -> String:
+	var first := ""
+	var top := INF
+	for control in client.find_children("JournalSet*Row", "Control", true, false):
+		if control.is_visible_in_tree() and control.get_global_rect().position.y < top:
+			top = control.get_global_rect().position.y
+			first = control.name
+	return first
+func set_filter_scroll_returns_to_beginning() -> bool:
+	await click("EncounterJournalTab2")
+	await click("JournalClassFilter")
+	await click("JournalClass2")
+	var first := first_set_row()
+	if first.is_empty():
+		stop("No authored Paladin set rows")
+		return false
+	await click("JournalClassFilter")
+	await click("JournalClass0")
+	for notch in range(10):
+		var list := client.find_child("EncounterJournalContent", true, false) as Control
+		if list == null:
+			stop("Item Set scroll frame missing")
+			return false
+		await pointer(list.get_global_rect().get_center(), MOUSE_BUTTON_WHEEL_DOWN)
+	await click("JournalClassFilter")
+	await click("JournalClass2")
+	if first_set_row() != first:
+		stop("Set class filter retained old scroll offset instead of first row " + first)
+		return false
+	return true
 func wait_screen(screen: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 120000
 	while Time.get_ticks_msec() < deadline:
@@ -110,5 +140,6 @@ func run() -> void:
 	if state.instance != 741 or state.encounter != 1519 or state.difficulty != 9:
 		stop("Scroll did not select authored Molten Core/Lucifron: " + str(state))
 		return
-	print("ADVENTURE_GUIDE_SCROLL_PASS skin=%s before=%s after=%s" % [client.account_state().ui_skin, before, after])
+	if not await set_filter_scroll_returns_to_beginning(): return
+	print("ADVENTURE_GUIDE_SCROLL_PASS skin=%s before=%s after=%s set_filter_reset=true" % [client.account_state().ui_skin, before, after])
 	quit(0)
