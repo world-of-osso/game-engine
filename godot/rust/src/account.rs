@@ -652,9 +652,9 @@ impl Account {
             .map_err(SessionError)
     }
 
-    pub fn send_use_toy(&self, item_id: u32) -> Result<(), SessionError> {
+    pub fn send_use_toy(&self, request: shared::protocol::UseToy) -> Result<(), SessionError> {
         self.bridge()?
-            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::UseToy { item_id })
+            .send::<_, shared::protocol::CollectionChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1698,7 +1698,8 @@ impl Account {
     }
 
     fn is_account_state_message(message: &ProtocolMessage) -> bool {
-        message.is::<QuestLogSnapshot>()
+        message.is::<shared::protocol::WorldQuestAvailability>()
+            || message.is::<QuestLogSnapshot>()
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
@@ -1757,6 +1758,11 @@ impl Account {
             self.achievement_requests
                 .extend(self.achievements.refresh(&update));
             output.push(AccountEvent::Achievement(update));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WorldQuestAvailability>() {
+            self.quests
+                .apply_availability(decode(message)?, quest_local_unix());
             return Ok(());
         }
         if message.is::<QuestLogSnapshot>() {
@@ -2373,7 +2379,7 @@ pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, Stri
 }
 
 /// The quest giver dialog message, or the message back (`QuestChannel`).
-fn quest_local_unix() -> i64 {
+pub(crate) fn quest_local_unix() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock after Unix epoch")

@@ -151,6 +151,7 @@ pub mod flight_map;
 pub mod flight_map_component;
 #[path = "world_map_view_data.rs"]
 pub mod world_map_view_data;
+pub mod world_quest_ui;
 
 /// Retail reaction colours for the unit frames, shared with the server's rules.
 pub mod faction_reaction {
