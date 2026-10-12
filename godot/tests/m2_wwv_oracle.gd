@@ -20,6 +20,8 @@ const GX_BLEND := [0, 1, 2, 10, 3, 4, 5, 13]
 var md20: PackedByteArray
 var skin: PackedByteArray
 var txid_values := PackedInt32Array()
+var playing_sequence := 0
+var local_time_ms := -1
 
 func _init(model_bytes: PackedByteArray, skin_bytes: PackedByteArray) -> void:
 	assert(model_bytes.slice(0, 4).get_string_from_ascii() == "MD21")
@@ -76,15 +78,16 @@ func global_sequences() -> PackedInt32Array:
 		values.append(md20.decode_u32(table.y + index * 4))
 	return values
 
-# M2Track at `offset`, sequence 0: interpolation, global sequence, keys and values.
+# M2Track: globals use timeline 0; local tracks use the playing model sequence.
 func track(offset: int, value_size: int) -> Dictionary:
 	var result := {"interpolation": md20.decode_u16(offset), "global": md20.decode_s16(offset + 2), "times": PackedInt32Array(), "values": []}
 	var times := array_at(md20, offset + 4)
 	var values := array_at(md20, offset + 12)
-	if times.x == 0 or values.x == 0:
+	var sequence: int = 0 if result.global >= 0 else playing_sequence
+	if sequence >= times.x or sequence >= values.x:
 		return result
-	var inner_times := array_at(md20, times.y)
-	var inner_values := array_at(md20, values.y)
+	var inner_times := array_at(md20, times.y + sequence * 8)
+	var inner_values := array_at(md20, values.y + sequence * 8)
 	for index in inner_times.x:
 		result.times.append(md20.decode_u32(inner_times.y + index * 4))
 	for index in inner_values.x:
@@ -98,8 +101,8 @@ func track(offset: int, value_size: int) -> Dictionary:
 				result.values.append(Quaternion(md20.decode_float(at), md20.decode_float(at + 4), md20.decode_float(at + 8), md20.decode_float(at + 12)))
 	return result
 
-# animateTrack at application time: global tracks wrap their global sequence, local
-# tracks loop sequence 0 (the Stand animation the reference keeps playing).
+# animateTrack: globals wrap application time; locals read the model playback time.
+# Without an explicit frozen local time the fixture loops its selected sequence.
 func sample(data: Dictionary, elapsed_ms: int, fallback: Variant) -> Variant:
 	if data.values.is_empty():
 		return fallback
@@ -107,8 +110,8 @@ func sample(data: Dictionary, elapsed_ms: int, fallback: Variant) -> Variant:
 	if data.global >= 0:
 		duration = global_sequences()[data.global]
 	else:
-		duration = md20.decode_u32(array_at(md20, 0x1c).y + 4)
-	var time := 0 if duration == 0 else elapsed_ms % duration
+		duration = md20.decode_u32(array_at(md20, 0x1c).y + playing_sequence * 64 + 4)
+	var time: int = local_time_ms if data.global < 0 and local_time_ms >= 0 else (0 if duration == 0 else elapsed_ms % duration)
 	var times: PackedInt32Array = data.times
 	if time <= times[0] or data.values.size() == 1:
 		return data.values[0]

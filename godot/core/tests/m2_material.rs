@@ -109,6 +109,31 @@ fn avenging_wrath_batches_bind_authored_glows_and_premultiplied_blending() {
 }
 
 #[test]
+fn avenging_wrath_local_opacity_follows_start_hold_and_decay_not_application_age() {
+    use m2_material::MaterialTime;
+
+    let wings = model(2368645);
+    let tracks = MaterialTracks::of(&wings);
+    let binding = m2_material::batch_binding(&wings, &wings.batches[1], &[0; 3]).unwrap();
+    let sample = |sequence, time_ms, global_ms| {
+        m2_material::sample_material(
+            &tracks,
+            &binding,
+            MaterialTime {
+                sequence,
+                time_ms,
+                global_ms,
+            },
+        )
+    };
+    assert_eq!(sample(0, 150, 900).opacity, 0.0);
+    assert_eq!(sample(1, 150, 900).opacity, 1.0);
+    assert_eq!(sample(1, 150, 10_000).opacity, 1.0);
+    let decay = sample(2, 120, 900).opacity;
+    assert!((decay - 47.0 / 167.0).abs() < 1.0 / 32767.0, "{decay}");
+}
+
+#[test]
 fn avenging_wrath_resolved_batch_and_particle_textures_decode_as_authored_files() {
     use game_engine_core::blp;
     use std::collections::BTreeSet;
