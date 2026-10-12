@@ -202,6 +202,42 @@ fn rect(registry: &FrameRegistry, name: &str) -> (f32, f32) {
     (frame.resolved_width(), frame.resolved_height())
 }
 
+fn drawn(registry: &FrameRegistry, name: &str) -> bool {
+    registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap()
+        .visible
+}
+
+/// Status and name strings are automation hooks; Retail draws none of them on cards.
+#[test]
+fn transmog_state_hooks_and_empty_search_clear_are_not_drawn() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = build(skin, book());
+        assert_eq!(text(&registry, "TransmogSource821Status"), "Applied");
+        for name in [
+            "TransmogSource821Status",
+            "TransmogIllusion16Status",
+            "TransmogSearchClear",
+        ] {
+            assert!(!drawn(&registry, name), "{name} is drawn");
+        }
+        let mut searching = book();
+        searching.set_search("Glad".into());
+        assert!(drawn(&build(skin, searching), "TransmogSearchClear"));
+        let mut illusions = book();
+        illusions.select_illusion(EquipmentSlot::MainHand);
+        let registry = build(skin, illusions);
+        assert_eq!(text(&registry, "TransmogIllusionEntry13Name"), "Crusader");
+        assert!(!drawn(&registry, "TransmogIllusionEntry13Name"));
+        let mut sets = book();
+        sets.set_tab(WardrobeTab::Sets);
+        let registry = build(skin, sets);
+        assert_eq!(text(&registry, "TransmogSet13Status"), "Incomplete (1/2)");
+        assert!(!drawn(&registry, "TransmogSet13Status"));
+    }
+}
+
 #[test]
 fn transmog_retail_frame_and_cells_use_121_natural_dimensions() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

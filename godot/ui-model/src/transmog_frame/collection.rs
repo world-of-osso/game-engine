@@ -112,7 +112,7 @@ fn search_box(book: &TransmogBook) -> Element {
         "common-searchbar-icon-a",
         (4.0, 4.0, 12.0, 12.0),
     ));
-    let clear_visible = !book.search.is_empty();
+    let hide_clear = book.search.is_empty();
     let clear_art = atlas(
         "TransmogSearchClearIcon".into(),
         "common-search-clearbutton",
@@ -120,7 +120,7 @@ fn search_box(book: &TransmogBook) -> Element {
     );
     art.extend(
         rsx! { button { name: "TransmogSearchClear", width: 17.0, height: 17.0,
-        left: 122.0, top: 1.0, pos_type: "absolute", visible: clear_visible,
+        left: 122.0, top: 1.0, pos_type: "absolute", hidden: hide_clear,
         button_default_skin: false, onclick: "transmog:clear-search", {clear_art} } },
     );
     let mut out = rsx! { editbox { name: {DynName(SEARCH.into())}, width: 142.0, height: 19.0,
@@ -351,7 +351,7 @@ fn item_card(
     } else {
         "Collected"
     };
-    children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: status, visible: false } });
+    children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: status, hidden: true } });
     children.append(&mut extra);
     let disabled = book.busy();
     rsx! { button { name: {DynName(prefix)}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
@@ -405,7 +405,7 @@ fn illusion_card(book: &TransmogBook, illusion: &TransmogIllusion, index: usize)
     let pending =
         slot.is_some_and(|slot| book.pending_illusions.get(&slot) == Some(&Some(illusion.id)));
     let name = rsx! { fontstring { name: {DynName(format!("TransmogIllusionEntry{}Name", illusion.id))},
-    text: {illusion.name.as_str()}, visible: false } };
+    text: {illusion.name.as_str()}, hidden: true } };
     item_card(
         book,
         format!("TransmogIllusionEntry{}", illusion.id),
@@ -488,7 +488,7 @@ fn set_base_card(
             (-8.0, -8.0, 194.0, 234.0),
         ));
     }
-    children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: {status.as_str()}, visible: false } });
+    children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: {status.as_str()}, hidden: true } });
     rsx! { button { name: {DynName(prefix)}, width: SET_WIDTH, height: SET_HEIGHT, left: x, top: y,
     pos_type: "absolute", disabled: busy, button_default_skin: false,
     button_atlas_highlight: border, onclick: {action.as_str()}, {children} } }
