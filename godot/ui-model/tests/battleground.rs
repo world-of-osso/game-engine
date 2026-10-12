@@ -117,6 +117,67 @@ fn node_battleground_both_skin_hud_columns_and_results() {
     set_thread_skin(ActiveSkin::Modern);
 }
 
+#[test]
+fn eye_of_the_storm_both_skin_tower_flag_hud_source_column_and_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let template = shared::battleground::eye_of_the_storm();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name.clone();
+        bg.score_a = 75;
+        // Fel Reaver Alliance 2726, Blood Elf Horde 2724, Draenei uncontrolled 2731,
+        // Netherstorm flag carried (8863 = FlagState::Taken).
+        bg.world_states = vec![(2726, 1), (2724, 1), (2731, 1), (8863, 2)];
+        bg.players[0].objective_scores = vec![(183, 1)];
+        let mut view = PvpView::default();
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 75 / 1500    Horde 1 / 1500",
+        );
+        assert_text(
+            &registry,
+            "WorldStateNode184081",
+            "Fel Reaver Ruins\nAlliance",
+        );
+        assert_text(&registry, "WorldStateNode184080", "Blood Elf Tower\nHorde");
+        assert_text(
+            &registry,
+            "WorldStateNode184083",
+            "Draenei Ruins\nUncontrolled",
+        );
+        assert_text(&registry, "WorldStateNode184082", "Mage Tower\n—");
+        assert_text(&registry, "WorldStateEyeFlag", "Netherstorm Flag\nCarried");
+        assert_text(&registry, "PVPMatchCategory7", "Flag Captures");
+        assert!(registry.get_by_name("PVPMatchCategory8").is_none());
+        assert_text(&registry, "PVPMatchPlayer81Stat183", "1");
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
     let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
     let WidgetData::FontString(label) = frame.widget_data.as_ref().unwrap() else {
@@ -139,7 +200,7 @@ fn receive(view: &mut PvpView, state: PvpSnapshot) {
 }
 #[test]
 fn node_battleground_selection_preserves_queue_identity() {
-    for id in [1018, 120, 108] {
+    for id in [1018, 120, 108, 7] {
         let mut view = PvpView::default();
         assert_eq!(view.action(&format!("pvp:select:{id}")), None);
         assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(id)));

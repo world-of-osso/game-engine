@@ -463,35 +463,79 @@ fn score_text(bg: &BattlegroundSnapshot) -> String {
         bg.score_a, template.win_score, bg.score_b, template.win_score
     )
 }
+fn world_state(bg: &BattlegroundSnapshot, id: u32) -> Option<i32> {
+    bg.world_states
+        .iter()
+        .find(|(state, _)| *state == id)
+        .map(|(_, value)| *value)
+}
+fn hud_cells(cells: Vec<(String, String)>) -> Element {
+    let width = 430.0 / cells.len() as f32;
+    cells
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, (name, text))| {
+            label(
+                name,
+                &text,
+                (index as f32 * width, 25.0, width, 24.0),
+                (9.0, WHITE, "CENTER"),
+            )
+        })
+        .collect()
+}
+/// Eye of the Storm: tower control WorldStates and Netherstorm flag WorldState 8863.
+fn eye_hud(rules: &shared::battleground::EyeRules, bg: &BattlegroundSnapshot) -> Element {
+    let mut cells: Vec<_> = rules
+        .towers
+        .iter()
+        .map(|tower| {
+            let owner = [
+                (tower.alliance_state, "Alliance"),
+                (tower.horde_state, "Horde"),
+                (tower.uncontrolled_state, "Uncontrolled"),
+            ]
+            .into_iter()
+            .find(|(state, _)| world_state(bg, *state) == Some(1))
+            .map_or("—", |(_, owner)| owner);
+            (
+                format!("WorldStateNode{}", tower.entry),
+                format!("{}\n{owner}", tower.name),
+            )
+        })
+        .collect();
+    let flag = match world_state(bg, 8863) {
+        Some(2) => "Carried",
+        Some(3) => "Dropped",
+        Some(4) => "Respawning",
+        _ => "At base",
+    };
+    cells.push((
+        "WorldStateEyeFlag".into(),
+        format!("Netherstorm Flag\n{flag}"),
+    ));
+    hud_cells(cells)
+}
 fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if let Some(rules) = shared::battleground::eye_rules(bg.map_id) {
+        return eye_hud(rules, bg);
+    }
     if let Some(rules) = shared::battleground::node_rules(bg.map_id) {
-        let width = 430.0 / rules.nodes.len() as f32;
-        return rules
-            .nodes
-            .iter()
-            .enumerate()
-            .flat_map(|(index, node)| {
-                let state = bg
-                    .world_states
-                    .iter()
-                    .find(|(id, _)| *id == node.poi)
-                    .map(|(_, value)| *value);
-                let status = match state {
-                    Some(1) => "Neutral",
-                    Some(2) => "Horde assault",
-                    Some(3) => "Alliance assault",
-                    Some(4) => "Horde",
-                    Some(5) => "Alliance",
-                    _ => "—",
-                };
-                label(
-                    format!("WorldStateNode{}", node.entry),
-                    &format!("{}\n{}", node.name, status),
-                    (index as f32 * width, 25.0, width, 24.0),
-                    (9.0, WHITE, "CENTER"),
-                )
-            })
-            .collect();
+        let cells = rules.nodes.iter().map(|node| {
+            let status = match world_state(bg, node.poi) {
+                Some(1) => "Neutral",
+                Some(2) => "Horde assault",
+                Some(3) => "Alliance assault",
+                Some(4) => "Horde",
+                Some(5) => "Alliance",
+                _ => "—",
+            };
+            (
+                format!("WorldStateNode{}", node.entry),
+                format!("{}\n{status}", node.name),
+            )
+        });
+        return hud_cells(cells.collect());
     }
     label(
         "WorldStateFlags".into(),
