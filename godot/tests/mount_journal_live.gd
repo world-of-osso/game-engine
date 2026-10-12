@@ -133,7 +133,7 @@ func open_vendor() -> bool:
 	# TDB1210 Katie Hunter uses quest greeting menu4004 option0 (vendor).
 	if not await wait_until(func(): return control("GossipOption0Text") != null, "Katie Hunter authored vendor greeting"): return false
 	await click("GossipOption0Text")
-	return await wait_until(func(): return client.merchant_state().open, "authentic Katie Hunter vendor")
+	return await wait_until(func(): return client.merchant_state().open and control("MerchantItem2ItemButton") != null, "projected Katie Hunter mount inventory")
 
 func ipc(arguments: Array) -> String:
 	var worker := Thread.new()
