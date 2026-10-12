@@ -139,10 +139,10 @@ impl GameClient {
             .flatten()
             .filter_map(
                 |bonus| match catalog.render_description(bonus.spell, &context) {
-                    Ok(text) => Some((bonus.spell, text)),
-                    Err(error) => {
+                    Some(text) => Some((bonus.spell, text)),
+                    None => {
                         crate::frame_error::report_once(&format!(
-                            "Journal set{set} bonus{}: {error}",
+                            "Journal set{set} bonus{}: description unavailable",
                             bonus.spell
                         ));
                         None
