@@ -145,7 +145,7 @@ fn arena_native_attacks_same_race_enemies_and_their_pets_only_after_preparation(
     replica.insert(KOBOLD, UnitSummonedBy(WORG));
     let templates = parse_faction_template_csv(TEMPLATES).unwrap();
     let mut bg: shared::protocol::BattlegroundSnapshot = serde_json::from_value(serde_json::json!({
-        "match_id":1,"battleground_id":5,"name":"Nagrand Arena","map_id":559,
+        "match_id":1,"battleground_id":8,"name":"Ruins of Lordaeron","map_id":572,
         "team":"A","phase":"Waiting","accepted":true,"invitation_time_left_secs":null,
         "score_a":0,"score_b":0,"flags":{"flag_a":"AtBase","flag_b":"AtBase"},
         "outcome":null,"players":[],"honor_reward":null,
