@@ -9,14 +9,14 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 - [x] Persist collection/favourites account-wide across characters/restarts; share changes only with the same account. Existing authentic spell-learning results grant account ownership.
 - [x] Summon through normal spell/riding/area rules; dismount cancels the real aura. Random favourites use owned usable candidates, never fabricated display mounting; combat/unowned requests refuse.
 - [x] Import every local MountXDisplay appearance root into a new cache preserving all prior profiles/choices/geosets/coverage; reject conflicting rows/replacement. Extract missing assets from local CASC only.
-- [ ] Both skins show the same Mainline703×606 shell/tab/list layout and a rotating authentic3D preview; native item learning, right-click favourite, summon/dismount/random, and alternate-character persistence must pass the privateUDP5901 fixture.
+- [x] Both skins show the same Mainline703×606 shell/tab/list layout and a rotating authentic3D preview; native item learning, right-click favourite, summon/dismount/random, and alternate-character persistence must pass the privateUDP5901 fixture.
 
 ### Acquisition/game integration — user extension2026-10-11
 
-- [ ] Authentic vendors sell mount teaching items/direct-learn mounts under existing cost, ExtendedCost, faction and reputation requirements; buying/learning is proved natively in both skins.
-- [ ] Mount teaching items list/sell/buy under Retail AH Miscellaneous→Mounts; buying/delivery/UseItem adds ownership, with both-skin live proof.
-- [ ] Already-collected mounts show “Already known” in item tooltips, vendor entries and AH presentation, reflecting authoritative account state. Teaching-item identities come from the server's authentic Retail ItemEffect links; same-ID Forever items remain separate.
-- [ ] Mount items grant no transmog appearance; Mounts shares the Collections frame with the existing Pets/Toys/Appearances integration. Note authored mount-equipment slot/data support without inventing unsupported behaviour.
+- [x] Authentic vendors sell mount teaching items under authored gold/ExtendedCost, faction and minimum reputation requirements; buying/learning is proved natively in both skins. TDB1210 has no direct-learn mount offers; no route is fabricated. [Cost provenance and unavailable data](../../../game-server/docs/mount-vendor-costs.md).
+- [x] Mount teaching items list/sell/buy under Retail AH Miscellaneous→Mounts; buying/delivery/UseItem adds ownership, with both-skin live proof.
+- [x] Already-collected mounts show “Already known” in item tooltips, vendor entries and AH presentation, reflecting authoritative account state. Teaching-item identities come from the server's authentic Retail ItemEffect links; same-ID Forever items remain separate.
+- [x] Mount items grant no transmog appearance; Mounts reuses the Collections shell and existing Pets/Toys navigation. Existing Appearances collection/service authority remains unchanged. Mount equipment remains out of scope (Retail AH class15/subclass6 exists; no equipment functionality is invented).
 
 ## How it works
 
@@ -34,7 +34,7 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/mount_journal.rs`.
-- `godot/tests/mount_journal_live.gd`.
+- `godot/tests/mount_journal_live.gd`, `mount_auction_live.gd`; both-skin paid vendor, native favourite/mount/random, alternate-character and two-account AH/mail/learn proofs.
 - `scripts/test_import_mount_appearance.py`.
 - Server `mount_journal_tests.rs`, `item_use_tests.rs`, `item_templates_tests.rs`, `persistence_mounts.rs`, `collection_tests.rs`.
 - Protocol `tests/mount_journal.rs`; existing server `auras/mount_tests.rs` owns flight/riding rules.
@@ -45,7 +45,9 @@ World entry receives one complete catalog. Learning, favourites and mount-state 
 
 ## Known gaps (current cycle)
 
-- [ ] Reliable live account-change/dismount feedback, both-skin vendor/AH acquisition acceptance and final integration/check/fmt/protocol gate.
+- [x] Reliable live account-change/dismount feedback and both-skin vendor/AH acquisition acceptance.
+- [ ] Final integration/check/fmt/protocol gate.
+- Unavailable authored cost metadata omits78 ExtendedCost offers rather than making them free; other121 have complete cost data. Vendor PlayerCondition evaluation and reputation price discounts remain existing server boundaries, not new invented behavior.
 
 ## Out of scope
 
