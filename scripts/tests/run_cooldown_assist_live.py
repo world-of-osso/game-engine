@@ -5,6 +5,8 @@ Uses the build-qualified Retail placement helper before login; never NPC legacy 
 Starts/stops only its slot's private Cage client. Server/account creation stays external.
 """
 import argparse
+import json
+import re
 import os
 from pathlib import Path
 import shutil
@@ -60,7 +62,10 @@ def drive(arguments):
                          "--admin", str(admin)], environment)
     for name in ["config", "userdata"]:
         path = arguments.out / name
-        path.mkdir(mode=0o700)
+        if arguments.restore_from is not None:
+            shutil.copytree(arguments.restore_from / name, path)
+        else:
+            path.mkdir(mode=0o700)
     environment.update({
         "XDG_DATA_HOME": str(arguments.out / "userdata"),
         "ASSET_RESOLVER_CACHE_DIR": str(arguments.resolver_cache),
@@ -71,6 +76,13 @@ def drive(arguments):
         "COOLDOWN_ASSIST_ADMIN": "1",
         "COOLDOWN_ASSIST_SKIN": arguments.skin,
     })
+    if arguments.restore_from is not None:
+        environment["COOLDOWN_ASSIST_RESTORE"] = "1"
+        placement = json.loads((arguments.restore_from / "viewer-placement.json").read_text())
+        position = re.findall(r"-?\d+(?:\.\d+)?", placement["saved"])[:2]
+        if len(position) != 2:
+            raise ValueError("successful run has no saved viewer position")
+        environment["COOLDOWN_ASSIST_EXPECTED_POSITION"] = ",".join(position)
     environment.pop("DISPLAY", None)
     helper = str(arguments.engine / "scripts/agent/headless-client.sh")
     with tempfile.TemporaryDirectory(prefix="cdassist-", dir="/tmp") as runtime:
@@ -84,6 +96,17 @@ def drive(arguments):
                                   "res://tests/cooldown_assist_live.gd"], environment)
             started = True
             wait_for_marker(arguments, "online.ready")
+            if arguments.restore_from is not None:
+                deadline = time.monotonic() + 60
+                while time.monotonic() < deadline:
+                    output = client_log(arguments)
+                    if "RESTORE_PASS:" in output:
+                        print("RESTORE_PASS: " + arguments.skin + " persisted manager choices/layout")
+                        return 0
+                    if "SCRIPT ERROR" in output or "Cooldown assist fixture:" in output:
+                        raise RuntimeError(output[-2500:])
+                    time.sleep(0.25)
+                raise RuntimeError("persisted layout restoration timeout")
             for spell in [642, 31884]:
                 run_owned(arguments, [str(admin), "learn-spell", arguments.character, str(spell)], environment)
             run_owned(arguments, [str(admin), "revive", arguments.character], environment)
@@ -118,6 +141,7 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--skin", choices=["Modern", "Forever"], required=True)
+    parser.add_argument("--restore-from", type=Path, help="existing successful run whose config/userdata must survive a fresh client")
     arguments = parser.parse_args()
     for name in ["engine", "server", "out", "resolver_cache"]:
         setattr(arguments, name, getattr(arguments, name).resolve())
