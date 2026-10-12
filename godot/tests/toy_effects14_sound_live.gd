@@ -80,10 +80,15 @@ func ocean_loop() -> Dictionary:
 			return sound
 	return {}
 
+func ocean_cast_started() -> bool:
+	for cast in client.spell_visuals_state().casts:
+		if int(cast.spell) == 298869 and bool(cast.go): return true
+	return false
+
 func prove_ocean(sample: Array) -> void:
 	await activate_named(str(sample[3]))
 	if failed: return
-	if not await wait_until(func(): return has_aura(298869) and not ocean_loop().is_empty(), "authored ocean loop138396", 60000): return
+	if not await wait_until(func(): return ocean_cast_started() and has_aura(298869) and not ocean_loop().is_empty(), "actual cast and authored ocean loop138396", 60000): return
 	var sound := ocean_loop()
 	var nodes := client.find_children("SpellSound" + str(sound.fdid), "AudioStreamPlayer3D", true, false)
 	if nodes.is_empty(): fail("ocean stream not playing"); return
