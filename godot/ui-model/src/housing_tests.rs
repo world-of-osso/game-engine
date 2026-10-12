@@ -43,6 +43,84 @@ fn housing_home_navigation_requests_house_identity_without_component_grants() {
 }
 
 #[test]
+fn housing_owned_storage_search_uses_positive_confirmed_counts_and_keeps_catalog_search_separate() {
+    use shared::protocol::{HousingState, StoredDecor};
+    let mut catalog = HousingCatalog::default();
+    for (id, name, item_id, model_fdid, thumbnail_fdid) in [
+        (1693, "Small Val'sharah Bookcase", 245259, 1096761, 7421877),
+        (2330, "Gnomish Tesla Coil", 246487, 6699745, 7422633),
+        (80, "Ornate Stonework Fireplace", 235994, 6033663, 7415905),
+    ] {
+        catalog.decor.push(Decor {
+            id,
+            name: name.into(),
+            item_id,
+            model_type: 1,
+            model_fdid,
+            initial_rotation: [0.0; 3],
+            initial_scale: 1.0,
+            thumbnail_fdid,
+            order: 0,
+            subcategories: vec![],
+            sources: vec![],
+            dyeable: false,
+        });
+    }
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    model.set_search("Fireplace".into(), &HousingAuthority::default());
+    let unknown = HousingAuthority::default();
+    assert!(model.stored_entries(&unknown).is_empty());
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            stored: vec![
+                StoredDecor {
+                    decor_id: 1693,
+                    quantity: 1,
+                },
+                StoredDecor {
+                    decor_id: 2330,
+                    quantity: 2,
+                },
+                StoredDecor {
+                    decor_id: 80,
+                    quantity: 0,
+                },
+            ],
+            placed: vec![StoredDecor {
+                decor_id: 80,
+                quantity: 1,
+            }],
+            ..Default::default()
+        }),
+        error: None,
+    };
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(&model), vec![1693, 2330]);
+    model.storage_search = "  tEsLa  ".into();
+    assert_eq!(ids(&model), vec![2330]);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Cleanup);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Basic);
+    assert_eq!(model.storage_search, "  tEsLa  ");
+    assert_eq!(model.search, "Fireplace");
+    model.storage_search = "Fireplace".into();
+    assert!(ids(&model).is_empty());
+    model.storage_search.clear();
+    assert_eq!(ids(&model), vec![1693, 2330]);
+    assert_eq!(authority.quantity(2330), Some(2));
+}
+
+#[test]
 fn housing_storage_stays_unknown_until_a_qualified_snapshot_and_clears_on_logout() {
     use shared::protocol::{HousingReply, HousingState, StoredDecor};
     let mut authority = HousingAuthority::default();
