@@ -1,7 +1,8 @@
-extends "res://tests/world_auction_flow.gd"
+extends SceneTree
 
 # Private-server native-input proof driver. No fabricated queue or match state.
 var directory := ""
+var client: Node
 func _initialize() -> void:
 	Engine.max_fps = 20
 	call_deferred("live_run")
@@ -53,3 +54,37 @@ func live_run() -> void:
 		var response := FileAccess.open(directory.path_join("response.json"), FileAccess.WRITE)
 		response.store_string(JSON.stringify(result))
 		response.close()
+
+func pointer(point: Vector2, button: MouseButton) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	await process_frame
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(3)
+
+func tap(key: Key) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = key
+		event.physical_keycode = key
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(3)
+
+func frames(count: int) -> void:
+	for _frame in range(count):
+		await process_frame
+
+func fail(message: String) -> void:
+	push_error("FIXTURE BATTLEGROUND: " + message)
+	quit(1)
