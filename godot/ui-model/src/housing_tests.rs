@@ -1,6 +1,43 @@
-use crate::housing::HousingDashboard;
+use crate::housing::{HousingAuthority, HousingDashboard};
 use game_engine_core::housing::{Category, Decor, HousingCatalog, Subcategory};
 use std::sync::Arc;
+
+#[test]
+fn housing_storage_stays_unknown_until_a_qualified_snapshot_and_clears_on_logout() {
+    use shared::protocol::{HousingReply, HousingState, StoredDecor};
+    let mut authority = HousingAuthority::default();
+    assert_eq!(authority.quantity(1693), None);
+    let state = HousingState {
+        build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+        stored: vec![StoredDecor {
+            decor_id: 1693,
+            quantity: 1,
+        }],
+        ..Default::default()
+    };
+    authority
+        .receive(HousingReply {
+            request_id: 1,
+            state,
+            error: None,
+        })
+        .unwrap();
+    assert_eq!(authority.quantity(1693), Some(1));
+    assert_eq!(authority.quantity(80), Some(0));
+    authority.clear();
+    assert_eq!(authority.quantity(1693), None);
+    let failed = HousingReply {
+        request_id: 2,
+        state: HousingState::default(),
+        error: Some("Housing catalog unavailable.".into()),
+    };
+    assert!(authority.receive(failed).is_err());
+    assert_eq!(authority.quantity(1693), None);
+    assert_eq!(
+        authority.error.as_deref(),
+        Some("Housing catalog unavailable.")
+    );
+}
 
 fn dashboard() -> HousingDashboard {
     let catalog = HousingCatalog {

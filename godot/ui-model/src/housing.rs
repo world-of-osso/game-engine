@@ -2,6 +2,43 @@
 use game_engine_core::housing::{Decor, HousingCatalog};
 use std::sync::Arc;
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct HousingAuthority {
+    pub state: Option<shared::protocol::HousingState>,
+    pub error: Option<String>,
+}
+
+impl HousingAuthority {
+    pub fn receive(&mut self, reply: shared::protocol::HousingReply) -> Result<(), String> {
+        if reply.state.build_key != game_engine_core::housing::RETAIL_BUILD_KEY {
+            self.state = None;
+            let message = match reply.error {
+                Some(message) => message,
+                None => "Housing snapshot does not match the supported Retail build.".into(),
+            };
+            self.error = Some(message.clone());
+            return Err(message);
+        }
+        self.state = Some(reply.state);
+        self.error = reply.error;
+        Ok(())
+    }
+
+    pub fn quantity(&self, decor_id: u32) -> Option<u32> {
+        self.state.as_ref().map(|state| {
+            state
+                .stored
+                .iter()
+                .find(|decor| decor.decor_id == decor_id)
+                .map_or(0, |decor| decor.quantity)
+        })
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+}
+
 pub const SEARCH_FIELD: &str = "HousingCatalogSearchBox";
 pub const VISIBLE_ENTRIES: usize = 12;
 pub const COLUMNS: usize = 3;

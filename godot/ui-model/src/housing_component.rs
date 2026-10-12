@@ -11,6 +11,7 @@ pub const SIZE: [f32; 2] = [814.0, 544.0];
 #[derive(Clone, Debug, PartialEq)]
 pub struct HousingView {
     pub model: HousingDashboard,
+    pub authority: crate::housing::HousingAuthority,
     pub viewport: [f32; 2],
     /// Missing extracted BLPs are explicit, never replaced by another decor icon.
     pub missing_thumbnails: BTreeSet<u32>,
@@ -141,8 +142,19 @@ fn catalog(view: &HousingView) -> Element {
                 .find(|category| category.id == id)
         })
         .map_or("All Decor", |category| category.name.as_str());
+    let ownership = match &view.authority.state {
+        Some(state) => {
+            let quantity: u64 = state
+                .stored
+                .iter()
+                .map(|decor| u64::from(decor.quantity))
+                .sum();
+            format!("{quantity} stored decor")
+        }
+        None => "Ownership unavailable".into(),
+    };
     let footer = format!(
-        "{} results · Ownership unavailable · {} unreadable records",
+        "{} results · {ownership} · {} unreadable records",
         model.matching().len(),
         model.catalog.encrypted_records
     );
@@ -240,8 +252,14 @@ fn preview(view: &HousingView) -> Element {
     };
     let missing =
         decor.thumbnail_fdid == 0 || view.missing_thumbnails.contains(&decor.thumbnail_fdid);
+    let ownership = match view.authority.quantity(decor.id) {
+        Some(quantity) => {
+            format!("Stored decor: {quantity}; acquisition source details unavailable")
+        }
+        None => "Ownership and acquisition unknown".into(),
+    };
     let details = format!(
-        "Decor {} · Item {}\nOwnership and acquisition unknown\nModel {} (type {})\nThumbnail preview; 3D preview not available",
+        "Decor {} · Item {}\n{ownership}\nModel {} (type {})\nThumbnail preview; 3D preview not available",
         decor.id, decor.item_id, decor.model_fdid, decor.model_type
     );
     rsx! { r#frame { name: "HousingCatalogPreviewFrame", width: 361.0, height: 489.0,

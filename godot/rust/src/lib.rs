@@ -2253,6 +2253,7 @@ impl GameClient {
                 self.tooltips.receive_appearances(update);
                 self.refresh_transmog()?;
             }
+            AccountEvent::Housing(reply) => self.receive_housing_reply(reply)?,
             AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
             AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),

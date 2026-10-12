@@ -1,3 +1,7 @@
+## 2026-10-11 — Housing ownership/storage continuation
+
+[Housing](systems/housing.md): static both-skin catalog re-captured after category icon changes on private5870. Dedicated server property admission, wire/arrival cornerstone purchase, restart admission and bounded authentic bag collection added with focused behavioral tests. Native ownership storage bridge added; its fresh command/live gates remain separate. Local GameObjects DB2 resolves the previously missing cornerstone template/model chain. No default exterior/interior grants, canonical database writes or completed whole-goal claim.
+
 ## 2026-10-11 — Native follower LFG transport
 
 [Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
