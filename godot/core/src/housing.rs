@@ -2,6 +2,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
+use crate::csv_util::{header_index, parse_csv_records};
+
 use rusqlite::{Connection, OpenFlags, params};
 
 pub const RETAIL_BUILD: &str = "12.1.0.69933";
@@ -21,6 +23,8 @@ pub struct Decor {
     pub order: i32,
     pub subcategories: Vec<u32>,
     pub sources: Vec<DecorSource>,
+    /// Has DecorDyeSlot rows: Retail HOUSING_CATALOG_FILTERS_DYEABLE.
+    pub dyeable: bool,
 }
 
 /// One authored CollectableSourceInfo source of a decor (SourceTypeEnum 3 vendor through
@@ -46,6 +50,9 @@ pub struct Category {
     pub id: u32,
     pub name: String,
     pub order: i32,
+    pub icon_element: u32,
+    /// Retail atlas key without its state modifier, from `resolve_icons`.
+    pub icon: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -54,6 +61,9 @@ pub struct Subcategory {
     pub category_id: u32,
     pub name: String,
     pub order: i32,
+    pub icon_element: u32,
+    /// Retail atlas key without its state modifier, from `resolve_icons`.
+    pub icon: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -73,6 +83,50 @@ impl HousingCatalog {
             .map_err(|error| format!("Housing catalog {}: {error}", path.display()))?;
         load_connection(&db, RETAIL_BUILD, RETAIL_BUILD_KEY)
     }
+
+    /// Names category icons from UiTextureAtlasElement.csv as Retail
+    /// BaseHousingCatalogCategoryMixin:ProcessAtlasKey does: the data names one state's
+    /// atlas (`category-icons_seating_active`); the key drops that state modifier and the
+    /// UI appends the state it draws. Element ID 0 has no icon.
+    pub fn resolve_icons(&mut self, elements: &Path) -> Result<(), String> {
+        let text = std::fs::read_to_string(elements)
+            .map_err(|error| format!("read {}: {error}", elements.display()))?;
+        let mut records = parse_csv_records(&text).into_iter();
+        let header = records.next().unwrap_or_default();
+        let (id, name) = (
+            header_index(&header, "ID", elements)?,
+            header_index(&header, "Name", elements)?,
+        );
+        let names: HashMap<u32, String> = records
+            .filter_map(|record| Some((record.get(id)?.parse().ok()?, record.get(name)?.clone())))
+            .collect();
+        let key = |element: u32| -> Result<Option<String>, String> {
+            if element == 0 {
+                return Ok(None);
+            }
+            let name = names.get(&element).ok_or_else(|| {
+                format!("Housing icon UiTextureAtlasElement {element} is missing")
+            })?;
+            Ok(Some(atlas_key(name).to_string()))
+        };
+        for category in &mut self.categories {
+            category.icon = key(category.icon_element)?;
+        }
+        for subcategory in &mut self.subcategories {
+            subcategory.icon = key(subcategory.icon_element)?;
+        }
+        Ok(())
+    }
+}
+
+/// Retail AtlasKeyModifiers (Blizzard_HousingCatalogCategories.lua).
+const ATLAS_MODIFIERS: [&str; 4] = ["_active-parent", "_active", "_inactive", "_pressed"];
+
+fn atlas_key(name: &str) -> &str {
+    ATLAS_MODIFIERS
+        .iter()
+        .find_map(|modifier| name.strip_suffix(modifier))
+        .unwrap_or(name)
 }
 
 fn rows(db: &Connection, key: &str, table: &str) -> Result<Vec<(u32, Fields)>, String> {
@@ -136,6 +190,7 @@ pub(crate) fn load_connection(
             order: number(&fields, "OrderIndex")?,
             subcategories: Vec::new(),
             sources: Vec::new(),
+            dyeable: false,
         });
     }
     for (id, fields) in rows(db, key, "DecorCategory")? {
@@ -143,6 +198,8 @@ pub(crate) fn load_connection(
             id,
             name: field(&fields, "Name_lang")?.into(),
             order: number(&fields, "OrderIndex")?,
+            icon_element: number(&fields, "UiTextureAtlasElementID")?,
+            icon: None,
         });
     }
     for (id, fields) in rows(db, key, "DecorSubcategory")? {
@@ -151,6 +208,8 @@ pub(crate) fn load_connection(
             name: field(&fields, "Name_lang")?.into(),
             category_id: number(&fields, "DecorCategoryID")?,
             order: number(&fields, "OrderIndex")?,
+            icon_element: number(&fields, "UiTextureAtlasElementID")?,
+            icon: None,
         });
     }
     for (_, fields) in rows(db, key, "DecorXDecorSubcategory")? {
@@ -160,6 +219,12 @@ pub(crate) fn load_connection(
         // rows may still refer to them; this join cannot expose an unreadable entry.
         if let Some(&index) = decor_indexes.get(&decor_id) {
             catalog.decor[index].subcategories.push(subcategory);
+        }
+    }
+    for (_, fields) in rows(db, key, "DecorDyeSlot")? {
+        // Encrypted DecorDyeSlot rows are absent; their decor stays undyeable here.
+        if let Some(&index) = decor_indexes.get(&number::<u32>(&fields, "HouseDecorID")?) {
+            catalog.decor[index].dyeable = true;
         }
     }
     read_sources(db, key, &mut catalog, &decor_indexes)?;
