@@ -13,6 +13,8 @@ pub struct HousingView {
     pub model: HousingDashboard,
     pub authority: crate::housing::HousingAuthority,
     pub viewport: [f32; 2],
+    /// Replicated copper; absent remains unknown, never an inferred zero.
+    pub money: Option<u64>,
     /// Missing extracted BLPs are explicit, never replaced by another decor icon.
     pub missing_thumbnails: BTreeSet<u32>,
 }

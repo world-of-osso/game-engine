@@ -94,6 +94,37 @@ impl HousingDashboard {
         }
     }
 
+    pub fn navigation_request(
+        &mut self,
+        action: &str,
+    ) -> Result<Option<shared::protocol::HousingCommand>, String> {
+        use shared::protocol::HousingCommand;
+        if action == "housing:finder" {
+            self.surface = HousingSurface::Finder;
+            return Ok(Some(HousingCommand::ListPlots {
+                neighborhood_id: self.neighborhood,
+            }));
+        }
+        if action == "housing:visit" {
+            return Ok(Some(HousingCommand::EnterNeighborhood {
+                neighborhood_id: self.neighborhood,
+            }));
+        }
+        if let Some(value) = action.strip_prefix("housing:neighborhood:") {
+            let id = value
+                .parse::<u32>()
+                .map_err(|_| "Invalid neighborhood selection.")?;
+            if !matches!(id, 1 | 2) {
+                return Err("Neighborhood is not in the authenticated shipping catalog.".into());
+            }
+            self.neighborhood = id;
+            return Ok(Some(HousingCommand::ListPlots {
+                neighborhood_id: id,
+            }));
+        }
+        Ok(None)
+    }
+
     pub fn matching(&self) -> Vec<&Decor> {
         let search = self.search.to_lowercase();
         self.catalog

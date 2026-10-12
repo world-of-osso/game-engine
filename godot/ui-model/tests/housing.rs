@@ -46,6 +46,7 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
             model,
             authority,
             viewport: [1280.0, 720.0],
+            money: Some(20_000_000),
             missing_thumbnails: BTreeSet::new(),
         };
         let mut context = SharedContext::new();
@@ -91,6 +92,21 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
             panic!("missing authenticated price")
         };
         assert!(text.text.contains("1000"));
+        view.money = Some(0);
+        context.insert(view.clone());
+        let mut poor_registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut poor_registry);
+        let poor_buy = poor_registry
+            .get(
+                poor_registry
+                    .get_by_name("HousingCornerstoneBuyButton")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(&poor_buy.widget_data,Some(WidgetData::Button(data)) if data.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+        );
+        view.money = Some(20_000_000);
         view.model.pending = true;
         context.insert(view);
         let mut registry = FrameRegistry::new(1280.0, 720.0);
@@ -150,6 +166,7 @@ fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() 
                 model,
                 authority,
                 viewport: [1920.0, 1080.0],
+                money: None,
                 missing_thumbnails: BTreeSet::from([7415905]),
             });
             let mut registry = FrameRegistry::new(1920.0, 1080.0);

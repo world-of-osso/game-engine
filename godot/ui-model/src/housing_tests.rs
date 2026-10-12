@@ -1,6 +1,27 @@
-use crate::housing::{HousingAuthority, HousingDashboard};
+use crate::housing::{HousingAuthority, HousingDashboard, HousingSurface};
 use game_engine_core::housing::{Category, Decor, HousingCatalog, Subcategory};
 use std::sync::Arc;
+
+#[test]
+fn housing_navigation_requests_authored_neighborhoods_without_claiming_property() {
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    assert_eq!(
+        model.navigation_request("housing:finder").unwrap(),
+        Some(shared::protocol::HousingCommand::ListPlots { neighborhood_id: 1 })
+    );
+    assert_eq!(model.surface, HousingSurface::Finder);
+    assert_eq!(
+        model.navigation_request("housing:neighborhood:2").unwrap(),
+        Some(shared::protocol::HousingCommand::ListPlots { neighborhood_id: 2 })
+    );
+    assert_eq!(
+        model.navigation_request("housing:visit").unwrap(),
+        Some(shared::protocol::HousingCommand::EnterNeighborhood { neighborhood_id: 2 })
+    );
+    assert!(model.navigation_request("housing:neighborhood:99").is_err());
+    assert_eq!(model.neighborhood, 2);
+    assert_eq!(model.navigation_request("housing:catalog").unwrap(), None);
+}
 
 #[test]
 fn housing_storage_stays_unknown_until_a_qualified_snapshot_and_clears_on_logout() {
