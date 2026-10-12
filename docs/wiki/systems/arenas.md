@@ -18,7 +18,13 @@ Combat log events populate arena damage, effective healing and killing blows, ex
 
 ## Proof boundary
 
-Nine scoped server tests include real HostClient four-player skirmish/rated invitations, authored starts/acks, source preparation and physical orb/aura lifetime, HP-primed real melee kills, score/outcome/full resurrection, persisted rating/MMR and exact all-player origins. Four both-skin registry/action tests and nine native object tests pass. Diagnostics: data/diagnostics/arena-coverage-2026-10-12/. Rendered/UDP proof and final integration checks remain pending in the active handoff; Shuffle role/round and dampening schedules remain unsourced.
+Nine scoped server tests include real HostClient four-player skirmish/rated invitations, authored starts/acks, source preparation and physical orb/aura lifetime, HP-primed real melee kills, score/outcome/full resurrection, persisted rating/MMR and exact all-player origins. Four both-skin registry/action tests and nine native object tests pass. Diagnostics: data/diagnostics/arena-coverage-2026-10-12/. Final both-skin rendered/UDP proof and integration checks remain pending in the active handoff. Real-UDP startup exposed missing gate/orb codecs; the native fingerprint fixture now passes. Native captures exposed an opaque enemy-target button; transparent hitboxes retain class-colored health/name art. Client attacks now use arena teams, including summoned-pet controllers; roster targets survive normal AOI absence.
+
+## Source-policy audit (2026-10-12)
+
+[Original Blizzard Shuffle preview](https://worldofwarcraft.blizzard.com/en-gb/news/23745827/eternitys-end-preview-solo-shuffle) establishes six rounds, two healers/four damage dealers, healer/DPS permutations and first-kill outcomes. It explicitly described an experimental Brawl, not a finalized rated ruleset. [Ghosts of K’aresh notes](https://worldofwarcraft.blizzard.com/en-us/news/24226698/ghosts-of-karesh-content-update-notes) subsequently changed consecutive teammate ordering and Protection Paladin roles. Complete 12.1 round preparation/reset and current rated/leaver policy are not established by these sources; Shuffle remains disabled rather than guessed.
+
+[December 2025 hotfixes](https://worldofwarcraft.blizzard.com/en-us/news/24245107/hotfixes-december-19-2025) acknowledge incorrect dampening speed without specifying the intended current schedule. Historical pre-expansion rates do not certify 12.1 timing/ramps/caps. No dampening timer is synthesized. Downloaded primary pages and SHA256 receipts: diagnostics/arena-coverage-2026-10-12/policy-sources/; search receipts identify the remaining exact gaps.
 
 ## Sources
 
