@@ -72,6 +72,11 @@ func buy_bookcase() -> bool:
 func open_pawdo_shop(vendor: Dictionary) -> bool:
 	# Authored menu40669, option1: "Show me your wares." Pawdo has QUEST_GIVER+GOSSIP flags.
 	await click(vendor.point, MOUSE_BUTTON_RIGHT)
+	await frames(10)
+	print("HOUSING_PAWDO_CLICK target=", client.target_state(), " merchant=", client.merchant_state().open)
+	for node in client.find_children("*Gossip*", "", true, false):
+		print("HOUSING_GOSSIP_NODE ", node.get_path(), " visible=", node.is_visible_in_tree() if node is CanvasItem else false)
+	if not await capture_housing("pawdo-after-right-click"): return false
 	if not await wait_housing(func(): return housing_named_control("QuestFrameUI", "GossipOption1") != null, "Pawdo's authored gossip"): return false
 	var text: Control = housing_named_control("QuestFrameUI", "GossipOption1Text")
 	if text == null or str(text.get("text")) != "Show me your wares.":
