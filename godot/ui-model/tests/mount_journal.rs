@@ -5,6 +5,7 @@ fn mare() -> MountJournalEntry {
     MountJournalEntry {
         mount_id: 18,
         spell_id: 6648,
+        teaching_items: vec![5655],
         name: "Chestnut Mare".into(),
         description: "Sturdy and steady; \"the horse that built Stormwind.\"".into(),
         source_text: r"|cFFFFD200Vendor: |rKatie Stokx|n|cFFFFD200Zone: |rStormwind City|n|cFFFFD200Cost: |r1|TINTERFACE\MONEYFRAME\UI-GOLDICON.BLP:0|t".into(),
@@ -77,6 +78,76 @@ fn view() -> MountJournalView {
     });
     view
 }
+#[test]
+fn mount_journal_known_item_feedback_tracks_authoritative_ownership_and_source() {
+    use game_engine_ui_model::tooltip_presentation::TooltipPresentation;
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+    let mut view = view();
+    assert_eq!(
+        view.item_label(Retail, 5655, "Chestnut Mare Bridle"),
+        "Chestnut Mare Bridle (Already known)"
+    );
+    assert_eq!(
+        view.item_label(Forever70205, 5655, "Different item"),
+        "Different item"
+    );
+    assert_eq!(
+        view.item_tooltip(Retail, 5655, TooltipPresentation::default())
+            .lines[0]
+            .left,
+        "Already known"
+    );
+    let mut mare = mare();
+    mare.collected = false;
+    view.receive(MountJournalUpdate {
+        mounts: vec![mare.clone()],
+        error: None,
+    });
+    assert!(
+        view.item_tooltip(Retail, 5655, TooltipPresentation::default())
+            .lines
+            .is_empty()
+    );
+    mare.collected = true;
+    mare.usable = false;
+    view.receive(MountJournalUpdate {
+        mounts: vec![mare],
+        error: None,
+    });
+    assert!(
+        view.item_is_known(Retail, 5655),
+        "Known is account ownership, not riding usability"
+    );
+    assert!(!view.item_is_known(Retail, 25));
+}
+
+#[test]
+fn mount_journal_collected_details_show_already_known() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = view();
+    view.visible = true;
+    let mut shared = SharedContext::new();
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+    let id = registry
+        .get_by_name("MountJournalKnown")
+        .expect("Collected mount known status");
+    let Some(WidgetData::FontString(text)) = &registry.get(id).unwrap().widget_data else {
+        panic!("Known text missing")
+    };
+    assert_eq!(text.text, "Already known");
+}
+
 #[test]
 fn mount_journal_source_renders_real_db2_markup_as_readable_vendor_zone_and_cost() {
     use game_engine_ui_model::mount_journal::mount_journal_screen;

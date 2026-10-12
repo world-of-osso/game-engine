@@ -53,6 +53,49 @@ impl Default for MountJournalView {
     }
 }
 impl MountJournalView {
+    pub fn item_is_known(
+        &self,
+        source: shared::item_data::ItemDefinitionSource,
+        item: u32,
+    ) -> bool {
+        source == shared::item_data::ItemDefinitionSource::Retail
+            && self
+                .catalog
+                .values()
+                .any(|mount| mount.collected && mount.teaching_items.contains(&item))
+    }
+
+    pub fn item_label(
+        &self,
+        source: shared::item_data::ItemDefinitionSource,
+        item: u32,
+        name: &str,
+    ) -> String {
+        if self.item_is_known(source, item) {
+            format!("{name} (Already known)")
+        } else {
+            name.to_owned()
+        }
+    }
+
+    pub fn item_tooltip(
+        &self,
+        source: shared::item_data::ItemDefinitionSource,
+        item: u32,
+        mut tooltip: crate::tooltip_presentation::TooltipPresentation,
+    ) -> crate::tooltip_presentation::TooltipPresentation {
+        if self.item_is_known(source, item) {
+            tooltip.lines.insert(
+                0,
+                crate::tooltip_presentation::TooltipLineState::colored(
+                    "Already known",
+                    crate::item_tooltip::RED_FONT_COLOR,
+                ),
+            );
+        }
+        tooltip
+    }
+
     pub fn receive(&mut self, update: MountJournalUpdate) {
         self.catalog = update
             .mounts
@@ -288,6 +331,14 @@ fn mount_details(view: &MountJournalView) -> Element {
             (312.0, 130.0, 345.0, 65.0),
             (11.0, WHITE, "LEFT"),
         ));
+        if mount.collected {
+            out.extend(label(
+                "MountJournalKnown".into(),
+                "Already known",
+                (312.0, 258.0, 345.0, 20.0),
+                (11.0, NORMAL_FONT_COLOR, "LEFT"),
+            ));
+        }
         let text = if mount.active { "Dismount" } else { "Mount" };
         out.extend(panel_button(
             "MountJournalMountButton".into(),

@@ -63,6 +63,16 @@ impl GameClient {
         }
     }
     pub(super) fn receive_mount_journal(&mut self, update: shared::protocol::MountJournalUpdate) {
+        godot_print!(
+            "MOUNT_JOURNAL_RECEIVED count={} mare={:?} error={:?}",
+            update.mounts.len(),
+            update
+                .mounts
+                .iter()
+                .find(|mount| mount.mount_id == 18)
+                .map(|mount| (mount.collected, mount.favourite, mount.active)),
+            update.error
+        );
         self.mount_journal.view.receive(update);
     }
     pub(super) fn update_mount_journal(&mut self) -> Result<(), FrameError> {

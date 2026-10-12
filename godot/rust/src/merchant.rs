@@ -658,11 +658,17 @@ impl GameClient {
                     });
             }
         }
-        MerchantStates {
-            frame: session.frame_state(),
-            bags,
-            split,
+        let mut frame = session.frame_state();
+        if session.merchant.tab == MerchantTab::Merchant {
+            for (cell, item) in frame.cells.iter_mut().zip(session.merchant.page_items()) {
+                cell.name = self.mount_journal.view.item_label(
+                    item.definition_source,
+                    item.item_id,
+                    &cell.name,
+                );
+            }
         }
+        MerchantStates { frame, bags, split }
     }
 
     /// Automation view of the vendor session: vendor, cells, buyback, bags, equipment, money.
