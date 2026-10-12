@@ -1,68 +1,64 @@
-# World-quest availability source boundary
+# World-quest availability and native tasks
 
-Verified: 2026-10-11. Local inputs supply four authentic managed-state durations but no Retail activation calendar. The user's 2026-10-11 decision resolves scheduling with an explicitly authored [World of Osso rotation policy](../../specs/world-quests.md#world-of-osso-rotation-policy). Rotation/import/expiry foundations now exist; Retail task-area/eligibility integration and private completion acceptance remain open.
+Verified:2026-10-11 (local date). The user supplies deterministic rotation and unknown-duration defaults as [World of Osso policy](../../specs/world-quests.md), not Retail activation data. Authenticated POI polygons now drive area entry, availability transport and native presentation. Whole coverage remains open at unsupported objective shapes; controlled private completion does not prove natural acquisition or living-character gameplay.
 
-## Source census
+## Current POI census
 
-Read-only `world.db` joins classify quests using pinned `QuestInfo.Modifiers & 0x100`; the world-quest QuestInfo IDs match the local `12.1.0.69933/QuestInfo.csv` exactly. The TDB1210 archive contains 4,207 matching quest templates. The canonical runtime `content_quest_template` contained zero matching quests in the source receipt. The continuation imported four into a new private SQLite backup only; canonical data was not changed.
+Pinned local DB2 `12.1.0.69933` QuestInfo.Modifiers&256 and the TDB1210 archive agree on4,207 definitions. QuestPOIBlob contains4,312 matching blobs for3,408 quests. QuestPOIPoint supplies ordered world coordinates. Reject incomplete, fewer-than-three-distinct-point and zero-area shapes; never invent a circle around a point.
 
-The actual TDB `quest_pool_members` has 282 rows and `quest_pool_template` has 63 rows. **Zero world quests belong to these quest pools.** `pool_members.type=2` describes child spawn pools, not quests; numeric overlap with quest IDs is not quest availability evidence.
+| Population | Count |
+| --- | ---: |
+| World quests | 4,207 |
+| No POI blob | 799 |
+| Point-only pins, no polygon | 3,164 |
+| Authentic polygon quests | 244 |
+| Imported existing-system-compatible quests | 138 |
+| Authentic polygon quests with unsupported objective types/counts | 106 |
+| Imported authentic-duration / policy-duration quests | 0 / 138 |
+| Imported quests without supported reward data | 10 |
 
-| Inspected TDB source | Rows | World-quest matches |
-| --- | ---: | ---: |
-| quest_pool_members | 282 | 0 |
-| game_event_creature_quest | 235 | 0 |
-| game_event_gameobject_quest | 101 | 0 |
-| game_event_quest_condition | 0 | 0 |
-| game_event_seasonal_questrelation | 690 | 0 |
+The106 excluded quests all have objective rows. Their rows include types0/1/2 plus unrepresented3/9/14/15/19/21; some sets contain17 objectives, beyond the existing4NPC/GO and6item slots. This is a software representational gap, not missing authentic objectives or an approved exclusion policy. The private importer fails closed instead of creating quests that auto-complete after silently dropping requirements.
 
-No `world_quest`-named table exists in this dump. Four matching quests have nonzero `ManagedWorldStateID`: 52847→113, 52848→12, 54895→114, 54896→115. Another 1,127 templates set `ResetByScheduler`, but that flag supplies no activation epoch, period, or expiry. All 4,207 have `TimeAllowed=0`; a quest-log time limit is not an availability window anyway. Absence of a scheduler flag does not establish permanent availability.
+Four definitions have authentic ManagedWorldState durations:52847→113,52848→12,54895→114,54896→115, all604800 seconds. All four have only point pins, so none is currently polygon-admitted. Policy durations cover the imported subset; authentic values would take precedence for any polygon-admitted definition with that join.
 
-## Local CASC follow-through
+Receipt and immutable private database: `/home/osso/.worktrees/world-quests-data/diagnostics/poi-census-import.json` and `polygon-world-v3.db`. [Server notes](../../../../game-server/docs/world-quests.md) own the reproducible lead import command; canonical world.db is unchanged.
 
-Missing CSV exports were not treated as missing source content. Extracted from local Retail build `dcfc90fffd79ba00406ae46f5f657592` (`12.1.0.69933`), without CDN access:
+## Runtime and source rewards
 
-| Local DB2 | FDID | Records / layout |
-| --- | ---: | --- |
-| ManagedWorldState | 1587159 | 9 / A4E9EA9F |
-| ManagedWorldStateInput | 1587151 | 8 / 16683306 |
-| ManagedWorldStateBuff | 1587155 | 154 / B8C3D344 |
-| AreaPOI | 1000630 | 3,909 / A8930CBB |
-| AreaPOIState | 1000631 | 1,070 / 60943110 |
+`content_world_quest_area` retains quest/blob identity, MapID/UiMapID and ordered vertices. Server `Area.contains` performs polygon membership after `terrain_height::bevy_to_wow` converts native engine axes. Entry accepts and tracks; departure only untracks; wall-clock expiry removes the task/watch. Signed QuestSortID must stay signed during definition loading: negative categories caused the first full-import startup to fail before that repair.
 
-Decoded ManagedWorldState rows12/113/114/115 all define `UpTimeSecs=604800` and `DownTimeSecs=1`. Their `CurrentStageWorldStateID` values are15622/16033/16707/16708 respectively; **none has a TDB world_state default**. ManagedWorldState IDs are not WorldState IDs. Duration definitions do not establish a current stage or an activation epoch. No guessed epoch or initial stage was assigned.
+Existing objective credit and quest settlement handle admitted tasks. Completion history uses the exact active window, not permanent/daily one-time gating. Items/money and imported currency/reputation persist with quest history in the reward transaction. Quest XP uses pinned QuestXP and the TDB difficulty/multiplier instead of guessed XP. Raw TDB templates remain inspectable; TDB addon/request/reward children replace corresponding imported rows without AzerothCore reward substitution.
 
-ScheduledWorldState1327083, ScheduledWorldStateGroup1327084 and ScheduledWorldStateXUniqCat1388724 failed local extraction with no matching root content/path. Their historical community-listfile entries alone do not establish current build payloads. This limitation is retained in `casc-extract.log`; it was not worked around by downloading game data.
+Local CASC QuestFactionReward FDID1282622/layout572521898 supplies two signed16-bit difficulty arrays. TrinityCore Player.cpp6627–6638 uses RewardFactionOverride/100 or signed RewardFactionValue to select difficulty row1/2. The importer follows that source. Unknown currency definitions cannot be manufactured by the existing wallet implementation; all currently imported real templates have zero currency quantities.
 
-The initial pinned CSV directory contains QuestInfo, QuestV2, QuestPOIBlob, QuestPOIPoint, QuestXP, QuestMoneyReward and quest-line catalogs. Raw DB2s and exact headers/hashes are retained beside the census receipt. The continuation's reproducible [source-area audit](../../../../game-server/docs/world-quests.md#source-area-audit) decodes the matching AreaPOI/AreaPOIState/ManagedWorldStateBuff layouts and checks the four quest IDs, managed-stage IDs and boss names. It does not claim coverage of every Retail task-area mechanism.
+`WorldQuestAvailability` carries per-character active IDs/title, map/zone/UiMapID, polygon-derived pin position, expiry, items/money/XP/currency/reputation previews and server time. Completed windows disappear from the character's availability list. Native bridge/account reducers retain task identity for tracker/toast routing.
 
-## Retail distinction
+## Native presentation and private proof
 
-Local Retail `AddOns/Blizzard_SharedMapDataProviders/WorldQuestDataProvider.lua:207–250` obtains tasks from `GetTasksOnMapCached(mapID)`, adds matching world-quest pins and removes pins absent from that task list. `AddOns/Blizzard_WorldMap/WM_WorldQuestDataProvider.lua:7–13` filters to the displayed map. Static quest identity and POIs do not substitute for that active-task list.
+Mainline sources: Blizzard_SharedMapDataProviders/WorldQuestDataProvider.lua, Blizzard_WorldMap/WM_WorldQuestDataProvider.lua, Blizzard_ObjectiveTracker/Blizzard_WorldQuestObjectiveTracker.lua and Blizzard_BonusObjectiveTracker.xml. Art comes from local CASC: default worldquest-icon on atlas743/FDID1339312; bonus-objective title/bar art1113812; UI-StatusBar137012.
 
-`AddOns/Blizzard_ObjectiveTracker/Blizzard_WorldQuestObjectiveTracker.lua:33–48` reads `C_TaskQuest.GetQuestTimeLeftMinutes`; that dynamic remaining time is not encoded by the inspected template fields. Existing native fixtures named `world_quest_flow.gd` and `world_quest_progress.gd` test ordinary NPC-given quests, not this feature; see [quest UI](../systems/quest-ui.md).
+Native map pins are distinct from ordinary numbered quest pins. Auto-watched tasks open their authored UiMapID, including phased task maps, instead of a conflicting generic map assignment. Hover uses the shared tooltip renderer. The World Quests tracker module displays timer and count-derived progress; native acceptance/completion toasts use bonus-objective art. Forever changes the same elements' skin/approved scale.
 
-## Continuation after the scheduling decision
+Private UDP5861, account fb_worldquests: real quest86941 Elemental Infusion, objective235666 Shadow Infused Shard x6. Modern Wquestfresh31 and Forever Wqforever32 show0/6→2/6→automatic completion, consumed objective items and11765 XP. Authentic items were administrator-supplied through the existing inventory path; no `.quest complete` was used. Modern replay grant leaves six items in bags, no task reacceptance or new completion toast. UI trees prove both skins' timer/bar/tooltips and completion banners; inspected1280px PNGs are in `/syncthing/AgentShared/2026-10-11/world-quests/`.
 
-Server `world_quests.rs` calculates configurable deterministic windows using the four authentic durations. The private-copy importer maps TDB templates, objectives and static pins without cross-product reward substitution, and retains the full source reward/template JSON. `quest_time.rs` removes task logs and watches at availability expiry. [Server import/runtime notes](../../../../game-server/docs/world-quests.md) give the lead command; the spec owns policy and acceptance.
+**Boundary:** this is controlled bag-objective/settlement proof, not natural gathering/combat. Captures expose dead actors from the existing private terrain/spawn-state limitation; ordinary-world physical gameplay/living-character certification is not claimed. Prior attempts against86948's enslaved-inferno objective did not establish natural credit. See the [private terrain destinations investigation](../../../../game-server/docs/wiki/investigations/private-terrain-destinations.md). All owned server/client PIDs and slice were stopped;5861 is free. UDP5000 was untouched.
 
-Further local-CASC follow-through extracted QuestV2CliTask1028735/layoutD6D31C39 and PlayerCondition1045411/layout1D743D99. The four readable task rows reference conditions63859/63860/67252/67254; Darkshore tasks also reference completed quest51722. The source task/condition joins are not wired into runtime eligibility. Missing-key sections were recorded once in the extraction logs; selected task rows remain readable. Historical QuestPOIPointCliTask1028732 and QuestObjectiveCliTask1028734 are absent from this build's local root.
+## Historical activation audit
 
-All four templates have AreaGroupID=0 and no TDB `areatrigger_involvedrelation` row. Each DB2 task pin is a single point. None of their four boss entries has a TDB creature spawn or a promoted runtime template. QuestSortID9734/10288 identifies an authored category/zone; it does not establish a Retail acceptance radius. No circle was guessed around a map pin and no zone-wide auto-accept policy was silently substituted.
+TDB quest pools/events do not provide a Retail activation calendar:282 quest_pool_members/63 quest_pool_template rows and zero matching world quests; matching creature/gameobject quest events, event conditions and seasonal relations also zero. ResetByScheduler is not an epoch; all4,207 templates have TimeAllowed0. ManagedWorldState CurrentStageWorldStateID has no matching TDB world_state default.
 
-AreaPOI decoding initially produced25 values against24 declared columns: the decoder appended a continent relationship already stored inline. The source schema declares the inline parent; the repaired decoder verifies it against the relationship map instead of duplicating it. All3,909 rows validate, alongside1,070 AreaPOIState and154 ManagedWorldStateBuff rows. Joins by quest IDs/current-stage IDs/boss names produce zero AreaPOIs, zero linked states and zero matching managed buffs. TrinityCorea352b1fa's `HandleRequestWorldQuestUpdate` is explicitly unimplemented; it cannot supply the remaining active-task/area behavior.
-
-Area-entry acceptance, automatic currency/reputation/spell reward settlement, availability transport and native pins/tooltips/task tracking remain unimplemented. No UDP5861 server/client was started and no PNG proof was produced. Scheduling is no longer the blocker; the remaining Retail task-area/eligibility boundary is unresolved. This page does not mark the whole goal complete.
+Local-CASC follow-through decoded ManagedWorldState1587159, input1587151, buff1587155, AreaPOI1000630 and AreaPOIState1000631. Inline AreaPOI continent relationships were validated instead of appended twice;3,909 POIs/1,070 states/154 buffs yielded zero joins for the initial four duration-defined tasks. Historical ScheduledWorldState payloads were absent from the local root. QuestV2CliTask1028735 and PlayerCondition1045411 supplied task/condition metadata, but did not establish a Retail activation calendar. The user-approved polygon/default-duration policy supersedes the earlier four-definition-only admission boundary.
 
 ## Sources
 
-- `/home/osso/Projects/world-of-osso/game-server/data/reference/tdb1210/TDB_full_world_1210.26091_2026_09_09.sql`, SHA-256 `608534d1dc97535c92d756914a02fe36264e484b519f6e54f6d10cf56c6f4d96`.
-- Read-only `/home/osso/Projects/world-of-osso/game-server/data/world.db` and pinned `/home/osso/Projects/world-of-osso/game-engine/data/db2/12.1.0.69933/QuestInfo.csv`; matching quest ID/title/managed-state/scheduler/time-limit fields also checked directly against the TDB dump.
-- Raw local CASC files under diagnostic `db2/`, `casc-extract.log`, and exact-layout primary [ManagedWorldState definition](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/ManagedWorldState.dbd) (A4E9EA9F) establish the duration-field meanings; no quest/availability data was sourced online.
-- Reproducible read-only census: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/world-quests-2026-10-11/audit_sources.py`; machine-readable receipt: adjacent `source-census.json`. Run with `python3 <audit path>`; it writes only the adjacent receipt.
-- Local Retail Lua paths cited above under `/home/osso/.cache/wow-ui-sim/blizzard-ui/retail/`.
+- TDB1210 archive `/home/osso/Projects/world-of-osso/game-server/data/reference/tdb1210/TDB_full_world_1210.26091_2026_09_09.sql`, SHA256608534d1dc97535c92d756914a02fe36264e484b519f6e54f6d10cf56c6f4d96; read-only world.db and pinned DB2 CSVs.
+- [Server importer/runtime](../../../../game-server/docs/world-quests.md); shared-protocol `protocol/quest_messages.rs`; engine `world_quest_ui.rs`, `objective_tracker_component.rs`, native `quests.rs`/`world_map.rs`.
+- Primary local Retail Lua/XML under `/home/osso/.cache/wow-ui-sim/blizzard-ui/retail/`; pinned TrinityCore Player.cpp in `/home/osso/.worktrees/world-quests-data/reference/`.
+- `/home/osso/.worktrees/world-quests-data/diagnostics/` proof logs and `/home/osso/.worktrees/world-quests-data/live/` private inputs, IPC trees and captures. Raw DB2s are retained under private `db2/`.
 
 ## See Also
 
-- [World map contract](../../specs/world-map.md)
-- [Quest sharing, resets and timers](../systems/quest-share-resets.md)
+- [World-quest contract](../../specs/world-quests.md)
+- [World-map contract](../../specs/world-map.md)
+- [[quest-ui]] — existing objectives and quest UI
+- [[quest-share-resets]] — persistent quest clocks/history

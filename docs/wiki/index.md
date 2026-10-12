@@ -9,7 +9,7 @@
 
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
-- [World-quest availability source boundary](investigations/world-quest-availability.md) —4,207 definitions/four authentic durations; authorized deterministic rotation, private import and persisted expiry foundations; Retail task-area/eligibility and native/live acceptance remain open.
+- [World-quest availability and native tasks](investigations/world-quest-availability.md) — authentic polygons/policy durations, per-character transport, automatic source settlement and both-skin native controlled completion;106 authentic objective shapes and natural/living gameplay remain open.
 
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
