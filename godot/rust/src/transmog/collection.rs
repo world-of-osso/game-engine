@@ -158,6 +158,15 @@ impl GameClient {
                     preview.scene.replace_item_model(model);
                 }
                 None => {
+                    // TryOn of a set's weapon pieces shows them in hand, as in the preview.
+                    if let Err(error) = self.world.place_player_weapons(
+                        &player,
+                        &preview.appearance,
+                        transmog_sheath(false),
+                    ) {
+                        player.free();
+                        return Err(format!("Wardrobe {scene_name}: {error}"));
+                    }
                     bind_sheet_light(&player);
                     preview.scene.replace_model(player);
                 }
