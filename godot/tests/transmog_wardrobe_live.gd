@@ -262,7 +262,8 @@ func check_filters() -> bool:
 	if not await wait_for(func(_s): return control("TransmogFilterSource4") != null, "Sources menu"):
 		return false
 	await save_shot("11-source-filters.png")
-	var filter_row := control("TransmogFilterSource%d" % filter_type)
+	# World Drop row crosses the fifth real card; Vendor sits above the model grid.
+	var filter_row := control("TransmogFilterSource4")
 	await hover_point(filter_row.get_global_rect().get_center())
 	var hovered := root.gui_get_hovered_control()
 	print("TRANSMOG_FILTER_HIT target=", filter_row.name, " z=", filter_row.z_index, " hovered=", hovered.name if hovered != null else "none")
@@ -272,13 +273,20 @@ func check_filters() -> bool:
 	var click_point := filter_row.get_global_rect().get_center()
 	var covered_card := ""
 	for candidate in ui.find_children("TransmogSource*", "", true, false):
-		if candidate is BaseButton and candidate.get_global_rect().has_point(click_point):
+		if candidate is Control and String(candidate.name).trim_prefix("TransmogSource").is_valid_int() and candidate.get_global_rect().has_point(click_point):
 			covered_card = candidate.name
 	if covered_card == "":
 		fail("Popup click-through witness does not overlap a real source card")
 		return false
 	var applied_before: Dictionary = transmog().applied.duplicate()
 	await click_control(filter_row, MOUSE_BUTTON_LEFT)
+	if transmog().effective[MAIN_HAND] != source or transmog().applied != applied_before or transmog().pending != pending_before:
+		fail("Menu row activated its underlying source card")
+		return false
+	print("TRANSMOG_POPUP_NO_CLICK_THROUGH card=", covered_card, " effective_main_hand=", transmog().effective[MAIN_HAND], " staged=", source)
+	if filter_type != 4:
+		await click_control(control("TransmogFilterSource4"), MOUSE_BUTTON_LEFT)
+		await click_control(control("TransmogFilterSource%d" % filter_type), MOUSE_BUTTON_LEFT)
 	print("TRANSMOG_FILTER_TOGGLE ", ui.frame_text("TransmogFilterSource%dText" % filter_type))
 	if not await wait_for(func(_s): return control("TransmogSource%d" % source) == null and control("TransmogSource%d" % other) != null, "pending source filtered out"):
 		return false
