@@ -81,18 +81,33 @@ func find_cornerstone() -> Dictionary:
 			if not node is Node3D or not node.has_meta("game_object_entry") or int(node.get_meta("game_object_entry")) != property_entry: continue
 			var area: Area3D = node.find_child("UnitPick",true,false) as Area3D
 			if area == null: continue
-			var world_point: Vector3 = (area.get_child(0) as Node3D).global_position
-			if not camera().is_position_in_frustum(world_point): continue
-			var point: Vector2 = camera().unproject_position(world_point)
-			var id = area.get_meta("unit_server_id")
-			if UnitPicker.pick(camera(),point) == id:
-				return {"id":id,"entry":property_entry,"point":point}
+			var hit: Dictionary = find_visible_cornerstone_triangle(node, area.get_meta("unit_server_id"))
+			if not hit.is_empty(): return hit
 		if turned < 60:
 			push_key(KEY_RIGHT,true)
 			await frames(3)
 			push_key(KEY_RIGHT,false)
 			turned += 1
 	fail("Authentic cornerstone is not visible and unoccluded: " + str(client.account_state()))
+	return {}
+
+# The authenticated model's header includes the tall plot beam. Its box centre
+# is empty space, not a visible triangle; use real mesh triangles and the native ray.
+func find_visible_cornerstone_triangle(node: Node3D, id: int) -> Dictionary:
+	for mesh_node in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh: MeshInstance3D = mesh_node as MeshInstance3D
+		if not mesh.is_visible_in_tree() or mesh.mesh == null: continue
+		for surface in range(mesh.mesh.get_surface_count()):
+			var arrays: Array = mesh.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			for triangle in range(0, indices.size(), 3):
+				var centre: Vector3 = (vertices[indices[triangle]] + vertices[indices[triangle + 1]] + vertices[indices[triangle + 2]]) / 3.0
+				var world_point: Vector3 = mesh.global_transform * centre
+				if not camera().is_position_in_frustum(world_point): continue
+				var point: Vector2 = camera().unproject_position(world_point)
+				if UnitPicker.pick(camera(), point) == id:
+					return {"id": id, "entry": property_entry, "point": point}
 	return {}
 
 func inspect_owned_property(phase: String) -> bool:
