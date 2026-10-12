@@ -31,6 +31,13 @@ fn receive(
         if !reply.success {
             return Err(format!("Entry refused: {:?}", reply.error));
         }
+        bridge
+            .send::<_, AchievementChannel>(QueryAchievementCatalog::Categories { after_id: 0 })?;
+        bridge.send::<_, AchievementChannel>(QueryAchievementCatalog::Search {
+            text: "Armored Brown Bear".into(),
+            scope: AchievementScope::All,
+            after_id: 0,
+        })?;
         fs::write(
             directory.join("peer-ready.json"),
             serde_json::to_vec_pretty(&reply).map_err(|e| e.to_string())?,
@@ -38,6 +45,20 @@ fn receive(
         .map_err(|e| e.to_string())?;
     } else if message.is::<NewWorld>() {
         bridge.send::<_, TransferChannel>(WorldPortAck)?;
+    } else if message.is::<AchievementCatalogPage>() {
+        let page = message
+            .downcast::<AchievementCatalogPage>()
+            .map_err(|_| "catalog page type")?;
+        let filename = match &page {
+            AchievementCatalogPage::Categories { .. } => "peer-categories.json",
+            AchievementCatalogPage::Search { .. } => "peer-search.json",
+            _ => return Err("unexpected peer catalog reply".into()),
+        };
+        fs::write(
+            directory.join(filename),
+            serde_json::to_vec_pretty(&page).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
     } else if message.is::<AchievementStateUpdate>() {
         let reply = message
             .downcast::<AchievementStateUpdate>()
@@ -70,6 +91,7 @@ fn run() -> Result<(), String> {
         .receive::<EnterWorldResponse>()
         .receive::<NewWorld>()
         .receive::<AchievementStateUpdate>()
+        .receive::<AchievementCatalogPage>()
         .connect(
             address
                 .parse()
