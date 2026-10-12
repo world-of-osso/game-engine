@@ -17,9 +17,9 @@ func run_test() -> void:
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed",false), "authoritative dashboard"): return
 	await click_control(housing_control("HousingDashboardHouseFinderButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HouseFinderVisitHouse%d" % editor_house) != null, "real occupied plot listing"): return
+	if not await open_friend_plot_info(editor_house): return
 	if not await record_editor("visitor-finder"): return
-	await click_control(housing_control("HouseFinderVisitHouse%d" % editor_house), MOUSE_BUTTON_LEFT)
+	await click_control(housing_control("HouseFinderPlotVisitButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.account_state().screen == "InWorld" and housing_named_control("MicroMenuUI", "HousingMicroButton") != null, "visitor admission",420000): return
 	await frames(30)
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
