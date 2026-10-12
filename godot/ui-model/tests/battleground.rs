@@ -95,6 +95,7 @@ fn arena_queue_actions_and_enemy_frames_use_authoritative_units_in_both_skins() 
             mode: ArenaQueueMode::Skirmish2v2,
             preparation_remaining_secs: Some(59),
             shadow_sight_available: false,
+            rating_changes: Vec::new(),
             units: vec![
                 ArenaUnitSnapshot {
                     character_id: 81,
@@ -134,6 +135,60 @@ fn arena_queue_actions_and_enemy_frames_use_authoritative_units_in_both_skins() 
             panic!("preparation label");
         };
         assert!(timer.text.contains("59"));
+    }
+}
+
+#[test]
+fn rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_changes() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = PvpView {
+            visible: true,
+            ..Default::default()
+        };
+        view.action("pvp:category:rated");
+        view.action("pvp:rated:3v3");
+        assert_eq!(
+            view.action("pvp:rated:queue"),
+            Some(PvpAction::Rated(PvpBracketSnapshot::Arena3v3))
+        );
+        assert_eq!(view.action("pvp:rated:queue"), None);
+        let mut state = snapshot(BgPhase::Ended, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.arena = Some(ArenaMatchSnapshot {
+            mode: ArenaQueueMode::Rated2v2,
+            preparation_remaining_secs: Some(0),
+            shadow_sight_available: true,
+            units: Vec::new(),
+            rating_changes: vec![ArenaRatingChange {
+                character_id: 81,
+                rating_before: 0,
+                rating_after: 48,
+                mmr_before: 1500,
+                mmr_after: 1512,
+            }],
+        });
+        receive(&mut view, state);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("ConquestFrameArena2v2").is_some());
+        assert!(registry.get_by_name("ConquestFrameArena3v3").is_some());
+        let rating = registry
+            .get(registry.get_by_name("PVPMatchPlayer81Rating").unwrap())
+            .unwrap();
+        let WidgetData::FontString(rating) = rating.widget_data.as_ref().unwrap() else {
+            panic!("rating result");
+        };
+        assert!(rating.text.contains("+48"));
+        assert!(registry.get_by_name("PVPMatchPlayer81Captures").is_none());
     }
 }
 
