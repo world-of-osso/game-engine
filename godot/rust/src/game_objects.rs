@@ -14,7 +14,7 @@ use game_engine_core::csv_util::parse_csv_line;
 use game_engine_network::replica::Unit;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::{
-    classes::{Node3D, PhysicsDirectSpaceState3D, PhysicsRayQueryParameters3D},
+    classes::{Node3D, PhysicsDirectSpaceState3D, PhysicsRayQueryParameters3D, StaticBody3D},
     prelude::*,
 };
 use shared::components::{Position, Rotation};
@@ -29,6 +29,7 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 /// Separate from baked scenery: only these live meshes follow GO collision state.
 pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
 const COLLISION_BENCH_SAMPLES: usize = 1200;
+const COLLISION_BENCH_WARMUP: usize = 120;
 const COLLISION_BENCH_PLAYERS: usize = 6;
 const COLLISION_BENCH_WALL_LENGTH: f32 = 7.0;
 
@@ -38,7 +39,7 @@ fn measure_live_queries(
 ) -> (Vec<f64>, i64) {
     let mut samples = Vec::with_capacity(COLLISION_BENCH_SAMPLES);
     let mut hits = 0_i64;
-    for frame in 0..COLLISION_BENCH_SAMPLES {
+    for frame in 0..(COLLISION_BENCH_WARMUP + COLLISION_BENCH_SAMPLES) {
         let started = std::time::Instant::now();
         for player in 0..COLLISION_BENCH_PLAYERS {
             let angle = ((frame + player * 60) as f32).to_radians();
@@ -55,7 +56,9 @@ fn measure_live_queries(
                 .is_some(),
             );
         }
-        samples.push(started.elapsed().as_secs_f64() * 1e6);
+        if frame >= COLLISION_BENCH_WARMUP {
+            samples.push(started.elapsed().as_secs_f64() * 1e6);
+        }
     }
     samples.sort_by(f64::total_cmp);
     (samples, hits)
@@ -169,7 +172,7 @@ impl GameObjects {
         }
     }
     /// Measure actual Godot GO-floor and WMO/live-GO wall rays in the loaded arena.
-    /// Six query positions per sample bound a full 3v3 frame, not just an empty ray.
+    /// Synchronous query microbenchmark: six nearby simulated positions, not full frame time.
     pub(crate) fn benchmark_live_queries(
         &self,
         space: &Gd<PhysicsDirectSpaceState3D>,
@@ -177,11 +180,22 @@ impl GameObjects {
     ) -> VarDictionary {
         let (samples, hits) = measure_live_queries(space, feet);
         let mut result = VarDictionary::new();
+        result.set("query_microbenchmark", true);
+        result.set("warmup_discarded_samples", COLLISION_BENCH_WARMUP as i64);
         result.set("samples", COLLISION_BENCH_SAMPLES as i64);
         result.set("players_per_sample", COLLISION_BENCH_PLAYERS as i64);
         result.set("floor_queries_per_sample", COLLISION_BENCH_PLAYERS as i64);
         result.set("wall_queries_per_sample", COLLISION_BENCH_PLAYERS as i64);
         result.set("loaded_objects", self.objects.len() as i64);
+        let bodies = self
+            .objects
+            .values()
+            .filter_map(|object| object.node.get_node_or_null("GameObjectModel/M2Collision"));
+        let active = bodies
+            .filter_map(|body| body.try_cast::<StaticBody3D>().ok())
+            .filter(|body| body.get_collision_layer() & GAME_OBJECT_LAYER != 0)
+            .count();
+        result.set("active_hulls", active as i64);
         result.set("observed_hits", hits);
         for (name, index) in [
             ("p50_us", 600),
