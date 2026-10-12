@@ -17,7 +17,7 @@ use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
     GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE,
-    GAMEOBJECT_TYPE_RITUAL, GameObjectInfo,
+    GAMEOBJECT_TYPE_RITUAL, GameObjectAnimation, GameObjectInfo,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -25,6 +25,7 @@ struct ObjectNode {
     /// The display its loaded visual shows.
     display_id: u32,
     node: Gd<Node3D>,
+    animation: Option<GameObjectAnimation>,
 }
 pub(crate) struct GameObjects {
     data_root: PathBuf,
@@ -88,7 +89,7 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
 }
 
 fn game_object_is_renderable(go_type: u8) -> bool {
-    go_type == GAMEOBJECT_TYPE_GENERIC || game_object_cursor(go_type).is_some()
+    matches!(go_type, 0 | 6 | GAMEOBJECT_TYPE_GENERIC) || game_object_cursor(go_type).is_some()
 }
 
 /// The top centre of an M2's bounding box placed by `model` (the model node's global
@@ -175,6 +176,7 @@ impl GameObjects {
                 ObjectNode {
                     display_id: info.display_id,
                     node,
+                    animation: None,
                 },
             );
         }
@@ -191,6 +193,9 @@ impl GameObjects {
             0.0,
         ));
         object.node.set_scale(Vector3::ONE * info.scale);
+        if let Some(animation) = unit.get::<GameObjectAnimation>() {
+            apply_object_animation(object, *animation)?;
+        }
         Ok(())
     }
     fn load_visual(&mut self, info: &GameObjectInfo) -> Result<Gd<Node3D>, String> {
@@ -234,6 +239,13 @@ impl GameObjects {
                 info.entry
             ));
         }
+        if info.go_type == 0 {
+            if let Some(shape) =
+                crate::terrain::doodad_collision::collision_shape(parsed.collision.as_ref())
+            {
+                crate::terrain::doodad_collision::attach_collision(&mut model, &shape);
+            }
+        }
         model.set_name("GameObjectModel");
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
@@ -261,6 +273,48 @@ impl GameObjects {
         }
         self.light = None;
     }
+}
+
+fn apply_object_animation(
+    object: &mut ObjectNode,
+    animation: GameObjectAnimation,
+) -> Result<(), String> {
+    if object.animation == Some(animation) {
+        return Ok(());
+    }
+    let mut player = object
+        .node
+        .get_node_or_null("GameObjectModel/M2Animation")
+        .and_then(|node| node.try_cast::<crate::animation::WowAnimationPlayer>().ok())
+        .ok_or_else(|| {
+            format!(
+                "Gameobject display {} has no M2 animation player",
+                object.display_id
+            )
+        })?;
+    if !player
+        .bind_mut()
+        .select_animation_id(animation.animation_id, animation.looping)?
+    {
+        return Err(format!(
+            "Gameobject display {} lacks source animation {}",
+            object.display_id, animation.animation_id
+        ));
+    }
+    if let Some(mut collision) = object
+        .node
+        .get_node_or_null("GameObjectModel/M2Collision")
+        .and_then(|node| node.try_cast::<godot::classes::StaticBody3D>().ok())
+    {
+        let layer = if animation.animation_id == 147 {
+            crate::terrain::doodad_collision::DOODAD_LAYER
+        } else {
+            0
+        };
+        collision.set_collision_layer(layer);
+    }
+    object.animation = Some(animation);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -294,6 +348,14 @@ mod tests {
     /// WoW `(x, y, z)` in engine coordinates (game-server `wow_to_bevy`).
     fn engine(x: f32, y: f32, z: f32) -> Vector3 {
         Vector3::new(x, z, -y)
+    }
+
+    #[test]
+    fn arena_doors_and_shadow_sight_render_without_manual_use_cursor() {
+        for kind in [0, 6] {
+            assert!(game_object_is_renderable(kind));
+            assert!(game_object_cursor(kind).is_none());
+        }
     }
 
     #[test]
