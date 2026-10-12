@@ -35,6 +35,8 @@ func run_fixture() -> void:
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(90)
+	if OS.get_environment("MOUNT_VENDOR") == "1" and not relog:
+		if not await buy_mare(): return
 	await open_mounts()
 	if not await wait_until(func(): return control("MountJournalSearchBox") != null, "Mounts tab"): return
 	await click("MountJournalSearchBox")
@@ -62,6 +64,15 @@ func run_fixture() -> void:
 		await open_mounts()
 		if not await wait_until(func(): return control("MountJournalRow18") != null, "learned mount row"): return
 		await capture("learned")
+		if OS.get_environment("MOUNT_VENDOR") == "1":
+			await tap(KEY_ESCAPE)
+			if not await open_vendor(): return
+			await motion(control("MerchantItem2ItemButton").get_global_rect().get_center(), false)
+			if not await wait_until(func(): return "Already known|" in client.tooltip_state().lines, "vendor known tooltip"): return
+			if "Already known" not in control("MerchantItem2Name").text: fail("Vendor name lacks known feedback"); return
+			await capture("vendor-already-known")
+			await tap(KEY_ESCAPE)
+			await open_mounts()
 		await click("MountJournalRow18", MOUSE_BUTTON_RIGHT)
 		if not await wait_until(func(): return control("MountJournalFavoriteToggle") != null, "Retail right-click favourite menu"): return
 		if not await menu_text_visible(): fail("Favourite popup labels are covered by their background"); return
@@ -97,6 +108,46 @@ func run_fixture() -> void:
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
 	client.free()
 	quit(0)
+
+func buy_mare() -> bool:
+	if not await open_vendor(): return false
+	var before := int(client.merchant_state().money)
+	await motion(control("MerchantItem2ItemButton").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().title == "Chestnut Mare Bridle", "unknown vendor mount tooltip"): return false
+	if "Already known|" in client.tooltip_state().lines: fail("Unknown account showed known mount"); return false
+	await capture("vendor-before-buy")
+	await click("MerchantItem2ItemButton", MOUSE_BUTTON_RIGHT)
+	if not await wait_until(func(): return int(client.merchant_state().money) == before - 10000, "authentic one-gold vendor payment"): return false
+	var found := false
+	for item in client.merchant_state().bags:
+		if int(item.item_id) == ITEM_ID: found = true
+	if not found: fail("Vendor payment produced no mount teaching item"); return false
+	await capture("vendor-purchased")
+	await tap(KEY_ESCAPE)
+	return true
+
+func open_vendor() -> bool:
+	var deadline := Time.get_ticks_msec() + 60000
+	var angle := 0.0
+	while Time.get_ticks_msec() < deadline:
+		var units := client.get_node_or_null("WorldUnits")
+		if units != null:
+			for unit in units.get_children():
+				if str(unit.name) != "Katie Hunter": continue
+				var area := unit.find_child("UnitPick", true, false) as Area3D
+				if area == null: continue
+				var camera := root.get_camera_3d()
+				var point := camera.unproject_position((area.get_child(0) as Node3D).global_position)
+				if UnitPicker.pick(camera, point) == area.get_meta("unit_server_id"):
+					await motion(point, false)
+					await button_event(point, MOUSE_BUTTON_RIGHT, true)
+					await button_event(point, MOUSE_BUTTON_RIGHT, false)
+					return await wait_until(func(): return client.merchant_state().open, "authentic Katie Hunter vendor")
+		angle += PI / 8.0
+		client.set_camera_orbit(angle, -0.25, 8.0)
+		await wait_frames(20)
+	fail("Katie Hunter not visible to native pick at prepared authentic spawn")
+	return false
 
 func open_mounts() -> void:
 	await click("MinimapLauncherButton")
