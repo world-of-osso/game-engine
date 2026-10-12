@@ -1,4 +1,5 @@
-//! Retail ActionButtonComponentTemplate.xml:66px, 5 columns × 6 rows, 30 frames/s.
+//! Retail Blizzard_ActionBar/Shared/ActionButtonComponentTemplate.xml:67-87:
+//! centered 45px Frame with a centered 66px Flipbook, 5 columns × 6 rows, 30 frames/s.
 //! UiTextureAtlasMember 32008, atlas3260, local Retail12.1.0.69933.
 use crate::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::quest_art::{DynName, atlas_texture};
@@ -28,11 +29,11 @@ pub fn highlight(name: String, cell_size: f32, hidden: bool) -> Element {
     };
     let size = cell_size * 66.0 / 45.0;
     let inset = (cell_size - size) / 2.0;
-    let image = atlas_texture(format!("{name}Flipbook"), &art, (0.0, 0.0, size, size));
+    let image = atlas_texture(format!("{name}Flipbook"), &art, (inset, inset, size, size));
     rsx! {
         r#frame {
-            name: {DynName(name)}, width: size, height: size, hidden,
-            draw_layer: "OVERLAY", pos_type: "absolute", pos_x: inset, pos_y: inset,
+            name: {DynName(name)}, width: cell_size, height: cell_size, hidden,
+            draw_layer: "OVERLAY", pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
             {image}
         }
     }
