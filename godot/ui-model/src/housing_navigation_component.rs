@@ -38,7 +38,7 @@ fn finder(view: &HousingView) -> Element {
         ),
         None => "Neighborhood data has not been confirmed by the server.".into(),
     };
-    let enabled = plots.is_some() && !view.model.pending;
+    let visit_disabled = plots.is_none() || view.model.pending;
     let choices: Element = [1, 2]
         .into_iter()
         .enumerate()
@@ -46,10 +46,10 @@ fn finder(view: &HousingView) -> Element {
             let top = 70.0 + index as f32 * 70.0;
             let text = neighborhood_location(id);
             let action = format!("housing:neighborhood:{id}");
-            let enabled = !view.model.pending;
+            let disabled = view.model.pending;
             rsx! { button { name: {DynName(format!("HouseFinderNeighborhood{id}"))},
                 text, width: 217.0, height: 63.0, pos_type: "absolute", left: 20.0, top,
-                onclick: action, enabled }
+                onclick: action, disabled }
             }
         })
         .collect();
@@ -60,7 +60,7 @@ fn finder(view: &HousingView) -> Element {
             font_size: 14.0, justify_h: "LEFT" }
         button { name: "HouseFinderVisitButton", text: "Visit Neighborhood",
             width: 180.0, height: 32.0, pos_type: "absolute", left: 500.0, top: 390.0,
-            onclick: "housing:visit", enabled }
+            onclick: "housing:visit", disabled: visit_disabled }
     };
     portrait_panel(
         view,
@@ -93,7 +93,7 @@ fn cornerstone(view: &HousingView, plot_id: u32) -> Element {
     let location = neighborhood_location(plot.neighborhood_id);
     let price = format_money(plot.cost);
     let owned = plot.house_id.is_some();
-    let enabled = !owned && !view.model.pending;
+    let buy_disabled = owned || view.model.pending;
     let status = if owned {
         "Plot purchased. No verified first-house exterior/interior grant source is available."
     } else if view.model.pending {
@@ -113,7 +113,7 @@ fn cornerstone(view: &HousingView, plot_id: u32) -> Element {
             font_size: 13.0, justify_h: "CENTER" }
         button { name: "HousingCornerstoneBuyButton", text: "Buy",
             width: 116.0, height: 32.0, pos_type: "absolute", left: 112.0, top: 260.0,
-            onclick: "housing:purchase", enabled }
+            onclick: "housing:purchase", disabled: buy_disabled }
     };
     portrait_panel(
         view,
