@@ -241,6 +241,26 @@ fn transmog_filter_menus_expose_real_source_types_and_completion_in_both_skins()
 }
 
 #[test]
+fn transmog_selected_outfit_icon_is_drawn_without_inventing_missing_icons() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut book = book();
+        book.state.as_mut().unwrap().outfits.push(TransmogOutfit {
+            id: 2,
+            name: "Gladius".into(),
+            icon_fdid: 135274,
+            choices: Vec::new(),
+            illusions: Vec::new(),
+        });
+        let registry = build(skin, book);
+        assert_eq!(
+            texture(&registry, "TransmogOutfitEntry2Icon"),
+            ui_toolkit::widgets::texture::TextureSource::FileDataId(135274)
+        );
+        assert!(registry.get_by_name("TransmogOutfitEntry3Icon").is_none());
+    }
+}
+
+#[test]
 fn transmog_state_hooks_and_empty_search_clear_are_not_drawn() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());
@@ -273,6 +293,10 @@ fn transmog_retail_frame_and_cells_use_121_natural_dimensions() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());
         assert_eq!(rect(&registry, "TransmogFrame"), (1618.0, 883.0));
+        assert_eq!(
+            texture(&registry, "TransmogFramePortrait"),
+            ui_toolkit::widgets::texture::TextureSource::Atlas("transmog-icon-ui".into())
+        );
         assert_eq!(
             rect(&registry, "TransmogSource821ModelScene"),
             (100.0, 132.0)
@@ -370,6 +394,12 @@ fn transmog_hover_borders_have_the_authored_model_card_sizes() {
             panic!("set card")
         };
         assert_eq!(button.highlight_size, Some([194.0, 234.0]));
+        assert_eq!(
+            button.highlight_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "transmog-itemcard-default".into()
+            ))
+        );
     }
 }
 

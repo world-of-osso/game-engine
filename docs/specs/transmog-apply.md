@@ -11,6 +11,8 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 - [x] Preserve pending-state safety across item replacement, interaction closure and character/session changes.
 - [x] Native self and observer displays update after successful application and remain after relog, in both skins.
 - [x] Collection uses paged native3D appearance models. Retail12.1 `TransmogItemModelTemplate` is100×132; its right-hand collection has five columns and four rows. Filtering must preserve pending choices and exact quotes; clearing it restores model cells.
+- [x] Static portrait uses `transmog-icon-ui` (`Blizzard_Transmog.lua:113`), not a player bust. Set/custom-set hover uses `transmog-itemcard-default` at194×234 with ADD (`Blizzard_TransmogTemplates.xml:1103–1110`). Set cards have no inline title: XML1075–1275 defines none; `TransmogSetModelMixin:RefreshTooltip` owns the title instead.
+- [x] Saved outfit rows draw required protocol `icon_fdid`; migrated records with icon0 stay empty. No Retail missing-icon fallback was found.
 - [x] Retail12.1 item state art is `transmog-itemcard-transmogrified` (pending suffix for staged changes), with ordinary alpha and114×146 hover art. Historical Wardrobe additive overlays do not define the new frame.
 - [x] Retail12.1 frame natural size1618×883; left outfit region312×860, central character658×860, right wardrobe644×860. Slot buttons59×59 show authoritative applied/pending appearance icons without the generic project button skin.
 - [x] Native Items/Sets/Custom Sets tabs, outfit list/save/load and illusion selection use Retail12.1 elements. Save commits pending appearances through the unchanged paid Apply before saving configuration; unavailable operations do not pretend to succeed.

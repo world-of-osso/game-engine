@@ -107,6 +107,9 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
         "Transmogrify",
         "transmog:close",
     );
+    // Blizzard_Transmog.lua:113 SetPortraitAtlasRaw: static atlas, not a player bust.
+    children.extend(rsx! { texture { name: "TransmogFramePortrait", width: 62.0, height: 62.0,
+    left: -5.0, top: -7.0, frame_level: 400.0, pos_type: "absolute", texture_atlas: "transmog-icon-ui" } });
     children.extend(region_art());
     children.extend(outfit_region(&view.book));
     children.extend(character_region(&view));
@@ -248,12 +251,17 @@ fn show_equipped_gear() -> Element {
 fn outfit_entry(book: &TransmogBook, row: &crate::transmog::OutfitRow, top: f32) -> Element {
     let prefix = format!("TransmogOutfitEntry{}", row.id);
     let viewed = book.viewed_outfit == Some(row.id);
-    // Outfit icons are chosen in the IconSelector popup; the protocol carries none yet.
+    // Blizzard_TransmogTemplates.lua:76 draws the player-selected outfit icon.
     let mut out = atlas(
         format!("{prefix}IconBorder"),
         "transmog-outfit-spellframe",
         (17.5, top + 0.5, 44.0, 44.0),
     );
+    if row.icon_fdid != 0 {
+        let icon_fdid = row.icon_fdid;
+        out.extend(rsx! { texture { name: {DynName(format!("{prefix}Icon"))},
+        width: 36.0, height: 36.0, left: 21.5, top: {top + 4.5}, pos_type: "absolute", texture_fdid: icon_fdid } });
+    }
     let mut card = atlas(
         format!("{prefix}Card"),
         "transmog-outfit-card",

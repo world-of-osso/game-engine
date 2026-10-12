@@ -380,6 +380,7 @@ fn transmog_viewing_a_saved_outfit_stages_its_appearances_and_shows_its_illusion
     state.outfits = vec![TransmogOutfit {
         id: 3,
         name: "Duelist".into(),
+        icon_fdid: 135343,
         choices: vec![TransmogOutfitChoice {
             slot: EquipmentSlot::MainHand,
             choice: TransmogChoice::Source(1181),
