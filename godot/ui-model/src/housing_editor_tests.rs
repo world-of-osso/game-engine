@@ -33,6 +33,7 @@ fn authority(can_edit: bool) -> HousingAuthority {
                 house_id: 41,
                 can_edit,
                 decor: vec![PlacedDecor {
+                    dyes: Vec::new(),
                     instance_id: 7,
                     decor_id: 80,
                     transform: DecorTransform {
@@ -51,6 +52,55 @@ fn authority(can_edit: bool) -> HousingAuthority {
 }
 
 #[test]
+fn housing_cleanup_hover_and_click_store_only_the_confirmed_target_without_optimistic_changes() {
+    use crate::housing_editor::EditorMode;
+    let auth = authority(true);
+    let confirmed = auth.state.clone();
+    let mut editor = EditorInteraction::default();
+    editor.begin_place(&auth, &bookcase(1693)).unwrap();
+    editor.set_mode(EditorMode::Cleanup);
+    assert_eq!(editor.placing, None);
+    editor.hover(&auth, Some(7), [100.0, 200.0]).unwrap();
+    assert_eq!(editor.hovered, Some(7));
+    assert_eq!(editor.selected, None);
+    assert_eq!(editor.pointer_click(&auth, None, None).unwrap(), None);
+    assert_eq!(
+        editor.pointer_click(&auth, Some(7), None).unwrap(),
+        Some(HousingCommand::RemoveDecor {
+            house_id: 41,
+            instance_id: 7
+        })
+    );
+    assert_eq!(editor.selected, None);
+    assert_eq!(editor.hovered, None);
+    assert_eq!(auth.state, confirmed);
+    assert!(editor.pointer_click(&auth, Some(999), None).is_err());
+    editor.hover(&auth, Some(7), [50.0, 60.0]).unwrap();
+    editor.set_mode(EditorMode::Basic);
+    assert_eq!(editor.hovered, None);
+}
+
+#[test]
+fn housing_cleanup_visitor_may_hover_but_cannot_remove_or_change_saved_layout() {
+    use crate::housing_editor::EditorMode;
+    let visitor = authority(false);
+    let confirmed = visitor.state.clone();
+    let mut editor = EditorInteraction::default();
+    editor.set_mode(EditorMode::Cleanup);
+    editor.hover(&visitor, Some(7), [100.0, 200.0]).unwrap();
+    assert_eq!(editor.hovered, Some(7));
+    assert!(
+        editor
+            .pointer_click(&visitor, Some(7), None)
+            .unwrap_err()
+            .contains("Visitors")
+    );
+    assert_eq!(visitor.state, confirmed);
+    editor.hover(&visitor, None, [0.0; 2]).unwrap();
+    assert_eq!(editor.hovered, None);
+}
+
+#[test]
 fn housing_editor_uses_confirmed_storage_and_never_changes_quantity_optimistically() {
     let auth = authority(true);
     let mut editor = EditorInteraction::default();
@@ -59,6 +109,7 @@ fn housing_editor_uses_confirmed_storage_and_never_changes_quantity_optimistical
     assert_eq!(
         editor.commit_at(&auth, [4.0, -2.0, 8.0]).unwrap(),
         HousingCommand::PlaceDecor {
+            variant_id: None,
             house_id: 41,
             decor_id: 1693,
             transform: DecorTransform {
