@@ -228,7 +228,13 @@ def stage(data, package, install, extract):
             else:
                 write_asset_files(package, [(alias, source.read_bytes())])
                 aliases.append(alias)
-    fragment = {'version': 1, 'assets': list(new.values()), 'aliases': aliases,
+    # Runtime model-asset-index accepts only native kinds; PFID satellites are not
+    # consumed by previews. Keep their authenticated audit, not runtime mappings.
+    physics = [receipt for receipt in new.values() if receipt['kind'] == 'phys']
+    (proof / 'optional-physics-satellites.json').write_text(json.dumps(physics, indent=2))
+    for receipt in physics:
+        (package / receipt['path']).unlink()
+    fragment = {'version': 1, 'assets': [receipt for receipt in new.values() if receipt['kind'] != 'phys'], 'aliases': aliases,
                 'chains': [{**identity, 'scope': graph.seeds, 'metadata': list(graph.inputs.values())}]}
     cache = package / 'cache'
     cache.mkdir(exist_ok=True)
