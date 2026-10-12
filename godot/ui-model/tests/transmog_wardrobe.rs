@@ -221,10 +221,12 @@ fn transmog_filter_menus_expose_real_source_types_and_completion_in_both_skins()
         assert_eq!(text(&registry, "TransmogFilterSource3Text"), "✓ Vendor");
         assert_eq!(text(&registry, "TransmogFilterSource4Text"), "✓ World Drop");
         let mut sets = book();
+        sets.select_illusion(EquipmentSlot::MainHand);
         sets.set_tab(WardrobeTab::Sets);
         sets.filters_open = true;
         let registry = build(skin, sets);
         assert!(enabled(&registry, "TransmogFilterButton"));
+        assert!(drawn(&registry, "TransmogFilterButton"));
         assert_eq!(
             text(&registry, "TransmogFilterCollectedText"),
             "✓ Collected"

@@ -143,7 +143,7 @@ fn search_box(book: &TransmogBook) -> Element {
         (24.0, -1.0, 90.0, 20.0),
         GOLD,
     ));
-    let hidden = book.illusion_selected;
+    let hidden = book.tab == WardrobeTab::Items && book.illusion_selected;
     out.extend(
         rsx! { button { name: "TransmogFilterButton", width: 135.0, height: 18.0,
         left: 1452.0, top: 80.0, pos_type: "absolute", hidden, button_default_skin: false,

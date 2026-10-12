@@ -332,7 +332,18 @@ func check_sets() -> bool:
 	if not await wait_for(func(_s): return preview_model(card + "ModelScene") != null, "incomplete set restored", 60000):
 		return false
 	print("TRANSMOG_SET_FILTERS_READY")
-	return true
+	var before := transmog()
+	await click_control(control(card), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().pending > 0, "collected set pieces staged"):
+		return false
+	var staged := transmog()
+	if staged.money != before.money or staged.applied != before.applied:
+		fail("Trying a set charged money or changed equipped appearances")
+		return false
+	await save_shot("14-set-staged.png")
+	print("TRANSMOG_SET_STAGED pending=", staged.pending)
+	await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
+	return await wait_for(func(_s): return transmog().pending == 0, "set staging cleared")
 
 ## Custom Sets tab: New Custom Set names the current appearances (TRANSMOG_CUSTOM_SET_NAME).
 func check_custom_sets() -> bool:
