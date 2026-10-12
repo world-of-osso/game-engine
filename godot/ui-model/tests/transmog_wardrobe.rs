@@ -22,6 +22,7 @@ fn source(
 ) -> TransmogSource {
     TransmogSource {
         source_id: id,
+        source_type: if id == 1181 { 4 } else { 3 },
         appearance_id: appearance,
         item_id: item,
         display_id: display,
