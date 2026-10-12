@@ -9,6 +9,12 @@
 ## 2026-10-11 — World-quest deterministic foundations
 
 [World quests](../specs/world-quests.md): implement user-authorized realm rotation with four authentic604800s durations, private-copy importer and persisted task/watch expiry. Preserve full raw TDB rewards; exclude unknown durations rather than guess. Additional local task/condition extraction identifies remaining eligibility joins. Repair inline AreaPOI relationship duplication (RED→GREEN); decode3,909 POIs/1,070 states/154 buffs with zero matching task/stage/boss-name joins. Task-area acceptance and both-skin native/live completion remain open. No canonical data writes, UDP5000 operations or PNG acceptance claim.
+## 2026-10-11 — Crafting UI private acceptance
+
+[Crafting UI](systems/crafting-ui.md): both skins on private UDP5871 spend a source Leatherworking point, place a public Glacial Cloak order, claim/cast on a separate Tailor and receive item/commission through the actual mailbox. Native Apply exposed omitted committed unlock ranks; full selected-tree configurations fix it. Source radial/perk art and resolved tooltips have scoped/native proof. Skills/knowledge/achievement were fixture-primed; quality/concentration and recraft operation remain unsupported. Private broker appearance/authenticated local-CASC receipts were staged without canonical cache edits; slot cache link restored. Master integration3f8d83357 passes47 scoped tests, native extension/CLI build, scoped check and fmt; no full suite or CI certification. Independent AskClaude gate was unavailable (expired OAuth).
+## 2026-10-11 — Whole-world NPC appearance
+
+[Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
 
 ## 2026-10-11 — AchievementFrame art
 

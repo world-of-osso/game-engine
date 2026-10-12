@@ -73,6 +73,29 @@ fn query_choice_ids(connection: &Connection, display_id: u32) -> rusqlite::Resul
         .collect()
 }
 
+/// Raw CreatureDisplayInfoGeosetData rows also belong to ordinary, non-character models.
+/// Coverage remains mandatory; no character profile is created to carry these rows.
+pub fn query_display_geosets(
+    connection: &Connection,
+    display_id: u32,
+) -> Result<Vec<(u16, u16)>, String> {
+    let covered = connection
+        .query_row(
+            "SELECT display_id FROM display_coverage WHERE display_id = ?1",
+            [display_id],
+            |row| row.get::<_, u32>(0),
+        )
+        .optional()
+        .map_err(|error| format!("query geoset coverage for display {display_id}: {error}"))?;
+    if covered.is_none() {
+        return Err(format!(
+            "NPC display {display_id} is outside imported appearance coverage"
+        ));
+    }
+    query_geosets(connection, display_id)
+        .map_err(|error| format!("query geosets for display {display_id}: {error}"))
+}
+
 fn query_geosets(connection: &Connection, display_id: u32) -> rusqlite::Result<Vec<(u16, u16)>> {
     let mut statement = connection.prepare(
         "SELECT geoset_index, geoset_value FROM geosets
