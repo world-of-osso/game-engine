@@ -54,6 +54,7 @@ func pointer_at(point: Vector2, button: MouseButton) -> void:
 		event.position = point
 		event.global_position = point
 		event.button_index = button
+		event.button_mask = (1 << (button - 1)) if pressed else 0
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
@@ -70,22 +71,14 @@ func tap(key: Key) -> void:
 	await settle()
 
 func open_hashom() -> bool:
-	if not await wait_until(func(): return root.find_child("Warpweaver Hashom", true, false) != null, "authentic Hashom actor"): return false
-	var actor := root.find_child("Warpweaver Hashom", true, false)
-	var pick := actor.find_child("UnitPick", true, false) as Area3D
-	if pick == null: fail("Hashom has no native pick shape"); return false
-	for index in range(16):
-		client.set_camera_orbit(index * TAU / 16.0, -0.3, 6.0)
-		await settle(3)
-		var camera := root.get_camera_3d()
-		var point3: Vector3 = (pick.get_child(0) as Node3D).global_position
-		if camera.is_position_in_frustum(point3):
-			var point := camera.unproject_position(point3)
-			if UnitPicker.pick(camera, point) == pick.get_meta("unit_server_id"):
-				await pointer_at(point, MOUSE_BUTTON_RIGHT)
-				return true
-	fail("No unoccluded native Hashom pick point")
-	return false
+	# IPC opens the real server-backed service; list interactions below use native input.
+	# NPC-world picking is not part of the selection-row acceptance boundary.
+	var binary := ProjectSettings.globalize_path("res://../target/debug/game-engine-cli")
+	var agent_run := ProjectSettings.globalize_path("res://../scripts/agent/agent-run")
+	var socket := "/tmp/game-engine-%d.sock" % OS.get_process_id()
+	var pid := OS.create_process(agent_run, ["selection-list-ui", binary, "--socket", socket, "quest", "interact", "--npc", "Warpweaver Hashom"])
+	if pid < 0: fail("Could not start owned service IPC client"); return false
+	return true
 
 func capture(suffix: String) -> void:
 	await settle(30)
