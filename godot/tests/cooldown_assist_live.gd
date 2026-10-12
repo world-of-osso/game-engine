@@ -175,6 +175,10 @@ func run_fixture() -> void:
 	expected = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
 	var successes_before: int = client.spells_state().cast_success.size()
+	var charge_before := viewer_charge(35395)
+	if expected != 35395 or int(charge_before.get("charges", -1)) != 2:
+		fail("Ret private sample must recommend Crusader Strike with two real charges")
+		return
 	await click("ActionButton6")
 	deadline = Time.get_ticks_msec() + 5000
 	while client.spells_state().cast_success.size() <= successes_before and Time.get_ticks_msec() < deadline:
@@ -187,10 +191,34 @@ func run_fixture() -> void:
 		fail("Assistant request did not resolve as the exact server CastSuccess")
 		return
 	await capture("assisted-cast")
-	print("PASS: real manager clocks, authored single-button cast and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
+	var charge_after := viewer_charge(35395)
+	if int(charge_after.get("charges", -1)) != 1 or float(charge_after.get("remaining", 0.0)) <= 0.0:
+		fail("Authoritative assisted cast must consume one charge and start recharge")
+		return
+	write_json("charge-proof", {"before": charge_before, "after": charge_after, "cast": expected})
+	# Select another living enemy before the low-health first victim dies. Judgment
+	# becomes ready before Crusader Strike recharges; observe, never assign, the update.
+	await key(KEY_TAB)
+	deadline = Time.get_ticks_msec() + 10000
+	while client.assisted_combat_state().get("next_spell", 0) != 20271 and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if client.assisted_combat_state().get("next_spell", 0) != 20271:
+		fail("Recommendation did not update to ready authored Judgment after assisted cast")
+		return
+	if not await prove_highlights(20271, "updated-highlight"):
+		return
+	await capture("recommendation-updated")
+	write_json("recommendation-update-proof", {"before": expected, "after": 20271, "assisted": client.assisted_combat_state(), "target": client.target_state()})
+	print("PASS: real manager clocks, authored single-button cast, two-to-one charge/recharge, recommendation update and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
 	quit(0)
 
-func prove_highlights(expected: int) -> bool:
+func viewer_charge(spell: int) -> Dictionary:
+	for icon in client.cooldown_viewer_state().icons:
+		if int(icon.spell_id) == spell:
+			return icon
+	return {}
+
+func prove_highlights(expected: int, prefix: String = "assisted-highlight") -> bool:
 	var viewer_name := ""
 	for icon in client.cooldown_viewer_state().icons:
 		if int(icon.spell_id) == expected and bool(icon.highlight):
@@ -229,7 +257,7 @@ func prove_highlights(expected: int) -> bool:
 			fail("Retail highlight must be a loaded crop: " + name + " (" + actual + ")")
 			return false
 		crops[name] = atlas.region
-	await capture("assisted-highlight-frame1")
+	await capture(prefix + "-frame1")
 	await create_timer(0.12).timeout
 	for name in crops:
 		var rect := control(name).get_node("Parts/Part0") as TextureRect
@@ -237,8 +265,8 @@ func prove_highlights(expected: int) -> bool:
 		if atlas.region == crops[name]:
 			fail("Retail ants flipbook did not advance: " + name)
 			return false
-	await capture("assisted-highlight-frame2")
-	write_json("highlight-proof", {"spell": expected, "viewer": viewer_name, "action": action_name, "in_combat": client.assisted_combat_state().in_combat})
+	await capture(prefix + "-frame2")
+	write_json(prefix + "-proof", {"spell": expected, "viewer": viewer_name, "action": action_name, "in_combat": client.assisted_combat_state().in_combat})
 	return true
 
 func scroll_to(name: String) -> bool:
