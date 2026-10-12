@@ -76,7 +76,7 @@ func run_test() -> void:
 
 func category_debug_state() -> Dictionary:
 	var state: Dictionary = client.housing_state()
-	return {"house":state.get("house_id"), "can_edit":state.get("can_edit"), "category":state.get("storage_category"), "search":state.get("storage_search"), "pending":state.get("pending"), "stored":state.get("stored"), "decor":state.get("decor"), "error":state.get("error")}
+	return {"house":state.get("house_id"), "can_edit":state.get("can_edit"), "category":housing_text("HouseEditorStorageCategoryPath"), "search":storage_search_text(), "pending":state.get("pending"), "stored":state.get("stored"), "decor":state.get("decor"), "error":state.get("error")}
 
 func choose_storage_category(id: int, title: String, shown: int, hidden: int) -> bool:
 	print("STORAGE_CATEGORY_CLICK_BEFORE id=", id, " rect=", housing_control("HouseEditorStorageCategory%d" % id).get_global_rect(), " state=", category_debug_state())
