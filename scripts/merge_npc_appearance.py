@@ -11,6 +11,8 @@ from pathlib import Path
 import sqlite3
 import sys
 
+from import_npc_appearance import merge_existing_rows
+
 TABLES = ("display_coverage", "appearances", "choices", "geosets")
 
 
@@ -34,6 +36,10 @@ def merge_coverage(base, incoming_path, output):
         raise ValueError(f"output exists: {output}; choose a new path")
     existing, incoming = read_database(base), read_database(incoming_path)
     added = select_new_displays(existing, incoming)
+    table_order = ("appearances", "choices", "geosets", "display_coverage")
+    selected = tuple([row for row in incoming[table] if row[0] in added]
+                     for table in table_order)
+    merged = dict(zip(table_order, merge_existing_rows(base, selected)))
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("xb"):
         pass
@@ -43,7 +49,8 @@ def merge_coverage(base, incoming_path, output):
                 source.backup(target)
                 with target:
                     for table in TABLES:
-                        rows = [row for row in incoming[table] if row[0] in added]
+                        preserved = set(existing[table])
+                        rows = [row for row in merged[table] if row not in preserved]
                         if rows:
                             placeholders = ",".join("?" for _ in rows[0])
                             target.executemany(f"INSERT INTO {table} VALUES ({placeholders})", rows)
