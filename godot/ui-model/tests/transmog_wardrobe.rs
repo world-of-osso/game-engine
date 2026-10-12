@@ -1,6 +1,7 @@
-//! Shared-skin Wardrobe contract: Retail collection model cells and paperdoll slots.
+//! Shared-skin Retail12.1 TransmogFrame contract: regions, collection cards, outfits,
+//! sets, custom sets and illusions in both art skins.
 use game_engine_ui_model::{
-    transmog::TransmogBook,
+    transmog::{TransmogBook, WardrobeTab},
     transmog_frame::{TransmogView, transmog_screen},
 };
 use shared::{item_data::ItemDefinitionSource, protocol::*};
@@ -11,43 +12,135 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 
-fn book() -> TransmogBook {
-    let mut book = TransmogBook::default();
-    book.receive(TransmogState {
+fn source(
+    id: u32,
+    appearance: u32,
+    item: u32,
+    display: u32,
+    name: &str,
+    inv: u8,
+) -> TransmogSource {
+    TransmogSource {
+        source_id: id,
+        appearance_id: appearance,
+        item_id: item,
+        display_id: display,
+        icon_fdid: if id == 1181 { 135343 } else { 135274 },
+        name: name.into(),
+        inventory_type: inv,
+    }
+}
+
+/// Local Retail12.1.0.69933 identities (Gladius821, Deadman Blade1181, TransmogSet13
+/// members70594/70595, TransmogIllusion3/13, OutfitEntry2/3).
+fn state() -> TransmogState {
+    let chest = source(
+        70594,
+        25939,
+        124923,
+        142240,
+        "Wild Combatant's Chain Armor",
+        5,
+    );
+    TransmogState {
         npc: 54442,
-        slots: vec![TransmogSlot {
+        slots: vec![
+            TransmogSlot {
+                slot: EquipmentSlot::Chest,
+                item_guid: 91002,
+                item_id: 124923,
+                definition_source: ItemDefinitionSource::Retail,
+                inventory_type: 5,
+                applied: TransmogChoice::Original,
+                cost: Some(1500),
+                can_hide: true,
+                sources: vec![chest.clone()],
+            },
+            TransmogSlot {
+                slot: EquipmentSlot::MainHand,
+                item_guid: 91001,
+                item_id: 2850,
+                definition_source: ItemDefinitionSource::Retail,
+                inventory_type: 13,
+                applied: TransmogChoice::Source(821),
+                cost: Some(1500),
+                can_hide: false,
+                sources: vec![
+                    source(821, 154, 2488, 1542, "Gladius", 13),
+                    source(1181, 389, 3295, 1546, "Deadman Blade", 13),
+                ],
+            },
+        ],
+        catalogue: vec![
+            TransmogCatalogueSource {
+                source: chest,
+                collection: TransmogCollectionState::Collected,
+                slots: vec![EquipmentSlot::Chest],
+            },
+            TransmogCatalogueSource {
+                source: source(
+                    70595,
+                    25940,
+                    124924,
+                    142246,
+                    "Wild Combatant's Chain Gauntlets",
+                    10,
+                ),
+                collection: TransmogCollectionState::Uncollected,
+                slots: vec![EquipmentSlot::Hands],
+            },
+        ],
+        sets: vec![TransmogSet {
+            set_id: 13,
+            parent_set_id: 80,
+            name: "Wild Combatant's Chain Armor".into(),
+            source_ids: vec![70594, 70595],
+        }],
+        outfit_entries: vec![
+            TransmogOutfitEntry {
+                id: 2,
+                name: "Outfit 1".into(),
+                order_index: 2,
+                cost: 0,
+                source: 1,
+                flags: 35,
+                set_type: 1,
+            },
+            TransmogOutfitEntry {
+                id: 3,
+                name: "Outfit 2".into(),
+                order_index: 3,
+                cost: 0,
+                source: 1,
+                flags: 3,
+                set_type: 1,
+            },
+        ],
+        illusions: vec![TransmogIllusion {
+            id: 13,
+            enchantment_id: 5393,
+            name: "Crusader".into(),
+            icon_fdid: 236246,
+            cost: 10000,
+            unlock_condition_id: 0,
+            flags: 0,
+            collected: true,
+        }],
+        outfit_slots: vec![TransmogOutfitSlot {
+            id: 13,
             slot: EquipmentSlot::MainHand,
-            item_guid: 91001,
-            item_id: 2850,
-            definition_source: ItemDefinitionSource::Retail,
-            inventory_type: 13,
-            applied: TransmogChoice::Source(821),
-            cost: Some(1500),
-            can_hide: false,
-            sources: vec![
-                TransmogSource {
-                    source_id: 821,
-                    appearance_id: 154,
-                    item_id: 2488,
-                    display_id: 1542,
-                    icon_fdid: 135274,
-                    name: "Gladius".into(),
-                    inventory_type: 13,
-                },
-                TransmogSource {
-                    source_id: 1181,
-                    appearance_id: 389,
-                    item_id: 3295,
-                    display_id: 1546,
-                    icon_fdid: 135343,
-                    name: "Deadman Blade".into(),
-                    inventory_type: 13,
-                },
-            ],
+            flags: 3,
+            collection_type: 0,
         }],
         ..Default::default()
-    });
+    }
+}
+
+fn book() -> TransmogBook {
+    let mut book = TransmogBook::default();
+    book.receive(state());
     book.money = 5000;
+    book.select(EquipmentSlot::MainHand);
     book
 }
 
@@ -63,6 +156,7 @@ fn build(skin: ActiveSkin, book: TransmogBook) -> FrameRegistry {
         book,
         viewport_width: 1920.0,
         race_id: 1,
+        sheathed: false,
     };
     shared.insert(view.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -81,24 +175,49 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     text.text.clone()
 }
 
+fn texture(registry: &FrameRegistry, name: &str) -> ui_toolkit::widgets::texture::TextureSource {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+        panic!("{name}")
+    };
+    texture.source.clone()
+}
+
+fn enabled(registry: &FrameRegistry, name: &str) -> bool {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        panic!("{name}")
+    };
+    button.state != ui_toolkit::widgets::button::ButtonState::Disabled
+}
+
+fn rect(registry: &FrameRegistry, name: &str) -> (f32, f32) {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    (frame.resolved_width(), frame.resolved_height())
+}
+
 #[test]
 fn transmog_retail_frame_and_cells_use_121_natural_dimensions() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());
-        let frame = registry
-            .get(registry.get_by_name("TransmogFrame").unwrap())
-            .unwrap();
+        assert_eq!(rect(&registry, "TransmogFrame"), (1618.0, 883.0));
         assert_eq!(
-            (frame.resolved_width(), frame.resolved_height()),
-            (1618.0, 883.0)
-        );
-        let model = registry
-            .get(registry.get_by_name("TransmogSource821ModelScene").unwrap())
-            .unwrap();
-        assert_eq!(
-            (model.resolved_width(), model.resolved_height()),
+            rect(&registry, "TransmogSource821ModelScene"),
             (100.0, 132.0)
         );
+        assert_eq!(rect(&registry, "TransmogOutfitEntry2Button"), (208.0, 43.0));
+        assert_eq!(rect(&registry, "TransmogSaveOutfitButton"), (128.0, 28.0));
+        assert_eq!(rect(&registry, "TransmogIllusion16"), (42.0, 42.0));
+        let mut sets = book();
+        sets.set_tab(WardrobeTab::Sets);
+        let registry = build(skin, sets);
+        assert_eq!(rect(&registry, "TransmogSet13ModelScene"), (178.0, 218.0));
     }
 }
 
@@ -113,18 +232,8 @@ fn transmog_slot_icon_tracks_authoritative_applied_and_pending_source() {
             state.stage(choice);
             assert_eq!(state.pending_cost(), Some(expected_cost));
             let registry = build(skin, state.clone());
-            let frame = registry
-                .get(
-                    registry
-                        .get_by_name("TransmogSlot16Icon")
-                        .expect("current appearance icon"),
-                )
-                .unwrap();
-            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
-                panic!("slot icon")
-            };
             assert_eq!(
-                texture.source,
+                texture(&registry, "TransmogSlot16Icon"),
                 ui_toolkit::widgets::texture::TextureSource::FileDataId(expected_icon)
             );
         }
@@ -134,13 +243,13 @@ fn transmog_slot_icon_tracks_authoritative_applied_and_pending_source() {
 #[test]
 fn transmog_retail_grid_pages_twenty_models_without_losing_pending_cost() {
     let mut state = book();
-    let slot = &mut state.state.as_mut().unwrap().slots[0];
-    let source = slot.sources[0].clone();
+    let slot = &mut state.state.as_mut().unwrap().slots[1];
+    let first = slot.sources[0].clone();
     slot.sources = (0..41)
         .map(|index| TransmogSource {
             source_id: 821 + index,
             name: format!("Blade {index}"),
-            ..source.clone()
+            ..first.clone()
         })
         .collect();
     assert_eq!(state.pages(), 3);
@@ -151,7 +260,7 @@ fn transmog_retail_grid_pages_twenty_models_without_losing_pending_cost() {
     state.page = 2;
     assert_eq!(state.page_sources().len(), 1);
     assert_eq!(state.pending_cost(), Some(1500));
-    assert!(state.can_apply());
+    assert!(state.can_save_outfit());
 }
 
 fn assert_retail_alpha(registry: &FrameRegistry, name: &str) {
@@ -169,45 +278,144 @@ fn assert_retail_alpha(registry: &FrameRegistry, name: &str) {
 }
 
 #[test]
-fn transmog_wardrobe_exposes_model_cells_fixed_slots_and_outfit_gap_in_both_skins() {
+fn transmog_items_cards_show_applied_and_pending_states_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());
-        for name in [
-            "TransmogSlot1",
-            "TransmogSlot16",
-            "TransmogSlot17",
-            "TransmogSource821ModelScene",
-            "TransmogSource1181ModelScene",
-            "TransmogOutfitDropdown",
-            "TransmogSaveOutfitButton",
-            "TransmogRotateLeft",
-            "TransmogRotateRight",
-            "TransmogSheatheButton",
-            "TransmogRaceBackground",
-            "TransmogSearchBox",
-            "TransmogItemsTab",
-            "TransmogSetsTab",
-            "TransmogCustomSetsTab",
-            "TransmogIllusion16",
-            "TransmogIllusion17",
-        ] {
-            assert!(
-                registry.get_by_name(name).is_some(),
-                "{skin:?}: missing {name}"
-            );
-        }
         assert!(registry.get_by_name("TransmogSource821Icon").is_none());
         assert_eq!(text(&registry, "TransmogSource821Status"), "Applied");
         assert_retail_alpha(&registry, "TransmogSource821Applied");
         assert_eq!(text(&registry, "TransmogSource1181Status"), "Collected");
+        assert!(!enabled(&registry, "TransmogSaveOutfitButton"));
+        assert!(
+            registry
+                .get_by_name("TransmogClearAllPendingButton")
+                .is_none()
+        );
         let mut pending = book();
         pending.stage(TransmogChoice::Source(1181));
         let registry = build(skin, pending);
         assert_eq!(text(&registry, "TransmogSource1181Status"), "Pending");
         assert_retail_alpha(&registry, "TransmogSource1181Pending");
-        assert_eq!(
-            text(&registry, "TransmogPendingChanges"),
-            "1 pending changes"
+        assert!(enabled(&registry, "TransmogSaveOutfitButton"));
+        assert!(enabled(&registry, "TransmogClearAllPendingButton"));
+        assert_eq!(text(&registry, "TransmogPendingCostAmount0"), "15");
+        assert_eq!(text(&registry, "TransmogOutfitEntry2Name"), "Outfit 1");
+        assert!(
+            registry
+                .get_by_name("TransmogOutfitEntry2Selected")
+                .is_some()
         );
+        assert!(
+            registry
+                .get_by_name("TransmogOutfitEntry3Selected")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn transmog_hidden_visual_card_leads_hideable_slot_grid() {
+    let mut book = book();
+    book.select(EquipmentSlot::Chest);
+    let registry = build(ActiveSkin::Modern, book);
+    assert!(registry.get_by_name("TransmogHiddenVisualIcon").is_some());
+    assert_eq!(
+        rect(&registry, "TransmogHiddenVisualModelScene"),
+        (100.0, 132.0)
+    );
+    assert!(
+        registry
+            .get_by_name("TransmogSource70594ModelScene")
+            .is_some()
+    );
+}
+
+#[test]
+fn transmog_sets_tab_marks_incomplete_sets_and_staged_set_state() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut sets = book();
+        sets.set_tab(WardrobeTab::Sets);
+        let registry = build(skin, sets.clone());
+        assert_eq!(text(&registry, "TransmogSet13Status"), "Incomplete (1/2)");
+        assert_eq!(
+            texture(&registry, "TransmogSet13Border"),
+            ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "transmog-setcard-incomplete".into()
+            )
+        );
+        assert!(
+            registry
+                .get_by_name("TransmogSet13IncompleteOverlay")
+                .is_some()
+        );
+        assert!(registry.get_by_name("TransmogSet13State").is_none());
+        assert!(sets.use_set(13));
+        let registry = build(skin, sets);
+        assert_eq!(
+            texture(&registry, "TransmogSet13State"),
+            ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "transmog-setcard-transmogrified-pending".into()
+            )
+        );
+    }
+}
+
+#[test]
+fn transmog_custom_sets_tab_and_name_popup() {
+    let mut custom = book();
+    custom.set_tab(WardrobeTab::CustomSets);
+    let registry = build(ActiveSkin::Forever, custom.clone());
+    assert_eq!(
+        text(&registry, "TransmogCustomSetsNone"),
+        "You don't have any Custom Sets"
+    );
+    assert!(enabled(&registry, "TransmogNewCustomSetButton"));
+    custom.open_custom_set_name();
+    let registry = build(ActiveSkin::Forever, custom.clone());
+    assert_eq!(
+        text(&registry, "TransmogNamePopupText"),
+        "Enter Custom Set Name:"
+    );
+    assert!(registry.get_by_name("TransmogNamePopupEditBox").is_some());
+    assert!(custom.create_custom_set("Duelist").is_some());
+    let mut saved = state();
+    saved.custom_sets = vec![TransmogCustomSet {
+        id: 7,
+        name: "Duelist".into(),
+        choices: vec![TransmogOutfitChoice {
+            slot: EquipmentSlot::MainHand,
+            choice: TransmogChoice::Source(821),
+        }],
+    }];
+    custom.receive(saved);
+    let registry = build(ActiveSkin::Forever, custom);
+    assert!(registry.get_by_name("TransmogNamePopup").is_none());
+    assert_eq!(text(&registry, "TransmogCustomSet7Status"), "Duelist");
+    assert!(registry.get_by_name("TransmogCustomSet7State").is_some());
+}
+
+#[test]
+fn transmog_illusion_slot_lists_collected_illusions_and_shows_the_chosen_icon() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut book = book();
+        book.select_illusion(EquipmentSlot::MainHand);
+        assert!(book.stage_illusion(Some(13)));
+        let registry = build(skin, book);
+        assert_eq!(
+            text(&registry, "TransmogSelectedSlot"),
+            "Weapon Enchantment"
+        );
+        assert_eq!(text(&registry, "TransmogIllusionEntry13Status"), "Pending");
+        assert_eq!(text(&registry, "TransmogIllusionEntry13Name"), "Crusader");
+        assert_eq!(
+            texture(&registry, "TransmogIllusion16Icon"),
+            ui_toolkit::widgets::texture::TextureSource::FileDataId(236246)
+        );
+        assert!(registry.get_by_name("TransmogIllusion16Pending").is_some());
+        assert!(
+            registry.get_by_name("TransmogIllusion17").is_none(),
+            "no off-hand equipped"
+        );
+        assert!(enabled(&registry, "TransmogSaveOutfitButton"));
     }
 }

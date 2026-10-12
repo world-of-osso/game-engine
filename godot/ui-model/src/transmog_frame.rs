@@ -1,4 +1,4 @@
-//! Retail12.1 TransmogFrame regions and TransmogItemModelTemplate natural sizes.
+//! Retail12.1 TransmogFrame regions and template natural sizes.
 //! Sources: Blizzard_Transmog.xml and Blizzard_TransmogTemplates.xml in local Retail UI.
 //! Forever changes art only. Server-authoritative pending/apply behavior is unchanged.
 use crate::bank_art::label;
@@ -6,8 +6,14 @@ use crate::merchant_frame_component::{MoneyAlign, money_colored};
 use crate::quest_art::{DynName, window_chrome};
 use crate::transmog::TransmogBook;
 use crate::ui::strata::FrameStrata;
-use shared::protocol::{EquipmentSlot, TransmogChoice, TransmogSource};
+use shared::protocol::{EquipmentSlot, TransmogChoice};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+
+mod collection;
+pub use collection::{
+    NAME_POPUP_EDITBOX, apply_transmog_art, custom_set_model_scene, illusion_model_scene,
+    set_model_scene, source_model_scene,
+};
 
 pub const WIDTH: f32 = 1618.0;
 pub const HEIGHT: f32 = 883.0;
@@ -16,18 +22,21 @@ pub const SEARCH: &str = "TransmogSearchBox";
 const GOLD: &str = "1,0.8235294,0,1";
 const WHITE: &str = "1,1,1,1";
 const RED: &str = "1,0.1254902,0.1254902,1";
+const GRAY: &str = "0.5,0.5,0.5,1";
+/// OutfitCollection TOPLEFT(2,-21) 312×860; CharacterPreview to its right 658×860.
+const OUTFIT_LEFT: f32 = 2.0;
+const REGION_TOP: f32 = 21.0;
+const REGION_HEIGHT: f32 = 860.0;
 const CHARACTER_LEFT: f32 = 314.0;
-const COLLECTION_LEFT: f32 = 1002.0;
-const MODEL_WIDTH: f32 = 100.0;
-const MODEL_HEIGHT: f32 = 132.0;
-const COLUMN_STEP: f32 = 120.0;
-const ROW_STEP: f32 = 152.0;
+const CHARACTER_WIDTH: f32 = 658.0;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TransmogView {
     pub book: TransmogBook,
     pub viewport_width: f32,
     pub race_id: u8,
+    /// TransmogCharacterMixin:ToggleSheathe state for the SheatheWeaponToggle checkbox.
+    pub sheathed: bool,
 }
 
 fn text(name: &str, value: &str, rect: (f32, f32, f32, f32), color: &str) -> Element {
@@ -40,38 +49,47 @@ fn atlas(name: String, art: &str, rect: (f32, f32, f32, f32)) -> Element {
     pos_type: "absolute", texture_atlas: art } }
 }
 
-/// Blizzard's tertiary controls, never the project's implicit wooden push-button skin.
-fn button(
+/// Atlas-skinned control with no implicit wooden project skin.
+struct Skin<'a> {
+    up: &'a str,
+    pressed: &'a str,
+    disabled: &'a str,
+    highlight: &'a str,
+}
+
+/// SharedButtonTemplate (128-RedButton three-slice, rendered natively from the left member).
+const RED_BUTTON: Skin = Skin {
+    up: "128-redbutton-left",
+    pressed: "128-redbutton-left-pressed",
+    disabled: "128-redbutton-left-disabled",
+    highlight: "128-redbutton-left",
+};
+const TERTIARY: Skin = Skin {
+    up: "common-button-tertiary-normal",
+    pressed: "common-button-tertiary-pressed",
+    disabled: "common-button-tertiary-disabled",
+    highlight: "common-button-tertiary-normal",
+};
+
+fn skinned_button(
     name: &str,
     caption: &str,
     action: &str,
     enabled: bool,
     rect: (f32, f32, f32, f32),
+    skin: &Skin,
+    children: Element,
 ) -> Element {
     let (left, top, width, height) = rect;
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    let (normal, pressed, disabled_art) =
-        if matches!(name, "TransmogApplyButton" | "TransmogSaveOutfitButton") {
-            (
-                "128-redbutton-left",
-                "128-redbutton-left-pressed",
-                "128-redbutton-left-disabled",
-            )
-        } else {
-            (
-                "common-button-tertiary-normal",
-                "common-button-tertiary-pressed",
-                "common-button-tertiary-disabled",
-            )
-        };
     rsx! { button { name: {DynName(name.into())}, width, height, left, top,
     pos_type: "absolute", disabled, text: caption, font_size: 12.0,
     button_default_skin: false, onclick: action,
-    button_atlas_up: normal,
-    button_atlas_pressed: pressed,
-    button_atlas_disabled: disabled_art,
-    button_atlas_highlight: "common-button-tertiary-normal" } }
+    button_atlas_up: skin.up,
+    button_atlas_pressed: skin.pressed,
+    button_atlas_disabled: skin.disabled,
+    button_atlas_highlight: skin.highlight, {children} } }
 }
 
 pub fn transmog_screen(ctx: &SharedContext) -> Element {
@@ -89,26 +107,47 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
         "transmog:close",
     );
     children.extend(region_art());
-    children.extend(outfit_region());
-    children.extend(character_region(&view.book));
-    children.extend(apply_region(&view.book));
-    children.extend(wardrobe_region(&view.book));
+    children.extend(outfit_region(&view.book));
+    children.extend(character_region(&view));
+    children.extend(collection::wardrobe_region(&view.book));
+    children.extend(collection::name_popup(&view.book));
     let left = ((view.viewport_width - WIDTH) * 0.5).max(0.0);
     rsx! { r#frame { name: "TransmogFrame", width: WIDTH, height: HEIGHT, left, top: 41.0,
     pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }
 
 fn region_art() -> Element {
+    let bottom = REGION_TOP + REGION_HEIGHT;
     [
         (
             "TransmogOutfitBackground",
             "transmog-outfit-darkbg",
-            (2.0, 21.0, 312.0, 860.0),
+            (OUTFIT_LEFT, REGION_TOP, 312.0, REGION_HEIGHT),
+        ),
+        (
+            "TransmogOutfitTop",
+            "transmog-outfit-toptexture",
+            (OUTFIT_LEFT, REGION_TOP, 312.0, 102.0),
+        ),
+        (
+            "TransmogOutfitBottom",
+            "transmog-outfit-bottomtexture",
+            (OUTFIT_LEFT, bottom - 90.0, 312.0, 90.0),
+        ),
+        (
+            "TransmogOutfitDividerBar",
+            "transmog-outfit-darkbg-cornerline",
+            (OUTFIT_LEFT + 312.0 - 4.0, REGION_TOP, 6.0, REGION_HEIGHT),
         ),
         (
             "TransmogRaceBackground",
             "transmog-locationbg",
-            (CHARACTER_LEFT, 21.0, 658.0, 860.0),
+            (CHARACTER_LEFT, REGION_TOP, CHARACTER_WIDTH, REGION_HEIGHT),
+        ),
+        (
+            "TransmogGradientLeft",
+            "transmog-outfit-darkbg-gradient",
+            (CHARACTER_LEFT, REGION_TOP, 123.0, REGION_HEIGHT),
         ),
         (
             "TransmogCollectionBackground",
@@ -116,98 +155,170 @@ fn region_art() -> Element {
             (976.0, 60.0, 631.0, 811.0),
         ),
         (
-            "TransmogOutfitTop",
-            "transmog-outfit-toptexture",
-            (2.0, 21.0, 312.0, 64.0),
-        ),
-        (
-            "TransmogOutfitBottom",
-            "transmog-outfit-bottomtexture",
-            (2.0, 807.0, 312.0, 74.0),
+            "TransmogCollectionBorder",
+            "transmog-tabs-frame",
+            (961.0, 44.0, 661.0, 841.0),
         ),
     ]
     .into_iter()
     .flat_map(|(name, art, rect)| atlas(name.into(), art, rect))
+    .chain(
+        rsx! { texture { name: "TransmogGradientRight", width: 123.0, height: REGION_HEIGHT,
+        left: {CHARACTER_LEFT + CHARACTER_WIDTH - 123.0}, top: REGION_TOP, pos_type: "absolute",
+        texture_atlas: "transmog-outfit-darkbg-gradient", rotation: std::f32::consts::PI } },
+    )
     .collect()
 }
 
-fn outfit_region() -> Element {
-    let mut out = text(
-        "TransmogOutfitHeading",
-        "Outfits",
-        (22.0, 45.0, 270.0, 24.0),
-        GOLD,
-    );
-    // Retain the explicit server gap; a client-only save must not impersonate persistence.
-    out.extend(button(
-        "TransmogOutfitDropdown",
-        "Outfits unavailable",
-        "transmog:outfits",
-        false,
-        (11.0, 123.0, 287.0, 43.0),
+/// TransmogOutfitCollectionMixin: ShowEquippedGearSpellFrame, OutfitList, PurchaseOutfitButton,
+/// SaveOutfitButton (CommitAndApplyAllPending) and its MoneyFrame.
+fn outfit_region(book: &TransmogBook) -> Element {
+    let mut out = show_equipped_gear();
+    out.extend(atlas(
+        "TransmogOutfitDividerTop".into(),
+        "transmog-outfit-dividerline",
+        (7.0, 123.0, 299.0, 2.0),
     ));
-    out.extend(button(
-        "TransmogSaveOutfitButton",
-        "Save Outfit",
-        "transmog:save-outfit",
+    out.extend(atlas(
+        "TransmogOutfitDividerBottom".into(),
+        "transmog-outfit-dividerline",
+        (7.0, 771.0, 299.0, 2.0),
+    ));
+    for (index, row) in book.outfit_rows().into_iter().enumerate() {
+        out.extend(outfit_entry(book, &row, 133.0 + index as f32 * 47.0));
+    }
+    // No outfit-slot purchase route exists on the server: Retail's disabled state.
+    let mut purchase = atlas(
+        "TransmogPurchaseOutfitIcon".into(),
+        "transmog-icon-add",
+        (14.0, 9.5, 22.0, 22.0),
+    );
+    purchase.extend(text(
+        "TransmogPurchaseOutfitText",
+        "Purchase Outfit Slot",
+        (42.0, 11.0, 230.0, 20.0),
+        GRAY,
+    ));
+    out.extend(skinned_button(
+        "TransmogPurchaseOutfitButton",
+        "",
+        "",
         false,
+        (10.5, 783.0, 287.0, 41.0),
+        &TERTIARY,
+        purchase,
+    ));
+    let save_label = if book.applying || book.saving.is_some() || book.queued_save.is_some() {
+        "Saving..."
+    } else {
+        "Save Outfit"
+    };
+    out.extend(skinned_button(
+        "TransmogSaveOutfitButton",
+        save_label,
+        "transmog:save-outfit",
+        book.can_save_outfit(),
         (11.0, 839.0, 128.0, 28.0),
+        &RED_BUTTON,
+        Vec::new(),
+    ));
+    out.extend(money_frame(book));
+    out
+}
+
+/// UIPanelSpellButtonFrameTemplate with spell1247917: casting it is not implemented.
+fn show_equipped_gear() -> Element {
+    let border = atlas(
+        "TransmogShowEquippedGearBorder".into(),
+        "transmog-outfit-spellframe",
+        (-4.0, -4.0, 44.0, 44.0),
+    );
+    let mut out = rsx! { button { name: "TransmogShowEquippedGearButton", width: 36.0, height: 36.0,
+    left: 20.0, top: 69.5, pos_type: "absolute", button_default_skin: false, disabled: true, {border} } };
+    out.extend(text(
+        "TransmogShowEquippedGearLabel",
+        "Clear Current Transmogrifications",
+        (64.0, 78.0, 230.0, 20.0),
+        GRAY,
     ));
     out
 }
 
-fn apply_region(book: &TransmogBook) -> Element {
-    let mut out = text(
-        "TransmogPendingChanges",
-        &format!("{} pending changes", book.pending.len()),
-        (524.0, 815.0, 260.0, 22.0),
-        GOLD,
+fn outfit_entry(book: &TransmogBook, row: &crate::transmog::OutfitRow, top: f32) -> Element {
+    let prefix = format!("TransmogOutfitEntry{}", row.id);
+    let viewed = book.viewed_outfit == Some(row.id);
+    // Outfit icons are chosen in the IconSelector popup; the protocol carries none yet.
+    let mut out = atlas(
+        format!("{prefix}IconBorder"),
+        "transmog-outfit-spellframe",
+        (17.5, top + 0.5, 44.0, 44.0),
+    );
+    let mut card = atlas(
+        format!("{prefix}Card"),
+        "transmog-outfit-card",
+        (0.0, 0.0, 208.0, 43.0),
+    );
+    if viewed {
+        card.extend(atlas(
+            format!("{prefix}Selected"),
+            "transmog-outfit-card-selected",
+            (0.0, 0.0, 208.0, 43.0),
+        ));
+    }
+    card.extend(label(
+        format!("{prefix}Name"),
+        &row.name,
+        (22.0, 6.0, 180.0, 20.0),
+        (12.0, if viewed { WHITE } else { GOLD }, "LEFT"),
+    ));
+    let action = format!("transmog:outfit:{}", row.id);
+    let disabled = book.busy();
+    out.extend(
+        rsx! { button { name: {DynName(format!("{prefix}Button"))}, width: 208.0, height: 43.0,
+        left: 65.0, top: {top + 1.0}, pos_type: "absolute", button_default_skin: false, disabled,
+        button_atlas_highlight: "transmog-outfit-card", onclick: {action.as_str()}, {card} } },
+    );
+    out
+}
+
+/// MoneyFrame (common-currencybox-a) with SmallMoneyFrame showing the pending quote.
+fn money_frame(book: &TransmogBook) -> Element {
+    let mut out = atlas(
+        "TransmogMoneyFrameBackground".into(),
+        "common-currencybox-a",
+        (148.0, 841.0, 152.0, 24.0),
     );
     match book.pending_cost() {
-        Some(cost) => out.extend(money_colored(
-            "TransmogPendingCost",
-            cost,
-            (509.0, 857.0),
-            MoneyAlign::Left,
-            WHITE,
-        )),
+        Some(cost) => {
+            let color = if cost > book.money { RED } else { WHITE };
+            out.extend(money_colored(
+                "TransmogPendingCost",
+                cost,
+                (296.0, 858.0),
+                MoneyAlign::Right,
+                color,
+            ))
+        }
         None => out.extend(text(
             "TransmogCostUnavailable",
-            "Cost unavailable in local data",
-            (474.0, 845.0, 320.0, 22.0),
+            "Cost unavailable",
+            (154.0, 843.0, 140.0, 20.0),
             RED,
         )),
     }
-    out.extend(button(
-        "TransmogApplyButton",
-        if book.applying {
-            "Applying..."
-        } else {
-            "Apply"
-        },
-        "transmog:apply",
-        book.can_apply(),
-        (664.0, 840.0, 128.0, 28.0),
-    ));
-    out.extend(button(
-        "TransmogUndoButton",
-        "Undo",
-        "transmog:undo",
-        !book.applying && !book.pending.is_empty(),
-        (894.0, 155.0, 36.0, 36.0),
-    ));
     if !book.error.is_empty() {
         out.extend(text(
             "TransmogError",
             &book.error,
-            (409.0, 105.0, 468.0, 24.0),
+            (CHARACTER_LEFT + 95.0, 105.0, 468.0, 24.0),
             RED,
         ));
     }
     out
 }
 
-fn character_region(book: &TransmogBook) -> Element {
+fn character_region(view: &TransmogView) -> Element {
+    let book = &view.book;
     let mut out = rsx! { r#frame { name: {DynName(MODEL_SCENE.into())}, width: 480.0, height: 640.0,
     left: 403.0, top: 135.0, pos_type: "absolute" } };
     let left = [
@@ -225,70 +336,204 @@ fn character_region(book: &TransmogBook) -> Element {
         EquipmentSlot::Legs,
         EquipmentSlot::Feet,
     ];
+    // LeftSlots LEFT x28 / RightSlots RIGHT x-28, VerticalLayoutFrame spacing5.
     for (column, slots) in [(342.0, left.as_slice()), (885.0, right.as_slice())] {
-        let top = 21.0 + (860.0 - (slots.len() as f32 * 64.0 - 5.0)) * 0.5;
+        let top = REGION_TOP + (REGION_HEIGHT - (slots.len() as f32 * 64.0 - 5.0)) * 0.5;
         for (row, slot) in slots.iter().enumerate() {
             out.extend(slot_button(book, *slot, column, top + row as f32 * 64.0));
         }
     }
+    // BottomSlots BOTTOM y48; illusion slots TOP at the weapon's BOTTOM +19.
+    let bottom_top = REGION_TOP + REGION_HEIGHT - 48.0 - 59.0;
     for (index, slot) in [EquipmentSlot::MainHand, EquipmentSlot::OffHand]
         .into_iter()
         .enumerate()
     {
-        out.extend(slot_button(book, slot, 581.5 + index as f32 * 64.0, 754.0));
+        let x = CHARACTER_LEFT + (CHARACTER_WIDTH - 123.0) * 0.5 + index as f32 * 64.0;
+        out.extend(slot_button(book, slot, x, bottom_top));
+        if book.illusion_allowed(slot) {
+            out.extend(illusion_slot(book, slot, x + 8.5, bottom_top + 59.0 - 19.0));
+        }
     }
-    out.extend(illusion_slots());
-    out.extend(preview_controls());
+    out.extend(clear_all_pending(book));
+    out.extend(toggle_options(view.sheathed));
+    out.extend(model_controls());
     out
 }
 
-fn illusion_slots() -> Element {
-    [16, 17]
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, slot)| {
-            let name = format!("TransmogIllusion{slot}");
-            let mut art = atlas(
-                format!("{name}Icon"),
-                "transmog-gearslot-unassigned-enchant",
-                (6.5, 6.5, 29.0, 29.0),
-            );
-            art.extend(atlas(
-                format!("{name}Border"),
-                "transmog-gearslot-disabled-small",
-                (0.0, 0.0, 42.0, 42.0),
-            ));
-            // The wire contract has no illusion choice; never submit it as an item source.
-            rsx! { button { name: {DynName(name)}, width: 42.0, height: 42.0,
-            left: {590.0 + index as f32 * 64.0}, top: 794.0, pos_type: "absolute",
-            button_default_skin: false, disabled: true, {art} } }
-        })
-        .collect()
+/// TransmogIllusionSlotTemplate42×42: SpellItemEnchantment icon or the unassigned atlas.
+fn illusion_slot(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Element {
+    let name = format!("TransmogIllusion{}", slot.inv_slot_id());
+    let illusion = book
+        .effective_illusion(slot)
+        .and_then(|id| book.illusion(id));
+    let mut art = match illusion {
+        Some(illusion) if illusion.icon_fdid != 0 => rsx! { texture {
+        name: {DynName(format!("{name}Icon"))}, width: 29.0, height: 29.0, left: 6.5, top: 6.5,
+        pos_type: "absolute", texture_fdid: {illusion.icon_fdid} } },
+        _ => atlas(
+            format!("{name}Icon"),
+            "transmog-gearslot-unassigned-enchant",
+            (6.5, 6.5, 29.0, 29.0),
+        ),
+    };
+    let border = if illusion.is_some() {
+        "transmog-gearslot-transmogrified-small"
+    } else {
+        "transmog-gearslot-default-small"
+    };
+    art.extend(atlas(
+        format!("{name}Border"),
+        border,
+        (0.0, 0.0, 42.0, 42.0),
+    ));
+    if book.pending_illusions.contains_key(&slot) {
+        art.extend(atlas(
+            format!("{name}Pending"),
+            "transmog-gearslot-pending",
+            (-8.0, -8.0, 58.0, 58.0),
+        ));
+    }
+    if book.illusion_selected && book.selected == Some(slot) {
+        art.extend(atlas(
+            format!("{name}Selected"),
+            "transmog-gearslot-selected",
+            (-2.0, -2.0, 46.0, 46.0),
+        ));
+    }
+    let status = illusion.map_or("", |illusion| illusion.name.as_str());
+    art.extend(rsx! { fontstring { name: {DynName(format!("{name}Status"))}, text: status, visible: false } });
+    let action = format!("transmog:illusion-slot:{}", slot.inv_slot_id());
+    let disabled = book.busy();
+    rsx! { button { name: {DynName(name)}, width: 42.0, height: 42.0, left: x, top: y,
+    pos_type: "absolute", button_default_skin: false, disabled,
+    button_atlas_highlight: border, onclick: {action.as_str()}, {art} } }
 }
 
-fn preview_controls() -> Element {
-    [
+/// ClearAllPendingButton TOPRIGHT(-21,-134): shown while anything is pending.
+fn clear_all_pending(book: &TransmogBook) -> Element {
+    if book.pending_count() == 0 {
+        return Vec::new();
+    }
+    let icon = atlas(
+        "TransmogClearAllPendingIcon".into(),
+        "common-icon-undo",
+        (9.0, 9.0, 18.0, 18.0),
+    );
+    skinned_button(
+        "TransmogClearAllPendingButton",
+        "",
+        "transmog:undo",
+        !book.busy(),
         (
-            "TransmogRotateLeft",
-            "<",
-            "transmog:rotate-left",
-            (574.0, 39.0, 28.0, 24.0),
+            CHARACTER_LEFT + CHARACTER_WIDTH - 21.0 - 36.0,
+            REGION_TOP + 134.0,
+            36.0,
+            36.0,
+        ),
+        &Skin {
+            up: "common-button-tertiary-square-normal",
+            pressed: "common-button-tertiary-square-pressed",
+            disabled: "common-button-tertiary-square-normal",
+            highlight: "common-button-tertiary-square-normal",
+        },
+        icon,
+    )
+}
+
+/// ToggleOptions TOPLEFT(25,-25), MinimalCheckboxTemplate rows spaced5.
+fn toggle_options(sheathed: bool) -> Element {
+    let mut out = Vec::new();
+    for (index, (name, caption, action, checked, enabled)) in [
+        // Display types (Ignore Slot) are not modelled, so nothing can be hidden.
+        (
+            "TransmogHideIgnoredToggle",
+            "Hide Ignored Slots",
+            "",
+            false,
+            false,
         ),
         (
-            "TransmogSheatheButton",
-            "Sheathe / Draw",
+            "TransmogSheatheWeaponToggle",
+            "Sheathe Weapon",
             "transmog:sheathe",
-            (342.0, 70.0, 160.0, 24.0),
-        ),
-        (
-            "TransmogRotateRight",
-            ">",
-            "transmog:rotate-right",
-            (679.0, 39.0, 28.0, 24.0),
+            sheathed,
+            true,
         ),
     ]
     .into_iter()
-    .flat_map(|(name, text, action, rect)| button(name, text, action, true, rect))
+    .enumerate()
+    {
+        let top = REGION_TOP + 25.0 + index as f32 * 34.0;
+        let mut art = Vec::new();
+        if checked {
+            art.extend(atlas(
+                format!("{name}Check"),
+                "checkmark-minimal",
+                (0.0, 0.0, 30.0, 29.0),
+            ));
+        }
+        let disabled = !enabled;
+        out.extend(
+            rsx! { button { name: {DynName(name.into())}, width: 30.0, height: 29.0,
+            left: {CHARACTER_LEFT + 25.0}, top, pos_type: "absolute", button_default_skin: false,
+            disabled, onclick: action, button_atlas_up: "checkbox-minimal",
+            button_atlas_pressed: "checkbox-minimal", button_atlas_disabled: "checkbox-minimal",
+            button_atlas_highlight: "checkbox-minimal", {art} } },
+        );
+        out.extend(text(
+            &format!("{name}Text"),
+            caption,
+            (CHARACTER_LEFT + 59.0, top + 5.0, 200.0, 20.0),
+            if enabled { GOLD } else { GRAY },
+        ));
+    }
+    out
+}
+
+/// ModelSceneControlFrameTemplate TOP(0,-18): zoom, rotate and reset buttons, padding -6.
+fn model_controls() -> Element {
+    let left = CHARACTER_LEFT + (CHARACTER_WIDTH - (5.0 * 32.0 - 4.0 * 6.0)) * 0.5;
+    [
+        ("TransmogZoomIn", "common-icon-zoomin", ""),
+        ("TransmogZoomOut", "common-icon-zoomout", ""),
+        (
+            "TransmogRotateLeft",
+            "common-icon-rotateleft",
+            "transmog:rotate-left",
+        ),
+        (
+            "TransmogRotateRight",
+            "common-icon-rotateright",
+            "transmog:rotate-right",
+        ),
+        (
+            "TransmogResetRotation",
+            "common-icon-undo",
+            "transmog:reset-rotation",
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, (name, icon, action))| {
+        let art = atlas(format!("{name}Icon"), icon, (8.0, 8.0, 16.0, 16.0));
+        // The detached preview camera has no zoom control yet.
+        let enabled = !action.is_empty();
+        skinned_button(
+            name,
+            "",
+            action,
+            enabled,
+            (left + index as f32 * 26.0, REGION_TOP + 18.0, 32.0, 32.0),
+            &Skin {
+                up: "common-button-square-gray-up",
+                pressed: "common-button-square-gray-down",
+                disabled: "common-button-square-gray-up",
+                highlight: "common-button-square-gray-up",
+            },
+            art,
+        )
+    })
     .collect()
 }
 
@@ -309,8 +554,15 @@ fn slot_button(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Elem
             left: 7.0, top: 7.0, pos_type: "absolute", texture_fdid: icon } },
         );
     }
+    if state.is_some_and(|state| book.effective_choice(state) == TransmogChoice::Hidden) {
+        children.extend(atlas(
+            format!("{name}HiddenIcon"),
+            "transmog-icon-hidden",
+            (11.5, 14.5, 36.0, 30.0),
+        ));
+    }
     children.extend(slot_border(book, slot, state));
-    let disabled = book.applying || state.is_none();
+    let disabled = book.busy() || state.is_none();
     let action = format!("transmog:slot:{}", slot.inv_slot_id());
     rsx! { button { name: {DynName(name)}, width: 59.0, height: 59.0, left: x, top: y,
     pos_type: "absolute", button_default_skin: false, disabled, onclick: {action.as_str()}, {children} } }
@@ -335,7 +587,7 @@ fn slot_border(
     let inset = (59.0 - size) * 0.5;
     let name = format!("TransmogSlot{}", slot.inv_slot_id());
     let mut out = atlas(format!("{name}Border"), border, (inset, inset, size, size));
-    if book.selected == Some(slot) {
+    if book.selected == Some(slot) && !book.illusion_selected {
         out.extend(atlas(
             format!("{name}Selected"),
             "transmog-gearslot-selected",
@@ -346,236 +598,19 @@ fn slot_border(
 }
 
 fn slot_icon(book: &TransmogBook, slot: &shared::protocol::TransmogSlot) -> Option<u32> {
-    let choice = book
-        .pending
-        .get(&slot.slot)
-        .copied()
-        .unwrap_or(slot.applied);
-    match choice {
+    match book.effective_choice(slot) {
         TransmogChoice::Source(id) => {
             let source = slot.sources.iter().find(|source| source.source_id == id)?;
             (source.icon_fdid != 0).then_some(source.icon_fdid)
         }
-        TransmogChoice::Original => {
-            crate::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id)
-                .map(|item| item.icon_fdid)
-        }
+        TransmogChoice::Original => equipped_icon(slot),
         TransmogChoice::Hidden => None,
     }
 }
 
-fn wardrobe_region(book: &TransmogBook) -> Element {
-    let mut out = collection_tabs();
-    out.extend(search_box(book));
-    out.extend(selected_slot_controls(book));
-    out.extend(
-        book.page_sources()
-            .iter()
-            .enumerate()
-            .flat_map(|(index, source)| source_button(book, source, index)),
-    );
-    out.extend(paging_controls(book));
-    out
-}
-
-fn collection_tabs() -> Element {
-    [("TransmogItemsTab", "Items", true), ("TransmogSetsTab", "Sets", false), ("TransmogCustomSetsTab", "Custom Sets", false)]
-        .into_iter().enumerate().flat_map(|(index, (name, caption, selected))| {
-            let prefix = if selected { "uiframe-activetab" } else { "uiframe-tab" };
-            let height = if selected { 42.0 } else { 36.0 };
-            let mut art = Vec::new();
-            // TabSystemTopButtonTemplate rotates right cap onto the left and vice versa.
-            for (suffix, x, width) in [("right", -7.0, 37.0), ("center", 30.0, 30.0), ("left", 60.0, 35.0)] {
-                let member = if suffix == "center" { format!("_{prefix}-{suffix}") } else { format!("{prefix}-{suffix}") };
-                let rotation = std::f32::consts::PI;
-                art.extend(rsx! { texture { name: {DynName(format!("{name}{suffix}"))}, width, height,
-                left: x, top: 0.0, pos_type: "absolute", texture_atlas: {member.as_str()}, rotation } });
-            }
-            if selected { art.extend(atlas(format!("{name}Highlight"), "transmog-tab-hl", (2.0, 26.0, 90.0, 1.0))); }
-            let color = if selected { WHITE } else { "0.5,0.5,0.5,1" };
-            art.extend(label(format!("{name}Text"), caption, (0.0, 3.0, 95.0, 28.0), (12.0, color, "CENTER")));
-            rsx! { button { name: {DynName(name.into())}, width: 95.0, height: 32.0,
-            left: {1004.0 + index as f32 * 96.0}, top: 33.0, pos_type: "absolute",
-            button_default_skin: false, disabled: true, {art} } }
-        }).collect()
-}
-
-fn search_box(book: &TransmogBook) -> Element {
-    let mut art = atlas(
-        "TransmogSearchBackground".into(),
-        "common-searchbar-a",
-        (0.0, 0.0, 142.0, 19.0),
-    );
-    art.extend(atlas(
-        "TransmogSearchIcon".into(),
-        "common-searchbar-icon-a",
-        (4.0, 4.0, 12.0, 12.0),
-    ));
-    let clear_visible = !book.search.is_empty();
-    let clear_art = atlas(
-        "TransmogSearchClearIcon".into(),
-        "common-search-clearbutton",
-        (3.0, 3.0, 10.0, 10.0),
-    );
-    art.extend(
-        rsx! { button { name: "TransmogSearchClear", width: 17.0, height: 17.0,
-        left: 122.0, top: 1.0, pos_type: "absolute", visible: clear_visible,
-        button_default_skin: false, onclick: "transmog:clear-search", {clear_art} } },
-    );
-    rsx! { editbox { name: {DynName(SEARCH.into())}, width: 142.0, height: 19.0,
-    left: 1345.0, top: 79.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
-    text_insets: "22,22,0,0", max_letters: 40, text: {book.search.as_str()}, {art} } }
-}
-
-fn selected_slot_controls(book: &TransmogBook) -> Element {
-    let Some(slot) = book.selected_slot() else {
-        return vec![];
-    };
-    let mut out = text(
-        "TransmogSelectedSlot",
-        slot_name(slot.slot),
-        (995.0, 114.0, 250.0, 24.0),
-        WHITE,
-    );
-    out.extend(button(
-        "TransmogOriginalButton",
-        "Equipped",
-        "transmog:original",
-        !book.applying,
-        (COLLECTION_LEFT, 158.0, 180.0, 32.0),
-    ));
-    if slot.can_hide {
-        out.extend(button(
-            "TransmogHideButton",
-            "Hidden",
-            "transmog:hide",
-            !book.applying,
-            (COLLECTION_LEFT + 205.0, 158.0, 180.0, 32.0),
-        ));
-    }
-    if book.page_sources().is_empty() {
-        out.extend(text(
-            "TransmogNoSources",
-            if slot.sources.is_empty() {
-                "No collected appearances usable for this item."
-            } else {
-                "No matches."
-            },
-            (COLLECTION_LEFT, 245.0, 550.0, 48.0),
-            WHITE,
-        ));
-    }
-    out
-}
-
-fn paging_controls(book: &TransmogBook) -> Element {
-    let mut out = text(
-        "TransmogPage",
-        &format!("{} / {}", book.page + 1, book.pages()),
-        (1225.0, 832.0, 64.0, 32.0),
-        WHITE,
-    );
-    out.extend(button(
-        "TransmogPreviousPage",
-        "",
-        "transmog:previous",
-        book.page > 0,
-        (1294.0, 832.0, 32.0, 32.0),
-    ));
-    out.extend(button(
-        "TransmogNextPage",
-        "",
-        "transmog:next",
-        book.page + 1 < book.pages(),
-        (1331.0, 832.0, 32.0, 32.0),
-    ));
-    out
-}
-
-/// Collection overlay centers must not conceal the native models.
-pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
-    apply_paging_art(registry);
-    for source in view.book.page_sources() {
-        let name = format!("TransmogSource{}", source.source_id);
-        let id = registry
-            .get_by_name(&name)
-            .expect("registered transmog source");
-        let frame = registry.get_mut(id).expect("registered transmog source");
-        let Some(ui_toolkit::frame::WidgetData::Button(button)) = &mut frame.widget_data else {
-            panic!("Transmog source {name} is not a button");
-        };
-        button.highlight_size = Some([114.0, 146.0]);
-    }
-}
-
-/// Blizzard_PagingControls.xml file textures; ids from the maintained local listfile.
-fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    use ui_toolkit::{frame::WidgetData, widgets::texture::TextureSource};
-    for (name, normal, pressed, disabled) in [
-        ("TransmogPreviousPage", 130869, 130868, 130867),
-        ("TransmogNextPage", 130866, 130865, 130864),
-    ] {
-        let id = registry.get_by_name(name).expect("transmog paging control");
-        let frame = registry.get_mut(id).expect("registered paging control");
-        let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
-            panic!("{name} is not a button")
-        };
-        button.normal_texture = Some(TextureSource::FileDataId(normal));
-        button.pushed_texture = Some(TextureSource::FileDataId(pressed));
-        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
-        button.highlight_texture = Some(TextureSource::FileDataId(130757));
-    }
-}
-
-pub fn source_model_scene(source_id: u32) -> String {
-    format!("TransmogSource{source_id}ModelScene")
-}
-
-fn source_button(book: &TransmogBook, source: &TransmogSource, index: usize) -> Element {
-    let x = COLLECTION_LEFT + (index % 5) as f32 * COLUMN_STEP;
-    let y = 219.0 + (index / 5) as f32 * ROW_STEP;
-    let prefix = format!("TransmogSource{}", source.source_id);
-    let action = format!("transmog:source:{}", source.source_id);
-    let mut children = rsx! { r#frame { name: {DynName(source_model_scene(source.source_id))}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
-    left: 0.0, top: 0.0, pos_type: "absolute", background_color: "0,0,0,1" } };
-    children.extend(atlas(
-        format!("{prefix}Border"),
-        "transmog-itemcard-default",
-        (-7.0, -7.0, 114.0, 146.0),
-    ));
-    let applied = book
-        .selected_slot()
-        .is_some_and(|slot| slot.applied == TransmogChoice::Source(source.source_id));
-    let pending = book.selected.is_some_and(|slot| {
-        book.pending.get(&slot) == Some(&TransmogChoice::Source(source.source_id))
-    });
-    if applied {
-        children.extend(atlas(
-            format!("{prefix}Applied"),
-            "transmog-itemcard-transmogrified",
-            (-7.0, -7.0, 114.0, 146.0),
-        ));
-    }
-    if pending {
-        children.extend(atlas(
-            format!("{prefix}Pending"),
-            "transmog-itemcard-transmogrified-pending",
-            (-7.0, -7.0, 114.0, 146.0),
-        ));
-    }
-    // Semantic status remains available to automation without a non-Retail caption below every model.
-    let status = if pending {
-        "Pending"
-    } else if applied {
-        "Applied"
-    } else {
-        "Collected"
-    };
-    children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: status, visible: false } });
-    let disabled = book.applying;
-    rsx! { button { name: {DynName(prefix)}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
-    left: x, top: y, pos_type: "absolute", disabled, button_default_skin: false,
-    button_atlas_highlight: "transmog-itemcard-hover", onclick: {action.as_str()}, {children} } }
+fn equipped_icon(slot: &shared::protocol::TransmogSlot) -> Option<u32> {
+    crate::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id)
+        .map(|item| item.icon_fdid)
 }
 
 fn slot_atlas(slot: EquipmentSlot) -> &'static str {
@@ -594,6 +629,26 @@ fn slot_atlas(slot: EquipmentSlot) -> &'static str {
         EquipmentSlot::MainHand => "transmog-gearslot-unassigned-mainhand",
         EquipmentSlot::OffHand => "transmog-gearslot-unassigned-offhand",
         _ => unreachable!("Transmog has only visual slots"),
+    }
+}
+
+/// C_TransmogOutfitInfo.GetUnassignedDisplayAtlasForSlot.
+fn appearance_atlas(slot: EquipmentSlot) -> &'static str {
+    match slot {
+        EquipmentSlot::Head => "transmog-appearance-unassigned-head",
+        EquipmentSlot::Shoulder => "transmog-appearance-unassigned-shoulders",
+        EquipmentSlot::Back => "transmog-appearance-unassigned-back",
+        EquipmentSlot::Chest => "transmog-appearance-unassigned-chest",
+        EquipmentSlot::Shirt => "transmog-appearance-unassigned-shirt",
+        EquipmentSlot::Tabard => "transmog-appearance-unassigned-tabard",
+        EquipmentSlot::Wrist => "transmog-appearance-unassigned-wrist",
+        EquipmentSlot::Hands => "transmog-appearance-unassigned-hands",
+        EquipmentSlot::Waist => "transmog-appearance-unassigned-waist",
+        EquipmentSlot::Legs => "transmog-appearance-unassigned-legs",
+        EquipmentSlot::Feet => "transmog-appearance-unassigned-feet",
+        EquipmentSlot::MainHand => "transmog-appearance-unassigned-mainhand",
+        EquipmentSlot::OffHand => "transmog-appearance-unassigned-offhand",
+        _ => "transmog-appearance-unassigned-head",
     }
 }
 
