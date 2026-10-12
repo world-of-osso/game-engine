@@ -23,6 +23,8 @@ pub enum Tab {
     Raids,
     ItemSets,
     Tutorials,
+    Monthly,
+    Suggested,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Page {
@@ -64,6 +66,8 @@ pub struct View {
     pub challenge: Option<shared::protocol::ChallengeRun>,
     pub keys: Vec<shared::protocol::KeystoneInfo>,
     pub owned_keys_only: bool,
+    pub activities: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
+    pub activity_filters: crate::adventure_activities::ActivityFilters,
 }
 impl Default for View {
     fn default() -> Self {
@@ -92,6 +96,8 @@ impl Default for View {
             challenge: None,
             keys: Vec::new(),
             owned_keys_only: false,
+            activities: None,
+            activity_filters: Default::default(),
         }
     }
 }
@@ -384,6 +390,8 @@ impl View {
                     Some("raids") => Tab::Raids,
                     Some("sets") => Tab::ItemSets,
                     Some("tutorials") => Tab::Tutorials,
+                    Some("monthly") => Tab::Monthly,
+                    Some("suggested") => Tab::Suggested,
                     _ => return Err("Unknown journal tab".into()),
                 };
                 if self.tab == Tab::ItemSets && self.spec == 0 {
@@ -393,6 +401,22 @@ impl View {
                 self.encounter = None;
                 self.filter_menu = None;
                 self.search.clear();
+            }
+            "activity-filter" => {
+                self.activity_filters.tracked_only = match value {
+                    Some("all") => false,
+                    Some("tracked") => true,
+                    _ => return Err("Unknown activity filter".into()),
+                };
+            }
+            "activity-tag" => self.activity_filters.tag = number()?,
+            "activity" => {
+                let id = number()?;
+                self.activity_filters.selected = if self.activity_filters.selected == Some(id) {
+                    None
+                } else {
+                    Some(id)
+                };
             }
             "owned-keys" => {
                 self.owned_keys_only = !self.owned_keys_only;
@@ -528,6 +552,8 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         ("Raids", "raids"),
         ("Item Sets", "sets"),
         ("Tutorials", "tutorials"),
+        ("Traveler's Log", "monthly"),
+        ("Suggested", "suggested"),
     ]
     .into_iter()
     .enumerate()
@@ -536,7 +562,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             format!("EncounterJournalTab{index}"),
             title,
             &format!("journal:tab:{action}"),
-            (12. + index as f32 * 120., 496., 117., 24.),
+            (12. + index as f32 * 130., 496., 127., 24.),
         ));
     }
     body.extend(if view.loading {
@@ -549,6 +575,15 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         match view.tab {
             Tab::Tutorials => tutorials(view),
             Tab::ItemSets => sets(ctx, view),
+            Tab::Monthly => crate::adventure_activities::monthly(
+                ctx,
+                view.activities.as_deref(),
+                &view.activity_filters,
+                &view.search,
+            ),
+            Tab::Suggested => {
+                crate::adventure_activities::suggested(ctx, view.activities.as_deref())
+            }
             _ => {
                 if view.instance.is_some() {
                     encounter_page(ctx, view)
