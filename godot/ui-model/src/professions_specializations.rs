@@ -1,13 +1,13 @@
 //! Retail specialization draft. Server snapshots own committed knowledge and unlocks.
 use shared::protocol::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SpecializationDraft {
     pub snapshot: Option<ProfessionSpecializationsSnapshot>,
     pub selected_tree: Option<u32>,
     pub selected_node: Option<u32>,
-    pub purchases: BTreeMap<(u32, u32), ProfessionTraitPurchase>,
+    pub purchases: BTreeMap<(u32, u32, u32), ProfessionTraitPurchase>,
     pub confirming_unlock: bool,
     pub pending: bool,
     pub status: String,
@@ -21,14 +21,74 @@ impl SpecializationDraft {
             .find(|t| Some(t.tree_id) == self.selected_tree)
     }
     pub fn node(&self) -> Option<&ProfessionSpecNodeSnapshot> {
-        self.tree()?
+        self.entry_for_node(self.selected_node?)
+    }
+    pub fn entry_for_node(&self, node_id: u32) -> Option<&ProfessionSpecNodeSnapshot> {
+        let tree = self.tree()?;
+        let entries: Vec<_> = tree
             .nodes
             .iter()
-            .find(|n| Some(n.node_id) == self.selected_node)
+            .filter(|entry| entry.node_id == node_id)
+            .collect();
+        let unfinished: Vec<_> = entries
+            .iter()
+            .copied()
+            .filter(|entry| self.rank(tree.tree_id, entry) + entry.granted_rank < entry.max_rank)
+            .collect();
+        if let Some(entry) = unfinished.iter().copied().find(|entry| entry.available) {
+            return Some(entry);
+        }
+        if let Some(entry) = unfinished.first() {
+            return Some(*entry);
+        }
+        entries.last().copied()
+    }
+    pub fn path_nodes(&self) -> Vec<&ProfessionSpecNodeSnapshot> {
+        let Some(tree) = self.tree() else {
+            return vec![];
+        };
+        let mut ids = BTreeSet::new();
+        tree.nodes
+            .iter()
+            .filter(|entry| entry.kind == 1 || entry.node_id == tree.root_node_id)
+            .filter(|entry| ids.insert(entry.node_id))
+            .filter_map(|entry| self.entry_for_node(entry.node_id))
+            .collect()
+    }
+    pub fn display_ranks(&self, node_id: u32) -> Option<(u32, u32)> {
+        let tree = self.tree()?;
+        let entries: Vec<_> = tree
+            .nodes
+            .iter()
+            .filter(|entry| entry.node_id == node_id)
+            .collect();
+        let first = entries.first()?;
+        let total = entries
+            .iter()
+            .map(|entry| self.rank(tree.tree_id, entry) + entry.granted_rank)
+            .sum::<u32>();
+        let maximum = entries.iter().map(|entry| entry.max_rank).sum::<u32>();
+        // Mainline GetRanks excludes the first unlock tier of a profession path.
+        let unlock = if first.kind == 1 { first.max_rank } else { 0 };
+        Some((total.saturating_sub(unlock), maximum.saturating_sub(unlock)))
+    }
+    pub fn path_unlocked(&self, node_id: u32) -> bool {
+        let Some(tree) = self.tree() else {
+            return false;
+        };
+        if node_id == tree.root_node_id {
+            return tree.unlocked;
+        }
+        tree.nodes
+            .iter()
+            .find(|entry| entry.node_id == node_id)
+            .is_some_and(|entry| {
+                entry.max_rank == 0 || self.rank(tree.tree_id, entry) + entry.granted_rank > 0
+            })
     }
     pub fn rank(&self, tree: u32, node: &ProfessionSpecNodeSnapshot) -> u32 {
         self.purchases
-            .get(&(tree, node.node_id))
+            .get(&(tree, node.node_id, node.entry_id))
             .map_or(node.rank, |p| p.ranks)
     }
     fn spent_currency(&self, trait_currency_id: u32) -> u32 {
@@ -106,7 +166,7 @@ impl SpecializationDraft {
         }
         let tree = self.tree().unwrap();
         let node = self.node().unwrap();
-        let key = (tree.tree_id, node.node_id);
+        let key = (tree.tree_id, node.node_id, node.entry_id);
         let purchase = ProfessionTraitPurchase {
             node_id: node.node_id,
             entry_id: node.entry_id,
@@ -124,7 +184,7 @@ impl SpecializationDraft {
         let purchases: Vec<_> = self
             .purchases
             .iter()
-            .filter(|((tree, _), _)| *tree == tree_id)
+            .filter(|((tree, _, _), _)| *tree == tree_id)
             .map(|(_, p)| p.clone())
             .collect();
         if purchases.is_empty() {
@@ -152,7 +212,7 @@ impl SpecializationDraft {
             return None;
         }
         let tree = self.tree()?;
-        let node = tree.nodes.iter().find(|n| n.node_id == tree.root_node_id)?;
+        let node = self.entry_for_node(tree.root_node_id)?;
         let request = ProfessionSpecializationRequest::Commit {
             skill_line: self.snapshot.as_ref()?.skill_line,
             tree_id: tree.tree_id,
@@ -169,7 +229,7 @@ impl SpecializationDraft {
     pub fn undo(&mut self) {
         if !self.pending {
             self.purchases
-                .retain(|(tree, _), _| Some(*tree) != self.selected_tree);
+                .retain(|(tree, _, _), _| Some(*tree) != self.selected_tree);
         }
     }
     pub fn receive(&mut self, update: ProfessionSpecializationStateUpdate) {
@@ -194,15 +254,11 @@ impl SpecializationDraft {
         use crate::tooltip_presentation::{
             TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation, description_lines,
         };
-        let tree = self.tree()?;
-        let node = tree.nodes.iter().find(|n| n.node_id == node_id)?;
+        let node = self.entry_for_node(node_id)?;
+        let (rank, maximum) = self.display_ranks(node_id)?;
         let mut lines = description_lines(&node.description, TOOLTIP_DESCRIPTION_COLOR);
         lines.push(TooltipLineState::colored(
-            format!(
-                "Rank {}/{}",
-                self.rank(tree.tree_id, node) + node.granted_rank,
-                node.max_rank
-            ),
+            format!("Rank {rank}/{maximum}"),
             [1.0; 4],
         ));
         if let Some(perk) = &node.perk {

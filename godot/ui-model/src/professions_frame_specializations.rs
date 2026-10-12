@@ -76,7 +76,7 @@ pub(super) fn page(view: &ProfessionView) -> Element {
     ));
     let centers = node_centers(tree);
     out.extend(edges(tree, &centers));
-    for node in &tree.nodes {
+    for node in state.path_nodes() {
         let center = centers[&node.node_id];
         out.extend(node_button(view, node, center));
     }
@@ -84,7 +84,7 @@ pub(super) fn page(view: &ProfessionView) -> Element {
     let has_changes = state
         .purchases
         .keys()
-        .any(|(tree, _)| Some(*tree) == state.selected_tree);
+        .any(|(tree, _, _)| Some(*tree) == state.selected_tree);
     if tree.unlocked {
         out.extend(panel_button(
             "ProfessionSpecApply".into(),
@@ -205,20 +205,19 @@ fn node_button(
             (-11.5, -11.5, 78.0, 78.0),
         ));
     }
-    if !node.available && node.rank + node.granted_rank == 0 {
+    if !state.path_unlocked(node.node_id) {
         children.extend(art::atlas(
             &format!("ProfessionSpecNode{}Lock", node.node_id),
             "Professions_Specialization_Lock",
             (18.5, 32.0, 18.0, 24.0),
         ));
     }
+    let (rank, maximum) = state
+        .display_ranks(node.node_id)
+        .expect("displayed source path");
     children.extend(label(
         format!("ProfessionSpecRank{}", node.node_id),
-        &format!(
-            "{}/{}",
-            state.rank(state.selected_tree.unwrap(), node) + node.granted_rank,
-            node.max_rank
-        ),
+        &format!("{rank}/{maximum}"),
         (0.0, 53.0, 55.0, 20.0),
         (12.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
     ));
@@ -254,13 +253,12 @@ fn detailed_path(view: &ProfessionView) -> Element {
         (893.5, 316.5, 63.0, 63.0),
         "1,1,1,1",
     ));
+    let (rank, maximum) = state
+        .display_ranks(node.node_id)
+        .expect("selected source path");
     out.extend(label(
         "ProfessionSpecDetailedRank".into(),
-        &format!(
-            "{}/{}",
-            state.rank(state.selected_tree.unwrap(), node) + node.granted_rank,
-            node.max_rank
-        ),
+        &format!("{rank}/{maximum}"),
         (848.0, 394.0, 155.0, 22.0),
         (16.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
     ));
@@ -271,10 +269,10 @@ fn detailed_path(view: &ProfessionView) -> Element {
     ));
     out.extend(panel_button(
         "ProfessionSpecSpend".into(),
-        if node.rank + node.granted_rank == 0 {
-            "Unlock Path"
-        } else {
+        if state.path_unlocked(node.node_id) {
             "Spend Point"
+        } else {
+            "Unlock Path"
         },
         "profession:spec:spend",
         state.can_stage(),

@@ -79,6 +79,54 @@ fn specialization_undo_restores_balance_and_never_requests_a_refund() {
     assert_eq!(draft.snapshot.as_ref().unwrap().trees[0].nodes[0].rank, 1);
 }
 #[test]
+fn specialization_unlocked_root_spends_available_knowledge_entry_not_maxed_unlock_entry() {
+    let mut draft = draft();
+    let snapshot = draft.snapshot.as_mut().unwrap();
+    let tree = &mut snapshot.trees[0];
+    tree.root_node_id = 28546;
+    let unlock = &mut tree.nodes[0];
+    unlock.node_id = 28546;
+    unlock.entry_id = 36338;
+    unlock.rank = 1;
+    unlock.max_rank = 1;
+    unlock.available = false;
+    unlock.kind = 1;
+    unlock.costs = vec![ProfessionSpecCost {
+        trait_currency_id: 19,
+        amount: 1,
+    }];
+    unlock.unavailable_reason = Some("Maximum rank purchased".into());
+    let mut knowledge = unlock.clone();
+    knowledge.entry_id = 36327;
+    knowledge.rank = 0;
+    knowledge.max_rank = 30;
+    knowledge.costs = vec![ProfessionSpecCost {
+        trait_currency_id: 9,
+        amount: 1,
+    }];
+    knowledge.available = true;
+    knowledge.unavailable_reason = None;
+    tree.nodes.push(knowledge);
+    draft.selected_node = Some(28546);
+    assert_eq!(draft.display_ranks(28546), Some((0, 30)));
+    assert!(draft.stage_rank());
+    assert_eq!(draft.display_ranks(28546), Some((1, 30)));
+    assert_eq!(
+        draft.commit_request(),
+        Some(ProfessionSpecializationRequest::Commit {
+            skill_line: 2830,
+            tree_id: 350,
+            purchases: vec![ProfessionTraitPurchase {
+                node_id: 28546,
+                entry_id: 36327,
+                ranks: 1
+            }],
+        })
+    );
+    assert_eq!(draft.snapshot.as_ref().unwrap().trees[0].nodes[0].rank, 1);
+}
+
+#[test]
 fn specialization_combines_costs_for_the_same_trait_currency() {
     let mut draft = draft();
     let snapshot = draft.snapshot.as_mut().unwrap();
