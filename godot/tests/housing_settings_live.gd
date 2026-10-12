@@ -29,7 +29,10 @@ func run_test() -> void:
 
 func open_settings() -> bool:
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HousingSettings%d" % editor_house) != null and client.housing_state().get("confirmed", false), "confirmed owned settings"): return false
+	if not await wait_housing(func():
+		var button: BaseButton = housing_control("HousingSettings%d" % editor_house) as BaseButton
+		return button != null and not button.disabled and client.housing_state().get("confirmed", false) and not client.housing_state().get("pending", true), "confirmed owned settings"): return false
+	await frames(5)
 	await click_control(housing_control("HousingSettings%d" % editor_house), MOUSE_BUTTON_LEFT)
 	return await wait_housing(func(): return housing_control("HousingSettingsHouseMode") != null, "HouseSettings source panel")
 
@@ -95,14 +98,17 @@ func prove_owner_settings() -> bool:
 
 func prove_visitor_access() -> bool:
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed", false), "visitor housing dashboard"): return false
+	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed", false) and not client.housing_state().get("pending", true), "visitor housing dashboard"): return false
 	if client.housing_state().get("house_id", 0) > 0:
 		await click_control(housing_control("HousingHomeLeave"), MOUSE_BUTTON_LEFT)
 		if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2735, "leave previous house"): return false
 		await frames(20)
 		await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
-		if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null, "fresh visitor dashboard"): return false
+		if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and not client.housing_state().get("pending", true), "fresh visitor dashboard"): return false
+	await frames(5)
 	await click_control(housing_control("HousingDashboardHouseFinderButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return housing_control("HouseFinderFrame") != null and not client.housing_state().get("pending", true), "ready friend Finder"): return false
+	print("HOUSE_ACCESS_FINDER ", JSON.stringify(client.housing_state()))
 	if not await open_friend_plot_info(editor_house): return false
 	var before_map: int = int(client.account_state().world_map_id)
 	await click_control(housing_control("HouseFinderPlotVisitButton"), MOUSE_BUTTON_LEFT)
