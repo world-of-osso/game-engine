@@ -11,6 +11,7 @@ Approved acceptance criteria:
 - [x] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
 - [x] SFID skins, SKID skeletons and external animations inherit their model's identity. Referenced textures retain source identity through decoding/material publication too.
 - [x] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
+- [ ] Retain authored ItemAppearance rows whose display ID is0. Those equipped slots draw no item model/textures/geoset changes but remain occupied; absent item/appearance rows and malformed display IDs still error. Do not substitute legacy or another product's appearance.
 - [x] Both named displays render from extracted-only model/appearance files without type9 failures; a comparable native run shows no new errors for other displays. Model loads do not require access to a WoW installation.
 
 ## Decision record (2026-10-09)
