@@ -159,6 +159,9 @@ fn rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_chan
         assert_eq!(view.action("pvp:rated:queue"), None);
         let mut state = snapshot(BgPhase::Ended, true);
         let bg = state.battleground.as_mut().unwrap();
+        bg.players[0].killing_blows = 2;
+        bg.players[0].damage_done = 120;
+        bg.players[0].healing_done = 45;
         bg.arena = Some(ArenaMatchSnapshot {
             mode: ArenaQueueMode::Rated2v2,
             preparation_remaining_secs: Some(0),
@@ -188,6 +191,17 @@ fn rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_chan
             panic!("rating result");
         };
         assert!(rating.text.contains("+48"));
+        for (name, value) in [
+            ("PVPMatchPlayer81KB", "2"),
+            ("PVPMatchPlayer81Damage", "120"),
+            ("PVPMatchPlayer81Healing", "45"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let WidgetData::FontString(label) = frame.widget_data.as_ref().unwrap() else {
+                panic!("score label");
+            };
+            assert_eq!(label.text, value);
+        }
         assert!(registry.get_by_name("PVPMatchPlayer81Captures").is_none());
     }
 }
