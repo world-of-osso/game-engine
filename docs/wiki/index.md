@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Native player housing](systems/housing.md) — qualified catalog, authoritative storage bridge and server plot/restart boundaries; first-house grants/editor/live collection remain open.
+- [Native player housing](systems/housing.md) — qualified catalog and both-skin paid vendor/bag/storage/relog proof; server plot/restart boundaries, first-house grants/editor/visitor scene gates remain open.
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
