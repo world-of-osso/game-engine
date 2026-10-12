@@ -54,6 +54,10 @@ References:
 
 - [ ] Native quest-credit live fixture: `godot/tests/quest_objectives_live.gd`, using authored `QOBJ_SCENARIO` JSON, private `GODOT_TEST_SERVER`, `fb_*` `QF_ACCOUNT`, own `QF_ADMIN` socket and `QF_SHOTS`. Real screen ray-picked right-click → GO use/loot; real bag right-click → item spell; real quest dialog → reward. Admin only creates characters, sets level and travels/revives; it never fills objective counters. Both-skin rendered acceptance remains pending until the fixture succeeds.
 
+## Zone population proof —2026-10-11
+
+Private UDP5916 both Modern/Forever skins use the native Interact Key and physical registry-pointer input to accept/reward Drustvar48677, Isle of Dorn82747 and Terokkar9961; neutral Lord Autumnvale127080 now respects authored player immunity instead of auto-attack. No administrative quest credit. Native taxi discovery/flight2037→2034 is also recorded. [Census, copy command and exact proof boundaries](../../../game-server/docs/zone-population-counts.md) own the dataset;23 inspected PNGs in `/syncthing/AgentShared/2026-10-11/zone-population/`. Appearance/receipt/surface/navigation gaps remain explicit; no complete-world visual certification.
+
 ## Proof
 
 - `soft_interact::tests` with world.db data (Northshire vendors Brother Danil 79950, Dermot Johns 79951 and Godric Rothgar 79952, Marshal McBride 79970, the Goldshire Mailbox 26784 and Wooden Chair 26246): selection at arc 0/1/2 and range settings; icons with Default, Show All and Show None.
