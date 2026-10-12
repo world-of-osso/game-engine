@@ -1,4 +1,4 @@
-//! Real-UDP skirmish 2v2/3v3 peers alongside one native Godot client.
+//! Real-UDP skirmish2v2/3v3 and actual-group rated2v2 peers alongside a native client.
 //! No simulated match state, synthetic roster or server shortcuts.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage};
 use shared::protocol::*;
@@ -15,6 +15,7 @@ struct Peer {
     entered: bool,
     map: Option<u32>,
     snapshot: Option<PvpSnapshot>,
+    group: Option<GroupRosterSnapshot>,
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
@@ -48,6 +49,15 @@ impl Peer {
                 "fb_arena{} WorldPortAck map{}",
                 self.index, destination.map_id
             );
+        } else if message.is::<GroupInvitePrompt>() {
+            self.bridge
+                .send::<_, GroupChannel>(RespondGroupInvite { accept: true })?;
+        } else if message.is::<GroupRosterSnapshot>() {
+            self.group = Some(
+                message
+                    .downcast::<GroupRosterSnapshot>()
+                    .map_err(|_| "group type")?,
+            );
         } else if message.is::<PvpStateUpdate>() {
             let update = message
                 .downcast::<PvpStateUpdate>()
@@ -66,6 +76,18 @@ impl Peer {
             return Err(format!("fb_arena{} has not entered", self.index));
         }
         match action {
+            "group" if self.mode == ArenaQueueMode::Rated2v2 && self.index == 2 => {
+                self.bridge.send::<_, GroupChannel>(GroupInviteIntent {
+                    name: "Arenathree".into(),
+                })
+            }
+            "group" => Ok(()),
+            "queue" if self.mode == ArenaQueueMode::Rated2v2 && self.index == 2 => {
+                self.bridge.send::<_, PvpChannel>(QueueForRatedPvp {
+                    bracket: PvpBracketSnapshot::Arena2v2,
+                })
+            }
+            "queue" if self.mode == ArenaQueueMode::Rated2v2 => Ok(()),
             "queue" => self
                 .bridge
                 .send::<_, PvpChannel>(QueueForArena { mode: self.mode }),
@@ -82,7 +104,8 @@ impl Peer {
                         accepted: action == "accept",
                     })
             }
-            "leave" => {
+            "forfeit" if self.mode == ArenaQueueMode::Rated2v2 && self.index == 1 => Ok(()),
+            "leave" | "forfeit" => {
                 let match_id = self
                     .snapshot
                     .as_ref()
@@ -96,8 +119,7 @@ impl Peer {
         }
     }
     fn write_state(&self, directory: &Path) -> Result<(), String> {
-        let value =
-            serde_json::json!({"entered": self.entered,"map":self.map,"snapshot":self.snapshot});
+        let value = serde_json::json!({"entered": self.entered,"map":self.map,"snapshot":self.snapshot,"group":self.group});
         fs::write(
             directory.join(format!("peer{}.json", self.index)),
             serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
@@ -117,7 +139,8 @@ fn run() -> Result<(), String> {
     let (mode, team_size) = match std::env::var("ARENA_MODE").as_deref() {
         Ok("2v2") => (ArenaQueueMode::Skirmish2v2, 2),
         Ok("3v3") => (ArenaQueueMode::Skirmish3v3, 3),
-        _ => return Err("ARENA_MODE must explicitly select 2v2 or 3v3".into()),
+        Ok("rated2v2") => (ArenaQueueMode::Rated2v2, 2),
+        _ => return Err("ARENA_MODE must explicitly select 2v2, 3v3 or rated2v2".into()),
     };
     let mut peers = Vec::new();
     let clock = SystemTime::now()
@@ -130,6 +153,8 @@ fn run() -> Result<(), String> {
             .receive::<EnterWorldResponse>()
             .receive::<NewWorld>()
             .receive::<PvpStateUpdate>()
+            .receive::<GroupInvitePrompt>()
+            .receive::<GroupRosterSnapshot>()
             .connect(address, clock + index as u64)?;
         bridge.send::<_, AuthChannel>(LoginRequest {
             token: None,
@@ -143,6 +168,7 @@ fn run() -> Result<(), String> {
             entered: false,
             map: None,
             snapshot: None,
+            group: None,
         });
     }
     let mut last = String::new();
