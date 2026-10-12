@@ -39,7 +39,7 @@ fn book() -> TransmogBook {
                     appearance_id: 389,
                     item_id: 3295,
                     display_id: 1546,
-                    icon_fdid: 135274,
+                    icon_fdid: 135343,
                     name: "Deadman Blade".into(),
                     inventory_type: 13,
                 },
@@ -78,6 +78,56 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         panic!("{name}")
     };
     text.text.clone()
+}
+
+#[test]
+fn transmog_retail_frame_and_cells_use_121_natural_dimensions() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = build(skin, book());
+        let frame = registry.get(registry.get_by_name("TransmogFrame").unwrap()).unwrap();
+        assert_eq!((frame.resolved_width(), frame.resolved_height()), (1618.0, 883.0));
+        let model = registry.get(registry.get_by_name("TransmogSource821ModelScene").unwrap()).unwrap();
+        assert_eq!((model.resolved_width(), model.resolved_height()), (100.0, 132.0));
+    }
+}
+
+#[test]
+fn transmog_slot_icon_tracks_authoritative_applied_and_pending_source() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut state = book();
+        for (choice, expected_icon, expected_cost) in [
+            (TransmogChoice::Source(821), 135274, 0),
+            (TransmogChoice::Source(1181), 135343, 1500),
+        ] {
+            state.stage(choice);
+            assert_eq!(state.pending_cost(), Some(expected_cost));
+            let registry = build(skin, state.clone());
+            let frame = registry.get(registry.get_by_name("TransmogSlot16Icon").expect("current appearance icon")).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else { panic!("slot icon") };
+            assert_eq!(texture.source, ui_toolkit::widgets::texture::TextureSource::FileDataId(expected_icon));
+        }
+    }
+}
+
+#[test]
+fn transmog_retail_grid_pages_twenty_models_without_losing_pending_cost() {
+    let mut state = book();
+    let slot = &mut state.state.as_mut().unwrap().slots[0];
+    let source = slot.sources[0].clone();
+    slot.sources = (0..41).map(|index| TransmogSource {
+        source_id: 821 + index,
+        name: format!("Blade {index}"),
+        ..source.clone()
+    }).collect();
+    assert_eq!(state.pages(), 3);
+    assert_eq!(state.page_sources().len(), 20);
+    state.page = 1;
+    assert_eq!(state.page_sources()[0].source_id, 841);
+    assert!(state.stage(TransmogChoice::Source(841)));
+    state.page = 2;
+    assert_eq!(state.page_sources().len(), 1);
+    assert_eq!(state.pending_cost(), Some(1500));
+    assert!(state.can_apply());
 }
 
 fn assert_additive(registry: &FrameRegistry, name: &str) {
