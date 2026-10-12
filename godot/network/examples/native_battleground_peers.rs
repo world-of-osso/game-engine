@@ -21,7 +21,22 @@ struct Peer {
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
-        if message.is::<LoginResponse>() {
+        if message.is::<AttackStart>() {
+            let receipt = message
+                .downcast::<AttackStart>()
+                .map_err(|_| "attack start type")?;
+            println!("{} attack start {receipt:?}", self.username);
+        } else if message.is::<AttackStopped>() {
+            let receipt = message
+                .downcast::<AttackStopped>()
+                .map_err(|_| "attack stop type")?;
+            println!("{} attack stopped {receipt:?}", self.username);
+        } else if message.is::<CastFailed>() {
+            let receipt = message
+                .downcast::<CastFailed>()
+                .map_err(|_| "cast failure type")?;
+            println!("{} cast failed {receipt:?}", self.username);
+        } else if message.is::<LoginResponse>() {
             let reply = message
                 .downcast::<LoginResponse>()
                 .map_err(|_| "login type")?;
@@ -199,6 +214,9 @@ fn run() -> Result<(), String> {
             .receive::<EnterWorldResponse>()
             .receive::<NewWorld>()
             .receive::<PvpStateUpdate>()
+            .receive::<AttackStart>()
+            .receive::<AttackStopped>()
+            .receive::<CastFailed>()
             .connect(address, clock + index as u64)?;
         let username = format!("{prefix}{index}");
         bridge.send::<_, AuthChannel>(LoginRequest {
