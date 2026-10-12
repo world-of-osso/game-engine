@@ -55,7 +55,7 @@ pub struct View {
     pub role: u32,
     pub class: u32,
     pub spec: u32,
-    pub player_spec: u32,
+    pub player_spec: Option<u32>,
     pub slot: u32,
     pub filter_menu: Option<LootFilter>,
     pub search: String,
@@ -83,7 +83,7 @@ impl Default for View {
             role: 0,
             class: 0,
             spec: 0,
-            player_spec: 0,
+            player_spec: None,
             slot: 0,
             filter_menu: None,
             search: String::new(),
@@ -176,7 +176,7 @@ impl View {
             .collect();
         specs
             .iter()
-            .find(|spec| spec.id == self.player_spec)
+            .find(|spec| Some(spec.id) == self.player_spec)
             .or_else(|| specs.first())
             .map_or(0, |spec| spec.id)
     }
