@@ -88,6 +88,29 @@ fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() 
             assert!(details.text.contains("Model 6033663 (type 1)"));
             let search = frame("HousingCatalogSearchBox");
             assert!(matches!(search.widget_data, Some(WidgetData::EditBox(_))));
+            let mut info = context.get::<HousingView>().unwrap().clone();
+            info.model.tab = DashboardTab::HouseInfo;
+            context.insert(info);
+            let mut info_registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(housing_screen).sync(&context, &mut info_registry);
+            let message = info_registry
+                .get(
+                    info_registry
+                        .get_by_name("HouseInfoContentUnavailable")
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::FontString(message)) = &message.widget_data else {
+                panic!("missing house info status")
+            };
+            match stored {
+                None => assert!(
+                    message
+                        .text
+                        .contains("House ownership has not been confirmed by the server")
+                ),
+                Some(_) => assert!(message.text.contains("0 account-owned plot(s)")),
+            }
         }
     }
 }
