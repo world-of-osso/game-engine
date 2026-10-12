@@ -496,18 +496,15 @@ fn paging_controls(book: &TransmogBook) -> Element {
 pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_paging_art(registry);
     for source in view.book.page_sources() {
-        for state in ["Applied", "Pending"] {
-            let name = format!("TransmogSource{}{state}", source.source_id);
-            let Some(id) = registry.get_by_name(&name) else {
-                continue;
-            };
-            let frame = registry.get_mut(id).expect("registered transmog overlay");
-            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
-            else {
-                panic!("Transmog overlay {name} is not a texture");
-            };
-            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
-        }
+        let name = format!("TransmogSource{}", source.source_id);
+        let id = registry
+            .get_by_name(&name)
+            .expect("registered transmog source");
+        let frame = registry.get_mut(id).expect("registered transmog source");
+        let Some(ui_toolkit::frame::WidgetData::Button(button)) = &mut frame.widget_data else {
+            panic!("Transmog source {name} is not a button");
+        };
+        button.highlight_size = Some([114.0, 146.0]);
     }
 }
 
@@ -555,7 +552,7 @@ fn source_button(book: &TransmogBook, source: &TransmogSource, index: usize) -> 
     if applied {
         children.extend(atlas(
             format!("{prefix}Applied"),
-            "transmog-itemcard-current",
+            "transmog-itemcard-transmogrified",
             (-7.0, -7.0, 114.0, 146.0),
         ));
     }

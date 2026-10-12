@@ -23,6 +23,7 @@ fn state() -> TransmogState {
                 inventory_type: 13,
             }],
         }],
+        ..Default::default()
     }
 }
 
