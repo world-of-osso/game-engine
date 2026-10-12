@@ -82,6 +82,33 @@ impl Merchant {
     }
 }
 
+const INTERACTION_FLAGS: u64 = NpcFlags::GOSSIP
+    | NpcFlags::QUESTGIVER
+    | NpcFlags::TRAINER
+    | NpcFlags::TRAINER_CLASS
+    | NpcFlags::TRAINER_PROFESSION
+    | NpcFlags::VENDOR
+    | NpcFlags::VENDOR_AMMO
+    | NpcFlags::VENDOR_FOOD
+    | NpcFlags::VENDOR_POISON
+    | NpcFlags::VENDOR_REAGENT
+    | NpcFlags::REPAIR
+    | NpcFlags::FLIGHTMASTER
+    | NpcFlags::INNKEEPER
+    | NpcFlags::BANKER
+    | NpcFlags::PETITIONER
+    | NpcFlags::TABARD_DESIGNER
+    | NpcFlags::BATTLEMASTER
+    | NpcFlags::AUCTIONEER
+    | NpcFlags::STABLEMASTER
+    | NpcFlags::GUILD_BANKER
+    | NpcFlags::MAILBOX
+    | NpcFlags::TRANSMOGRIFIER;
+
+fn interaction_precedes_attack(flags: NpcFlags, reaction: Reaction) -> bool {
+    reaction != Reaction::Hostile && flags.contains(INTERACTION_FLAGS)
+}
+
 /// What a right-click on a unit does (Bevy `interact_with_clicked_npc` / `npc_right_click`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RightClick {
@@ -270,6 +297,14 @@ impl GameClient {
         if self.start_clicked_wild_pet(unit)? {
             return Ok(());
         }
+        // Non-hostile NPC services take priority over yellow-neutral creature combat.
+        if self.unit_interaction_has_priority(unit)? {
+            self.stop_auto_attack()?;
+            if self.unit_right_click(unit) == RightClick::Interact {
+                self.account.send_interact(unit)?;
+            }
+            return Ok(());
+        }
         // Interacting with an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
             self.start_auto_attack(unit)?;
@@ -293,6 +328,26 @@ impl GameClient {
             || self.use_guild_vault(id)?
             || self.use_mailbox(id)?
             || self.use_chair(id)?)
+    }
+
+    fn unit_interaction_has_priority(&mut self, id: u64) -> Result<bool, String> {
+        let Some(unit) = self.replica.unit(id) else {
+            return Ok(false);
+        };
+        if !unit.has::<Npc>() {
+            return Ok(false);
+        }
+        let flags = NpcFlags(unit.npc_flags().unwrap_or(0));
+        let npc_template = unit.faction_template();
+        let player_template = self
+            .world
+            .local_player_id()
+            .and_then(|player| self.replica.unit(player)?.faction_template());
+        let templates = self.nameplates.templates(&self.data_root)?;
+        let npc = npc_template.and_then(|id| templates.get(&id));
+        let player = player_template.and_then(|id| templates.get(&id));
+        let disposition = reaction(npc, player).min(reaction(player, npc));
+        Ok(interaction_precedes_attack(flags, disposition))
     }
 
     fn unit_right_click(&self, id: u64) -> RightClick {
@@ -805,6 +860,38 @@ pub(super) fn split_key(key: Key) -> Option<SplitKey> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retail_vendor_interaction_precedes_neutral_attack_but_not_hostility() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .map(|dir| dir.join("data/db2/12.1.0.69933/FactionTemplate.csv"))
+            .find(|path| path.exists())
+            .expect("pinned Retail faction CSV");
+        let rows = crate::faction_reaction::parse_faction_template_csv(
+            &std::fs::read_to_string(path).unwrap(),
+        )
+        .unwrap();
+        let human = rows.get(&1);
+        let disposition = |id| reaction(rows.get(&id), human).min(reaction(human, rows.get(&id)));
+        assert!(interaction_precedes_attack(
+            NpcFlags(NpcFlags::VENDOR),
+            disposition(2007)
+        ));
+        assert_eq!(
+            right_click(true, false, 4.0, NpcFlags(NpcFlags::VENDOR)),
+            RightClick::Interact
+        );
+        assert!(!interaction_precedes_attack(NpcFlags(0), disposition(31)));
+        assert!(!interaction_precedes_attack(
+            NpcFlags(NpcFlags::VENDOR),
+            disposition(14)
+        ));
+        assert!(interaction_precedes_attack(
+            NpcFlags(NpcFlags::GOSSIP),
+            disposition(11)
+        ));
+    }
 
     #[test]
     fn non_banker_right_click_requires_a_living_npc_in_range() {

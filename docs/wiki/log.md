@@ -18,6 +18,9 @@
 ## 2026-10-11 — Whole-world NPC appearance
 
 [Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
+## 2026-10-11 — Authored boss-mod warnings
+
+[Boss encounters](systems/boss-encounters.md#boss-mod-continuation--verified2026-10-11): display required rendered enUS warning_text with the spell icon, not a locale key/generic name. Model RED→GREEN, both-skin screen, actual UDP order/native geometry and check/fmt pass. Private5906 Hydrospawn/Zevrim bars/warnings in both skins have eight inspected1280PNG receipts; [server coverage](../../../game-server/docs/bossmod-data-coverage.md) owns outstanding native-input clocks. No shared realm changes.
 
 ## 2026-10-11 — AchievementFrame art
 
