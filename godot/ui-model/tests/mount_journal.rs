@@ -20,6 +20,46 @@ fn mare() -> MountJournalEntry {
         active: false,
     }
 }
+#[test]
+fn mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = view();
+    view.visible = true;
+    let mut shared = SharedContext::new();
+    shared.insert(view.clone());
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut screen = Screen::new(mount_journal_screen);
+    screen.sync(&shared, &mut registry);
+    for active in [true, false, true, false] {
+        let mut mount = mare();
+        mount.active = active;
+        mount.favourite = true;
+        view.receive(MountJournalUpdate {
+            mounts: vec![mount],
+            error: None,
+        });
+        shared.insert(view.clone());
+        screen.sync(&shared, &mut registry);
+        let button = registry
+            .get(registry.get_by_name("MountJournalMountButton").unwrap())
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &button.widget_data else {
+            panic!("Mount action missing")
+        };
+        assert_eq!(button.text, if active { "Dismount" } else { "Mount" });
+        assert!(registry.get_by_name("MountJournalRow18Favorite").is_some());
+    }
+}
+
 fn view() -> MountJournalView {
     let mut view = MountJournalView::default();
     let mut horse = mare();
