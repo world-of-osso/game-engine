@@ -2087,6 +2087,7 @@ impl Account {
             || message.is::<ActionBarSnapshot>()
             || message.is::<SpellCooldownUpdate>()
             || message.is::<SpellChargesUpdate>()
+            || message.is::<shared::protocol::SpellCostSnapshot>()
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
             || message.is::<SpellGo>()
@@ -2136,6 +2137,8 @@ impl Account {
             output.push(AccountEvent::ToyCooldown(update));
         } else if message.is::<SpellChargesUpdate>() {
             spells.apply_charges(&decode(message)?);
+        } else if message.is::<shared::protocol::SpellCostSnapshot>() {
+            spells.apply_costs(decode(message)?);
         } else if message.is::<CastFailed>() {
             output.push(AccountEvent::CastFailed(decode(message)?));
         } else if message.is::<SpellGo>() {

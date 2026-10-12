@@ -46,21 +46,53 @@ pub fn parse_wdt_mphd_flags(data: &[u8]) -> Result<MphdFlags, String> {
 }
 
 /// The WMO of a global-WMO map (MPHD flag 0x1): the WDT's single MODF entry, named by
-/// FileDataID. `None` for a map of ADT tiles.
+/// FileDataID or a legacy MWMO string index. `None` for a map of ADT tiles.
 pub fn parse_wdt_global_wmo(data: &[u8]) -> Result<Option<WmoPlacement>, String> {
     if parse_wdt_mphd_flags(data)?.raw & MPHD_FLAG_GLOBAL_WMO == 0 {
         return Ok(None);
     }
+    let mut names = &[][..];
+    for chunk in ChunkIter::new(data) {
+        let (tag, payload) = chunk?;
+        if tag == b"OMWM" {
+            names = payload;
+        }
+    }
+    let offsets = mwmo_name_offsets(names);
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         if tag == b"FDOM" {
-            let placement = parse_modf(payload, &[], &[])?.into_iter().next();
-            return placement
-                .map(Some)
-                .ok_or_else(|| "global-WMO WDT MODF is empty".to_string());
+            return parse_global_modf(payload, names, &offsets).map(Some);
         }
     }
     Err("global-WMO WDT has no MODF".to_string())
+}
+
+fn parse_global_modf(
+    payload: &[u8],
+    names: &[u8],
+    offsets: &[u32],
+) -> Result<WmoPlacement, String> {
+    let mut placement = parse_modf(payload, names, offsets)?
+        .into_iter()
+        .next()
+        .ok_or("global-WMO WDT MODF is empty")?;
+    placement.path = placement
+        .path
+        .map(|path| path.to_lowercase().replace('\\', "/"));
+    Ok(placement)
+}
+
+fn mwmo_name_offsets(names: &[u8]) -> Vec<u32> {
+    std::iter::once(0)
+        .chain(
+            names
+                .iter()
+                .enumerate()
+                .filter(|(index, byte)| **byte == 0 && index + 1 < names.len())
+                .map(|(index, _)| (index + 1) as u32),
+        )
+        .collect()
 }
 
 /// FileDataIDs in one MAID slot, indexed in MAIN order (second tile coordinate × 64 + first).
@@ -187,6 +219,19 @@ mod tests {
         // world/wmo/dungeon/az_stormwindprisons/stormwindjail.wmo.
         assert_eq!(wmo.fdid, Some(108_631));
         assert_eq!(wmo.position, [0.0, 0.0, 0.0]);
+        assert_eq!(wmo.scale, 1.0);
+    }
+
+    #[test]
+    fn legacy_blacksmith_wdt_retains_authored_wmo_path() {
+        let data = std::fs::read("data/terrain/952203.wdt").unwrap();
+        let wmo = parse_wdt_global_wmo(&data).unwrap().unwrap();
+        assert_eq!(wmo.fdid, None);
+        assert_eq!(
+            wmo.path.as_deref(),
+            Some("world/wmo/draenor/human/6hu_garrison_blacksmithing_hub.wmo")
+        );
+        assert_eq!(wmo.position, [0.0; 3]);
         assert_eq!(wmo.scale, 1.0);
     }
 

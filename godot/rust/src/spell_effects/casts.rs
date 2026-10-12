@@ -110,6 +110,7 @@ impl SpellEffects {
         if self.catalog()?.is_none() {
             return Ok(());
         }
+        errors.extend(self.sync_display_kits(units, world).err());
         errors.extend(self.sync_auras(units, world).err());
         self.end_missing_casts(units, world);
         for unit in units.units().filter(|unit| is_unit(*unit)) {

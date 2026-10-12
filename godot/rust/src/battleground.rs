@@ -20,6 +20,27 @@ impl BattlegroundUi {
     }
 }
 impl GameClient {
+    /// PVPUIFrame and PVPMatch ScrollBoxes use the host-routed wheel/thumb/stepper input.
+    pub(super) fn battleground_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() {
+            return false;
+        }
+        let Some(ui) = self.battleground.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(false) => false,
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Err(error) => {
+                crate::frame_error::report_once(&format!("PvP scroll input: {error}"));
+                false
+            }
+        }
+    }
     pub(super) fn toggle_pvp(&mut self) -> Result<(), FrameError> {
         self.battleground.view.visible = !self.battleground.view.visible;
         if self.battleground.view.visible {
