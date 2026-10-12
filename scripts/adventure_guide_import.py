@@ -6,6 +6,7 @@ Extract the FDIDs below with casc-local first. Pass the corresponding WoWDBDefs
 Unreadable encrypted records are counted; never synthesize replacement records.
 """
 import argparse
+from contextlib import closing
 import csv
 import importlib.util
 from pathlib import Path
@@ -29,6 +30,7 @@ TABLES = {
     'JournalSectionXDifficulty': (1121900, 0x9A12141A),
     'JournalEncounterXDifficulty': (1121901, 0xC038156D),
     'ItemSet': (1343609, 0xF79068A4),
+    'ItemSetSpell': (1314689, 0x2666A73F),
     'ItemSpec': (1135120, 0x83F3D113),
     'ItemSpecOverride': (1134576, 0xB292998C),
 }
@@ -182,21 +184,30 @@ def import_presentation(connection, items):
     connection.execute('CREATE TABLE map_difficulty (map_id INTEGER, difficulty_id INTEGER)')
     with (items / 'MapDifficulty.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO map_difficulty VALUES(?,?)', ((int(row['MapID']), int(row['DifficultyID'])) for row in csv.DictReader(handle) if int(row['DifficultyID']) != 0))
+    connection.execute('CREATE TABLE map_type (ID INTEGER PRIMARY KEY, instance_type INTEGER)')
+    with (items / 'Map.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO map_type VALUES(?,?)', ((int(row['ID']), int(row['InstanceType'])) for row in csv.DictReader(handle)))
     connection.execute('CREATE TABLE journal_text (tag TEXT PRIMARY KEY, text TEXT)')
     with (items / 'GlobalStrings.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO journal_text VALUES(?,?)',
             ((row['BaseTag'], row['TagText_lang'].replace('|n', '\n')) for row in csv.DictReader(handle)
-             if row['BaseTag'].startswith('INVTYPE_') or row['BaseTag'] in ('RPE_TITLE', 'RPE_TUTORIAL_TEXT', 'RPE_START_EXPERIENCE')))
+             if row['BaseTag'].startswith(('INVTYPE_', 'ITEM_SET_')) or row['BaseTag'] in ('RPE_TITLE', 'RPE_TUTORIAL_TEXT', 'RPE_START_EXPERIENCE')))
 
 
-def import_cache(db2, definitions, output, items):
+def read_challenge_dungeons(world):
+    with closing(sqlite3.connect(f'file:{world.resolve()}?mode=ro', uri=True)) as connection:
+        return connection.execute('SELECT ID,MapID,Name_lang,CriteriaCount_0 * 1000 FROM map_challenge_mode WHERE MaxMedals=3').fetchall()
+
+
+def import_cache(db2, definitions, output, items, world):
     # Decode every input before replacing an existing cache.
     decoded = {table: read_table(table, db2 / f'{fdid}.db2', definitions / f'{table}.dbd') for table, (fdid, _) in TABLES.items()}
+    challenges = read_challenge_dungeons(world)
     output.parent.mkdir(parents=True, exist_ok=True)
     staging = output.with_suffix('.staging.sqlite')
     if staging.exists():
         staging.unlink()
-    with sqlite3.connect(staging) as connection:
+    with closing(sqlite3.connect(staging)) as connection, connection:
         connection.execute('CREATE TABLE source (build TEXT, table_name TEXT, layout TEXT, readable INTEGER, unreadable INTEGER)')
         for table, (columns, rows, dropped) in decoded.items():
             connection.execute(f'CREATE TABLE "{table}" ({", ".join(f"{name} {kind}" for name, kind in columns)})')
@@ -207,6 +218,8 @@ def import_cache(db2, definitions, output, items):
         import_items(connection, items)
         import_item_specializations(connection)
         import_presentation(connection, items)
+        connection.execute('CREATE TABLE challenge_dungeon (ID INTEGER PRIMARY KEY, map_id INTEGER, name TEXT, time_limit_ms INTEGER)')
+        connection.executemany('INSERT INTO challenge_dungeon VALUES(?,?,?,?)', challenges)
     staging.replace(output)
 
 
@@ -216,8 +229,9 @@ def main():
     parser.add_argument('--definitions', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--items', type=Path, required=True, help='Pinned Item, ItemSparse, ChrSpecialization CSV directory')
+    parser.add_argument('--world', type=Path, required=True, help='Read-only realm world.db with authentic MapChallengeMode data')
     args = parser.parse_args()
-    import_cache(args.db2, args.definitions, args.output, args.items)
+    import_cache(args.db2, args.definitions, args.output, args.items, args.world)
 
 
 if __name__ == '__main__':
