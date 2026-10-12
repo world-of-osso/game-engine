@@ -58,9 +58,11 @@ func open_editor_home() -> bool:
 	if not home_allows_visitors():
 		await click_control(housing_control("HousingAccess%d" % editor_house), MOUSE_BUTTON_LEFT)
 		if not await wait_housing(func(): return home_allows_visitors(), "explicit owner visitor permission"): return false
-	await click_control(housing_control("HousingHomeVisit%d" % editor_house), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783, "authored home map",420000): return false
-	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
+	if int(client.account_state().world_map_id) != 2783 or client.housing_state().get("house_id",0) != editor_house:
+		await click_control(housing_control("HousingHomeVisit%d" % editor_house), MOUSE_BUTTON_LEFT)
+		if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783, "authored home map",420000): return false
+		if not await wait_housing(func(): return housing_named_control("MicroMenuUI", "HousingMicroButton") != null, "house HUD ready"): return false
+		await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.housing_state().get("house_id",0) == editor_house and client.housing_state().get("can_edit",false), "confirmed owner layout"): return false
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HouseEditorStored1693") != null, "real editor storage"): return false
