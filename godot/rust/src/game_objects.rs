@@ -89,7 +89,10 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
 }
 
 fn game_object_is_renderable(go_type: u8) -> bool {
-    matches!(go_type, 0 | 6 | GAMEOBJECT_TYPE_GENERIC) || game_object_cursor(go_type).is_some()
+    matches!(
+        go_type,
+        0 | 6 | GAMEOBJECT_TYPE_GENERIC | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR
+    ) || game_object_cursor(go_type).is_some()
 }
 
 /// The top centre of an M2's bounding box placed by `model` (the model node's global
@@ -246,7 +249,7 @@ impl GameObjects {
                 info.entry
             ));
         }
-        if info.go_type == 0 {
+        if matches!(info.go_type, 0 | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR) {
             if let Some(shape) =
                 crate::terrain::doodad_collision::collision_shape(parsed.collision.as_ref())
             {
@@ -354,7 +357,7 @@ mod tests {
 
     #[test]
     fn arena_doors_and_shadow_sight_render_without_manual_use_cursor() {
-        for kind in [0, 6] {
+        for kind in [0, 6, shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR] {
             assert!(game_object_is_renderable(kind));
             assert!(game_object_cursor(kind).is_none());
         }
