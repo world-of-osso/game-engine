@@ -19,7 +19,9 @@ use game_engine_core::{
     char_texture_data::{CharTextureData, CompositedModelTextures},
     customization_data::CustomizationDb,
     npc_appearance_assets::NpcAppearanceCatalogs,
-    npc_appearance_data::{AuthoredNpcAppearance, query_authored_npc_appearance},
+    npc_appearance_data::{
+        AuthoredNpcAppearance, query_authored_npc_appearance, query_display_geosets,
+    },
     npc_appearance_selection_data::{NpcSelections, select_npc_choices},
 };
 use godot::{
@@ -155,11 +157,23 @@ impl NpcAppearances {
         }))
     }
 
+    pub(crate) fn display_geosets(
+        &mut self,
+        data_root: &Path,
+        display_id: u32,
+    ) -> Result<Vec<(u16, u16)>, String> {
+        query_display_geosets(self.open_profiles(data_root, display_id)?, display_id)
+    }
+
     fn query_appearance(
         &mut self,
         data_root: &Path,
         display_id: u32,
     ) -> Result<Option<AuthoredNpcAppearance>, String> {
+        query_authored_npc_appearance(self.open_profiles(data_root, display_id)?, display_id)
+    }
+
+    fn open_profiles(&mut self, data_root: &Path, display_id: u32) -> Result<&Connection, String> {
         if self.profiles.is_none() {
             let path = data_root.join("cache/npc_appearance.sqlite");
             self.profiles = Some(
@@ -173,10 +187,7 @@ impl NpcAppearances {
                 )?,
             );
         }
-        query_authored_npc_appearance(
-            self.profiles.as_ref().expect("opened NPC appearance cache"),
-            display_id,
-        )
+        Ok(self.profiles.as_ref().expect("opened NPC appearance cache"))
     }
 }
 
