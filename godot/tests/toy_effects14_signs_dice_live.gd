@@ -30,9 +30,10 @@ func prove_dice(sample: Array) -> void:
 	for value in rolls:
 		if value < 1 or value > int(sample[2]): fail("native dice value outside source range"); return
 	var chat := " ".join(chat_rows())
-	if not chat.contains(str(sample[3])): fail("authored dice emote/item name absent from native chat"); return
 	receipts.append({"phase": "native-dice-chat", "item": sample[0], "spell": sample[1], "maximum": sample[2], "new_count": sample[4], "rolls": rolls, "chat_rows": chat_rows()})
+	print("TOYFX_DICE_CHAT ", chat_rows())
 	await capture("toy%d-authored-emote-rolls" % int(sample[0]))
+	if not chat.contains(str(sample[3])): fail("authored dice emote/item name absent from native chat"); return
 
 func dice_rolls(maximum: int) -> Array:
 	var expression := RegEx.new()
