@@ -1,6 +1,7 @@
 # Wiki Index
 
 - [Native player housing](systems/housing.md) — qualified catalog and both-skin paid vendor/bag/storage/relog proof; server plot/restart boundaries, first-house grants/editor/visitor scene gates remain open.
+- [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
 - [Whole-world NPC appearance coverage](investigations/npc-appearance-coverage.md) — source census, strict world-root imports, ordinary geoset/source-asset recovery, selected server scale and private both-skin named-actor proof; canonical cache publication remains lead-owned.
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
