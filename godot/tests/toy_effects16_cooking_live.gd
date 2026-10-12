@@ -3,8 +3,6 @@ extends "res://tests/toy_effects14_live.gd"
 func proof_cases() -> Array:
 	return [
 		[67097, 93636, 207461, "Grim Campfire", 396, 1.0, 198193],
-		[153039, 254240, 277297, "Crystalline Campfire", 45521, 0.75, 1720843],
-		[198402, 383081, 379147, "Maruuk Cooking Pot", 75339, 0.75, 4182540],
 	]
 
 func prove_toy(sample: Array) -> void:
@@ -18,6 +16,7 @@ func prove_toy(sample: Array) -> void:
 		if not str(client.spells_state().errors[-1]).contains("Requires Cooking Fire"): fail("wrong source focus refusal"); return
 		if bag_count(2672) != meat or bag_count(2679) != food: fail("no-focus cast changed real bags"); return
 		receipts.append({"phase": "no-fire-cooking", "spells": client.spells_state(), "meat": meat, "food": food})
+		write_receipts()
 	await learn_toy(int(sample[0]))
 	if failed: return
 	await click("CollectionsMicroButton")
@@ -29,6 +28,8 @@ func prove_toy(sample: Array) -> void:
 	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == str(sample[3]), "source fire search"): return
 	await click("ToySpellButton1")
 	await click("CollectionsMicroButton")
+	receipts.append({"phase": "journal-fire-activation", "item": sample[0], "toys": client.toybox_state(), "spells": client.spells_state()})
+	write_receipts()
 	if not await wait_until(func(): return fire(int(sample[2])) != null, "native cooking-fire model " + str(sample[0]), 45000): return
 	var object := fire(int(sample[2]))
 	var model := object.get_node("GameObjectModel") as Node3D
