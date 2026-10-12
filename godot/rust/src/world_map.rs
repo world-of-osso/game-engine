@@ -303,6 +303,13 @@ impl GameClient {
                 godot_error!("World map vignettes: {error}");
             })
             .unwrap_or_default();
+        let ordinary_quests: Vec<_> = self
+            .account
+            .quests
+            .map_entries()
+            .into_iter()
+            .filter(|entry| !self.account.quests.is_world_quest(entry.quest_id))
+            .collect();
         let mut state = world_map_frame_state(
             data,
             WorldMapRequest {
@@ -311,7 +318,7 @@ impl GameClient {
                 map_id: self.world_map.map_id,
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
-                quests: &self.account.quests.map_entries(),
+                quests: &ordinary_quests,
                 // QuestBlobDataProvider Refresh adds the hovered quest to super-tracking.
                 // Both use the native source's unchanged fill128/border192.
                 quest_areas: &self.account.quests.map_objective_areas(&self.quests.ui),
