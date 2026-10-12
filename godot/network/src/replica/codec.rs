@@ -87,6 +87,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<GameObjectInfo>(),
         Codec::of::<shared::protocol::GameObjectAnimation>(),
         Codec::of::<shared::protocol::GameObjectVisible>(),
+        Codec::of::<shared::protocol::GameObjectCollision>(),
         Codec::of::<shared::protocol::GatherableResource>(),
         Codec::of::<UnitRunes>(),
         Codec::of::<UnitStats>(),

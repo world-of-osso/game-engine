@@ -17,7 +17,8 @@ use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
     GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE,
-    GAMEOBJECT_TYPE_RITUAL, GameObjectAnimation, GameObjectInfo, GameObjectVisible,
+    GAMEOBJECT_TYPE_RITUAL, GameObjectAnimation, GameObjectCollision, GameObjectInfo,
+    GameObjectVisible,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -151,6 +152,10 @@ impl GameObjects {
         let Some(position) = unit.get::<Position>() else {
             return Ok(());
         };
+        // Initial component fragments may arrive separately; never infer collision from art.
+        let Some(collision) = unit.get::<GameObjectCollision>() else {
+            return Ok(());
+        };
         if !info.scale.is_finite() || info.scale <= 0.0 {
             return Err(format!(
                 "Game object {id} has invalid replicated scale {}",
@@ -203,6 +208,7 @@ impl GameObjects {
             0.0,
         ));
         object.node.set_scale(Vector3::ONE * info.scale);
+        apply_object_collision(object, collision.0);
         if let Some(animation) = unit.get::<GameObjectAnimation>() {
             apply_object_animation(object, *animation)?;
         }
@@ -249,12 +255,10 @@ impl GameObjects {
                 info.entry
             ));
         }
-        if matches!(info.go_type, 0 | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR) {
-            if let Some(shape) =
-                crate::terrain::doodad_collision::collision_shape(parsed.collision.as_ref())
-            {
-                crate::terrain::doodad_collision::attach_collision(&mut model, &shape);
-            }
+        if let Some(shape) =
+            crate::terrain::doodad_collision::collision_shape(parsed.collision.as_ref())
+        {
+            crate::terrain::doodad_collision::attach_collision(&mut model, &shape);
         }
         model.set_name("GameObjectModel");
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
@@ -285,6 +289,21 @@ impl GameObjects {
     }
 }
 
+fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
+    if let Some(mut collision) = object
+        .node
+        .get_node_or_null("GameObjectModel/M2Collision")
+        .and_then(|node| node.try_cast::<godot::classes::StaticBody3D>().ok())
+    {
+        let layer = if enabled {
+            crate::terrain::doodad_collision::DOODAD_LAYER
+        } else {
+            0
+        };
+        collision.set_collision_layer(layer);
+    }
+}
+
 fn apply_object_animation(
     object: &mut ObjectNode,
     animation: GameObjectAnimation,
@@ -306,18 +325,6 @@ fn apply_object_animation(
         .bind_mut()
         .play_clip(animation.animation_id, animation.looping)
         .map_err(|error| format!("Gameobject display {}: {error}", object.display_id))?;
-    if let Some(mut collision) = object
-        .node
-        .get_node_or_null("GameObjectModel/M2Collision")
-        .and_then(|node| node.try_cast::<godot::classes::StaticBody3D>().ok())
-    {
-        let layer = if animation.animation_id == 147 {
-            crate::terrain::doodad_collision::DOODAD_LAYER
-        } else {
-            0
-        };
-        collision.set_collision_layer(layer);
-    }
     object.animation = Some(animation);
     Ok(())
 }
