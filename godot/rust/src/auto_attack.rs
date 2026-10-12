@@ -63,6 +63,57 @@ pub(crate) fn player_can_attack(
     )
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::faction_reaction::parse_faction_template_csv;
+    use shared::components::{CharacterAppearance, Npc, UnitFactionTemplate};
+
+    #[test]
+    fn zone_population_player_immunity_keeps_neutral_quest_ender_out_of_auto_attack() {
+        // Retail FactionTemplate rows1/190; TDB Lord Autumnvale127080 flags320.
+        let csv = "ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies_2,Enemies_3,Enemies_4,Enemies_5,Enemies_6,Enemies_7,Friend_0,Friend_1,Friend_2,Friend_3,Friend_4,Friend_5,Friend_6,Friend_7\n\
+1,1,72,3,2,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n\
+190,148,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n";
+        let templates = parse_faction_template_csv(csv).unwrap();
+        let mut replica = Replica::for_tests();
+        replica.insert(
+            1,
+            Player {
+                name: "Zonemod".into(),
+                race: 1,
+                class: 1,
+                appearance: CharacterAppearance::default(),
+            },
+        );
+        replica.insert(1, UnitFactionTemplate(1));
+        replica.insert(
+            2,
+            Npc {
+                template_id: 127080,
+                name: "Lord Autumnvale".into(),
+            },
+        );
+        replica.insert(2, UnitFactionTemplate(190));
+        replica.insert(
+            2,
+            Health {
+                current: 33796.0,
+                max: 33796.0,
+            },
+        );
+        replica.insert(2, UnitFlags(0));
+        assert!(player_can_attack(&replica, 1, 2, &templates));
+        replica.insert(2, UnitFlags(320));
+        assert!(!player_can_attack(&replica, 1, 2, &templates));
+        replica.insert(2, UnitFlags(0x200));
+        assert!(
+            player_can_attack(&replica, 1, 2, &templates),
+            "NPC-only immunity is not player immunity"
+        );
+    }
+}
+
 impl GameClient {
     /// `UnitCanAttack("player", unit)` as the server decides it.
     pub(super) fn can_auto_attack(&mut self, id: u64) -> bool {

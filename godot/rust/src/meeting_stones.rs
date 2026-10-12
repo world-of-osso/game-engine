@@ -21,6 +21,7 @@ pub(crate) fn spell_or_quest_object_request(
             | GAMEOBJECT_TYPE_RITUAL
             | crate::game_objects::GAMEOBJECT_TYPE_CHEST
             | crate::game_objects::GAMEOBJECT_TYPE_GOOBER
+            | shared::protocol::GAMEOBJECT_TYPE_HOUSING_PLOT
     )
     .then_some(UseGameObject { object: id })
 }

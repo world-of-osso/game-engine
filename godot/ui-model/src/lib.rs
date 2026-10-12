@@ -67,6 +67,18 @@ pub mod group_loot_component;
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod housing;
+pub mod housing_bulletin_component;
+pub mod housing_component;
+pub mod housing_editor;
+pub mod housing_editor_component;
+#[cfg(test)]
+mod housing_editor_tests;
+pub mod housing_finder_component;
+pub mod housing_mouse_component;
+pub mod housing_navigation_component;
+#[cfg(test)]
+mod housing_tests;
 pub mod mount_journal;
 mod mount_source;
 pub mod mythic_mentor;

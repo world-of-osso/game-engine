@@ -58,6 +58,7 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   GroundEffectTexture          FDID 1308499
   GroundEffectDoodad           FDID 1308057
   WMOMinimapTexture            FDID 1323241
+  SpellItemEnchantment         FDID 1362771
 """
 
 import csv
@@ -71,6 +72,29 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Retail12.1.0.69933 local CASC, exact WoWDBDefs layout field orders.
+    "TransmogSet": (0xC6875C71, [
+        ("ID", "id"), ("Name_lang", ("string", 0)), ("ClassMask", 2),
+        ("Flags", 4), ("ParentTransmogSetID", "parent"), ("ConditionID", 12)]),
+    "TransmogSetItem": (0xE6EFF061, [
+        ("ID", "id"), ("TransmogSetID", "parent"),
+        ("ItemModifiedAppearanceID", 1), ("Flags", 2)]),
+    "TransmogIllusion": (0xDCE032AF, [
+        ("ID", "id"), ("UnlockConditionID", 1), ("TransmogCost", 2),
+        ("SpellItemEnchantmentID", 3), ("Flags", 4)]),
+    "TransmogOutfitEntry": (0x91D51304, [
+        ("ID", "id"), ("Cost", 0), ("Name_lang", ("string", 1)),
+        ("OrderIndex", 3), ("Source", ("u8", 4)), ("Flags", 5),
+        ("SetType", ("u8", 6))]),
+    "TransmogOutfitSlotInfo": (0xC034B46F, [
+        ("ID", "id"), ("InventorySlotName", ("string", 0)),
+        ("InventorySlotID", 8), ("Flags", 4), ("TransmogCollectionType", ("u8", 6))]),
+    "TransmogOutfitSlotOption": (0x8C80370F, [
+        ("ID", "id"), ("Name_lang", ("string", 0)), ("OptionEnum", ("u8", 1)),
+        ("TransmogOutfitSlotInfoID", "parent"), ("Flags", 3)]),
+    # Illusion names/icons (C_TransmogCollection.GetIllusionInfo).
+    "SpellItemEnchantment": (0xD5D2C264, [
+        ("ID", "id"), ("Name_lang", ("string", 0)), ("IconFileDataID", 6)]),
     # Retail 12.1.0.69933 local CASC; exact wowdev/WoWDBDefs layouts.
     "CooldownSet": (
         0xAA6C140C,
@@ -1103,6 +1127,9 @@ NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 1
 
 # Tables whose inline ID is not their first field.
 INLINE_ID_FIELD = {
+    "TransmogSet": 1,
+    "TransmogOutfitEntry": 2,
+    "TransmogOutfitSlotInfo": 1,
     "PvpTalent": 1,
     "SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2, "ModelFileData": 1,
     "ChrCustomizationOption": 1, "ChrCustomizationChoice": 1,

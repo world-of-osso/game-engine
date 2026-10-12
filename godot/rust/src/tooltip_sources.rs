@@ -64,8 +64,12 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 24] = [
+        const SOURCES: [Source; 28] = [
             GameClient::journal_set_tooltip,
+            GameClient::transmog_set_tooltip,
+            GameClient::transmog_source_tooltip,
+            GameClient::transmog_illusion_tooltip,
+            GameClient::housing_catalog_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -93,6 +97,27 @@ impl GameClient {
         SOURCES.iter().find_map(|source| source(self, hit))
     }
 
+    /// `HousingCatalogEntry{decor}`: HousingCatalogDecorEntryMixin tooltip, `ANCHOR_RIGHT`.
+    fn housing_catalog_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            name_of(frame)?
+                .strip_prefix("HousingCatalogEntry")?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let model = self.housing.model.as_ref()?;
+        let decor = model.catalog.decor.iter().find(|decor| decor.id == id)?;
+        let tooltip = game_engine_ui_model::housing::decor_entry_tooltip(
+            decor,
+            &model.catalog,
+            &self.housing.authority,
+        );
+        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
+        Some(HoveredTooltip::text(tooltip))
+    }
+
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let (owner, (set, item)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
@@ -117,6 +142,140 @@ impl GameClient {
         let mut hovered = self.item_owned(hit, owner, OwnerSide::Right, slot)?;
         hovered.tooltip.content.lines.extend(lines);
         Some(hovered)
+    }
+
+    /// TransmogSetModelMixin:OnEnter -> RefreshTooltip, `ANCHOR_RIGHT`.
+    fn transmog_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, set_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            name_of(frame)?
+                .strip_prefix("TransmogSet")?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let set = self
+            .transmog
+            .book
+            .state
+            .as_ref()?
+            .sets
+            .iter()
+            .find(|set| set.set_id == set_id)?;
+        let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_set_tooltip(set);
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
+    }
+
+    /// ItemModelBaseMixin:OnEnter and TransmogAppearanceSlotMixin item tooltips.
+    fn transmog_source_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        enum Target {
+            Source(u32),
+            Slot(u8),
+        }
+        let ui = hit.ui.bind();
+        let (owner, target) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            if let Some(id) = name.strip_prefix("TransmogSource") {
+                id.parse().ok().map(Target::Source)
+            } else {
+                name.strip_prefix("TransmogSlot")?
+                    .parse()
+                    .ok()
+                    .map(Target::Slot)
+            }
+        })?;
+        drop(ui);
+        let book = &self.transmog.book;
+        let state = book.state.as_ref()?;
+        let source = match target {
+            Target::Source(id) => state
+                .slots
+                .iter()
+                .flat_map(|slot| &slot.sources)
+                .find(|source| source.source_id == id),
+            Target::Slot(inv) => {
+                let slot = state
+                    .slots
+                    .iter()
+                    .find(|slot| slot.slot.inv_slot_id() == inv)?;
+                match book.effective_choice(slot) {
+                    shared::protocol::TransmogChoice::Source(id) => {
+                        slot.sources.iter().find(|source| source.source_id == id)
+                    }
+                    _ => None,
+                }
+            }
+        };
+        let (definition, item, name) = if let Some(source) = source {
+            (
+                shared::item_data::ItemDefinitionSource::Retail,
+                source.item_id,
+                source.name.clone(),
+            )
+        } else if let Target::Slot(inv) = target {
+            let slot = state
+                .slots
+                .iter()
+                .find(|slot| slot.slot.inv_slot_id() == inv)?;
+            let catalog = game_engine_ui_model::item_catalog::item_catalog_entry_for(
+                slot.definition_source,
+                slot.item_id,
+            )?;
+            (slot.definition_source, slot.item_id, catalog.name.clone())
+        } else {
+            return None;
+        };
+        let quality =
+            game_engine_ui_model::item_catalog::item_catalog_entry_for(definition, item)?.quality;
+        let item = named_item_for(definition, item, &name, quality, 1, 0);
+        self.item_owned(hit, owner, OwnerSide::Right, item)
+    }
+
+    /// An illusion card or a weapon's illusion slot, `ANCHOR_RIGHT`.
+    fn transmog_illusion_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        enum Hovered {
+            Card(u32),
+            Slot(u8),
+        }
+        let ui = hit.ui.bind();
+        let (owner, hovered) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            match name.strip_prefix("TransmogIllusionEntry") {
+                Some(id) => id.parse().ok().map(Hovered::Card),
+                None => name
+                    .strip_prefix("TransmogIllusion")?
+                    .parse()
+                    .ok()
+                    .map(Hovered::Slot),
+            }
+        })?;
+        drop(ui);
+        let book = &self.transmog.book;
+        let name = match hovered {
+            Hovered::Card(id) => Some(book.illusion(id)?.name.clone()),
+            Hovered::Slot(inv) => {
+                let slot = shared::protocol::EquipmentSlot::ALL
+                    .into_iter()
+                    .find(|slot| slot.inv_slot_id() == inv)?;
+                book.effective_illusion(slot)
+                    .and_then(|id| book.illusion(id))
+                    .map(|illusion| illusion.name.clone())
+            }
+        };
+        let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_illusion_tooltip(
+            name.as_deref(),
+        );
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
     }
 
     fn journal_bonus_descriptions(&self, set: u32) -> std::collections::BTreeMap<u32, String> {
