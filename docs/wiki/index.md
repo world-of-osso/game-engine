@@ -8,6 +8,7 @@
 
 - [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks/Eye both-skin private lifecycle proof; Eye16-account tower/flag victory/return with20 inspected PNGs; art/preparation/resurrection gaps remain.
 - [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical assets/cache published by lead; public708 stays hidden pending client bundle publication.
+- [Seething source objective slice](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12) — dynamic fissures/Azerite/six-second Gathering; source ship-relative entry explicitly blocked and public894 hidden; authored transport work remains in scope.
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.

@@ -1,3 +1,7 @@
+## 2026-10-12 — Seething objectives and transport entry boundary
+
+[Seething](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12): source dynamic nodes,40s geysers, six-second Gathering,100resources/744 and pure victory; grounded channel fixture remains partial. Starts6337/6380 are transport-relative35/36, not world-space coordinates. Retain TransportSpawnId/refuse unresolved entry/hide894; return to authored transport spawns/transforms/attachment/collision after Deephaul/epics. No native lifecycle or full Retail claim.
+
 ## 2026-10-12 — Eye both-skin private lifecycle
 
 [Eye](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12):16 real accounts per skin, M2-supported source entry, four presence-held towers, three physical flag captures, natural1500/183=3, automaticVictory/exact native origin/all15peer return;16ACKs then periodic save.20 inspected PNGs and eye-live-proof.json retain bounded proof. Fixture sequential worker entry resolves burst handshake timeout without extending deadlines; private startup waits processed admin readiness. Player-body art and preparation/resurrection/rewards remain uncertified.
