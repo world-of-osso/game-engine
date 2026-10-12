@@ -194,10 +194,11 @@ impl GameClient {
     fn profession_specialization_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
         let (owner, node) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            name_of(frame)?
-                .strip_prefix("ProfessionSpecNode")?
-                .parse::<u32>()
-                .ok()
+            let name = name_of(frame)?;
+            let id = name
+                .strip_prefix("ProfessionSpecNode")
+                .or_else(|| name.strip_prefix("ProfessionSpecPerk"))?;
+            id.parse::<u32>().ok()
         })?;
         drop(ui);
         let tooltip = self.professions.specializations.tooltip(node)?;

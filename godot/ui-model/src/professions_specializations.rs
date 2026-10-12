@@ -260,28 +260,45 @@ impl SpecializationDraft {
             }
         }
     }
+    fn perk_tooltip_lines(
+        &self,
+        perk: &ProfessionSpecPerk,
+    ) -> Option<Vec<crate::tooltip_presentation::TooltipLineState>> {
+        use crate::tooltip_presentation::TooltipLineState;
+        let path = self.entry_for_node(perk.path_node_id)?;
+        let (committed, _) = self.committed_display_ranks(perk.path_node_id)?;
+        let (staged, _) = self.display_ranks(perk.path_node_id)?;
+        let state = if committed >= perk.required_points {
+            "Earned"
+        } else if staged >= perk.required_points {
+            "Pending"
+        } else {
+            "Unearned"
+        };
+        let mut lines = vec![
+            TooltipLineState::new(format!(
+                "Requires {} points in {}",
+                perk.required_points, path.name
+            )),
+            TooltipLineState::colored(state, [1.0; 4]),
+        ];
+        if perk.unlocks_subpath {
+            lines.push(TooltipLineState::new("Unlocks a sub-specialization"));
+        }
+        Some(lines)
+    }
     pub fn tooltip(&self, node_id: u32) -> Option<crate::game_tooltip::GameTooltip> {
         use crate::tooltip_presentation::{
             TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation, description_lines,
         };
         let node = self.entry_for_node(node_id)?;
-        let (rank, maximum) = self.display_ranks(node_id)?;
         let mut lines = description_lines(&node.description, TOOLTIP_DESCRIPTION_COLOR);
-        lines.push(TooltipLineState::colored(
-            format!("Rank {rank}/{maximum}"),
-            [1.0; 4],
-        ));
         if let Some(perk) = &node.perk {
+            lines.extend(self.perk_tooltip_lines(perk)?);
+        } else {
+            let (rank, maximum) = self.display_ranks(node_id)?;
             lines.push(TooltipLineState::colored(
-                format!(
-                    "Requires {} points{}",
-                    perk.required_points,
-                    if perk.unlocks_subpath {
-                        " — unlocks a sub-specialization"
-                    } else {
-                        ""
-                    }
-                ),
+                format!("Rank {rank}/{maximum}"),
                 [1.0; 4],
             ));
         }
