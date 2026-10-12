@@ -670,20 +670,20 @@ impl RegistryModel {
     }
 
     fn reveal_selection_row(&mut self, id: u64) {
-        let Some(frame) = self.registry.get(id) else {
-            return;
-        };
-        if !game_engine_ui_model::selection_list::is_selection_row(frame) {
-            return;
+        if let Some((name, offset)) = self.selection_scroll_target(id) {
+            self.registry.scroll_lists.scroll_to(&name, offset);
         }
-        let Some(row) = frame.layout_rect.as_ref() else {
-            return;
-        };
+    }
+
+    fn selection_scroll_target(&self, id: u64) -> Option<(String, usize)> {
+        let frame = self.registry.get(id)?;
+        if !game_engine_ui_model::selection_list::is_selection_row(frame) {
+            return None;
+        }
+        let row = frame.layout_rect.as_ref()?;
         let mut parent = frame.parent_id;
         while let Some(id) = parent {
-            let Some(frame) = self.registry.get(id) else {
-                return;
-            };
+            let frame = self.registry.get(id)?;
             if let Some(name) = frame.name.as_deref()
                 && let Some(list) = self.registry.scroll_lists.get(name)
                 && let Some(bounds) = frame.layout_rect.as_ref()
@@ -694,12 +694,11 @@ impl RegistryModel {
                     (row.y + row.height - bounds.y - bounds.height).max(0.0)
                 };
                 let offset = (list.first_row as f32 + delta).max(0.0) as usize;
-                let name = name.to_owned();
-                self.registry.scroll_lists.scroll_to(&name, offset);
-                return;
+                return Some((name.to_owned(), offset));
             }
             parent = frame.parent_id;
         }
+        None
     }
 
     fn blur_frame(&mut self, id: u64) {

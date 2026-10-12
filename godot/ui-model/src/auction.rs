@@ -474,14 +474,20 @@ pub fn auction_gossip_screen(
     ctx: &ui_toolkit::screen::SharedContext,
 ) -> ui_toolkit::widget_def::Element {
     use ui_toolkit::rsx;
-    struct DynName(String);
     let view = ctx.get::<AuctionGossipView>().expect("AuctionGossipView");
     let mut options = Vec::new();
     for (index, option) in view.options.iter().enumerate() {
         let name = format!("AuctionGossipOption{}", option.option_id);
         let action = format!("auction_gossip:{}", option.option_id);
         let top = 100.0 + index as f32 * 30.0;
-        options.extend(rsx!{button { name:{DynName(name)},width:280.0,height:26.0,text:{option.text.as_str()},onclick:{action.as_str()},pos_type:"absolute",left:20.0,top:top,}});
+        options.extend(crate::selection_list::text_row(
+            name,
+            &option.text,
+            &action,
+            true,
+            false,
+            (20.0, top, 280.0, 26.0),
+        ));
     }
     let height = 140.0 + view.options.len() as f32 * 30.0;
     let chrome = crate::quest_art::window_chrome(

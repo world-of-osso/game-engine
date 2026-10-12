@@ -2,7 +2,7 @@
 //! LFGList.xml's search entry uses `search-highlight`; its group rows use
 //! `groupfinder-highlightbar-blue`. Atlas resolution selects Forever art only
 //! when that skin has an authored member for the same atlas name.
-use crate::bank_art::{WHITE, label, texture};
+use crate::bank_art::label;
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use ui_toolkit::{
     frame::{Frame, WidgetData},
@@ -45,7 +45,7 @@ pub fn text_row(
     let mut content = rsx! { r#frame { name: {DynName(format!("{name}Selected"))}, width, height,
         hidden, pos_type: "absolute", left: 0.0, top: 0.0,
         {named_atlas_texture(format!("{name}SelectedArt"), SELECTED, (0.0,0.0,width,height))}
-        {texture(format!("{name}Check"), 130751, (width-22.0,(height-16.0)/2.0,16.0,16.0), WHITE)}
+        {named_atlas_texture(format!("{name}Check"), "groupfinder-icon-greencheckmark", (width-22.0,(height-16.0)/2.0,16.0,16.0))}
     } };
     let color = if enabled {
         NORMAL_FONT_COLOR
