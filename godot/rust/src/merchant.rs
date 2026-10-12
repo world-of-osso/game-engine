@@ -261,38 +261,20 @@ impl GameClient {
 
     /// `InteractUnit`: use a game object, else loot, attack or talk to a unit.
     pub(crate) fn interact_unit(&mut self, unit: u64) -> Result<(), FrameError> {
-        godot_print!(
-            "CRAFTING_INTERACT_TRACE unit={} decision={:?} player={:?} node={:?}",
-            unit,
-            self.unit_right_click(unit),
-            self.world
-                .local_player_transform()
-                .map(|transform| transform.origin),
-            self.world
-                .unit_node(unit)
-                .map(|node| node.get_global_position())
-        );
         if self.interact_spirit_healer(unit) {
-            godot_print!("CRAFTING_INTERACT_TRACE handled=spirit");
             return Ok(());
         }
         if self.use_game_object(unit)? || self.send_corpse_loot(unit)? {
-            godot_print!("CRAFTING_INTERACT_TRACE handled=object-or-loot");
             return Ok(());
         }
         if self.start_clicked_wild_pet(unit)? {
-            godot_print!("CRAFTING_INTERACT_TRACE handled=wild-pet");
             return Ok(());
         }
         // Interacting with an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
-            godot_print!("CRAFTING_INTERACT_TRACE handled=auto-attack");
             self.start_auto_attack(unit)?;
         } else if self.unit_right_click(unit) == RightClick::Interact {
-            godot_print!("CRAFTING_INTERACT_TRACE handled=send-interact");
             self.account.send_interact(unit)?;
-        } else {
-            godot_print!("CRAFTING_INTERACT_TRACE handled=target-only");
         }
         Ok(())
     }
