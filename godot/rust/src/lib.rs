@@ -2235,6 +2235,20 @@ impl GameClient {
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::TaxiMap(map) => self.open_flight_map(map)?,
             AccountEvent::Npc(message) => {
+                match &message {
+                    account::NpcMessage::Opened(opened) => godot_print!(
+                        "CRAFTING_NPC_RESPONSE npc={} kind={:?}",
+                        opened.npc,
+                        opened.kind
+                    ),
+                    account::NpcMessage::InteractionError(error) => {
+                        godot_print!("CRAFTING_NPC_RESPONSE error={:?}", error)
+                    }
+                    account::NpcMessage::Error(error) => {
+                        godot_print!("CRAFTING_NPC_RESPONSE error={}", error)
+                    }
+                    _ => {}
+                }
                 if let account::NpcMessage::Closed(npc) = &message {
                     self.flight_map.session.close_for(*npc);
                     self.trainer_closed_for(*npc);
