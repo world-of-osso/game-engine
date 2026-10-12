@@ -96,7 +96,7 @@ fn stored_entries(view: &HousingView, disabled: bool) -> Element {
                 width: 97.0, height: 125.0, pos_type: "absolute", left, top,
                 onclick: action, disabled, button_default_skin: false,
                 texture { name: {DynName(format!("HouseEditorIcon{}",decor.id))},
-                    file_data_id: fdid, width: 97.0, height: 97.0,
+                    texture_fdid: fdid, width: 97.0, height: 97.0,
                     pos_type: "absolute", left: 0.0, top: 0.0 }
                 fontstring { name: {DynName(format!("HouseEditorName{}",decor.id))},
                     text, width: 97.0, height: 36.0, font_size: 11.0,

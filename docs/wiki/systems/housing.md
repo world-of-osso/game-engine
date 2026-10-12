@@ -18,6 +18,12 @@ Server `persistence_housing_access` derives neighbors from durable paid same-nei
 
 Twelve private native role/mode/skin runs prove staged/closed drafts, saved/relogged Anyone/No One/Limited-Friends, allowed read-only visits and No One denial remaining outside after real reauthentication. Each account owns an actually paid house; no item/decor/property grant. Evidence `data/diagnostics/housing-core-2026-10-12/core8/`; eight inspected public PNGs show both-skin saved modes and denied visitors. Allowed-visitor relog captures lagged registry projection and are not published as visual proof; their authoritative state/readonly/relog proof is retained. Guild/Neighbors/current-party relationship changes have concrete server tests, not new per-relationship live UI proof.
 
+## Basic owned-storage search
+
+`HousingDashboard.storage_search` is independent of Dashboard Catalog search and is retained while Cleanup/Expert hides the drawer. The source header input filters only positive server-confirmed stored stacks by qualified decor name, case-insensitively; placed-only/unowned/unconfirmed entries never appear. Native sampling reads only mounted storage inputs, preventing hidden-mode search reset. Search changes no server state. Source: Retail HouseEditorStorageFrame Lua SetStoredOnly/OnSearchTextUpdated/OnShow and XML600×651 header SearchBox anchors20/-160/height30. Categories/paging/collapse/resize/Market/Blueprints and native paid-variant controls remain separate capabilities, not full storage parity.
+
+Live storage proof exposed missing thumbnail art despite both authentic BLPs already on disk. Storage RSX used unrecognized `file_data_id`; its exported TextureSource was not FileDataId, so no native image/preload existed. Use the existing `texture_fdid` attribute, as Catalog does. The actual native missing-texture check and exported public-image source regression reproduce it. Both-skin current live search/thumbnail proof remains pending.
+
 ## Cleanup editor input
 
 `EditorMode::Cleanup` clears Basic/Expert drafts and hides storage. Native mouse motion uses the existing visible-mesh UnitPicker; only confirmed placed IDs get a temporary additive overlay and cursor name tooltip. Hovering UI/empty ground, switching mode, removal and closing clear the overlay without rewriting saved mesh materials. Native highlight color is input feedback, not a claimed Retail shader.
