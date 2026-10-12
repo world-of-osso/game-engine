@@ -8,6 +8,7 @@ pub enum EditorMode {
     #[default]
     Basic,
     Expert,
+    Cleanup,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum PrecisionSubmode {
@@ -28,6 +29,8 @@ pub enum RotationAxis {
 pub struct EditorInteraction {
     pub placing: Option<u32>,
     pub selected: Option<u64>,
+    pub hovered: Option<u64>,
+    pub hover_point: [f32; 2],
     pub yaw: f32,
     pub mode: EditorMode,
     pub submode: PrecisionSubmode,
@@ -104,6 +107,25 @@ impl EditorInteraction {
             mode,
             ..Default::default()
         };
+    }
+    pub fn hover(
+        &mut self,
+        authority: &HousingAuthority,
+        instance: Option<u64>,
+        point: [f32; 2],
+    ) -> Result<(), String> {
+        if let Some(instance) = instance {
+            let exists = layout(authority)?
+                .decor
+                .iter()
+                .any(|decor| decor.instance_id == instance);
+            if !exists {
+                return Err("Hovered decor is not in the authoritative layout.".into());
+            }
+        }
+        self.hovered = instance;
+        self.hover_point = point;
+        Ok(())
     }
     pub fn cancel(&mut self) {
         *self = Self {
@@ -214,6 +236,14 @@ impl EditorInteraction {
         ground: Option<[f32; 3]>,
     ) -> Result<Option<HousingCommand>, String> {
         let can_edit = layout(authority)?.can_edit;
+        if self.mode == EditorMode::Cleanup {
+            let Some(instance) = picked else {
+                return Ok(None);
+            };
+            editable_layout(authority)?;
+            self.select(authority, instance)?;
+            return self.remove(authority).map(Some);
+        }
         if self.mode == EditorMode::Expert {
             if let Some(instance) = picked {
                 self.select(authority, instance)?;
@@ -306,6 +336,7 @@ impl EditorInteraction {
             let transform = self.placement_transform(position)?;
             self.placing = None;
             return Ok(HousingCommand::PlaceDecor {
+                variant_id: None,
                 house_id,
                 decor_id,
                 transform,

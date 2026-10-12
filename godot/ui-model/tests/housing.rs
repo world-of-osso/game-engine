@@ -766,6 +766,7 @@ fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_ski
                     house_id: 41,
                     can_edit: true,
                     decor: vec![shared::protocol::PlacedDecor {
+                        dyes: Vec::new(),
                         instance_id: 7,
                         decor_id: 1693,
                         transform: shared::protocol::DecorTransform {
@@ -852,6 +853,117 @@ fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_ski
         let mut registry = FrameRegistry::new(1280.0, 720.0);
         Screen::new(housing_screen).sync(&context, &mut registry);
         assert!(registry.get_by_name("HouseEditorScaleControl").is_none());
+    }
+}
+
+#[test]
+fn housing_cleanup_hides_storage_and_shows_hover_name_and_readonly_error_in_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_editor::EditorMode;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let decor = Decor {
+        id: 1693,
+        name: "Small Val'sharah Bookcase".into(),
+        item_id: 245259,
+        model_type: 1,
+        model_fdid: 1096761,
+        initial_rotation: [0.0; 3],
+        initial_scale: 1.0,
+        thumbnail_fdid: 7421877,
+        order: 328,
+        subcategories: vec![],
+        sources: vec![],
+        dyeable: false,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for can_edit in [true, false] {
+            let mut model = HousingDashboard::new(Arc::new(HousingCatalog {
+                decor: vec![decor.clone()],
+                ..Default::default()
+            }));
+            model.surface = HousingSurface::Editor;
+            let authority = HousingAuthority {
+                state: Some(shared::protocol::HousingState {
+                    build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                    layout: Some(shared::protocol::HouseLayout {
+                        house_id: 1,
+                        can_edit,
+                        decor: vec![shared::protocol::PlacedDecor {
+                            instance_id: 7,
+                            decor_id: 1693,
+                            transform: shared::protocol::DecorTransform {
+                                position: [0.0; 3],
+                                yaw: 0.0,
+                                pitch: 0.0,
+                                roll: 0.0,
+                                scale: 1.0,
+                            },
+                            dyes: vec![],
+                        }],
+                    }),
+                    ..Default::default()
+                }),
+                error: None,
+            };
+            let mut context = SharedContext::new();
+            let mut view = HousingView {
+                model,
+                authority,
+                viewport: [1280.0, 720.0],
+                money: None,
+                missing_thumbnails: Default::default(),
+                vendor_names: Default::default(),
+            };
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            let mut screen = Screen::new(housing_screen);
+            screen.sync(&context, &mut registry);
+            let cleanup = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorCleanupModeButton")
+                        .expect("mode entry"),
+                )
+                .unwrap();
+            assert_eq!(cleanup.onclick.as_deref(), Some("housing:cleanup"));
+            view.model.editor.set_mode(EditorMode::Cleanup);
+            view.model
+                .editor
+                .hover(&view.authority, Some(7), [600.0, 300.0])
+                .unwrap();
+            context.insert(view.clone());
+            screen.sync(&context, &mut registry);
+            assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+            assert!(registry.get_by_name("HouseEditorStored1693").is_none());
+            assert!(registry.get_by_name("HouseEditorRemove").is_none());
+            let name = registry
+                .get(registry.get_by_name("HouseEditorCleanupHoverName").unwrap())
+                .unwrap();
+            assert!(
+                matches!(&name.widget_data, Some(WidgetData::FontString(text)) if text.text == "Small Val'sharah Bookcase")
+            );
+            assert_eq!(
+                registry
+                    .get_by_name("HouseEditorCleanupHoverError")
+                    .is_some(),
+                !can_edit
+            );
+            view.model
+                .editor
+                .hover(&view.authority, None, [0.0; 2])
+                .unwrap();
+            context.insert(view.clone());
+            screen.sync(&context, &mut registry);
+            assert!(registry.get_by_name("HouseEditorCleanupTooltip").is_none());
+            view.model.editor.set_mode(EditorMode::Basic);
+            context.insert(view);
+            screen.sync(&context, &mut registry);
+            assert!(registry.get_by_name("HouseEditorStorageFrame").is_some());
+        }
     }
 }
 

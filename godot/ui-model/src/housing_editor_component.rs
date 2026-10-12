@@ -5,8 +5,10 @@ use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub fn editor_screen(view: &HousingView) -> Element {
-    if view.model.editor.mode == crate::housing_editor::EditorMode::Expert {
-        return expert_screen(view);
+    match view.model.editor.mode {
+        crate::housing_editor::EditorMode::Expert => return expert_screen(view),
+        crate::housing_editor::EditorMode::Cleanup => return cleanup_screen(view),
+        crate::housing_editor::EditorMode::Basic => {}
     }
     let layout = view
         .authority
@@ -40,7 +42,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
     } else {
         "Select stored decor to place, or select placed decor in the world."
     };
-    let left = ((view.viewport[0] - 730.0) / 2.0).max(0.0);
+    let left = ((view.viewport[0] - 800.0) / 2.0).max(0.0);
     let top = (view.viewport[1] - 70.0).max(0.0);
     let instructions_left = (view.viewport[0] - 330.0).max(610.0);
     rsx! { r#frame { name: "HouseEditorFrame", stretch: true,
@@ -52,7 +54,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
         }
         fontstring { name: "HouseEditorInstructions", text: instruction, width: 300.0, height: 100.0,
             pos_type: "absolute", left: instructions_left, top: 40.0, font_size: 14.0 }
-        r#frame { name: "HouseEditorModeBar", width: 730.0, height: 60.0,
+        r#frame { name: "HouseEditorModeBar", width: 800.0, height: 60.0,
             pos_type: "absolute", left, top, mouse_enabled: true, strata: FrameStrata::Dialog,
             button { name: "HouseEditorBasicDecorModeButton", text: "Basic Decor", width: 120.0, height: 40.0,
                 pos_type: "absolute", left: 0.0, top: 10.0, disabled: true }
@@ -68,6 +70,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
                 pos_type: "absolute", left: 565.0, top: 10.0, onclick: "housing:info" }
             button { name: "HouseEditorExpertDecorModeButton", text: "Expert Decor", width: 64.0, height: 64.0,
                 pos_type: "absolute", left: 650.0, top: 0.0, onclick: "housing:expert", disabled }
+            {mode_icon("HouseEditorCleanupModeButton", "decor-ability-cleanup-default", "housing:cleanup", (724.0, 0.0), view.model.pending)}
         }
     } }
 }
@@ -121,7 +124,7 @@ fn expert_screen(view: &HousingView) -> Element {
         .is_some_and(|layout| layout.can_edit);
     let disabled = !can_edit || view.model.pending;
     let scale_disabled = disabled || (editor.selected.is_some() && !editor.scale_allowed);
-    let left = ((view.viewport[0] - 128.0) / 2.0).max(0.0);
+    let left = ((view.viewport[0] - 192.0) / 2.0).max(0.0);
     let top = (view.viewport[1] - 84.0).max(0.0);
     let sub_left = left - 32.0;
     let sub_top = top - 82.0;
@@ -149,6 +152,13 @@ fn expert_screen(view: &HousingView) -> Element {
         "decor-ability-expertmode-active",
         "housing:expert",
         (64.0, 0.0),
+        view.model.pending,
+    ));
+    controls.extend(mode_icon(
+        "HouseEditorCleanupModeButton",
+        "decor-ability-cleanup-default",
+        "housing:cleanup",
+        (128.0, 0.0),
         view.model.pending,
     ));
     let mut submodes = Element::default();
@@ -196,10 +206,93 @@ fn expert_screen(view: &HousingView) -> Element {
     let instruction_top = ((view.viewport[1] - 150.0) / 2.0).max(0.0);
     rsx! { r#frame { name:"HouseEditorFrame",stretch:true,
         {mouse_controls}
-        r#frame {name:"HouseEditorModeBar",width:128.0,height:64.0,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,{controls}}
+        r#frame {name:"HouseEditorModeBar",width:192.0,height:64.0,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,{controls}}
         r#frame {name:"HouseEditorExpertSubmodeBar",width:192.0,height:64.0,pos_type:"absolute",left:sub_left,top:sub_top,mouse_enabled:true,strata:FrameStrata::Dialog,{submodes}}
         fontstring {name:"HouseEditorInstructions",text:instruction,width:330.0,height:150.0,pos_type:"absolute",left:{(view.viewport[0]-360.0).max(0.0)},top:instruction_top,font_size:14.0}
     } }
+}
+
+fn cleanup_screen(view: &HousingView) -> Element {
+    let left = ((view.viewport[0] - 192.0) / 2.0).max(0.0);
+    let top = (view.viewport[1] - 84.0).max(0.0);
+    let mut controls = Element::default();
+    for (index, (name, atlas, action)) in [
+        (
+            "HouseEditorBasicDecorModeButton",
+            "decor-ability-move-default",
+            "housing:basic",
+        ),
+        (
+            "HouseEditorExpertDecorModeButton",
+            "decor-ability-expertmode-default",
+            "housing:expert",
+        ),
+        (
+            "HouseEditorCleanupModeButton",
+            "decor-ability-cleanup-active",
+            "housing:cleanup",
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        controls.extend(mode_icon(
+            name,
+            atlas,
+            action,
+            (index as f32 * 64.0, 0.0),
+            view.model.pending,
+        ));
+    }
+    let tooltip = cleanup_tooltip(view);
+    let instruction_top = ((view.viewport[1] - 70.0) / 2.0).max(0.0);
+    rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
+        r#frame {name:"HouseEditorModeBar",width:192.0,height:64.0,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,{controls}}
+        fontstring {name:"HouseEditorInstructions",text:"Left-click decor to return it to storage.",width:300.0,height:70.0,pos_type:"absolute",left:{(view.viewport[0]-330.0).max(0.0)},top:instruction_top,font_size:14.0}
+        {tooltip}
+    }}
+}
+
+fn cleanup_tooltip(view: &HousingView) -> Element {
+    let Some(instance) = view.model.editor.hovered else {
+        return Element::default();
+    };
+    let Some(layout) = view
+        .authority
+        .state
+        .as_ref()
+        .and_then(|state| state.layout.as_ref())
+    else {
+        return Element::default();
+    };
+    let Some(placed) = layout
+        .decor
+        .iter()
+        .find(|decor| decor.instance_id == instance)
+    else {
+        return Element::default();
+    };
+    let Some(source) = view
+        .model
+        .catalog
+        .decor
+        .iter()
+        .find(|decor| decor.id == placed.decor_id)
+    else {
+        return Element::default();
+    };
+    let [x, y] = view.model.editor.hover_point;
+    let left = (x + 18.0).min((view.viewport[0] - 280.0).max(0.0));
+    let top = (y + 18.0).min((view.viewport[1] - 70.0).max(0.0));
+    let error = if layout.can_edit {
+        Element::default()
+    } else {
+        rsx! {fontstring {name:"HouseEditorCleanupHoverError",text:"Visitors cannot remove decor.",width:272.0,height:28.0,pos_type:"absolute",left:4.0,top:34.0,font_size:12.0,font_color:"1.0,0.2,0.2,1.0"}}
+    };
+    rsx! {r#frame {name:"HouseEditorCleanupTooltip",width:280.0,height:70.0,strata:FrameStrata::Tooltip,pos_type:"absolute",left,top,background_color:"0.0,0.0,0.0,0.95",
+        fontstring {name:"HouseEditorCleanupHoverName",text:{source.name.as_str()},width:272.0,height:30.0,pos_type:"absolute",left:4.0,top:2.0,font_size:14.0,font_color:"1.0,0.82,0.0,1.0"}
+        {error}
+    }}
 }
 
 fn mode_icon(
