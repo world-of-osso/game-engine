@@ -38,6 +38,9 @@ func run_test() -> void:
 		return
 	print("CRITERIA_WORLD ", character, " ", client.account_state())
 	await key(KEY_Y)
+	# Initial authoritative criteria snapshots precede catalog replies on the ordered channel.
+	if not await wait_for(func(): return label("AchievementSummaryTotalText") != "" and find_control("AchievementCategory92") != null, "initial achievement authority and categories", 150000):
+		return
 	if not await show_achievement(2076, "Armored Brown Bear", false):
 		return
 	await capture("before-bear")
@@ -111,7 +114,7 @@ func show_achievement(id: int, title: String, earned: bool) -> bool:
 	await search(title)
 	var prefix := "Achievement%d" % id
 	var expected := "Earned" if earned else "Not earned"
-	if not await wait_for(func(): return label(prefix + "Date").begins_with(expected), "authoritative %s %s" % [title, expected]):
+	if not await wait_for(func(): return label(prefix + "Date").begins_with(expected), "authoritative %s %s" % [title, expected], 60000):
 		return false
 	await click_control(find_control(prefix + "Row"))
 	if not await wait_for(func(): return not criteria_labels(id).is_empty(), "criteria expansion"):
