@@ -42,6 +42,9 @@ func run_test() -> void:
 		return
 	await tap(KEY_ESCAPE)
 	if not await wait_housing(func(): return matches_precision(original), "cancel restores confirmed render"): return
+	if housing_control("TranslateSubmodeButton") == null:
+		fail("Expert cancel must retain the editor; Escape leaked to global window close")
+		return
 	if not await capture_housing("expert-cancelled"): return
 	if not await select_saved_decor(): return
 	if not await stage_precision(): return
@@ -49,6 +52,9 @@ func run_test() -> void:
 	var expected: Dictionary = {"position": [node.position.x, node.position.y, node.position.z], "pitch": node.rotation.x, "yaw": node.rotation.y, "roll": node.rotation.z, "scale": node.scale.x}
 	await tap(KEY_ENTER)
 	if not await wait_housing(func(): return matches_precision(expected) and not client.housing_state().pending, "authoritative expert commit"): return
+	if housing_control("TranslateSubmodeButton") == null:
+		fail("Expert commit must retain its controls")
+		return
 	if stored_bookcases() != 0 or client.housing_state().decor.size() != 1:
 		fail("Expert changed owned quantity")
 		return
