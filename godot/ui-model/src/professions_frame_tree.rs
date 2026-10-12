@@ -157,8 +157,13 @@ fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Elemen
         (10.0, 0.0, ROW_WIDTH - 35.0, CATEGORY_HEIGHT),
     ));
     let action = format!("profession:category:{category}");
-    rsx! { button { name: {DynName(prefix)}, width: ROW_WIDTH, height: CATEGORY_HEIGHT,
-    left: 0.0, top: y, pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (0.0, y, ROW_WIDTH, CATEGORY_HEIGHT),
+        children,
+    )
 }
 
 fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {

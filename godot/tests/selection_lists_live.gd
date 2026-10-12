@@ -68,7 +68,10 @@ func capture(suffix: String) -> void:
 	await settle(30)
 	await RenderingServer.frame_post_draw
 	var path := output.path_join(skin + "-" + stage + "-" + suffix + ".png")
-	if root.get_texture().get_image().save_png(path) != OK: fail("Capture: " + path)
+	var image := root.get_texture().get_image()
+	if image.get_width() > 1280:
+		image.resize(1280, int(image.get_height() * 1280.0 / image.get_width()), Image.INTERPOLATE_LANCZOS)
+	if image.save_png(path) != OK: fail("Capture: " + path)
 
 func run_fixture() -> void:
 	if OS.get_environment("SELLIST_ENDPOINT") != "127.0.0.1:5933" or not OS.get_environment("SELLIST_ACCOUNT").begins_with("fb_sellist_"):
@@ -87,8 +90,8 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return control("MinimapLauncherButton") != null, "inworld HUD"): return
 	await pointer("MinimapLauncherButton")
 	await pointer("LauncherEntryLFDMicroButton")
-	if not await wait_until(func(): return control("HonorFrameSpecificBattlegroundButton108") != null and not (control("HonorFrameSpecificBattlegroundButton108") as Button).disabled, "queue list ready"): return
-	await pointer("HonorFrameSpecificBattlegroundButton108")
+	if not await wait_until(func(): return control("HonorFrameSpecificBattlegroundButton120") != null and not (control("HonorFrameSpecificBattlegroundButton120") as Button).disabled, "queue list ready"): return
+	await pointer("HonorFrameSpecificBattlegroundButton120")
 	if not await wait_until(func(): return control("HonorFrameDescription").text.contains("The Battle for Gilneas"), "pointer selection"): return
 	await motion(Vector2(650, 480))
 	await capture("queue-selected")
@@ -98,6 +101,7 @@ func run_fixture() -> void:
 		await pointer("HonorFrameSpecificBattlegroundButton1014")
 		if not await wait_until(func(): return control("HonorFrameDescription").text.contains("Warsong Gulch"), "selection changed"): return
 		await tap(KEY_DOWN)
+		if root.gui_get_focus_owner() != control("HonorFrameSpecificBattlegroundButton1018"): fail("Down did not focus next source row"); return
 		await tap(KEY_ENTER)
 		if not await wait_until(func(): return control("HonorFrameDescription").text.contains("Arathi Basin"), "keyboard selection activates next row"): return
 		await pointer("HonorFrameSpecificScrollBox", MOUSE_BUTTON_WHEEL_DOWN)
@@ -114,6 +118,28 @@ func run_fixture() -> void:
 	await pointer("JournalBoss1519")
 	await motion(Vector2(950, 500))
 	await capture("guide-boss-selected")
+	await pointer("EncounterJournalCloseButton")
+	await pointer("MinimapLauncherButton")
+	await pointer("LauncherEntryGuildMicroButton")
+	if not await wait_until(func(): return control("GuildMember0") != null, "guild roster"): return
+	await motion(Vector2(1100, 950))
+	await capture("guild-roster")
+	root.size = Vector2i(1600, 1000)
+	await pointer("GuildControlButton")
+	if not await wait_until(func(): return control("GuildRankRow1") != null, "guild rank list"): return
+	await pointer("GuildRankRow1")
+	await motion(Vector2(1500, 950))
+	await capture("guild-rank-selected")
+	await pointer("GuildControlUICloseButton")
+	await pointer("CommunitiesFrameCloseButton")
+	root.size = Vector2i(1280, 720)
+	await tap(KEY_Z)
+	if not await wait_until(func(): return control("AuctionGossipOption0") != null, "source Hashom gossip"): return
+	await pointer("AuctionGossipOption0")
+	if not await wait_until(func(): return control("TransmogOutfitEntry3Button") != null, "source transmog outfits"): return
+	await pointer("TransmogOutfitEntry3Button")
+	await motion(Vector2(1150, 680))
+	await capture("outfit-selected")
 	print("SELECTION_LIST_PASS stage=", stage, " skin=", skin)
 	client.free()
 	quit(0)

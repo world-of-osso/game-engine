@@ -442,15 +442,6 @@ fn rank_list(session: &GuildRanksSession) -> Element {
                 selected,
                 (20.0, 78.0 + index as f32 * 30.0, 200.0, 26.0),
             ));
-            if selected {
-                children.extend(title(
-                    "GuildSelectedRank",
-                    "›",
-                    6.0,
-                    80.0 + index as f32 * 30.0,
-                    14.0,
-                ));
-            }
         }
     }
     let current = session.selected().map(|r| r.name.as_str()).unwrap_or("");

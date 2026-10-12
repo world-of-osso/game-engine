@@ -50,4 +50,18 @@ fn selection_row_hover_and_keyboard_focus_draw_without_push_button_chrome() {
         row.y >= list.y && row.y + row.height <= list.y + list.height,
         "keyboard focus reveals clipped rows"
     );
+    model.shared.insert(PvpView {
+        visible: true,
+        pending: true,
+        ..Default::default()
+    });
+    tests::rebuild(&mut model);
+    let mut actions = VecDeque::new();
+    model.queue_click_action(&mut actions, id);
+    assert!(
+        actions.is_empty(),
+        "disabled rows ignore pointer and keyboard activation"
+    );
+    model.update_input_widgets(UiInput::Hover(id, true), &mut sliders);
+    assert!(draw(&model).is_empty(), "disabled rows do not hover");
 }

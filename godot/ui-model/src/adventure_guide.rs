@@ -823,22 +823,11 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
                             },
                             section.title
                         );
-                        content.extend(crate::selection_list::text_row(
-                            format!("JournalSection{}", section.id),
+                        content.extend(section_row(
+                            section,
                             &title,
-                            &format!("journal:section:{}", section.id),
-                            true,
-                            !view.collapsed.contains(&section.id),
                             (indent, y, 545. - indent, 24.),
                         ));
-                        if section.icon != 0 {
-                            content.extend(texture(
-                                format!("JournalSection{}Icon", section.id),
-                                section.icon,
-                                (indent + 2., y + 2., 20., 20.),
-                                WHITE,
-                            ));
-                        }
                         y += 26.;
                         if !view.collapsed.contains(&section.id) && !section.body.is_empty() {
                             let height =
@@ -865,6 +854,32 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     }
     out
 }
+fn section_row(section: &Section, title: &str, rect: (f32, f32, f32, f32)) -> Element {
+    let name = format!("JournalSection{}", section.id);
+    let inset = if section.icon == 0 { 8.0 } else { 26.0 };
+    let mut content = label(
+        format!("{name}Name"),
+        title,
+        (inset, 0.0, rect.2 - inset, rect.3),
+        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+    );
+    if section.icon != 0 {
+        content.extend(texture(
+            format!("{name}Icon"),
+            section.icon,
+            (2.0, 2.0, 20.0, 20.0),
+            WHITE,
+        ));
+    }
+    crate::selection_list::row(
+        name,
+        &format!("journal:section:{}", section.id),
+        true,
+        rect,
+        content,
+    )
+}
+
 fn difficulty_button(view: &View) -> Element {
     let name = view
         .catalog

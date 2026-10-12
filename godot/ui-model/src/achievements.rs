@@ -1167,9 +1167,13 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
         width:40.0,height:26.0,left:429.0,top:12.0,pos_type:"absolute",justify_h:"CENTER",font:GameFont::FrizQuadrata,
         font_size:12.0,font_color:GOLD,onclick:action.as_str(),
     }});
-    rsx! {button {name:{DynName(format!("{prefix}SummaryRow"))},width:483.0,height:48.0,left:241.0,top:y,
-        pos_type:"absolute",onclick:action.as_str(),button_default_skin:false,{content}
-    }}
+    crate::selection_list::row(
+        format!("{prefix}SummaryRow"),
+        &action,
+        true,
+        (241.0, y, 483.0, 48.0),
+        content,
+    )
 }
 
 fn browse_controls(window: &AchievementWindow) -> Element {
