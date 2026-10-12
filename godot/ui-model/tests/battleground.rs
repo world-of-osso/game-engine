@@ -294,6 +294,84 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
 }
 
 #[test]
+fn deephaul_both_skin_cart_crystal_hud_source_columns_and_automatic_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let template = shared::battleground::deephaul_ravine();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name.clone();
+        bg.score_a = 1400;
+        bg.world_states = vec![
+            (25415, 1),
+            (25414, 0),
+            (25421, 0),
+            (25420, 1),
+            (25412, 3),
+            (1545, 2),
+            (1546, 1),
+        ];
+        bg.players[0].objective_scores = vec![(1020, 2), (1021, 3)];
+        let mut view = PvpView {
+            visible: true,
+            ..Default::default()
+        };
+        view.action("pvp:select:1110");
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1110)));
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 1400 / 1500    Horde 1 / 1500",
+        );
+        assert_text(&registry, "WorldStateCart0", "East Cart\nAlliance");
+        assert_text(&registry, "WorldStateCart1", "West Cart\nHorde");
+        assert_text(&registry, "WorldStateCrystal", "Deephaul Crystal\nAlliance");
+        assert!(registry.get_by_name("WorldStateFlags").is_none());
+        assert_text(&registry, "PVPMatchCategory7", "Flag Captures");
+        assert_text(&registry, "PVPMatchCategory8", "Carts Controlled");
+        assert_text(&registry, "PVPMatchPlayer81Stat1020", "2");
+        assert_text(&registry, "PVPMatchPlayer81Stat1021", "3");
+        state.battleground.as_mut().unwrap().world_states = vec![(25412, 3), (1545, 1), (1546, 1)];
+        receive(&mut view, state.clone());
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert_text(
+            &registry,
+            "WorldStateCrystal",
+            "Deephaul Crystal\nUnclaimed",
+        );
+        state.battleground.as_mut().unwrap().world_states = vec![(25412, 0), (1545, 1), (1546, 1)];
+        receive(&mut view, state.clone());
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "WorldStateCrystal", "Deephaul Crystal\nInactive");
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn seething_both_skin_resource_score_source_column_and_automatic_results() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

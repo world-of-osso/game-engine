@@ -45,7 +45,7 @@ Queue 699/map 998 uses the same native Retail specific queue/invitation/result c
 
 ## Deephaul Ravine continuation — active
 
-Source1110/map2656 uses two real214690/217346 carts and neutral Crystal422413. Dynamic dropped Crystal422412/type37 must render through normal source-display model resolution and offer object use; no base-flag substitute. Source minimum10-player roster, physical crystal/cart control, map-specific1020 Flag Captures/1021 Carts Controlled,1500victory, automatic results and source origin return require server and both-skin native proof. Source timing/control/path authority belongs in the server contract; vehicle/preparation/visual-aura/reward parity remains uncertified.
+Source1110/map2656 uses two real214690/217346 carts and neutral Crystal422413. Dynamic dropped Crystal422412/type37 must render through normal source-display model resolution and offer object use; no base-flag substitute. HUD shows East/West source cart-control cells and one Crystal cell (Inactive/Unclaimed/Alliance/Horde), not two team flags. Source minimum10-player roster, physical crystal/cart control, map-specific1020 Flag Captures/1021 Carts Controlled,1500victory, automatic results and source origin return require server and both-skin native proof. Real-channel source entry/cart motion/drop/type37 teammate pickup/expiry/capture/paired replacement/natural victory/all-player return now passes; both-skin private rendered proof remains pending. Source timing/control/path authority belongs in the server contract; vehicle/preparation/visual-aura/reward parity remains uncertified.
 
 ## Seething Shore continuation — active
 
