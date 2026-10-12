@@ -98,7 +98,64 @@ pub enum HousingSurface {
     Dashboard,
     Finder,
     Cornerstone(u32),
+    /// The roster from the server's reply to using the neighborhood's bulletin board.
+    BulletinBoard,
     Editor,
+}
+
+/// Retail NeighborhoodRosterMixin column attributes (NEIGHBORHOOD_ROSTER_COLUMN_INFO).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RosterColumn {
+    Name,
+    Status,
+    Plot,
+}
+
+/// The bulletin board roster as Retail NeighborhoodRosterMixin keeps it: the server's
+/// alphabetical member list and the order of the last column sort.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BulletinBoard {
+    pub neighborhood_id: u32,
+    alphabetical: Vec<shared::protocol::NeighborhoodResident>,
+    pub residents: Vec<shared::protocol::NeighborhoodResident>,
+    sort: RosterColumn,
+    reverse: bool,
+}
+
+impl BulletinBoard {
+    /// SetAlphabeticalSortedMemberList: shown as received, sorted by name.
+    pub fn new(roster: shared::protocol::NeighborhoodRoster) -> Self {
+        Self {
+            neighborhood_id: roster.neighborhood_id,
+            residents: roster.residents.clone(),
+            alphabetical: roster.residents,
+            sort: RosterColumn::Name,
+            reverse: false,
+        }
+    }
+
+    /// SortByColumnIndex: the active column flips direction. Name restores the
+    /// alphabetical list; Status puts online residents first; Plot orders by plot.
+    pub fn sort_by(&mut self, column: RosterColumn) {
+        let reverse = self.sort == column && !self.reverse;
+        self.sort = column;
+        self.reverse = reverse;
+        let direct = |order: std::cmp::Ordering| if reverse { order.reverse() } else { order };
+        match column {
+            RosterColumn::Name => {
+                self.residents = self.alphabetical.clone();
+                if reverse {
+                    self.residents.reverse();
+                }
+            }
+            RosterColumn::Status => self
+                .residents
+                .sort_by(|left, right| direct(right.online.cmp(&left.online))),
+            RosterColumn::Plot => self
+                .residents
+                .sort_by(|left, right| direct(left.plot_index.cmp(&right.plot_index))),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -117,6 +174,8 @@ pub struct HousingDashboard {
     pub collection: CollectionFilter,
     pub dyeable_only: bool,
     pub editor: crate::housing_editor::EditorInteraction,
+    /// The roster from the last bulletin board use; later snapshots do not carry it.
+    pub bulletin_board: Option<BulletinBoard>,
 }
 
 impl HousingDashboard {
@@ -137,6 +196,7 @@ impl HousingDashboard {
             collection: CollectionFilter::All,
             dyeable_only: false,
             editor: crate::housing_editor::EditorInteraction::default(),
+            bulletin_board: None,
         }
     }
 
@@ -162,6 +222,19 @@ impl HousingDashboard {
         }
         if action == "housing:leave" {
             return Ok(Some(HousingCommand::LeaveHouse));
+        }
+        if let Some(column) = action.strip_prefix("housing:roster-sort:") {
+            let column = match column {
+                "name" => RosterColumn::Name,
+                "status" => RosterColumn::Status,
+                "plot" => RosterColumn::Plot,
+                _ => return Err("Invalid roster column.".into()),
+            };
+            self.bulletin_board
+                .as_mut()
+                .ok_or("The bulletin board is not open.")?
+                .sort_by(column);
+            return Ok(None);
         }
         if let Some(value) = action.strip_prefix("housing:home:") {
             let house_id = value

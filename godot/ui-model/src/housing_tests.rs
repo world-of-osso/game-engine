@@ -145,6 +145,7 @@ fn dashboard() -> HousingDashboard {
         encrypted_records: 54,
         missing_tables: vec!["NeighborhoodInitiativeTask".into()],
         sources_imported: false,
+        neighborhoods: Vec::new(),
     };
     HousingDashboard::new(Arc::new(catalog))
 }
@@ -334,5 +335,55 @@ fn housing_entry_tooltip_lists_categories_and_owned_breakdown() {
     assert_eq!(
         lines(&HousingAuthority::default()),
         vec!["Furnishings - Fireplaces"]
+    );
+}
+
+#[test]
+fn bulletin_board_sorts_like_retail_roster_columns() {
+    use crate::housing::{BulletinBoard, RosterColumn};
+    use shared::protocol::{NeighborhoodResident, NeighborhoodRoster};
+    let resident = |name: &str, online: bool, plot_index: u32| NeighborhoodResident {
+        name: name.into(),
+        online,
+        plot_index,
+    };
+    let mut board = BulletinBoard::new(NeighborhoodRoster {
+        neighborhood_id: 2,
+        residents: vec![
+            resident("Ashara", false, 7),
+            resident("Brann", true, 3),
+            resident("Cyra", false, 1),
+            resident("Doran", true, 12),
+        ],
+    });
+    let names = |board: &BulletinBoard| {
+        board
+            .residents
+            .iter()
+            .map(|resident| resident.name.clone())
+            .collect::<Vec<_>>()
+    };
+    // Name is the initial column: the first click reverses the server's order.
+    board.sort_by(RosterColumn::Name);
+    assert_eq!(names(&board), ["Doran", "Cyra", "Brann", "Ashara"]);
+    board.sort_by(RosterColumn::Name);
+    assert_eq!(names(&board), ["Ashara", "Brann", "Cyra", "Doran"]);
+    board.sort_by(RosterColumn::Status);
+    assert_eq!(names(&board), ["Brann", "Doran", "Ashara", "Cyra"]);
+    board.sort_by(RosterColumn::Status);
+    assert_eq!(names(&board), ["Ashara", "Cyra", "Brann", "Doran"]);
+    board.sort_by(RosterColumn::Plot);
+    assert_eq!(names(&board), ["Cyra", "Brann", "Ashara", "Doran"]);
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    assert!(
+        model
+            .navigation_request("housing:roster-sort:plot")
+            .is_err()
+    );
+    model.bulletin_board = Some(board);
+    assert!(
+        model
+            .navigation_request("housing:roster-sort:rank")
+            .is_err()
     );
 }

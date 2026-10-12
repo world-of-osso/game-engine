@@ -122,6 +122,137 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
 }
 
 #[test]
+fn neighborhood_bulletin_board_lists_and_sorts_the_servers_residents_in_both_skins() {
+    use game_engine_ui_model::housing::{BulletinBoard, HousingSurface};
+    use shared::protocol::{NeighborhoodResident, NeighborhoodRoster};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.surface = HousingSurface::BulletinBoard;
+        // The server sends the roster alphabetically (SetAlphabeticalSortedMemberList).
+        model.bulletin_board = Some(BulletinBoard::new(NeighborhoodRoster {
+            neighborhood_id: 1,
+            residents: vec![
+                NeighborhoodResident {
+                    name: "Houseproof".into(),
+                    online: false,
+                    plot_index: 1,
+                },
+                NeighborhoodResident {
+                    name: "Housevisitor".into(),
+                    online: true,
+                    plot_index: 0,
+                },
+            ],
+        }));
+        let mut view = HousingView {
+            model,
+            authority: Default::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let render = |view: &HousingView| {
+            let mut context = SharedContext::new();
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            registry
+        };
+        let text = |registry: &FrameRegistry, name: &str| {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::FontString(data)) = &frame.widget_data else {
+                panic!("{name} is not a fontstring")
+            };
+            (data.text.clone(), data.color)
+        };
+        let registry = render(&view);
+        let frame = registry
+            .get(registry.get_by_name("HousingBulletinBoardFrame").unwrap())
+            .unwrap();
+        assert_eq!(frame.width, Dimension::Fixed(600.0));
+        assert_eq!(frame.height, Dimension::Fixed(400.0));
+        assert_eq!(
+            text(&registry, "HousingBulletinBoardNeighborhoodName").0,
+            "Founder's Point"
+        );
+        assert_eq!(
+            text(&registry, "HousingBulletinBoardRosterTabLabel").0,
+            "Neighborhood Roster"
+        );
+        for column in ["Name", "Status", "Plot"] {
+            assert_eq!(
+                text(&registry, &format!("NeighborhoodRosterColumn{column}")).0,
+                column
+            );
+        }
+        let disabled = [0.5, 0.5, 0.5, 1.0];
+        let highlight = [1.0, 1.0, 1.0, 1.0];
+        let rows = |registry: &FrameRegistry| {
+            (1..=2)
+                .map(|row| {
+                    ["Name", "Status", "Plot"]
+                        .map(|cell| text(registry, &format!("NeighborhoodRosterEntry{row}{cell}")))
+                })
+                .collect::<Vec<_>>()
+        };
+        let houseproof = [
+            ("Houseproof".to_string(), disabled),
+            ("Offline".to_string(), disabled),
+            ("#1".to_string(), disabled),
+        ];
+        let housevisitor = [
+            ("Housevisitor".to_string(), highlight),
+            ("Online".to_string(), highlight),
+            ("#0".to_string(), highlight),
+        ];
+        assert_eq!(
+            rows(&registry),
+            vec![houseproof.clone(), housevisitor.clone()]
+        );
+        assert!(
+            registry
+                .get_by_name("NeighborhoodRosterEntry3Name")
+                .is_none()
+        );
+        // Public neighborhoods have no managers: Retail hides Invite Resident.
+        assert!(
+            registry
+                .get_by_name("NeighborhoodRosterInviteResidentButton")
+                .is_none()
+        );
+        let plot_header = registry
+            .get(
+                registry
+                    .get_by_name("NeighborhoodRosterColumnPlotButton")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            plot_header.onclick.as_deref(),
+            Some("housing:roster-sort:plot")
+        );
+        assert_eq!(
+            view.model.navigation_request("housing:roster-sort:plot"),
+            Ok(None)
+        );
+        assert_eq!(
+            rows(&render(&view)),
+            vec![housevisitor.clone(), houseproof.clone()]
+        );
+        view.model
+            .navigation_request("housing:roster-sort:plot")
+            .unwrap();
+        assert_eq!(rows(&render(&view)), vec![houseproof, housevisitor]);
+    }
+}
+
+#[test]
 fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_both_skins() {
     use game_engine_ui_model::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(
