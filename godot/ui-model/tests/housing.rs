@@ -496,14 +496,15 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                 error: None,
             };
             let mut context = SharedContext::new();
-            context.insert(HousingView {
+            let mut view = HousingView {
                 model,
                 authority,
                 viewport: [1280.0, 720.0],
                 money: None,
                 missing_thumbnails: BTreeSet::new(),
                 vendor_names: Default::default(),
-            });
+            };
+            context.insert(view.clone());
             let mut registry = FrameRegistry::new(1280.0, 720.0);
             Screen::new(housing_screen).sync(&context, &mut registry);
             let frame = registry
@@ -522,6 +523,20 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                 button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
                 !can_edit
             );
+            let search = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchBox")
+                        .expect("Retail storage search"),
+                )
+                .unwrap();
+            assert!(matches!(&search.widget_data, Some(WidgetData::EditBox(_))));
+            view.model.storage_search = "Tesla".into();
+            context.insert(view);
+            let mut filtered = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut filtered);
+            assert!(filtered.get_by_name("HouseEditorStored1693").is_none());
+            assert!(filtered.get_by_name("HouseEditorStorageEmpty").is_some());
         }
     }
 }

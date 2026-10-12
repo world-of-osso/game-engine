@@ -5,7 +5,7 @@ use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::housing::{
     BulletinBoard, CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard,
-    HousingSurface, SEARCH_FIELD,
+    HousingSurface, SEARCH_FIELD, STORAGE_SEARCH_FIELD,
 };
 use game_engine_ui_model::housing_component::{HousingView, housing_screen};
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
@@ -245,6 +245,12 @@ impl GameClient {
             if model.search != search {
                 model.set_search(search, &self.housing.authority);
             }
+        }
+        if let Some(model) = &mut self.housing.model
+            && model.surface == HousingSurface::Editor
+            && host.frame_control(STORAGE_SEARCH_FIELD).is_some()
+        {
+            model.storage_search = host.frame_text(STORAGE_SEARCH_FIELD.into()).to_string();
         }
         drop(host);
         self.query_housing_vendor_names()?;
