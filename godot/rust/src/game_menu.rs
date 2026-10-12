@@ -428,6 +428,7 @@ impl GameClient {
         let density = f32::from(self.client_options.graphics.particle_density) / 100.0;
         self.world_objects.set_particle_density(density);
         self.world.set_particle_density(density);
+        self.game_objects.set_particle_density(density);
         self.apply_display_options();
         Ok(())
     }
