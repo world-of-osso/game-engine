@@ -1,3 +1,7 @@
+## 2026-10-11 — Retail talent placement
+
+[Talents placement](systems/talents.md#retail-placement-correction-2026-10-11): source-derived class pan and DB2 centers replace fit zoom/126px row rebasing; BOTTOM-centered page,200px PvP tray/4px gaps and label. Ret/Arcane both-skin behavioral regression and private5921 before/after proof tracked in the talent-centering evidence ledger.
+
 ## 2026-10-11 — Whole-world NPC appearance
 
 [Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
