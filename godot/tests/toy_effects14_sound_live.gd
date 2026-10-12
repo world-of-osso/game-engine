@@ -91,6 +91,22 @@ func ocean_cast_started() -> bool:
 	return false
 
 func prove_ocean(sample: Array) -> void:
+	# Source impact sounds have a10yd cutoff; observe within earshot using normal zoom.
+	var point := Vector2(root.size) * 0.5
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	for tick in range(4):
+		var wheel := InputEventMouseButton.new()
+		wheel.position = point
+		wheel.global_position = point
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		wheel.factor = 1.0
+		wheel.pressed = true
+		root.push_input(wheel, true)
+		await process_frame
+	await create_timer(0.5).timeout
 	await activate_named(str(sample[3]))
 	if failed: return
 	#138396 belongs to precast1→2, not the180s aura. Capture a currently
