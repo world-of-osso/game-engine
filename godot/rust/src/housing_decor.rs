@@ -2,6 +2,8 @@
 use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
 use crate::assets::{build_model, read_model};
 use game_engine_core::housing::HousingCatalog;
+use godot::classes::base_material_3d::{BlendMode, ShadingMode, Transparency};
+use godot::classes::{Material, MeshInstance3D, StandardMaterial3D};
 use godot::prelude::*;
 use shared::protocol::{HouseLayout, PlacedDecor};
 use std::collections::BTreeMap;
@@ -12,6 +14,7 @@ pub(crate) struct HousingDecor {
     nodes: BTreeMap<u64, Gd<Node3D>>,
     pub(crate) preview: Option<Gd<Node3D>>,
     saved: Option<HouseLayout>,
+    highlighted: Option<u64>,
 }
 
 pub(crate) fn load_visual(
@@ -55,7 +58,40 @@ fn apply_precision(node: &mut Gd<Node3D>, transform: shared::protocol::DecorTran
     node.set_scale(Vector3::ONE * transform.scale);
 }
 
+fn apply_hover_overlay(node: &Gd<Node3D>, material: Option<&Gd<Material>>) {
+    let meshes = node
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    for mesh in meshes.iter_shared() {
+        mesh.cast::<MeshInstance3D>().set_material_overlay(material);
+    }
+}
+
+fn cleanup_highlight_material() -> Gd<Material> {
+    let mut material = StandardMaterial3D::new_gd();
+    material.set_shading_mode(ShadingMode::UNSHADED);
+    material.set_transparency(Transparency::ALPHA);
+    material.set_blend_mode(BlendMode::ADD);
+    material.set_albedo(Color::from_rgba(1.0, 0.82, 0.0, 0.25));
+    material.upcast()
+}
+
 impl HousingDecor {
+    pub(crate) fn highlight(&mut self, instance: Option<u64>) {
+        if self.highlighted == instance {
+            return;
+        }
+        if let Some(previous) = self.highlighted.take().and_then(|id| self.nodes.get(&id)) {
+            apply_hover_overlay(previous, None);
+        }
+        if let Some(node) = instance.and_then(|id| self.nodes.get(&id)) {
+            apply_hover_overlay(node, Some(&cleanup_highlight_material()));
+            self.highlighted = instance;
+        }
+    }
+
     pub(crate) fn restore_saved(&mut self) {
         self.saved = None;
     }
@@ -84,6 +120,7 @@ impl HousingDecor {
     }
 
     pub(crate) fn clear(&mut self) {
+        self.highlight(None);
         self.clear_preview();
         for (_, node) in std::mem::take(&mut self.nodes) {
             node.free();
@@ -126,6 +163,9 @@ impl HousingDecor {
             .copied()
             .filter(|id| !layout.decor.iter().any(|decor| decor.instance_id == *id))
             .collect();
+        if self.highlighted.is_some_and(|id| removed.contains(&id)) {
+            self.highlight(None);
+        }
         for id in removed {
             if let Some(node) = self.nodes.remove(&id) {
                 node.free();
