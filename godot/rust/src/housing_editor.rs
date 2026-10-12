@@ -139,12 +139,6 @@ impl GameClient {
             return Ok(false);
         };
         let point = button.get_position();
-        godot_print!(
-            "HOUSING_EDITOR_BUTTON point={point:?} ui={} button={:?} pressed={}",
-            self.editor_ui_contains(point),
-            button.get_button_index(),
-            button.is_pressed()
-        );
         if self.editor_ui_contains(point) {
             return Ok(false);
         }
@@ -171,41 +165,20 @@ impl GameClient {
             .model
             .as_mut()
             .ok_or("House editor model is unavailable.")?;
-        godot_print!(
-            "HOUSING_EDITOR_STATE pending={} placing={:?} selected={:?}",
-            model.pending,
-            model.editor.placing,
-            model.editor.selected
-        );
         if model.pending {
             return Ok(true);
         }
-        let picked = crate::unit_pick::pick_unit(&camera, point);
-        godot_print!("HOUSING_EDITOR_PICK picked={picked:?}");
-        if model.editor.placing.is_none()
-            && let Some(id) = picked
-            && self.housing.decor.contains(id)
+        let picked = crate::unit_pick::pick_unit(&camera, point)
+            .filter(|id| self.housing.decor.contains(*id));
+        let ground = crate::pet_bar::ground_under(&camera, point).map(|point| point.to_array());
+        if let Some(command) =
+            model
+                .editor
+                .pointer_click(&self.housing.authority, picked, ground)?
         {
-            model.editor.select(&self.housing.authority, id)?;
-            return Ok(true);
+            self.housing.decor.clear_preview();
+            self.request_housing(command)?;
         }
-        let editable = self
-            .housing
-            .authority
-            .state
-            .as_ref()
-            .and_then(|state| state.layout.as_ref())
-            .is_some_and(|layout| layout.can_edit);
-        if !editable || (model.editor.placing.is_none() && model.editor.selected.is_none()) {
-            return Ok(true);
-        }
-        let ground = crate::pet_bar::ground_under(&camera, point)
-            .ok_or("No authored ground surface is under the pointer.")?;
-        let command = model
-            .editor
-            .commit_at(&self.housing.authority, ground.to_array())?;
-        self.housing.decor.clear_preview();
-        self.request_housing(command)?;
         Ok(true)
     }
 
