@@ -29,6 +29,7 @@ pub struct MountJournalView {
     pub filters_open: bool,
     pub submenu: Option<String>,
     pub error: String,
+    pub context: Option<(u32, [f32; 2])>,
 }
 impl Default for MountJournalView {
     fn default() -> Self {
@@ -45,6 +46,7 @@ impl Default for MountJournalView {
             filters_open: false,
             submenu: None,
             error: String::new(),
+            context: None,
         }
     }
 }
@@ -157,6 +159,7 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     body.extend(mount_list(ctx, view));
     body.extend(mount_details(view));
     body.extend(filter_menu(view));
+    body.extend(context_menu(view));
     crate::collections_component::collections_shell(view.viewport, 0, body)
 }
 fn search_box() -> Element {
@@ -236,8 +239,8 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
             (42.0, 0.0, 208.0, 46.0),
         ));
     }
-    rsx! { r#frame { name: {DynName(prefix)}, width: 250.0, height: ROW_HEIGHT, left: 0.0, top,
-    pos_type: "absolute", mouse_enabled: true, onclick: {action.as_str()}, {children} } }
+    rsx! { button { name: {DynName(prefix)}, width: 250.0, height: ROW_HEIGHT, left: 0.0, top,
+    pos_type: "absolute", button_default_skin: false, onclick: {action.as_str()}, {children} } }
 }
 fn mount_details(view: &MountJournalView) -> Element {
     let mut out = rsx! { r#frame { name: "MountJournalModelScene", width: 405.0, height: 365.0,
@@ -271,18 +274,6 @@ fn mount_details(view: &MountJournalView) -> Element {
             "mount:summon",
             mount.active || mount.usable,
             (487.0, 578.0, 140.0, 22.0),
-        ));
-        let text = if mount.favourite {
-            "Remove Favorite"
-        } else {
-            "Set Favorite"
-        };
-        out.extend(panel_button(
-            "MountJournalFavoriteButton".into(),
-            text,
-            "mount:favourite",
-            mount.collected,
-            (304.0, 578.0, 140.0, 22.0),
         ));
     } else {
         out.extend(label(
@@ -350,6 +341,44 @@ fn filter_menu(view: &MountJournalView) -> Element {
     rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 75.0,top: 91.0,pos_type: "absolute",
     strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
 }
+fn context_menu(view: &MountJournalView) -> Element {
+    let Some((id, [left, top])) = view.context else {
+        return Vec::new();
+    };
+    let Some(mount) = view.catalog.get(&id) else {
+        return Vec::new();
+    };
+    let mount_text = if mount.active { "Dismount" } else { "Mount" };
+    let favourite_text = if mount.favourite {
+        "Remove Favorite"
+    } else {
+        "Set Favorite"
+    };
+    let mut children = panel_button(
+        "MountJournalContextSummon".into(),
+        mount_text,
+        "mount:summon",
+        mount.active || mount.usable,
+        (5.0, 5.0, 180.0, 22.0),
+    );
+    children.extend(panel_button(
+        "MountJournalFavoriteToggle".into(),
+        favourite_text,
+        "mount:favourite",
+        mount.collected,
+        (5.0, 29.0, 180.0, 22.0),
+    ));
+    children.extend(panel_button(
+        "MountJournalContextCancel".into(),
+        "Cancel",
+        "mount:context-close",
+        true,
+        (5.0, 53.0, 180.0, 22.0),
+    ));
+    rsx! { r#frame { name: "MountJournalContextMenu",width: 190.0,height: 80.0,left,top,pos_type: "absolute",
+    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
+}
+
 fn source_name(source: i32) -> &'static str {
     match source {
         0 => "Drop",
