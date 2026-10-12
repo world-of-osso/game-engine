@@ -13,10 +13,23 @@
 ## 2026-10-12 — Source-backed battleground node maps
 
 [Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+## 2026-10-12 — Stockade full-bake regression
+
+[Stockade floor fall](investigations/stockade-floor-fall.md#full-m2-bake-authentic-barrel-support--verified-2026-10-12): barrel199563/MODD523 in the sole selected/default set0 authentically supports(103,76) at-33.924946. Existing fall columns remain unsupported; server/native tests move bare WMO controls off the barrel and explicitly assert its hull support. No rebake or loader changes.
+
+## 2026-10-12 — Authored M2 doodad floors
+
+[Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
+## 2026-10-12 — Combat assist source-supported continuation
+
+[Cooldown/assist audit](investigations/cooldown-assist-data.md): all40 authored candidate inventories and exact ModifierTree gates, owner effective costs, initial charge publication, source-definite numeric outcomes with explicit equality/prediction gaps. Both private skins prove moving Retail ants on matching action/viewer surfaces and actual assistant35395 CastSuccess/2→1 charge depletion. Maintained driver uses build-qualified placement before login; assistant GCD-origin and undecoded semantics remain explicit.
+## 2026-10-12 — Authored toy display state kits
+
+[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.
 
 ## 2026-10-11 — Toy input and source rendering
 
-[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance is still pending.
+[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance now passes both skins (2026-10-12), actual170476/display92605 with two meshes/root scale0.35/no PetFrame; four scaled identities now render, with Sealamp/Spire authored state-kit/expiry acceptance recorded above; remaining native/per-toy boundaries stay explicit.
 
 ## 2026-10-12 — Mount Journal final acceptance
 
@@ -3356,3 +3369,11 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-11 — integrated native gathering baseline
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
+
+## 2026-10-12 — Mount model assets staged
+
+All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; additive package contains566 new M2 receipts and complete skins/textures/animations, with hash-guarded lead-only publication. Both-skin native census remains in progress;170 newly missing identities lack readable Mount rows. [Scope and proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
+
+## 2026-10-12 — Mount asset native census complete
+
+Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered in each skin, including152 dependency-only recoveries and native quarter-turn proof for two small default silhouettes. Hash-guarded package default validation passes12,170 artifacts; lead publication remains pending. Nine inspected PNGs shared; missing journal identities and normal-host scroll boundary remain explicit. [Proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).

@@ -128,13 +128,7 @@ fn viewer_item_content(
             pos_type: "absolute", pos_x: {if bar { size.1 } else { 0.0 }},
             pos_y: {if bar { 0.0 } else { size.1 - progress_height }},
         }
-        texture {
-            name: {DynName(format!("{name}AssistedHighlight"))},
-            width: {size.1}, height: {size.1},
-            hidden: hide_glow,
-            texture_atlas: "UI-HUD-ActionBar-IconFrame-Mouseover",
-            draw_layer: "OVERLAY", pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
-        }
+        {crate::assisted_highlight::highlight(format!("{name}AssistedHighlight"), size.1, hide_glow)}
         fontstring {
             name: {DynName(format!("{name}Name"))},
             width: {size.0 - size.1}, height: {size.1}, text: label,
