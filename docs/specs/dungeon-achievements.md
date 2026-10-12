@@ -68,3 +68,9 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 - Comparison: no authoritative comparison catalog endpoint; InspectSnapshot exposes equipment/talents, not achievements.
 - Gameplay-leveling certification: private live earned events use explicitly documented admin character setup.
+
+## Player comparison
+
+- Compare another online player’s authoritative account/character achievements and statistics from the Retail player-unit menu. Keep viewer and target progress separate and correlate all replies by target.
+- Browse Summary/categories, expand criteria, continue cursor pages and display target completion/dates without inventing unavailable values. Forever changes art only.
+- Offline, unknown, self and non-player targets fail explicitly; changing targets rejects late replies.
