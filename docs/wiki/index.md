@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Cooking focus and replicated-object fire](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12) — real both-skin journal/recipe/emitter proof; linked-trap and per-variant pixel boundaries explicit.
+
 - [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin catalog/acquisition, basic/expert staged keyboard and unsnapped mouse transforms, visitor/observer proof and sourced schema migration; charter/default grants/outdoor bounds remain explicit source gaps.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Dice scripts and received item labels](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12) — source roll count/audience, native raw-markup RED and plain/coloured unsplit labels; both-skin actual-use chat proof.
