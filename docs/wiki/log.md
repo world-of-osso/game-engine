@@ -1,3 +1,7 @@
+## 2026-10-11 — Whole-world NPC appearance
+
+[Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
+
 ## 2026-10-11 — AchievementFrame art
 
 [Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.
