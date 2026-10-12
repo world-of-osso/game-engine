@@ -81,6 +81,7 @@ mod tests {
         TransmogCatalogueSource {
             source: TransmogSource {
                 source_id: id,
+                source_type: 1,
                 appearance_id: 0,
                 item_id: item,
                 display_id: 0,

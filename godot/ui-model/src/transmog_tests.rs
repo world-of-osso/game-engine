@@ -15,6 +15,7 @@ fn state() -> TransmogState {
             can_hide: false,
             sources: vec![TransmogSource {
                 source_id: 821,
+                source_type: 3,
                 appearance_id: 154,
                 item_id: 2488,
                 display_id: 1542,
@@ -79,6 +80,7 @@ fn transmog_search_filters_names_without_losing_hidden_pending_choices() {
     let mut collection = state();
     collection.slots[0].sources.push(TransmogSource {
         source_id: 1181,
+        source_type: 4,
         appearance_id: 389,
         item_id: 3295,
         display_id: 1546,
