@@ -1,0 +1,35 @@
+# Native Arenas
+
+Source-backed skirmish2v2/3v3 and TC-reference rated groups share the existing PvP invitation/entry/results/origin transport. Requirements live in the [client contract](../../specs/arenas.md) and [server contract](../../../../game-server/docs/specs/arenas.md). Verified: 2026-10-12 (code and behavioral fixtures, not rendered live acceptance).
+
+## Authority and lifecycle
+
+Pinned BattlemasterList12.1.0.69933 and Map rows join TDB1210 start locations/weights. The lead-owned importer intersects them with successful local CASC WDT receipts, then promotes only arena object spawns/templates. Eighteen arena WDTs are present; sixteen current arenas have authored gates/orbs. Retired559/562 retain their source condition/level/placement boundaries, never synthetic replacements.
+
+Arena preparation waits for actual worldport readiness, lasts the TC60s delay, and applies/removes source aura32727. Racial factions cannot override match teams; attacks are blocked before engagement and against teammates. Source doors play147Closed/148Open, with per-map5s removal or persistent opening; Empyrean deletes its collision walls. Elimination retains scoreboard rows, stops combat/casts and fully resurrects defeated players before exact origin return.
+
+Shadow Sight uses source spell34709, trap radiusData2/2 and spawn360s respawn. It enables after90s. Consumed objects **hide**, not despawn: deleting their authoritative entity caused aura removal through CasterGone. GameObjectVisible preserves ownership while the client removes the visual. Initial orb visibility is disabled before the entrant observes the new copy.
+
+## Rated reference and scores
+
+Full max-level groups queue through their leader. TC a352b1fa ArenaTeam/Queue and worldserver.conf supply the formula, starting0personal/1500MMR,150window and600s discard. This is explicitly a TC reference, not certification of Blizzard's proprietary Retail MMR. Results persist only after a played outcome; old stored ratings without sourced MMR stay absent from projections. No fabricated match payout, season reset/cap or rating-only queue award exists.
+
+Combat log events populate arena damage, effective healing and killing blows, excluding ATTR7_DO_NOT_COUNT_FOR_PVP_SCOREBOARD. Source deaths remain separate from post-match resurrection. Both skins share Quick Match/Rated controls, source-sized98×44 CompactArenaFrames and result tables; Forever only supplies art.
+
+## Proof boundary
+
+Nine scoped server tests include real HostClient four-player skirmish/rated invitations, authored starts/acks, source preparation and physical orb/aura lifetime, HP-primed real melee kills, score/outcome/full resurrection, persisted rating/MMR and exact all-player origins. Four both-skin registry/action tests and nine native object tests pass. Diagnostics: data/diagnostics/arena-coverage-2026-10-12/. Rendered/UDP proof and final integration checks remain pending in the active handoff; Shuffle role/round and dampening schedules remain unsourced.
+
+## Sources
+
+- [Server contract/import checklist](../../../../game-server/docs/specs/arenas.md).
+- [Client contract](../../specs/arenas.md).
+- [Arena queues](../../../../game-server/crates/server/src/pvp_arena.rs), [rated queue](../../../../game-server/crates/server/src/pvp_arena_rated_queue.rs), [results](../../../../game-server/crates/server/src/pvp_arena_rated_results.rs).
+- [Source orb lifecycle](../../../../game-server/crates/server/src/pvp_arena_sight.rs), [gate lifecycle](../../../../game-server/crates/server/src/pvp_arena_objects.rs), [combat scores](../../../../game-server/crates/server/src/pvp_arena_scores.rs).
+- [Native UI](../../../godot/ui-model/src/arena_ui.rs) and [object renderer](../../../godot/rust/src/game_objects.rs).
+- Pinned source files and SHA256 receipts: data/diagnostics/arena-coverage-2026-10-12/tc-a352b1fa/sources.json.
+
+## See Also
+
+- [[battlegrounds]] — shared PvP screens and transfer ownership.
+- [[networking]] — transport and replicated world-object state.
