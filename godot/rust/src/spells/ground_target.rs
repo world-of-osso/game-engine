@@ -105,7 +105,7 @@ impl GameClient {
         };
         let id = intent.spell_id.expect("ground cursor stores a spell ID");
         if let Some(item_id) = self.spells.ground_toy.take() {
-            self.account.send_use_toy(item_id, intent.destination)?;
+            self.send_toy_activation(item_id, intent.destination)?;
         } else {
             self.account.send_spell_intent(intent)?;
         }

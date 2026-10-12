@@ -615,16 +615,9 @@ impl Account {
             .map_err(SessionError)
     }
 
-    pub fn send_use_toy(
-        &self,
-        item_id: u32,
-        destination: Option<[f32; 3]>,
-    ) -> Result<(), SessionError> {
+    pub fn send_use_toy(&self, request: shared::protocol::UseToy) -> Result<(), SessionError> {
         self.bridge()?
-            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::UseToy {
-                item_id,
-                destination,
-            })
+            .send::<_, shared::protocol::CollectionChannel>(request)
             .map_err(SessionError)
     }
 

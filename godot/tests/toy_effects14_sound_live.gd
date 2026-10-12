@@ -51,8 +51,7 @@ func prove_enemy_marker(sample: Array) -> void:
 			break
 	if target == 0: fail("living source hostile target absent"); return
 	if not await wait_until(func(): return client.target_state().server_target == target, "authoritative hostile selection"): return
-	# The 12yd forest viewpoint can be occluded by authored trees. Observe from the
-	# selected live unit's own source position, without bypassing server LoS checks.
+	# Observe the selected source actor nearby; preserve normal witness validation.
 	var target_transform: Transform3D = client.unit_transform(target)
 	var near := target_transform.origin + Vector3(2.0, 0.0, 0.0)
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(near.x), str(-near.z), str(near.y)]): return

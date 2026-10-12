@@ -90,8 +90,38 @@ impl GameClient {
         {
             return Ok(());
         }
-        self.account.send_use_toy(item_id, None)
+        self.send_toy_activation(item_id, None)
     }
+
+    pub(crate) fn send_toy_activation(
+        &mut self,
+        item_id: u32,
+        destination: Option<[f32; 3]>,
+    ) -> Result<(), SessionError> {
+        let requires_witness = self
+            .toybox
+            .model
+            .toy(item_id)
+            .is_some_and(|toy| toy.requires_target_witness);
+        let witness = if requires_witness {
+            match self.cast_witness(self.targeting_target()) {
+                Ok(ray) => ray,
+                Err(error) => {
+                    self.toybox.model.error = Some(error.clone());
+                    crate::frame_error::report_once(&error);
+                    return Ok(());
+                }
+            }
+        } else {
+            None
+        };
+        self.account.send_use_toy(shared::protocol::UseToy {
+            item_id,
+            destination,
+            witness,
+        })
+    }
+
     pub(super) fn receive_toy_result(
         &mut self,
         result: shared::protocol::ToyResult,
