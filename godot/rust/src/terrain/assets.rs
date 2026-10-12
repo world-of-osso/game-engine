@@ -66,6 +66,25 @@ fn parse_tile_objects(
         .transpose()
 }
 
+fn build_m2_floor_neighbour_paths(dir: &Path, (row, col): (u32, u32)) -> Vec<PathBuf> {
+    const LAST_TILE: u32 = shared::los::MAP_TILES - 1;
+    (row.saturating_sub(1)..=(row + 1).min(LAST_TILE))
+        .flat_map(|r| (col.saturating_sub(1)..=(col + 1).min(LAST_TILE)).map(move |c| (r, c)))
+        .map(|tile| dir.join(shared::los::tile_file_name(tile)))
+        .collect()
+}
+
+fn read_m2_floor_paths(dir: &Path) -> Result<Vec<PathBuf>, String> {
+    match fs::read_dir(dir) {
+        Ok(entries) => entries
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<_, _>>()
+            .map_err(|error| format!("{}: {error}", dir.display())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(format!("{}: {error}", dir.display())),
+    }
+}
+
 pub(crate) struct NativeTerrainAssets {
     resolver: CascListfileResolver,
     terrain_dir: PathBuf,
@@ -88,6 +107,7 @@ pub(crate) struct NativeMapWdt {
     pub flags: wdt::MphdFlags,
     pub tiles: wdt::WdtTiles,
     pub global_wmo: Option<PlacedWmo>,
+    pub m2_floors: Vec<shared::los::LosTile>,
     pub lighting: Arc<LightingCatalog>,
 }
 
@@ -104,6 +124,9 @@ pub(crate) struct NativeTerrainTile {
     /// Their floors are the player's ground and their faces physics walls from the moment the
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
+    /// Authored M2 hulls, including the neighbouring centroid tiles. Loaded on the
+    /// worker before ground prediction, independent of render-node spawning/culling.
+    pub m2_floors: Vec<shared::los::LosTile>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
     /// Liquid material of each MH2O `(liquid_type, liquid_object)` on the tile.
     pub liquid_materials: BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>,
@@ -157,8 +180,14 @@ impl NativeTerrainAssets {
                 Ok::<_, String>(PlacedWmo::new(placement, asset, surface))
             })
             .transpose()?;
+        let m2_floors = if global_wmo.is_some() {
+            self.read_m2_floor_tiles(identity.id, None)?
+        } else {
+            Vec::new()
+        };
         Ok(NativeMapWdt {
             map_id: identity.id,
+            m2_floors,
             path,
             flags,
             tiles,
@@ -205,9 +234,38 @@ impl NativeTerrainAssets {
             textures,
             chunk_surfaces,
             wmo_floors,
+            m2_floors: self.read_m2_floor_tiles(wdt.map_id, Some((tile_y, tile_x)))?,
             wmo_surfaces,
             liquid_materials,
         })
+    }
+
+    fn read_m2_floor_tiles(
+        &self,
+        map_id: u32,
+        tile: Option<(u32, u32)>,
+    ) -> Result<Vec<shared::los::LosTile>, String> {
+        let dir = self.data_root.join(format!("los/{map_id}/m2"));
+        let paths = match tile {
+            Some(tile) => build_m2_floor_neighbour_paths(&dir, tile),
+            None => read_m2_floor_paths(&dir)?,
+        };
+        let mut floors = Vec::new();
+        for path in paths
+            .into_iter()
+            .filter(|path| path.extension().is_some_and(|ext| ext == "los"))
+        {
+            match fs::read(&path) {
+                Ok(bytes) => floors.push(
+                    shared::los::LosTile::from_bytes(&bytes)
+                        .map_err(|error| format!("{}: {error}", path.display()))?,
+                ),
+                // An absent companion provides no baked floor; never substitute render faces.
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(format!("{}: {error}", path.display())),
+            }
+        }
+        Ok(floors)
     }
 
     fn load_tile_textures(
