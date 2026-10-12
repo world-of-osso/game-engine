@@ -29,7 +29,7 @@ pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 12;
+const CACHE_FORMAT: u32 = 13;
 
 const SOURCE_TABLES: [&str; 25] = [
     "ChrSpecialization",
@@ -253,6 +253,8 @@ pub struct KitModel {
     pub roll: f32,
     /// `SpellVisualKitModelAttach.Scale` × `SpellVisualEffectName.Scale`.
     pub scale: f32,
+    /// SpellVisualEffectName.Alpha, applied to both meshes and particles.
+    pub alpha: f32,
     /// Seconds after the kit starts before the model appears.
     pub start_delay: f32,
     /// `StartAnimID`, `AnimID` and `EndAnimID`: the model's clip when the kit starts,
@@ -349,6 +351,7 @@ struct MissileRow {
 struct EffectName {
     model_fdid: u32,
     scale: f32,
+    alpha: f32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

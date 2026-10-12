@@ -12,6 +12,28 @@ pub(super) struct HeldDisplay {
     anims: Vec<u16>,
 }
 
+fn collect_display_visuals(
+    catalog: &SpellVisualCatalog,
+    units: &Replica,
+    world: &WorldUnits,
+) -> HashMap<u64, DisplayVisual> {
+    units
+        .units()
+        .filter_map(|unit| {
+            let display = unit.get::<ModelDisplay>()?.display_id;
+            catalog.display_state_kit_id(display)?;
+            let visual = world.unit_model_node(unit.server_id)?;
+            Some((
+                unit.server_id,
+                DisplayVisual {
+                    display,
+                    visual: visual.instance_id().to_i64() as u64,
+                },
+            ))
+        })
+        .collect()
+}
+
 impl SpellEffects {
     pub(super) fn sync_display_kits(
         &mut self,
@@ -21,30 +43,8 @@ impl SpellEffects {
         let Some(catalog) = self.catalog()? else {
             return Ok(());
         };
-        let present: HashMap<u64, DisplayVisual> = units
-            .units()
-            .filter_map(|unit| {
-                let display = unit.get::<ModelDisplay>()?.display_id;
-                catalog.display_state_kit_id(display)?;
-                let visual = world.unit_model_node(unit.server_id)?;
-                Some((
-                    unit.server_id,
-                    DisplayVisual {
-                        display,
-                        visual: visual.instance_id().to_i64() as u64,
-                    },
-                ))
-            })
-            .collect();
-        let ended: Vec<u64> = self
-            .displays
-            .iter()
-            .filter(|(unit, held)| present.get(unit) != Some(&held.owner))
-            .map(|(&unit, _)| unit)
-            .collect();
-        for unit in ended {
-            self.end_display_kit(unit, world);
-        }
+        let present = collect_display_visuals(catalog, units, world);
+        self.end_changed_display_kits(&present, world);
         let mut errors = Vec::new();
         for (unit, owner) in present {
             if !self.displays.contains_key(&unit) {
@@ -78,15 +78,28 @@ impl SpellEffects {
             },
             world,
         );
-        let anims = started
-            .as_ref()
-            .ok()
-            .copied()
-            .flatten()
-            .into_iter()
-            .collect();
+        let anims = match &started {
+            Ok(Some(anim)) => vec![*anim],
+            _ => Vec::new(),
+        };
         self.displays.insert(unit, HeldDisplay { owner, anims });
         started.map(drop)
+    }
+
+    fn end_changed_display_kits(
+        &mut self,
+        present: &HashMap<u64, DisplayVisual>,
+        world: &mut WorldUnits,
+    ) {
+        let ended: Vec<u64> = self
+            .displays
+            .iter()
+            .filter(|(unit, held)| present.get(unit) != Some(&held.owner))
+            .map(|(&unit, _)| unit)
+            .collect();
+        for unit in ended {
+            self.end_display_kit(unit, world);
+        }
     }
 
     fn end_display_kit(&mut self, unit: u64, world: &mut WorldUnits) {
