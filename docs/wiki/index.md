@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Class completeness continuation](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12) — private both-skin class receipts, authored zero-display equipment RED/GREEN and explicit full-goal gates.
+
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
 - [Whole-world NPC appearance coverage](investigations/npc-appearance-coverage.md) — source census, strict world-root imports, ordinary geoset/source-asset recovery, selected server scale and private both-skin named-actor proof; canonical cache publication remains lead-owned.
 

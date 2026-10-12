@@ -1,3 +1,7 @@
+## 2026-10-12 — Class completeness continuation
+
+[Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): private both-skin spell receipts for nine additional classes; DH startup exposed authored133320→29124→display0 being dropped, then a nonexistent-display lookup. Native RED/GREEN preserves occupied no-visual slots without weakening missing/invalid metadata errors; targeted core6/shared renderer1 pass. DH/Evoker rebuilt native gates and full13/all40 goal remain open.
+
 ## 2026-10-11 — Crafting UI private acceptance
 
 [Crafting UI](systems/crafting-ui.md): both skins on private UDP5871 spend a source Leatherworking point, place a public Glacial Cloak order, claim/cast on a separate Tailor and receive item/commission through the actual mailbox. Native Apply exposed omitted committed unlock ranks; full selected-tree configurations fix it. Source radial/perk art and resolved tooltips have scoped/native proof. Skills/knowledge/achievement were fixture-primed; quality/concentration and recraft operation remain unsupported. Private broker appearance/authenticated local-CASC receipts were staged without canonical cache edits; slot cache link restored. Master integration3f8d83357 passes47 scoped tests, native extension/CLI build, scoped check and fmt; no full suite or CI certification. Independent AskClaude gate was unavailable (expired OAuth).

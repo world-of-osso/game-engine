@@ -33,6 +33,12 @@ Reproduction corrections:
 - `game-server-admin damage` without an explicit entity damages the selected target. Use the observer's actual player entity when preparing injured-self healing; the first healthy Blossom casts correctly produced no injured-target heal.
 - Sacrifice against Wilhelm Strang required a same-room teleport and waiting for the received aura before applying damage. Outside-LOS and premature samples are setup failures, not transfer defects.
 
+## Class completeness continuation — 2026-10-12
+
+Current server census174a2e84/shared2a48bdc:2889 working-boundary/4756 partial/182 broken across7827 memberships. Nine additional classes have private Modern/Forever spell receipts on5841, alongside retained Monk/Druid proofs; the full13/all40 goal stays open. Exact per-class receipts, data gaps, revisions and pending DH/Evoker gates live in `/home/osso/.worktrees/handoff-class-completeness2.md` and the [server continuation](../../../../game-server/docs/class-completeness2.md). Current requested PNGs: `/syncthing/AgentShared/2026-10-12/class-completeness/`. Slot-local logs are `game-server-s6/data/diagnostics/class-completeness4-2026-10-12/live/`; no shared realm or canonical world.db/cache was changed.
+
+Demon Hunter startup reproduced a metadata-loss bug, not a missing legacy replacement: pinned12.1.0.69933 item133320 binds appearance29124 with display0. The item-appearance importer discarded0, then the renderer attempted to resolve nonexistent display0 after that producer was fixed. a1c9a71f6 native RED → ee373d6a2 retained row → actual display0 RED →22137903a occupied slot/no-drawn-equipment. Six targeted core controls and one shared renderer integration control pass, including visible item38 and missing/invalid metadata rejection. This does not certify all invisible-gear mechanisms or transmog rules. Native rebuilt DH proof remains pending at this receipt.
+
 ## Sources
 
 - `/home/osso/.worktrees/handoff-spell-dummy-scripts.md` and `handoff-spell-dummy2.md` through `handoff-spell-dummy8.md` — tested script contracts and exclusions.
