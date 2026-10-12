@@ -60,6 +60,25 @@ impl Peer {
         }
         Ok(())
     }
+    fn receive_events(&mut self) -> Result<(), String> {
+        for event in self.bridge.drain_events()? {
+            match event {
+                Event::Message(message) => self.receive(message)?,
+                Event::ReplicationStarted(schema) => self.replica = Replica::new(schema),
+                Event::Replication(batch) => self
+                    .replica
+                    .apply(batch)
+                    .map_err(|error| error.to_string())?,
+                Event::Disconnected(reason) => {
+                    return Err(format!("{} disconnected: {reason:?}", self.username));
+                }
+                Event::ProtocolRejected(reason) => return Err(reason),
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
     fn action(&self, action: &str) -> Result<(), String> {
         if !self.entered {
             return Err(format!("{} has not entered", self.username));
@@ -164,26 +183,25 @@ fn run() -> Result<(), String> {
             snapshot: None,
             replica: Replica::default(),
         });
+        // Each real account completes entry before another worker starts. Large
+        // rosters must not starve earlier handshakes during parallel app setup.
+        let entry_deadline = Instant::now() + Duration::from_secs(30);
+        while !peers.last().unwrap().entered {
+            if Instant::now() >= entry_deadline {
+                return Err(format!("{prefix}{index} did not enter within 30 seconds"));
+            }
+            for peer in &mut peers {
+                peer.receive_events()?;
+                peer.write_state(&directory)?;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
     }
     let mut last = String::new();
     let deadline = Instant::now() + Duration::from_secs(1800);
     while Instant::now() < deadline {
         for peer in &mut peers {
-            for event in peer.bridge.drain_events()? {
-                match event {
-                    Event::Message(message) => peer.receive(message)?,
-                    Event::ReplicationStarted(schema) => peer.replica = Replica::new(schema),
-                    Event::Replication(batch) => peer
-                        .replica
-                        .apply(batch)
-                        .map_err(|error| error.to_string())?,
-                    Event::Disconnected(reason) => {
-                        return Err(format!("{} disconnected: {reason:?}", peer.username));
-                    }
-                    Event::ProtocolRejected(reason) => return Err(reason),
-                    _ => {}
-                }
-            }
+            peer.receive_events()?;
             peer.write_state(&directory)?;
         }
         match fs::read_to_string(directory.join("peers-command.txt")) {

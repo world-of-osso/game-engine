@@ -9,6 +9,69 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_catalog_model_scene_replaces_the_thumbnail_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let catalog = HousingCatalog {
+        decor: vec![Decor {
+            id: 1693,
+            name: "Small Val'sharah Bookcase".into(),
+            item_id: 245259,
+            model_type: 1,
+            model_fdid: 1096761,
+            initial_rotation: [0.0; 3],
+            initial_scale: 1.0,
+            thumbnail_fdid: 7421877,
+            order: 0,
+            subcategories: vec![],
+            sources: vec![],
+            dyeable: false,
+        }],
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(catalog.clone()));
+        model.tab = DashboardTab::Catalog;
+        model.selection = Some(1693);
+        let mut view = HousingView {
+            model,
+            authority: Default::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(housing_screen);
+        screen.sync(&context, &mut registry);
+        let scene = registry
+            .get(
+                registry
+                    .get_by_name("HousingCatalogModelScene")
+                    .expect("3D preview host"),
+            )
+            .unwrap();
+        assert_eq!(scene.width, Dimension::Fixed(301.0));
+        assert_eq!(scene.height, Dimension::Fixed(334.0));
+        assert!(registry.get_by_name("HousingPreviewThumbnail").is_none());
+        assert!(
+            registry
+                .get_by_name("HousingCatalogEntry1693Icon")
+                .is_some()
+        );
+        view.model.tab = DashboardTab::HouseInfo;
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("HousingCatalogModelScene").is_none());
+    }
+}
+
+#[test]
 fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skins() {
     use game_engine_ui_model::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(
@@ -407,8 +470,13 @@ fn catalog_preview_reports_owned_count_sources_and_missing_image_in_both_skins()
                 frame("HousingDashboardFrame").height,
                 Dimension::Fixed(544.0)
             );
-            assert!(frame("HousingPreviewThumbnail").hidden);
-            assert_eq!(text("HousingPreviewMissing"), "Preview unavailable");
+            assert!(frame("HousingCatalogEntry1693Icon").hidden);
+            assert_eq!(
+                text("HousingCatalogEntry1693Unavailable"),
+                "Thumbnail unavailable"
+            );
+            assert!(registry.get_by_name("HousingPreviewThumbnail").is_none());
+            assert!(registry.get_by_name("HousingCatalogModelScene").is_some());
             assert_eq!(text("HousingPreviewName"), "Small Val'sharah Bookcase");
             if confirmed {
                 // Owned = stored 1 + placed 2; the tile shows the stored quantity.
