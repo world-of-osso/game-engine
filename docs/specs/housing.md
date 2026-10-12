@@ -20,7 +20,7 @@ Opening the dashboard requests server state without entering a neighborhood or g
 
 HouseInfo distinguishes unconfirmed ownership from a confirmed account-owned plot count without claiming a granted exterior/interior. Catalog preview and status show confirmed storage counts in both skins. Normal bag use of vendor252312's item245259 collects decor1693 only through the verified spell1238340/effect324 source chain. Server consumption, quantity conservation and persisted storage—not client catalog membership—decide the displayed count. House placement/editor/visitor and complete acquisition parity remain separate acceptance gates.
 
-Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG captures. Static importer/loader tests do not prove gameplay or UI.
+Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG captures. Static importer/loader tests do not prove gameplay or UI. `godot/tests/housing_collection_live.gd` exercises real Pawdo pointer interaction, paid vendor purchase, normal bag right-click collection, exact qualified storage count and account reauthentication; fixture money/position setup remains explicit and grants no item/decor.
 
 ## Local catalog promotion (lead-owned canonical writes)
 
