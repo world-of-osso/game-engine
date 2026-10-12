@@ -72,7 +72,16 @@ pub struct Item {
 pub struct ItemSet {
     pub id: u32,
     pub name: String,
+    pub flags: u32,
     pub items: Vec<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetBonus {
+    pub spec: u32,
+    pub spell: u32,
+    pub trait_subtree: u32,
+    pub threshold: u32,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Specialization {
@@ -98,6 +107,7 @@ pub struct Catalog {
     pub loot: Vec<Loot>,
     pub items: BTreeMap<u32, Item>,
     pub sets: Vec<ItemSet>,
+    pub set_bonuses: BTreeMap<u32, Vec<SetBonus>>,
     pub challenge_dungeons: BTreeMap<u32, ChallengeDungeon>,
     pub specs: Vec<Specialization>,
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
@@ -242,6 +252,7 @@ impl Catalog {
             Ok(ItemSet {
                 id: r.get(0)?,
                 name: r.get(1)?,
+                flags: r.get(2)?,
                 items: items.into_iter().filter(|i| *i != 0).collect(),
             })
         })?;
@@ -256,6 +267,25 @@ impl Catalog {
                 })
             },
         )?;
+        let mut set_bonuses: BTreeMap<u32, Vec<SetBonus>> = BTreeMap::new();
+        let bonuses = query(
+            &db,
+            "SELECT ItemSetID,ChrSpecID,SpellID,TraitSubTreeID,Threshold FROM ItemSetSpell ORDER BY Threshold,ID",
+            |r| {
+                Ok((
+                    r.get::<_, u32>(0)?,
+                    SetBonus {
+                        spec: r.get(1)?,
+                        spell: r.get(2)?,
+                        trait_subtree: r.get(3)?,
+                        threshold: r.get(4)?,
+                    },
+                ))
+            },
+        )?;
+        for (set, bonus) in bonuses {
+            set_bonuses.entry(set).or_default().push(bonus);
+        }
         Ok(Self {
             tiers,
             instances,
@@ -265,6 +295,7 @@ impl Catalog {
             loot,
             items,
             sets,
+            set_bonuses,
             challenge_dungeons: query(
                 &db,
                 "SELECT ID,map_id,name,time_limit_ms FROM challenge_dungeon",
