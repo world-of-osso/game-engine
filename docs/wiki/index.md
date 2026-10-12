@@ -1,6 +1,8 @@
 # Wiki Index
 
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
+- [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
+
 - [Whole-world NPC appearance coverage](investigations/npc-appearance-coverage.md) — source census, strict world-root imports, ordinary geoset/source-asset recovery, selected server scale and private both-skin named-actor proof; canonical cache publication remains lead-owned.
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
@@ -76,7 +78,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
-- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal cache, shared both-skin pages, genuine spec/difficulty filters, strict boss-model preparation and explicit realm-backed gaps.
+- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal/sets, owned keys, monthly account contributions and conservative suggestions; both-skin pages and explicit source/proof boundaries.
 
 - [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
@@ -299,6 +301,6 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
-- [Talents](systems/talents.md) — native DB2 graph and snapshot/commit wiring; [all-spec layout](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10), [rank/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) and [Retail footer controls](systems/talents.md#footer-controls--2026-10-10): staged reset, search previews/keyboard/badges, bounded loadout UI,17 tests and four inspected v3 captures; server/serialization gaps explicit.
+- [Talents](systems/talents.md) — native DB2 graph and snapshot/commit wiring; [Retail placement](systems/talents.md#retail-placement-correction-2026-10-11) owns class pan, node centers, page/footer anchors and Ret/Arcane regressions; [all-spec layout](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10), [rank/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) and [Retail footer controls](systems/talents.md#footer-controls--2026-10-10): staged reset, search previews/keyboard/badges, bounded loadout UI,17 tests and four inspected v3 captures; server/serialization gaps explicit.
 
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.

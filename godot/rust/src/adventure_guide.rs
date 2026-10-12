@@ -46,11 +46,20 @@ impl GameClient {
                 .active
                 .as_ref()
                 .map(|start| start.encounter_id);
-            self.account
-                .send_request_raid_info()
-                .map_err(|e| e.to_string())?;
+            self.request_adventure_guide_state()?;
         }
         Ok(())
+    }
+    fn request_adventure_guide_state(&self) -> Result<(), String> {
+        self.account
+            .send_request_raid_info()
+            .map_err(|error| error.to_string())?;
+        self.account
+            .send_challenge_request(shared::protocol::ChallengeRequest::Query)
+            .map_err(|error| error.to_string())?;
+        self.account
+            .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
+            .map_err(|error| error.to_string())
     }
     fn load_adventure_guide(&mut self) -> Result<(), String> {
         if self.adventure_guide.loaded {
@@ -77,6 +86,7 @@ impl GameClient {
         self.adventure_guide.view.visible = true;
         self.adventure_guide.view.loading = !self.adventure_guide.loaded;
         self.adventure_guide.queued_encounter = Some(dungeon_encounter);
+        self.request_adventure_guide_state()?;
         Ok(())
     }
     fn select_queued_journal_encounter(&mut self) -> Result<(), String> {
@@ -133,7 +143,9 @@ impl GameClient {
             return Ok(());
         }
         if !self.adventure_guide.loaded {
-            if self.spells.catalog().is_none() {
+            if self.spells.catalog().is_none()
+                || game_engine_ui_model::item_catalog::item_catalog().is_none()
+            {
                 self.sync_adventure_guide()?;
                 return Ok(());
             }
@@ -141,8 +153,11 @@ impl GameClient {
             self.adventure_guide.view.loading = false;
         }
         self.select_queued_journal_encounter()?;
+        self.adventure_guide.view.activities = self.account.adventure_guide.clone();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
+        self.adventure_guide.view.keys = self.account.challenge.keys.clone();
+        self.adventure_guide.view.player_spec = self.account.spells.spec();
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;
@@ -205,7 +220,40 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
+            let filters = (
+                self.adventure_guide.view.class,
+                self.adventure_guide.view.spec,
+            );
+            if let Some(tracking) = action.strip_prefix("journal:activity-track:") {
+                let (id, tracked) = tracking
+                    .split_once(':')
+                    .ok_or("Missing activity tracking state")?;
+                self.account
+                    .send_adventure_guide(shared::protocol::AdventureGuideRequest::TrackActivity {
+                        activity_id: id.parse().map_err(|_| "Invalid activity ID")?,
+                        tracked: match tracked {
+                            "0" => false,
+                            "1" => true,
+                            _ => return Err("Invalid activity tracking state".into()),
+                        },
+                    })
+                    .map_err(|error| error.to_string())?;
+                continue;
+            }
+            let previous_filters = self.adventure_guide.view.activity_filters.clone();
+            let previous_tab = self.adventure_guide.view.tab;
             self.adventure_guide.view.apply(&action)?;
+            if previous_filters != self.adventure_guide.view.activity_filters
+                || previous_tab != self.adventure_guide.view.tab
+            {
+                ui.bind_mut().reset_journal_set_scroll();
+            }
+            let view = &self.adventure_guide.view;
+            if view.tab == game_engine_ui_model::adventure_guide::Tab::ItemSets
+                && filters != (view.class, view.spec)
+            {
+                ui.bind_mut().reset_journal_set_scroll();
+            }
             if !self.adventure_guide.view.visible {
                 self.close_adventure_guide();
                 break;
@@ -344,6 +392,25 @@ impl GameClient {
         state.set("spec", view.spec);
         state.set("slot", view.slot);
         state.set("loot_count", view.loot().len() as i64);
+        state.set("owned_keys_only", view.owned_keys_only);
+        state.set("owned_key_count", view.keys.len() as i64);
+        state.set("item_set_count", view.item_sets().len() as i64);
+        state.set("lockout_count", view.lockouts.len() as i64);
+        state.set("activity_snapshot_received", view.activities.is_some());
+        if let Some(snapshot) = &view.activities {
+            state.set("activity_count", snapshot.activities.len() as i64);
+            state.set("suggestion_count", snapshot.suggestions.len() as i64);
+            state.set("activity_points", snapshot.points);
+            state.set("activity_month", snapshot.month.month);
+            state.set(
+                "activity_source_error",
+                snapshot.source_error.as_deref().unwrap_or(""),
+            );
+            state.set(
+                "tracked_activity_count",
+                snapshot.activities.iter().filter(|row| row.tracked).count() as i64,
+            );
+        }
         state.set(
             "model_display",
             self.adventure_guide.shown.map(i64::from).unwrap_or(-1),

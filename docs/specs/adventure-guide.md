@@ -4,12 +4,21 @@ Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern
 
 ## Required behavior
 
-- Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list.
+- Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list. Classify dungeons from pinned Map.InstanceType, not JournalInstance.Flags (Wailing Caverns43 has zero Journal flags).
 - Encounter: existing 3D model renderer; Overview and expandable Abilities from JournalEncounterSection, role/difficulty filters. Collapse on one page must not hide sections on another page whose parent is not rendered there. JournalEncounterXDifficulty restricts boss visibility and choices.
 - Loot from JournalEncounterItem with difficulty/class/spec and Retail slot categories (robes share Chest; weapon variants map to MainHand/OffHand; other drops have an Other category).
-- Item Sets; Tutorials uses the authored Catch Up Experience text/art, not invented journal help. Show its unavailable realm service explicitly until RPE is backed.
+- Item Sets: Retail compact named rows, item-level ordering (then case-insensitive name and descending set ID), authored item icons, class/spec filtering with a specific spec selected for a class. Pinned ItemSet membership and the shared Retail item-level scaling tables are authoritative; rows and item tooltips use the same squished level. Mixed-level sets display their highest effective member level. Entering Item Sets normalizes an unspecified spec, using the active player spec for that class or its first authored spec. Search filters sets directly. Changing class/spec returns the set list to its beginning. Item hover reuses the Retail item tooltip and Shift comparison, appending authored set membership/equipped counts and ItemSetSpell thresholds/descriptions. Legacy-inactive flags keep bonuses inactive; missing spell details and unsupported trait eligibility are explicit notices, not invented bonuses. Tutorials uses the authored Catch Up Experience text/art, not invented journal help. Show its unavailable realm service explicitly until RPE is backed.
 - Search across encounters, sections and instances; micro-menu/keybind and boss-frame openers. First-open input remains queued while its real spell-text dependency loads, with loading feedback rather than an error/raw-text fallback. Native wheel, stepper and thumb events must scroll instance, ability, loot, set and search lists. Opening during ENCOUNTER_START selects that encounter without automatically opening a window during combat.
-- Display authoritative per-instance lockouts from raid-entry InstanceInfo, with expiry relative to the snapshot. Journeys/Traveler's Log only with authentic local data and server-backed state; missing backing is a documented gap, never invented progress.
+- Dungeons owned-keystone browsing consumes ChallengeSnapshot.keys, independent of active runs. Join challenge IDs through authentic world.db MapChallengeMode to Journal maps; selecting the dungeon shows its owned level and authored timer. Unknown challenge IDs remain a data gap, never name-guessed. Importer requires `--world` and opens that database read-only.
+- Display authoritative per-instance lockouts from raid-entry InstanceInfo, with expiry relative to the snapshot. Boss-frame first-open requests that snapshot just like micro-menu/J; it must not depend on the guide having opened earlier. Journeys/Traveler's Log and Suggested Content use authentic local AdventureJournal/PerksActivity catalogs and authoritative realm snapshots. Unsupported PlayerConditions keep suggestions hidden and counted in the census. Untracked criteria types display unavailable, never zero progress.
+
+## World of Osso monthly policy
+
+Trading Post / Traveler's Log is available to every character (user/lead decision, October 11, 2026). The active interval is a UTC calendar month, beginning on the first at `GAME_SERVER_DAILY_RESET_HOUR_UTC`, mirroring Retail's monthly rotation. No entitlement fiction is introduced. The pinned PerksActivityXInterval layout names its interval value only `Field_10_0_5_47118_002`; no verified year/month assignment is available. Apply the explicitly approved policy of showing all authentic activity rows until a calendar binding is sourced; retain that gap in the census/spec instead of guessing an interval ID.
+
+The native Guide offers Traveler's Log and Suggested tabs, loads their authoritative snapshot on open, and sends Track/Untrack requests rather than changing progress locally. Activity tags, tracked-only and text filters share the same rows in both skins. Snapshot state is cleared on account/network reset. Suggestions remain display-only when action bindings are unsupported; no quest/queue action is fabricated. Pinned activity priority is signed (including -500).
+
+Progress reuses the achievement criteria engine and durable contributions. Real events are attributed to their active month; historical quest-login reconstruction must not earn monthly credit. Track the observation start explicitly: no pre-tracking progress is inferred. Unsupported trees/conditions remain unavailable. Contribution points are source values, not invented currency or reward grants; absent reward-interval binding stays a gap.
 
 ## Sources
 
@@ -21,7 +30,13 @@ Reference behavior: local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzar
 
 Targeted importer and UI/layout tests, extension check and format proof. Inspected both-skin PNGs showing dungeon abilities, loot and a raid on private UDP5890 with fb_* accounts; GPU free memory at least 1.5 GiB. No UDP5000 access or full suites. Gaps and exact proof scope recorded in the task handoff.
 
-## October 11 native checkpoint
+## October 11 continuation acceptance
+
+Private UDP5896/fb_adventure3m and fb_adventure3f, independently selected skins: first-unopened Cobrahn boss-frame right-click selects Journal475/Dungeons and fetches nonempty saved Molten Core9/mask1 data; owned Azure8/timer37:30; compact ItemSets/search/icons and hover membership/bonuses; class-filter scroll reset; Traveler's Log945 source rows, unavailable criteria notices, real Track3 request and relog persistence; eligible Training Grounds852 card with authored texture1523630 and no unsupported activation. Inspected PNGs under `/syncthing/AgentShared/2026-10-11/adventure-guide3/`; proof ledger/logs under canonical `data/diagnostics/adventure-guide3-2026-10-11/`. Live saved credit uses controlled private admin damage against authentic Lucifron/Cobrahn, not a natural combat-balance claim.
+
+Server5/5, UI20/20, final real-UDP bridge1/1, native builds/check/fmt pass. Independent read-only filesystem verifier passes bounded artifact wiring, not full Retail certification. Source interval calendar/reward binding, most criteria/conditions, RPE activation and complete boss asset closure remain explicit limits. Training Grounds is display-only; its PvP queue action is not implemented by this Guide. Warmonger source items270367–270374 have icon0; shared spell text still lacks some stat-name tokens. These bounds are not zero progress or replacement data.
+
+## October 11 initial native checkpoint
 
 - Both skins, privateUDP5890/fb_adventure: real micro-menu and J open/close; Ozruk overview/abilities/expand-collapse/role selection; difficulty2 six drops→Timewalking24 eight; Paladin Ret70 three→Neck one; textured Ozruk36475 and Lucifron13031 models; tier68 Molten Core741/Lucifron1519 at authored difficulty9; Item Sets wheel changes visible rows; authored Tutorials and Lucifron search result selection.
 - `godot/tests/adventure_guide_scroll.gd` passes in Modern and Forever: first-open readiness plus model→Classic raid list→five wheel notches moves Molten CoreY518.67→418.67 and selects Lucifron9. The pending-close path is asserted when catalog loading is observed.
