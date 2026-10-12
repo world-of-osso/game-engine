@@ -530,7 +530,28 @@ fn eye_hud(rules: &shared::battleground::EyeRules, bg: &BattlegroundSnapshot) ->
     ));
     hud_cells(cells)
 }
+fn kotmogu_hud(bg: &BattlegroundSnapshot) -> Element {
+    let cells = shared::battleground::KOTMOGU_ORBS
+        .iter()
+        .map(|orb| {
+            let [base, horde, alliance] = orb.world_states;
+            let owner = [(alliance, "Alliance"), (horde, "Horde"), (base, "At base")]
+                .into_iter()
+                .find(|(state, _)| world_state(bg, *state) == Some(1))
+                .map_or("—", |(_, owner)| owner);
+            (
+                format!("WorldStateOrb{}", orb.entry),
+                format!("{}\n{owner}", orb.name),
+            )
+        })
+        .collect();
+    hud_cells(cells)
+}
+
 fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if bg.map_id == 998 {
+        return kotmogu_hud(bg);
+    }
     if let Some(rules) = shared::battleground::eye_rules(bg.map_id) {
         return eye_hud(rules, bg);
     }
