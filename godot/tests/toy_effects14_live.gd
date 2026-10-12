@@ -56,6 +56,7 @@ func prove_toy(sample: Array) -> void:
 	await click("CollectionsMicroButton")
 	if not await wait_until(func(): return has_aura(spell) and native_display(display), "source transform " + str(display), 120000): return
 	await capture("toy%d-display%d" % [item, display])
+	if failed: return
 	await cancel_aura(spell)
 	if failed: return
 	if not await wait_until(func(): return not has_aura(spell) and native_display(-1), "native restoration", 120000): return
