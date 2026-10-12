@@ -236,7 +236,11 @@ func find_unit(id: int, unit_name := "") -> Dictionary:
 	return {}
 
 func find_control(control_name: String) -> Control:
-	return client.find_child(control_name, true, false) as Control
+	# Merchant and standalone bag registries share Retail names; input must hit the visible one.
+	for control in client.find_children(control_name, "Control", true, false):
+		if control.is_visible_in_tree():
+			return control as Control
+	return null
 
 func label(control_name: String) -> String:
 	var control := find_control(control_name)
