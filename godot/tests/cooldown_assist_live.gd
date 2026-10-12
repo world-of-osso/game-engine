@@ -62,7 +62,7 @@ func capture(name: String) -> void:
 	var image := root.get_texture().get_image()
 	image.resize(1280, 720, Image.INTERPOLATE_LANCZOS)
 	image.save_png(directory.path_join(name + ".png"))
-	write_json(name, {"account": client.account_state(), "spells": client.spells_state(), "assisted": client.assisted_combat_state(), "viewer": client.cooldown_viewer_state()})
+	write_json(name, {"account": client.account_state(), "spells": client.spells_state(), "assisted": client.assisted_combat_state(), "viewer": client.cooldown_viewer_state(), "target": client.target_state()})
 
 func wait_screen(screen: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 180000
@@ -90,6 +90,7 @@ func run_fixture() -> void:
 	await click("EnterWorld")
 	if not await wait_screen("InWorld"):
 		return
+	await capture("world-online")
 	if OS.get_environment("COOLDOWN_ASSIST_ADMIN") == "1":
 		var ready := FileAccess.open(directory.path_join("online.ready"), FileAccess.WRITE)
 		ready.store_string("private fb_cooldown_assist online")
