@@ -38,7 +38,9 @@ func enter_neighborhood() -> bool:
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and housing_text("HouseInfoContentUnavailable").contains("account-owned plot(s)"), "confirmed house finder entry"): return false
 	await click_control(housing_control("HousingDashboardHouseFinderButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HouseFinderVisitButton") != null, "native finder"): return false
+	if not await wait_housing(func():
+		var visit: BaseButton = housing_control("HouseFinderVisitButton") as BaseButton
+		return visit != null and not visit.disabled, "confirmed native finder"): return false
 	await frames(20)
 	if not await capture_housing("finder"): return false
 	await click_control(housing_control("HouseFinderVisitButton"), MOUSE_BUTTON_LEFT)
