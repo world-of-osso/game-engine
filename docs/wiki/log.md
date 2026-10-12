@@ -8,9 +8,16 @@
 ## 2026-10-12 — Combat assist source-supported continuation
 
 [Cooldown/assist audit](investigations/cooldown-assist-data.md): all40 authored candidate inventories and exact ModifierTree gates, owner effective costs, initial charge publication, source-definite numeric outcomes with explicit equality/prediction gaps. Both private skins prove moving Retail ants on matching action/viewer surfaces and actual assistant35395 CastSuccess/2→1 charge depletion. Maintained driver uses build-qualified placement before login; assistant GCD-origin and undecoded semantics remain explicit.
+## 2026-10-12 — Legacy global-WMO floor closure
+
+[Legacy WDTs](investigations/legacy-global-wmo.md):193 MWMO name-index failures and13 terrain-less no-MAID maps recover;498 M2 tiles/6,983,272bytes.704-file staged floor package validates without publication. Fresh private maps1213/1214/1258 render in both skins with extracted-only mode;110 absent WDTs and broader no-install certification remain explicit.
+
 ## 2026-10-12 — Authored toy display state kits
 
 [Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.
+## 2026-10-12 — Authored M2 doodad floors
+
+[Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
 
 ## 2026-10-11 — Toy input and source rendering
 
