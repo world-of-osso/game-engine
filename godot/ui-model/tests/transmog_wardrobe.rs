@@ -314,6 +314,36 @@ fn assert_retail_alpha(registry: &FrameRegistry, name: &str) {
 }
 
 #[test]
+fn transmog_hover_borders_have_the_authored_model_card_sizes() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = build(skin, book());
+        let frame = registry
+            .get(registry.get_by_name("TransmogSource821").unwrap())
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
+            panic!("source card")
+        };
+        assert_eq!(
+            button.highlight_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "transmog-itemcard-default".into()
+            ))
+        );
+        assert_eq!(button.highlight_size, Some([114.0, 146.0]));
+        let mut sets = book();
+        sets.set_tab(WardrobeTab::Sets);
+        let registry = build(skin, sets);
+        let frame = registry
+            .get(registry.get_by_name("TransmogSet13").unwrap())
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
+            panic!("set card")
+        };
+        assert_eq!(button.highlight_size, Some([194.0, 234.0]));
+    }
+}
+
+#[test]
 fn transmog_items_cards_show_applied_and_pending_states_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());
