@@ -464,7 +464,7 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         let mut reply = state(0);
         reply.ranks[2].name = "Raider".into();
         session.apply(reply);
-        assert_eq!(text(&mounted(&session), "GuildRankRow2"), "Raider");
+        assert_eq!(text(&mounted(&session), "GuildRankRow2Name"), "Raider");
     }
     set_thread_skin(ActiveSkin::Modern);
 }
