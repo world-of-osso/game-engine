@@ -1,3 +1,7 @@
+## 2026-10-12 — Linked cooking-fire native proof
+
+[Little Wickerman](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12): actual Modern/Forever journal use, authored.25 scale/nine emitters, real recipe output and visible Cozy Fire cancellation-refresh; representative proof does not certify all-seven pixels/native expiry. Requested PNGs and lead-only authenticated asset-import command recorded.
+
 ## 2026-10-12 — Housing HouseSettings access authority
 
 [HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
