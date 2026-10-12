@@ -40,6 +40,7 @@ fn native_bridge_receives_merchant_messages_in_channel_order() {
         can_repair: true,
         guild_repair_money: None,
         items: vec![VendorItem {
+            extra_costs: Vec::new(),
             slot: 0,
             item_id: 2589,
             name: "Linen Cloth".into(),
@@ -69,6 +70,7 @@ fn native_bridge_receives_merchant_messages_in_channel_order() {
     };
     let updated_inventory = VendorInventory {
         items: vec![VendorItem {
+            extra_costs: Vec::new(),
             num_available: Some(2),
             ..inventory.items[0].clone()
         }],

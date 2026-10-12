@@ -2,6 +2,7 @@
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 
+- [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview, five data-derived filters and strict MountXDisplay appearance closure; acceptance tracked in the linked contract.
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
 - [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
 

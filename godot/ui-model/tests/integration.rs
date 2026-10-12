@@ -60,6 +60,7 @@ mod minimap_ping;
 mod minimap_tracking;
 mod minimapblips;
 mod mirror_timer;
+mod mount_journal;
 mod native_auction;
 mod native_bank_art;
 mod native_bank_moves;
