@@ -695,11 +695,13 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) else {
         return vec![];
     };
-    let mut out = texture(
+    // Keep authored instance art in the details pane; flat boss rows use the
+    // window's dark panel instead of drawing gold text over the bright artwork.
+    let mut out = crate::bank_art::cropped(
         "EncounterJournalInstanceBackground".into(),
         instance.background,
-        (8., 62., 784., 424.),
-        WHITE,
+        "0.2372449,1,0,1",
+        (194., 62., 598., 424.),
     );
     out.extend(crate::selection_list::text_row(
         "EncounterJournalInstanceOverview".into(),

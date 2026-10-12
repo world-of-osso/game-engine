@@ -80,6 +80,20 @@ func open_hashom() -> bool:
 	if pid < 0: fail("Could not start owned service IPC client"); return false
 	return true
 
+func selected_label_has_ink(name: String) -> bool:
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	var rect := Rect2i(control(name).get_global_rect())
+	var ink := 0
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var pixel := image.get_pixel(x, y)
+			if pixel.r > 0.7 and pixel.g > 0.4 and pixel.b < 0.3: ink += 1
+	if ink < 8:
+		fail("Selected label artwork covers rendered text: " + name + " ink=" + str(ink))
+		return false
+	return true
+
 func capture(suffix: String) -> void:
 	await settle(30)
 	await RenderingServer.frame_post_draw
@@ -109,6 +123,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return control("HonorFrameSpecificBattlegroundButton120") != null and not (control("HonorFrameSpecificBattlegroundButton120") as Button).disabled, "queue list ready"): return
 	await pointer("HonorFrameSpecificBattlegroundButton120")
 	if not await wait_until(func(): return control("HonorFrameDescription").text.contains("The Battle for Gilneas"), "pointer selection"): return
+	if stage == "after" and not await selected_label_has_ink("HonorFrameSpecificBattlegroundButton120Name"): return
 	await motion(Vector2(650, 480))
 	await capture("queue-selected")
 	await motion(control("HonorFrameSpecificBattlegroundButton1014").get_global_rect().get_center())
@@ -132,6 +147,10 @@ func run_fixture() -> void:
 	await pointer("EncounterJournalTab1")
 	await pointer("JournalInstance741")
 	await pointer("JournalBoss1519")
+	if stage == "after":
+		if not await selected_label_has_ink("JournalBoss1519Name"): return
+		for label in root.find_children("JournalBoss*Name", "Label", true, false):
+			if label.get_line_count() != 1: fail("Boss list label spills into adjacent row: " + str(label.name)); return
 	await motion(Vector2(950, 500))
 	await capture("guide-boss-selected")
 	await pointer("EncounterJournalCloseButton")
@@ -151,6 +170,7 @@ func run_fixture() -> void:
 		await tap(KEY_ENTER)
 		if not await wait_until(func(): return control("GuildRankName").text == expected_rank, "keyboard guild rank selection"): return
 		await pointer("GuildRankRow1")
+	if stage == "after" and not await selected_label_has_ink("GuildRankRow1Name"): return
 	await motion(Vector2(1500, 950))
 	await capture("guild-rank-selected")
 	await pointer("GuildControlUICloseButton")
