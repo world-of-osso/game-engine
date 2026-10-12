@@ -133,6 +133,11 @@ impl GameClient {
     pub(super) fn close_housing(&mut self) {
         self.housing.decor.clear_preview();
         self.housing.expert_held = [false; 8];
+        if let Some(model) = &mut self.housing.model {
+            model.surface = HousingSurface::Dashboard;
+            model.editor = Default::default();
+        }
+        self.housing.decor.restore_saved();
         self.group_frames.popups.hide(PURCHASE_POPUP);
         self.housing.confirming_plot = None;
         if let Some(ui) = self.housing.ui.take() {
@@ -386,9 +391,13 @@ impl GameClient {
 
     pub(super) fn housing_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         match self.housing_editor_pointer(event) {
-            Ok(true) => return true,
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                return true;
+            }
             Ok(false) => {}
             Err(error) => {
+                self.mark_viewport_input_handled();
                 godot_error!("House editor: {error}");
                 if let Err(message) = self.add_world_error(&error) {
                     godot_error!("House editor feedback: {message}");
