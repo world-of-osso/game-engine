@@ -397,17 +397,26 @@ func prove_restoration() -> void:
 	if icons.is_empty() or int(icons[0].cooldown_id) != 19389:
 		fail("Fresh process lost saved per-spec manager order")
 		return
-	var selected := []
-	for icon in icons:
-		selected.append(int(icon.cooldown_id))
-	if not selected.has(92839) or not selected.has(68661):
-		fail("Fresh process lost saved tracked icon/bar choices")
-		return
 	var expected := OS.get_environment("COOLDOWN_ASSIST_EXPECTED_POSITION").split(",")
 	var position := control("EssentialCooldownViewer").get_global_rect().position
 	if expected.size() != 2 or position.distance_to(Vector2(float(expected[0]), float(expected[1]))) > 1.0:
 		fail("Fresh process lost account Edit Mode placement")
 		return
+	# Inactive tracked auras are not visible icons. Inspect the actual saved
+	# selection through the native settings rows, without toggling it.
+	await key(KEY_ESCAPE)
+	await click("MenuBtnOptions")
+	await click("OptionsTabhud")
+	if not await scroll_to("ActionRowcooldown_settings"):
+		return
+	await click("ActionButtoncooldown_settings")
+	for entry in [[2, 92839], [3, 68661]]:
+		await click("CooldownSettingsCategory%d" % int(entry[0]))
+		var row := control("CooldownSettingsSelect%d" % int(entry[1]))
+		var label := row.get_node("Parts/Text") as Label
+		if not label.text.begins_with("[x]"):
+			fail("Fresh process lost saved tracked choice%d" % int(entry[1]))
+			return
 	await capture("restored-manager")
 	print("RESTORE_PASS: fresh process retains source-supported choices/order and account layout")
 	quit(0)
