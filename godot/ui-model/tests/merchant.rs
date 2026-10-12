@@ -34,6 +34,7 @@ fn data_root() {
 
 fn item(slot: u32, item_id: u32, name: &str, price: u32) -> VendorItem {
     VendorItem {
+        extra_costs: Vec::new(),
         slot,
         item_id,
         name: name.into(),
@@ -61,6 +62,7 @@ fn godric() -> VendorInventory {
             item(4, 2384, "Tarnished Chain Bracers", 45),
             item(5, 2385, "Tarnished Chain Gloves", 45),
             VendorItem {
+                extra_costs: Vec::new(),
                 usable: false,
                 ..item(6, 17184, "Small Shield", 36)
             },
@@ -72,6 +74,7 @@ fn godric() -> VendorInventory {
 /// `content_npc_vendor` 152: 25 copper per 5 bread and 5 per 5 water, stacking to 20.
 fn danil() -> VendorInventory {
     let bundle = |slot, item_id, name: &str, price| VendorItem {
+        extra_costs: Vec::new(),
         stack_count: 5,
         max_stack: 20,
         ..item(slot, item_id, name, price)

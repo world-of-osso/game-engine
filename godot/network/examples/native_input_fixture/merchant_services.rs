@@ -399,6 +399,7 @@ fn build_vendor_inventory() -> VendorInventory {
         can_repair: true,
         guild_repair_money: None,
         items: vec![VendorItem {
+            extra_costs: Vec::new(),
             slot: 0,
             item_id: 2589,
             name: "Linen Cloth".into(),
