@@ -33,7 +33,7 @@ fn gladius() -> TransmogSource {
 }
 
 fn deadman() -> TransmogSource {
-    source(1181, 389, 3295, 1546, 135274, "Deadman Blade", 13)
+    source(1181, 389, 3295, 1546, 135343, "Deadman Blade", 13)
 }
 
 fn chain_armor() -> TransmogSource {
