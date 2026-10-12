@@ -1,6 +1,10 @@
+## 2026-10-12 — Authored toy display state kits
+
+[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.
+
 ## 2026-10-11 — Toy input and source rendering
 
-[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance now passes both skins (2026-10-12), actual170476/display92605 with two meshes/root scale0.35/no PetFrame; expiry and other scaled identities remain separate proof boundaries.
+[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance now passes both skins (2026-10-12), actual170476/display92605 with two meshes/root scale0.35/no PetFrame; four scaled identities now render, with Sealamp/Spire authored state-kit/expiry acceptance recorded above; remaining native/per-toy boundaries stay explicit.
 
 ## 2026-10-12 — Mount Journal final acceptance
 
