@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin catalog/acquisition, basic/expert staged transforms, visitor/observer proof and sourced schema migration; charter/default grants/outdoor bounds remain explicit source gaps.
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 
 - [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits M2 floors.

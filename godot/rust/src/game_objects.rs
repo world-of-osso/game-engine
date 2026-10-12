@@ -80,6 +80,7 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
         | GAMEOBJECT_TYPE_MEETINGSTONE
         | GAMEOBJECT_TYPE_RITUAL
         | shared::protocol::GAMEOBJECT_TYPE_KEYSTONE_RECEPTACLE
+        | shared::protocol::GAMEOBJECT_TYPE_HOUSING_PLOT
         | GAMEOBJECT_TYPE_CHEST
         | GAMEOBJECT_TYPE_GOOBER
         | GAMEOBJECT_TYPE_BATTLEGROUND_FLAG

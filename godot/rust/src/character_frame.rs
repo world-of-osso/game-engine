@@ -271,6 +271,7 @@ impl GameClient {
             "micro:GuildMicroButton" => self.toggle_guild_ranks()?,
             "micro:LFDMicroButton" => self.toggle_pvp()?,
             "micro:CollectionsMicroButton" => self.toggle_collections(),
+            "micro:HousingMicroButton" => self.toggle_housing()?,
             "micro:EJMicroButton" => self.toggle_adventure_guide()?,
             game_engine_ui_model::achievements::OPEN_ACTION => self.toggle_achievements()?,
             _ => match unavailable_message(action) {

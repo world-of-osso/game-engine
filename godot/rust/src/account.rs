@@ -250,6 +250,7 @@ pub enum AccountEvent {
     MountJournal(shared::protocol::MountJournalUpdate),
     Toys(shared::protocol::ToyCollectionUpdate),
     ToyResult(shared::protocol::ToyResult),
+    Housing(shared::protocol::HousingReply),
     ToyCooldown(SpellCooldownUpdate),
 }
 
@@ -619,6 +620,15 @@ impl Account {
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(SetDungeonDifficulty { difficulty_id })
+            .map_err(SessionError)
+    }
+
+    pub fn send_housing(
+        &self,
+        request: shared::protocol::HousingRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::HousingChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1692,6 +1702,10 @@ impl Account {
             output.push(AccountEvent::CreatureTooltip(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::HousingReply>() {
+            output.push(AccountEvent::Housing(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::MountJournalUpdate>() {
             output.push(AccountEvent::MountJournal(decode(message)?));
             return Ok(());
@@ -2433,6 +2447,10 @@ fn quest_message(
 #[cfg(test)]
 #[path = "account_toys_tests.rs"]
 mod toys_tests;
+
+#[cfg(test)]
+#[path = "account_housing_tests.rs"]
+mod housing_tests;
 
 #[cfg(test)]
 #[path = "account_mythic_mentor_tests.rs"]
