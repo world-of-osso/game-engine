@@ -46,7 +46,8 @@ World entry receives one complete catalog. Learning, favourites and mount-state 
 ## Known gaps (current cycle)
 
 - [x] Reliable live account-change/dismount feedback and both-skin vendor/AH acquisition acceptance.
-- [ ] Final integration/check/fmt/protocol gate.
+- [x] Final integration/check/fmt/protocol gate (2026-10-12, after merging master53c6e7a8f/server99f61aec/protocola429549).
+- Detached previews need a verified Retail model receipt. Canonical receipts cover509 of1,971 MountXDisplay mounts (120 of686 model FDIDs); the rest show details without a model until their local-CASC chains are staged through [product-isolated publication](product-isolated-model-assets.md).
 - Unavailable authored cost metadata omits78 ExtendedCost offers rather than making them free; other121 have complete cost data. Vendor PlayerCondition evaluation and reputation price discounts remain existing server boundaries, not new invented behavior.
 
 ## Out of scope
