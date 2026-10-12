@@ -12,7 +12,7 @@ use crate::{
     adventure_guide::{LIST, button, scroll, text},
     bank_art::{WHITE, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
-    quest_art::DynName,
+    quest_art::{DynName, named_atlas_texture},
 };
 
 const TOP: f32 = 156.;
@@ -397,26 +397,21 @@ pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>)
         ));
         return out;
     }
-    // The snapshot contains only backend-eligible authored records. It grants no activation.
-    let mut top = 0.;
-    let rows: Vec<_> = snapshot
-        .suggestions
-        .iter()
-        .map(|suggestion| {
-            let height = suggestion_height(suggestion);
-            let row = (suggestion, top, height);
-            top += height;
-            row
-        })
-        .collect();
+    // Retail has one large primary and two small secondary records. Only populate
+    // authored, eligible records; additional groups scroll without invented actions.
     let height = 341.;
-    let content_height = top.max(height);
+    let content_height = (snapshot.suggestions.len().div_ceil(3) as f32 * 349. - 12.).max(height);
     let offset =
         pixel_geometry(height, content_height, height).clamp(ctx.scroll_first_row(LIST)) as f32;
-    let content = rows
-        .into_iter()
-        .filter(|(_, top, row_height)| *top + *row_height > offset && *top < offset + height)
-        .flat_map(|(suggestion, top, height)| suggestion_row(suggestion, top, height))
+    let content = snapshot
+        .suggestions
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| {
+            let (_, top, _, row_height) = suggestion_rect(*index);
+            top + row_height > offset && top < offset + height
+        })
+        .flat_map(|(index, suggestion)| suggestion_row(suggestion, index))
         .collect();
     out.extend(scroll(
         ctx,
@@ -427,45 +422,78 @@ pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>)
     out
 }
 
-fn suggestion_height(suggestion: &AdventureSuggestion) -> f32 {
-    (56. + text_height(&suggestion.description, 84)
-        + text_height(&suggestion.reward_description, 84))
-    .max(128.)
+fn suggestion_rect(index: usize) -> (f32, f32, f32, f32) {
+    let top = (index / 3) as f32 * 349.;
+    match index % 3 {
+        0 => (28., top, 335., 337.),
+        1 => (398., top, 344., 161.),
+        _ => (398., top + 176., 344., 161.),
+    }
 }
 
-fn suggestion_row(suggestion: &AdventureSuggestion, top: f32, height: f32) -> Element {
+fn suggestion_row(suggestion: &AdventureSuggestion, index: usize) -> Element {
     let id = suggestion.id;
-    let mut body = Vec::new();
+    let primary = index % 3 == 0;
+    let (left, top, width, height) = suggestion_rect(index);
+    let atlas = if primary {
+        "adventureguide-pane-large"
+    } else {
+        "adventureguide-pane-small"
+    };
+    let mut body = named_atlas_texture(
+        format!("JournalSuggestion{id}Art"),
+        atlas,
+        (0., 0., width, height),
+    );
+    let icon_x = if primary { 135. } else { -10. };
     if suggestion.texture_fdid != 0 {
         body.extend(texture(
             format!("JournalSuggestion{id}Texture"),
             suggestion.texture_fdid,
-            (8., 8., 80., 80.),
+            (icon_x, 0., 64., 64.),
             WHITE,
         ));
+        body.extend(named_atlas_texture(
+            format!("JournalSuggestion{id}Ring"),
+            "adventureguide-ring",
+            (icon_x - 15., -15., 94., 95.),
+        ));
     }
-    body.extend(text(
+    let (text_x, text_y, text_width) = if primary {
+        (35., 80., 264.)
+    } else {
+        (70., 0., 260.)
+    };
+    body.extend(suggestion_text(
         &format!("JournalSuggestion{id}Name"),
         &suggestion.name,
-        (100., 0., 640., 30.),
+        (text_x, text_y, text_width, 36.),
     ));
-    let description_height = text_height(&suggestion.description, 84);
-    body.extend(text(
+    let description_height = text_height(&suggestion.description, 44);
+    body.extend(suggestion_text(
         &format!("JournalSuggestion{id}Description"),
         &suggestion.description,
-        (100., 34., 640., description_height),
+        (text_x, text_y + 40., text_width, description_height),
     ));
     if !suggestion.reward_description.is_empty() {
-        body.extend(text(
+        body.extend(suggestion_text(
             &format!("JournalSuggestion{id}Reward"),
             &suggestion.reward_description,
             (
-                100.,
-                38. + description_height,
-                640.,
-                text_height(&suggestion.reward_description, 84),
+                text_x,
+                text_y + 44. + description_height,
+                text_width,
+                text_height(&suggestion.reward_description, 44),
             ),
         ));
     }
-    rsx! { r#frame {name:{DynName(format!("JournalSuggestion{id}"))}, left:0.0, top, width:748.0, height, pos_type:"absolute", {body}} }
+    rsx! { r#frame {name:{DynName(format!("JournalSuggestion{id}"))}, left, top, width, height, pos_type:"absolute", {body}} }
+}
+
+fn suggestion_text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
+    ui_toolkit::widgets::with_attr(
+        text(name, value, rect),
+        "font_color",
+        "0.2824,0.0157,0.0157,1.0".into(),
+    )
 }

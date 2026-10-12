@@ -83,6 +83,10 @@ fn snapshot() -> AdventureGuideSnapshot {
     }
 }
 fn context(skin: ActiveSkin) -> SharedContext {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     set_thread_skin(skin);
     let mut ctx = SharedContext::new();
     ctx.insert(skin);
@@ -405,6 +409,14 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         assert!(registry.get_by_name("JournalSuggestion642Reward").is_none());
         assert!(registry.get_by_name("JournalSuggestion642Button").is_none());
         assert!(frame(&registry, "JournalSuggestion642").onclick.is_none());
+        assert_eq!(
+            frame(&registry, "JournalSuggestion642").width,
+            ui_toolkit::frame::Dimension::Fixed(335.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalSuggestion642").height,
+            ui_toolkit::frame::Dimension::Fixed(337.)
+        );
         match &frame(&registry, "JournalSuggestion642Texture").widget_data {
             Some(WidgetData::Texture(texture)) => assert_eq!(
                 texture.source,
@@ -419,8 +431,28 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
             reward_description: "Completing this quest will grant you renown with the Midnight faction of your choice!".into(),
             texture_fdid: 136349, button_text: "Start Quest".into(),
         }];
+        rewarded.suggestions.insert(
+            0,
+            ctx.get::<AdventureGuideSnapshot>().unwrap().suggestions[0].clone(),
+        );
+        rewarded.suggestions.push(AdventureSuggestion {
+            id: 227, name: "Brewfest".into(),
+            description: "The yearly celebration of the fermented fruits of the harvest is happening right now!  Find the beer garden outside Ironforge.".into(),
+            reward_description: "You can win a variety of fun prizes like pets and seasonal garb!".into(),
+            texture_fdid: 133201, button_text: String::new(),
+        });
         ctx.insert(rewarded);
         screen.sync(&ctx, &mut registry);
+        for id in [195, 227] {
+            assert_eq!(
+                frame(&registry, &format!("JournalSuggestion{id}")).width,
+                ui_toolkit::frame::Dimension::Fixed(344.)
+            );
+            assert_eq!(
+                frame(&registry, &format!("JournalSuggestion{id}")).height,
+                ui_toolkit::frame::Dimension::Fixed(161.)
+            );
+        }
         assert!(
             text(&registry, "JournalSuggestion195Reward")
                 .contains("renown with the Midnight faction")
