@@ -191,15 +191,11 @@ impl SpecializationDraft {
         }
         let snapshot = self.snapshot.as_ref()?;
         let tree_id = self.selected_tree?;
-        let purchases: Vec<_> = self
-            .purchases
-            .iter()
-            .filter(|((tree, _, _), _)| *tree == tree_id)
-            .map(|(_, p)| p.clone())
-            .collect();
-        if purchases.is_empty() {
+        let has_changes = self.purchases.keys().any(|(tree, _, _)| *tree == tree_id);
+        if !has_changes {
             return None;
         }
+        let purchases = self.purchase_configuration(self.tree()?, None);
         let request = ProfessionSpecializationRequest::Commit {
             skill_line: snapshot.skill_line,
             tree_id,
@@ -207,6 +203,31 @@ impl SpecializationDraft {
         };
         self.pending = true;
         Some(request)
+    }
+    fn purchase_configuration(
+        &self,
+        tree: &ProfessionSpecTreeSnapshot,
+        confirmed: Option<&ProfessionTraitPurchase>,
+    ) -> Vec<ProfessionTraitPurchase> {
+        tree.nodes
+            .iter()
+            .filter_map(|node| {
+                let ranks = match confirmed {
+                    Some(purchase)
+                        if purchase.node_id == node.node_id
+                            && purchase.entry_id == node.entry_id =>
+                    {
+                        purchase.ranks
+                    }
+                    _ => self.rank(tree.tree_id, node),
+                };
+                (ranks > 0).then_some(ProfessionTraitPurchase {
+                    node_id: node.node_id,
+                    entry_id: node.entry_id,
+                    ranks,
+                })
+            })
+            .collect()
     }
     pub fn can_unlock(&self) -> bool {
         !self.pending
@@ -223,14 +244,15 @@ impl SpecializationDraft {
         }
         let tree = self.tree()?;
         let node = self.entry_for_node(tree.root_node_id)?;
+        let purchase = ProfessionTraitPurchase {
+            node_id: node.node_id,
+            entry_id: node.entry_id,
+            ranks: node.rank + 1,
+        };
         let request = ProfessionSpecializationRequest::Commit {
             skill_line: self.snapshot.as_ref()?.skill_line,
             tree_id: tree.tree_id,
-            purchases: vec![ProfessionTraitPurchase {
-                node_id: node.node_id,
-                entry_id: node.entry_id,
-                ranks: node.rank + 1,
-            }],
+            purchases: self.purchase_configuration(tree, Some(&purchase)),
         };
         self.confirming_unlock = false;
         self.pending = true;
