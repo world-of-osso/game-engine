@@ -61,9 +61,9 @@ func push_mouse_motion(point: Vector2) -> void:
 	Input.warp_mouse(point)
 
 func ready_dashboard() -> bool:
-	print("CLEANUP_DASHBOARD_BEFORE ", client.account_state(), " housing=", client.housing_state(), " dashboard=", client.get_node_or_null("HousingDashboardUI") != null)
+	print("CLEANUP_DASHBOARD_BEFORE map=", client.account_state().world_map_id, " house=", client.housing_state().get("house_id", 0), " confirmed=", client.housing_state().get("confirmed", false))
 	if not await click_exposed_control(housing_named_control("MicroMenuUI", "HousingMicroButton")): return false
-	print("CLEANUP_DASHBOARD_CLICK housing=", client.housing_state(), " dashboard=", client.get_node_or_null("HousingDashboardUI") != null)
+	print("CLEANUP_DASHBOARD_CLICK confirmed=", client.housing_state().get("confirmed", false), " dashboard=", client.get_node_or_null("HousingDashboardUI") != null)
 	return await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed", false) and not client.housing_state().get("pending", true), "ready Cleanup dashboard")
 
 func open_cleanup_house() -> bool:
@@ -90,7 +90,8 @@ func open_cleanup_house() -> bool:
 	return await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null and housing_control("HouseEditorCleanupModeButton") != null, "Cleanup mode entry")
 
 func enter_cleanup() -> bool:
-	await click_control(housing_control("HouseEditorCleanupModeButton"), MOUSE_BUTTON_LEFT)
+	await frames(5)
+	if not await click_exposed_control(housing_control("HouseEditorCleanupModeButton")): return false
 	return await wait_housing(func(): return housing_control("HouseEditorStorageFrame") == null and housing_text("HouseEditorInstructions") == "Left-click decor to return it to storage.", "Cleanup hides storage")
 
 func highlighted_meshes() -> int:
@@ -122,10 +123,10 @@ func prove_cleanup_owner(before: Dictionary) -> bool:
 		fail("Cleanup relog changed paid quantity")
 		return false
 	if not await record_editor("cleanup-relogged"): return false
-	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
+	if not await click_exposed_control(housing_control("HousingDecorateButton")): return false
 	if not await wait_housing(func(): return housing_control("HouseEditorStored1693") != null, "Basic storage after relog"): return false
 	if not await enter_cleanup(): return false
-	await click_control(housing_control("HouseEditorBasicDecorModeButton"), MOUSE_BUTTON_LEFT)
+	if not await click_exposed_control(housing_control("HouseEditorBasicDecorModeButton")): return false
 	if not await wait_housing(func(): return housing_control("HouseEditorStored1693") != null, "mode exit restores storage"): return false
 	if not await place_owned_bookcase(): return false
 	if total_bookcases(client.housing_state()) != 1:
