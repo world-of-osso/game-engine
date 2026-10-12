@@ -80,6 +80,14 @@ pub struct Specialization {
     pub name: String,
     pub class: u32,
 }
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChallengeDungeon {
+    pub id: u32,
+    pub map: u32,
+    pub name: String,
+    pub time_limit_ms: u64,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Catalog {
     pub tiers: Vec<Tier>,
@@ -90,6 +98,7 @@ pub struct Catalog {
     pub loot: Vec<Loot>,
     pub items: BTreeMap<u32, Item>,
     pub sets: Vec<ItemSet>,
+    pub challenge_dungeons: BTreeMap<u32, ChallengeDungeon>,
     pub specs: Vec<Specialization>,
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
     pub encounter_difficulties: BTreeMap<u32, Vec<u32>>,
@@ -256,6 +265,21 @@ impl Catalog {
             loot,
             items,
             sets,
+            challenge_dungeons: query(
+                &db,
+                "SELECT ID,map_id,name,time_limit_ms FROM challenge_dungeon",
+                |r| {
+                    Ok(ChallengeDungeon {
+                        id: r.get(0)?,
+                        map: r.get(1)?,
+                        name: r.get(2)?,
+                        time_limit_ms: r.get(3)?,
+                    })
+                },
+            )?
+            .into_iter()
+            .map(|dungeon| (dungeon.id, dungeon))
+            .collect(),
             specs,
             encounter_difficulties: relations(
                 &db,

@@ -143,6 +143,7 @@ impl GameClient {
         self.select_queued_journal_encounter()?;
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
+        self.adventure_guide.view.keys = self.account.challenge.keys.clone();
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;
@@ -344,6 +345,10 @@ impl GameClient {
         state.set("spec", view.spec);
         state.set("slot", view.slot);
         state.set("loot_count", view.loot().len() as i64);
+        state.set("owned_keys_only", view.owned_keys_only);
+        state.set("owned_key_count", view.keys.len() as i64);
+        state.set("item_set_count", view.item_sets().len() as i64);
+        state.set("lockout_count", view.lockouts.len() as i64);
         state.set(
             "model_display",
             self.adventure_guide.shown.map(i64::from).unwrap_or(-1),

@@ -189,9 +189,15 @@ def import_presentation(connection, items):
              if row['BaseTag'].startswith('INVTYPE_') or row['BaseTag'] in ('RPE_TITLE', 'RPE_TUTORIAL_TEXT', 'RPE_START_EXPERIENCE')))
 
 
-def import_cache(db2, definitions, output, items):
+def read_challenge_dungeons(world):
+    with sqlite3.connect(f'file:{world.resolve()}?mode=ro', uri=True) as connection:
+        return connection.execute('SELECT ID,MapID,Name_lang,CriteriaCount_0 * 1000 FROM map_challenge_mode WHERE MaxMedals=3').fetchall()
+
+
+def import_cache(db2, definitions, output, items, world):
     # Decode every input before replacing an existing cache.
     decoded = {table: read_table(table, db2 / f'{fdid}.db2', definitions / f'{table}.dbd') for table, (fdid, _) in TABLES.items()}
+    challenges = read_challenge_dungeons(world)
     output.parent.mkdir(parents=True, exist_ok=True)
     staging = output.with_suffix('.staging.sqlite')
     if staging.exists():
@@ -207,6 +213,8 @@ def import_cache(db2, definitions, output, items):
         import_items(connection, items)
         import_item_specializations(connection)
         import_presentation(connection, items)
+        connection.execute('CREATE TABLE challenge_dungeon (ID INTEGER PRIMARY KEY, map_id INTEGER, name TEXT, time_limit_ms INTEGER)')
+        connection.executemany('INSERT INTO challenge_dungeon VALUES(?,?,?,?)', challenges)
     staging.replace(output)
 
 
@@ -216,8 +224,9 @@ def main():
     parser.add_argument('--definitions', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--items', type=Path, required=True, help='Pinned Item, ItemSparse, ChrSpecialization CSV directory')
+    parser.add_argument('--world', type=Path, required=True, help='Read-only realm world.db with authentic MapChallengeMode data')
     args = parser.parse_args()
-    import_cache(args.db2, args.definitions, args.output, args.items)
+    import_cache(args.db2, args.definitions, args.output, args.items, args.world)
 
 
 if __name__ == '__main__':

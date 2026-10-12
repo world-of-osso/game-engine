@@ -61,6 +61,8 @@ pub struct View {
     pub collapsed: BTreeSet<u32>,
     pub lockouts: Vec<(u32, String)>,
     pub challenge: Option<shared::protocol::ChallengeRun>,
+    pub keys: Vec<shared::protocol::KeystoneInfo>,
+    pub owned_keys_only: bool,
 }
 impl Default for View {
     fn default() -> Self {
@@ -86,6 +88,8 @@ impl Default for View {
             collapsed: BTreeSet::new(),
             lockouts: Vec::new(),
             challenge: None,
+            keys: Vec::new(),
+            owned_keys_only: false,
         }
     }
 }
@@ -142,6 +146,37 @@ impl View {
             .max()
             .unwrap_or(0)
     }
+    pub fn owned_keys(
+        &self,
+        map: u32,
+    ) -> Vec<(
+        &shared::protocol::KeystoneInfo,
+        &game_engine_core::adventure_guide::ChallengeDungeon,
+    )> {
+        self.keys
+            .iter()
+            .filter_map(|key| {
+                let dungeon = self.catalog.challenge_dungeons.get(&key.challenge_id)?;
+                (dungeon.map == map).then_some((key, dungeon))
+            })
+            .collect()
+    }
+    pub fn owned_key_text(&self) -> Option<String> {
+        let instance = self.catalog.instance(self.instance?)?;
+        let rows: Vec<_> = self
+            .owned_keys(instance.map)
+            .iter()
+            .map(|(key, dungeon)| {
+                format!(
+                    "Owned Keystone: {} +{} · Time Limit: {}",
+                    dungeon.name,
+                    key.level,
+                    crate::challenge::clock(dungeon.time_limit_ms)
+                )
+            })
+            .collect();
+        (!rows.is_empty()).then(|| rows.join("\n"))
+    }
     pub fn instances(&self) -> Vec<&Instance> {
         let search = self.search.to_lowercase();
         self.catalog
@@ -149,7 +184,11 @@ impl View {
             .iter()
             .filter(|i| {
                 i.dungeon == (self.tab == Tab::Dungeons)
-                    && i.tiers.contains(&self.tier)
+                    && if self.owned_keys_only && self.tab == Tab::Dungeons {
+                        !self.owned_keys(i.map).is_empty()
+                    } else {
+                        i.tiers.contains(&self.tier)
+                    }
                     && i.name.to_lowercase().contains(&search)
             })
             .collect()
@@ -321,6 +360,10 @@ impl View {
                 self.encounter = None;
                 self.filter_menu = None;
                 self.search.clear();
+            }
+            "owned-keys" => {
+                self.owned_keys_only = !self.owned_keys_only;
+                self.tier_open = false;
             }
             "tier-menu" => self.tier_open = !self.tier_open,
             "tier" => {
@@ -512,8 +555,21 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
     let content = rows
         .iter()
         .enumerate()
-        .flat_map(|(index, instance)| instance_card(index, instance))
+        .flat_map(|(index, instance)| instance_card(index, instance, view))
         .collect();
+    if view.tab == Tab::Dungeons {
+        let title = if view.owned_keys_only {
+            "Owned Keystones ✓"
+        } else {
+            "Owned Keystones"
+        };
+        controls.extend(button(
+            "JournalOwnedKeystones".into(),
+            title,
+            "journal:owned-keys",
+            (270., 65., 210., 24.),
+        ));
+    }
     controls.extend(scroll(
         ctx,
         content,
@@ -539,7 +595,7 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
     }
     controls
 }
-fn instance_card(index: usize, instance: &Instance) -> Element {
+fn instance_card(index: usize, instance: &Instance, view: &View) -> Element {
     let left = (index % 4) as f32 * 191.;
     let top = (index / 4) as f32 * 130.;
     let mut art = texture(
@@ -553,6 +609,13 @@ fn instance_card(index: usize, instance: &Instance) -> Element {
         &instance.name,
         (4., 106., 177., 22.),
     ));
+    if let Some((key, _)) = view.owned_keys(instance.map).first() {
+        art.extend(text(
+            &format!("JournalInstance{}Key", instance.id),
+            &format!("+{}", key.level),
+            (130., 80., 50., 22.),
+        ));
+    }
     let name = DynName(format!("JournalInstance{}", instance.id));
     let action = format!("journal:instance:{}", instance.id);
     rsx! {r#frame {name:{name},left,top,width:185.0,height:128.0,pos_type:"absolute",mouse_enabled:true,onclick:{action.as_str()},{art}}}
@@ -598,10 +661,15 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         ));
     }
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
-        if let Some(challenge) = view.challenge_text() {
+        let key_text = [view.owned_key_text(), view.challenge_text()]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !key_text.is_empty() {
             out.extend(text(
                 "EncounterJournalKeystone",
-                &challenge,
+                &key_text,
                 (205., 295., 550., 175.),
             ));
         }
@@ -612,11 +680,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
                 205.,
                 105.,
                 550.,
-                if view.challenge_text().is_some() {
-                    175.
-                } else {
-                    340.
-                },
+                if !key_text.is_empty() { 175. } else { 340. },
             ),
         ));
         return out;
