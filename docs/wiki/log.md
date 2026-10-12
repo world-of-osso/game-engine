@@ -1,3 +1,7 @@
+## 2026-10-12 — Authoritative live arena collision
+
+[Native arenas](systems/arenas.md#authoritative-live-collision-2026-10-12): exact Cage walking-position RED reproduced static-only server gravity; instance-keyed cached M2 hulls now serve authoritative floors/movement/LOS. Source Cage support→open drop and Dalaran/Empyrean state/hide/despawn/copy fixtures pass. Full six-player server query+sync costs measured; native physics benchmark and exact-revision proof receipts added. Named source/art/stall gaps remain.
+
 ## 2026-10-12 — Live arena object collision in native prediction
 
 [Native arenas](systems/arenas.md#authority-and-lifecycle): real Cage movement exposed camera-only replicated GO bodies absent from baked-ground prediction. Dedicated live-object floor/wall probes consume authored M2 collision and replicated collision state; actual6339134/6339702 hull regression reproduces the closed-platform fall. Private both-skin physical proof remains in progress.
