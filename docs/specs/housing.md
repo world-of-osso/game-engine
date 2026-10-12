@@ -54,6 +54,12 @@ After landing the server importer, run it with the audit evidence and pinned bui
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
 
+## Owned storage search
+
+Basic editor storage exposes Retail's header SearchBox and shows only authenticated positive stored stacks whose qualified decor names match the case-insensitive search. Placed-only/unowned/unconfirmed entries are not storage results. Preserve storage search separately from Dashboard Catalog search and while Cleanup/Expert hides the drawer; remount the retained input without sampling an absent field as empty. Clear input restores stored results. Search never changes ownership, quantities, selected transforms or pending server authority. Both skins share input/filter behavior. Paging/categories/collection filters, drawer collapse/resize, Market/Blueprints, dyed variant controls and maximum-storage authority remain separate capabilities; this search slice must not claim full storage parity.
+
+Source: `Blizzard_HouseEditorStorageFrame.lua` CreateCatalogSearcher/SetStoredOnly(true)/OnSearchTextUpdated/OnShow and XML SearchBox TOPLEFT20,-20/TOPRIGHT-160,-20/height30 in600×651 drawer.
+
 ## Cleanup mode
 
 Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered placed decor, show its name at the pointer, and left-click the actual picked target to remove it into owned storage. Do not require a prior Basic selection or a second click. Empty ground clicks do nothing. A visitor may inspect the hover name but receives a read-only refusal; never change quantities/layout optimistically. Pending requests cannot submit twice. Mode exit/removal/close clears hover and restores saved materials. Existing owner-only RemoveDecor authority preserves paid dye variants and exact stored/placed quantities across relog. Both skins share the same controls/behavior; native highlight styling is presentation, not authenticated Retail shader/art parity.

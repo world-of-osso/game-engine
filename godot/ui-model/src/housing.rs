@@ -77,6 +77,7 @@ impl CollectionFilter {
 }
 
 pub const SEARCH_FIELD: &str = "HousingCatalogSearchBox";
+pub const STORAGE_SEARCH_FIELD: &str = "HouseEditorStorageSearchBox";
 pub const VISIBLE_ENTRIES: usize = 12;
 pub const COLUMNS: usize = 3;
 /// HousingCatalogConstantsDocumentation.lua HOUSING_CATALOG_ALL_CATEGORY_ID.
@@ -168,6 +169,7 @@ pub struct HousingDashboard {
     pub pending: bool,
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
+    pub storage_search: String,
     pub category: Option<u32>,
     pub subcategory: Option<u32>,
     pub offset: usize,
@@ -193,6 +195,7 @@ impl HousingDashboard {
             pending: false,
             catalog,
             search: String::new(),
+            storage_search: String::new(),
             category: None,
             subcategory: None,
             offset: 0,
@@ -205,6 +208,34 @@ impl HousingDashboard {
             bulletin_board: None,
             settings: None,
         }
+    }
+
+    /// HouseEditorStorageFrame uses SetStoredOnly(true), independent of the dashboard search.
+    pub fn stored_entries<'a>(
+        &'a self,
+        authority: &'a HousingAuthority,
+    ) -> Vec<(&'a shared::protocol::StoredDecor, &'a Decor)> {
+        let Some(state) = &authority.state else {
+            return Vec::new();
+        };
+        let search = self.storage_search.trim().to_lowercase();
+        state
+            .stored
+            .iter()
+            .filter(|stored| stored.quantity > 0)
+            .filter_map(|stored| {
+                let decor = self
+                    .catalog
+                    .decor
+                    .iter()
+                    .find(|decor| decor.id == stored.decor_id)?;
+                decor
+                    .name
+                    .to_lowercase()
+                    .contains(&search)
+                    .then_some((stored, decor))
+            })
+            .collect()
     }
 
     pub fn select_finder_plot(
