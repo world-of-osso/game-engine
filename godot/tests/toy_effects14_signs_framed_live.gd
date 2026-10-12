@@ -16,7 +16,7 @@ func capture(label: String) -> void:
 	var focus := bounds.get_center()
 	var radius := bounds.size.length() / 2.0
 	var distance := radius / sin(deg_to_rad(camera.fov / 2.0)) * 1.35
-	var eye = unobstructed_eye(camera, focus, distance)
+	var eye = unobstructed_eye(camera, focus, distance, bounds.size)
 	if eye == null: fail("no unobstructed source-mesh camera direction"); return
 	var transform := camera.global_transform
 	client.set_process(false)
@@ -36,10 +36,12 @@ func subject_bounds(subject: Node3D) -> AABB:
 		bounds = bounds.merge(mesh.global_transform * mesh.get_aabb())
 	return bounds
 
-func unobstructed_eye(camera: Camera3D, focus: Vector3, distance: float):
+func unobstructed_eye(camera: Camera3D, focus: Vector3, distance: float, size: Vector3):
 	var space := camera.get_world_3d().direct_space_state
+	# The thin horizontal bounds axis is the sign face normal, not its edge.
+	var normal_yaw := PI / 2.0 if size.z < size.x else 0.0
 	for index in range(8):
-		var yaw := TAU * float(index) / 8.0
+		var yaw := normal_yaw + TAU * float(index) / 8.0
 		var direction := Vector3(cos(yaw), 0.4, sin(yaw)).normalized()
 		var eye := focus + direction * distance
 		var ray := PhysicsRayQueryParameters3D.create(focus, eye)
