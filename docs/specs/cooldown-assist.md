@@ -43,7 +43,7 @@ Private UDP5860, `fb_cooldown_assist`/Coolproof, specialization70. Modern run10 
 - [ ] Exact numeric/charge/predictive rotation predicates and two unidentified DB2 rule fields remain unresolved. The tables exist and are readable; neither their layouts nor Blizzard Lua expose comparator implementation. Never guess it.
 - [ ] Effective nonzero caster costs/modifiers are not supplied to this adapter; potentially eligible steps report an explicit error.
 - [ ] Private clients fall below loaded terrain and have no selected/server-echoed hostile target despite private revive/teleport setup. No live assisted cast or rendered highlights were proved. No movement remediation is included in this feature branch.
-- [ ] Highlight art currently uses mouseover art, not the Retail `rotationhelper_ants_flipbook` animation. Live charge counts and fresh-process layout restoration are not certified.
+- [x] Both highlight surfaces use Retail `rotationhelper_ants_flipbook` (member32008, FDID6992992), centered66px at45px button scale,30 frames in a5×6 grid per second; hidden surfaces restart at frame0. Live rendered animation, charge counts and fresh-process layout restoration remain proof gates.
 - [ ] The assistant spellbook description states a25% longer global cooldown. The existing actual-spell interception does not yet preserve that authoritative assistant-cast penalty; this remains an execution gap, not a guessed Dummy-effect interpretation.
 
 ## Out of scope
