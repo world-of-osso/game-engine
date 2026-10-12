@@ -13,6 +13,10 @@
 
 [Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): actual promoted switches pass source three-second casts/cancellation/copy checks;1,758 real-floor route approaches replace unsafe NPC-pivot travel. Modern private lifecycle reaches1500/428/exact return, but its carts were invisible. Two ordinary appearance rows and authenticated Retail model chains are staged privately; both-skin rendered acceptance remains open. Eye matched live rerun is now unblocked by landed M2 floors.
 
+## 2026-10-12 — Housing receipt-backed catalog model preview
+
+[Housing](systems/housing.md#catalog-model-preview): isolated M2/WMO previews, authored collision framing instead of emitter envelopes, physical drag with unchanged gameplay camera, selection/tab/search/close teardown and retained filter across unmounted tab transitions. Both-skin private5870 proof preserves exact owned quantities/layout;12inspected1280PNG published. MOMT22/23 closure correction fixes omitted/invented auxiliary textures; WMO receipt publication retains kind/build identity.34payloads authenticated against frozen source hashes; canonical promotion is lead-only. WMO pixel20's black AO TODO is a named reference-source gap, not an alleged lighting fix or certified Retail appearance.
+
 ## 2026-10-12 — Transmog icon and relog completion
 
 [Transmog UI](systems/transmog-apply.md): sourced static portrait and set hover, tooltip-only set titles, player-selected persisted outfit icons with versioned legacy migration, real popup-over-card nonactivation, both Custom Sets pages, and separate-process paid gold/appearance/icon relog in both skins.38 inspected PNGs plus manifest republished; full global macro/spell icon catalogue and existing disabled policy boundaries remain explicit.

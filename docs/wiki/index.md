@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin catalog/acquisition, basic/expert staged keyboard and unsnapped mouse transforms, visitor/observer proof and sourced schema migration; charter/default grants/outdoor bounds remain explicit source gaps.
+- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Dice scripts and received item labels](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12) — source roll count/audience, native raw-markup RED and plain/coloured unsplit labels; both-skin actual-use chat proof.
 
