@@ -1,9 +1,41 @@
 # Mount Journal
 
-Approved2026-10-11. Retail Mainline Collections→Mounts in both skins; Forever modifies art only.
+User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; Forever modifies art only. [Implementation and proof](../wiki/systems/mounts.md#mount-journal).
 
-Provide the Retail703×606 Collections shell/tab bar,46px scrolling mount rows, search, collected/not-collected, type and source filters; total owned count; selected name, authentic source/description and rotating creature-display preview; summon/dismount, account favourites and Summon Random Favorite Mount. Collection/favourites persist account-wide across characters and restarts.
+## What it must do
 
-Server authority uses authentic Retail12.1.0.69933 Mount/MountXDisplay/MountCapability/MountTypeXCapability and existing read-only world.db item/vendor/quest sources. Mount IDs are Mount.db2 IDs, never creature display IDs. Item learning consumes one item atomically with account ownership; duplicate learning preserves the physical item. Normal spell-learning results migrate authentic source spells to account ownership. Existing mount spell casting/riding/area/flight rules remain authoritative. Unowned mounts cannot summon/favourite; random summon uses only owned usable favourites. Dismount cancels the mount aura.
+- [x] List authentic Mount.db2 identities, selected details/source text, search, collected/not-collected and source filters; five capability-derived type categories and authored hidden/server-only flags. Tests assert filtering and readable vendor/zone/cost text.
+- [x] Learn authentic mount items through normal UseItem, consuming one item atomically with ownership; duplicate learning preserves the item. No fabricated starter collection.
+- [x] Persist collection/favourites account-wide across characters/restarts; share changes only with the same account. Existing authentic spell-learning results grant account ownership.
+- [x] Summon through normal spell/riding/area rules; dismount cancels the real aura. Random favourites use owned usable candidates, never fabricated display mounting; combat/unowned requests refuse.
+- [x] Import every local MountXDisplay appearance root into a new cache preserving all prior profiles/choices/geosets/coverage; reject conflicting rows/replacement. Extract missing assets from local CASC only.
+- [ ] Both skins show the same Mainline703×606 shell/tab/list layout and a rotating authentic3D preview; native item learning, right-click favourite, summon/dismount/random, and alternate-character persistence must pass the privateUDP5901 fixture.
 
-References: local Blizzard_Collections/Mainline/Blizzard_MountCollection.lua/.xml; server mount logic follows TrinityCore a352b1fa. Local CASC only for missing assets; no fabricated IDs/assets. Completion: behavioural tests, live privateUDP5901 fb_* account learning/summon/favourite/random summon/relogin in both skins; inspected PNGs in /syncthing/AgentShared/2026-10-11/mount-journal/. No canonical world.db mutation.
+## How it works
+
+- [Mount systems and journal](../wiki/systems/mounts.md#mount-journal).
+- [Authored appearance importer contract](npc-appearance-importer.md).
+
+## Implementation inventory
+
+- `godot/ui-model/src/mount_journal.rs`, `mount_source.rs` — journal state, shared layout and source presentation.
+- `godot/rust/src/mount_journal.rs`, `mount_journal_snapshot.rs` — lifecycle, native input, detached preview and read-only observations.
+- `godot/rust/src/account.rs`, `godot/network/src/lib.rs` — authoritative catalog/request transport.
+- `scripts/import_mount_appearance.py` — strict read-only-base mount-root importer.
+- Server `mount_journal.rs`, `persistence_mounts.rs`; protocol `mount_messages.rs` — catalog, ordinary casting and account persistence.
+
+## Tests asserting this spec
+
+- `godot/ui-model/tests/mount_journal.rs`.
+- `godot/tests/mount_journal_live.gd`.
+- `scripts/test_import_mount_appearance.py`.
+- Server `mount_journal_tests.rs`, `item_use_tests.rs`, `item_templates_tests.rs`, `persistence_mounts.rs`, `collection_tests.rs`.
+- Protocol `tests/mount_journal.rs`; existing server `auras/mount_tests.rs` owns flight/riding rules.
+
+## Known gaps (current cycle)
+
+- [ ] Both-skin live acceptance and final integration/check/fmt/protocol gate.
+
+## Out of scope
+
+Mount equipment, new flight physics, canonical world.db writes, sharedUDP5000 operations and unrelated full suites.
