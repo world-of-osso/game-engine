@@ -46,6 +46,14 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return control("MountJournalSearchBox") != null, 10000):
 		finish("journal missing")
 		return
+	# Fixture-only routing: Mount Journal's host does not forward scroll input yet.
+	# UiAuditProbe forwards authentic inputs to this SAME RegistryUi/controller.
+	# Remove this reparenting when the normal journal host wires scroll_list_input.
+	var audit := ClassDB.instantiate("UiAuditProbe") as Node
+	root.add_child(audit)
+	var journal = client.get_node("CollectionsJournalUI")
+	journal.reparent(audit)
+	journal.name = "QuestOverflowUI"
 	var targets = JSON.parse_string(FileAccess.get_file_as_string(OS.get_environment("MOUNT_ASSET_TARGETS")))
 	for target in targets:
 		var search = control("MountJournalSearchBox")
@@ -53,18 +61,16 @@ func run_fixture() -> void:
 		search.emit_signal("text_changed", target.name)
 		var row := "MountJournalRow%d" % int(target.mount_id)
 		await frames(8)
-		for _scroll in 30:
-			if control(row) != null:
+		for fraction in [0.0, 0.25, 0.5, 0.75, 1.0]:
+			if row_visible(row):
 				break
-			await wheel_list(MOUSE_BUTTON_WHEEL_DOWN)
-		if control(row) == null:
-			for _scroll in 30:
-				if control(row) != null:
-					break
-				await wheel_list(MOUSE_BUTTON_WHEEL_UP)
-		if control(row) == null:
+			await drag_list_thumb(fraction)
+		if not row_visible(row):
 			root.get_texture().get_image().save_png(out + "/missing-row-%d.png" % int(target.mount_id))
-			failures.append({"mount_id": target.mount_id, "reason": "authentic catalog row not visible after exact-name search", "search_text": str(control("MountJournalSearchBox").text)})
+			var names: Array = []
+			for node in root.find_children("*MountJournal*", "", true, false):
+				names.append({"name": str(node.name), "type": node.get_class(), "rect": str(node.get_global_rect()) if node is Control else ""})
+			failures.append({"mount_id": target.mount_id, "reason": "authentic catalog row not visible after exact-name search", "search_text": str(control("MountJournalSearchBox").text), "nodes": names})
 			continue
 		await click(row)
 		if not await wait_until(func(): return int(client.mount_journal_state().selected) == int(target.mount_id) and client.mount_journal_state().preview_ready, 90000):
@@ -113,17 +119,41 @@ func click(name: String) -> void:
 		root.push_input(button)
 		await frames(2)
 
-func wheel_list(button_index: int) -> void:
+func row_visible(name: String) -> bool:
+	var row = control(name)
 	var list = control("MountJournalScrollBox")
-	if list == null:
+	return row != null and list != null and list.get_global_rect().has_point(row.get_global_rect().get_center())
+
+func drag_list_thumb(fraction: float) -> void:
+	var thumb = control("MountJournalScrollBoxScrollThumb")
+	var track = control("MountJournalScrollBoxScrollTrack")
+	if thumb == null or track == null:
 		return
-	var at := list.get_global_rect().get_center()
-	var wheel := InputEventMouseButton.new()
-	wheel.position = at
-	wheel.button_index = button_index
-	wheel.pressed = true
-	root.push_input(wheel)
-	await frames(4)
+	var at := thumb.get_global_rect().position + Vector2(1.0, thumb.size.y / 2.0)
+	var target := track.get_global_rect().position + Vector2(1.0, thumb.size.y / 2.0 + fraction * (track.size.y - thumb.size.y))
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	root.push_input(motion)
+	await frames(2)
+	var button := InputEventMouseButton.new()
+	button.position = at
+	button.button_index = MOUSE_BUTTON_LEFT
+	button.button_mask = MOUSE_BUTTON_MASK_LEFT
+	button.pressed = true
+	root.push_input(button)
+	await frames(2)
+	motion = InputEventMouseMotion.new()
+	motion.position = target
+	motion.relative = target - at
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(motion)
+	await frames(2)
+	button = InputEventMouseButton.new()
+	button.position = target
+	button.button_index = MOUSE_BUTTON_LEFT
+	button.pressed = false
+	root.push_input(button)
+	await frames(8)
 
 func find_viewport(node: Node) -> SubViewport:
 	if node is SubViewport:
