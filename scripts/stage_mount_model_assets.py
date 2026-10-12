@@ -155,10 +155,12 @@ def stage(data, package, install, extract):
                     break
                 checked[key] = path
             asset['present'] = path is not None
-            asset['present_files'] = []
             asset['size'] = path.stat().st_size if path else None
             asset['sha256'] = sha(path) if path else None
+            asset['present_files'] = [{'path': str(path), 'size': asset['size'], 'sha256': asset['sha256']}] if path else []
             asset['identity_status'] = 'authenticated_local_root' if path else 'missing'
+            asset['source_product'] = 'wow' if path else None
+            asset['actual_build'] = BUILD_KEY if path else None
             return path
 
     graph = MountClosure(data, paths, 'wow', BUILD, runtime_paths=runtime_paths)
@@ -211,6 +213,7 @@ def stage(data, package, install, extract):
     else:
         raise ValueError('mount closure failed to converge')
     final_graph = graph.run()
+    final_graph['summary']['unverified_identity'] = sum(asset['identity_status'] != 'authenticated_local_root' for asset in final_graph['assets'])
     aliases = []
     for key, asset in graph.assets.items():
         receipt = verified.get(key)
@@ -231,9 +234,17 @@ def stage(data, package, install, extract):
     # Runtime model-asset-index accepts only native kinds; PFID satellites are not
     # consumed by previews. Keep their authenticated audit, not runtime mappings.
     physics = [receipt for receipt in new.values() if receipt['kind'] == 'phys']
-    (proof / 'optional-physics-satellites.json').write_text(json.dumps(physics, indent=2))
     for receipt in physics:
-        (package / receipt['path']).unlink()
+        previous = package / receipt['path']
+        receipt['path'] = f'_proof/optional-physics/{receipt["fdid"]}.phys'
+        destination = package / receipt['path']
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(previous, destination)
+        previous.unlink()
+        for asset in final_graph['assets']:
+            if asset['fdid'] == receipt['fdid'] and asset['type'] == 'phys':
+                asset['present_files'][0]['path'] = str(destination)
+    (proof / 'optional-physics-satellites.json').write_text(json.dumps(physics, indent=2))
     fragment = {'version': 1, 'assets': [receipt for receipt in new.values() if receipt['kind'] != 'phys'], 'aliases': aliases,
                 'chains': [{**identity, 'scope': graph.seeds, 'metadata': list(graph.inputs.values())}]}
     cache = package / 'cache'
