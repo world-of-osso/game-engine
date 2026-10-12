@@ -49,7 +49,7 @@ func action(token: String) -> bool:
 
 func fill(name: String, value: String) -> void:
 	await click(name)
-	await tap(KEY_CTRL) # Use actual key events for the native editbox.
+	# Actual Ctrl+A and typing; no model or registry state injection.
 	for down in [true, false]:
 		var event := InputEventKey.new()
 		event.keycode = KEY_A
@@ -99,7 +99,7 @@ func buy_and_learn() -> bool:
 	await capture("ah-mounts-category-before-buy")
 	var revision: int = client.auction_state().search_revision
 	if not await action("auction_browse_item:%d" % AUCTION_ITEM): return false
-	if not await wait_until(func(): return client.auction_state().search_revision > revision and client.auction_state().search.size() == 2, "two authentic teaching item listings"): return false
+	if not await wait_until(func(): return client.auction_state().search_revision > revision and ids.all(func(id): return client.auction_state().search.any(func(row): return int(row.auction_id) == int(id))), "both authentic seller teaching item listings"): return false
 	var before: int = client.auction_state().money
 	if not await action("auction_select:%s" % int(ids[0])) or not await action("auction_buyout"): return false
 	if not await wait_until(func(): return control("StaticPopup1Button1") != null, "buyout confirmation"): return false
