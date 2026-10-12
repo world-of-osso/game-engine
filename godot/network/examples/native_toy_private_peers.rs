@@ -18,7 +18,7 @@ struct Peer {
     bridge: NetworkBridge,
     replica: Replica,
     player: Option<u64>,
-    map: Option<u32>,
+    map: Option<String>,
     catalog: Option<ToyCollectionUpdate>,
 }
 
@@ -61,10 +61,9 @@ impl Peer {
             }
             self.player = reply.player_entity;
         } else if message.is::<NewWorld>() {
-            let reply = message
+            message
                 .downcast::<NewWorld>()
                 .map_err(|_| "transfer type")?;
-            self.map = Some(reply.map_id);
             self.bridge.send::<_, TransferChannel>(WorldPortAck)?;
         } else {
             self.receive_toy_message(message)?;
@@ -78,7 +77,7 @@ impl Peer {
                 message
                     .downcast::<LoadTerrain>()
                     .map_err(|_| "terrain type")?
-                    .map_id,
+                    .map_name,
             );
         } else if message.is::<ToyCollectionUpdate>() {
             self.catalog = Some(
