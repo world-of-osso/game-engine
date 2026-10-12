@@ -11,6 +11,7 @@ mod bag_window;
 mod bag_windows;
 mod bags_bar;
 mod battleground;
+mod selection_lists;
 mod bossframes_warnings;
 mod buff_frame_textures;
 mod buffcancel;

@@ -652,10 +652,12 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
             .iter()
             .enumerate()
             .flat_map(|(index, tier)| {
-                button(
+                crate::selection_list::text_row(
                     format!("EncounterJournalTier{}", tier.id),
                     &tier.name,
                     &format!("journal:tier:{}", tier.id),
+                    true,
+                    view.tier == tier.id,
                     (0., index as f32 * 24., 240., 23.),
                 )
             })
@@ -699,10 +701,12 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         (8., 62., 784., 424.),
         WHITE,
     );
-    out.extend(button(
+    out.extend(crate::selection_list::text_row(
         "EncounterJournalInstanceOverview".into(),
         &instance.name,
         &format!("journal:instance:{}", instance.id),
+        true,
+        view.encounter.is_none(),
         (12., 64., 172., 28.),
     ));
     for (index, e) in view
@@ -715,10 +719,12 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         })
         .enumerate()
     {
-        out.extend(button(
+        out.extend(crate::selection_list::text_row(
             format!("JournalBoss{}", e.id),
             &e.name,
             &format!("journal:encounter:{}", e.id),
+            true,
+            view.encounter == Some(e.id),
             (12., 100. + index as f32 * 27., 172., 25.),
         ));
     }
@@ -817,10 +823,12 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
                             },
                             section.title
                         );
-                        content.extend(button(
+                        content.extend(crate::selection_list::text_row(
                             format!("JournalSection{}", section.id),
                             &title,
                             &format!("journal:section:{}", section.id),
+                            true,
+                            !view.collapsed.contains(&section.id),
                             (indent, y, 545. - indent, 24.),
                         ));
                         if section.icon != 0 {
@@ -884,10 +892,12 @@ fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Ele
                 .get(id)
                 .map(String::as_str)
                 .unwrap_or("");
-            button(
+            crate::selection_list::text_row(
                 format!("JournalDifficulty{id}"),
                 title,
                 &format!("journal:difficulty:{id}"),
+                true,
+                view.difficulty == *id,
                 (0., index as f32 * 24., 164., 23.),
             )
         })
@@ -1067,10 +1077,16 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         .iter()
         .enumerate()
         .flat_map(|(row, (id, title))| {
-            button(
+            crate::selection_list::text_row(
                 format!("Journal{name}{id}"),
                 title,
                 &format!("journal:{key}:{id}"),
+                true,
+                *id == match menu {
+                    LootFilter::Class => view.class,
+                    LootFilter::Spec => view.spec,
+                    LootFilter::Slot => view.slot,
+                },
                 (0., row as f32 * 24., 174., 23.),
             )
         })
@@ -1226,10 +1242,12 @@ fn search_results(ctx: &SharedContext, view: &View) -> Element {
         .iter()
         .enumerate()
         .map(|(index, (title, action))| {
-            button(
+            crate::selection_list::text_row(
                 format!("JournalSearchResult{index}"),
                 title,
                 action,
+                true,
+                false,
                 (0., index as f32 * 26., 546., 24.),
             )
         })
