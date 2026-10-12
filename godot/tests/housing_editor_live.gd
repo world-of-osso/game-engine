@@ -146,7 +146,7 @@ func open_friend_plot_info(house: int) -> bool:
     if not await wait_housing(func():
         var pin: BaseButton = friend_plot_control(house) as BaseButton
         return pin != null and not pin.disabled, "authenticated Retail friend plot pin"): return false
-    await click_control(friend_plot_control(house), MOUSE_BUTTON_LEFT)
+    if not await click_exposed_control(friend_plot_control(house)): return false
     return await wait_housing(func():
         var visit: BaseButton = housing_control("HouseFinderPlotVisitButton") as BaseButton
         return visit != null and not visit.disabled, "source plot info visit control")

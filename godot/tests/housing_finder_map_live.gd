@@ -35,7 +35,7 @@ func run_test() -> void:
 		return
 	var money: int = int(client.merchant_state().money)
 	var owned: int = client.housing_state().houses.size()
-	await click_control(housing_control("HouseFinderPlotForSalePin419"), MOUSE_BUTTON_LEFT)
+	if not await click_exposed_control(housing_control("HouseFinderPlotForSalePin419")): return
 	if not await wait_housing(func():
 		var visit: BaseButton = housing_control("HouseFinderPlotVisitButton") as BaseButton
 		return visit != null and not visit.disabled and housing_text("HouseFinderPlotLabel") == "Plot 2", "selected authored plot info"): return
