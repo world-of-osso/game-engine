@@ -244,6 +244,17 @@ impl GameClient {
             stored.push(&row);
         }
         output.set("stored", &stored.to_variant());
+        let mut houses: Array<VarDictionary> = Array::new();
+        for house in &state.owned_houses {
+            let mut row = VarDictionary::new();
+            row.set("house_id", house.house_id as i64);
+            let access = house
+                .house_access_anyone
+                .map_or(Variant::nil(), |allowed| allowed.to_variant());
+            row.set("access_anyone", &access);
+            houses.push(&row);
+        }
+        output.set("houses", &houses.to_variant());
         let mut placed: Array<VarDictionary> = Array::new();
         if let Some(layout) = &state.layout {
             output.set("house_id", layout.house_id as i64);
