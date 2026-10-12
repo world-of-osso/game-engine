@@ -61,7 +61,10 @@ func run_test() -> void:
 	quit(0)
 
 func open_editor_home() -> bool:
-	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
+	var micro: Control = housing_named_control("MicroMenuUI", "HousingMicroButton")
+	print("HOUSING_HOME_OPEN micro=", micro.get_global_rect(), " account_map=", client.account_state().world_map_id, " old_dashboard=", client.get_node_or_null("HousingDashboardUI") != null)
+	await click_control(micro, MOUSE_BUTTON_LEFT)
+	print("HOUSING_HOME_CLICK dashboard=", client.get_node_or_null("HousingDashboardUI") != null, " confirmed=", client.housing_state().get("confirmed",false), " houses=", client.housing_state().get("houses",[]))
 	if not await wait_housing(func(): return housing_control("HousingHomeVisit%d" % editor_house) != null, "owned home"): return false
 	if not home_allows_visitors():
 		await click_control(housing_control("HousingAccess%d" % editor_house), MOUSE_BUTTON_LEFT)
