@@ -77,6 +77,8 @@ mod housing_editor_tests;
 pub mod housing_finder_component;
 pub mod housing_mouse_component;
 pub mod housing_navigation_component;
+pub mod housing_settings;
+pub mod housing_settings_component;
 #[cfg(test)]
 mod housing_tests;
 pub mod mount_journal;
