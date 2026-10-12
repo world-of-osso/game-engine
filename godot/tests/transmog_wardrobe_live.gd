@@ -181,7 +181,12 @@ func check_filters() -> bool:
 	if not await wait_for(func(_s): return control("TransmogFilterSource4") != null, "Sources menu"):
 		return false
 	await save_shot("11-source-filters.png")
-	await click_control(control("TransmogFilterSource4"), MOUSE_BUTTON_LEFT)
+	var filter_row := control("TransmogFilterSource4")
+	await hover_point(filter_row.get_global_rect().get_center())
+	var hovered := root.gui_get_hovered_control()
+	print("TRANSMOG_FILTER_HIT target=", filter_row.name, " z=", filter_row.z_index, " hovered=", hovered.name if hovered != null else "none")
+	await click_control(filter_row, MOUSE_BUTTON_LEFT)
+	print("TRANSMOG_FILTER_TOGGLE ", ui.frame_text("TransmogFilterSource4Text"))
 	if not await wait_for(func(_s): return control("TransmogSource1181") == null and control("TransmogSource821") != null, "World Drop filtered out"):
 		return false
 	if transmog().pending != pending_before or ui.frame_text("TransmogPendingCostAmount0") != cost_before:
