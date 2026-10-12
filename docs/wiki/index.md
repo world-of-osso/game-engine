@@ -10,7 +10,7 @@
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
-- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — authored DB2 joins; both-skin private four-category clocks/settings/Edit Mode/assistant placement proof; exact rotation and hostile combat acceptance remain open.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored category inventories/ModifierTree gates, effective server costs, both-skin real assistant CastSuccess/charge depletion/animated Retail ants; exact unresolved rule boundaries and assistant GCD-origin remain gaps.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
 - [Native Mythic Mentor](systems/mythic-mentor.md) — built-in party Keys panel, server bag authority, loading lifetime and icon overlay ordering.
