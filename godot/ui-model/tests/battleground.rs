@@ -29,6 +29,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
             score_a: 2,
             score_b: 1,
             flags: FlagObjective::default(),
+            world_states: Vec::new(),
             outcome: (phase == BgPhase::Ended).then_some(BgOutcome::Winner(BgTeam::A)),
             players: vec![BattlegroundPlayerScoreSnapshot {
                 character_id: 81,
@@ -42,6 +43,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
                 healing_done: 0,
                 flag_captures: 2,
                 flag_returns: 1,
+                objective_scores: Vec::new(),
                 honorable_kills: None,
                 honor_level: None,
             }],
@@ -49,6 +51,74 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
         }),
     }
 }
+#[test]
+fn node_battleground_both_skin_hud_columns_and_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for template in [
+            shared::battleground::arathi_basin(),
+            shared::battleground::battle_for_gilneas(),
+        ] {
+            let rules = shared::battleground::node_rules(template.map_id).unwrap();
+            let mut state = snapshot(BgPhase::InProgress, true);
+            let bg = state.battleground.as_mut().unwrap();
+            bg.battleground_id = template.id;
+            bg.map_id = template.map_id;
+            bg.name = template.name;
+            bg.score_a = 1200;
+            bg.world_states = vec![(rules.nodes[0].poi, 5)];
+            bg.players[0].objective_scores = vec![(rules.assault_stat, 5), (rules.defense_stat, 1)];
+            let mut view = PvpView {
+                scoreboard: true,
+                ..Default::default()
+            };
+            receive(&mut view, state.clone());
+            view.scoreboard = true;
+            let mut context = SharedContext::new();
+            context.insert(skin);
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            let mut screen = Screen::new(pvp_screen);
+            screen.sync(&context, &mut registry);
+            assert_text(
+                &registry,
+                "WorldStateScore",
+                "Alliance 1200 / 1500    Horde 1 / 1500",
+            );
+            assert_text(
+                &registry,
+                &format!("WorldStateNode{}", rules.nodes[0].entry),
+                &format!("{}\nAlliance", rules.nodes[0].name),
+            );
+            assert_text(&registry, "PVPMatchCategory7", "Bases Assaulted");
+            assert_text(&registry, "PVPMatchCategory8", "Bases Defended");
+            assert_text(&registry, "PVPMatchPlayer81Captures", "5");
+            assert_text(&registry, "PVPMatchPlayer81Returns", "1");
+            view.action("pvp:score-close");
+            let bg = state.battleground.as_mut().unwrap();
+            bg.phase = BgPhase::Ended;
+            bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+            receive(&mut view, state);
+            context.insert(view);
+            screen.sync(&context, &mut registry);
+            assert_text(&registry, "PVPMatchOutcome", "Victory");
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
+    let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let WidgetData::FontString(label) = frame.widget_data.as_ref().unwrap() else {
+        panic!("{name}: expected a native font string")
+    };
+    assert_eq!(label.text, expected);
+}
+
 fn assert_size(registry: &FrameRegistry, name: &str, width: f32, height: f32) {
     let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
     assert_eq!(frame.width, ui_toolkit::frame::Dimension::Fixed(width));
@@ -61,6 +131,16 @@ fn receive(view: &mut PvpView, state: PvpSnapshot) {
         error: None,
     });
 }
+#[test]
+fn node_battleground_selection_preserves_queue_identity() {
+    for id in [1018, 120] {
+        let mut view = PvpView::default();
+        assert_eq!(view.action(&format!("pvp:select:{id}")), None);
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(id)));
+        assert_eq!(view.action("pvp:queue"), None);
+    }
+}
+
 #[test]
 fn battleground_requests_wait_for_authority_and_echo_match_identity() {
     let mut view = PvpView::default();

@@ -36,6 +36,7 @@ pub struct PvpView {
     pub results_dismissed: bool,
     pub talent_slot: Option<u8>,
     pub category: PvpCategory,
+    pub selected_battleground: u32,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -50,6 +51,7 @@ impl Default for PvpView {
             results_dismissed: false,
             talent_slot: None,
             category: PvpCategory::QuickMatch,
+            selected_battleground: 1014,
         }
     }
 }
@@ -91,6 +93,15 @@ impl PvpView {
             .is_some_and(|b| b.phase == BgPhase::Waiting && !b.accepted)
     }
     pub fn action(&mut self, action: &str) -> Option<PvpAction> {
+        if let Some(id) = action
+            .strip_prefix("pvp:select:")
+            .and_then(|id| id.parse().ok())
+        {
+            if !self.pending && specific_choices().iter().any(|template| template.id == id) {
+                self.selected_battleground = id;
+            }
+            return None;
+        }
         match action {
             "pvp:category:quick" | "pvp:category:rated" | "pvp:category:groups" => {
                 self.category = match action {
@@ -199,7 +210,7 @@ impl PvpView {
                 if self.battleground().is_none()
                     && self.snapshot.as_ref().is_none_or(|s| s.queue.is_none()) =>
             {
-                PvpAction::Queue(1014)
+                PvpAction::Queue(self.selected_battleground)
             }
             "pvp:dequeue" if self.snapshot.as_ref().is_some_and(|s| s.queue.is_some()) => {
                 PvpAction::Dequeue
@@ -226,7 +237,16 @@ fn frame(name: &str, size: (f32, f32), position: (f32, f32), children: Element) 
     rsx! { r#frame { name: {DynName(name.into())}, width, height, left, top,
     pos_type: "absolute", strata: FrameStrata::Dialog, mouse_enabled: true, {children} } }
 }
-fn queue(view: &PvpView) -> Element {
+fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
+    shared::battleground::all_templates()
+        .into_iter()
+        .filter(|template| {
+            template.id == 1014 || shared::battleground::node_rules(template.map_id).is_some()
+        })
+        .collect()
+}
+
+fn queue(context: &SharedContext, view: &PvpView) -> Element {
     if !view.visible {
         return vec![];
     }
@@ -268,14 +288,7 @@ fn queue(view: &PvpView) -> Element {
         "Battlegrounds",
         (194.0, 52.0, 300.0, 22.0),
     ));
-    children.extend(panel_button(
-        "HonorFrameSpecificBattlegroundButton".into(),
-        "Warsong Gulch",
-        "",
-        false,
-        (194.0, 90.0, 340.0, 52.0),
-    ));
-    children.extend(text("HonorFrameDescription", "Capture the enemy flag and return it to your base.\nFirst team to capture three flags wins.\n10–90 • 5–10 players per team", (194.0, 157.0, 340.0, 100.0)));
+    children.extend(specific_list(context, view));
     let queued = view.snapshot.as_ref().is_some_and(|s| s.queue.is_some());
     let status = if view.pending {
         "Waiting for server"
@@ -308,6 +321,53 @@ fn queue(view: &PvpView) -> Element {
     ));
     frame("PVPUIFrame", (563.0, 428.0), (24.0, 90.0), children)
 }
+fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
+    let templates = specific_choices();
+    let height = (templates.len() as f32 * 40.0).max(160.0);
+    let geometry = pixel_geometry(160.0, height, 160.0);
+    let offset = geometry.clamp(context.scroll_first_row("HonorFrameSpecificScrollBox"));
+    let config = scroll_list_attr(&geometry);
+    let child_top = -(offset as f32);
+    let children: Element = templates
+        .iter()
+        .enumerate()
+        .flat_map(|(index, template)| {
+            panel_button(
+                format!("HonorFrameSpecificBattlegroundButton{}", template.id),
+                &template.name,
+                &format!("pvp:select:{}", template.id),
+                !view.pending,
+                (0.0, index as f32 * 40.0, 324.0, 40.0),
+            )
+        })
+        .collect();
+    let bar = MinimalScrollBar {
+        list: "HonorFrameSpecificScrollBox",
+        left: 324.0,
+        top: 0.0,
+        height: 160.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    let selected = templates
+        .iter()
+        .find(|template| template.id == view.selected_battleground)
+        .expect("selection belongs to the supported source list");
+    let mut elements = rsx! { r#frame { name: "HonorFrameSpecificScrollBox", width: 340.0,
+    height: 160.0, left: 194.0, top: 90.0, pos_type: "absolute", mouse_enabled: true,
+    scroll_list: config,
+    r#frame { name: "HonorFrameSpecificScrollChild", width: 324.0, height, left: 0.0,
+        top: child_top, pos_type: "absolute", {children} }
+    {bar.element()} } };
+    elements.extend(text(
+        "HonorFrameDescription",
+        &format!("Selected: {}", selected.name),
+        (194.0, 275.0, 340.0, 22.0),
+    ));
+    elements
+}
+
 fn category_panel(view: &PvpView) -> Element {
     if view.category == PvpCategory::PremadeGroups {
         return text(
@@ -395,17 +455,45 @@ fn flag_text(flag: FlagState) -> String {
         FlagState::Dropped => "Dropped".into(),
     }
 }
-fn hud(view: &PvpView) -> Element {
-    let Some(bg) = view.battleground().filter(|b| b.accepted) else {
-        return vec![];
-    };
-    let mut children = label(
-        "WorldStateScore".into(),
-        &format!("Alliance {} / 3    Horde {} / 3", bg.score_a, bg.score_b),
-        (0.0, 0.0, 430.0, 24.0),
-        (16.0, NORMAL_FONT_COLOR, "CENTER"),
-    );
-    children.extend(label(
+fn score_text(bg: &BattlegroundSnapshot) -> String {
+    let template =
+        shared::battleground::template_by_id(bg.battleground_id).expect("source match template");
+    format!(
+        "Alliance {} / {}    Horde {} / {}",
+        bg.score_a, template.win_score, bg.score_b, template.win_score
+    )
+}
+fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if let Some(rules) = shared::battleground::node_rules(bg.map_id) {
+        let width = 430.0 / rules.nodes.len() as f32;
+        return rules
+            .nodes
+            .iter()
+            .enumerate()
+            .flat_map(|(index, node)| {
+                let state = bg
+                    .world_states
+                    .iter()
+                    .find(|(id, _)| *id == node.poi)
+                    .map(|(_, value)| *value);
+                let status = match state {
+                    Some(1) => "Neutral",
+                    Some(2) => "Horde assault",
+                    Some(3) => "Alliance assault",
+                    Some(4) => "Horde",
+                    Some(5) => "Alliance",
+                    _ => "—",
+                };
+                label(
+                    format!("WorldStateNode{}", node.entry),
+                    &format!("{}\n{}", node.name, status),
+                    (index as f32 * width, 25.0, width, 24.0),
+                    (9.0, WHITE, "CENTER"),
+                )
+            })
+            .collect();
+    }
+    label(
         "WorldStateFlags".into(),
         &format!(
             "Alliance flag: {}    Horde flag: {}",
@@ -414,7 +502,42 @@ fn hud(view: &PvpView) -> Element {
         ),
         (0.0, 25.0, 430.0, 22.0),
         (12.0, WHITE, "CENTER"),
-    ));
+    )
+}
+fn objective_titles(bg: &BattlegroundSnapshot) -> [&'static str; 2] {
+    if shared::battleground::node_rules(bg.map_id).is_some() {
+        ["Bases Assaulted", "Bases Defended"]
+    } else {
+        ["Captures", "Returns"]
+    }
+}
+fn objective_value(
+    bg: &BattlegroundSnapshot,
+    player: &shared::protocol::BattlegroundPlayerScoreSnapshot,
+    index: usize,
+) -> String {
+    if let Some(rules) = shared::battleground::node_rules(bg.map_id) {
+        let id = [rules.assault_stat, rules.defense_stat][index];
+        return player
+            .objective_scores
+            .iter()
+            .find(|(stat, _)| *stat == id)
+            .map_or("—".into(), |(_, value)| value.to_string());
+    }
+    [player.flag_captures, player.flag_returns][index].to_string()
+}
+
+fn hud(view: &PvpView) -> Element {
+    let Some(bg) = view.battleground().filter(|b| b.accepted) else {
+        return vec![];
+    };
+    let mut children = label(
+        "WorldStateScore".into(),
+        &score_text(bg),
+        (0.0, 0.0, 430.0, 24.0),
+        (16.0, NORMAL_FONT_COLOR, "CENTER"),
+    );
+    children.extend(objective_hud(bg));
     children.extend(panel_button(
         "WorldStateScoreboardButton".into(),
         "Scoreboard",
@@ -465,8 +588,17 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
             ));
         }
     }
+    let objective_titles = objective_titles(bg);
     for (i, title) in [
-        "Name", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
+        "Name",
+        "KB",
+        "HK",
+        "Deaths",
+        "Honor",
+        "Damage",
+        "Healing",
+        objective_titles[0],
+        objective_titles[1],
     ]
     .iter()
     .enumerate()
@@ -557,8 +689,8 @@ fn score_rows(
             player.honor_level.map_or("—".into(), |n| n.to_string()),
             "—".into(),
             "—".into(),
-            player.flag_captures.to_string(),
-            player.flag_returns.to_string(),
+            objective_value(bg, player, 0),
+            objective_value(bg, player, 1),
         ];
         let suffixes = [
             "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
@@ -589,7 +721,7 @@ fn score_rows(
 pub fn pvp_screen(context: &SharedContext) -> Element {
     let _ = context.get::<ui_toolkit::atlas::ActiveSkin>();
     let view = context.get::<PvpView>().expect("PvP view");
-    let mut elements = queue(view);
+    let mut elements = queue(context, view);
     elements.extend(hud(view));
     elements.extend(scoreboard(context, view));
     elements.extend(invite(view));
