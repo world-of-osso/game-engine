@@ -17,6 +17,7 @@ pub(crate) struct HousingHud {
     pub model: Option<HousingDashboard>,
     pub ui: Option<Gd<RegistryUi>>,
     pub authority: HousingAuthority,
+    pub(super) decor: crate::housing_decor::HousingDecor,
     next_request_id: u64,
     confirming_plot: Option<u32>,
 }
@@ -42,7 +43,7 @@ impl GameClient {
         self.request_housing(shared::protocol::HousingCommand::ListPlots { neighborhood_id })
     }
 
-    fn ensure_housing_model(&mut self) -> Result<(), String> {
+    pub(super) fn ensure_housing_model(&mut self) -> Result<(), String> {
         if self.housing.model.is_none() {
             let catalog = HousingCatalog::load(&self.data_root.join("cache/housing.sqlite"))?;
             self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
@@ -97,7 +98,10 @@ impl GameClient {
         Ok(())
     }
 
-    fn request_housing(&mut self, command: shared::protocol::HousingCommand) -> Result<(), String> {
+    pub(super) fn request_housing(
+        &mut self,
+        command: shared::protocol::HousingCommand,
+    ) -> Result<(), String> {
         let request_id = self
             .housing
             .next_request_id
@@ -117,6 +121,7 @@ impl GameClient {
     }
 
     pub(super) fn close_housing(&mut self) {
+        self.housing.decor.clear_preview();
         self.group_frames.popups.hide(PURCHASE_POPUP);
         self.housing.confirming_plot = None;
         if let Some(ui) = self.housing.ui.take() {
@@ -173,8 +178,10 @@ impl GameClient {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_housing();
             self.housing.authority.clear();
+            self.housing.decor.clear();
             return Ok(());
         }
+        self.sync_housing_layout()?;
         let Some(ui) = &mut self.housing.ui else {
             return Ok(());
         };
@@ -224,6 +231,9 @@ impl GameClient {
         }
         if action == "housing:purchase" {
             self.confirm_housing_purchase()?;
+            return Ok(true);
+        }
+        if self.dispatch_housing_editor_action(action)? {
             return Ok(true);
         }
         let model = self
@@ -309,6 +319,17 @@ impl GameClient {
     }
 
     pub(super) fn housing_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        match self.housing_editor_pointer(event) {
+            Ok(true) => return true,
+            Ok(false) => {}
+            Err(error) => {
+                godot_error!("House editor: {error}");
+                if let Err(message) = self.add_world_error(&error) {
+                    godot_error!("House editor feedback: {message}");
+                }
+                return true;
+            }
+        }
         let Ok(button) = event
             .clone()
             .try_cast::<godot::classes::InputEventMouseButton>()
