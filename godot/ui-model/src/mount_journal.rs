@@ -294,8 +294,13 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
             (42.0, 0.0, 208.0, 46.0),
         ));
     }
-    rsx! { button { name: {DynName(prefix)}, width: 250.0, height: ROW_HEIGHT, left: 0.0, top,
-    pos_type: "absolute", button_default_skin: false, onclick: {action.as_str()}, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (0.0, top, 250.0, ROW_HEIGHT),
+        children,
+    )
 }
 fn mount_details(view: &MountJournalView) -> Element {
     // Blizzard_MountCollection.xml MountDisplay.YesMountsTex, local listfile FDID651761.
@@ -413,12 +418,21 @@ fn filter_menu(view: &MountJournalView) -> Element {
             ("mount:sources".into(), "Sources >".into(), false),
         ],
     };
-    let children: Element=entries.iter().enumerate().flat_map(|(index,(action,title,checked))| {
-        let name=DynName(format!("MountJournalFilter{index}"));
-        let text=format!("{} {title}",if *checked { "✓" } else { "  " });
-        let top=5.0+index as f32*22.0;
-        rsx! { button { name, width: 190.0,height: 22.0,left: 5.0,top,pos_type: "absolute",text: {text.as_str()},onclick: {action.as_str()},font_size: 12.0 } }
-    }).collect();
+    let children: Element = entries
+        .iter()
+        .enumerate()
+        .flat_map(|(index, (action, title, checked))| {
+            let top = 5.0 + index as f32 * 22.0;
+            crate::selection_list::text_row(
+                format!("MountJournalFilter{index}"),
+                title,
+                action,
+                true,
+                *checked,
+                (5.0, top, 190.0, 22.0),
+            )
+        })
+        .collect();
     let height = 10.0 + entries.len() as f32 * 22.0;
     rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 75.0,top: 91.0,pos_type: "absolute",
     strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }

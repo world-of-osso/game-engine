@@ -87,17 +87,19 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return control("MinimapLauncherButton") != null, "inworld HUD"): return
 	await pointer("MinimapLauncherButton")
 	await pointer("LauncherEntryLFDMicroButton")
-	if not await wait_until(func(): return control("HonorFrameSpecificBattlegroundButton699") != null, "queue list"): return
-	await pointer("HonorFrameSpecificBattlegroundButton699")
+	if not await wait_until(func(): return control("HonorFrameSpecificBattlegroundButton108") != null and not (control("HonorFrameSpecificBattlegroundButton108") as Button).disabled, "queue list ready"): return
+	await pointer("HonorFrameSpecificBattlegroundButton108")
+	if not await wait_until(func(): return control("HonorFrameDescription").text.contains("The Battle for Gilneas"), "pointer selection"): return
 	await motion(Vector2(650, 480))
 	await capture("queue-selected")
 	await motion(control("HonorFrameSpecificBattlegroundButton1014").get_global_rect().get_center())
 	await capture("queue-hover")
 	if stage == "after":
 		await pointer("HonorFrameSpecificBattlegroundButton1014")
+		if not await wait_until(func(): return control("HonorFrameDescription").text.contains("Warsong Gulch"), "selection changed"): return
 		await tap(KEY_DOWN)
 		await tap(KEY_ENTER)
-		if not control("HonorFrameDescription").text.contains("Arathi Basin"): fail("Keyboard selection did not activate next row"); return
+		if not await wait_until(func(): return control("HonorFrameDescription").text.contains("Arathi Basin"), "keyboard selection activates next row"): return
 		await pointer("HonorFrameSpecificScrollBox", MOUSE_BUTTON_WHEEL_DOWN)
 		await pointer("HonorFrameSpecificScrollBox", MOUSE_BUTTON_WHEEL_UP)
 		if not control("HonorFrameDescription").text.contains("Arathi Basin"): fail("Scroll lost selection"); return

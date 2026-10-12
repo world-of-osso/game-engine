@@ -349,16 +349,22 @@ fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
             WHITE,
         ));
     }
-    let selected = view.selected == Some(row.key);
-    let color = if selected {
-        "1.0,0.82,0.0,0.22"
-    } else {
-        "0.0,0.0,0.0,0.25"
-    };
-    rsx! { r#frame { name: {DynName(prefix)}, width: 250.0, height: ROW_HEIGHT,
-    left: 0.0, top, pos_type: "absolute", mouse_enabled: true, onclick: {action.as_str()},
-    texture { width: 250.0, height: ROW_HEIGHT, color, pos_type: "absolute", left: 0.0, top: 0.0 }
-    {children} } }
+    if view.selected == Some(row.key) {
+        let mut selected = crate::quest_art::named_atlas_texture(
+            format!("{prefix}Selected"),
+            "PetList-ButtonSelect",
+            (0.0, 0.0, 250.0, ROW_HEIGHT),
+        );
+        selected.extend(children);
+        children = selected;
+    }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (0.0, top, 250.0, ROW_HEIGHT),
+        children,
+    )
 }
 fn pet_card(view: &PetJournalView) -> Element {
     let mut out = rsx! { texture { name: "PetJournalPetCardBackground", texture_atlas: "PetJournal-PetCard-BG",

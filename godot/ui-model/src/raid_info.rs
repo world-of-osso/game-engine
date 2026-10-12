@@ -267,10 +267,14 @@ fn saved_row(
     let action = format!("raid_info:select:{index}");
     let name = format!("RaidInfoRow{index}");
     let selected = selected == Some((row.lock.map_id, row.lock.difficulty_id));
-    let bg = if selected {
-        "0.35,0.3,0.13,0.9"
+    let mut background = if selected {
+        crate::quest_art::named_atlas_texture(
+            format!("{name}Selected"),
+            crate::selection_list::SELECTED,
+            (0.0, 0.0, 292.0, 40.0),
+        )
     } else {
-        "0.08,0.08,0.08,0.9"
+        Vec::new()
     };
     let color = if row.lock.locked || row.lock.extended {
         "1,0.82,0,1"
@@ -309,8 +313,8 @@ fn saved_row(
             "1,1,1,1",
         ));
     }
-    rsx! { r#frame { name:{DynName(name)},width:292.0,height:40.0,pos_type:"absolute",left:16.0,top:y,
-    mouse_enabled:true,onclick:action.as_str(),background_color:bg,{texts} } }
+    background.extend(texts);
+    crate::selection_list::row(name, &action, true, (16.0, y, 292.0, 40.0), background)
 }
 fn label(name: &str, text: &str, x: f32, y: f32, width: f32, color: &str) -> Element {
     rsx! { fontstring {name:{DynName(name.into())},text:text,width:width,height:18.0,font_size:11.0,font_color:color,

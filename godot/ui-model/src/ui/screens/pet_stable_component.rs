@@ -201,10 +201,13 @@ fn stabled_row(view: &StableFrameView, pet: &StablePetInfo, y: f32) -> Element {
     ));
     let disabled = view.pending || view.rename;
     let action = format!("stable_slot:{}", pet.slot);
-    rsx! { button { name: {DynName(slot_name(pet.slot))}, width: 260.0, height: 56.0,
-        left: 40.0, top: y, pos_type: "absolute", onclick: action, disabled,
-        strata: FrameStrata::Dialog, {children}
-    } }
+    crate::selection_list::row(
+        slot_name(pet.slot),
+        &action,
+        !disabled,
+        (40.0, y, 260.0, 56.0),
+        children,
+    )
 }
 
 fn atlas_button(

@@ -186,7 +186,13 @@ fn order_row(
         (width * 0.83, 0.0, width * 0.17, 20.0),
     ));
     let action = format!("profession:order:select:{}", order.id);
-    rsx! {button{name:{DynName(format!("CraftingOrderRow{}",order.id))},left:0.0,top,width,height:20.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,button_atlas_highlight:"auctionhouse-ui-row-highlight",{children}}}
+    crate::selection_list::row(
+        format!("CraftingOrderRow{}", order.id),
+        &action,
+        true,
+        (0.0, top, width, 20.0),
+        children,
+    )
 }
 fn detail(view: &ProfessionView) -> Element {
     let Some(order) = view.orders.selected_order() else {
@@ -550,10 +556,26 @@ fn recipe_list(ctx: &SharedContext, view: &ProfessionView, customer: bool) -> El
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
-    let rows=view.order_recipes.iter().enumerate().flat_map(|(index,recipe)|{
-        let children=text(&format!("CraftingOrderRecipe{}Name",recipe.spell_id),&recipe.name,(4.0,0.0,230.0,20.0));let action=format!("profession:order:recipe:{}",recipe.spell_id);
-        rsx!{button{name:{DynName(format!("CraftingOrderRecipe{}",recipe.spell_id))},left:0.0,top:{index as f32*22.0},width:236.0,height:20.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,button_atlas_highlight:"auctionhouse-ui-row-highlight",{children}}}
-    }).collect::<Element>();
+    let rows = view
+        .order_recipes
+        .iter()
+        .enumerate()
+        .flat_map(|(index, recipe)| {
+            let children = text(
+                &format!("CraftingOrderRecipe{}Name", recipe.spell_id),
+                &recipe.name,
+                (4.0, 0.0, 230.0, 20.0),
+            );
+            let action = format!("profession:order:recipe:{}", recipe.spell_id);
+            crate::selection_list::row(
+                format!("CraftingOrderRecipe{}", recipe.spell_id),
+                &action,
+                true,
+                (0.0, index as f32 * 22.0, 236.0, 20.0),
+                children,
+            )
+        })
+        .collect::<Element>();
     let mut out = art::atlas(
         "CraftingOrderRecipeBackground",
         "Professions-background-summarylist",

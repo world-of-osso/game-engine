@@ -525,6 +525,18 @@ impl UiProjection {
         // Parts draw behind the frame's own control content (label/edit text) and children.
         parts.set_draw_behind_parent(true);
         node.add_child(&parts);
+        if game_engine_ui_model::selection_list::is_selection_row(frame) {
+            node.set_focus_mode(godot::classes::control::FocusMode::ALL);
+            node.connect(
+                "focus_entered",
+                &emit(&self.pending, UiInput::Focus(frame.id)),
+            );
+            node.connect(
+                "focus_exited",
+                &emit(&self.pending, UiInput::Blur(frame.id)),
+            );
+            connect_selection_activation(&self.pending, frame.id, &mut node);
+        }
         self.connect_input(frame, &mut node);
         if node.get_mouse_filter() == godot::classes::control::MouseFilter::STOP {
             connect_pointer_down(&self.pending, frame.id, &mut node);
@@ -1192,6 +1204,32 @@ fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>)
         pending.push(input);
     });
     node.connect("gui_input", &callback);
+}
+
+fn connect_selection_activation(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let mut control = node.clone();
+    node.connect(
+        "gui_input",
+        &Callable::from_fn("selection-row-activate", move |args| {
+            let Some(key) = args
+                .first()
+                .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+            else {
+                return;
+            };
+            if key.is_pressed()
+                && !key.is_echo()
+                && matches!(
+                    key.get_keycode(),
+                    godot::global::Key::ENTER | godot::global::Key::SPACE
+                )
+            {
+                pending.push(UiInput::Click(id));
+                control.accept_event();
+            }
+        }),
+    );
 }
 
 fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
