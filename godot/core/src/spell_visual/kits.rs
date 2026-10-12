@@ -11,13 +11,14 @@ impl SpellVisualCatalog {
     pub(super) fn read_effect_names(&mut self, dir: &Path) -> Result<(), String> {
         let names = Table::read(dir, "SpellVisualEffectName")?;
         let name_ints = names.ints(["ID", "ModelFileDataID"])?;
-        let name_floats = names.floats(["Scale"])?;
-        for ([id, model], [scale]) in name_ints.into_iter().zip(name_floats) {
+        let name_floats = names.floats(["Scale", "Alpha"])?;
+        for ([id, model], [scale, alpha]) in name_ints.into_iter().zip(name_floats) {
             self.effect_names.insert(
                 id as u32,
                 EffectName {
                     model_fdid: model as u32,
                     scale,
+                    alpha,
                 },
             );
         }
@@ -130,6 +131,7 @@ fn parse_kit_model(
         pitch,
         roll,
         scale: scale * effect.scale,
+        alpha: effect.alpha,
         start_delay: delay,
         start_anim_id: anim_id(start),
         anim_id: anim_id(anim),

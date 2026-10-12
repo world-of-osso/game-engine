@@ -211,6 +211,14 @@ TABLES = {
          ("LodCount", ("int", 3, 0)), ("ModelResourcesID", ("int", 4, 0))],
     ),
     # Local Retail 12.1.0.69933; WoWDBDefs layouts. No speed column in these tables.
+    # ModifierTree.dbd F13BB1D8, local Retail12.1.0.69933.
+    "ModifierTree": (
+        0xF13BB1D8,
+        [("ID", "id"), ("Parent", 0), ("Operator", ("u8", 1)),
+         ("Amount", ("u8", 2)), ("Type", ("int", 3, 0)),
+         ("Asset", ("int", 4, 0)), ("SecondaryAsset", ("int", 5, 0)),
+         ("TertiaryAsset", ("int", 6, 0))],
+    ),
     "AnimReplacementSet": (
         0x7C047695,
         [("ID", "id"), ("ExecOrder", ("u8", 0))],

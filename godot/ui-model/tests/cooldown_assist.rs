@@ -45,6 +45,16 @@ fn cooldown_assist_native_rows_and_highlights_share_both_skin_inventory() {
             .get_by_name("CooldownViewer27AssistedHighlight")
             .unwrap();
         assert!(!registry.get(glow).unwrap().hidden);
+        let image = registry
+            .get_by_name("CooldownViewer27AssistedHighlightFlipbook")
+            .unwrap();
+        let Some(WidgetData::Texture(art)) = &registry.get(image).unwrap().widget_data else {
+            panic!("Assisted highlight must draw Retail art");
+        };
+        assert_eq!(
+            art.source,
+            ui_toolkit::widgets::texture::TextureSource::FileDataId(6992992)
+        );
         view.categories[0][0].assisted_highlight = false;
         shared.insert(view);
         screen.sync(&shared, &mut registry);
@@ -53,6 +63,20 @@ fn cooldown_assist_native_rows_and_highlights_share_both_skin_inventory() {
             .unwrap();
         assert!(registry.get(glow).unwrap().hidden);
     }
+}
+
+#[test]
+fn cooldown_assist_flipbook_walks_all_thirty_cells_then_repeats() {
+    use game_engine_ui_model::assisted_highlight::frame_region;
+    assert_eq!(frame_region(0.0), [845.0, 403.0, 333.0 / 5.0, 400.0 / 6.0]);
+    let frames: Vec<_> = (0..30)
+        .map(|frame| frame_region((frame as f64 + 0.1) / 30.0))
+        .collect();
+    for (index, region) in frames.iter().enumerate() {
+        assert!((region[0] - (845.0 + (index % 5) as f32 * 333.0 / 5.0)).abs() < 0.001);
+        assert!((region[1] - (403.0 + (index / 5) as f32 * 400.0 / 6.0)).abs() < 0.001);
+    }
+    assert_eq!(frame_region(1.0), frames[0]);
 }
 
 #[test]
