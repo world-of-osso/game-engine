@@ -222,6 +222,153 @@ fn cooldown_assist_unknown_rule_never_recommends_a_lower_priority_spell() {
 }
 
 #[test]
+fn cooldown_assist_numeric_rules_never_guess_unverified_equality_boundaries() {
+    use game_engine_core::cooldown_assist::AssistedRule;
+    let mut facts = AssistedFacts::default();
+    let mut rule = AssistedRule {
+        id: 100,
+        step_spell: 85256,
+        condition_type: 37,
+        values: [3, 0, 0],
+        field_11_1_7_60520_002: 0,
+    };
+    for (power, threshold, expected) in [(0.0, 3, false), (4.0, 3, true)] {
+        facts.powers.insert(9, power);
+        rule.values[0] = threshold;
+        assert_eq!(evaluate_rule(&rule, &facts), Ok(expected));
+    }
+    facts.powers.insert(9, 3.0);
+    assert!(
+        evaluate_rule(&rule, &facts)
+            .unwrap_err()
+            .contains("equality")
+    );
+    rule.condition_type = 38;
+    facts.powers.insert(9, 0.0);
+    assert_eq!(evaluate_rule(&rule, &facts), Ok(true));
+    rule.condition_type = 21;
+    rule.values[0] = 300;
+    facts.powers.insert(1, 500.0);
+    assert_eq!(
+        evaluate_rule(&rule, &facts),
+        Ok(true),
+        "rage uses DB2 raw tenths, not UI display units"
+    );
+    rule.condition_type = 63;
+    rule.values = [2, 0, 0];
+    facts.charges.insert(85256, 1);
+    assert_eq!(evaluate_rule(&rule, &facts), Ok(false));
+    facts.charges.insert(85256, 2);
+    assert!(
+        evaluate_rule(&rule, &facts)
+            .unwrap_err()
+            .contains("equality")
+    );
+    rule.values[1] = 108853;
+    assert!(
+        evaluate_rule(&rule, &facts)
+            .unwrap_err()
+            .contains("encoding")
+    );
+    rule.condition_type = 65;
+    rule.values = [108853, 1500, 0];
+    facts.cooldowns_ms.insert(108853, 2000.0);
+    assert_eq!(evaluate_rule(&rule, &facts), Ok(true));
+    facts.cooldowns_ms.insert(108853, 1500.0);
+    assert!(
+        evaluate_rule(&rule, &facts)
+            .unwrap_err()
+            .contains("equality")
+    );
+    rule.condition_type = 68;
+    rule.values = [50, 0, 0];
+    facts.player_health_pct = Some(75.0);
+    assert_eq!(evaluate_rule(&rule, &facts), Ok(true));
+    rule.condition_type = 67;
+    rule.values = [0, 0, 0];
+    assert!(
+        evaluate_rule(&rule, &facts).is_err(),
+        "prediction policy is not derivable from the layout/name"
+    );
+}
+
+/// Exact authored candidate counts, including spec-agnostic sets, before actor gates.
+/// Frost/Devourer have no authored tracked bars; do not invent entries for them.
+#[test]
+fn cooldown_assist_all_forty_specs_preserve_authored_category_coverage() {
+    let data = catalog();
+    let expected = [
+        (62, [21, 53, 69, 2]),
+        (63, [19, 53, 70, 2]),
+        (64, [22, 55, 70, 0]),
+        (65, [28, 46, 51, 1]),
+        (66, [22, 51, 73, 4]),
+        (70, [20, 50, 62, 7]),
+        (71, [28, 54, 75, 1]),
+        (72, [24, 53, 74, 2]),
+        (73, [25, 52, 72, 3]),
+        (102, [26, 54, 80, 3]),
+        (103, [26, 58, 81, 2]),
+        (104, [28, 56, 67, 3]),
+        (105, [37, 53, 62, 4]),
+        (250, [22, 51, 71, 7]),
+        (251, [23, 48, 72, 2]),
+        (252, [24, 50, 78, 4]),
+        (253, [17, 55, 63, 5]),
+        (254, [17, 55, 69, 5]),
+        (255, [17, 61, 67, 4]),
+        (256, [24, 46, 62, 2]),
+        (257, [29, 43, 63, 2]),
+        (258, [26, 49, 80, 2]),
+        (259, [24, 54, 85, 1]),
+        (260, [26, 54, 77, 2]),
+        (261, [22, 53, 64, 1]),
+        (262, [25, 60, 82, 3]),
+        (263, [20, 63, 93, 3]),
+        (264, [26, 58, 78, 7]),
+        (265, [24, 48, 61, 1]),
+        (266, [26, 48, 62, 5]),
+        (267, [28, 48, 72, 1]),
+        (268, [24, 51, 81, 2]),
+        (269, [24, 49, 52, 5]),
+        (270, [28, 48, 49, 5]),
+        (577, [21, 48, 61, 3]),
+        (581, [24, 48, 62, 3]),
+        (1467, [24, 51, 69, 1]),
+        (1468, [29, 47, 54, 2]),
+        (1473, [22, 53, 69, 2]),
+        (1480, [17, 47, 64, 0]),
+    ];
+    for (spec, counts) in expected {
+        let mut actual = [0; 4];
+        for entry in data.cooldowns(spec, |_| Ok(true)).unwrap() {
+            if entry.category < 4 {
+                actual[entry.category as usize] += 1;
+            }
+        }
+        assert_eq!(actual, counts, "spec{spec}");
+        assert!(
+            !data.rotation_spells(spec).is_empty(),
+            "spec{spec}: authored rotation absent"
+        );
+    }
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let conditions = CooldownConditions::load(&dir, &data.player_condition_ids()).unwrap();
+    let actor = ConditionActor {
+        race_bit: 0,
+        class: 1,
+        spec_index: 2,
+        known: &[],
+        auras: &BTreeMap::new(),
+    };
+    for id in data.player_condition_ids() {
+        conditions
+            .evaluate(id, &actor)
+            .unwrap_or_else(|error| panic!("condition{id}: {error}"));
+    }
+}
+
+#[test]
 fn cooldown_assist_missing_spec_has_no_invented_rotation() {
     let data = catalog();
     assert_eq!(

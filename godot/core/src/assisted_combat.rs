@@ -1,5 +1,6 @@
-//! Source-grounded qualitative Assisted Combat predicates.
-//! Numeric comparison/predictive conditions remain explicit gaps, not guessed rules.
+//! Source-grounded Assisted Combat predicates.
+//! Numeric outcomes are enabled only where strict/inclusive interpretations agree.
+//! Equality, undocumented encodings and prediction remain explicit source gaps.
 use crate::cooldown_assist::AssistedRule;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -15,17 +16,33 @@ pub struct AssistedFacts {
     pub player_auras: BTreeSet<u32>,
     pub target_auras: BTreeSet<u32>,
     pub target_hostile: Option<bool>,
+    /// Same raw DB2 power units as SpellPower/UnitPowers, not display values.
+    pub powers: BTreeMap<u8, f64>,
+    pub charges: BTreeMap<u32, u8>,
+    pub cooldowns_ms: BTreeMap<u32, f64>,
+    pub player_health_pct: Option<f64>,
+    pub target_health_pct: Option<f64>,
 }
 
 /// Condition numbers/names from SimulationCraft data_enums.hh; spell0 means this step.
-/// Only qualitative operations whose semantics are supported by that primary source
-/// are enabled. Unsupported numeric/charge/predictive semantics are never assumed true.
+/// SimC player_t::parse_assisted_combat_rule still marks comparator inclusivity TODO.
+/// Away from equality both possible comparators have the same result; at equality
+/// refuse the step. Never substitute SimC's guessed boundaries for Retail semantics.
 pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool, String> {
     let spell = if rule.values[0] == 0 {
         rule.step_spell
     } else {
         rule.values[0]
     };
+    if let Some((power, greater)) = power_comparison(rule.condition_type) {
+        require_zero_tail(rule)?;
+        let value = facts
+            .powers
+            .get(&power)
+            .copied()
+            .ok_or_else(|| format!("rule {}: raw power {power} not received", rule.id))?;
+        return compare_number(rule, value, f64::from(rule.values[0]), greater);
+    }
     match rule.condition_type {
         0 => Ok(facts.known.contains(&spell)),
         1 => read_boolean(&facts.ready, spell, "cooldown readiness").map(|ready| !ready),
@@ -47,11 +64,120 @@ pub fn evaluate_rule(rule: &AssistedRule, facts: &AssistedFacts) -> Result<bool,
         15 => Ok(!facts.target_auras.contains(&rule.values[0])),
         16 => Ok(!facts.player_auras.contains(&rule.values[0])),
         56 => read_boolean(&facts.in_range, spell, "spell range"),
+        7 | 8 | 68 | 69 => {
+            require_zero_tail(rule)?;
+            let value = if rule.condition_type < 68 {
+                facts.target_health_pct
+            } else {
+                facts.player_health_pct
+            };
+            compare_number(
+                rule,
+                value.ok_or_else(|| format!("rule {}: health percentage not received", rule.id))?,
+                f64::from(rule.values[0]),
+                matches!(rule.condition_type, 7 | 68),
+            )
+        }
+        65 | 66 => {
+            if rule.values[0] == 0 || rule.values[2] != 0 {
+                return Err(format!(
+                    "rule {}: cooldown operands are unverified",
+                    rule.id
+                ));
+            }
+            let value = facts
+                .cooldowns_ms
+                .get(&rule.values[0])
+                .copied()
+                .ok_or_else(|| format!("rule {}: cooldown clock not received", rule.id))?;
+            compare_number(
+                rule,
+                value,
+                f64::from(rule.values[1]),
+                rule.condition_type == 65,
+            )
+        }
+        63 | 64 => {
+            if rule.values[1] != 0 {
+                return Err(format!(
+                    "rule {}: charge encoding with value2 is unverified",
+                    rule.id
+                ));
+            }
+            require_zero_tail(rule)?;
+            let value = facts
+                .charges
+                .get(&rule.step_spell)
+                .copied()
+                .ok_or_else(|| format!("rule {}: charges not received", rule.id))?;
+            compare_number(
+                rule,
+                f64::from(value),
+                f64::from(rule.values[0]),
+                rule.condition_type == 63,
+            )
+        }
         _ => Err(format!(
             "AssistedCombatRule {}: condition {} has unverified numeric/predictive semantics",
             rule.id, rule.condition_type
         )),
     }
+}
+
+fn power_comparison(kind: u32) -> Option<(u8, bool)> {
+    let power = match kind {
+        21 | 22 => 1,
+        23 | 24 => 2,
+        25 | 26 => 3,
+        27 | 28 => 4,
+        29 | 30 => 5,
+        31 | 32 => 6,
+        33 | 34 => 7,
+        35 | 36 => 8,
+        37 | 38 => 9,
+        39 | 40 => 11,
+        41 | 42 => 12,
+        43 | 44 => 13,
+        45 | 46 => 19,
+        47 | 48 => 16,
+        59 | 60 => 17,
+        61 | 62 => 18,
+        _ => return None,
+    };
+    // Raw DB2 thresholds and replicated raw power cancel the display divisor.
+    Some((power, kind % 2 == 1))
+}
+
+fn require_zero_tail(rule: &AssistedRule) -> Result<(), String> {
+    if rule.values[1..] != [0, 0] {
+        return Err(format!(
+            "rule {}: unused numeric operands are unverified",
+            rule.id
+        ));
+    }
+    Ok(())
+}
+
+fn compare_number(
+    rule: &AssistedRule,
+    value: f64,
+    threshold: f64,
+    greater: bool,
+) -> Result<bool, String> {
+    if !value.is_finite() {
+        return Err(format!("rule {}: invalid numeric reading", rule.id));
+    }
+    if value == threshold {
+        return Err(format!(
+            "rule {}: equality comparator inclusivity is unverified",
+            rule.id
+        ));
+    }
+    Ok(if greater {
+        value > threshold
+    } else {
+        value < threshold
+    })
 }
 
 pub fn is_spell_usable(spell: u32, facts: &AssistedFacts) -> Result<bool, String> {
