@@ -233,8 +233,11 @@ impl GameClient {
         if !error.is_empty() {
             return Err(error.to_string().into());
         }
+        // A tab click changes the desired model before the registry mounts its new
+        // controls. An absent search field is not a user's empty-string edit.
         if let Some(model) = &mut self.housing.model
             && model.tab == DashboardTab::Catalog
+            && host.frame_control(SEARCH_FIELD).is_some()
         {
             let search = host.frame_text(SEARCH_FIELD.into()).to_string();
             if model.search != search {
