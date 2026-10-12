@@ -383,7 +383,8 @@ fn native_mailbox_replies_reach_default_bridge() {
 #[test]
 fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
     use shared::protocol::{
-        EncounterChannel, EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
+        EncounterChannel, EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit,
+        EncounterSeverity, EncounterStart, EncounterTimelineEvent, EncounterTimer,
     };
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8306);
@@ -406,6 +407,22 @@ fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
         unit: 123,
         target_frame_priority: 0,
     };
+    let timers = EncounterTimelineEvent::Timers {
+        caster: 123,
+        sample_unix_ms: 1791749090000,
+        timers: vec![EncounterTimer {
+            event_id: 2,
+            spell_id: 20805,
+            remaining_ms: 7312,
+            duration_ms: 7312,
+            conditional: true,
+        }],
+    };
+    let warning = EncounterTimelineEvent::Cast {
+        caster: 123,
+        spell_id: 20805,
+        severity: EncounterSeverity::Low,
+    };
     let disengage = EncounterDisengageUnit { unit: 123 };
     let end = EncounterEnd {
         encounter_id: 1144,
@@ -426,6 +443,8 @@ fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
     }
     send!(EncounterStart, start);
     send!(EncounterEngageUnit, engage);
+    send!(EncounterTimelineEvent, timers);
+    send!(EncounterTimelineEvent, warning);
     send!(EncounterDisengageUnit, disengage);
     send!(EncounterEnd, end);
     send!(EncounterStart, start);
@@ -436,7 +455,7 @@ fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
         thread::sleep(Duration::from_millis(5));
     }
     resume.send(()).unwrap();
-    let mut messages = await_messages(&mut server, &mut host, 6).into_iter();
+    let mut messages = await_messages(&mut server, &mut host, 8).into_iter();
     macro_rules! next {
         ($ty:ty, $value:expr) => {
             assert_eq!(
@@ -447,6 +466,8 @@ fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
     }
     next!(EncounterStart, start.clone());
     next!(EncounterEngageUnit, engage.clone());
+    next!(EncounterTimelineEvent, timers);
+    next!(EncounterTimelineEvent, warning);
     next!(EncounterDisengageUnit, disengage);
     next!(EncounterEnd, end);
     next!(EncounterStart, start);

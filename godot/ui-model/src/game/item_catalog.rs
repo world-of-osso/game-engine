@@ -186,7 +186,7 @@ pub fn item_subclass_name_for(
 pub fn warm_item_catalog() {
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
-        std::thread::Builder::new()
+        let worker = std::thread::Builder::new()
             .name("item-catalog".into())
             .spawn(|| {
                 CATALOG.get_or_init(|| {
@@ -206,6 +206,7 @@ pub fn warm_item_catalog() {
                 });
             })
             .expect("spawn the item catalog loader");
+        game_engine_core::worker_shutdown::track(worker);
     });
 }
 

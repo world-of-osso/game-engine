@@ -61,6 +61,7 @@ fn model() -> GameMenuViewModel {
             hud: HudOptionsView {
                 show_minimap: true,
                 show_action_bars: true,
+                cooldown_assist: Default::default(),
                 extra_action_bars: Default::default(),
                 show_nameplates: true,
                 nameplate_distance: 40.0,
@@ -72,6 +73,10 @@ fn model() -> GameMenuViewModel {
                 soft_target_interact: false,
                 interact_key_icons:
                     game_engine_ui_model::soft_target_data::InteractKeyIcons::Default,
+                encounter_timeline: true,
+                encounter_bars: true,
+                encounter_warnings: true,
+                encounter_sounds: true,
                 show_fps_overlay: true,
                 chat_font_size: 10.0,
                 status_text_display: Default::default(),

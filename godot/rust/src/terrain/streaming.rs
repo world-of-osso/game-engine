@@ -99,6 +99,14 @@ pub(crate) struct StreamedTerrain {
     map_error: Option<String>,
 }
 
+impl Drop for StreamedTerrain {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            game_engine_core::worker_shutdown::track(worker);
+        }
+    }
+}
+
 impl StreamedTerrain {
     /// The tiles the current map request started from: the player's tile first needs them.
     pub fn initial_tiles(&self) -> &BTreeSet<(u32, u32)> {

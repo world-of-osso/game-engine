@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Linux x86_64 Godot client bundle and publishes it to the public R2 bucket
+# Builds the combined Linux/Windows x86_64 Godot player bundle and publishes it to R2
 # behind https://files.worldofosso.com, where game-launcher reads it.
 # See docs/deploy.md for the bundle layout and the game-launcher contract.
 #
@@ -11,20 +11,12 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
 PLATFORM=linux-x86_64
-BUNDLE=${BUNDLE_DIR:-$ROOT/target/deploy/$PLATFORM}
+BUNDLE=${BUNDLE_DIR:-$ROOT/target/deploy/player}
 FILE_SERVER_DIR=${FILE_SERVER_DIR:-$ROOT/../file-server}
 # rclone remote with write access to the bucket (docs/deploy.md).
 DESTINATION=${DESTINATION:-woo-r2:worldofosso-client}
 
-# Runtime data: what the client reads from data/ that a player's WoW install cannot supply.
-# An allowlist, because data/ also holds auth tokens and gigabytes of diagnostics.
-DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 gametables glues item-models
-    los minimap models music reference sounds terrain textures ui)
-# Not tactkeys/: the third-party TACT key list stays off the public bucket; the resolver
-# treats it as optional and falls back to the install's own keyring (casc_resolver.rs).
-DATA_FILE_GLOBS=('*.csv' '*.ron' local-listfile-cache.sqlite)
-# Inside those: negative-extraction markers, lock files, superseded resolver/NPC caches.
-DATA_EXCLUDES=('*.missing' '*.lock' cache/casc 'cache/pre-retail-*')
+# Runtime project/data allowlist is shared with Windows in scripts/player_bundle.py.
 
 dry_run=0
 case "${1:-}" in
@@ -51,15 +43,6 @@ pinned_godot() {
     echo "$GODOT_PINNED"
 }
 
-# project_files: tracked Godot project files, without the Rust crates, tests, and the dev
-# .gdextension that points into target/.
-project_files() {
-    local crates
-    crates=$(git -C "$ROOT" ls-files 'godot/*/Cargo.toml' | sed 's|Cargo.toml$||')
-    git -C "$ROOT" ls-files godot | grep -v -F "$crates" \
-        | grep -v -E '^godot/(tests/|Cargo\.|\.gitignore$|depot-test-assets\.txt$|game_engine\.gdextension)'
-}
-
 write_launcher() {
     cat > "$BUNDLE/game-engine-$PLATFORM" <<'EOF'
 #!/bin/sh
@@ -68,26 +51,10 @@ set -eu
 here=$(dirname "$(readlink -f "$0")")
 # game-launcher downloads files without their mode bits.
 chmod +x "$here/runtime/godot"
+export GAME_ENGINE_ASSET_MODE=extracted-only
 exec "$here/runtime/godot" --path "$here/godot" -- "$@"
 EOF
     chmod +x "$BUNDLE/game-engine-$PLATFORM"
-}
-
-write_extension_config() {
-    cat > "$BUNDLE/godot/game_engine.gdextension" <<'EOF'
-[configuration]
-entry_symbol = "gdext_rust_init"
-compatibility_minimum = "4.7"
-reloadable = false
-
-[libraries]
-linux.x86_64 = "res://../lib/libgame_engine_godot.so"
-EOF
-}
-
-copy_project() {
-    (cd "$ROOT" && project_files | xargs -d '\n' cp --parents -t "$BUNDLE")
-    write_extension_config
 }
 
 # import_project: run Godot's one-time import in the bundle so players never import.
@@ -104,36 +71,14 @@ import_project() {
     rm -rf "$home" "$BUNDLE/godot/.godot/editor"
 }
 
-# copy_data: -L because a worktree's data/ links into the canonical checkout's.
-copy_data() {
-    local entry pattern
-    mkdir -p "$BUNDLE/data"
-    for entry in "${DATA_DIRS[@]}"; do
-        cp -RLp --reflink=auto "$ROOT/data/$entry" "$BUNDLE/data/"
-    done
-    shopt -s nullglob
-    for pattern in "${DATA_FILE_GLOBS[@]}"; do
-        for entry in "$ROOT"/data/$pattern; do
-            cp -Lp --reflink=auto "$entry" "$BUNDLE/data/"
-        done
-    done
-    shopt -u nullglob
-    for pattern in "${DATA_EXCLUDES[@]}"; do
-        case "$pattern" in
-            */*) rm -rf "$BUNDLE"/data/$pattern ;;
-            *) find "$BUNDLE/data" -name "$pattern" -delete ;;
-        esac
-    done
-}
-
 assemble() {
     rm -rf "$BUNDLE"
     mkdir -p "$BUNDLE/runtime" "$BUNDLE/lib"
     write_launcher
     cp "$(pinned_godot)" "$BUNDLE/runtime/godot"
     install -m 644 "$ROOT/target/release/libgame_engine_godot.so" "$BUNDLE/lib/"
-    copy_project
-    copy_data
+    python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" \
+        --windows-artifacts "$ROOT/target/windows-release/artifacts"
     import_project
 }
 
@@ -170,10 +115,12 @@ publish() {
     run rclone sync "$BUNDLE/" "$DESTINATION" "${upload[@]}"
 }
 
-echo "=== Building native extension (release, Depot) ==="
+echo "=== Building Linux native extension (release, bookworm) ==="
 # DEPLOY_BUILD_WRAPPER (optional): a command prefix for the build only, e.g. a host build
 # lock, so uploads never hold it.
-${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release
+${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release --build-host local
+echo "=== Building Windows runtime, extension and entry (native desktop) ==="
+python3 "$ROOT/scripts/windows-release.py" --root "$ROOT" --phase build
 echo "=== Assembling $BUNDLE ==="
 assemble
 echo "Bundle: $(du -sh --apparent-size "$BUNDLE" | cut -f1), $(find "$BUNDLE" -type f | wc -l) files"

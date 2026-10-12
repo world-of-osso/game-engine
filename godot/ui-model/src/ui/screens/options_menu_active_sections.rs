@@ -148,6 +148,27 @@ pub fn action_bars_body(
 pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
     content_stack(
         [
+            toggle_row(
+                "encounter_timeline",
+                "Encounter Timeline",
+                hud.encounter_timeline,
+            ),
+            choice_row(
+                "encounter_view",
+                "Encounter View",
+                &[(1, "Timeline"), (2, "Bars")],
+                if hud.encounter_bars { 2 } else { 1 },
+            ),
+            toggle_row(
+                "encounter_warnings",
+                "Encounter Warnings",
+                hud.encounter_warnings,
+            ),
+            toggle_row(
+                "encounter_sounds",
+                "Encounter Warning Sounds",
+                hud.encounter_sounds,
+            ),
             status_text_row(hud.status_text_display),
             slider_row(
                 "chat_font_size",
@@ -359,6 +380,28 @@ pub fn hud_body(hud: &HudOptionsView, layout: &LayoutOptionsView) -> OptionsPage
             layout_section::layout_settings_rows(layout),
             toggle_row("show_minimap", "Show Minimap", hud.show_minimap),
             toggle_row("show_action_bars", "Show Action Bars", hud.show_action_bars),
+            toggle_row(
+                "cooldown_viewer_enabled",
+                "Enable Cooldown Manager",
+                hud.cooldown_assist.viewer_enabled,
+            ),
+            toggle_row(
+                "assisted_highlight",
+                "Assisted Highlight",
+                hud.cooldown_assist.highlight_action_bar,
+            ),
+            toggle_row(
+                "cooldown_assisted_highlight",
+                "Highlight Cooldown Icons (World of Osso)",
+                hud.cooldown_assist.highlight_viewer,
+            ),
+            options_menu_sections::action_button_row(
+                "cooldown_settings",
+                "Cooldown Manager Settings",
+                "Choose and reorder specialization spells",
+                "Open",
+                "cooldown_settings",
+            ),
             toggle_row("show_nameplates", "Show Nameplates", hud.show_nameplates),
             slider_row(
                 "nameplate_distance",

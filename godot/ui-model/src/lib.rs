@@ -40,16 +40,23 @@ pub mod ui {
 }
 
 // In-world chat frame (docs/specs/chat-frame.md).
+pub mod adventure_guide;
 pub mod battleground;
 pub mod challenge;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
+pub mod chat_draft;
 #[path = "ui/chat_frame.rs"]
 pub mod chat_frame;
 #[path = "ui/screens/chat_frame_component.rs"]
 pub mod chat_frame_component;
 pub mod collections_component;
+pub mod cooldown_assist;
+pub mod cooldown_settings_component;
+pub mod cooldown_viewer_component;
 pub mod countdown_component;
+pub mod encounter_timeline;
+pub mod encounter_timeline_component;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;
@@ -61,6 +68,7 @@ mod housing_tests;
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod mythic_mentor;
 pub mod pet_journal;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]

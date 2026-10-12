@@ -1,11 +1,13 @@
 //! Bevy-free parsers over authored WoW asset bytes.
 pub mod adt;
+pub mod adventure_guide;
 pub mod animation_replacements;
 #[path = "area_zone_data.rs"]
 pub mod area_zone_data;
 pub mod asset;
 pub mod asset_loader;
 pub mod asset_product;
+pub mod assisted_combat;
 pub mod blp;
 #[path = "camera_control_data.rs"]
 pub mod camera_control_data;
@@ -37,6 +39,8 @@ pub mod client_options_data;
 mod client_options_data_tests;
 #[path = "game/equipment/component_file_data.rs"]
 mod component_file_data;
+pub mod cooldown_assist;
+pub mod cooldown_conditions;
 #[path = "scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "game/creatures/creature_display_cache.rs"]
@@ -126,6 +130,7 @@ pub mod vehicle_seat;
 pub mod wmo_surface_data;
 #[cfg(test)]
 mod wmo_surface_data_tests;
+pub mod worker_shutdown;
 pub mod world_time;
 pub use asset::m2_batch_data;
 #[path = "cache_source_mtime.rs"]
