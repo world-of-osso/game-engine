@@ -4,10 +4,8 @@
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
+- [Native player housing](systems/housing.md) — HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
 - [Cooking focus and replicated-object fire](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12) — real both-skin journal/recipe/emitter proof; linked-trap and per-variant pixel boundaries explicit.
-
-- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin catalog/acquisition, basic/expert staged keyboard and unsnapped mouse transforms, visitor/observer proof and sourced schema migration; charter/default grants/outdoor bounds remain explicit source gaps.
-- [Native player housing](systems/housing.md) — source HouseSettings modes/server-owned relationships/save-relog denial, friend/sale Finder, bulletin roster, both-skin catalog3D/acquisition, basic/expert transforms and visitor/observer proof; starter assembly/outdoor bounds/charter and WMO AO remain gaps.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Dice scripts and received item labels](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12) — source roll count/audience, native raw-markup RED and plain/coloured unsplit labels; both-skin actual-use chat proof.
 

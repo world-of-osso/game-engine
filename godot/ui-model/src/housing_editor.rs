@@ -306,6 +306,7 @@ impl EditorInteraction {
             let transform = self.placement_transform(position)?;
             self.placing = None;
             return Ok(HousingCommand::PlaceDecor {
+                variant_id: None,
                 house_id,
                 decor_id,
                 transform,
