@@ -186,7 +186,7 @@ fn housing_joins_authored_collection_sources_without_inventing_vendor_names() {
     // Display order differs from record order: joins must follow decor identity.
     db.execute(
         "UPDATE housing_catalog_record SET fields_json=? WHERE table_name='HouseDecor' AND record_id=80",
-        [json!({"ID":"80", "Name_lang":"Ornate Stonework Fireplace", "ItemID":"235994", "ModelType":"1", "ModelFileDataID":"6033663", "ThumbnailFileDataID":"7415905", "StartingQuantity":"1", "OrderIndex":"3"}).to_string()],
+        [json!({"ID":"80", "Name_lang":"Ornate Stonework Fireplace", "ItemID":"235994", "ModelType":"1", "ModelFileDataID":"6033663", "ThumbnailFileDataID":"7415905", "StartingQuantity":"1", "OrderIndex":"3", "InitialRotation_0":"0.0", "InitialRotation_1":"0.0", "InitialRotation_2":"0.0", "InitialScale":"1.0"}).to_string()],
     )
     .unwrap();
     let catalog = load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
