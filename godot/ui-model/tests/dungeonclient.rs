@@ -1007,7 +1007,7 @@ fn dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable() {
     let mut window = AchievementWindow::default();
     window.action("micro:AchievementMicroButton");
     let mut child = category();
-    child.parent_id = 20000;
+    child.parent_id = 168;
     assert_eq!(
         window.apply(AchievementCatalogPage::Categories {
             categories: vec![child],
@@ -1017,9 +1017,9 @@ fn dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable() {
     );
     window.apply(AchievementCatalogPage::Categories {
         categories: vec![AchievementCategoryEntry {
-            category_id: 20000,
+            category_id: 168,
             parent_id: -1,
-            order_index: 0,
+            order_index: 7,
             name: "Dungeons & Raids".into(),
         }],
         next_id: None,
@@ -1030,7 +1030,7 @@ fn dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable() {
             .iter()
             .map(|(row, depth)| (row.category_id, *depth))
             .collect::<Vec<_>>(),
-        vec![(20000, 0)]
+        vec![(168, 0)]
     );
     window.action("achievement:category:14808");
     let entries = (625..=632)
