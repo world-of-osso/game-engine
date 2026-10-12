@@ -17,7 +17,9 @@ fn cooldown_assist_recorded_facts_preserve_resources_cost_errors_and_selection()
     facts.player_auras.insert(137027);
     facts.target_auras.insert(197277);
     facts.ready.insert(35395, Ok(true));
-    facts.affordable.insert(35395, Err("cost not received".into()));
+    facts
+        .affordable
+        .insert(35395, Err("cost not received".into()));
     facts.in_range.insert(35395, Ok(true));
     let encoded = serde_json::to_value(&facts).unwrap();
     let decoded: AssistedFacts = serde_json::from_value(encoded.clone()).unwrap();
