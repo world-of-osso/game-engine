@@ -321,6 +321,7 @@ impl NetworkBridge {
             .receive::<protocol::AppearanceCollectionUpdate>()
             .receive::<protocol::TransmogState>()
             .receive::<protocol::TransmogFailed>()
+            .receive::<protocol::TransmogOutfitFailed>()
             .receive::<protocol::MountJournalUpdate>()
             .receive::<protocol::ToyCollectionUpdate>()
             .receive::<protocol::ToyResult>()

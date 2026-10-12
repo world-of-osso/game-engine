@@ -1,4 +1,5 @@
 import importlib.util
+import shutil
 import tempfile
 import subprocess
 import unittest
@@ -37,6 +38,25 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertEqual({str(p.relative_to(target / 'data')) for p in (target / 'data').rglob('*') if p.is_file()}, expected)
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
+
+    def test_linux_data_shares_storage_with_source_through_symlinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            (data / 'textures/12.blp').write_text('direct')
+            canonical = root / 'canonical.blp'
+            canonical.write_text('linked')
+            (data / 'textures/13.blp').symlink_to(canonical)
+            target = root / 'player'
+            bundle.copy_data(root, target)
+            for name, source in (('textures/12.blp', data / 'textures/12.blp'), ('textures/13.blp', canonical)):
+                shipped = target / 'data' / name
+                self.assertFalse(shipped.is_symlink())
+                self.assertEqual(shipped.stat().st_ino, source.stat().st_ino)
+            shutil.rmtree(target)
+            self.assertEqual(canonical.read_text(), 'linked')
 
     def test_project_keeps_resources_but_excludes_crates_and_tests(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -147,6 +147,18 @@ Missing declarations/files fail explicitly rather than leaving shader-white unif
 The 2026-10-06 export contains 141,252 rows; 129 records remain encrypted/unavailable.
 See [Everforged shoulder diagnosis](wiki/investigations/npc-stance-gear.md#everforged-shoulder-materials-2026-10-06).
 
+## Transmog catalogue (Retail12.1.0.69933)
+
+`export_db2_csv.py` accepts the exact local layouts for TransmogSet (1376213),
+TransmogSetItem (1376212), TransmogIllusion (3580450), TransmogOutfitEntry
+(7320164), TransmogOutfitSlotInfo (7300046), and TransmogOutfitSlotOption
+(7299793). Extract locally, then export each table by name. Relationship IDs and
+multi-section localized strings are decoded by the maintained exporter; unknown
+TACT sections are counted, never replaced with invented rows.
+
+`TRANSMOG_DB2_DIR=<extracted-directory> python3 scripts/tests/test_transmog_db2.py`
+checks real set13 membership70594, OutfitEntry2 and illusion3.
+
 ## Related Notes
 
 - `docs/casc-db2-keys.md` — difference between WoWDBDefs schema metadata and TACT key sources for encrypted DB2 extraction
