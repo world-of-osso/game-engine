@@ -574,17 +574,19 @@ fn slot_button(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Elem
         ));
     }
     children.extend(slot_border(book, slot, state));
+    let (highlight, _) = slot_border_art(book, slot, state);
     let disabled = book.busy() || state.is_none();
     let action = format!("transmog:slot:{}", slot.inv_slot_id());
     rsx! { button { name: {DynName(name)}, width: 59.0, height: 59.0, left: x, top: y,
-    pos_type: "absolute", button_default_skin: false, disabled, onclick: {action.as_str()}, {children} } }
+    pos_type: "absolute", button_default_skin: false, disabled, button_atlas_highlight: highlight,
+    onclick: {action.as_str()}, {children} } }
 }
 
-fn slot_border(
+fn slot_border_art(
     book: &TransmogBook,
     slot: EquipmentSlot,
     state: Option<&shared::protocol::TransmogSlot>,
-) -> Element {
+) -> (&'static str, f32) {
     let pending = book.pending.contains_key(&slot);
     let border = if state.is_none() {
         "transmog-gearslot-disabled"
@@ -595,7 +597,15 @@ fn slot_border(
     } else {
         "transmog-gearslot-default"
     };
-    let size = if pending { 76.0 } else { 59.0 };
+    (border, if pending { 76.0 } else { 59.0 })
+}
+
+fn slot_border(
+    book: &TransmogBook,
+    slot: EquipmentSlot,
+    state: Option<&shared::protocol::TransmogSlot>,
+) -> Element {
+    let (border, size) = slot_border_art(book, slot, state);
     let inset = (59.0 - size) * 0.5;
     let name = format!("TransmogSlot{}", slot.inv_slot_id());
     let mut out = atlas(format!("{name}Border"), border, (inset, inset, size, size));

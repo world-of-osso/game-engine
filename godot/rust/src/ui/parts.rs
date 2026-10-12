@@ -435,7 +435,9 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     // Blizzard_TransmogTemplates.xml: model-card BorderHighlight uses ADD;
     // its black centre must not cover the separately composited 3D preview.
     part.additive = matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
-        "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"));
+        "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
+        | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
+        | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"));
     parts.push(part);
 }
 

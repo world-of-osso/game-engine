@@ -656,6 +656,21 @@ pub(super) fn name_popup(book: &TransmogBook) -> Element {
 /// Native-only button data the RSX attributes do not cover.
 pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_paging_art(registry);
+    // TransmogAppearanceSlotMixin:676–677 uses the current gear border as ADD highlight.
+    if let Some(state) = &view.book.state {
+        for slot in &state.slots {
+            let name = format!("TransmogSlot{}", slot.slot.inv_slot_id());
+            let (_, size) = slot_border_art(&view.book, slot.slot, Some(slot));
+            let id = registry
+                .get_by_name(&name)
+                .expect("registered transmog slot");
+            if let Some(ui_toolkit::frame::WidgetData::Button(button)) =
+                &mut registry.get_mut(id).expect("transmog slot").widget_data
+            {
+                button.highlight_size = Some([size, size]);
+            }
+        }
+    }
     let (names, size): (Vec<String>, [f32; 2]) = match view.book.tab {
         WardrobeTab::Items => (
             view.book
