@@ -381,7 +381,7 @@ func check_custom_sets() -> bool:
 		if not before.has(key):
 			id = key
 	var card := "TransmogCustomSet%d" % id
-	if not await wait_for(func(_s): return control(card) != null and preview_model(card + "ModelScene") != null, "custom set card", 60000):
+	if not await show_custom_set(id):
 		return false
 	if not await wait_card_models("TransmogCustomSet*ModelScene"):
 		return false
@@ -404,6 +404,8 @@ func check_custom_sets() -> bool:
 	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == 0 and transmog().pending == 1, "equipped appearance staged"):
 		return false
 	await click_control(control("TransmogCustomSetsTab"), MOUSE_BUTTON_LEFT)
+	if not await show_custom_set(id):
+		return false
 	await click_control(control(card), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == source and transmog().pending == 0 and transmog().money == money, "Custom Set loaded without applying or charging"):
 		return false
@@ -412,6 +414,23 @@ func check_custom_sets() -> bool:
 	await save_shot("15-custom-set-loaded.png")
 	print("TRANSMOG_CUSTOM_SET_LOADED id=", id)
 	return true
+
+## RefreshCollectionEntries retains the current page and sorts presets by name.
+## An account with more than nine presets requires real Next Page input, not a reset.
+func show_custom_set(id: int) -> bool:
+	var card := "TransmogCustomSet%d" % id
+	var pages := ceili(transmog().custom_sets.size() / 9.0)
+	for page in pages:
+		if control(card) != null:
+			print("TRANSMOG_CUSTOM_SET_PAGE id=", id, " page=", page + 1)
+			return await wait_for(func(_s): return preview_model(card + "ModelScene") != null, "custom set card", 60000)
+		var next := control("TransmogNextPage") as BaseButton
+		if next == null or next.disabled:
+			break
+		await click_control(next, MOUSE_BUTTON_LEFT)
+		await frames(5)
+	fail("Saved Custom Set %d absent from its %d pages" % [id, pages])
+	return false
 
 func transmog() -> Dictionary:
 	return client.transmog_state()
