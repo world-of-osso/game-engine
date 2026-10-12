@@ -119,6 +119,39 @@ fn default_skin_follows_hover_pushed_and_disabled_state() {
 }
 
 #[test]
+fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
+    for (state, suffix) in [
+        (ButtonState::Normal, ""),
+        (ButtonState::Pushed, "-pressed"),
+        (ButtonState::Disabled, "-disabled"),
+    ] {
+        let frame = button(ButtonData {
+            normal_texture: atlas("128-redbutton-left"),
+            state,
+            use_default_skin: false,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 200.0, 28.0);
+        assert_eq!(parts.len(), 3);
+        assert_eq!(
+            parts[0].source,
+            atlas(&format!("128-redbutton-left{suffix}"))
+        );
+        assert_eq!(
+            parts[1].source,
+            atlas(&format!("_128-redbutton-center{suffix}"))
+        );
+        assert_eq!(
+            parts[2].source,
+            atlas(&format!("128-redbutton-right{suffix}"))
+        );
+        assert_eq!(parts[0].rect[2], 114.0 * 28.0 / 128.0);
+        assert_eq!(parts[2].rect[2], 292.0 * 28.0 / 128.0);
+        assert_eq!(parts[2].rect[0] + parts[2].rect[2], 200.0);
+    }
+}
+
+#[test]
 fn authored_button_textures_replace_the_default_skin() {
     let data = ButtonData {
         normal_texture: atlas("128-redbutton-up"),
@@ -138,6 +171,32 @@ fn unskinned_button_without_textures_draws_nothing() {
         ..Default::default()
     };
     assert!(project_images(&button(data), 79.0, 79.0).is_empty());
+}
+
+#[test]
+fn transmog_hover_borders_add_light_without_covering_the_preview() {
+    for (atlas, size) in [
+        ("transmog-itemcard-default", [114.0, 146.0]),
+        ("transmog-setcard-default", [194.0, 234.0]),
+        ("transmog-setcard-incomplete", [194.0, 234.0]),
+        ("transmog-gearslot-default", [59.0, 59.0]),
+        ("transmog-gearslot-transmogrified", [59.0, 59.0]),
+        ("transmog-gearslot-pending", [76.0, 76.0]),
+        ("transmog-gearslot-default-small", [42.0, 42.0]),
+        ("transmog-gearslot-transmogrified-small", [42.0, 42.0]),
+    ] {
+        let frame = button(ButtonData {
+            use_default_skin: false,
+            highlight_texture: Some(TextureSource::Atlas(atlas.into())),
+            hovered: true,
+            highlight_size: Some(size),
+            ..Default::default()
+        });
+        let parts = project_images(&frame, size[0] - 14.0, size[1] - 14.0);
+        let hover = parts.last().expect("hover border");
+        assert!(hover.additive, "{atlas} hover must add light to the model");
+        assert_eq!(hover.rect, [-7.0, -7.0, size[0], size[1]]);
+    }
 }
 
 #[test]

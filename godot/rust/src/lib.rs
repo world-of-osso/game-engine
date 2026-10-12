@@ -1141,6 +1141,12 @@ impl GameClient {
         self.character_frame_snapshot()
     }
 
+    /// Read-only Transmogrifier book state for automation; requests come from frame input.
+    #[func]
+    fn transmog_state(&self) -> VarDictionary {
+        self.transmog_snapshot()
+    }
+
     #[func]
     fn auction_state(&self) -> VarDictionary {
         self.auction_snapshot()
@@ -2259,8 +2265,11 @@ impl GameClient {
             }
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
-            AccountEvent::TransmogState(state) => self.receive_transmog_state(state),
+            AccountEvent::TransmogState(state) => self.receive_transmog_state(state)?,
             AccountEvent::TransmogFailed(failed) => self.receive_transmog_failure(failed)?,
+            AccountEvent::TransmogOutfitFailed(failed) => {
+                self.transmog.book.receive_outfit_failure(failed)
+            }
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
