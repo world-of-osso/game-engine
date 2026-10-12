@@ -523,6 +523,13 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                 button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
                 !can_edit
             );
+            let icon = registry
+                .get(registry.get_by_name("HouseEditorIcon1693").unwrap())
+                .unwrap();
+            assert!(
+                matches!(&icon.widget_data, Some(WidgetData::Texture(texture)) if texture.source == ui_toolkit::widgets::texture::TextureSource::FileDataId(7421877)),
+                "exported storage image must resolve the real thumbnail FDID"
+            );
             let search = registry
                 .get(
                     registry
