@@ -1,3 +1,7 @@
+## 2026-10-12 — Live arena object collision in native prediction
+
+[Native arenas](systems/arenas.md#authority-and-lifecycle): real Cage movement exposed camera-only replicated GO bodies absent from baked-ground prediction. Dedicated live-object floor/wall probes consume authored M2 collision and replicated collision state; actual6339134/6339702 hull regression reproduces the closed-platform fall. Private both-skin physical proof remains in progress.
+
 ## 2026-10-12 — Arena preparation object visibility
 
 [Native arenas](systems/arenas.md#preparation-and-detection-consumers): real Cage preparation reproduced32727/type4 incorrectly hiding game objects through unit-only reciprocal invisibility checks. Pinned TC explicitly excludes non-units; a source-channel/Interest fixture now covers that boundary. Dynamic native/final gates remain tracked in the handoff.

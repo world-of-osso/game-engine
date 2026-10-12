@@ -1,4 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Source Cage505683 live trapdoor hull/primary skin, already extracted from local CASC.
+models/6339134.m2
+models/6339702.skin
 # Real legacy MWMO/MODF name-index regression, already extracted from local CASC.
 terrain/952203.wdt
 # Retail cooldown categories and assisted rotation: local CASC exact-layout exports.
