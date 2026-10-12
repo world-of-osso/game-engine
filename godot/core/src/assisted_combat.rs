@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// SpellName/SpellMisc/SpellEffect of the local Retail built-in, not a new spell.
 pub const SINGLE_BUTTON_ASSISTANT: u32 = 1_229_376;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct AssistedFacts {
     pub known: BTreeSet<u32>,
     pub ready: BTreeMap<u32, Result<bool, String>>,

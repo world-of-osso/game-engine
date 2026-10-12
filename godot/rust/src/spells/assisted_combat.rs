@@ -14,8 +14,18 @@ use crate::GameClient;
 use crate::faction_reaction::Reaction;
 use crate::frame_error::report_once;
 
+/// Inputs and first eligible authored step from one native evaluation, for replay.
+#[derive(serde::Serialize)]
+pub(super) struct AssistedEvaluation {
+    specialization: u32,
+    target: u64,
+    facts: AssistedFacts,
+    selection: Result<Recommendation, String>,
+}
+
 impl GameClient {
     pub(super) fn update_assisted_combat(&mut self) {
+        self.spells.cooldowns.assisted_evaluation = None;
         if let Err(error) = self.spells.cooldowns.poll_data(&self.data_root) {
             report_once(&format!("Assisted Combat data: {error}"));
         }
@@ -93,17 +103,22 @@ impl GameClient {
         }
         let mut facts = self.read_assisted_facts(&needed, target)?;
         facts.target_hostile = Some(hostile);
-        data.catalog
-            .recommend(
-                spec,
-                |id| facts.known.contains(&id),
-                |id| is_spell_usable(id, &facts),
-                |rule| evaluate_rule(rule, &facts),
-            )
-            .map(|recommendation| match recommendation {
-                Recommendation::Spell(id) => Recommendation::Spell(self.effective_spell(id)),
-                other => other,
-            })
+        let selection = data.catalog.recommend(
+            spec,
+            |id| facts.known.contains(&id),
+            |id| is_spell_usable(id, &facts),
+            |rule| evaluate_rule(rule, &facts),
+        );
+        self.spells.cooldowns.assisted_evaluation = Some(AssistedEvaluation {
+            specialization: spec,
+            target,
+            facts,
+            selection: selection.clone(),
+        });
+        selection.map(|recommendation| match recommendation {
+            Recommendation::Spell(id) => Recommendation::Spell(self.effective_spell(id)),
+            other => other,
+        })
     }
 
     fn read_assisted_facts(
@@ -264,7 +279,22 @@ impl GameClient {
             spells.push(id);
         }
         state.set("rotation_spells", &spells);
+        self.write_assisted_evaluation(&mut state);
         state
+    }
+
+    fn write_assisted_evaluation(&self, state: &mut VarDictionary) {
+        let Some(evaluation) = &self.spells.cooldowns.assisted_evaluation else {
+            return;
+        };
+        match serde_json::to_string(evaluation) {
+            Ok(encoded) => state.set("evaluation_json", encoded.as_str()),
+            Err(error) => {
+                let message = format!("Assisted evaluation snapshot: {error}");
+                state.set("evaluation_error", message.as_str());
+                report_once(&message);
+            }
+        }
     }
 }
 
