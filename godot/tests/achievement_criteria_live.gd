@@ -191,7 +191,7 @@ func use_bag_item(id: int) -> void:
 		return
 	var bag := find_control("ContainerFrame0")
 	if bag == null or not bag.is_visible_in_tree():
-		await key(KEY_B)
+		await click_control(find_control("MainMenuBarBackpackButton"))
 	if not await wait_for(func(): return find_control("ContainerFrame0") != null and find_control("ContainerFrame0").is_visible_in_tree(), "backpack for item use"):
 		return
 	var item := bag_item(id)
