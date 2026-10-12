@@ -1,8 +1,10 @@
-//! Native Housing Dashboard lifecycle; static browsing never sends ownership edits.
+//! Native Housing Dashboard lifecycle and authoritative account storage; no default grants.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::housing::{DashboardTab, HousingDashboard, SEARCH_FIELD};
+use game_engine_ui_model::housing::{
+    DashboardTab, HousingAuthority, HousingDashboard, SEARCH_FIELD,
+};
 use game_engine_ui_model::housing_component::{HousingView, housing_screen};
 use godot::prelude::*;
 use std::sync::Arc;
@@ -11,6 +13,8 @@ use std::sync::Arc;
 pub(crate) struct HousingHud {
     pub model: Option<HousingDashboard>,
     pub ui: Option<Gd<RegistryUi>>,
+    pub authority: HousingAuthority,
+    next_request_id: u64,
 }
 
 impl GameClient {
@@ -24,6 +28,12 @@ impl GameClient {
             let catalog = HousingCatalog::load(&path)?;
             self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
         }
+        self.mount_housing_dashboard()?;
+        // Authored NeighborhoodMap1 (Founder's Point), not an ownership grant or entry.
+        self.request_housing(shared::protocol::HousingCommand::ListPlots { neighborhood_id: 1 })
+    }
+
+    fn mount_housing_dashboard(&mut self) -> Result<(), String> {
         let view = self.housing_view()?;
         self.cache_housing_textures(&view);
         let mut ui = RegistryUi::new_alloc();
@@ -36,6 +46,36 @@ impl GameClient {
             return Err(error);
         }
         self.housing.ui = Some(ui);
+        Ok(())
+    }
+
+    pub(super) fn receive_housing_reply(
+        &mut self,
+        reply: shared::protocol::HousingReply,
+    ) -> Result<(), String> {
+        let message = match self.housing.authority.receive(reply) {
+            Ok(()) => self.housing.authority.error.clone(),
+            Err(message) => Some(message),
+        };
+        if let Some(message) = message {
+            self.add_world_error(&message)?;
+        }
+        Ok(())
+    }
+
+    fn request_housing(&mut self, command: shared::protocol::HousingCommand) -> Result<(), String> {
+        let request_id = self
+            .housing
+            .next_request_id
+            .checked_add(1)
+            .ok_or("Housing request counter exhausted.")?;
+        self.account
+            .send_housing(shared::protocol::HousingRequest {
+                request_id,
+                command,
+            })
+            .map_err(|error| error.to_string())?;
+        self.housing.next_request_id = request_id;
         Ok(())
     }
 
@@ -74,6 +114,7 @@ impl GameClient {
             .collect();
         Ok(HousingView {
             model,
+            authority: self.housing.authority.clone(),
             viewport: [size.x / scale, size.y / scale],
             missing_thumbnails,
         })
@@ -88,6 +129,7 @@ impl GameClient {
     pub(super) fn update_housing(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_housing();
+            self.housing.authority.clear();
             return Ok(());
         }
         let Some(ui) = &mut self.housing.ui else {

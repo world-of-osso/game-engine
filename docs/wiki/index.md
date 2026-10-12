@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Native player housing](systems/housing.md) — qualified catalog, authoritative storage bridge and server plot/restart boundaries; first-house grants/editor/live collection remain open.
+
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
