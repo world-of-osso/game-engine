@@ -80,5 +80,8 @@ func place_cursor_scenery():
 	return clicked
 
 func capture(label: String) -> void:
-	client.set_camera_orbit(PI / 2.0, -0.45, 12.0)
+	frame_scenery_camera()
 	await super.capture("scaled-" + label)
+
+func frame_scenery_camera() -> void:
+	client.set_camera_orbit(PI / 2.0, -0.45, 12.0)
