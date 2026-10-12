@@ -883,13 +883,15 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
             .map(|summary| summary.points),
     ));
     content.extend(category_panel(ctx, window));
-    content.extend(filter_controls(window, show_summary));
     content.extend(browse_controls(window));
     if show_summary {
         content.extend(summary_panel(window));
     } else {
         content.extend(achievement_rows(ctx, window));
     }
+    // Godot Control input follows scene order, not CanvasItem z_index. Mount
+    // dropdown controls after the rows they overlap, matching their visual order.
+    content.extend(filter_controls(window, show_summary));
     rsx! { r#frame {
         name: {DynName(FRAME.into())}, width: 768.0, height: 500.0, strata: FrameStrata::Dialog,
         hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 0.0, top: 104.0,
@@ -1085,7 +1087,7 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
             let action = format!("achievement:filter:{action}");
             choices.extend(rsx! { button {
                 name, text, width:112.0, height:24.0, font_size:12.0,
-                onclick:action.as_str(), strata:FrameStrata::Tooltip,
+                onclick:action.as_str(), strata:FrameStrata::Dialog, mouse_enabled:true,
                 button_atlas_up:"defaultbutton-nineslice-up",
                 button_atlas_pressed:"defaultbutton-nineslice-pressed",
                 button_atlas_highlight:"defaultbutton-nineslice-highlight",
@@ -1094,7 +1096,8 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
         }
         content.extend(
             rsx! {r#frame {name:"AchievementFilterMenu",width:112.0,height:72.0,
-                strata:FrameStrata::Tooltip,pos_type:"absolute",left:228.0,top:51.0, {choices}
+                strata:FrameStrata::Dialog,frame_level:30.0,mouse_enabled:true,
+            pos_type:"absolute",left:228.0,top:51.0, {choices}
             }},
         );
     }
