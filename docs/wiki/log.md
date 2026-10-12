@@ -1,3 +1,7 @@
+## 2026-10-11 — World-quest polygon/native continuation
+
+[World quests](investigations/world-quest-availability.md): implement authenticated POI polygons, approved duration defaults, window-scoped completion, pinned XP/numeric rewards, availability transport and both-skin pins/tooltips/tracker/timer/toasts. Private5861 real86941 completes through administrator-supplied authentic objective items, consumes6items and pays11765 XP in Modern/Forever; replay suppressed, six inspected PNGs published. Native/WoW coordinate conversion and signed sort category startup failures repaired. Whole coverage remains open:106 authentic objective shapes excluded by existing representation; natural collection/living actors not certified. Private actors expose existing terrain/death limitation. All owned processes stopped; no canonical world.db/5000 operations.
+
 ## 2026-10-11 — World-quest deterministic foundations
 
 [World quests](../specs/world-quests.md): implement user-authorized realm rotation with four authentic604800s durations, private-copy importer and persisted task/watch expiry. Preserve full raw TDB rewards; exclude unknown durations rather than guess. Additional local task/condition extraction identifies remaining eligibility joins. Repair inline AreaPOI relationship duplication (RED→GREEN); decode3,909 POIs/1,070 states/154 buffs with zero matching task/stage/boss-name joins. Task-area acceptance and both-skin native/live completion remain open. No canonical data writes, UDP5000 operations or PNG acceptance claim.
