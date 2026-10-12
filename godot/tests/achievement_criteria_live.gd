@@ -44,6 +44,10 @@ func run_test() -> void:
 	# Initial authoritative criteria snapshots precede catalog replies on the ordered channel.
 	if not await wait_for(func(): return label("AchievementSummaryTotalText") != "" and find_control("AchievementCategory92") != null, "initial achievement authority and categories", 150000):
 		return
+	if not await show_achievement(2141, "Stable Keeper", false):
+		return
+	var initial_mounts := mount_counter()
+	print("CRITERIA_MOUNT_BASELINE ", initial_mounts)
 	if not await show_achievement(2076, "Armored Brown Bear", false):
 		return
 	await capture("before-bear")
@@ -66,8 +70,8 @@ func run_test() -> void:
 	await capture("earned-bear")
 	if not await show_achievement(2141, "Stable Keeper", false):
 		return
-	if not str(criteria_labels(2141)).contains("1/50"):
-		fail("Known mount criteria did not reach1/50: " + str(criteria_labels(2141)))
+	if mount_counter() != initial_mounts + 1:
+		fail("Known mount criteria did not increase by one: " + str(criteria_labels(2141)))
 		return
 	await capture("mount-progress-one")
 	await close_achievement()
@@ -81,8 +85,8 @@ func run_test() -> void:
 	await capture("earned-mammoth")
 	if not await show_achievement(2141, "Stable Keeper", false):
 		return
-	if not str(criteria_labels(2141)).contains("2/50"):
-		fail("Known mount criteria did not reach2/50: " + str(criteria_labels(2141)))
+	if mount_counter() != initial_mounts + 2:
+		fail("Known mount criteria did not increase by two: " + str(criteria_labels(2141)))
 		return
 	await capture("mount-progress-two")
 	await close_achievement()
@@ -105,7 +109,7 @@ func run_test() -> void:
 		return
 	await click_control(find_control("Achievement2084Row"))
 	await capture("comparison-ring")
-	print("CRITERIA_LIVE_PASS ", skin, " earned2084/2076/2078; actual mount count1->2; online peer isolated")
+	print("CRITERIA_LIVE_PASS ", skin, " earned2084/2076/2078; actual mount count ", initial_mounts, " -> ", initial_mounts + 2, "; online peer isolated")
 	client.free()
 	quit(0)
 
@@ -124,6 +128,13 @@ func show_achievement(id: int, title: String, earned: bool) -> bool:
 		return false
 	print("CRITERIA_PAGE ", id, " ", label(prefix + "Date"), " ", criteria_labels(id))
 	return true
+
+func mount_counter() -> int:
+	var labels := criteria_labels(2141)
+	if labels.size() != 1 or not str(labels[0]).contains(" — "):
+		fail("Stable Keeper lacks its authoritative mount count: " + str(labels))
+		return -1
+	return str(labels[0]).get_slice(" — ", 1).get_slice("/", 0).to_int()
 
 func criteria_labels(id: int) -> Array:
 	var result := []
