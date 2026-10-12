@@ -37,6 +37,43 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+const CRAFTING_TRIANGLES := preload("res://tests/posed_triangle_points.gd")
+
+func click_pickable(matches: Callable, id_meta: String) -> bool:
+	for turn in range(48):
+		var camera := root.get_camera_3d()
+		if camera != null:
+			var nodes := nearest_first(client.find_children("*", "Node3D", true, false).filter(matches))
+			for node in nodes:
+				var area := node.find_child("UnitPick", true, false)
+				if area == null:
+					continue
+				var id: int = area.get_meta(id_meta) if area.has_meta(id_meta) else node.get_meta(id_meta)
+				var point := pick_mesh_point(node, camera, id)
+				if point != Vector2.INF:
+					await click_at(point, MOUSE_BUTTON_RIGHT)
+					return true
+		push_key(KEY_LEFT, 0, true)
+		await create_timer(0.2).timeout
+		push_key(KEY_LEFT, 0, false)
+		await create_timer(0.04).timeout
+	await capture("fail-pick")
+	return fail("No visible source model triangle is pickable")
+
+func pick_mesh_point(node: Node3D, camera: Camera3D, id: int) -> Vector2:
+	for candidate in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh := candidate as MeshInstance3D
+		if mesh.mesh == null or not mesh.is_visible_in_tree():
+			continue
+		for surface in range(mesh.mesh.get_surface_count()):
+			var centers := CRAFTING_TRIANGLES.centroids(mesh, surface)
+			centers.sort_custom(func(a, b): return a.y < b.y)
+			for center in centers:
+				var point := camera.unproject_position(center)
+				if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
+					return point
+	return Vector2.INF
+
 func open_recipe_book() -> bool:
 	await tap(KEY_K)
 	var recipe := "ProfessionRecipe" + OS.get_environment("CRAFTING_OPEN_RECIPE")
