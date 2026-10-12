@@ -18,7 +18,7 @@ Further ranks: authentic vendor/quest/achievement/crafting acquisition; visiting
 
 Opening the dashboard requests server state without entering a neighborhood or granting property. Registered HousingReply traffic must reach the native account dispatcher and preserve ownership, stored quantities and refusals. Before a matching-build authoritative snapshot, quantity is unknown; after one, an absent stored entry is a known zero. Unavailable/wrong-build replies cannot become fabricated empty ownership. Leaving InWorld clears account housing state.
 
-Catalog preview and status show confirmed storage counts in both skins. Normal bag use of vendor252312's item245259 collects decor1693 only through the verified spell1238340/effect324 source chain. Server consumption, quantity conservation and persisted storage—not client catalog membership—decide the displayed count. House placement/editor/visitor and complete acquisition parity remain separate acceptance gates.
+HouseInfo distinguishes unconfirmed ownership from a confirmed account-owned plot count without claiming a granted exterior/interior. Catalog preview and status show confirmed storage counts in both skins. Normal bag use of vendor252312's item245259 collects decor1693 only through the verified spell1238340/effect324 source chain. Server consumption, quantity conservation and persisted storage—not client catalog membership—decide the displayed count. House placement/editor/visitor and complete acquisition parity remain separate acceptance gates.
 
 Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG captures. Static importer/loader tests do not prove gameplay or UI.
 

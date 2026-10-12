@@ -37,10 +37,7 @@ pub fn housing_screen(context: &SharedContext) -> Element {
     );
     let body = match view.model.tab {
         DashboardTab::Catalog => catalog(view),
-        DashboardTab::HouseInfo => unavailable(
-            "HouseInfoContent",
-            "House ownership service is not available. Catalog browsing does not grant a house.",
-        ),
+        DashboardTab::HouseInfo => house_info(view),
         DashboardTab::Collection => unavailable(
             "CollectionContent",
             "Blueprint collection is not available. Catalog entries are not owned decor.",
@@ -58,6 +55,17 @@ pub fn housing_screen(context: &SharedContext) -> Element {
             }
         }
     }
+}
+
+fn house_info(view: &HousingView) -> Element {
+    let message = match &view.authority.state {
+        Some(state) => format!(
+            "{} account-owned plot(s). No verified first-house exterior/interior grant source is available.",
+            state.owned_houses.len()
+        ),
+        None => "House ownership has not been confirmed by the server. Catalog browsing does not grant a house.".into(),
+    };
+    unavailable("HouseInfoContent", &message)
 }
 
 fn unavailable(name: &str, message: &str) -> Element {
