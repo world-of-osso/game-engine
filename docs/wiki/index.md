@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Scaled scenery natural expiry](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12) — both-skin actual Banner60s/Preyhunter120s expiry, preserving authored display/root scale and no combat pet ownership.
+
 - [Orb costume animation](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12) — displayed-model animation routing, both-skin actual use/run/native reattachment;20 server variants, private authenticated assets and remaining per-toy boundary.
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
