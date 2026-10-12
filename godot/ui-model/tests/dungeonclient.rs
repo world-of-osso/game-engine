@@ -39,7 +39,7 @@ fn achievements_comparison_correlates_target_and_preserves_own_progress_both_ski
         let reply = |target| AchievementCatalogPage::Comparison {
             target_entity: target,
             target_name: "Otherplayer".into(),
-            page: Some(Box::new(AchievementCatalogPage::Category {
+            page: Some(Box::new(AchievementComparisonPage::Category {
                 category_id: 14808,
                 achievements: vec![other.clone()],
                 next_id: None,

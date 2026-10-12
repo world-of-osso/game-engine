@@ -465,7 +465,7 @@ impl AchievementWindow {
             .into_iter()
             .map(|query| QueryAchievementCatalog::Comparison {
                 target_entity: comparison.target_entity,
-                query: Box::new(query),
+                query: Box::new(query.try_into().expect("ordinary comparison query")),
             })
             .collect()
     }
@@ -632,7 +632,7 @@ impl AchievementWindow {
             .filter(|entry| !comparison.entries.contains_key(&entry.achievement_id))
             .map(|entry| QueryAchievementCatalog::Comparison {
                 target_entity: comparison.target_entity,
-                query: Box::new(QueryAchievementCatalog::Achievement {
+                query: Box::new(shared::protocol::AchievementComparisonQuery::Achievement {
                     achievement_id: entry.achievement_id,
                 }),
             })
@@ -643,7 +643,7 @@ impl AchievementWindow {
         &mut self,
         target: u64,
         name: String,
-        page: Option<Box<AchievementCatalogPage>>,
+        page: Option<Box<shared::protocol::AchievementComparisonPage>>,
         error: Option<String>,
     ) -> Vec<QueryAchievementCatalog> {
         let Some(comparison) = self
@@ -660,14 +660,15 @@ impl AchievementWindow {
         let Some(page) = page else {
             return Vec::new();
         };
+        let page: AchievementCatalogPage = (*page).into();
         comparison_view::cache_page(comparison, &page);
         comparison
             .window
-            .apply(*page)
+            .apply(page)
             .into_iter()
             .map(|query| QueryAchievementCatalog::Comparison {
                 target_entity: target,
-                query: Box::new(query),
+                query: Box::new(query.try_into().expect("ordinary comparison continuation")),
             })
             .collect()
     }
@@ -888,7 +889,13 @@ fn reply_matches(request: &QueryAchievementCatalog, page: &AchievementCatalogPag
             },
         ) => {
             requested == target_entity
-                && (error.is_some() || page.as_ref().is_some_and(|page| reply_matches(query, page)))
+                && (error.is_some()
+                    || page.as_ref().is_some_and(|page| {
+                        reply_matches(
+                            &query.as_ref().clone().into(),
+                            &page.as_ref().clone().into(),
+                        )
+                    }))
         }
         (
             QueryAchievementCatalog::Statistics {
