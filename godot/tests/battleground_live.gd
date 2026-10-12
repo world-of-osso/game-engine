@@ -50,7 +50,10 @@ func live_run() -> void:
 					for unit in units.get_children():
 						if unit is Node3D and unit.has_meta("unit_name"):
 							var position: Vector3 = unit.global_position
-							result.units.append({"name": str(unit.get_meta("unit_name")), "path": str(unit.get_path()), "position": [position.x, position.y, position.z]})
+							var model := unit.find_child("NpcModel", true, false) as Node3D
+							var model_path := str(model.get_meta("m2_source_path", "")) if model != null else ""
+							var model_visible := model != null and model.is_visible_in_tree()
+							result.units.append({"name": str(unit.get_meta("unit_name")), "path": str(unit.get_path()), "position": [position.x, position.y, position.z], "model_path": model_path, "model_visible": model_visible})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
