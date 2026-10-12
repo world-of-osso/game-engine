@@ -14,6 +14,7 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 - [x] Retail12.1 item state art is `transmog-itemcard-transmogrified` (pending suffix for staged changes), with ordinary alpha and114×146 hover art. Historical Wardrobe additive overlays do not define the new frame.
 - [x] Retail12.1 frame natural size1618×883; left outfit region312×860, central character658×860, right wardrobe644×860. Slot buttons59×59 show authoritative applied/pending appearance icons without the generic project button skin.
 - [ ] Outfit list/save/load, Items/Sets/Custom Sets tabs, filters and illusion slots must match Retail12.1. Existing authoritative cost/Apply semantics remain unchanged; unavailable server-backed operations must not pretend to succeed.
+- [x] Sources uses authored `Enum.TransmogSource` categories1/2/3/4/7/8/10, check-all/uncheck-all and filtering before paging. Hidden pending choices retain their exact paid quotes. Sets completion filters distinguish Collected/Not Collected; PvE/PvP classification stays disabled until an authoritative or exhaustively verified flag mapping exists.
 - [x] Preview shows the equipped and pending main-hand weapon, independently of world equipment, with rotation and Sheathe/Draw controls. Weapon-cell camera fitting must show the blade profile rather than its end.
 - [ ] Saved outfits follow the working core apply path; illusion UI requires authentic local illusion data.
 

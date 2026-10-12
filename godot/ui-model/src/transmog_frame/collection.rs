@@ -126,21 +126,30 @@ fn search_box(book: &TransmogBook) -> Element {
     let mut out = rsx! { editbox { name: {DynName(SEARCH.into())}, width: 142.0, height: 19.0,
     left: 1345.0, top: 79.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
     text_insets: "22,22,0,0", max_letters: 40, text: {book.search.as_str()}, {art} } };
-    // WowStyle1FilterDropdownTemplate TOPRIGHT(-29,-24); source-type filters need the
-    // per-source TransmogSourceTypeEnum, which the catalogue does not carry.
-    out.extend(skinned_button(
-        "TransmogFilterButton",
-        if book.tab == WardrobeTab::Items {
-            "Sources"
-        } else {
-            "Filter"
-        },
-        "",
-        false,
-        (1497.0, 80.0, 90.0, 22.0),
-        &TERTIARY,
-        Vec::new(),
+    // WowStyle1FilterDropdownTemplate:135×18, TOPRIGHT(-29,-24).
+    let caption = if book.tab == WardrobeTab::Items {
+        "Sources"
+    } else {
+        "Filter"
+    };
+    let mut art = atlas(
+        "TransmogFilterButtonBackground".into(),
+        "common-dropdown-b-button",
+        (-4.0, -4.0, 143.0, 26.0),
+    );
+    art.extend(text(
+        "TransmogFilterButtonText",
+        caption,
+        (24.0, -1.0, 90.0, 20.0),
+        GOLD,
     ));
+    let hidden = book.illusion_selected;
+    out.extend(
+        rsx! { button { name: "TransmogFilterButton", width: 135.0, height: 18.0,
+        left: 1452.0, top: 80.0, pos_type: "absolute", hidden, button_default_skin: false,
+        onclick: "transmog:filters", {art} } },
+    );
+    out.extend(super::filters::menu(book));
     out
 }
 
@@ -418,11 +427,18 @@ fn illusion_card(book: &TransmogBook, illusion: &TransmogIllusion, index: usize)
 
 fn sets_frame(book: &TransmogBook) -> Element {
     let sets = book.page_sets();
-    if book.available_sets().is_empty() && book.search.trim().is_empty() {
+    if book
+        .state
+        .as_ref()
+        .is_none_or(|state| state.sets.is_empty())
+    {
         // RefreshHasAvailableSets hides Filter and SearchBox and shows TRANSMOG_SETS_NONE.
         return no_entries("TransmogSetsNone", "You don't have any Set appearances");
     }
     let mut out = search_box(book);
+    if sets.is_empty() {
+        out.extend(no_entries("TransmogSetsNoMatches", "No matches."));
+    }
     for (index, (set, progress)) in sets.into_iter().enumerate() {
         out.extend(set_card(book, set, progress, index));
     }

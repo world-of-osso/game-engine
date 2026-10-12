@@ -3,8 +3,10 @@ use shared::protocol::{
     ApplyTransmog, EquipmentSlot, SaveTransmogOutfit, TransmogChange, TransmogChoice,
     TransmogError, TransmogFailed, TransmogSlot, TransmogSource, TransmogState,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
+mod filters;
+pub use filters::SOURCE_FILTERS;
 mod wardrobe;
 pub use wardrobe::{
     ItemEntry, OutfitRow, SETS_PER_PAGE, SaveKind, SetProgress, TransmogSend, WardrobeTab,
@@ -25,6 +27,10 @@ pub struct TransmogBook {
     pub page: usize,
     pub search: String,
     pub tab: WardrobeTab,
+    pub filters_open: bool,
+    pub excluded_source_types: BTreeSet<u8>,
+    pub exclude_collected_sets: bool,
+    pub exclude_uncollected_sets: bool,
     /// The selected weapon's illusion location is active (TransmogIllusionSlotTemplate).
     pub illusion_selected: bool,
     /// Staged TransmogIllusion IDs; None clears the slot's saved illusion.
@@ -45,6 +51,10 @@ impl TransmogBook {
             .is_none_or(|previous| previous.npc != state.npc);
         if new_service {
             self.search.clear();
+            self.filters_open = false;
+            self.excluded_source_types.clear();
+            self.exclude_collected_sets = false;
+            self.exclude_uncollected_sets = false;
             self.tab = WardrobeTab::Items;
             self.illusion_selected = false;
             self.viewed_outfit = None;
@@ -252,6 +262,7 @@ impl TransmogBook {
         self.selected_slot()
             .into_iter()
             .flat_map(|slot| &slot.sources)
+            .filter(|source| !self.excluded_source_types.contains(&source.source_type))
             .filter(move |source| query.is_empty() || source.name.to_lowercase().contains(&query))
     }
 

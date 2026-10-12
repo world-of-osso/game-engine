@@ -202,6 +202,39 @@ fn book() -> TransmogBook {
 }
 
 #[test]
+fn transmog_source_and_completion_filters_preserve_pending_choices_and_quotes() {
+    let mut book = book();
+    book.select(EquipmentSlot::MainHand);
+    assert!(book.stage(TransmogChoice::Source(1181)));
+    book.excluded_source_types.insert(4); // Enum.TransmogSource.WorldDrop
+    assert_eq!(
+        book.page_sources()
+            .iter()
+            .map(|s| s.source_id)
+            .collect::<Vec<_>>(),
+        vec![821]
+    );
+    assert_eq!(book.pending_cost(), Some(1500));
+    assert_eq!(
+        book.pending[&EquipmentSlot::MainHand],
+        TransmogChoice::Source(1181)
+    );
+    book.excluded_source_types.clear();
+    assert_eq!(book.page_sources().len(), 2);
+    book.set_tab(WardrobeTab::Sets);
+    book.exclude_uncollected_sets = true;
+    assert!(book.available_sets().is_empty());
+    book.exclude_uncollected_sets = false;
+    assert_eq!(book.available_sets().len(), 1);
+    for piece in &mut book.state.as_mut().unwrap().sets[0].primary_appearances {
+        piece.collection = TransmogCollectionState::Collected;
+    }
+    book.exclude_collected_sets = true;
+    assert!(book.available_sets().is_empty());
+    assert_eq!(book.pending_cost(), Some(1500));
+}
+
+#[test]
 fn transmog_outfit_list_shows_awarded_entries_and_defaults_to_the_first() {
     let book = book();
     assert_eq!(

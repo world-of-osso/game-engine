@@ -65,6 +65,7 @@ impl TransmogBook {
     pub fn set_tab(&mut self, tab: WardrobeTab) {
         if tab != self.tab {
             self.tab = tab;
+            self.filters_open = false;
             self.page = 0;
             self.search.clear();
         }
@@ -461,6 +462,7 @@ impl TransmogBook {
             .flat_map(|state| &state.sets)
             .filter(|set| query.is_empty() || set.name.to_lowercase().contains(&query))
             .map(|set| (set, self.set_progress(set)))
+            .filter(|(_, progress)| self.matches_set_completion(*progress))
             .collect();
         sets.sort_by(|(left, lp), (right, rp)| {
             let left_done = lp.collected == lp.total;
