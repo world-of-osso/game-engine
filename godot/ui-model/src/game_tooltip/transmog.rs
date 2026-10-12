@@ -55,6 +55,18 @@ pub fn transmog_set_tooltip(set: &TransmogSet) -> GameTooltip {
     )
 }
 
+/// ItemModelBaseMixin:OnEnter for an illusion card (`GetIllusionStrings` name) and
+/// TransmogIllusionSlotMixin's tooltip, which shows WEAPON_ENCHANTMENT without an illusion.
+pub fn transmog_illusion_tooltip(name: Option<&str>) -> GameTooltip {
+    GameTooltip::new(
+        TooltipPresentation {
+            title: name.unwrap_or("Weapon Enchantment").to_owned(),
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +130,17 @@ mod tests {
                 ("Breastplate of Wrath", LIGHTYELLOW_FONT_COLOR),
             ]
         );
+    }
+
+    #[test]
+    fn transmog_illusion_tooltip_names_the_illusion_or_the_empty_slot() {
+        // TransmogIllusion3 -> SpellItemEnchantment1898 "Lifestealing".
+        let named = transmog_illusion_tooltip(Some("Lifestealing")).content;
+        assert_eq!(
+            (named.title.as_str(), named.lines.len()),
+            ("Lifestealing", 0)
+        );
+        let empty = transmog_illusion_tooltip(None).content;
+        assert_eq!(empty.title, "Weapon Enchantment");
     }
 }

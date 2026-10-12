@@ -201,6 +201,12 @@ func save_outfit(outfit: int, avoid: Array, pending_shot: String, saved_shot: St
 	await click_control(control(entry), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return transmog().illusions.get(MAIN_HAND, 0) == illusion and transmog().pending == 2, "pending illusion %d" % illusion):
 		return false
+	# ItemModelBaseMixin:OnEnter: illusion cards name the illusion in GameTooltip.
+	var illusion_name: String = ui.frame_text(entry + "Name")
+	await hover_point(control(entry).get_global_rect().get_center())
+	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == illusion_name, "illusion %s tooltip" % illusion_name, 10000):
+		print("TRANSMOG_TOOLTIP ", client.tooltip_state())
+		return false
 	if pending_shot != "":
 		await save_shot(pending_shot)
 	var before: int = transmog().money

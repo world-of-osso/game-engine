@@ -64,9 +64,10 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 25] = [
+        const SOURCES: [Source; 26] = [
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
+            GameClient::transmog_illusion_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -139,6 +140,48 @@ impl GameClient {
             .iter()
             .find(|set| set.set_id == set_id)?;
         let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_set_tooltip(set);
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
+    }
+
+    /// An illusion card or a weapon's illusion slot, `ANCHOR_RIGHT`.
+    fn transmog_illusion_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        enum Hovered {
+            Card(u32),
+            Slot(u8),
+        }
+        let ui = hit.ui.bind();
+        let (owner, hovered) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            match name.strip_prefix("TransmogIllusionEntry") {
+                Some(id) => id.parse().ok().map(Hovered::Card),
+                None => name
+                    .strip_prefix("TransmogIllusion")?
+                    .parse()
+                    .ok()
+                    .map(Hovered::Slot),
+            }
+        })?;
+        drop(ui);
+        let book = &self.transmog.book;
+        let name = match hovered {
+            Hovered::Card(id) => Some(book.illusion(id)?.name.clone()),
+            Hovered::Slot(inv) => {
+                let slot = shared::protocol::EquipmentSlot::ALL
+                    .into_iter()
+                    .find(|slot| slot.inv_slot_id() == inv)?;
+                book.effective_illusion(slot)
+                    .and_then(|id| book.illusion(id))
+                    .map(|illusion| illusion.name.clone())
+            }
+        };
+        let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_illusion_tooltip(
+            name.as_deref(),
+        );
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
