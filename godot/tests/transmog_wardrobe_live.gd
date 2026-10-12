@@ -313,10 +313,15 @@ func check_custom_sets() -> bool:
 		return false
 	if not await wait_card_models("TransmogCustomSet*ModelScene"):
 		return false
-	# The set's saved main-hand appearance is in the card model's hand.
-	var blade = preview_model(card + "ModelScene").find_child("EquipmentMainHand", true, false)
+	# The set's saved main-hand appearance is drawn in the card model's hand.
+	var blade = preview_model(card + "ModelScene").find_child("EquipmentMainHand", true, false) as Node3D
 	if blade == null or blade.get_parent().name != "Attachment1":
-		fail("Custom set card does not hold its main-hand appearance: %s" % [blade.get_parent().name if blade != null else "missing"])
+		fail("Custom set card does not hold its main-hand appearance")
+		return false
+	var blade_pixels := await card_node_pixels(card + "ModelScene", blade)
+	print("TRANSMOG_CUSTOM_SET_BLADE_PIXELS ", blade_pixels)
+	if blade_pixels < 20:
+		fail("Custom set card blade contributes only %d pixels" % blade_pixels)
 		return false
 	await save_shot("10-custom-set-saved.png")
 	print("TRANSMOG_CUSTOM_SET id=", id, " name=", name)
@@ -331,6 +336,24 @@ func wait_card_models(pattern: String) -> bool:
 		await frames(10)
 		return true
 	return false
+
+## Pixels of one card viewport that change when `node` is hidden, animation paused.
+func card_node_pixels(host_name: String, node: Node3D) -> int:
+	var viewport := control(host_name).find_child("CharacterModelViewport", true, false) as SubViewport
+	var animation = preview_model(host_name).find_child("M2Animation", true, false)
+	if animation != null:
+		animation.set_paused(true)
+		animation.set_process(false)
+	node.visible = false
+	await frames(2)
+	var hidden := viewport.get_texture().get_image()
+	node.visible = true
+	await frames(2)
+	var shown := viewport.get_texture().get_image()
+	if animation != null:
+		animation.set_process(true)
+		animation.set_paused(false)
+	return changed_pixels(hidden, shown)
 
 func card_models_ready(pattern: String) -> bool:
 	var hosts := ui.find_children(pattern, "", true, false)
