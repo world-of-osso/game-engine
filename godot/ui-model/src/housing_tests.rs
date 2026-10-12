@@ -307,3 +307,32 @@ fn housing_source_lines_name_vendors_only_through_the_creature_query() {
         ]
     );
 }
+
+#[test]
+fn housing_entry_tooltip_lists_categories_and_owned_breakdown() {
+    let model = dashboard();
+    let decor = &model.catalog.decor[0];
+    let lines = |authority: &HousingAuthority| {
+        crate::housing::decor_entry_tooltip(decor, &model.catalog, authority)
+            .content
+            .lines
+            .iter()
+            .map(|line| line.left_text.clone())
+            .collect::<Vec<_>>()
+    };
+    let tooltip = crate::housing::decor_entry_tooltip(decor, &model.catalog, &owning(&[], &[]));
+    assert_eq!(tooltip.content.title, "Ornate Stonework Fireplace");
+    // Never owned: no owned line, as Retail skips a zero total.
+    assert_eq!(lines(&owning(&[], &[])), vec!["Furnishings - Fireplaces"]);
+    assert_eq!(
+        lines(&owning(&[(80, 1)], &[(80, 2)])),
+        vec![
+            "Furnishings - Fireplaces",
+            "Total Owned: 3 (Placed: 2, Storage: 1)"
+        ]
+    );
+    assert_eq!(
+        lines(&HousingAuthority::default()),
+        vec!["Furnishings - Fireplaces"]
+    );
+}

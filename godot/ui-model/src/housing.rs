@@ -351,3 +351,54 @@ pub fn source_lines(decor: &Decor, names: &std::collections::HashMap<u32, String
         })
         .collect()
 }
+
+/// `NORMAL_FONT_COLOR`.
+const NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
+
+/// HousingCatalogDecorEntryMixin tooltip: the name (Common quality white), one
+/// `HOUSING_DECOR_CATEGORIES_TOOLTIP` line per subcategory (the subcategory alone when it
+/// already names its category) and, once anything is owned, `HOUSING_DECOR_OWNED_COUNT_FORMAT`.
+pub fn decor_entry_tooltip(
+    decor: &Decor,
+    catalog: &HousingCatalog,
+    authority: &HousingAuthority,
+) -> crate::game_tooltip::GameTooltip {
+    use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
+    let mut lines: Vec<TooltipLineState> = decor
+        .subcategories
+        .iter()
+        .filter_map(|id| catalog.subcategories.iter().find(|sub| sub.id == *id))
+        .filter_map(|subcategory| {
+            let category = catalog
+                .categories
+                .iter()
+                .find(|category| category.id == subcategory.category_id)?;
+            let text = if subcategory.name.contains(&category.name) {
+                subcategory.name.clone()
+            } else {
+                format!("{} - {}", category.name, subcategory.name)
+            };
+            Some(TooltipLineState::colored(text, TOOLTIP_WHITE))
+        })
+        .collect();
+    if let (Some(owned), Some(placed), Some(stored)) = (
+        authority.owned(decor.id),
+        authority.placed(decor.id),
+        authority.quantity(decor.id),
+    ) && owned != 0
+    {
+        lines.push(TooltipLineState::colored(
+            format!("Total Owned: {owned} (Placed: {placed}, Storage: {stored})"),
+            NORMAL_FONT_COLOR,
+        ));
+    }
+    crate::game_tooltip::GameTooltip::new(
+        TooltipPresentation {
+            title: decor.name.clone(),
+            title_color: TOOLTIP_WHITE,
+            lines,
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    )
+}
