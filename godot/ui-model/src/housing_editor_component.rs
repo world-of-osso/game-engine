@@ -134,7 +134,7 @@ fn expert_screen(view: &HousingView) -> Element {
         "Select placed decor to edit in Expert Mode.".to_string()
     } else {
         format!(
-            "1 Move: arrows / Page Up / Page Down\n2 Rotate ({axis} axis): hold Q / E; X next axis\n3 Scale: hold Q / E\nEnter saves; Esc cancels staged changes"
+            "1 Move: drag selection ({axis}); X next axis\n2 Rotate: hold mouse arrows or Q / E\n3 Scale: drag thumb or hold mouse arrows\nArrows / Page Up / Page Down also move\nEnter saves; Esc cancels staged changes"
         )
     };
     let mut controls = mode_icon(
