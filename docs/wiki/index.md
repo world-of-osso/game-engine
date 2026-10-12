@@ -6,8 +6,8 @@
 
 - [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 
-- [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits rerun after M2 floors landed.
-- [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical asset/cache publication remains lead-owned.
+- [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks/Eye both-skin private lifecycle proof; Eye16-account tower/flag victory/return with20 inspected PNGs; art/preparation/resurrection gaps remain.
+- [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical assets/cache published by lead; public708 stays hidden pending client bundle publication.
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
