@@ -33,6 +33,7 @@ fn authority(can_edit: bool) -> HousingAuthority {
                 house_id: 41,
                 can_edit,
                 decor: vec![PlacedDecor {
+                    dyes: Vec::new(),
                     instance_id: 7,
                     decor_id: 80,
                     transform: DecorTransform {
@@ -59,6 +60,7 @@ fn housing_editor_uses_confirmed_storage_and_never_changes_quantity_optimistical
     assert_eq!(
         editor.commit_at(&auth, [4.0, -2.0, 8.0]).unwrap(),
         HousingCommand::PlaceDecor {
+            variant_id: None,
             house_id: 41,
             decor_id: 1693,
             transform: DecorTransform {
