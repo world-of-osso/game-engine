@@ -41,6 +41,7 @@
 - [Black unit-frame portraits](investigations/portrait-black.md) —49 authentic starter-cloth/Imp receipts restore Human/Orc Modern portraits, private RED→GREEN and10 inspected PNGs; Forever HUD portrait slots are absent, both-skin world proof retained.
 
 - [Windows extension unload race](investigations/windows-extension-unload.md) — first-exception LLDB proof of detached catalog execution during DLL unload; shutdown barrier implemented, native GREEN pending.
+- [Private terrain destinations](../../../game-server/docs/wiki/investigations/private-terrain-destinations.md) — stale private setup heights, unchanged physics, real-ground gravity regression and four both-skin native captures.
 
 ## October 9 reconciliation
 
