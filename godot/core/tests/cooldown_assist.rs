@@ -78,7 +78,7 @@ fn cooldown_assist_unknown_effective_cost_blocks_instead_of_guessing() {
 #[test]
 fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
-    let ids = [34465, 47453, 160516].into_iter().collect();
+    let ids = [34465, 47453].into_iter().collect();
     let conditions = CooldownConditions::load(&dir, &ids).unwrap();
     let mut actor = ConditionActor {
         race_bit: 2,
@@ -92,12 +92,36 @@ fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
     actor.race_bit = 4;
     assert_eq!(conditions.evaluate(34465, &actor), Ok(false));
     assert_eq!(conditions.evaluate(47453, &actor), Ok(true));
-    assert!(
-        conditions
-            .evaluate(160516, &actor)
-            .unwrap_err()
-            .contains("ModifierTreeID")
-    );
+}
+
+#[test]
+fn cooldown_assist_modifier_trees_follow_authored_spell_and_aura_gates() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let conditions =
+        CooldownConditions::load(&dir, &[160516, 161780].into_iter().collect()).unwrap();
+    let empty = BTreeMap::new();
+    let mut auras = BTreeMap::new();
+    let mut actor = ConditionActor {
+        race_bit: 0,
+        class: 1,
+        spec_index: 2,
+        known: &[],
+        auras: &empty,
+    };
+    assert_eq!(conditions.evaluate(160516, &actor), Ok(false));
+    actor.known = &[228920];
+    assert_eq!(conditions.evaluate(160516, &actor), Ok(true));
+    actor.known = &[];
+    auras.insert(1235113, 1);
+    actor.auras = &auras;
+    assert_eq!(conditions.evaluate(160516, &actor), Ok(true));
+    assert_eq!(conditions.evaluate(161780, &actor), Ok(true));
+    for spells in [&[386763][..], &[157997][..]] {
+        actor.known = spells;
+        assert_eq!(conditions.evaluate(161780, &actor), Ok(false));
+    }
+    actor.known = &[386763, 157997, 431044];
+    assert_eq!(conditions.evaluate(161780, &actor), Ok(true));
 }
 
 #[test]

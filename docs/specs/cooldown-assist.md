@@ -22,7 +22,7 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. [Au
 - `scripts/export_db2_csv.py`: six-table local-CASC export.
 - `godot/core/src/cooldown_assist.rs`: authored joins and ordered recommendation mechanism.
 - `godot/core/src/assisted_combat.rs`: qualitative predicates; unsupported semantics refuse recommendations.
-- `godot/core/src/cooldown_conditions.rs`: referenced PlayerCondition masks/spell/aura/spec predicates; unsupported fields fail explicitly.
+- `godot/core/src/cooldown_conditions.rs` and `cooldown_modifiers.rs`: referenced PlayerCondition masks/spell/aura/spec and authentic ModifierTree known-spell/aura gates; unsupported fields fail explicitly.
 - `godot/ui-model/src/cooldown_assist.rs`: per-spec choice/order and supplied-sample projection.
 - `godot/ui-model/src/cooldown_viewer_component.rs` and `cooldown_settings_component.rs`: four viewer roots and category/select/reorder controls.
 - `godot/rust/src/spells/cooldown_viewer.rs`: native loading/mounting, cooldown/charge/raw-aura sampling, choice persistence and ordinary settings actions.
