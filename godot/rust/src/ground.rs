@@ -265,7 +265,7 @@ mod tests {
             .map(|index| [index * 3, index * 3 + 1, index * 3 + 2])
             .collect();
         let tile = shared::los::LosTile::build(32, 31, vertices, triangles);
-        let start = Vec3::new(443.727, -24.5936, -314.306);
+        let start = Vec3::new(443.59, -24.5936, -321.262);
         let terrain = load_floor_map("2759", bevy_to_tile_coords(start.x, start.z));
         let closed = Cell::new(true);
         let live_floor = |feet| {
@@ -291,7 +291,7 @@ mod tests {
                 feet,
                 crate::gameplay::MovementFrame {
                     direction: [0.0, 0.0, -1.0],
-                    speed: 7.0,
+                    speed: 2.0,
                     vertical: 0.0,
                 },
                 false,
