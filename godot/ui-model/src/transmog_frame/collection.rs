@@ -47,6 +47,9 @@ pub(super) fn wardrobe_region(book: &TransmogBook) -> Element {
         WardrobeTab::Situations => {}
     }
     out.extend(paging_controls(book));
+    // Retail creates its popup after collection content. Godot GUI hit order is
+    // scene-child order, not CanvasItem z_index: append it after the model buttons.
+    out.extend(super::filters::menu(book));
     out
 }
 
@@ -149,7 +152,6 @@ fn search_box(book: &TransmogBook) -> Element {
         left: 1452.0, top: 80.0, pos_type: "absolute", hidden, button_default_skin: false,
         onclick: "transmog:filters", {art} } },
     );
-    out.extend(super::filters::menu(book));
     out
 }
 
