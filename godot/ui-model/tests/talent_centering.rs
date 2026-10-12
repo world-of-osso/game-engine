@@ -109,6 +109,34 @@ fn retail_ret_and_arcane_centers_use_db2_pan_without_fit_zoom_in_both_skins() {
                     "DB2 node center",
                 );
             }
+            for (prefix, expected_x) in [("TalentClass", 372.0), ("TalentSpec", 1211.0)] {
+                let name = rect(&registry, &format!("{prefix}Name"));
+                let points = rect(&registry, &format!("{prefix}Points"));
+                close(
+                    [
+                        name[0] + (name[2] + 3.0 + points[2]) / 2.0,
+                        name[1] + name[3] / 2.0,
+                    ],
+                    [expected_x, 45.0],
+                    "currency display",
+                );
+            }
+            for tree in [&view.graph.class, &view.graph.spec] {
+                for gate in view.gates_for_nodes(&tree.nodes) {
+                    let node_name = format!("TalentNode{}", gate.node_id);
+                    let node = rect(&registry, &node_name);
+                    let gate_rect =
+                        rect(&registry, &format!("TalentGate{}Button", gate.condition_id));
+                    close(
+                        [
+                            gate_rect[0] + gate_rect[2],
+                            gate_rect[1] + gate_rect[3] / 2.0,
+                        ],
+                        [node[0] - 12.0, node[1] + node[3] / 2.0],
+                        "gate RIGHT to node LEFT",
+                    );
+                }
+            }
             close(
                 center(&registry, "HeroSpecButton"),
                 [hero_x, 156.0],
@@ -142,7 +170,15 @@ fn retail_ret_and_arcane_centers_use_db2_pan_without_fit_zoom_in_both_skins() {
                     "PvP tray4px spacing",
                 );
             }
-            assert!(registry.get_by_name("PvPTalentLabel").is_some());
+            let pvp_label = rect(&registry, "PvPTalentLabel");
+            close(
+                [
+                    pvp_label[0] + pvp_label[2],
+                    pvp_label[1] + pvp_label[3] / 2.0,
+                ],
+                [1282.0, 815.0],
+                "PvP label RIGHT-to-tray-LEFT minus16",
+            );
             // Resize the tree without changing its authored coordinates: unrelated
             // node bounds must not change the origin, zoom or footer geometry.
             let mut reduced = view.clone();

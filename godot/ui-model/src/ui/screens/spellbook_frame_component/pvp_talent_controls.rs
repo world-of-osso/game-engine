@@ -28,10 +28,15 @@ pub(super) fn render(view: &TalentView, scale: f32) -> Element {
             render_slot(index, slot, choice, view.pvp_pending, scale)
         })
         .collect();
+    children.extend(render_label(scale));
+    children.extend(flyout(view, scale));
+    children
+}
+fn render_label(scale: f32) -> Element {
     // PvPTalentSlotTemplates.xml Label RIGHT to tray LEFT -16.
     let text = "PvP Talents";
     let (width, _) = measure_text(text, GameFont::FrizQuadrata, 16.0).expect("PvP label font");
-    children.extend(label(
+    label(
         Label {
             name: "PvPTalentLabel".into(),
             text,
@@ -46,9 +51,7 @@ pub(super) fn render(view: &TalentView, scale: f32) -> Element {
             justify: "RIGHT",
         },
         scale,
-    ));
-    children.extend(flyout(view, scale));
-    children
+    )
 }
 fn render_slot(
     index: u8,
