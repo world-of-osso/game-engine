@@ -13,15 +13,15 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 - [x] Collection uses paged native3D appearance models. Retail12.1 `TransmogItemModelTemplate` is100×132; its right-hand collection has five columns and four rows. Filtering must preserve pending choices and exact quotes; clearing it restores model cells.
 - [x] Retail12.1 item state art is `transmog-itemcard-transmogrified` (pending suffix for staged changes), with ordinary alpha and114×146 hover art. Historical Wardrobe additive overlays do not define the new frame.
 - [x] Retail12.1 frame natural size1618×883; left outfit region312×860, central character658×860, right wardrobe644×860. Slot buttons59×59 show authoritative applied/pending appearance icons without the generic project button skin.
-- [ ] Outfit list/save/load, Items/Sets/Custom Sets tabs, filters and illusion slots must match Retail12.1. Existing authoritative cost/Apply semantics remain unchanged; unavailable server-backed operations must not pretend to succeed.
+- [x] Native Items/Sets/Custom Sets tabs, outfit list/save/load and illusion selection use Retail12.1 elements. Save commits pending appearances through the unchanged paid Apply before saving configuration; unavailable operations do not pretend to succeed.
 - [x] Sources uses authored `Enum.TransmogSource` categories1/2/3/4/7/8/10, check-all/uncheck-all and filtering before paging. Hidden pending choices retain their exact paid quotes. Sets completion filters distinguish Collected/Not Collected; PvE/PvP classification stays disabled until an authoritative or exhaustively verified flag mapping exists.
 - [x] Preview shows the equipped and pending main-hand weapon, independently of world equipment, with rotation and Sheathe/Draw controls. Weapon-cell camera fitting must show the blade profile rather than its end.
-- [ ] Saved outfits follow the working core apply path; illusion UI requires authentic local illusion data.
+- [x] Saved outfits follow the working core apply path; illusion UI uses authentic TransmogIllusion/SpellItemEnchantment names, icons and default-collected identities.
 
 ## How it works
 
 - [Transmog system](../wiki/systems/transmog-apply.md)
-- Retail12.1 `Blizzard_Transmog/Blizzard_Transmog.xml` owns the1618×883 frame and three region sizes. `Blizzard_TransmogTemplates.xml` owns59×59 appearance slots and100×1323D item cards, replacing historical78×104 Wardrobe cells. The new outfit/list/tab/filter/illusion runtime contract is not interchangeable with the old Wardrobe dropdown. Revamp acceptance remains open until native both-skin proof and the outstanding controls are implemented.
+- Retail12.1 `Blizzard_Transmog/Blizzard_Transmog.xml` owns the1618×883 frame and three region sizes. `Blizzard_TransmogTemplates.xml` owns59×59 appearance slots and100×1323D item cards, replacing historical78×104 Wardrobe cells. Native both-skin proof covers the supported outfit/list/tab/filter/illusion contract; retained classification and acquisition gaps below prevent a full Retail API-parity claim.
 
 ## Implementation inventory
 
@@ -33,13 +33,15 @@ Native Retail Mainline Transmogrify service for collected appearances. [Authorit
 
 - `godot/ui-model/src/transmog_tests.rs` — pending versus applied state, exact prices, refusals, stale GUIDs,20-cell paging and independent source preview equipment.
 - `godot/ui-model/tests/transmog_wardrobe.rs` — both-skin slot/model controls and collected/applied/pending labels.
-- `godot/tests/transmog_wardrobe_live.gd` — actual skin/layout, main-hand profile pixels, composited collection pixels through applied/pending overlays, rotate/Sheathe, native search/restore, staging, exact paid Apply and Escape teardown on private55087.
+- `godot/tests/transmog_wardrobe_live.gd` — actual skin/layout, main-hand/card profile pixels, composited alpha/hover overlays, rotate/Sheathe, search/source filters, set membership/completion filters/staging, paid outfit/illusion save/load, native second-page Custom Set save/load and Escape teardown on private5926.
 
 ## Known gaps (current cycle)
 
 - [x] Native host/network integration: private55087, Hashom gossip, target2850 GUID123, sources821/1181, exact1500copper applications, self/observer rebuilds and relog in both configured art skins. Private-server restart preserved the same redb modifiers. [Bounded proof and evidence](../wiki/systems/transmog-apply.md#native-proof--verified-2026-10-11); this is not every-slot/product certification.
-- [x] Both actual skins: isolated weapon models remain visible through pending/applied additive borders, character main-hand profile visible, native search/restore and exact1500copper Apply pass. [UI proof](../wiki/systems/transmog-apply.md#wardrobe-ui-proof--verified-2026-10-11). Paging is behaviorally verified with37sources/3pages; native accounts have5eligible weapon sources, not a native second-page census.
-- [ ] Saved outfits remain unimplemented; core live application proof is available.
+- [x] Both actual skins: weapon models remain visible through Retail12.1 alpha state borders and additive hover; character main-hand profile, native source/search filters and exact1500-copper Apply pass. [Current UI proof](../wiki/systems/transmog-apply.md#retail121-native-proof--verified2026-10-12). Item paging is CPU-tested with41sources/3pages; native5-source item collection is not an every-slot/second-item-page claim. Custom Sets has real native second-page proof.
+- [x] Private5926 native both-skin outfit/illusion save/load, exact1500-copper Apply, collected/uncollected set membership and presets are proven. [Current UI proof](../wiki/systems/transmog-apply.md#retail121-native-proof--verified2026-10-12).
+- [ ] PvE/PvP set-classification mapping is not authoritative or exhaustively verified; those filter rows remain disabled. Purchased outfit slots, Situations and event/conditional acquisition eligibility remain unavailable or uncertified.
+- [ ] Illusion selection/save/load is proven as outfit metadata, not visual enchant effects, equipped enchant application or illusion-price settlement.
 - [ ] Dynamic pricing, conditional source policies and illusion availability remain the linked server contract's explicit local-data gaps.
 
 ## Out of scope

@@ -3340,3 +3340,7 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-11 — integrated native gathering baseline
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
+
+## 2026-10-12 — Retail12.1 transmog revamp
+
+[Native transmog](systems/transmog-apply.md#retail121-native-proof--verified2026-10-12): shared-skin outfit/illusion/preset save/load, exact paid Apply, source/completion filters, primary set membership and correct alpha/additive-hover art. Real native popup click ordering RED→GREEN; both-skin private5926 proof includes hidden1500-copper staging and a real second Custom Set page. PvE/PvP classification stays disabled without authoritative/exhaustively verified mapping; conditional acquisition and enchant-effect/price boundaries remain explicit.
