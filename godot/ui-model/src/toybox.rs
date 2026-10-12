@@ -251,6 +251,7 @@ impl ToyAction {
     pub fn use_request(self) -> UseToy {
         UseToy {
             item_id: self.item_id,
+            destination: None,
         }
     }
 }

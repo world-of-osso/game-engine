@@ -83,7 +83,14 @@ impl GameClient {
         }
         self.toybox.model.acknowledge(item_id);
         self.toybox.model.error = None;
-        self.account.send_use_toy(item_id)
+        self.cancel_ground_target();
+        let spell_id = self.toybox.model.toy(item_id).and_then(|toy| toy.spell_id);
+        if let Some(spell_id) = spell_id
+            && self.begin_ground_toy(item_id, spell_id)
+        {
+            return Ok(());
+        }
+        self.account.send_use_toy(item_id, None)
     }
     pub(super) fn receive_toy_result(
         &mut self,
