@@ -8,9 +8,10 @@ const FLYOUT_W: f32 = 220.0;
 const ROW_H: f32 = 40.0;
 
 fn origin(index: u8) -> [f32; 2] {
-    // ClassTalentsFrame.xml:331 RIGHT BottomBar -114; three slot widths.
+    // ClassTalentsFrame.xml RIGHT -114; PvPTalentSlotTemplates.xml tray200x70,
+    // first slot LEFT4, subsequent LEFT to previous RIGHT +4.
     [
-        BOOK_W - 114.0 - 3.0 * SLOT_W + f32::from(index - 1) * SLOT_W,
+        BOOK_W - 114.0 - 200.0 + 4.0 + f32::from(index - 1) * (SLOT_W + 4.0),
         BOOK_H - FOOTER_HEIGHT / 2.0 - SLOT_H / 2.0,
     ]
 }
@@ -27,8 +28,30 @@ pub(super) fn render(view: &TalentView, scale: f32) -> Element {
             render_slot(index, slot, choice, view.pvp_pending, scale)
         })
         .collect();
+    children.extend(render_label(scale));
     children.extend(flyout(view, scale));
     children
+}
+fn render_label(scale: f32) -> Element {
+    // PvPTalentSlotTemplates.xml Label RIGHT to tray LEFT -16.
+    let text = "PvP Talents";
+    let (width, _) = measure_text(text, GameFont::FrizQuadrata, 16.0).expect("PvP label font");
+    label(
+        Label {
+            name: "PvPTalentLabel".into(),
+            text,
+            rect: [
+                BOOK_W - 114.0 - 200.0 - 16.0 - width,
+                BOOK_H - FOOTER_HEIGHT / 2.0 - 12.0,
+                width,
+                24.0,
+            ],
+            size: 16.0,
+            color: TAB_TEXT,
+            justify: "RIGHT",
+        },
+        scale,
+    )
 }
 fn render_slot(
     index: u8,

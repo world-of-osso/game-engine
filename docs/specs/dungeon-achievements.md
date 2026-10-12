@@ -14,7 +14,9 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 ### Achievement presentation
 
 - [x] Open Summary by default with full authoritative points/completion totals, latest three earned rows and authored summary-category bars. Never sum loaded pages as account totals.
-- [x] Provide All/Account/Character scope tabs using the authentic account flag.
+- [x] Use Retail Achievements, Guild and Statistics bottom tabs; Guild and Statistics roots never appear in the player achievement sidebar. Account/Character scope remains a query capability, not replacement tabs.
+- [x] Use the requested Mainline top-level set: Characters, Quests, Exploration, Delves, Player vs. Player, Dungeons & Raids, Professions, Reputation, World Events, Pet Battles, Collections, Expansion Features, Legacy, Feats of Strength. Source child names/IDs/parents/order from DB2 12.1.0.69933 Achievement_Category. Housing is outside this requested set; Classic remains an authentic dungeon child.
+- [x] Offer All/Completed/Incomplete filters independently of account scope. Statistics bypass completion filters; Feats shows earned entries and its explanation when empty.
 - [x] Browse category ancestry/order, icons/names/descriptions/points/earned dates and criterion progress, including continuation pages.
 - [x] Show bare thousands-separated earned points beside the Retail shield in both skins.
 - [x] Use Retail's 768×500 AchievementFrame, styled collapsible category tree with native wheel/thumb scrolling, header shield/search/clear art and authored bottom tabs. Forever changes art only.
@@ -63,6 +65,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
+- [ ] Guild progress has no authoritative window endpoint. Show the real Guild category tree and an unavailable notice, never player Summary/points as guild facts.
 - Native art/draft proof: private UDP5730, `fb_achievementsui`/Fbachui, both skins at082d6ffa6. Label-only drafts send clickable real633 links; native stepper scroll loads24→25 statistic rows. Evidence and exact scope live in the linked wiki; no full-suite/CI/comparison certification.
 
 ## Out of scope

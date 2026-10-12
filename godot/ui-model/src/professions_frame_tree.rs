@@ -47,6 +47,18 @@ pub(super) fn recipe_list(ctx: &SharedContext, view: &ProfessionView) -> Element
 fn tree_rows(view: &ProfessionView) -> (Element, f32) {
     let mut content = Vec::new();
     let mut y = 0.0;
+    if !view.book.recipes.is_empty() {
+        let children = text(
+            "ProfessionsRecraftRecipeText",
+            "Recrafting",
+            (10.0, 0.0, ROW_WIDTH - 10.0, ROW_HEIGHT),
+        );
+        content.extend(rsx! { button { name: "ProfessionsRecraftRecipe", left: 0.0, top: 0.0,
+            width: ROW_WIDTH, height: ROW_HEIGHT, pos_type: "absolute", onclick: "profession:recraft",
+            button_default_skin: false, {children}
+        } });
+        y += ROW_HEIGHT + 1.0;
+    }
     for (index, (category, recipes)) in view.book.groups().iter().enumerate() {
         let collapsed = view.collapsed.contains(category);
         content.extend(category_row(index, category, y, collapsed));

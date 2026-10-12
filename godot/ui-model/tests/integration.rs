@@ -1,6 +1,7 @@
 //! UI integration suites share one harness to avoid repeated dependency linking.
 //! Keep suites as modules; their fixture paths stay relative to the original files.
 
+mod adventure_activities;
 mod adventure_guide;
 mod ahportrait;
 mod atlas_skins;
@@ -77,6 +78,8 @@ mod pet_journal;
 mod player_cast_spark;
 mod portrait_party_frame;
 mod professions_art;
+mod professions_orders;
+mod professions_specializations;
 mod pvp_progression;
 mod quest_flow;
 mod quest_poi_hover;
@@ -90,6 +93,7 @@ mod spell_power_text;
 mod spellbook_frame;
 mod spellbook_preview;
 mod status_text_bars;
+mod talent_centering;
 mod talent_footer;
 mod talent_icons;
 mod talent_layout;
