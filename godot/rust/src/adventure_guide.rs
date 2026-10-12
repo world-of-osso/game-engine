@@ -77,6 +77,9 @@ impl GameClient {
         self.adventure_guide.view.visible = true;
         self.adventure_guide.view.loading = !self.adventure_guide.loaded;
         self.adventure_guide.queued_encounter = Some(dungeon_encounter);
+        self.account
+            .send_request_raid_info()
+            .map_err(|error| error.to_string())?;
         Ok(())
     }
     fn select_queued_journal_encounter(&mut self) -> Result<(), String> {
