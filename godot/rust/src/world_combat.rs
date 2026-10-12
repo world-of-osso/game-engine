@@ -142,11 +142,12 @@ pub(crate) fn melee_reaction(kind: &CombatEventType, weapon: MeleeWeapon) -> Opt
 }
 
 impl UnitNode {
-    /// The unit's bone animation player.
+    /// The displayed model's animation; a requested replacement can still be loading.
     pub(super) fn animation_player(&self) -> Option<Gd<WowAnimationPlayer>> {
-        let path = match self.appearance.as_ref()? {
-            UnitAppearance::Player(_, _) => "M2Animation",
-            UnitAppearance::Creature { .. } => "NpcModel/M2Animation",
+        let path = if self.visual_player_model.is_some() {
+            "M2Animation"
+        } else {
+            "NpcModel/M2Animation"
         };
         self.visual
             .as_ref()?
@@ -156,9 +157,10 @@ impl UnitNode {
     /// The model node whose skeleton carries the unit's attachments.
     pub(super) fn model_node(&self) -> Option<Gd<Node3D>> {
         let visual = self.visual.as_ref()?;
-        match self.appearance.as_ref()? {
-            UnitAppearance::Player(_, _) => Some(visual.clone()),
-            UnitAppearance::Creature { .. } => visual.try_get_node_as::<Node3D>("NpcModel"),
+        if self.visual_player_model.is_some() {
+            Some(visual.clone())
+        } else {
+            visual.try_get_node_as::<Node3D>("NpcModel")
         }
     }
 
