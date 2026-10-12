@@ -65,6 +65,43 @@ fn journal_shows_authoritative_keystone_only_for_its_dungeon() {
 }
 
 #[test]
+fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = journal();
+    view.visible = true;
+    view.apply("journal:tab:sets").unwrap();
+    view.apply("journal:class:2").unwrap();
+    view.apply("journal:spec:70").unwrap();
+    view.search = "Lightsworn Battlegear".into();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    context.insert(view.clone());
+    let mut registry = FrameRegistry::new(1280., 720.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry.get_by_name("JournalSet900Level").is_some(),
+        "Retail set row includes item level"
+    );
+    assert!(
+        registry.get_by_name("JournalSet900Item51719Icon").is_some(),
+        "Retail set row includes item icons"
+    );
+    assert!(registry.get_by_name("JournalClassFilter").is_some());
+    view.apply("journal:class:1").unwrap();
+    view.apply("journal:spec:71").unwrap();
+    context.insert(view);
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry.get_by_name("JournalSet900").is_none(),
+        "Warrior cannot browse Paladin-only sets"
+    );
+}
+
+#[test]
 fn pending_guide_shows_loading_without_catalog_choices() {
     let mut view = journal();
     view.visible = true;
