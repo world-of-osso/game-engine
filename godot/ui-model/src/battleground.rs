@@ -571,6 +571,10 @@ fn silvershard_hud(bg: &BattlegroundSnapshot) -> Element {
 }
 
 fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if bg.map_id == 1803 {
+        // Resource race: score only, not the generic team-flag cells.
+        return vec![];
+    }
     if bg.map_id == 727 {
         return silvershard_hud(bg);
     }

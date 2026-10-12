@@ -10,7 +10,8 @@ use crate::ui::ui_parent::UiParent;
 use crate::ui::{RegistryModel, ScreenPostsetup};
 
 const EYE_ROW: &str = "HonorFrameSpecificBattlegroundButton7";
-const LAST_ROW: &str = "HonorFrameSpecificBattlegroundButton699";
+const SIXTH_ROW: &str = "HonorFrameSpecificBattlegroundButton699";
+const LAST_ROW: &str = "HonorFrameSpecificBattlegroundButton894";
 
 fn queue_frame() -> RegistryModel {
     game_engine_ui_model::paths::set_data_root(
@@ -64,6 +65,11 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
         top - 80.0,
         "sixth row requires a second step"
     );
+    assert!(row_inside_list(&model, SIXTH_ROW));
+    assert!(!row_inside_list(&model, LAST_ROW));
+    press_stepper(&mut model, forward);
+    rebuild(&mut model);
+    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 120.0);
     assert!(row_inside_list(&model, LAST_ROW));
     assert!(
         model
@@ -89,4 +95,13 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
         top - 80.0,
         "a notch pans two rows to expose the sixth row"
     );
+    assert!(row_inside_list(&model, SIXTH_ROW));
+    assert!(!row_inside_list(&model, LAST_ROW));
+    let forward = model
+        .registry
+        .get_by_name(&forward_stepper_name(SPECIFIC_LIST))
+        .unwrap();
+    assert!(press_stepper(&mut model, forward));
+    rebuild(&mut model);
+    assert!(row_inside_list(&model, LAST_ROW));
 }
