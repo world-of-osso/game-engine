@@ -198,9 +198,17 @@ func use_bag_item(id: int) -> void:
 	if item.is_empty():
 		fail("Missing purchased bag item " + str(id))
 		return
+	var before := bag_count(id)
 	await click_control(find_control("ContainerFrame%dSlot%d" % [item.bag, item.slot]), MOUSE_BUTTON_RIGHT)
-	await wait_for(func(): return bag_item(id).is_empty(), "consumed mount item")
+	await wait_for(func(): return bag_count(id) == before - 1, "consumed one mount item")
 	await frames(20)
+
+func bag_count(id: int) -> int:
+	var count := 0
+	for item in client.merchant_state().bags:
+		if item.item_id == id:
+			count += int(item.count)
+	return count
 
 func bag_item(id: int) -> Dictionary:
 	for item in client.merchant_state().bags:
