@@ -62,10 +62,17 @@ func run_fixture() -> void:
 		await capture("learned")
 		await click("MountJournalRow18", MOUSE_BUTTON_RIGHT)
 		if not await wait_until(func(): return control("MountJournalFavoriteToggle") != null, "Retail right-click favourite menu"): return
+		if not await menu_text_visible(): fail("Favourite popup labels are covered by their background"); return
 		await capture("favourite-menu")
 		await click("MountJournalFavoriteToggle")
 		if not await wait_until(func(): return learned().favourite, "authoritative account favourite"): return
 		await capture("favourite")
+	if relog:
+		await click("MountJournalRow18", MOUSE_BUTTON_RIGHT)
+		if not await wait_until(func(): return control("MountJournalFavoriteToggle") != null, "relog favourite menu"): return
+		if not await menu_text_visible(): fail("Favourite popup labels are covered by their background"); return
+		await capture("favourite-menu")
+		await click("MountJournalContextCancel")
 	var model := control("MountJournalModelScene")
 	var start := model.get_global_rect().get_center()
 	await motion(start, false)
@@ -93,6 +100,18 @@ func open_mounts() -> void:
 	await click("MinimapLauncherButton")
 	if not await wait_until(func(): return control("LauncherEntryCollectionsMicroButton") != null, "Collections launcher entry"): return
 	await click("LauncherEntryCollectionsMicroButton")
+
+func menu_text_visible() -> bool:
+	await wait_frames(10)
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	var rect := control("MountJournalFavoriteToggle").get_global_rect().grow(-3.0)
+	var foreground := 0
+	for y in range(int(rect.position.y), int(rect.end.y)):
+		for x in range(int(rect.position.x), int(rect.end.x)):
+			var color := image.get_pixel(x, y)
+			if color.r > 0.7 and color.g > 0.5: foreground += 1
+	return foreground > 10
 
 func learned() -> Dictionary:
 	for mount in client.mount_journal_state().collected:
