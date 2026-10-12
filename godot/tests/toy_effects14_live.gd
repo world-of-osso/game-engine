@@ -27,15 +27,18 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return client.merchant_state().item_catalog_loaded, "source item catalog", 180000): return
 	if not await wait_until(func(): return client.toybox_state().catalog_count == 1166, "full authenticated toy catalog", 120000): return
 	await capture("native")
-	for sample in CASES:
-		await prove_transform(sample)
+	for sample in proof_cases():
+		await prove_toy(sample)
 		if failed: return
 	write_receipts()
-	print("PASS toy-effects14 actual learn/use/native transform/restoration ", skin)
+	print("PASS toy-effects14 actual learn/use/native effect/restoration ", skin)
 	client.free()
 	quit(0)
 
-func prove_transform(sample: Array) -> void:
+func proof_cases() -> Array:
+	return CASES
+
+func prove_toy(sample: Array) -> void:
 	var item := int(sample[0])
 	var spell := int(sample[1])
 	var display := int(sample[2])
@@ -74,6 +77,7 @@ func capture(label: String) -> void:
 	var state = client.account_state()
 	receipts.append({"phase": label, "skin": state.ui_skin, "account": state,
 		"model": client.unit_display(int(state.local_player_id)), "auras": client.aura_state(),
+		"visuals": client.spell_visuals_state(),
 		"toys": client.toybox_state(), "image": path})
 	write_receipts()
 
