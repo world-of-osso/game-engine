@@ -170,6 +170,8 @@ pub struct HousingDashboard {
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
     pub storage_search: String,
+    pub storage_category: Option<u32>,
+    pub storage_subcategory: Option<u32>,
     pub category: Option<u32>,
     pub subcategory: Option<u32>,
     pub offset: usize,
@@ -196,6 +198,8 @@ impl HousingDashboard {
             catalog,
             search: String::new(),
             storage_search: String::new(),
+            storage_category: None,
+            storage_subcategory: None,
             category: None,
             subcategory: None,
             offset: 0,
@@ -229,11 +233,9 @@ impl HousingDashboard {
                     .decor
                     .iter()
                     .find(|decor| decor.id == stored.decor_id)?;
-                decor
-                    .name
-                    .to_lowercase()
-                    .contains(&search)
-                    .then_some((stored, decor))
+                let matches = decor.name.to_lowercase().contains(&search)
+                    && self.storage_decor_matches(decor);
+                matches.then_some((stored, decor))
             })
             .collect()
     }

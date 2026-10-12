@@ -43,6 +43,87 @@ fn housing_home_navigation_requests_house_identity_without_component_grants() {
 }
 
 #[test]
+fn housing_storage_categories_use_real_ownership_and_keep_search_focus_independent() {
+    use shared::protocol::{HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            stored: vec![
+                StoredDecor {
+                    decor_id: 1693,
+                    quantity: 1,
+                },
+                StoredDecor {
+                    decor_id: 2330,
+                    quantity: 1,
+                },
+            ],
+            placed: vec![StoredDecor {
+                decor_id: 80,
+                quantity: 1,
+            }],
+            ..Default::default()
+        }),
+        error: None,
+    };
+    let categories: Vec<_> = model
+        .storage_categories(&authority)
+        .iter()
+        .map(|category| category.id)
+        .collect();
+    assert_eq!(categories, vec![18, 1, 2, 4]);
+    let children: Vec<_> = model
+        .storage_subcategories(&authority, 1)
+        .iter()
+        .map(|subcategory| subcategory.id)
+        .collect();
+    assert_eq!(children, vec![6]);
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    model.set_storage_category(Some(1), &authority).unwrap();
+    assert_eq!(ids(&model), vec![1693]);
+    model.set_storage_subcategory(Some(6), &authority).unwrap();
+    assert_eq!(model.storage_subcategory, Some(6));
+    assert!(model.set_storage_subcategory(Some(10), &authority).is_err());
+    model.set_storage_search("Tesla".into());
+    assert_eq!(model.storage_category, None);
+    assert_eq!(model.storage_subcategory, None);
+    assert_eq!(ids(&model), vec![2330]);
+    model.set_storage_category(Some(2), &authority).unwrap();
+    assert!(model.storage_search.is_empty());
+    assert_eq!(ids(&model), vec![2330]);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Cleanup);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Basic);
+    assert_eq!(model.storage_category, Some(2));
+    model.set_storage_category(Some(4), &authority).unwrap();
+    assert!(ids(&model).is_empty()); // Owned/placed fireplace is not stored.
+    assert!(model.set_storage_category(Some(17), &authority).is_err());
+    assert!(model.set_storage_category(Some(6), &authority).is_err());
+    assert_eq!(model.storage_category, Some(4));
+    model.set_storage_category(Some(18), &authority).unwrap();
+    assert_eq!(ids(&model), vec![1693, 2330]);
+    assert_eq!(model.category, None);
+    assert!(model.search.is_empty());
+    assert!(
+        model
+            .stored_entries(&HousingAuthority::default())
+            .is_empty()
+    );
+}
+
+#[test]
 fn housing_owned_storage_search_uses_positive_confirmed_counts_and_keeps_catalog_search_separate() {
     use shared::protocol::{HousingState, StoredDecor};
     let mut catalog = HousingCatalog::default();
