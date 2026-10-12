@@ -19,6 +19,27 @@ fn journal() -> View {
     }
 }
 #[test]
+fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
+    let mut view = journal();
+    for tab in ["monthly", "suggested"] {
+        view.apply(&format!("journal:tab:{tab}"))
+            .expect("server-backed tab");
+        let mut shared = SharedContext::new();
+        shared.insert(ActiveSkin::Modern);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new();
+        let mut screen = Screen::new(adventure_guide_screen);
+        screen.sync(&shared, &mut registry);
+        let name = if tab == "monthly" {
+            "JournalMonthlyLoading"
+        } else {
+            "JournalSuggestedLoading"
+        };
+        assert!(registry.get_by_name(name).is_some(), "{name}");
+    }
+}
+
+#[test]
 fn owned_keystones_browse_authentic_dungeons_without_active_run() {
     use shared::protocol::KeystoneInfo;
     let mut view = journal();
