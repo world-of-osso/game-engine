@@ -45,7 +45,7 @@ func click_pickable(matches: Callable, id_meta: String) -> bool:
 		if camera != null:
 			var nodes := nearest_first(client.find_children("*", "Node3D", true, false).filter(matches))
 			for node in nodes:
-				var area := node.find_child("UnitPick", true, false)
+				var area: Node = node.find_child("UnitPick", true, false)
 				if area == null:
 					continue
 				var id: int = area.get_meta(id_meta) if area.has_meta(id_meta) else node.get_meta(id_meta)
