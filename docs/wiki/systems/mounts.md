@@ -8,6 +8,22 @@ Player mounts, Retail "Steady Flight" and Skyriding flight physics on the Godot 
 
 Animation: the rider holds Mount (91). The mount plays the rider's locomotion clip on the ground; while flying (`PlayerMotion::FLYING` for other players, `PlayerMovement::flying` for the local one) its flight clips: MountFlightIdle 548, MountFlightRun 556, MountFlightBackwards 550, MountFlightLeft 552, MountFlightRight 554 (resolved through `AnimationData.Fallback`).
 
+## Mount Journal
+
+Verified2026-10-11 checkpoint; acceptance remains open in the [contract](../../specs/mount-journal.md). Native `mount_journal.rs` receives account catalog snapshots, drives the shared Collections shell, and requests detached real creature visuals into the existing character-preview Scene. Drag rotates the independent model; native row right-clicks use the existing frame-click routing. The server owns learning, favourites, summon/random/dismount; the client never invents ownership.
+
+`MountJournalEntry` carries Mount IDs, source spells/text, display/icon IDs, authored visibility flags and journal categories. Ground/flying/aquatic derive from terrain flags and positive swim-speed auras; skyriding from FlightCapability; Ride Along from the existing enter/exit non-control seat join. These are data-derived categories, not a claim that unpublished C_MountJournal classification code was reproduced. Source labels decode color/newline escapes and express money textures as g/s/c; no raw texture tags appear in the native label.
+
+`import_mount_appearance.py` selects all1,915 local MountXDisplay roots and invokes the strict authored importer with a read-only base. Current import adds1,782 coverage rows,23 profiles,441 choices and268 geosets, preserving every15,039 prior coverage row and every prior profile/choice/geoset. Local69933 CASC tables1264997/3692043/1720141 decoded with no skipped sections. Cache backup, row-preservation/hash proof and reproducible arguments are in `data/diagnostics/mount-journal-2026-10-11/`. No world.db writes.
+
+Rebuild into a new output, never directly overwrite a cache:
+
+```text
+python3 scripts/import_mount_appearance.py --mount-catalog data/db2/12.1.0.69933/MountXDisplay.csv --db2-dir data/diagnostics/mount-journal-2026-10-11/import-db2 --data-dir data/diagnostics/mount-journal-2026-10-11/import-data --model-cache data/cache/creature_display.sqlite --base-cache data/cache/npc_appearance.sqlite --output data/diagnostics/mount-journal-2026-10-11/npc_appearance-rebuilt.sqlite
+```
+
+Proof checkpoint: five UI model tests, three file-backed importer tests and five server journal boundary tests pass. Modern native item5655→Mount18 learning/preview is observed; both-skin favourite/random/alternate-character acceptance is still pending. Current old PNGs are not final visual acceptance.
+
 ## Passenger mounts
 
 Contract and acceptance: [passenger mounts](../../specs/passenger-mounts.md). `Mounted` carries VehicleID and eight indexed occupancy slots; `VehiclePassenger` carries the driver's server entity bits, seat index and VehicleSeat row. The server validates group membership, living/range and `InMap { map_id, instance_id }` conditions and enter/exit non-control seat flags, controls passenger movement and ejects invalid ownership. Passengers follow driver-relative M2 bind-pose positions; the server does not animate mount bones. Production players have `InMap`, not the NPC `Zone` component; boarding fixtures use `auth_character::spawn_player_entity` so they exercise that boundary.

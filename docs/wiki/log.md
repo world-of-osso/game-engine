@@ -1,3 +1,7 @@
+## 2026-10-11 — Mount Journal implementation/data checkpoint
+
+[Mounts](systems/mounts.md#mount-journal): account-authoritative native journal, strict local mount-root appearance extension and private Modern item/preview observation. Behavioural and cache-preservation proof recorded; both-skin acceptance/final gate remain open in the [contract](../specs/mount-journal.md).
+
 ## 2026-10-11 — AchievementFrame art
 
 [Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.
