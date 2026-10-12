@@ -86,11 +86,12 @@ where
                 load: Arc::clone(&load),
                 done: done.clone(),
             };
-            // Detached: a dropped loader never waits for the task in hand.
-            thread::Builder::new()
+            // Dropping a loader never waits; extension shutdown joins the worker.
+            let handle = thread::Builder::new()
                 .name(format!("{name}-{index}"))
                 .spawn(move || worker.run())
                 .expect("spawn asset loader worker");
+            crate::worker_shutdown::track(handle);
         }
         Self {
             queues,

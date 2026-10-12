@@ -51,6 +51,14 @@ impl AssetStartup {
     }
 }
 
+impl Drop for AssetStartup {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            game_engine_core::worker_shutdown::track(worker);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::AssetStartup;
