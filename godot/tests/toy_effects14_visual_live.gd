@@ -28,6 +28,9 @@ func prove_toy(sample: Array) -> void:
 	if not native_display(-1): fail("attachment removal changed native model"); return
 	await capture("toy%d-removed" % item)
 
+func capture(label: String) -> void:
+	await super.capture("aurakit-" + label)
+
 func kit_model(spell: int, model: int) -> bool:
 	var local_id := int(client.account_state().local_player_id)
 	for active in client.spell_visuals_state().active:
