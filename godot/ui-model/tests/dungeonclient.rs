@@ -9,6 +9,123 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+fn retail_categories() -> Vec<AchievementCategoryEntry> {
+    include_str!("../../../data/db2/12.1.0.69933/Achievement_Category.csv")
+        .lines()
+        .skip(1)
+        .map(|line| {
+            let fields: Vec<_> = line.split(',').collect();
+            AchievementCategoryEntry {
+                category_id: fields[0].parse().unwrap(),
+                name: fields[1].into(),
+                parent_id: fields[2].parse().unwrap(),
+                order_index: fields[3].parse().unwrap(),
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn achievements_retail_category_tabs_use_real_db2_hierarchy_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        window.action("micro:AchievementMicroButton");
+        window.apply(AchievementCatalogPage::Categories {
+            categories: retail_categories(),
+            next_id: None,
+        });
+        let ids = |window: &AchievementWindow| {
+            window
+                .category_tree()
+                .iter()
+                .map(|(row, _)| row.category_id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            ids(&window),
+            vec![
+                92, 96, 97, 15522, 95, 168, 169, 201, 155, 15117, 15246, 15301, 15234, 81
+            ]
+        );
+        window.action("achievement:category:168");
+        assert!(
+            window
+                .category_tree()
+                .iter()
+                .any(|(row, depth)| row.category_id == 14808 && *depth == 1)
+        );
+        window.action("achievement:category:14808");
+        assert_eq!(window.selected_category, Some(14808));
+        let registry = achievement_registry(&window, skin);
+        assert!(registry.get_by_name("AchievementTabGuild").is_some());
+        window.action("achievement:guild");
+        assert_eq!(
+            ids(&window),
+            vec![15088, 15077, 15078, 15079, 15080, 15089, 15093]
+        );
+        window.action("achievement:statistics");
+        assert_eq!(
+            ids(&window),
+            vec![
+                130, 128, 122, 133, 132, 134, 131, 15533, 14807, 21, 15219, 15227, 15176, 15549
+            ]
+        );
+    }
+}
+
+#[test]
+fn achievements_retail_completed_filters_and_feats_are_not_scope_filters() {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Categories {
+        categories: retail_categories(),
+        next_id: None,
+    });
+    window.action("achievement:category:14808");
+    let earned = achievement();
+    let mut incomplete = earned.clone();
+    incomplete.achievement_id = 646;
+    incomplete.earned = false;
+    incomplete.earned_at = None;
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![earned.clone(), incomplete.clone()],
+        next_id: None,
+    });
+    window.action("achievement:filter:completed");
+    assert_eq!(
+        window
+            .displayed_entries()
+            .iter()
+            .map(|row| row.achievement_id)
+            .collect::<Vec<_>>(),
+        vec![633]
+    );
+    window.action("achievement:filter:incomplete");
+    assert_eq!(
+        window
+            .displayed_entries()
+            .iter()
+            .map(|row| row.achievement_id)
+            .collect::<Vec<_>>(),
+        vec![646]
+    );
+    window.action("achievement:filter:all");
+    assert_eq!(window.displayed_entries().len(), 2);
+    window.action("achievement:category:81");
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 81,
+        achievements: vec![earned, incomplete],
+        next_id: None,
+    });
+    assert_eq!(
+        window.displayed_entries().len(),
+        1,
+        "Retail Feats shows earned entries only"
+    );
+}
+
 #[test]
 fn achievements_art_categories_collapse_and_rows_expand_in_place_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -82,11 +199,19 @@ fn achievements_art_category_scroll_reaches_last_child_both_skins() {
         assets(skin);
         let mut window = AchievementWindow::default();
         window.action("micro:AchievementMicroButton");
-        let mut categories = vec![category()];
+        let mut categories = vec![
+            AchievementCategoryEntry {
+                category_id: 168,
+                parent_id: -1,
+                order_index: 7,
+                name: "Dungeons & Raids".into(),
+            },
+            category(),
+        ];
         for id in 20000..20024 {
             categories.push(AchievementCategoryEntry {
                 category_id: id,
-                parent_id: 14808,
+                parent_id: 168,
                 order_index: (id - 20000) as i32,
                 name: format!("Dungeon category {id}"),
             });
@@ -95,7 +220,7 @@ fn achievements_art_category_scroll_reaches_last_child_both_skins() {
             categories,
             next_id: None,
         });
-        window.action("achievement:category:14808");
+        window.action("achievement:category:168");
         let mut shared = SharedContext::new();
         shared.insert(window);
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -599,8 +724,8 @@ fn achievementlinks_chat_displays_one_clickable_name_without_transport_markup() 
 fn category() -> AchievementCategoryEntry {
     AchievementCategoryEntry {
         category_id: 14808,
-        parent_id: -1,
-        order_index: 2,
+        parent_id: 168,
+        order_index: 1,
         name: "Classic".into(),
     }
 }
@@ -983,7 +1108,7 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
         );
         assert_eq!(
             window.apply(AchievementCatalogPage::Categories {
-                categories: vec![category()],
+                categories: retail_categories(),
                 next_id: Some(14808)
             }),
             vec![QueryAchievementCatalog::Categories { after_id: 14808 }]
