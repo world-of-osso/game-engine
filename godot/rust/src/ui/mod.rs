@@ -30,6 +30,7 @@ mod layout;
 mod mentor_host;
 mod meter_preview;
 mod minimap_preview;
+mod mount_journal_host;
 mod options_keybindings;
 mod parts;
 mod party_preview;
@@ -1645,6 +1646,17 @@ impl RegistryUi {
             ScreenPostsetup::None,
             registry,
             parent,
+        )
+    }
+
+    pub fn show_world_quest_toast(
+        &mut self,
+        state: game_engine_ui_model::world_quest_ui::WorldQuestToast,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::world_quest_ui::toast_screen,
+            ScreenPostsetup::None,
         )
     }
 

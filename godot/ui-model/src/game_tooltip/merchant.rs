@@ -143,6 +143,7 @@ mod tests {
 
     fn vendor_item(item_id: u32, name: &str, count: u32, durability: Option<u32>) -> VendorItem {
         VendorItem {
+            extra_costs: Vec::new(),
             slot: 0,
             item_id,
             name: name.into(),

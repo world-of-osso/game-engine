@@ -101,6 +101,7 @@ pub struct ObjectiveTrackerState {
     pub quests: Vec<TrackedQuest>,
     pub dungeon: Option<DungeonBlock>,
     pub scenario: Option<ScenarioStage>,
+    pub world_quests: Vec<(TrackedQuest, (u32, u32))>,
 }
 
 impl ObjectiveTrackerState {
@@ -135,6 +136,39 @@ impl ObjectiveTrackerState {
                 );
             }
         }
+        let (world, ordinary): (Vec<_>, Vec<_>) = state
+            .quests
+            .into_iter()
+            .partition(|block| runtime.is_world_quest(block.quest_id));
+        state.quests = ordinary;
+        state.world_quests = world
+            .into_iter()
+            .map(|block| {
+                let entry = runtime
+                    .entry(block.quest_id)
+                    .expect("tracked world quest entry");
+                let (current, total) = match entry.objectives.iter().find(|objective| {
+                    objective.kind == shared::protocol::QuestObjectiveKind::ProgressBar
+                }) {
+                    Some(bar) => (bar.current, bar.required),
+                    None => (
+                        entry
+                            .objectives
+                            .iter()
+                            .filter(|objective| !objective.optional)
+                            .map(|objective| objective.current)
+                            .sum(),
+                        entry
+                            .objectives
+                            .iter()
+                            .filter(|objective| !objective.optional)
+                            .map(|objective| objective.required)
+                            .sum(),
+                    ),
+                };
+                (block, (current, total))
+            })
+            .collect();
         state
     }
 
@@ -150,6 +184,7 @@ impl ObjectiveTrackerState {
             quests: watched.into_iter().map(tracked_quest).collect(),
             dungeon: None,
             scenario: None,
+            world_quests: Vec::new(),
         }
     }
 }
@@ -225,6 +260,9 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
         }
         if !state.quests.is_empty() {
             contents.extend(quests_module(state, &mut height, scale));
+        }
+        if !state.world_quests.is_empty() {
+            contents.extend(world_quests_module(state, &mut height, scale));
         }
         if let Some(window) = ctx.get::<crate::achievements::AchievementWindow>() {
             contents.extend(achievements_module(window, &mut height, scale));
@@ -347,6 +385,35 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) ->
         *height = y;
         y += FROM_BLOCK_OFFSET_Y;
     }
+    elements
+}
+
+fn world_quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) -> Element {
+    let top = TOP_MODULE_PADDING.max(*height + 6.0);
+    let mut elements = atlas_texture(
+        "WorldQuestObjectiveTrackerHeaderBackground".into(),
+        &TRACKER_SECONDARY_HEADER,
+        scaled((-20., top - 2., 300., 30.), scale),
+    );
+    elements.extend(header_text(
+        "WorldQuestObjectiveTrackerHeaderText",
+        "World Quests",
+        top + 5.,
+        scale,
+    ));
+    let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
+    for (index, (quest, progress)) in state.world_quests.iter().enumerate() {
+        elements.extend(quest_block(quest, index + 1, &mut y, scale));
+        y += LINE_SPACING;
+        elements.extend(crate::world_quest_ui::progress_bar(
+            quest.quest_id,
+            *progress,
+            y,
+            scale,
+        ));
+        y += 38. + FROM_BLOCK_OFFSET_Y;
+    }
+    *height = y;
     elements
 }
 

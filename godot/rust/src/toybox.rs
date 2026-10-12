@@ -293,6 +293,10 @@ impl GameClient {
                 self.toggle_pet_journal();
             }
             "collections:toys" => {}
+            "collections:mounts" => {
+                self.close_toybox();
+                self.toggle_mount_journal();
+            }
             "toy_filters" => {
                 self.toybox.model.filters_open = !self.toybox.model.filters_open;
                 self.toybox.model.filter_submenu = None;

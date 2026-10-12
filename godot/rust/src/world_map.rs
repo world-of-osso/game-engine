@@ -303,6 +303,13 @@ impl GameClient {
                 godot_error!("World map vignettes: {error}");
             })
             .unwrap_or_default();
+        let ordinary_quests: Vec<_> = self
+            .account
+            .quests
+            .map_entries()
+            .into_iter()
+            .filter(|entry| !self.account.quests.is_world_quest(entry.quest_id))
+            .collect();
         let mut state = world_map_frame_state(
             data,
             WorldMapRequest {
@@ -311,13 +318,49 @@ impl GameClient {
                 map_id: self.world_map.map_id,
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
-                quests: &self.account.quests.map_entries(),
+                quests: &ordinary_quests,
                 // QuestBlobDataProvider Refresh adds the hovered quest to super-tracking.
                 // Both use the native source's unchanged fill128/border192.
                 quest_areas: &self.account.quests.map_objective_areas(&self.quests.ui),
                 vignettes: &vignettes,
             },
         );
+        let now = crate::account::quest_local_unix();
+        state
+            .pins
+            .extend(game_engine_ui_model::world_quest_ui::map_pins(
+                &data.catalog,
+                state.map_id,
+                &self.account.quests,
+                now,
+            ));
+        if let Some(uv) = self.world_map.hovered {
+            let layout =
+                WorldMapLayout::new(state.viewport, self.world_map.display.maximized, true);
+            let [_, _, w, h] = layout.canvas_rect();
+            let hovered = state.pins.iter().find(|pin| {
+                pin.pin_type == MapPinType::WorldQuest
+                    && ((pin.x - uv[0]) * w).abs() < 16.
+                    && ((pin.y - uv[1]) * h).abs() < 16.
+            });
+            if let Some(quest) = hovered.and_then(|pin| {
+                self.account
+                    .quests
+                    .world_quests
+                    .iter()
+                    .find(|quest| Some(quest.quest_id) == pin.quest_id)
+            }) {
+                let position = [
+                    (uv[0] * w + 18.).min((w - 300.).max(0.)),
+                    (uv[1] * h + 18.).min((h - 160.).max(0.)),
+                ];
+                state.world_quest_tooltip = Some(game_engine_ui_model::world_quest_ui::tooltip(
+                    quest,
+                    now + self.account.quests.server_clock_offset,
+                    position,
+                ));
+            }
+        }
         state.highlighted_quest = self.quests.ui.highlighted;
         state
             .pins
@@ -482,7 +525,17 @@ impl GameClient {
         self.load_world_map_data()?;
         let player = self.world_map_player();
         let data = self.world_map.data().ok_or("World map data not loaded")?;
-        let opened = player.as_ref().and_then(|player| player_map(data, player));
+        // Auto-watched tasks author their own UiMapID, including phased task maps.
+        let task = self
+            .account
+            .quests
+            .world_quests
+            .iter()
+            .find(|quest| self.account.quests.is_watched(quest.quest_id));
+        let opened = match task {
+            Some(quest) => Some(quest.ui_map_id),
+            None => player.as_ref().and_then(|player| player_map(data, player)),
+        };
         self.world_map.map_id = opened.ok_or("World map: no map under the player")?;
         self.world_map.hovered = None;
         let id = self
