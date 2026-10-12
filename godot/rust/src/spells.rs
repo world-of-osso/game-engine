@@ -9,7 +9,10 @@
 
 mod action_bar;
 mod assignment;
+mod assisted_combat;
 mod casting;
+mod cooldown_viewer;
+use cooldown_viewer::CooldownHud;
 mod floating_text;
 mod ground_target;
 mod snapshot;
@@ -58,6 +61,7 @@ enum CatalogLoad {
 
 pub(crate) struct SpellsHud {
     catalog: CatalogLoad,
+    cooldowns: CooldownHud,
     bar_ui: Option<Gd<RegistryUi>>,
     pub(crate) vigor_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
@@ -90,6 +94,7 @@ impl Default for SpellsHud {
     fn default() -> Self {
         Self {
             catalog: CatalogLoad::Idle,
+            cooldowns: CooldownHud::default(),
             bar_ui: None,
             vigor_ui: None,
             cast_ui: None,
@@ -114,6 +119,10 @@ impl Default for SpellsHud {
 }
 
 impl SpellsHud {
+    /// Current projected page, including staged ranks and server point budgets.
+    pub(crate) fn projected_talents(&self) -> Option<&game_engine_ui_model::talents::TalentView> {
+        self.book.talents.as_ref()
+    }
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -123,6 +132,7 @@ impl SpellsHud {
             &mut self.vigor_ui,
             &mut self.cast_ui,
             &mut self.book_ui,
+            &mut self.cooldowns.ui,
         ] {
             if let Some(ui) = ui {
                 visit(ui)?;
@@ -140,6 +150,7 @@ impl SpellsHud {
 
     fn close(&mut self) {
         self.cancel_ground_target();
+        self.cooldowns.close();
         for ui in [
             self.bar_ui.take(),
             self.vigor_ui.take(),
@@ -173,9 +184,9 @@ impl SpellsHud {
                         .to_string(),
                 );
                 let (send, receive) = mpsc::channel();
-                std::thread::spawn(move || {
+                game_engine_core::worker_shutdown::track(std::thread::spawn(move || {
                     let _ = send.send(load_spell_catalog(&paths));
-                });
+                }));
                 self.catalog = CatalogLoad::Loading(receive);
             }
             CatalogLoad::Loading(receive) => match receive.try_recv() {
@@ -245,6 +256,7 @@ impl GameClient {
         }
         self.spells.poll_catalog(&self.data_root);
         self.account.spells.tick(delta);
+        self.update_assisted_combat();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_spell_keys()?;
         }
@@ -254,6 +266,7 @@ impl GameClient {
             *pushed = (*pushed - delta).max(0.0);
         }
         self.sync_action_bar()?;
+        self.update_cooldown_viewer();
         self.sync_vigor_bar()?;
         self.sync_cast_bar()?;
         self.sync_spellbook()?;

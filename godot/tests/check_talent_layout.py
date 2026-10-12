@@ -26,12 +26,13 @@ def decode_png(path):
 
 def count_ink(pixels, rect, color):
     x, y, width, height = rect
+    target = (color,) * 3 if isinstance(color, int) else color
     count = 0
     for row in range(round(y + 2), round(y + height - 2)):
         for column in range(round(x + 2), round(x + width - 2)):
             index = (row * WIDTH + column) * 3
             rgb = pixels[index:index + 3]
-            if all(abs(component - color) < 16 for component in rgb):
+            if all(abs(component - expected) < 16 for component, expected in zip(rgb, target)):
                 count += 1
     return count
 
@@ -52,11 +53,26 @@ def check_capture(directory, capture):
             failures.append(f"{name} painted bottom{y + height + outline:.2f} > footer{footer[1]}")
     pixels = decode_png(directory / capture["filename"])
     counts = {}
+    hero_color = 255 if capture.get("hero_selected") else (0, 255, 0)
     for name, color in [("TalentClassName", 255), ("TalentSpecName", 255),
-                        ("TalentHeroSelectionLabel", 255), ("TalentApplyText", 128)]:
+                        ("TalentHeroSelectionLabel", hero_color), ("TalentApplyText", 128),
+                        ("TalentClassPoints", (0, 255, 0)), ("TalentSpecPoints", (0, 255, 0))]:
         counts[name] = count_ink(pixels, geometry[name], color)
         if counts[name] < 40:
             failures.append(f"{name}: only{counts[name]} visible glyph pixels")
+    if "TalentSpecBackground" not in geometry:
+        failures.append("missing authored specialization background")
+    else:
+        x, y, w, _ = geometry["TalentSpecBackground"]
+        # The strip below the headers has no ordinary talent nodes. Reject a
+        # plain black canvas without counting icon/name paint as background art.
+        painted = sum(any(pixels[(row * WIDTH + column) * 3 + channel] > 20
+                          for channel in range(3))
+                      for row in range(round(y + 66), round(y + 96))
+                      for column in range(round(x + 40), round(x + w - 40)))
+        counts["TalentSpecBackground"] = painted
+        if painted < 1000:
+            failures.append(f"spec background strip: only{painted} authored pixels")
     return {"spec": capture["spec_id"], "skin": capture["skin"],
             "filename": capture["filename"], "ink": counts, "failures": failures}
 

@@ -261,6 +261,7 @@ pub struct CameraDraft {
 pub struct HudDraft {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    pub cooldown_assist: client_options_data::CooldownAssistOptions,
     pub extra_action_bars: client_options_data::ExtraActionBars,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
@@ -274,6 +275,10 @@ pub struct HudDraft {
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
     pub status_text_display: StatusTextDisplay,
+    pub encounter_timeline: bool,
+    pub encounter_bars: bool,
+    pub encounter_warnings: bool,
+    pub encounter_sounds: bool,
 }
 
 #[derive(Clone)]
@@ -381,6 +386,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
     HudDraft {
         show_minimap: hud.show_minimap,
         show_action_bars: hud.show_action_bars,
+        cooldown_assist: hud.cooldown_assist,
         extra_action_bars: hud.extra_action_bars,
         show_nameplates: hud.show_nameplates,
         nameplate_distance: hud.nameplate_distance,
@@ -392,6 +398,10 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
         soft_target_interact: hud.soft_target_interact,
         soft_target: hud.soft_target,
         show_fps_overlay: hud.show_fps_overlay,
+        encounter_timeline: hud.encounter_timeline,
+        encounter_bars: hud.encounter_bars,
+        encounter_warnings: hud.encounter_warnings,
+        encounter_sounds: hud.encounter_sounds,
         chat_font_size: hud.chat_font_size,
         status_text_display: hud.status_text_display,
     }
@@ -440,6 +450,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
     HudOptionsView {
         show_minimap: h.show_minimap,
         show_action_bars: h.show_action_bars,
+        cooldown_assist: h.cooldown_assist,
         extra_action_bars: h.extra_action_bars,
         show_nameplates: h.show_nameplates,
         nameplate_distance: h.nameplate_distance,
@@ -451,6 +462,10 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         soft_target_interact: h.soft_target_interact,
         interact_key_icons: h.soft_target.interact_key_icons(),
         show_fps_overlay: h.show_fps_overlay,
+        encounter_timeline: h.encounter_timeline,
+        encounter_bars: h.encounter_bars,
+        encounter_warnings: h.encounter_warnings,
+        encounter_sounds: h.encounter_sounds,
         chat_font_size: h.chat_font_size,
         status_text_display: h.status_text_display,
     }
@@ -993,6 +1008,15 @@ fn apply_hud_toggle(
         }
         "show_minimap" => hud.show_minimap = !hud.show_minimap,
         "show_action_bars" => hud.show_action_bars = !hud.show_action_bars,
+        "cooldown_viewer_enabled" => {
+            hud.cooldown_assist.viewer_enabled = !hud.cooldown_assist.viewer_enabled
+        }
+        "assisted_highlight" => {
+            hud.cooldown_assist.highlight_action_bar = !hud.cooldown_assist.highlight_action_bar
+        }
+        "cooldown_assisted_highlight" => {
+            hud.cooldown_assist.highlight_viewer = !hud.cooldown_assist.highlight_viewer
+        }
         "action_bar_2" => {
             let default = skin == game_engine_core::ui_layout_data::LayoutSkin::Forever;
             hud.extra_action_bars.action_bar_2 =
@@ -1013,6 +1037,11 @@ fn apply_hud_toggle(
             hud.personal_resource_display = !hud.personal_resource_display
         }
         "soft_target_interact" => hud.soft_target_interact = !hud.soft_target_interact,
+        "encounter_timeline" => hud.encounter_timeline = !hud.encounter_timeline,
+        "encounter_view:1" => hud.encounter_bars = false,
+        "encounter_view:2" => hud.encounter_bars = true,
+        "encounter_warnings" => hud.encounter_warnings = !hud.encounter_warnings,
+        "encounter_sounds" => hud.encounter_sounds = !hud.encounter_sounds,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
         _ => {
             if let Some(choice) = interact_key_icons_choice(key) {
@@ -1124,6 +1153,7 @@ pub fn apply_camera_file_snapshot(c: &mut CameraOptionsFile, d: &CameraDraft) {
 pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.show_minimap = d.show_minimap;
     h.show_action_bars = d.show_action_bars;
+    h.cooldown_assist = d.cooldown_assist;
     h.extra_action_bars = d.extra_action_bars;
     h.show_nameplates = d.show_nameplates;
     h.nameplate_style = d.nameplate_style.clamped();
@@ -1141,6 +1171,10 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.soft_target_interact = d.soft_target_interact;
     h.soft_target = d.soft_target;
     h.show_fps_overlay = d.show_fps_overlay;
+    h.encounter_timeline = d.encounter_timeline;
+    h.encounter_bars = d.encounter_bars;
+    h.encounter_warnings = d.encounter_warnings;
+    h.encounter_sounds = d.encounter_sounds;
     h.status_text_display = d.status_text_display;
     h.chat_font_size = d
         .chat_font_size

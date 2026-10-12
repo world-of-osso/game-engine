@@ -188,6 +188,7 @@ pub use crate::nameplate_style::NameplateBarThickness;
 pub struct HudOptionsView {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    pub cooldown_assist: game_engine_core::client_options_data::CooldownAssistOptions,
     pub extra_action_bars: game_engine_core::client_options_data::ExtraActionBars,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
@@ -199,6 +200,10 @@ pub struct HudOptionsView {
     pub soft_target_interact: bool,
     pub interact_key_icons: crate::soft_target_data::InteractKeyIcons,
     pub show_fps_overlay: bool,
+    pub encounter_timeline: bool,
+    pub encounter_bars: bool,
+    pub encounter_warnings: bool,
+    pub encounter_sounds: bool,
     pub chat_font_size: f32,
     pub status_text_display: crate::status_text_data::StatusTextDisplay,
 }

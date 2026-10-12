@@ -27,6 +27,7 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
+mod mentor_host;
 mod meter_preview;
 mod minimap_preview;
 mod options_keybindings;
@@ -276,6 +277,13 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if self
+            .shared
+            .get::<game_engine_ui_model::achievements::AchievementWindow>()
+            .is_some()
+        {
+            game_engine_ui_model::achievements::apply_achievement_postsetup(&mut self.registry);
+        }
         // StackSplitFrame.xml:3. Shared by standalone bag/bank and merchant canvases.
         if let Some(id) = self
             .registry
@@ -1115,6 +1123,17 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    pub fn show_cooldown_viewer(
+        &mut self,
+        state: game_engine_ui_model::cooldown_assist::CooldownViewerView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Skyriding vigor widget.
     pub fn show_vigor_bar(
         &mut self,
@@ -1365,6 +1384,17 @@ impl RegistryUi {
         )
     }
 
+    pub(crate) fn show_encounter_timeline(
+        &mut self,
+        state: game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::encounter_timeline_component::encounter_timeline_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     fn show_viewport_screen<T: 'static>(
         &mut self,
         state: T,
@@ -1553,6 +1583,40 @@ impl RegistryUi {
         Ok(())
     }
 
+    /// Mainline AchievementUI.lua:1023/2317: a new category/filter starts at the top;
+    /// appending a cursor page retains the existing native position and expanded row.
+    pub fn set_achievement_window(
+        &mut self,
+        state: game_engine_ui_model::achievements::AchievementWindow,
+    ) -> Result<(), String> {
+        use game_engine_ui_model::achievements::{AchievementWindow, ROWS_SCROLLBOX};
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Achievement window not initialized")?;
+        let shown = model
+            .shared
+            .get::<AchievementWindow>()
+            .ok_or("Achievement window state not initialized")?;
+        let filter_changed = (
+            shown.scope,
+            shown.statistics,
+            shown.selected_category,
+            shown.search_text.as_str(),
+        ) != (
+            state.scope,
+            state.statistics,
+            state.selected_category,
+            state.search_text.as_str(),
+        );
+        let standalone = state.selected_category.is_none() && state.search_text.is_empty();
+        let detail_changed = standalone && shown.selected_achievement != state.selected_achievement;
+        if filter_changed || detail_changed {
+            model.registry.scroll_lists.scroll_to(ROWS_SCROLLBOX, 0);
+        }
+        self.set_state(state)
+    }
+
     pub fn show_raid_info(
         &mut self,
         state: game_engine_ui_model::raid_info::RaidInfoState,
@@ -1629,6 +1693,27 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::battleground::pvp_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_adventure_guide(
+        &mut self,
+        state: game_engine_ui_model::adventure_guide::View,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::adventure_guide::adventure_guide_screen,
             ScreenPostsetup::None,
             registry,
             parent,
@@ -2949,6 +3034,8 @@ fn apply_login_art(registry: &mut FrameRegistry) -> Result<(), String> {
 #[cfg(test)]
 #[path = "button_style_tests.rs"]
 mod button_style_tests;
+#[cfg(test)]
+mod encounter_timeline_tests;
 #[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;

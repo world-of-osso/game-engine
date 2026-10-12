@@ -68,9 +68,9 @@ impl Professions {
             self.started = true;
             let path = data_root.join("db2").join(SPELL_DB2_BUILD);
             let (sender, receiver) = mpsc::channel();
-            std::thread::spawn(move || {
+            game_engine_core::worker_shutdown::track(std::thread::spawn(move || {
                 let _ = sender.send(RecipeCatalog::load(&path));
-            });
+            }));
             self.loading = Some(receiver);
         }
         let Some(receiver) = &self.loading else {

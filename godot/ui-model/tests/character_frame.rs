@@ -218,6 +218,60 @@ fn a_delta_unequipping_the_weapon_restores_the_empty_slot() {
 }
 
 #[test]
+fn nonvisual_equipment_both_skins_show_snapshot_icons_and_route_unequip() {
+    use game_engine_ui_model::bag_data::InventoryRequest;
+    use game_engine_ui_model::character_frame::paperdoll_unequip_request;
+    use game_engine_ui_model::merchant::Click;
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    let items = [
+        (EquipmentSlot::Neck, 4112),
+        (EquipmentSlot::Finger1, 1116),
+        (EquipmentSlot::Finger2, 1319),
+        (EquipmentSlot::Trinket1, 1490),
+        (EquipmentSlot::Trinket2, 2820),
+    ];
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut inventory = equipped(&items);
+        let registry = build(view(&inventory, None));
+        for (slot, id) in items {
+            let button = paperdoll_button(slot).unwrap();
+            let action = onclick(&registry, button.name).unwrap();
+            assert_eq!(parse_equipment_slot_action(&action), Some(slot));
+            assert_eq!(
+                texture_fdid(&registry, &format!("{}IconTexture", button.name)),
+                Some(item_catalog_entry(id).unwrap().icon_fdid)
+            );
+            assert_eq!(
+                paperdoll_unequip_request(&inventory, slot, Click::RIGHT),
+                Ok(Some(InventoryRequest::Swap(shared::protocol::SwapItem {
+                    from: ItemLocation::Equipment(slot),
+                    to: ItemLocation::Bag { bag: 0, slot: 0 },
+                })))
+            );
+            let cursor = paperdoll_slots(&inventory, Some(ItemLocation::Equipment(slot)));
+            let index = PAPERDOLL_BUTTONS
+                .iter()
+                .position(|button| button.slot == slot)
+                .unwrap();
+            assert!(cursor[index].locked);
+        }
+        inventory.apply_delta(&InventoryDelta {
+            changes: vec![InventorySlotChange {
+                location: ItemLocation::Equipment(EquipmentSlot::Finger1),
+                item: None,
+            }],
+        });
+        let empty = build(view(&inventory, None));
+        assert_eq!(
+            texture_fdid(&empty, "CharacterFinger0SlotIconTexture"),
+            Some(136_514)
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn the_slot_on_the_cursor_is_dimmed() {
     let inventory = equipped(&[(EquipmentSlot::MainHand, 25), (EquipmentSlot::Chest, 2379)]);
     let slots = paperdoll_slots(

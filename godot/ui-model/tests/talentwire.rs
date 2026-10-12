@@ -139,7 +139,7 @@ fn talents_choice_flyout_selects_one_entry_and_switches() {
     assert_eq!(editor.node_rank(node.id), 0);
     assert!(editor.purchase(&view, 80, node.id, node.entries[0].id));
     assert_eq!(editor.rank(node.id, node.entries[0].id), 1);
-    assert!(editor.choice_node.is_none());
+    assert_eq!(editor.choice_node, Some(node.id)); // Hero dialog retains staged Apply.
     assert!(editor.click(&view, 80, node.id, false));
     assert!(editor.purchase(&view, 80, node.id, node.entries[1].id));
     assert_eq!(editor.rank(node.id, node.entries[0].id), 0);
@@ -147,6 +147,58 @@ fn talents_choice_flyout_selects_one_entry_and_switches() {
     editor.undo();
     assert_eq!(editor.node_rank(node.id), 0);
 }
+#[test]
+fn talent_tree3_switching_hero_subtree_refunds_its_purchases_but_keeps_grants() {
+    let view = view();
+    let mut editor = view.editor.clone();
+    let selector = view.graph.hero_selection.as_ref().unwrap();
+    let first = &selector.entries[0];
+    let second = &selector.entries[1];
+    assert!(editor.purchase(&view, 80, selector.id, first.id));
+    let old_tree = view
+        .graph
+        .heroes
+        .iter()
+        .find(|tree| tree.id == first.subtree_id)
+        .unwrap();
+    let (node, entry) = old_tree
+        .nodes
+        .iter()
+        .flat_map(|node| node.entries.iter().map(move |entry| (node, entry)))
+        .find(|(node, entry)| editor.can_purchase(&view, 80, node.id, entry.id))
+        .expect("real purchasable hero node");
+    assert!(editor.purchase(&view, 80, node.id, entry.id));
+    let purchased_rank = editor.rank(node.id, entry.id);
+    assert!(purchased_rank > 0);
+    assert!(
+        editor.can_purchase(&view, 80, selector.id, second.id),
+        "changing hero tree must not retain incompatible purchases"
+    );
+    assert!(editor.purchase(&view, 80, selector.id, second.id));
+    assert_eq!(editor.rank(selector.id, first.id), 0);
+    assert_eq!(editor.rank(selector.id, second.id), 1);
+    let grants = game_engine_core::talent_data::rules::granted_entries(
+        view.rules.as_ref().unwrap(),
+        game_engine_core::talent_data::rules::TraitContext {
+            spec_id: 62,
+            level: 80,
+        },
+    );
+    for node in &old_tree.nodes {
+        for entry in &node.entries {
+            let free = grants
+                .iter()
+                .find(|grant| grant.node_id == node.id && grant.entry_id == entry.id)
+                .map_or(0, |grant| grant.granted as u8);
+            assert_eq!(
+                editor.rank(node.id, entry.id),
+                free,
+                "old subtree purchases refunded; grants retained"
+            );
+        }
+    }
+}
+
 #[test]
 fn talents_gate_and_hero_level_reject_unavailable_purchases() {
     let view = view();

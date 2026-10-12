@@ -10,6 +10,8 @@ pub const IG_CHARACTER_INFO_CLOSE: u32 = 840;
 pub const IG_MAINMENU_OPTION_CHECKBOX_ON: u32 = 856;
 /// `SOUNDKIT.ITEM_REPAIR`.
 pub const ITEM_REPAIR: u32 = 7994;
+/// Cached Mainline SoundKitConstants.lua RAID_BOSS_EMOTE_WARNING.
+pub const RAID_BOSS_EMOTE_WARNING: u32 = 12197;
 /// Retail SoundKitConstants.lua PlayerCountdown kits.
 pub const UI_COUNTDOWN_TIMER: u32 = 158565;
 pub const UI_COUNTDOWN_FINISHED: u32 = 158566;
@@ -25,7 +27,12 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 9] = [
+const KITS: [UiSoundKit; 10] = [
+    UiSoundKit {
+        id: RAID_BOSS_EMOTE_WARNING,
+        volume: 0.398_107_17,
+        files: &[567_394],
+    },
     UiSoundKit {
         id: UI_COUNTDOWN_TIMER,
         volume: 0.9,
@@ -88,6 +95,12 @@ impl UiSoundKit {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn timeline_native_sound_uses_cached_retail_raid_boss_warning_rows() {
+        let warning = ui_sound_kit(12197).expect("Retail RaidBossEmote warning kit");
+        assert_eq!((warning.volume, warning.file(0)), (0.398_107_17, 567_394));
+    }
 
     #[test]
     fn merchant_kits_carry_their_soundkit_rows() {
