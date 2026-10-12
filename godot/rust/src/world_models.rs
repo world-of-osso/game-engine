@@ -257,7 +257,8 @@ impl VisualCatalogs {
     ) -> Result<VisualParts, String> {
         let display = self.query_display(display_id)?;
         let armor = self.gear()?.display_armor(display_id)?;
-        let npc = self.appearances.lock().expect("NPC appearances").prepare(
+        let mut appearances = self.appearances.lock().expect("NPC appearances");
+        let npc = appearances.prepare(
             &self.data_root,
             display_id,
             display.source_product,
@@ -279,8 +280,15 @@ impl VisualCatalogs {
                 }
             },
         )?;
+        let extra_geosets = if display.uses_display_geosets && npc.is_none() {
+            Some(appearances.display_geosets(&self.data_root, display_id)?)
+        } else {
+            None
+        };
+        drop(appearances);
         let (race, sex) = npc.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
         let gear = CreatureGear {
+            extra_geosets,
             armor_models: npc
                 .as_ref()
                 .map_or_else(Vec::new, |npc| npc.armor.runtime_models.clone()),

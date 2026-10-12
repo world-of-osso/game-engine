@@ -320,6 +320,53 @@ class ImportTests(unittest.TestCase):
             self.assertIn("ambiguous material", errors.getvalue())
             self.assertFalse((root / "failed.sqlite").exists())
 
+    def test_world_spawns_select_every_model_variant_and_explicit_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, raw in [
+                ("1264997.db2", fixture()),
+                ("3692043.db2", fixture(layout=0x2F331C33, related=True)),
+                ("1720141.db2", fixture(layout=0x5E539080, related=True)),
+            ]:
+                (root / name).write_bytes(raw)
+            (root / "CreatureDisplayInfo.csv").write_text(
+                "ID,ExtendedDisplayInfoID\n22132,0\n4203,0\n13031,0\n21774,0\n"
+            )
+            (root / "TextureFileData.csv").write_text(
+                "FileDataID,UsageType,MaterialResourcesID\n"
+            )
+            (root / "community-listfile.csv").write_text("")
+            with contextlib.closing(sqlite3.connect(root / "models.sqlite")) as db:
+                db.execute("CREATE TABLE creature_displays(display_id, model_fdid)")
+            world = root / "world.sqlite"
+            with contextlib.closing(sqlite3.connect(world)) as db, db:
+                db.executescript("""
+                    CREATE TABLE content_creature(guid,id1,id2,id3,map,modelid);
+                    CREATE TABLE content_creature_template_model(CreatureID,Idx,CreatureDisplayID);
+                    INSERT INTO content_creature VALUES(1,3674,12118,0,43,0);
+                    INSERT INTO content_creature VALUES(2,3674,0,0,409,13031);
+                    INSERT INTO content_creature_template_model VALUES(3674,0,4203);
+                    INSERT INTO content_creature_template_model VALUES(3674,1,22132);
+                    INSERT INTO content_creature_template_model VALUES(12118,0,13031);
+                    INSERT INTO content_creature_template_model VALUES(17302,0,21774);
+                """)
+            before = world.read_bytes()
+            output = root / "result.sqlite"
+            argv = ["--db2-dir", str(root), "--data-dir", str(root),
+                    "--model-cache", str(root / "models.sqlite"),
+                    "--world-db", str(world), "--output", str(output)]
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                try:
+                    result = self.m.main(argv)
+                except SystemExit as error:
+                    result = error.code
+            self.assertEqual(result, 0, "world-reference import must succeed")
+            self.assertEqual(world.read_bytes(), before, "world DB must remain read-only")
+            self.assertEqual(
+                self.m.read_sqlite(output, "SELECT * FROM display_coverage ORDER BY display_id"),
+                [(4203, 0), (13031, 0), (22132, 0)],
+            )
+
     def test_zero_selected_hd_material_preserves_absence_without_sd_fallback(self):
         rows = self.m.join_appearances(
             {7: 17},
