@@ -173,7 +173,7 @@ fn filter_controls(
         unscrollable: Unscrollable::HideThumb,
     };
     let config = scroll_list_attr(&geometry);
-    out.extend(rsx! { r#frame { name: TAG_LIST, left:15.0, top:TOP, width:210.0, height:HEIGHT, pos_type:"absolute", mouse_enabled:true, scroll_list:config, {rows} {bar.element()} } });
+    out.extend(rsx! { r#frame { name:{DynName(TAG_LIST.into())}, left:15.0, top:TOP, width:210.0, height:HEIGHT, pos_type:"absolute", mouse_enabled:true, scroll_list:config, {rows} {bar.element()} } });
     out
 }
 
