@@ -193,12 +193,35 @@ class ClosureTests(unittest.TestCase):
         self.assertIsNone(result["classes"]["m2"]["missing_bytes_estimate"])
 
     def test_wmo_extended_shader_materials_are_dependencies(self):
+        # MOMT23 maps to pixel20; raw MOMT20 is a different renderer case.
         material = bytearray(64)
-        struct.pack_into("<I", material, 4, 20)
+        struct.pack_into("<I", material, 4, 23)
         struct.pack_into("<I", material, 60, 8)
         self.put("models/3.wmo", chunk("MOMT", material, True))
         result = self.closure(3, "wmo")
         self.assertEqual([a["fdid"] for a in result["assets"]], [3, 8])
+
+    def test_wmo_momt22_reads_its_six_sampled_textures_not_later_runtime_words(self):
+        material = bytearray(64)
+        struct.pack_into("<I", material, 4, 22)
+        for offset, fdid in zip([12, 24, 36, 40, 44, 48], range(80, 86)):
+            struct.pack_into("<I", material, offset, fdid)
+        struct.pack_into("<I", material, 60, 999)
+        self.put("models/3.wmo", chunk("MOMT", material, True))
+        result = self.closure(3, "wmo")
+        self.assertEqual([a["fdid"] for a in result["assets"]], [3, *range(80, 86)])
+
+    def test_wmo_nonextended_momt19_and20_do_not_turn_unused_values_into_assets(self):
+        for shader in [19, 20]:
+            with self.subTest(shader=shader):
+                material = bytearray(64)
+                struct.pack_into("<I", material, 4, shader)
+                struct.pack_into("<I", material, 12, 8)
+                for offset in [40, 44, 48, 52, 56, 60]:
+                    struct.pack_into("<I", material, offset, 999)
+                self.put("models/3.wmo", chunk("MOMT", material, True))
+                result = self.closure(3, "wmo")
+                self.assertEqual([a["fdid"] for a in result["assets"]], [3, 8])
 
     def test_different_alias_bytes_are_not_accepted(self):
         self.put("models/2.m2", model(chunk("SFID", ints(5))))

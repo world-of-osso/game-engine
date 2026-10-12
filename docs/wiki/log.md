@@ -5,17 +5,28 @@
 ## 2026-10-12 — Arena preparation object visibility
 
 [Native arenas](systems/arenas.md#preparation-and-detection-consumers): real Cage preparation reproduced32727/type4 incorrectly hiding game objects through unit-only reciprocal invisibility checks. Pinned TC explicitly excludes non-units; a source-channel/Interest fixture now covers that boundary. Dynamic native/final gates remain tracked in the handoff.
+## 2026-10-12 — Housing HouseSettings access authority
+
+[HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
+
+## 2026-10-12 — Eye both-skin private lifecycle
+
+[Eye](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12):16 real accounts per skin, M2-supported source entry, four presence-held towers, three physical flag captures, natural1500/183=3, automaticVictory/exact native origin/all15peer return;16ACKs then periodic save.20 inspected PNGs and eye-live-proof.json retain bounded proof. Fixture sequential worker entry resolves burst handshake timeout without extending deadlines; private startup waits processed admin readiness. Player-body art and preparation/resurrection/rewards remain uncertified.
 
 ## 2026-10-12 — Combat-assist source-gap re-audit and replay
 
 [Cooldown/assist audit](investigations/cooldown-assist-data.md#source-gap-re-audit--2026-10-12): exact1229376/470418 DB2 rows and pinned TC cast/GCD paths do not define assistant-origin penalty handling; no guessed multiplier. Nonzero chargeValue2 has no authored rows in this build. Native observation captures one evaluator decision for exact private Holy Power/charge/cost/target replay; comparator semantics remain unchanged.
 ## 2026-10-12 — Silvershard both-skin private lifecycle
 
-[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Canonical assets/cache remain lead-owned; broader preparation/graveyard/visual-aura parity remains open.
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Lead has published canonical assets/cache; public708 remains hidden until the blocked client bundle publishes. Broader preparation/graveyard/visual-aura parity remains open.
 
 ## 2026-10-12 — Silvershard private content prerequisites
 
 [Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): actual promoted switches pass source three-second casts/cancellation/copy checks;1,758 real-floor route approaches replace unsafe NPC-pivot travel. Modern private lifecycle reaches1500/428/exact return, but its carts were invisible. Two ordinary appearance rows and authenticated Retail model chains are staged privately; both-skin rendered acceptance remains open. Eye matched live rerun is now unblocked by landed M2 floors.
+
+## 2026-10-12 — Housing receipt-backed catalog model preview
+
+[Housing](systems/housing.md#catalog-model-preview): isolated M2/WMO previews, authored collision framing instead of emitter envelopes, physical drag with unchanged gameplay camera, selection/tab/search/close teardown and retained filter across unmounted tab transitions. Both-skin private5870 proof preserves exact owned quantities/layout;12inspected1280PNG published. MOMT22/23 closure correction fixes omitted/invented auxiliary textures; WMO receipt publication retains kind/build identity.34payloads authenticated against frozen source hashes; canonical promotion is lead-only. WMO pixel20's black AO TODO is a named reference-source gap, not an alleged lighting fix or certified Retail appearance.
 
 ## 2026-10-12 — Transmog icon and relog completion
 
@@ -3446,3 +3457,7 @@ All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; a
 ## 2026-10-12 — Mount asset native census complete
 
 Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered in each skin, including152 dependency-only recoveries and native quarter-turn proof for two small default silhouettes. Hash-guarded package default validation passes12,170 artifacts; lead publication remains pending. Nine inspected PNGs shared; missing journal identities and normal-host scroll boundary remain explicit. [Proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
+
+- 2026-10-12: [Toy Box](systems/toy-box.md#source-warning-sign-batches-2026-10-12): front-facing actual-use sign captures/natural expiry in both skins; carving/148628/shared-visibility remains explicitly uncertified.
+
+- 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
