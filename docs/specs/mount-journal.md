@@ -11,6 +11,13 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 - [x] Import every local MountXDisplay appearance root into a new cache preserving all prior profiles/choices/geosets/coverage; reject conflicting rows/replacement. Extract missing assets from local CASC only.
 - [ ] Both skins show the same Mainline703×606 shell/tab/list layout and a rotating authentic3D preview; native item learning, right-click favourite, summon/dismount/random, and alternate-character persistence must pass the privateUDP5901 fixture.
 
+### Acquisition/game integration — user extension2026-10-11
+
+- [ ] Authentic vendors sell mount teaching items/direct-learn mounts under existing cost, ExtendedCost, faction and reputation requirements; buying/learning is proved natively in both skins.
+- [ ] Mount teaching items list/sell/buy under Retail AH Miscellaneous→Mounts; buying/delivery/UseItem adds ownership, with both-skin live proof.
+- [ ] Already-collected mounts show “Already known” in item tooltips, vendor entries and AH presentation, reflecting authoritative account state.
+- [ ] Mount items grant no transmog appearance; Mounts shares the Collections frame with the existing Pets/Toys/Appearances integration. Note authored mount-equipment slot/data support without inventing unsupported behaviour.
+
 ## How it works
 
 - [Mount systems and journal](../wiki/systems/mounts.md#mount-journal).
@@ -34,7 +41,7 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 
 ## Known gaps (current cycle)
 
-- [ ] Both-skin live acceptance and final integration/check/fmt/protocol gate.
+- [ ] Reliable live account-change/dismount feedback, both-skin vendor/AH acquisition acceptance and final integration/check/fmt/protocol gate.
 
 ## Out of scope
 
