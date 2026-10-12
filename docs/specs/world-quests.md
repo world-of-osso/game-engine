@@ -1,10 +1,10 @@
 # World quests
 
-Retail Mainline world quests: authoritative availability, area-entry acceptance, objective progress, automatic completion and authored rewards, presented with the same behavior in Modern and Forever. Source availability is recorded in the [local source investigation](../wiki/investigations/world-quest-availability.md). This contract is entirely unverified; no runtime implementation is claimed.
+Retail Mainline world quests: authoritative availability, area-entry acceptance, objective progress, automatic completion and authored rewards, presented with the same behavior in Modern and Forever. Source availability is recorded in the [local source investigation](../wiki/investigations/world-quest-availability.md). Runtime and live acceptance remain open. Deterministic rotation is authorized by the user's 2026-10-11 decision; it is World of Osso policy, not Retail activation data.
 
 ## What it must do
 
-- [ ] Server publishes authentic eligible world quests, availability windows and rotation from local DB2 `12.1.0.69933`, read-only world.db and TDB1210. When no authentic schedule exists, use only availability actually defined by TDB and record the missing schedule; never fabricate availability or rewards.
+- [ ] Server publishes eligible authentic world-quest definitions from local DB2 `12.1.0.69933`, read-only world.db and TDB1210 using deterministic World of Osso rotation. Every active duration comes from that quest's authentic DB2 definition; missing durations are excluded and reported, never assigned a guessed default. Rewards remain authentic quest data only.
 - [ ] Server accepts an available world quest on area entry, credits its authored objectives, completes it and grants authored rewards. Behavioral tests cover eligibility, expiry, completion and duplicate-reward prevention.
 - [ ] World-map pins and tooltips show available world quests and their rewards/remaining availability; the objective tracker shows accepted task progress. Modern and Forever share Retail behavior; Forever changes art only.
 - [ ] Private UDP5861 proof with `fb_*` accounts completes a real world quest in each skin, with inspected PNGs under `/syncthing/AgentShared/2026-10-11/world-quests/`.
@@ -15,9 +15,21 @@ Retail Mainline world quests: authoritative availability, area-entry acceptance,
 - [Local availability source boundary](../wiki/investigations/world-quest-availability.md)
 - [Existing quest UI](../wiki/systems/quest-ui.md)
 
+## World of Osso rotation policy
+
+Retail Mainline defines map/task/tracker/completion/reward/expiry behavior, but does not supply our activation calendar. The realm's policy is deterministic from quest IDs and UTC server time, with no random startup state:
+
+- `WORLD_QUEST_EPOCH`: Unix seconds; default `1767225600` (2026-01-01 00:00:00 UTC). No quest is active before it.
+- `WORLD_QUEST_ORDER`: `ascending` (default) or `descending` quest-ID ordering, independently in each authored zone.
+- `WORLD_QUEST_ACTIVE_PER_ZONE`: positive concurrent capacity, default `1`. Sorted definitions are assigned round-robin to that many independent lanes, capped by the zone's candidate count.
+- `WORLD_QUEST_GAP_SECONDS`: nonnegative inter-quest gap, default `86400`; this gap is realm policy, not DB2 duration/down-time data.
+- Each lane cycles its ordered quests. A quest is active in `[start, start + authentic_duration)`, then the configured gap elapses. Lane period is the sum of its durations and gaps. Availability and completion history use that exact window; a character cannot earn the same quest twice within it.
+
+Currently only quests 52847, 52848, 54895, 54896 have authenticated duration joins: ManagedWorldState12/113/114/115, each `UpTimeSecs=604800`. The other 4,203 definitions have no proven duration in the inspected sources and cannot yet enter this rotation. Their missing data does not justify changing the four authored durations.
+
 ## Implementation inventory
 
-No world-quest runtime implementation. Existing ordinary quest/map/tracker paths are prerequisites, not world-quest acceptance evidence.
+Server rotation calculation, environment configuration and definition loader are being implemented. Lifecycle and client integration remain open. Existing ordinary quest/map/tracker paths are prerequisites, not world-quest acceptance evidence.
 
 ## Tests asserting this spec
 
@@ -25,9 +37,9 @@ None. Existing `world_quest_flow.gd` and `world_quest_progress.gd` fixtures exer
 
 ## Known gaps (current cycle)
 
-- [ ] Authentic active-set/window source: inspected TDB quest pools and event relations contain no world quests. Local CASC supplies four managed-state duration definitions but no current-stage default/activation epoch was found; these do not establish an active quest.
+- [ ] Duration coverage beyond the four managed-state definitions. Missing Retail activation data is no longer a blocker: the explicit realm policy above supplies scheduling.
 - [ ] Server lifecycle, protocol availability payload, both-skin map/tracker/reward integration and private completion proof remain missing.
 
 ## Out of scope
 
-Invented schedules/rewards, canonical database writes, UDP5000 operations, PLAN edits and full server/engine suites are prohibited by the requested goal. No feature requirements were deferred out of scope.
+Invented durations/rewards, Retail activation-calendar claims, canonical database writes, UDP5000 operations, PLAN edits and full server/engine suites are prohibited by the requested goal. No feature requirements were deferred out of scope.
