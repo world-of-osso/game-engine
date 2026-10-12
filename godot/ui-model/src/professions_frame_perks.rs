@@ -10,6 +10,9 @@ use ui_toolkit::{
 const DIAL_CENTER: [f32; 2] = [925.0, 348.0];
 const DIAL_BASE_ANGLE: f32 = 1.4;
 const PERK_SIZE: f32 = 90.0;
+const MINOR_PERK_RADIUS: f32 = 177.0;
+const MAJOR_PERK_RADIUS: f32 = 189.0;
+const PENDING_GLOW_OFFSET: f32 = 8.0;
 
 #[derive(Clone, Copy)]
 struct PathRanks {
@@ -51,9 +54,26 @@ fn perk(view: &ProfessionView, node: &ProfessionSpecNodeSnapshot, ranks: PathRan
     let rotation = perk.required_points as f32 / ranks.maximum as f32
         * (std::f32::consts::TAU - DIAL_BASE_ANGLE)
         + DIAL_BASE_ANGLE / 2.0;
-    let radius = if perk.is_major_bonus { 189.0 } else { 177.0 };
+    let radius = if perk.is_major_bonus {
+        MAJOR_PERK_RADIUS
+    } else {
+        MINOR_PERK_RADIUS
+    };
     let left = DIAL_CENTER[0] - radius * rotation.sin() - PERK_SIZE / 2.0;
     let top = DIAL_CENTER[1] + radius * rotation.cos() - PERK_SIZE / 2.0;
+    let name = format!("ProfessionSpecPerk{}", node.node_id);
+    let children = milestone_art(view, node, ranks, rotation);
+    rsx! { r#frame { name: {DynName(name)}, left, top, width: PERK_SIZE, height: PERK_SIZE,
+    pos_type: "absolute", mouse_enabled: true, {children} } }
+}
+
+fn milestone_art(
+    view: &ProfessionView,
+    node: &ProfessionSpecNodeSnapshot,
+    ranks: PathRanks,
+    rotation: f32,
+) -> Element {
+    let perk = node.perk.as_ref().expect("source perk");
     let earned = ranks.committed >= perk.required_points;
     let pending = !earned && ranks.pending >= perk.required_points;
     let member = if perk.is_major_bonus { "EndPip" } else { "Pip" };
@@ -77,8 +97,7 @@ fn perk(view: &ProfessionView, node: &ProfessionSpecNodeSnapshot, ranks: PathRan
             texture_rotation,
         ));
     }
-    rsx! { r#frame { name: {DynName(name)}, left, top, width: PERK_SIZE, height: PERK_SIZE,
-    pos_type: "absolute", mouse_enabled: true, {children} } }
+    children
 }
 
 fn pending_glow(name: &str, major: bool, rotation: f32, texture_rotation: f32) -> Element {
@@ -88,8 +107,8 @@ fn pending_glow(name: &str, major: bool, rotation: f32, texture_rotation: f32) -
         "SpecDial_Pip_BorderGlow"
     };
     let center = [
-        PERK_SIZE / 2.0 - 8.0 * rotation.sin(),
-        PERK_SIZE / 2.0 + 8.0 * rotation.cos(),
+        PERK_SIZE / 2.0 - PENDING_GLOW_OFFSET * rotation.sin(),
+        PERK_SIZE / 2.0 + PENDING_GLOW_OFFSET * rotation.cos(),
     ];
     let region = ui_toolkit::atlas::get_region(member).expect("authored perk pending glow");
     rotate(
