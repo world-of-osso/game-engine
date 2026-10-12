@@ -490,11 +490,16 @@ impl View {
         Ok(())
     }
 }
-fn button(name: String, text: &str, action: &str, rect: (f32, f32, f32, f32)) -> Element {
+pub(crate) fn button(
+    name: String,
+    text: &str,
+    action: &str,
+    rect: (f32, f32, f32, f32),
+) -> Element {
     let (left, top, width, height) = rect;
     rsx! {button {name:{DynName(name)},text,onclick:action,left,top,width,height,pos_type:"absolute",font_size:12.0,font_color:NORMAL_FONT_COLOR,button_atlas_up:"defaultbutton-nineslice-up",button_atlas_pressed:"defaultbutton-nineslice-pressed",button_atlas_highlight:"defaultbutton-nineslice-highlight"}}
 }
-fn text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
+pub(crate) fn text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
     label(name.into(), value, rect, (12., WHITE, "LEFT"))
 }
 
@@ -1237,7 +1242,7 @@ fn tutorials(view: &View) -> Element {
     ));
     out
 }
-fn scroll(
+pub(crate) fn scroll(
     ctx: &SharedContext,
     children: Element,
     rect: (f32, f32, f32, f32),
