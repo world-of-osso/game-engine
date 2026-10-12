@@ -11,7 +11,9 @@ fn mare() -> MountJournalEntry {
         source_type: 2,
         icon_file_data_id: 132261,
         display_id: 2405,
-        capability_flags: 1,
+        capability_flags: 29,
+        journal_types: shared::protocol::mount_journal_types::GROUND,
+        flags: 0,
         collected: true,
         favourite: false,
         usable: true,
@@ -24,6 +26,9 @@ fn view() -> MountJournalView {
     horse.mount_id = 6;
     horse.spell_id = 458;
     horse.name = "Brown Horse".into();
+    horse.display_id = 2404;
+    horse.description =
+        "A favorite among Stormwind's guards thanks to its patience and stamina.".into();
     horse.collected = false;
     horse.usable = false;
     view.receive(MountJournalUpdate {
@@ -85,6 +90,48 @@ fn mount_journal_search_source_type_and_collected_filters_reselect() {
     view.apply_filter("mount:type:1");
     assert_eq!(view.rows().len(), 1);
 }
+#[test]
+fn mount_journal_hidden_until_collected_and_server_only_rows_do_not_leak_into_list() {
+    let mut view = view();
+    view.catalog.get_mut(&6).unwrap().flags = 0x40;
+    assert_eq!(
+        view.rows()
+            .iter()
+            .map(|mount| mount.mount_id)
+            .collect::<Vec<_>>(),
+        vec![18]
+    );
+    view.catalog.get_mut(&6).unwrap().collected = true;
+    assert_eq!(view.rows().len(), 2);
+    view.catalog.get_mut(&6).unwrap().flags = 0x1;
+    assert_eq!(view.rows().len(), 1);
+}
+
+#[test]
+fn mount_journal_ground_filter_does_not_include_flying_mount_ground_capability() {
+    use shared::protocol::mount_journal_types as types;
+    let mut view = view();
+    let mut gryphon = mare();
+    gryphon.mount_id = 129;
+    gryphon.spell_id = 32235;
+    gryphon.name = "Golden Gryphon".into();
+    gryphon.display_id = 17697;
+    gryphon.icon_file_data_id = 294468;
+    gryphon.flags = 132;
+    gryphon.capability_flags = 95;
+    gryphon.journal_types = types::FLYING | types::SKYRIDING;
+    view.catalog.insert(129, gryphon);
+    view.excluded_types = [
+        types::FLYING,
+        types::AQUATIC,
+        types::SKYRIDING,
+        types::RIDE_ALONG,
+    ]
+    .into();
+    assert!(view.rows().iter().all(|mount| mount.mount_id != 129));
+    assert!(view.rows().iter().any(|mount| mount.mount_id == 18));
+}
+
 #[test]
 fn mount_journal_authoritative_favourite_and_active_refresh_preserve_selection() {
     let mut view = view();
