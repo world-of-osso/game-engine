@@ -417,6 +417,7 @@ pub(crate) struct PlacedParticles {
     emitters: Vec<PlacedEmitter>,
     density: f32,
     owed_seconds: f32,
+    drawn: usize,
 }
 
 impl PlacedParticles {
@@ -432,6 +433,7 @@ impl PlacedParticles {
     ) {
         let dt = self.owed_seconds + delta;
         self.owed_seconds = 0.0;
+        self.drawn = 0;
         let world_from_model = root.get_global_transform();
         let playback = self
             .player
@@ -480,6 +482,7 @@ impl PlacedParticles {
             pools.quads.clear();
             placed.sim.quads(emitter, view, &mut pools.quads);
             let quads = std::mem::take(&mut pools.quads);
+            self.drawn += quads.len();
             pools.pools[placed.pool].push(&quads, fade);
             pools.quads = quads;
         }
@@ -490,6 +493,12 @@ impl PlacedParticles {
     pub fn defer(&mut self, delta: f32) {
         // Owed time beyond a minute replays the same bounded history.
         self.owed_seconds = (self.owed_seconds + delta).min(60.0);
+        self.drawn = 0;
+    }
+
+    /// Quads actually submitted by this placement on its latest update.
+    pub fn drawn(&self) -> usize {
+        self.drawn
     }
 
     pub fn emitter_count(&self) -> usize {
@@ -584,6 +593,7 @@ impl ParticlePools {
             emitters,
             density: self.density,
             owed_seconds: 0.0,
+            drawn: 0,
         };
         (placed, errors)
     }
