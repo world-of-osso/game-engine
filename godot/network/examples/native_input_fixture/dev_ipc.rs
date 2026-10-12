@@ -518,6 +518,7 @@ fn seed_items_and_quests(app: &mut App) {
                     completed: false,
                     kind: QuestObjectiveKind::Monster,
                     object_id: 6,
+                    optional: false,
                 }],
                 level: 1,
                 sort_id: 12,

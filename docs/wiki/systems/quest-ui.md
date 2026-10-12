@@ -98,5 +98,6 @@ Evidence: canonical `data/diagnostics/quest-objectives-2026-10-11/live-{go,spell
 
 ## See Also
 
+- [World-quest availability source boundary](../investigations/world-quest-availability.md) — authorized rotation/import/expiry foundations and unresolved Retail task-area/eligibility; ordinary `world_quest_*` fixture names do not prove world quests.
 - [[minimap]] — objective polygons and tracker placement.
 - [[ui-system]] — native frame projection and font rendering.

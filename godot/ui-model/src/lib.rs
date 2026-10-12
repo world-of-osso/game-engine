@@ -75,6 +75,8 @@ mod housing_editor_tests;
 pub mod housing_navigation_component;
 #[cfg(test)]
 mod housing_tests;
+pub mod mount_journal;
+mod mount_source;
 pub mod mythic_mentor;
 pub mod pet_journal;
 pub mod pet_stable;
@@ -158,6 +160,7 @@ pub mod flight_map;
 pub mod flight_map_component;
 #[path = "world_map_view_data.rs"]
 pub mod world_map_view_data;
+pub mod world_quest_ui;
 
 /// Retail reaction colours for the unit frames, shared with the server's rules.
 pub mod faction_reaction {

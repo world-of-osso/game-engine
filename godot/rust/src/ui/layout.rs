@@ -239,6 +239,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn mount_vendor_mixed_gold_and_currency_costs_have_nonoverlapping_native_bounds() {
+        use game_engine_ui_model::merchant_frame_component::{
+            MerchantCell, MerchantFrameState, merchant_frame_screen,
+        };
+        use shared::protocol::VendorCost;
+        use ui_toolkit::screen::{Screen, SharedContext};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(MerchantFrameState {
+            visible: true,
+            cells: vec![MerchantCell {
+                name: "Silver Covenant Hippogryph".into(),
+                price: 5_000_000,
+                extra_costs: vec![VendorCost {
+                    currency: true,
+                    id: 241,
+                    amount: 5,
+                    name: "Champion's Seal".into(),
+                    icon_file_data_id: 236246,
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(merchant_frame_screen).sync(&shared, &mut registry);
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        let coin = &bounds[&registry
+            .get_by_name("MerchantItem1MoneyFrameCoin0")
+            .unwrap()];
+        let currency = &bounds[&registry
+            .get_by_name("MerchantItem1AltCurrencyFrameItem1Text")
+            .unwrap()];
+        let token = &bounds[&registry
+            .get_by_name("MerchantItem1AltCurrencyFrameItem1Texture")
+            .unwrap()];
+        assert!(
+            currency.x >= coin.x + coin.width,
+            "Gold and currency digits overlap: {coin:?} {currency:?}"
+        );
+        assert!(
+            token.x >= currency.x + currency.width,
+            "Currency digits overlap its icon: {currency:?} {token:?}"
+        );
+        assert_eq!((token.width, token.height), (13.0, 13.0));
+    }
+
+    #[test]
     fn stacksplit_clamp_keeps_picker_and_mouse_okay_inside_screen_edges() {
         use crate::ui::{RegistryModel, ScreenPostsetup};
         use game_engine_ui_model::stack_split_frame_component::{

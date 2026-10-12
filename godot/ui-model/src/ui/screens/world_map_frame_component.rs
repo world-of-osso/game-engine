@@ -125,6 +125,7 @@ const WHITE: &str = "1.0,1.0,1.0,1.0";
 pub enum MapPinType {
     /// Active quest objective area, numbered by quest log order.
     QuestObjective,
+    WorldQuest,
     QuestAvailable,
     /// Completed quest, turn-in location.
     QuestTurnIn,
@@ -142,6 +143,7 @@ impl MapPinType {
     fn art(self) -> MapArt {
         match self {
             Self::QuestObjective => art::QUEST_NUMBER,
+            Self::WorldQuest => art::WORLD_QUEST,
             Self::QuestAvailable => art::QUEST_AVAILABLE,
             Self::QuestTurnIn => art::QUEST_TURN_IN,
             Self::FlightAlliance => art::TAXI_ALLIANCE,
@@ -235,6 +237,7 @@ pub struct WorldMapFrameState {
     pub highlight: Option<MapHighlight>,
     pub pins: Vec<MapPin>,
     pub highlighted_quest: Option<u32>,
+    pub world_quest_tooltip: Option<super::tooltip_presentation::TooltipPresentation>,
     /// Watched quests' objective areas as map-UV polygons (`QuestPOI` blobs); the host
     /// draws them into `WORLD_MAP_QUEST_AREAS`.
     pub quest_areas: Vec<Vec<[f32; 2]>>,

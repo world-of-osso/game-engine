@@ -171,6 +171,10 @@ impl GameClient {
         closed |= self.close_guild_charter()?;
         closed |= self.close_professions_window()?;
         closed |= self.close_pet_journal();
+        if self.mount_journal.view.visible {
+            self.close_mount_journal();
+            closed = true;
+        }
         closed |= self.close_adventure_guide();
         closed |= self.close_trainer_window()?;
         closed |= self.close_transmog_window()?;

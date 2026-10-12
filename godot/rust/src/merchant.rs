@@ -665,8 +665,11 @@ impl GameClient {
         let frame = &states.frame;
         let cells = frame.cells.iter().chain(&frame.last_buyback);
         let slots = states.bags.bags.iter().flat_map(|bag| &bag.slots);
-        let new: Vec<u32> = cells
-            .map(|cell| cell.icon_fdid)
+        let cell_icons = cells.flat_map(|cell| {
+            std::iter::once(cell.icon_fdid)
+                .chain(cell.extra_costs.iter().map(|cost| cost.icon_file_data_id))
+        });
+        let new: Vec<u32> = cell_icons
             .chain(slots.map(|slot| slot.icon_fdid))
             .filter(|&fdid| fdid != 0 && self.merchant.cached_icons.insert(fdid))
             .collect();
@@ -713,11 +716,17 @@ impl GameClient {
                     });
             }
         }
-        MerchantStates {
-            frame: session.frame_state(),
-            bags,
-            split,
+        let mut frame = session.frame_state();
+        if session.merchant.tab == MerchantTab::Merchant {
+            for (cell, item) in frame.cells.iter_mut().zip(session.merchant.page_items()) {
+                cell.name = self.mount_journal.view.item_label(
+                    shared::item_data::ItemDefinitionSource::Retail,
+                    item.item_id,
+                    &cell.name,
+                );
+            }
         }
+        MerchantStates { frame, bags, split }
     }
 
     /// Automation view of the vendor session: vendor, cells, buyback, bags, equipment, money.

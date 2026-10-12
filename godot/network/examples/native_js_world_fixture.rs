@@ -381,6 +381,7 @@ impl Peer {
                 can_repair: false,
                 guild_repair_money: None,
                 items: vec![VendorItem {
+                    extra_costs: Vec::new(),
                     slot: 0,
                     item_id: 2589,
                     name: "Linen Cloth".into(),
