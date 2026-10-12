@@ -105,6 +105,8 @@ impl Peer {
                     })
             }
             "forfeit" if self.mode == ArenaQueueMode::Rated2v2 && self.index == 1 => Ok(()),
+            // Opposing rated peers already returned when they forfeited; only the retained ally leaves now.
+            "leave" if self.mode == ArenaQueueMode::Rated2v2 && self.index != 1 => Ok(()),
             "leave" | "forfeit" => {
                 let match_id = self
                     .snapshot
