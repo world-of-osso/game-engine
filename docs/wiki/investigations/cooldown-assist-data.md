@@ -79,6 +79,62 @@ The maintained driver creates the host agent scope before applying private XDG r
 
 Sources/limits remain the [contract](../../specs/cooldown-assist.md). Both `restore2-modern` and `restore2-forever` independently restart the client with saved data, proving selected tracked rows, per-spec ordering and account Edit Mode position. Inactive auras remain hidden normally; saved selection is checked through actual settings rows. Assistant-specific25% GCD-origin semantics are not certified. Numeric equality, prediction and remaining encodings are source gaps, not encrypted or absent tables.
 
+## Source-gap re-audit — 2026-10-12
+
+Receipts: `data/diagnostics/cooldown-assist4-2026-10-12/assistant-db2-audit.json`, `remaining-predicate-audit.json`, `tc-audit.json`, and the pinned raw single-file copies. These are searches of the named local tables/code paths, not a claim that every TrinityCore file was audited. No new comparator, priority or GCD policy follows from an unidentified field.
+
+### `ASSISTANT_GCD_ORIGIN_1229376`
+
+The description explicitly says the global cooldown is `$s1%` longer. Exact checked local rows:
+
+| Table | Spell1229376 | Related named aura470418 (`Assisted Highlighting Elemental`) |
+|---|---|---|
+| SpellCooldowns (36334 rows) | No SpellID row or reverse AuraSpellID reference | No row/reference |
+| SpellCategories (93212 rows) / SpellCategory | No category/start-recovery-category join; therefore no category row to decode | No category join |
+| SpellEffect (629424 rows) | ID1220649: Difficulty0, Index0, Dummy3, BasePoints25, EffectAura0, TriggerSpell0, MiscValues0/0, target25 | ID1185618: ApplyAura6, Aura226, period1000, BasePoints0, TriggerSpell0, MiscValues0/0, target1 |
+| SpellAuraOptions (32164 rows) | No SpellID row | ID239368: Difficulty0, cumulative0, proc category recovery0, chance101, charges0, PPM0, masks87312/0 |
+| SpellPower (5715 rows) | No cost row or RequiredAuraSpellID reverse reference | No row/reference |
+
+SpellMisc783909 also has Attributes10=32768 and Attributes13=65537. Pinned TC `SharedDefines.h` calls the relevant bits Attr10 `UNK15` and Attr13 `ALLOW_CLASS_ABILITY_PROCS`/`UNK16`; these are not an assistant-origin/GCD implementation. Name/description scans found no other Single-Button Assistant aura chain. Neither checked SpellEffect triggers another spell.
+
+Pinned TC a352b1fa `Spell.cpp::TriggerGlobalCooldown` (downloaded lines9179–9228) uses the actual spell's StartRecoveryTime/category, ordinary StartCooldown modifiers and haste. `SpellHistory.cpp` stores GCD by category. Checked `SpellEffects.cpp`, `SpellHandler.cpp::HandleCastSpellOpcode`, `spell_generic.cpp`, `DB2Structure.h` and `SpellPackets.h` provide no decoded assistant25% origin handler. The generic request's SendCastFlags/Misc fields are not evidence for a particular assistant encoding. The Dummy25 value establishes the tooltip number, not where to apply/clamp haste or how to preserve cast origin. **Named source gap retained; no guessed multiplier or protocol flag added.**
+
+### Exact remaining rule boundaries
+
+The local3116 rules contain no comparator/operator field defining strictness or inclusive equality. The Retail UI cache calls `C_AssistedCombat.GetNextCastSpell`; its Lua and generated API documentation expose no predicate evaluator. Checked pinned TC definitions/cast paths do not decode this table. Existing source-limited numeric behavior remains unchanged.
+
+- Equality remains unresolved. Concrete private Ret boundary: rule6425, step1655, type38, values3/0/0; Holy Power3 returns the explicit equality error rather than an invented comparison.
+- Mana-percent type20 has2 authored rows; range/distance3/4, aura/count/stack/duration/nearby11/12/13/17/18/49–55/57/58 and predictive67 (60 rows) still lack exact approved-source comparison/target/prediction definitions. The receipt records counts and exact source rows, not inferred units or comparators.
+- Charge predicates:10 authored type63 rows, **zero nonzero ConditionValue2 rows**, no type64 rows. Nonzero chargeValue2 is a reserved unsupported encoding, not an implementable gap in this pinned authored inventory.
+- Rule67752: step15297, order1, type55, values1254252/2/0, unidentified field1. Rule68820: step1223, order4, type55, values1254252/1/0, unidentified field1. No approved source defines that field; both remain explicit errors when potentially eligible.
+
+Art re-authentication: atlas member32008 → element30221 `RotationHelper_Ants_Flipbook`, atlas3260/FDID6992992, crop845/403/333/400 on2048×1024. Local BLP SHA256 `3fa9b0678f4b7a7ce9835981b12315706984eec8820a122e75a49b1c13cdc1c8` matches the already-extracted canonical asset. No replacement art or new extraction was needed.
+
+### Same-decision recommendation replay
+
+The native observer retains the facts and canonical selection from one actual evaluator invocation, before effective-spell presentation mapping. Its `evaluation_json` contains specialization, target, raw powers, health percentages, cooldowns/charges, aura sets, known/readiness/range/authoritative affordability and the exact selected step/error. Snapshot serialization is on demand; no per-frame JSON encoding or second gameplay decision is introduced. The [contract](../../specs/cooldown-assist.md) names the recorded-private replay tests. Casting and predicates remain unchanged.
+
+## Private continuation proof — 2026-10-12, cooldown-assist4
+
+Fresh private UDP5864, `fb_cooldown_assist4_modern`/Coolmodern30 and `fb_cooldown_assist4_forever`/Coolforever31, both level10/spec70. Engine includes origin/master62ceaf544, server3f80f41a, protocol80bec38. The maintained fixture passes in both skins on native builds; no shared realm operations or physics changes.
+
+| Claim | Both-skin observable proof | Boundary |
+|---|---|---|
+| Combat/assistant | Pre-cast `in_combat=true`, real selected/server-echoed Blackrock enemy, matching advancing ants, exact own CastSuccess35395 | Forever's victim dies on that cast; combat can end afterward |
+| Charges | Actual Crusader Strike2→1, positive recharge5.40888s Modern/5.26543s Forever | At the later recommendation sample the charge has naturally recovered to2; do not assert stale1 against newer facts |
+| Recommendation update | Recorded35395→20271; untouched native evaluation JSON replays to exact first eligible20271 in both skins | Captured Holy Power2, real cooldown/charge/cost/target facts; not mere rotation membership |
+| Replay control | Disabling that selected spell's readiness changes the evaluator result | No invented numeric equality or priority changes |
+
+Ten inspected1280×720 PNGs are in `/syncthing/AgentShared/2026-10-12/cooldown-assist4/`; logs, JSON and private redbs remain in `data/diagnostics/cooldown-assist4-2026-10-12/`. Same-decision JSON must be replayed from the preserved `evaluation_json` string: Godot's parsed/display projection converts integer cells to floats and is not the typed native payload.
+
+The harness now waits for **both** own setup CastSuccess and replicated combat entry before cycling targets; CastSuccess can precede combat damage/replication. Moving enemies behind authentic occluders require another ordinary Tab candidate, not removing LoS or changing NPC data. No assistant predicate or casting behavior was changed.
+
+## Sources
+- [Exact assistant DB2 receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/assistant-db2-audit.json) — named rows, reverse references and table counts.
+- [Exact unresolved-rule receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/remaining-predicate-audit.json) —333 rows in wholly undecoded predicate groups, numeric boundary6425, counts, special fields and charge encoding census.
+- [Pinned TC receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/tc-audit.json) and [Spell.cpp](../../../data/diagnostics/cooldown-assist4-2026-10-12/Spell.cpp) — checked cast/GCD code, not an assumed assistant policy.
+- [Private replay test](../../../godot/core/tests/cooldown_assist_live_replay.rs) and [contract](../../specs/cooldown-assist.md) — exact native snapshot/evaluator acceptance and retained gaps.
+
 ## See Also
 - [Native HUD Edit Mode](../systems/native-hud-edit-mode.md) — shared mover and account persistence behavior.
 - [Spellbook/action bars](../../specs/spellbook-action-bar.md) — actual learned-spell drag/casting surfaces.
