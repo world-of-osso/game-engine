@@ -14,9 +14,15 @@ import time
 
 
 def run_owned(arguments, argv, environment):
+    # The user scope connects through the host runtime; private GUI env belongs
+    # after agent-run, on its child, not on systemd-run's user-bus connection.
+    changes = [f"{key}={value}" for key, value in environment.items()
+               if os.environ.get(key) != value]
+    removals = [part for key in os.environ if key not in environment for part in ("-u", key)]
     result = subprocess.run(
-        [str(arguments.engine / "scripts/agent/agent-run"), arguments.agent, *argv],
-        env=environment, capture_output=True, text=True, check=False,
+        [str(arguments.engine / "scripts/agent/agent-run"), arguments.agent,
+         "env", *removals, *changes, *argv],
+        capture_output=True, text=True, check=False,
     )
     with (arguments.out / "driver.log").open("a") as log:
         log.write(result.stdout + result.stderr)
@@ -69,12 +75,14 @@ def drive(arguments):
     helper = str(arguments.engine / "scripts/agent/headless-client.sh")
     with tempfile.TemporaryDirectory(prefix="cdassist-", dir="/tmp") as runtime:
         environment["XDG_RUNTIME_DIR"] = runtime
+        started = False
         try:
             run_owned(arguments, [helper, "start-godot", str(arguments.engine),
                                   str(arguments.out / "config"), "--display-driver", "wayland",
                                   "--rendering-driver", "vulkan", "--audio-driver", "Dummy",
                                   "--resolution", "1920x1080", "--script",
                                   "res://tests/cooldown_assist_live.gd"], environment)
+            started = True
             wait_for_marker(arguments, "online.ready")
             for spell in [642, 31884]:
                 run_owned(arguments, [str(admin), "learn-spell", arguments.character, str(spell)], environment)
@@ -97,8 +105,9 @@ def drive(arguments):
                 time.sleep(0.25)
             raise RuntimeError("private combat fixture final timeout")
         finally:
-            shutil.copy2(arguments.engine / "target/headless-client.log", arguments.out / "client.log")
-            run_owned(arguments, [helper, "stop", str(arguments.engine / "target")], environment)
+            if started:
+                shutil.copy2(arguments.engine / "target/headless-client.log", arguments.out / "client.log")
+                run_owned(arguments, [helper, "stop", str(arguments.engine / "target")], environment)
 
 
 def main():
