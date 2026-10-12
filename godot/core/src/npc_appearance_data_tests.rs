@@ -133,6 +133,26 @@ fn ordinary_display_in_coverage_has_no_appearance() {
 }
 
 #[test]
+fn ordinary_display_geosets_do_not_fabricate_a_character_profile() {
+    let connection = fixture();
+    connection
+        .execute_batch(
+            "INSERT INTO display_coverage VALUES (1105, 0);
+         INSERT INTO geosets VALUES (1105, 0, 1);",
+        )
+        .unwrap();
+    assert_eq!(
+        query_authored_npc_appearance(&connection, 1105).unwrap(),
+        None
+    );
+    assert_eq!(
+        crate::npc_appearance_data::query_display_geosets(&connection, 1105).unwrap(),
+        vec![(0, 1)]
+    );
+    assert!(crate::npc_appearance_data::query_display_geosets(&connection, 1967).is_err());
+}
+
+#[test]
 fn required_display_without_profile_is_an_error() {
     let error = query_authored_npc_appearance(&fixture(), 42).unwrap_err();
     assert!(error.contains("42"), "{error}");
