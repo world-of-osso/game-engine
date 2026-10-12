@@ -33,6 +33,9 @@ func live_run() -> void:
 				var hovered := root.gui_get_hovered_control()
 				result.pointer_hover = str(hovered.get_path()) if hovered != null else ""
 				result.client_processing = client.is_processing()
+				result.gui_input_disabled = root.gui_disable_input
+				result.mouse_mode = Input.mouse_mode
+				result.window_visible = root.visible
 				result.startup_args = OS.get_cmdline_user_args()
 				result.account = client.account_state()
 				result.controls = []
@@ -49,7 +52,11 @@ func live_run() -> void:
 				if target == null or not target.is_visible_in_tree():
 					result.error = "Missing visible native control: " + str(command.name)
 				else:
+					result.target = str(target.get_path())
+					result.mouse_filter = target.mouse_filter
+					result.target_viewport = str(target.get_viewport().get_path())
 					await pointer(target.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+					result.input_handled = root.is_input_handled()
 			"key":
 				await tap(int(command.key))
 			"quit":
