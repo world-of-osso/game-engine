@@ -41,7 +41,7 @@ func run_test() -> void:
 	if not await show_achievement(2076, "Armored Brown Bear", false):
 		return
 	await capture("before-bear")
-	await key(KEY_ESCAPE)
+	await close_achievement()
 	if not await buy("Harold Winston", "Band of the Kirin Tor", 40586):
 		return
 	await key(KEY_ESCAPE)
@@ -49,7 +49,7 @@ func run_test() -> void:
 	if not await show_achievement(2084, "Ring of the Kirin Tor", true):
 		return
 	await capture("earned-ring")
-	await key(KEY_ESCAPE)
+	await close_achievement()
 	if not await buy("Mei Francis", "Reins of the Armored Brown Bear", 44226):
 		return
 	await use_bag_item(44226)
@@ -64,7 +64,7 @@ func run_test() -> void:
 		fail("Known mount criteria did not reach1/50: " + str(criteria_labels(2141)))
 		return
 	await capture("mount-progress-one")
-	await key(KEY_ESCAPE)
+	await close_achievement()
 	if not await buy("Mei Francis", "Reins of the Traveler's Tundra Mammoth", 44235):
 		return
 	await use_bag_item(44235)
@@ -79,7 +79,7 @@ func run_test() -> void:
 		fail("Known mount criteria did not reach2/50: " + str(criteria_labels(2141)))
 		return
 	await capture("mount-progress-two")
-	await key(KEY_ESCAPE)
+	await close_achievement()
 	var peer = JSON.parse_string(FileAccess.get_file_as_string(evidence + "/peer-ready.json"))
 	var target := await find_unit(int(peer.player_entity))
 	if target.is_empty():
@@ -102,6 +102,10 @@ func run_test() -> void:
 	print("CRITERIA_LIVE_PASS ", skin, " earned2084/2076/2078; actual mount count1->2; online peer isolated")
 	client.free()
 	quit(0)
+
+func close_achievement() -> void:
+	await click_control(find_control("AchievementFrameCloseButton"))
+	await wait_for(func(): return client.get_node_or_null("AchievementsUI") == null, "achievement close")
 
 func show_achievement(id: int, title: String, earned: bool) -> bool:
 	await search(title)
@@ -148,6 +152,7 @@ func buy(vendor: String, title: String, item_id: int) -> bool:
 	if npc.is_empty():
 		return false
 	await click(npc.point, MOUSE_BUTTON_RIGHT)
+	print("CRITERIA_VENDOR_CLICK ", npc, " target ", client.target_state(), " merchant ", client.merchant_state())
 	if not await wait_for(func(): return client.merchant_state().open and client.merchant_state().vendor_name == vendor, "vendor " + vendor):
 		return false
 	var cell: Control
@@ -280,5 +285,8 @@ func capture(stage: String) -> void:
 		fail("Screenshot failed: " + str(result))
 
 func fail(message: String) -> void:
+	if client != null:
+		print("CRITERIA_FAILURE_STATE target=", client.target_state(), " merchant=", client.merchant_state())
+		root.get_texture().get_image().save_png(evidence + "/failure-%d.png" % Time.get_ticks_msec())
 	push_error("CRITERIA_LIVE_FAIL " + message)
 	quit(1)
