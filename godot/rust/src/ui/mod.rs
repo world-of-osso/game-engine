@@ -709,6 +709,7 @@ impl ICanvasLayer for RegistryUi {
         if let Err(error) = projection.draw_arrived_textures(&mut model.registry) {
             crate::frame_error::report_once(&format!("UI textures: {error}"));
         }
+        projection.advance_assisted_highlights(delta, &model.registry);
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
