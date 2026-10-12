@@ -202,9 +202,6 @@ impl UiProjection {
                 self.assisted_elapsed.remove(&frame.id);
                 continue;
             }
-            let elapsed = self.assisted_elapsed.entry(frame.id).or_insert(0.0);
-            let [x, y, w, h] = game_engine_ui_model::assisted_highlight::frame_region(*elapsed);
-            *elapsed += delta;
             let Some(rect) = node.try_get_node_as::<TextureRect>("Parts/Part0") else {
                 continue;
             };
@@ -212,6 +209,9 @@ impl UiProjection {
                 continue;
             };
             if let Ok(mut atlas) = texture.try_cast::<godot::classes::AtlasTexture>() {
+                let elapsed = self.assisted_elapsed.entry(frame.id).or_insert(0.0);
+                let [x, y, w, h] = game_engine_ui_model::assisted_highlight::frame_region(*elapsed);
+                *elapsed += delta;
                 atlas.set_region(Rect2::new(Vector2::new(x, y), Vector2::new(w, h)));
             }
         }

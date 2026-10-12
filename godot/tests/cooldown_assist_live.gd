@@ -1,9 +1,11 @@
 extends SceneTree
-# Private UDP5860 fixture; fb_* credentials supplied by the owned run environment.
+# Owned private endpoint/account from the run environment; never shared UDP5000.
 # Real auth/roster/native input. No fake cooldown/aura/charge assignment.
 var client: Node
 var directory := OS.get_environment("COOLDOWN_ASSIST_RUN")
 var failed := false
+var endpoint := OS.get_environment("COOLDOWN_ASSIST_SERVER")
+var account := OS.get_environment("COOLDOWN_ASSIST_ACCOUNT")
 
 func _initialize() -> void:
 	call_deferred("run_fixture")
@@ -78,7 +80,7 @@ func run_fixture() -> void:
 	var deadline := Time.get_ticks_msec() + 180000
 	while client.account_state().get("assets_starting", true) and Time.get_ticks_msec() < deadline:
 		await process_frame
-	var error: String = client.connect_account("127.0.0.1:5860", "fb_cooldown_assist", "fbtest", false)
+	var error: String = client.connect_account(endpoint, account, "fbtest", false)
 	if not error.is_empty():
 		fail(error)
 		return
@@ -159,6 +161,9 @@ func run_fixture() -> void:
 		quit(2)
 		return
 	var expected: int = client.assisted_combat_state().next_spell
+	if not await prove_highlights(expected):
+		return
+	expected = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
 	await click("ActionButton6")
 	await create_timer(0.6).timeout
@@ -167,8 +172,50 @@ func run_fixture() -> void:
 		fail("Assistant did not send exactly its authored recommendation")
 		return
 	await capture("assisted-cast")
-	print("PASS: cooldown timers and authored single-button private sample; numeric/all-spec acceptance remains separate")
+	print("PASS: real manager clocks, authored single-button cast and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
 	quit(0)
+
+func prove_highlights(expected: int) -> bool:
+	var viewer_name := ""
+	for icon in client.cooldown_viewer_state().icons:
+		if int(icon.spell_id) == expected and bool(icon.highlight):
+			viewer_name = "CooldownViewer%dAssistedHighlightFlipbook" % int(icon.cooldown_id)
+			break
+	var action_name := ""
+	var slots: Array = client.spells_state().bar
+	for slot in range(12):
+		if int(slots[slot]) == expected:
+			var name := "ActionButton%dAssistedHighlightFlipbook" % (slot + 1)
+			var node := control(name)
+			if node != null and node.is_visible_in_tree():
+				action_name = name
+				break
+	if viewer_name.is_empty() or action_name.is_empty():
+		fail("Matching recommendation highlights absent: spell%d, viewer=%s, action=%s" % [expected, viewer_name, action_name])
+		return false
+	var crops := {}
+	for name in [viewer_name, action_name]:
+		var node := control(name)
+		if node == null or not node.is_visible_in_tree():
+			fail("Highlight not rendered: " + name)
+			return false
+		var rect := node.get_node("Parts/Part0") as TextureRect
+		var atlas := rect.texture as AtlasTexture
+		if atlas == null:
+			fail("Retail highlight art not loaded: " + name)
+			return false
+		crops[name] = atlas.region
+	await capture("assisted-highlight-frame1")
+	await create_timer(0.12).timeout
+	for name in crops:
+		var rect := control(name).get_node("Parts/Part0") as TextureRect
+		var atlas := rect.texture as AtlasTexture
+		if atlas.region == crops[name]:
+			fail("Retail ants flipbook did not advance: " + name)
+			return false
+	await capture("assisted-highlight-frame2")
+	write_json("highlight-proof", {"spell": expected, "viewer": viewer_name, "action": action_name, "in_combat": client.assisted_combat_state().in_combat})
+	return true
 
 func scroll_to(name: String) -> bool:
 	for step in range(30):
@@ -263,7 +310,7 @@ func prove_edit_mode() -> void:
 	if control("EssentialCooldownViewer").get_global_rect().position.distance_to(moved.position) > 1:
 		fail("Viewer Edit Mode exit lost placement")
 		return
-	var account_directory := "world-of-osso/accounts/" + "127.0.0.1:5860".to_utf8_buffer().hex_encode() + "/" + "fb_cooldown_assist".to_utf8_buffer().hex_encode()
+	var account_directory := "world-of-osso/accounts/" + endpoint.to_utf8_buffer().hex_encode() + "/" + account.to_utf8_buffer().hex_encode()
 	var path := OS.get_environment("XDG_CONFIG_HOME").path_join(account_directory).path_join("ui_layout.ron")
 	if not FileAccess.file_exists(path):
 		fail("Viewer Edit Mode did not persist account layout")
