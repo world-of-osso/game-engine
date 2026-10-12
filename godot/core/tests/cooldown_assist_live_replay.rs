@@ -13,7 +13,10 @@ struct Evaluation {
     selection: Result<Recommendation, String>,
 }
 
-fn evaluate(catalog: &CooldownAssistCatalog, evaluation: &Evaluation) -> Result<Recommendation, String> {
+fn evaluate(
+    catalog: &CooldownAssistCatalog,
+    evaluation: &Evaluation,
+) -> Result<Recommendation, String> {
     let facts = &evaluation.facts;
     catalog.recommend(
         evaluation.specialization,
@@ -49,15 +52,20 @@ fn replay_skin(skin: &str) {
     assert_eq!(evaluation.facts.charges.get(&cast), Some(&1));
     println!(
         "{skin}: exact first eligible {after}, Holy Power {:?}, charges {:?}, cooldowns {:?}, target {}",
-        evaluation.facts.powers.get(&9), evaluation.facts.charges,
-        evaluation.facts.cooldowns_ms, evaluation.target
+        evaluation.facts.powers.get(&9),
+        evaluation.facts.charges,
+        evaluation.facts.cooldowns_ms,
+        evaluation.target
     );
     // A recorded spender must stop qualifying when its observed resource is removed.
     // This control rejects accepting a spell merely because it belongs to the rotation.
     if after == 85256 {
         assert!(evaluation.facts.powers[&9] > 3.0);
         evaluation.facts.powers.insert(9, 0.0);
-        assert_ne!(evaluate(&catalog, &evaluation), Ok(Recommendation::Spell(after)));
+        assert_ne!(
+            evaluate(&catalog, &evaluation),
+            Ok(Recommendation::Spell(after))
+        );
     }
 }
 
