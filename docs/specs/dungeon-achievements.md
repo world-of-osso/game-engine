@@ -56,6 +56,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - `godot/rust/src/account_dungeonclient_tests.rs` — actual account dispatch/continuations/live updates.
 - `godot/rust/src/achievements.rs::tracking_tests` — persisted IDs and corrupt preference rejection.
 - `godot/network/src/dungeonclient_wire_tests.rs` — ephemeral UDP AchievementChannel ordering.
+- `godot/tests/achievement_criteria_live.gd` with `native_achievements_criteria_peer` — private5898 physical paid purchase/item-use, current1→2 mount progress, three earned achievements and isolated online comparison, in either skin. Requires fresh fb_achcrit_* accounts, explicit level/gold/position fixture setup and relocated authentic vendors; never pre-seeded counters or known spells.
 - Server `achievement_window_tests.rs` — real catalog totals, faction/scope, hidden-copy exclusion, raw statistic counters, multi-page search, Unicode correlation and authored earned icon.
 - Native private proof and inspected Modern/Forever PNGs are indexed in the linked wiki.
 
@@ -66,7 +67,6 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 
 ## Out of scope
 
-- Comparison: no authoritative comparison catalog endpoint; InspectSnapshot exposes equipment/talents, not achievements.
 - Gameplay-leveling certification: private live earned events use explicitly documented admin character setup.
 
 ## Player comparison
