@@ -470,8 +470,13 @@ fn catalog_preview_reports_owned_count_sources_and_missing_image_in_both_skins()
                 frame("HousingDashboardFrame").height,
                 Dimension::Fixed(544.0)
             );
-            assert!(frame("HousingPreviewThumbnail").hidden);
-            assert_eq!(text("HousingPreviewMissing"), "Preview unavailable");
+            assert!(frame("HousingCatalogEntry1693Icon").hidden);
+            assert_eq!(
+                text("HousingCatalogEntry1693Unavailable"),
+                "Thumbnail unavailable"
+            );
+            assert!(registry.get_by_name("HousingPreviewThumbnail").is_none());
+            assert!(registry.get_by_name("HousingCatalogModelScene").is_some());
             assert_eq!(text("HousingPreviewName"), "Small Val'sharah Bookcase");
             if confirmed {
                 // Owned = stored 1 + placed 2; the tile shows the stored quantity.
