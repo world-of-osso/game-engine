@@ -37,7 +37,11 @@ func run_test() -> void:
 	if not (housing_control("HouseEditorStorageSortDateAdded") as BaseButton).disabled:
 		fail("Unsourced acquisition dates became selectable")
 		return
+	print("STORAGE_SORT_BEFORE bookcase=", housing_control("HouseEditorStored1693").get_global_rect(), " tesla=", housing_control("HouseEditorStored2330").get_global_rect(), " alpha=", housing_control("HouseEditorStorageSortAlphabetical").get_global_rect())
 	if not await click_exposed_control(housing_control("HouseEditorStorageSortAlphabetical")): return
+	await frames(30)
+	print("STORAGE_SORT_AFTER bookcase=", housing_control("HouseEditorStored1693").get_global_rect(), " tesla=", housing_control("HouseEditorStored2330").get_global_rect(), " tick=", housing_control("HouseEditorStorageSortAlphabeticalTick"))
+	if not await record_editor("storage-filter-sort-diagnostic"): return
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageSortAlphabeticalTick") != null and housing_control("HouseEditorStored2330").global_position.x < housing_control("HouseEditorStored1693").global_position.x, "alphabetical actual tile order"): return
 	await frames(20)
 	if not await record_editor("storage-filter-alphabetical"): return
