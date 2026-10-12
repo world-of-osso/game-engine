@@ -537,6 +537,7 @@ impl INode3D for GameClient {
             || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
+            || self.battleground_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
@@ -825,9 +826,38 @@ impl GameClient {
         }
     }
 
+    /// Offline fixture: select the same art skin as the saved in-world layout.
+    #[func]
+    fn preview_world_skin(&mut self, forever: bool) -> GString {
+        use game_engine_core::ui_layout_data::{ActiveLayout, LayoutSkin};
+        let skin = if forever {
+            LayoutSkin::Forever
+        } else {
+            LayoutSkin::Modern
+        };
+        let layout = ActiveLayout {
+            name: if forever { "Forever" } else { "Modern" }.into(),
+            skin,
+            ..Default::default()
+        };
+        GString::from(
+            self.apply_ui_layout(layout)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
     /// Offline fixture: run production lighting without an authenticated local player.
     #[func]
     fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
+        // Offline previews do not enter Loading, which normally attaches global WMOs.
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.global_wmo.sync(&mut parent, &self.terrain);
+        if let Some(wmo) = self.global_wmo.take_spawned() {
+            self.world_objects
+                .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
+        }
         let result = self.sync_preview_world_lighting(position, camera);
         match result {
             Ok(()) => GString::new(),

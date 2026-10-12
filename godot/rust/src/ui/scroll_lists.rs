@@ -77,6 +77,9 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
     {
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
+    if let Some(pan) = game_engine_ui_model::battleground::pvp_pan_extent(list) {
+        return (pan * 2, pan);
+    }
     let options = (list == OPTIONS_CONTENT_SCROLL)
         .then(|| model.shared.get::<GameMenuViewModel>())
         .flatten();
@@ -341,6 +344,10 @@ pub(super) mod tests;
 #[cfg(test)]
 #[path = "quest_scroll_tests.rs"]
 mod quest_tests;
+
+#[cfg(test)]
+#[path = "battleground_scroll_tests.rs"]
+mod battleground_tests;
 
 #[cfg(test)]
 #[path = "character_reputation_scroll_lists_tests.rs"]

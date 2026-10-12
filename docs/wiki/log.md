@@ -2,12 +2,41 @@
 
 [Transmog UI](systems/transmog-apply.md): sourced static portrait and set hover, tooltip-only set titles, player-selected persisted outfit icons with versioned legacy migration, real popup-over-card nonactivation, both Custom Sets pages, and separate-process paid gold/appearance/icon relog in both skins.38 inspected PNGs plus manifest republished; full global macro/spell icon catalogue and existing disabled policy boundaries remain explicit.
 
+## 2026-10-12 — Kotmogu both-skin private lifecycle
+
+[Kotmogu](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12): source queue699/map998, four real accounts, physical orb use and natural center ticks through1500, measured418/419, automatic results and exact native origin return; eighteen inspected PNGs. Private teardown waits for returned actors' periodic save. Combat aura/kill bonus and scenery/asset parity remain explicit gaps.
+
+## 2026-10-12 — Eye of the Storm rules and PvP list scrolling
+
+[Eye of the Storm](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): queue 7/map 566 with TDB control-zone towers, Netherstorm flag scoring/drop/respawn, WorldStates and PvpStat 183. Server channel and both-skin UI tests pass. Live proof is blocked by missing M2 floor support at both start points. The PvP queue ScrollBox now scrolls with the native wheel and steppers.
+
+## 2026-10-12 — Twin Peaks and sourced scoreboard columns
+
+[Flag maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Twin Peaks 108/map 726 joins WSG on one shared flag rule set with its PvpStats 290/291 and TC's 15-minute end; scoreboard columns now come from PvpStat/PvpScoreboardLayout for every map. Both-skin private proof: 10 accounts, three physical captures, Victory, return.
+
+## 2026-10-12 — Source-backed battleground node maps
+
+[Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+## 2026-10-12 — Stockade full-bake regression
+
+[Stockade floor fall](investigations/stockade-floor-fall.md#full-m2-bake-authentic-barrel-support--verified-2026-10-12): barrel199563/MODD523 in the sole selected/default set0 authentically supports(103,76) at-33.924946. Existing fall columns remain unsupported; server/native tests move bare WMO controls off the barrel and explicitly assert its hull support. No rebake or loader changes.
+
+## 2026-10-12 — Authored M2 doodad floors
+
+[Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
 ## 2026-10-12 — Combat assist source-supported continuation
 
 [Cooldown/assist audit](investigations/cooldown-assist-data.md): all40 authored candidate inventories and exact ModifierTree gates, owner effective costs, initial charge publication, source-definite numeric outcomes with explicit equality/prediction gaps. Both private skins prove moving Retail ants on matching action/viewer surfaces and actual assistant35395 CastSuccess/2→1 charge depletion. Maintained driver uses build-qualified placement before login; assistant GCD-origin and undecoded semantics remain explicit.
+## 2026-10-12 — Legacy global-WMO floor closure
+
+[Legacy WDTs](investigations/legacy-global-wmo.md):193 MWMO name-index failures and13 terrain-less no-MAID maps recover;498 M2 tiles/6,983,272bytes.704-file staged floor package validates without publication. Fresh private maps1213/1214/1258 render in both skins with extracted-only mode;110 absent WDTs and broader no-install certification remain explicit.
+
 ## 2026-10-12 — Authored toy display state kits
 
 [Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.
+## 2026-10-12 — Authored M2 doodad floors
+
+[Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
 
 ## 2026-10-11 — Toy input and source rendering
 

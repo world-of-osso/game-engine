@@ -58,7 +58,7 @@ impl TerrainGround<'_> {
     }
 
     fn sample(&self, feet: Vec3) -> Option<Ground> {
-        shared::ground::ground_at(
+        let base = shared::ground::ground_at(
             feet,
             self.terrain_height(feet),
             self.terrain
@@ -73,7 +73,28 @@ impl TerrainGround<'_> {
                         .values()
                         .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
                 ),
-        )
+        );
+        let m2 = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .into_iter()
+            .flat_map(|map| &map.m2_floors)
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| &tile.m2_floors),
+            )
+            .filter_map(|tile| tile.floor_height(feet))
+            .max_by(f32::total_cmp)
+            .map(|height| Ground {
+                height,
+                surface: Surface::M2,
+            });
+        base.into_iter()
+            .chain(m2)
+            .max_by(|a, b| a.height.total_cmp(&b.height))
     }
 
     /// The original order: stop short of a WMO wall, then apply the slope and step rules.
@@ -135,12 +156,95 @@ mod tests {
 
     use super::*;
 
+    fn load_floor_map(map: &str, tile: (u32, u32)) -> StreamedTerrain {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut terrain = StreamedTerrain::new(data_root);
+        terrain.request_map(map.into(), tile).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(90);
+        while !terrain.parsed_tiles.contains_key(&tile) {
+            terrain.poll().expect("terrain worker alive");
+            assert!(
+                Instant::now() < deadline,
+                "{map}: {:?}",
+                terrain
+                    .state()
+                    .failures
+                    .iter()
+                    .map(|f| &f.error)
+                    .collect::<Vec<_>>()
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        terrain
+    }
+
+    fn stand_and_walk(terrain: &StreamedTerrain, start: Vec3, expected_height: f32, distance: f32) {
+        let ground = TerrainGround {
+            terrain,
+            walls: &|_, _, _| None,
+        };
+        match ground.probe(start) {
+            GroundState::Supported(height) => {
+                assert!((height - expected_height).abs() < 1.0, "M2 floor: {height}")
+            }
+            other => panic!("M2 floor unsupported: {other:?}"),
+        }
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        let mut feet = start;
+        for _ in 0..300 {
+            feet = movement.predict(
+                feet,
+                crate::gameplay::MovementFrame {
+                    direction: [0.0; 3],
+                    speed: 0.0,
+                    vertical: 0.0,
+                },
+                false,
+                &ground,
+                &mut |_, to, _| to,
+                1.0 / 60.0,
+            );
+        }
+        assert!(
+            (feet.y - expected_height).abs() < 1.0,
+            "fell while standing: {feet}"
+        );
+        for _ in 0..60 {
+            let frame = crate::gameplay::MovementFrame {
+                direction: [1.0, 0.0, 0.0],
+                speed: distance,
+                vertical: 0.0,
+            };
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        }
+        assert!(feet.x > start.x + distance * 0.9, "failed to walk: {feet}");
+        assert!(
+            (feet.y - expected_height).abs() < 2.0,
+            "fell while walking: {feet}"
+        );
+    }
+
+    #[test]
+    fn m2_floor_eots_real_start_stands_and_walks_before_render_spawns() {
+        let terrain = load_floor_map("NetherstormBG", (29, 27));
+        stand_and_walk(&terrain, Vec3::new(2523.76, 1247.7, -1596.13), 1247.7, 3.0);
+    }
+
+    #[test]
+    fn m2_floor_northshire_stonepyre_stands_and_walks_before_render_spawns() {
+        let terrain = load_floor_map("Azeroth", (32, 48));
+        stand_and_walk(&terrain, Vec3::new(-8922.681, 87.57, 139.566), 87.57, 0.8);
+    }
+
     #[test]
     fn stockade_worker_floor_support_respects_bounds_and_reset() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut terrain = StreamedTerrain::new(data_root.clone());
-        let inside = Vec3::new(103.0, -34.5, -76.0);
-        let outside = Vec3::new(99.0, -34.5, -77.0);
+        // (103, 76) is inside Jail18, under barrel01.m2 (FDID 199563), MODD 523
+        // of WMO 108631's selected/default set 0. Keep the bare WMO floor probe
+        // off its authored collision hull, whose top is -33.924946.
+        let inside = Vec3::new(104.5, -34.5, -77.3);
+        let barrel = Vec3::new(103.0, -34.5, -76.0);
         assert_eq!(
             TerrainGround {
                 terrain: &terrain,
@@ -175,7 +279,22 @@ mod tests {
             GroundState::Supported(height) => assert!((height + 34.9).abs() < 0.2, "{height}"),
             other => panic!("Stockade floor unsupported: {other:?}"),
         }
-        assert_eq!(ground.probe(outside), GroundState::Unsupported);
+        match ground.probe(barrel) {
+            GroundState::Supported(height) => {
+                assert!((height + 33.924946).abs() < 0.01, "{height}")
+            }
+            other => panic!("Stockade barrel floor unsupported: {other:?}"),
+        }
+        // These columns have no terrain, WMO or M2 face with the full bake.
+        for (x, y) in [(97.0, 76.0), (99.0, 77.0), (101.0, 78.0), (74.0, -16.0)] {
+            for z in [-40.0, -35.0, -30.0, -26.0, -20.0, -10.0, 0.0, 10.0] {
+                assert_eq!(
+                    ground.probe(Vec3::new(x, z, -y)),
+                    GroundState::Unsupported,
+                    "({x}, {y}, {z})"
+                );
+            }
+        }
         terrain.reset().unwrap();
         assert_eq!(
             TerrainGround {
