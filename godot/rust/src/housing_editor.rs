@@ -321,6 +321,7 @@ impl GameClient {
             row.set("plot_id", plot.plot_id);
             row.set("neighborhood_id", plot.neighborhood_id);
             row.set("plot_index", plot.plot_index);
+            row.set("teleport", Vector3::from_array(plot.teleport));
             row.set("owner_type", plot.owner_type as i64);
             row.set("house_id", plot.house_id.map_or(0, |id| id as i64));
             plots.push(&row);

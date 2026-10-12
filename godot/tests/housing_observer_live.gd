@@ -68,8 +68,8 @@ func run_observer() -> bool:
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed",false), "authoritative dashboard"): return false
 	await click_control(housing_control("HousingDashboardHouseFinderButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HouseFinderVisitHouse%d" % editor_house) != null, "occupied plot listing"): return false
-	await click_control(housing_control("HouseFinderVisitHouse%d" % editor_house), MOUSE_BUTTON_LEFT)
+	if not await open_friend_plot_info(editor_house): return false
+	await click_control(housing_control("HouseFinderPlotVisitButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783 and housing_named_control("MicroMenuUI", "HousingMicroButton") != null, "visitor admission", 420000): return false
 	await frames(30)
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
@@ -135,7 +135,7 @@ func same_layout(actual: Array, expected: Array) -> bool:
 	for decor in expected:
 		var found: bool = false
 		for row in actual:
-			if int(row.instance_id) == int(decor.instance_id) and int(row.decor_id) == int(decor.decor_id) and row.position.distance_to(as_vector(decor.position)) < 0.01 and absf(float(row.yaw) - float(decor.yaw)) < 0.001:
+			if int(row.instance_id) == int(decor.instance_id) and int(row.decor_id) == int(decor.decor_id) and row.position.distance_to(as_vector(decor.position)) < 0.01 and absf(float(row.yaw) - float(decor.yaw)) < 0.001 and absf(float(row.pitch) - float(decor.pitch)) < 0.001 and absf(float(row.roll) - float(decor.roll)) < 0.001 and absf(float(row.scale) - float(decor.scale)) < 0.001:
 				found = true
 		if not found: return false
 	return true
@@ -148,14 +148,14 @@ func same_nodes(expected: Array) -> bool:
 	if nodes.size() != expected.size(): return false
 	for decor in expected:
 		var node: Node3D = nodes.get(int(decor.instance_id))
-		if node == null or node.position.distance_to(as_vector(decor.position)) > 0.01 or absf(node.rotation.y - float(decor.yaw)) > 0.001: return false
+		if node == null or node.position.distance_to(as_vector(decor.position)) > 0.01 or absf(node.rotation.y - float(decor.yaw)) > 0.001 or absf(node.rotation.x - float(decor.pitch)) > 0.001 or absf(node.rotation.z - float(decor.roll)) > 0.001 or absf(node.scale.x - float(decor.scale)) > 0.001: return false
 		if node.find_children("*", "MeshInstance3D", true, false).is_empty(): return false
 	return true
 
 func layout_record() -> Dictionary:
 	var decor: Array = []
 	for row in client.housing_state().get("decor",[]):
-		decor.append({"instance_id": int(row.instance_id), "decor_id": int(row.decor_id), "position": [row.position.x, row.position.y, row.position.z], "yaw": float(row.yaw)})
+		decor.append({"instance_id": int(row.instance_id), "decor_id": int(row.decor_id), "position": [row.position.x, row.position.y, row.position.z], "yaw": float(row.yaw), "pitch": float(row.pitch), "roll": float(row.roll), "scale": float(row.scale)})
 	var player: Vector3 = client.account_state().local_player_position
 	return {"role": role, "account": housing_account, "skin": housing_skin, "house_id": editor_house, "decor": decor, "player": [player.x, player.y, player.z], "msec": Time.get_ticks_msec(), "unix": Time.get_unix_time_from_system()}
 

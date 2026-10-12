@@ -134,3 +134,19 @@ func record_editor(phase: String) -> bool:
 	file.store_string(JSON.stringify(editor_receipts,"\t"))
 	file.close()
 	return await capture_housing(phase)
+
+# Retail discovery comes from the server's actual persisted friend relationship.
+func friend_plot_control(house: int) -> Control:
+    for plot in client.housing_state().get("plots", []):
+        if int(plot.house_id) == house and int(plot.owner_type) == 2:
+            return housing_control("HouseFinderFriendsPlotPin%d" % int(plot.plot_id))
+    return null
+
+func open_friend_plot_info(house: int) -> bool:
+    if not await wait_housing(func():
+        var pin: BaseButton = friend_plot_control(house) as BaseButton
+        return pin != null and not pin.disabled, "authenticated Retail friend plot pin"): return false
+    await click_control(friend_plot_control(house), MOUSE_BUTTON_LEFT)
+    return await wait_housing(func():
+        var visit: BaseButton = housing_control("HouseFinderPlotVisitButton") as BaseButton
+        return visit != null and not visit.disabled, "source plot info visit control")
