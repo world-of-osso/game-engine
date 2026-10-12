@@ -50,9 +50,9 @@ func run_test() -> void:
 		return
 	await capture("earned-ring")
 	await close_achievement()
-	if not await buy("Mei Francis", "Reins of the Armored Brown Bear", 44226):
+	if not await buy("Mei Francis", "Reins of the Armored Brown Bear", 44225):
 		return
-	await use_bag_item(44226)
+	await use_bag_item(44225)
 	await key(KEY_ESCAPE)
 	await key(KEY_Y)
 	if not await show_achievement(2076, "Armored Brown Bear", true):
