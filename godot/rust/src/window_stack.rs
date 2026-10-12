@@ -165,7 +165,7 @@ impl GameClient {
         closed |= self.close_character_window();
         closed |= self.close_guild_ranks();
         closed |= self.close_guild_charter()?;
-        closed |= self.close_professions();
+        closed |= self.close_professions_window()?;
         closed |= self.close_pet_journal();
         if self.mount_journal.view.visible {
             self.close_mount_journal();

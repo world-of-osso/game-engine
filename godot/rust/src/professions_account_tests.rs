@@ -49,3 +49,60 @@ fn professions_account_dispatches_loading_snapshot_and_skill_refresh() {
         assert!(matches!(&events[0], AccountEvent::Professions(received) if received == &snapshot));
     }
 }
+
+#[test]
+fn professions_workflow_account_dispatches_authoritative_catalog_and_refusals() {
+    use shared::protocol::*;
+    let mut account = Account::new(PathBuf::new());
+    account.session.screen = SessionScreen::InWorld;
+    let specialization = ProfessionSpecializationStateUpdate {
+        snapshot: Some(ProfessionSpecializationsSnapshot {
+            skill_line: 2830,
+            knowledge_currency_id: 2025,
+            knowledge_available: 1,
+            currencies: vec![ProfessionSpecCurrencySnapshot {
+                trait_currency_id: 9,
+                currency_id: 2025,
+                available: 1,
+            }],
+            trees: vec![],
+        }),
+        message: None,
+        error: None,
+    };
+    let orders = CraftingOrderStateUpdate {
+        snapshot: Some(CraftingOrdersSnapshot {
+            skill_line: 0,
+            kind: CraftingOrderKind::Public,
+            mine: true,
+            recipes: vec![],
+            orders: vec![],
+        }),
+        message: None,
+        error: None,
+    };
+    let refusal = CraftingOrderStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("Insufficient reagents".into()),
+    };
+    let mut events = Vec::new();
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(specialization.clone()),
+            &mut events,
+        )
+        .unwrap();
+    account
+        .dispatch_message(ProtocolMessage::for_tests(orders.clone()), &mut events)
+        .unwrap();
+    account
+        .dispatch_message(ProtocolMessage::for_tests(refusal.clone()), &mut events)
+        .unwrap();
+    assert_eq!(events.len(), 3);
+    assert!(
+        matches!(&events[0], AccountEvent::ProfessionSpecializations(update) if update == &specialization)
+    );
+    assert!(matches!(&events[1], AccountEvent::CraftingOrders(update) if update == &orders));
+    assert!(matches!(&events[2], AccountEvent::CraftingOrders(update) if update == &refusal));
+}
