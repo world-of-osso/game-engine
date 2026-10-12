@@ -43,6 +43,10 @@ Arathi/Gilneas native selection, objective HUD, map-specific counters and type 4
 
 Queue 699/map 998 uses the same native Retail specific queue/invitation/result controls in both skins. Its four Orb of Power cells display authoritative source WorldStates as Alliance/Horde/At base; score limit is 1500. Scoreboard uses DB2 column order: Orb Possessions 418, Victory Points 419. Source type 24 flagstand orb M2s render and offer normal object use. Server channel/protocol rules are proved separately. Private UDP 5712 Modern/Forever proof uses four real accounts: source orb use, natural center ticks, 1500 victory, measured 418=1/419=1500, automatic results after closing the scoreboard and origin return. Eighteen inspected 1280×720 PNGs and `kotmogu-live-proof.json` record boundaries. Fixture baseline level/alive/source-origin setup precedes matching; in-match admin only accelerates authored travel. Canonical source publication, orb combat aura/kill credit and scenery/art parity are not certified; source NPC appearance/asset diagnostics and visible checker geometry remain explicit gaps.
 
+## Silvershard Mines continuation
+
+Queue708/map727 uses the source3–10 per-team roster and source1500 victory. Cart objectives are real NPC60140, not static GO substitutes. Native Specific list admits this NPC-objective map; HUD shows South/North/East control from source WorldStates and scoreboard column428 Carts Controlled. Track Switch60283 follows source124491→normal124492(3s)→97372; the authoritative matched copy alone changes the source branch state. Both-skin private rendered proof remains pending. Lead must apply server metadata/content policy then `scripts/add_battleground_summon_templates.py --db data/world.db` before running the new server.
+
 ## Known gaps (current cycle)
 
 - [ ] Integration review remains lead-owned. Scoped UI/object tests, native builds, helper cargo check and changed-Rust formatting pass; full suites are periodic master gates, not per-agent branch runs. No master merge performed.
