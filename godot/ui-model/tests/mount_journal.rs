@@ -7,7 +7,7 @@ fn mare() -> MountJournalEntry {
         spell_id: 6648,
         name: "Chestnut Mare".into(),
         description: "Sturdy and steady; \"the horse that built Stormwind.\"".into(),
-        source_text: "Vendor: Katie Stokx".into(),
+        source_text: r"|cFFFFD200Vendor: |rKatie Stokx|n|cFFFFD200Zone: |rStormwind City|n|cFFFFD200Cost: |r1|TINTERFACE\MONEYFRAME\UI-GOLDICON.BLP:0|t".into(),
         source_type: 2,
         icon_file_data_id: 132261,
         display_id: 2405,
@@ -32,6 +32,32 @@ fn view() -> MountJournalView {
     });
     view
 }
+#[test]
+fn mount_journal_source_renders_real_db2_markup_as_readable_vendor_zone_and_cost() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    let mut view = view();
+    view.visible = true;
+    let mut shared = SharedContext::new();
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+    let frame = registry
+        .get(registry.get_by_name("MountJournalSource").unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+        panic!("Source label missing");
+    };
+    assert_eq!(
+        text.text,
+        "Vendor: Katie Stokx\nZone: Stormwind City\nCost: 1g"
+    );
+}
+
 #[test]
 fn mount_journal_search_source_type_and_collected_filters_reselect() {
     let mut view = view();
