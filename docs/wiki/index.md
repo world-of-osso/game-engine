@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Native arenas](systems/arenas.md) — source skirmish/rated groups, preparation/gates, persistent-caster Shadow Sight, scored outcomes/origins; scoped behavioral proof, rendered acceptance pending.
+- [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
