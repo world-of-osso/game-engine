@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
+
 - [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits M2 floors.
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
