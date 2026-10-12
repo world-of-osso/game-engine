@@ -252,6 +252,7 @@ impl ToyAction {
         UseToy {
             item_id: self.item_id,
             destination: None,
+            witness: None,
         }
     }
 }
