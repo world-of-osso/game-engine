@@ -386,6 +386,7 @@ fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
         caster: 123,
         spell_id: 20805,
         severity: EncounterSeverity::Low,
+        warning_text: "Casting Lightning Bolt".into(),
     };
     let disengage = EncounterDisengageUnit { unit: 123 };
     let end = EncounterEnd {

@@ -55,6 +55,7 @@ mod tests {
                     caster: 3669,
                     spell_id: 20805,
                     severity: EncounterSeverity::Low,
+                    warning_text: "Casting Lightning Bolt".into(),
                 },
                 0,
                 spell,
