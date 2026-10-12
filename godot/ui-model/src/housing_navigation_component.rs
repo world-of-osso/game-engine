@@ -18,7 +18,9 @@ pub fn navigation_screen(view: &HousingView) -> Element {
     match view.model.surface {
         HousingSurface::Finder => finder(view),
         HousingSurface::Cornerstone(plot) => cornerstone(view, plot),
-        HousingSurface::Dashboard => unreachable!("dashboard uses its own component"),
+        HousingSurface::Dashboard | HousingSurface::Editor => {
+            unreachable!("surface uses its own component")
+        }
     }
 }
 

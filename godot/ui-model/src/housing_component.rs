@@ -21,6 +21,9 @@ pub struct HousingView {
 
 pub fn housing_screen(context: &SharedContext) -> Element {
     let view = context.get::<HousingView>().expect("HousingView required");
+    if view.model.surface == crate::housing::HousingSurface::Editor {
+        return crate::housing_editor_component::editor_screen(view);
+    }
     if view.model.surface != crate::housing::HousingSurface::Dashboard {
         return crate::housing_navigation_component::navigation_screen(view);
     }
@@ -95,6 +98,9 @@ fn house_info(view: &HousingView) -> Element {
         .is_some_and(|state| state.layout.is_some());
     let hide_leaving = !leaving;
     rsx! { {status} {homes}
+        button { name: "HousingDecorateButton", text: "Decorate / Inspect", width: 180.0, height: 32.0,
+            pos_type: "absolute", left: 317.0, top: 435.0, onclick: "housing:editor",
+            hidden: hide_leaving, disabled: view.model.pending }
         button { name: "HousingHomeLeave", text: "Leave House", width: 160.0, height: 32.0,
             pos_type: "absolute", left: 327.0, top: 395.0, onclick: "housing:leave",
             hidden: hide_leaving, disabled: view.model.pending }

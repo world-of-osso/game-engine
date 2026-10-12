@@ -121,6 +121,76 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
 }
 
 #[test]
+fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_both_skins() {
+    use game_engine_ui_model::housing::HousingSurface;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for can_edit in [true, false] {
+            let mut model = HousingDashboard::new(Arc::new(HousingCatalog {
+                decor: vec![Decor {
+                    id: 1693,
+                    name: "Small Val'sharah Bookcase".into(),
+                    item_id: 245259,
+                    model_type: 1,
+                    model_fdid: 1096761,
+                    thumbnail_fdid: 7421877,
+                    order: 328,
+                    subcategories: vec![],
+                }],
+                ..Default::default()
+            }));
+            model.surface = HousingSurface::Editor;
+            let authority = game_engine_ui_model::housing::HousingAuthority {
+                state: Some(shared::protocol::HousingState {
+                    build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                    stored: vec![shared::protocol::StoredDecor {
+                        decor_id: 1693,
+                        quantity: 1,
+                    }],
+                    layout: Some(shared::protocol::HouseLayout {
+                        house_id: 41,
+                        can_edit,
+                        decor: vec![],
+                    }),
+                    ..Default::default()
+                }),
+                error: None,
+            };
+            let mut context = SharedContext::new();
+            context.insert(HousingView {
+                model,
+                authority,
+                viewport: [1280.0, 720.0],
+                money: None,
+                missing_thumbnails: BTreeSet::new(),
+            });
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            let frame = registry
+                .get(registry.get_by_name("HouseEditorStorageFrame").unwrap())
+                .unwrap();
+            assert_eq!(frame.width, Dimension::Fixed(600.0));
+            assert_eq!(frame.height, Dimension::Fixed(651.0));
+            let button = registry
+                .get(registry.get_by_name("HouseEditorStored1693").unwrap())
+                .unwrap();
+            assert_eq!(button.onclick.as_deref(), Some("housing:place:1693"));
+            let Some(WidgetData::Button(button)) = &button.widget_data else {
+                panic!("real storage button required")
+            };
+            assert_eq!(
+                button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
+                !can_edit
+            );
+        }
+    }
+}
+
+#[test]
 fn catalog_preview_reports_authentic_identity_and_missing_image_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
