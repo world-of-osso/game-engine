@@ -5,6 +5,7 @@ var output := OS.get_environment("SELLIST_OUTPUT")
 var stage := OS.get_environment("SELLIST_STAGE")
 var skin := OS.get_environment("SELLIST_SKIN")
 var failed := false
+var pointer_notified := false
 
 func _initialize() -> void:
 	Engine.max_fps = 20
@@ -30,7 +31,9 @@ func settle(count := 6) -> void:
 	for index in range(count): await process_frame
 
 func motion(point: Vector2) -> void:
-	root.notify_mouse_entered()
+	if not pointer_notified:
+		root.notify_mouse_entered()
+		pointer_notified = true
 	var event := InputEventMouseMotion.new()
 	event.position = point
 	event.global_position = point
@@ -135,6 +138,12 @@ func run_fixture() -> void:
 	await pointer("CommunitiesFrameCloseButton")
 	root.size = Vector2i(1280, 720)
 	await settle(12)
+	print("SELECTION_LIST_POSITION ", client.account_state().local_player_position)
+	var units := root.find_child("WorldUnits", true, false)
+	if units != null:
+		for unit in units.get_children():
+			if unit.has_meta("unit_name") and "Hashom" in str(unit.get_meta("unit_name")):
+				print("SELECTION_LIST_HASHOM ", unit.global_position)
 	await tap(KEY_Z)
 	if not await wait_until(func(): return control("AuctionGossipOption0") != null, "source Hashom gossip"): return
 	await pointer("AuctionGossipOption0")
