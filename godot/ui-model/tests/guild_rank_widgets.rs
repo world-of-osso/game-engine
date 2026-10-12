@@ -369,7 +369,18 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         session.click("guild:settings", &Default::default());
         session.select_rank(2);
         let reg = mounted(&session);
-        assert_eq!(text(&reg, "GuildRankRow2"), "Member");
+        assert_eq!(text(&reg, "GuildRankRow2Name"), "Member");
+        assert!(
+            reg.get(reg.get_by_name("GuildRankRow2Selected").unwrap())
+                .unwrap()
+                .visible
+        );
+        session.apply(state(0));
+        assert_eq!(
+            session.selected_index(),
+            2,
+            "authoritative refresh preserves rank selection"
+        );
         assert_eq!(text(&reg, GOLD_BOX), "3");
         assert_eq!(text(&reg, "GuildTabItems0"), "2");
         let inputs = [
