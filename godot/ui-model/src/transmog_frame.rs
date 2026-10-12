@@ -402,7 +402,7 @@ fn illusion_slot(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> El
         ));
     }
     let status = illusion.map_or("", |illusion| illusion.name.as_str());
-    art.extend(rsx! { fontstring { name: {DynName(format!("{name}Status"))}, text: status, visible: false } });
+    art.extend(rsx! { fontstring { name: {DynName(format!("{name}Status"))}, text: status, hidden: true } });
     let action = format!("transmog:illusion-slot:{}", slot.inv_slot_id());
     let disabled = book.busy();
     rsx! { button { name: {DynName(name)}, width: 42.0, height: 42.0, left: x, top: y,
