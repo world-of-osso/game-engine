@@ -76,6 +76,7 @@ fn achievements_retail_category_tabs_use_real_db2_hierarchy_both_skins() {
 
 #[test]
 fn achievements_retail_completed_filters_and_feats_are_not_scope_filters() {
+    assets(ActiveSkin::Modern);
     let mut window = AchievementWindow::default();
     window.action("micro:AchievementMicroButton");
     window.apply(AchievementCatalogPage::Categories {
@@ -93,7 +94,26 @@ fn achievements_retail_completed_filters_and_feats_are_not_scope_filters() {
         achievements: vec![earned.clone(), incomplete.clone()],
         next_id: None,
     });
-    window.action("achievement:filter:completed");
+    let registry = achievement_registry(&window, ActiveSkin::Modern);
+    let dropdown = registry
+        .get(registry.get_by_name("AchievementFilterDropdown").unwrap())
+        .unwrap();
+    window.action(
+        dropdown
+            .onclick
+            .as_deref()
+            .expect("clickable Retail filter"),
+    );
+    let menu = achievement_registry(&window, ActiveSkin::Modern);
+    let choice = menu
+        .get(menu.get_by_name("AchievementFiltercompleted").unwrap())
+        .unwrap();
+    window.action(
+        choice
+            .onclick
+            .as_deref()
+            .expect("clickable completed choice"),
+    );
     assert_eq!(
         window
             .displayed_entries()
