@@ -184,9 +184,9 @@ impl SpellsHud {
                         .to_string(),
                 );
                 let (send, receive) = mpsc::channel();
-                std::thread::spawn(move || {
+                game_engine_core::worker_shutdown::track(std::thread::spawn(move || {
                     let _ = send.send(load_spell_catalog(&paths));
-                });
+                }));
                 self.catalog = CatalogLoad::Loading(receive);
             }
             CatalogLoad::Loading(receive) => match receive.try_recv() {
