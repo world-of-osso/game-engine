@@ -41,3 +41,9 @@ Expert uses the same owned decor and server conservation rules as Basic. Retail 
 ## Neighborhood source boundary
 
 Authored bulletin-board type48/PlayerInteractionType72 objects open the600×400 Retail roster, showing durable plot owners, online status and repeatable Name/Status/Plot sorting in both skins. Charter/create remain explicitly unavailable: pinned TrinityCore a352 HousingHandler/Packets implement decline-invites only; local TDB1210 carries housing NPC/object records but no authoritative charter fee/signature-count/name-length contract. Generated NeighborhoodNameMaxCharacters0 is not a valid inferred policy. No fee, signature quota or name length is fabricated.
+
+## Finder map and real friend discovery
+
+Use the dedicated System2 UiMap via NeighborhoodMap.MapID → UiMapAssignment, never names or a world-map fallback. Parent-approved interpretation2026-10-12: Founders2735 assignment68589→UiMap2401/art2056; Razorwind2736 assignment68590→UiMap2402/art2057. Missing/ambiguous relations leave preview explicitly unavailable. Tile art and normalized source cornerstone positions use the existing standard world-to-map projection; these map regions are NOT legal edit bounds.
+
+Retail698×465 MapCanvas draws28px sale and20px real friend pins. Self/stranger plots are not rendered as friend pins. Server relationships come from real persisted social records; no friendship is inferred from sharing a neighborhood or visitor permission. Selecting a pin shows the source plot index/copper price and the single PlotInfo Visit control. Sale visits port to the authored plot teleport without payment/grants; friend interior visits keep existing permission/admission authority. Remove the synthetic occupied-house visit list. Basic/expert, visiting and observer proofs must use this current discovery path.

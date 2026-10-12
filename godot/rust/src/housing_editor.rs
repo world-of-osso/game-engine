@@ -286,6 +286,7 @@ impl GameClient {
             output.set("selected", model.editor.selected.map_or(0, |id| id as i64));
             output.set("placing", model.editor.placing.map_or(0, |id| id as i64));
             output.set("pending", model.pending);
+            output.set("finder_plot", model.finder_plot.map_or(0, |id| id as i64));
         }
         let mut stored: Array<VarDictionary> = Array::new();
         for decor in &state.stored {
@@ -314,6 +315,17 @@ impl GameClient {
             houses.push(&row);
         }
         output.set("houses", &houses.to_variant());
+        let mut plots: Array<VarDictionary> = Array::new();
+        for plot in &state.plots {
+            let mut row = VarDictionary::new();
+            row.set("plot_id", plot.plot_id);
+            row.set("neighborhood_id", plot.neighborhood_id);
+            row.set("plot_index", plot.plot_index);
+            row.set("owner_type", plot.owner_type as i64);
+            row.set("house_id", plot.house_id.map_or(0, |id| id as i64));
+            plots.push(&row);
+        }
+        output.set("plots", &plots.to_variant());
         let mut placed: Array<VarDictionary> = Array::new();
         if let Some(layout) = &state.layout {
             output.set("house_id", layout.house_id as i64);

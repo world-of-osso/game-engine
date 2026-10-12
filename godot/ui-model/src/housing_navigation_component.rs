@@ -26,69 +26,12 @@ pub fn navigation_screen(view: &HousingView) -> Element {
 }
 
 fn finder(view: &HousingView) -> Element {
-    let selected = view.model.neighborhood;
-    let location = neighborhood_location(selected);
-    let plots = view.authority.state.as_ref().map(|state| {
-        state
-            .plots
-            .iter()
-            .filter(|plot| plot.neighborhood_id == selected)
-            .count()
-    });
-    let description = match plots {
-        Some(count) => format!(
-            "{location}\n{count} authored plots\n\nMap preview is not available. Visit loads the real neighborhood terrain. Purchase requires interacting with its cornerstone."
-        ),
-        None => "Neighborhood data has not been confirmed by the server.".into(),
-    };
-    let visit_disabled = plots.is_none() || view.model.pending;
-    let choices: Element = [1, 2]
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, id)| {
-            let top = 70.0 + index as f32 * 70.0;
-            let text = neighborhood_location(id);
-            let action = format!("housing:neighborhood:{id}");
-            let disabled = view.model.pending;
-            rsx! { button { name: {DynName(format!("HouseFinderNeighborhood{id}"))},
-                text, width: 217.0, height: 63.0, pos_type: "absolute", left: 20.0, top,
-                onclick: action, disabled }
-            }
-        })
-        .collect();
-    let occupied: Element = view
-        .authority
-        .state
-        .as_ref()
-        .into_iter()
-        .flat_map(|state| state.plots.iter())
-        .filter(|plot| plot.neighborhood_id == selected)
-        .filter_map(|plot| plot.house_id.map(|house| (plot, house)))
-        .enumerate()
-        .flat_map(|(index, (plot, house))| {
-            let text = format!("Visit Plot {}", plot.plot_index);
-            let action = format!("housing:home:{house}");
-            let top = 230.0 + index as f32 * 36.0;
-            rsx! { button { name: {DynName(format!("HouseFinderVisitHouse{house}"))}, text,
-            width: 200.0, height: 32.0, pos_type: "absolute", left: 280.0, top,
-            onclick: action, disabled: view.model.pending } }
-        })
-        .collect();
-    let body = rsx! {
-        {choices} {occupied}
-        fontstring { name: "HouseFinderNeighborhoodDescription", text: description,
-            width: 630.0, height: 250.0, pos_type: "absolute", left: 280.0, top: 90.0,
-            font_size: 14.0, justify_h: "LEFT" }
-        button { name: "HouseFinderVisitButton", text: "Visit Neighborhood",
-            width: 180.0, height: 32.0, pos_type: "absolute", left: 500.0, top: 390.0,
-            onclick: "housing:visit", disabled: visit_disabled }
-    };
     portrait_panel(
         view,
         "HouseFinderFrame",
         [954.0, 490.0],
         "House Finder",
-        body,
+        crate::housing_finder_component::finder_contents(view),
     )
 }
 
