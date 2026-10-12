@@ -66,6 +66,9 @@ pub mod guild_charter_frame;
 pub mod guild_charters;
 pub mod housing;
 pub mod housing_component;
+pub mod housing_editor;
+#[cfg(test)]
+mod housing_editor_tests;
 pub mod housing_navigation_component;
 #[cfg(test)]
 mod housing_tests;
