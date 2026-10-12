@@ -94,7 +94,7 @@ fn mount_journal_known_item_feedback_tracks_authoritative_ownership_and_source()
     assert_eq!(
         view.item_tooltip(Retail, 5655, TooltipPresentation::default())
             .lines[0]
-            .left,
+            .left_text,
         "Already known"
     );
     let mut mare = mare();
