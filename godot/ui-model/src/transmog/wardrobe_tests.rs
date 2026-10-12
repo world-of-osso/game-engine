@@ -529,6 +529,7 @@ fn transmog_hidden_visual_is_the_first_items_entry_for_hideable_slots() {
 #[test]
 fn transmog_icon_edit_preserves_pending_apply_and_saved_configuration() {
     let mut book = book();
+    book.select(EquipmentSlot::MainHand);
     assert!(book.stage(TransmogChoice::Source(1181)));
     let pending = book.pending.clone();
     let money = book.money;

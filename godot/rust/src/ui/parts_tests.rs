@@ -179,6 +179,11 @@ fn transmog_hover_borders_add_light_without_covering_the_preview() {
         ("transmog-itemcard-default", [114.0, 146.0]),
         ("transmog-setcard-default", [194.0, 234.0]),
         ("transmog-setcard-incomplete", [194.0, 234.0]),
+        ("transmog-gearslot-default", [59.0, 59.0]),
+        ("transmog-gearslot-transmogrified", [59.0, 59.0]),
+        ("transmog-gearslot-pending", [76.0, 76.0]),
+        ("transmog-gearslot-default-small", [42.0, 42.0]),
+        ("transmog-gearslot-transmogrified-small", [42.0, 42.0]),
     ] {
         let frame = button(ButtonData {
             use_default_skin: false,
