@@ -18,6 +18,12 @@ Server `persistence_housing_access` derives neighbors from durable paid same-nei
 
 Twelve private native role/mode/skin runs prove staged/closed drafts, saved/relogged Anyone/No One/Limited-Friends, allowed read-only visits and No One denial remaining outside after real reauthentication. Each account owns an actually paid house; no item/decor/property grant. Evidence `data/diagnostics/housing-core-2026-10-12/core8/`; eight inspected public PNGs show both-skin saved modes and denied visitors. Allowed-visitor relog captures lagged registry projection and are not published as visual proof; their authoritative state/readonly/relog proof is retained. Guild/Neighbors/current-party relationship changes have concrete server tests, not new per-relationship live UI proof.
 
+## Cleanup editor input
+
+`EditorMode::Cleanup` clears Basic/Expert drafts and hides storage. Native mouse motion uses the existing visible-mesh UnitPicker; only confirmed placed IDs get a temporary additive overlay and cursor name tooltip. Hovering UI/empty ground, switching mode, removal and closing clear the overlay without rewriting saved mesh materials. Native highlight color is input feedback, not a claimed Retail shader.
+
+A single left-click selects that exact authoritative target and sends existing RemoveDecor; no ground ray or prior Basic selection is required. Pending submission blocks repeats. Visitor clicks fail before a command is sent and the hover tooltip explains read-only removal. Server removal/storage/paid-variant conservation remains the existing transactional path. Model and both-skin registry RED/GREEN prove selection/refusal/storage visibility; native fixture `housing_cleanup_live.gd` covers physical hover/click, relog and re-placement. Source: Retail Cleanup Lua/XML and generated CleanupModeUI API. Live proof remains pending until recorded in the proof ledger.
+
 ## Catalog and actual acquisition
 
 Pinned Retail12.1.0.69933 / dcfc90fffd79ba00406ae46f5f657592 catalogs preserve literal DB2 fields and unreadable/missing records. Native categories/subcategories, search, Collected/Uncollected/Dyeable filters, total/stored/placed counts and source tooltips share both skins. Vendor names come from real server creature queries; encounter names/instances/difficulty come from authenticated source joins. Source evidence47 tables/70,552 rows/54 unreadable records: `data/diagnostics/housing-core-2026-10-12/qualified-sources`.
