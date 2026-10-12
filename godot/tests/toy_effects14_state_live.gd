@@ -18,8 +18,8 @@ func prove_toy(sample: Array) -> void:
 	if starts != 1: fail("state kit restarted across native frames"); return
 	receipts.append({"phase": "source-state-kit", "kit": 236744, "model": 1952826, "starts": starts, "attachment_scale": effect.scale.x})
 	await capture("toy246227-state-kit236744")
-	if not command(OS.get_environment("TOYFX_ADMIN"), ["clock-advance", "181"]): return
-	if not await wait_until(func(): return scenery(str(sample[3])) == null and state_model() == null, "source actor and held state kit expiry", 30000): return
+	# Source duration180000ms: observe natural server expiry, not the calendar clock.
+	if not await wait_until(func(): return scenery(str(sample[3])) == null and state_model() == null, "source actor and held state kit expiry", 200000): return
 	receipts.append({"phase": "source-state-kit-expired", "kit": 236744, "model": 1952826})
 	write_receipts()
 
