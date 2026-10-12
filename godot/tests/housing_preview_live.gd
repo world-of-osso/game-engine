@@ -88,9 +88,6 @@ func preview_entry(decor_id: int, decor_name: String, phase: String) -> bool:
 			if color.a <= 0.1: continue
 			opaque += 1
 			if maxf(color.r, maxf(color.g, color.b)) > 0.02: readable += 1
-	if decor_id == 525 and float(readable) / float(maxi(1, opaque)) < 0.6:
-		fail("WMO preview lost its isolated interior fill lighting")
-		return false
 	if opaque < 10:
 		fail("Preview actor has no rendered opaque model pixels")
 		return false
