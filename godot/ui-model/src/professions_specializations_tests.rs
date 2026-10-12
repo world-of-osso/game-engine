@@ -216,11 +216,18 @@ fn specialization_unlocked_root_spends_available_knowledge_entry_not_maxed_unloc
         Some(ProfessionSpecializationRequest::Commit {
             skill_line: 2830,
             tree_id: 350,
-            purchases: vec![ProfessionTraitPurchase {
-                node_id: 28546,
-                entry_id: 36327,
-                ranks: 1
-            }],
+            purchases: vec![
+                ProfessionTraitPurchase {
+                    node_id: 28546,
+                    entry_id: 36338,
+                    ranks: 1
+                },
+                ProfessionTraitPurchase {
+                    node_id: 28546,
+                    entry_id: 36327,
+                    ranks: 1
+                },
+            ],
         })
     );
     assert_eq!(draft.snapshot.as_ref().unwrap().trees[0].nodes[0].rank, 1);
