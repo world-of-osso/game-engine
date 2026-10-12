@@ -766,6 +766,7 @@ fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_ski
                     house_id: 41,
                     can_edit: true,
                     decor: vec![shared::protocol::PlacedDecor {
+                        dyes: Vec::new(),
                         instance_id: 7,
                         decor_id: 1693,
                         transform: shared::protocol::DecorTransform {
