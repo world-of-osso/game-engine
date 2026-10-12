@@ -13,6 +13,8 @@ mod mail;
 mod trade;
 mod tree;
 mod ui_tree;
+#[cfg(windows)]
+mod windows;
 mod world;
 
 use std::{
@@ -29,8 +31,11 @@ use godot::{
     classes::{Engine, Node, RenderingServer, Viewport},
     prelude::*,
 };
+#[cfg(unix)]
 use peercred_ipc::{Connection, Server};
 use tokio::{sync::oneshot, task::JoinSet};
+#[cfg(windows)]
+use windows::{Connection, Server};
 
 pub(crate) fn dump_tree(client: &Gd<Node>, filter: Option<&str>) -> Response {
     tree::dump_tree(client, filter)
@@ -77,7 +82,10 @@ pub(crate) struct NativeIpc {
 impl NativeIpc {
     /// Returns only after binding /tmp/game-engine-<this process PID>.sock.
     pub(crate) fn start() -> Result<Self, String> {
+        #[cfg(unix)]
         let path = PathBuf::from(format!("/tmp/game-engine-{}.sock", std::process::id()));
+        #[cfg(windows)]
+        let path = PathBuf::from(format!(r"\\.\pipe\game-engine-{}", std::process::id()));
         let (send, commands) = mpsc::channel();
         let (ready_send, ready_receive) = mpsc::sync_channel(1);
         let (stop, stopped) = oneshot::channel();
@@ -267,8 +275,10 @@ fn reply(respond: oneshot::Sender<Response>, response: Response) {
     }
 }
 
+#[cfg(unix)]
 struct SocketGuard(PathBuf);
 
+#[cfg(unix)]
 impl Drop for SocketGuard {
     fn drop(&mut self) {
         match std::fs::remove_file(&self.0) {
@@ -299,6 +309,7 @@ fn run_socket_worker(
         // peercred-ipc replaces only this exact own-PID path and retains legacy 0666 mode.
         // No process-wide signal handlers, stale socket scans or caller authorization.
         // Also removes a partially bound own-PID socket if setting its mode fails.
+        #[cfg(unix)]
         let _socket = SocketGuard(path.clone());
         let server = match Server::bind(&path) {
             Ok(server) => server,

@@ -17,12 +17,14 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 - [x] Provide All/Account/Character scope tabs using the authentic account flag.
 - [x] Browse category ancestry/order, icons/names/descriptions/points/earned dates and criterion progress, including continuation pages.
 - [x] Show bare thousands-separated earned points beside the Retail shield in both skins.
-- [x] Use cropped authored category-button, icon-frame, point-shield and achievement-background regions; progress fills must not cover their captions.
+- [x] Use Retail's 768×500 AchievementFrame, styled collapsible category tree with native wheel/thumb scrolling, header shield/search/clear art and authored bottom tabs. Forever changes art only.
+- [x] Achievement row buttons expand criteria in place, pushing following rows down; include icon frames, point shields, centered titles/descriptions, completion dates and authentic progress-bar art. Native row scrolling fetches further cursor pages at the bottom without collapsing selection; category/filter changes start at the top. Statistics use Retail striped rows. Summary uses carved category status-bar art; fills must not cover captions.
 
 ### Earned links and tracking
 
 - [x] Show earned alerts with authoritative icon/name/points, Mainline plate/icon/shield elements and click-to-open own-state details.
 - [x] Add a local earned chat line with a clickable achievement name; clicking it requests authoritative own-state details. Shift-click inserts the real ID/name link at the current chat caret.
+- [x] Show only the achievement label in chat drafts while retaining its real ID for transport and sent clickable chat. Unicode caret/selection replacement, surrounding edits and history recall preserve unedited links; editing a label makes it plain text.
 - [x] Never fabricate GUIDs, dates, other-character completion or comparison payloads in links.
 - [x] Track unearned achievements in the existing objective tracker after quests. Refresh tracked rows while the window is closed; stop tracking earned rows.
 - [x] Persist character-scoped watch IDs under authenticated account/realm preferences; restore rows from the server, not serialized progress.
@@ -60,7 +62,7 @@ Native Retail Mainline AchievementUI and dungeon objectives, using authoritative
 ## Known gaps (current cycle)
 
 - [ ] Server-unevaluated criterion/statistic types have no trustworthy quantity to display; do not invent zero/completion.
-- [ ] Native chat draft uses a plain edit box and displays transport markup; sent chat renders a clickable name.
+- Native art/draft proof: private UDP5730, `fb_achievementsui`/Fbachui, both skins at082d6ffa6. Label-only drafts send clickable real633 links; native stepper scroll loads24→25 statistic rows. Evidence and exact scope live in the linked wiki; no full-suite/CI/comparison certification.
 
 ## Out of scope
 

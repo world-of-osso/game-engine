@@ -275,6 +275,10 @@ pub struct HudDraft {
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
     pub status_text_display: StatusTextDisplay,
+    pub encounter_timeline: bool,
+    pub encounter_bars: bool,
+    pub encounter_warnings: bool,
+    pub encounter_sounds: bool,
 }
 
 #[derive(Clone)]
@@ -394,6 +398,10 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
         soft_target_interact: hud.soft_target_interact,
         soft_target: hud.soft_target,
         show_fps_overlay: hud.show_fps_overlay,
+        encounter_timeline: hud.encounter_timeline,
+        encounter_bars: hud.encounter_bars,
+        encounter_warnings: hud.encounter_warnings,
+        encounter_sounds: hud.encounter_sounds,
         chat_font_size: hud.chat_font_size,
         status_text_display: hud.status_text_display,
     }
@@ -454,6 +462,10 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         soft_target_interact: h.soft_target_interact,
         interact_key_icons: h.soft_target.interact_key_icons(),
         show_fps_overlay: h.show_fps_overlay,
+        encounter_timeline: h.encounter_timeline,
+        encounter_bars: h.encounter_bars,
+        encounter_warnings: h.encounter_warnings,
+        encounter_sounds: h.encounter_sounds,
         chat_font_size: h.chat_font_size,
         status_text_display: h.status_text_display,
     }
@@ -1025,6 +1037,11 @@ fn apply_hud_toggle(
             hud.personal_resource_display = !hud.personal_resource_display
         }
         "soft_target_interact" => hud.soft_target_interact = !hud.soft_target_interact,
+        "encounter_timeline" => hud.encounter_timeline = !hud.encounter_timeline,
+        "encounter_view:1" => hud.encounter_bars = false,
+        "encounter_view:2" => hud.encounter_bars = true,
+        "encounter_warnings" => hud.encounter_warnings = !hud.encounter_warnings,
+        "encounter_sounds" => hud.encounter_sounds = !hud.encounter_sounds,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
         _ => {
             if let Some(choice) = interact_key_icons_choice(key) {
@@ -1154,6 +1171,10 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.soft_target_interact = d.soft_target_interact;
     h.soft_target = d.soft_target;
     h.show_fps_overlay = d.show_fps_overlay;
+    h.encounter_timeline = d.encounter_timeline;
+    h.encounter_bars = d.encounter_bars;
+    h.encounter_warnings = d.encounter_warnings;
+    h.encounter_sounds = d.encounter_sounds;
     h.status_text_display = d.status_text_display;
     h.chat_font_size = d
         .chat_font_size

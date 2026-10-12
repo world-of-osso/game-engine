@@ -62,6 +62,7 @@ mod merchant;
 mod merchant_window;
 mod minimap;
 mod mirror_timers;
+mod mythic_mentor;
 mod nameplate_auras;
 mod nameplate_cast_bar;
 mod nameplate_casts;
@@ -189,6 +190,10 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
     }
 
     fn on_stage_deinit(stage: godot::init::InitStage) {
+        // Client owners and their request queues are gone before Core deinitializes.
+        if stage == godot::init::InitStage::Core {
+            game_engine_core::worker_shutdown::join_all();
+        }
         // Release cached resources before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             ui::assets::clear_shared_resources();
@@ -522,9 +527,11 @@ impl INode3D for GameClient {
             || self.world_map_pointer(&event)
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
+            || self.mentor_pointer(&event)
             || self.merchant_pointer(&event)
             || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
+            || self.achievement_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
@@ -1445,6 +1452,9 @@ impl GameClient {
         self.spells.visit_uis(&mut visit)?;
         self.pet_bar.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
+        if let Some(ui) = &mut self.encounter.timeline_ui {
+            visit(ui)?;
+        }
         if let Some(ui) = &mut self.encounter.ui {
             visit(ui)?;
         }

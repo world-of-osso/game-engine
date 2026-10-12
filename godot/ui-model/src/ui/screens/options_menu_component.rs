@@ -200,6 +200,10 @@ pub struct HudOptionsView {
     pub soft_target_interact: bool,
     pub interact_key_icons: crate::soft_target_data::InteractKeyIcons,
     pub show_fps_overlay: bool,
+    pub encounter_timeline: bool,
+    pub encounter_bars: bool,
+    pub encounter_warnings: bool,
+    pub encounter_sounds: bool,
     pub chat_font_size: f32,
     pub status_text_display: crate::status_text_data::StatusTextDisplay,
 }

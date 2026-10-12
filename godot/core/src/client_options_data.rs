@@ -66,6 +66,9 @@ const fn default_bloom_intensity() -> f32 {
 const fn default_nameplate_distance() -> f32 {
     DEFAULT_NAMEPLATE_DISTANCE
 }
+const fn default_enabled() -> bool {
+    true
+}
 const fn default_chat_font_size() -> f32 {
     10.0
 }
@@ -275,6 +278,14 @@ pub struct HudOptionsFile {
     /// Interface "Status Text" (`statusTextDisplay`).
     #[serde(default, rename = "statusTextDisplay")]
     pub status_text_display: StatusTextDisplay,
+    #[serde(default = "default_enabled")]
+    pub encounter_timeline: bool,
+    #[serde(default = "default_enabled")]
+    pub encounter_bars: bool,
+    #[serde(default = "default_enabled")]
+    pub encounter_warnings: bool,
+    #[serde(default = "default_enabled")]
+    pub encounter_sounds: bool,
 }
 
 impl Default for HudOptionsFile {
@@ -296,6 +307,10 @@ impl Default for HudOptionsFile {
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
             status_text_display: StatusTextDisplay::default(),
+            encounter_timeline: true,
+            encounter_bars: true,
+            encounter_warnings: true,
+            encounter_sounds: true,
         }
     }
 }

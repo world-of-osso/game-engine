@@ -28,6 +28,7 @@ pub fn current_process_memory_kb() -> ProcessMemoryKb {
     ProcessMemoryKb::default()
 }
 
+#[cfg(target_os = "linux")]
 fn parse_kb_field(value: &str) -> u64 {
     value
         .split_whitespace()
