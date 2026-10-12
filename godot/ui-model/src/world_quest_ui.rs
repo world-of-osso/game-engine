@@ -1,6 +1,6 @@
 //! Retail WorldQuestDataProvider / WorldQuestObjectiveTracker presentation.
 use crate::quest_runtime::QuestRuntime;
-use crate::ui::screens::tooltip_presentation::{TooltipLineState, TooltipPresentation};
+use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation};
 use crate::ui::screens::world_map_frame_component::{MapPin, MapPinType};
 use crate::ui_map_data::UiMapCatalog;
 use shared::protocol::AvailableWorldQuest;

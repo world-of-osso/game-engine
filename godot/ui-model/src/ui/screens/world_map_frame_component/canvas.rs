@@ -52,7 +52,7 @@ pub fn canvas_contents(state: &WorldMapFrameState, size: [f32; 2]) -> Element {
         children.extend(player_arrow(player, size));
     }
     if let Some(tooltip) = &state.world_quest_tooltip {
-        children.extend(crate::ui::screens::tooltip_presentation::tooltip_frame(
+        children.extend(crate::tooltip_presentation::tooltip_frame(
             tooltip,
             "WorldQuestMapTooltip",
         ));
