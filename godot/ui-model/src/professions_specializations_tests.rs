@@ -105,6 +105,10 @@ fn specialization_query_uses_learned_specialization_tier_not_selected_classic_re
 
 #[test]
 fn specialization_perk_tooltip_explains_source_path_and_pending_milestone() {
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut draft = draft();
     let tree = &mut draft.snapshot.as_mut().unwrap().trees[0];
     let mut perk = tree.nodes[0].clone();
