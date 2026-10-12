@@ -24,7 +24,7 @@ Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG c
 
 ## Native neighborhood and cornerstone controls
 
-The dashboard's Find a Home action opens a954×490 House Finder shell with the two authored map locations and authoritative plot counts. Its Visit Neighborhood action requests real housing admission; browsing never ports or grants ownership. The map preview remains explicitly unavailable rather than fabricated. Ordinary world cornerstone interaction sends UseGameObject; only its authenticated HousingReply inspection opens the340×320 purchase controls. Display the actual plot index and copper cost, confirm the irreversible purchase, disable repeat submission while pending and show ownership only after the server's paid claim. Both skins share controls/layout/behavior. Default house component grants remain unavailable.
+The dashboard's Find a Home action opens a954×490 House Finder shell with the two authored map locations and authoritative plot counts. Its Visit Neighborhood action requests real housing admission; browsing never ports or grants ownership. The dedicated System2 map uses authored UiMapAssignment relations and tile art; missing relations/art remain explicitly unavailable. Ordinary world cornerstone interaction sends UseGameObject; only its authenticated HousingReply inspection opens the340×320 purchase controls. Display the actual plot index and copper cost, confirm the irreversible purchase, disable repeat submission while pending and show ownership only after the server's paid claim. Both skins share controls/layout/behavior. Default house component grants remain unavailable.
 
 ## Local catalog promotion (lead-owned canonical writes)
 

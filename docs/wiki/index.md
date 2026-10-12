@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Native player housing](systems/housing.md) — qualified catalog with authored vendor/encounter sources and both-skin vendor/bag collection, basic editor, visitor and live observer proof; first-house grants and outdoor plot bounds have no source contract.
+- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin catalog/acquisition, basic/expert staged transforms, visitor/observer proof and sourced schema migration; charter/default grants/outdoor bounds remain explicit source gaps.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 

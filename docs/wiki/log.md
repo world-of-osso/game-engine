@@ -1,3 +1,7 @@
+## 2026-10-12 — Housing source Finder and precision continuation
+
+[Housing](systems/housing.md): dedicated System2 map/standard projection, real persisted friend discovery (no synthetic occupied-plot list), physical bulletin roster, both-skin staged XYZ/scale cancel/commit/relog and five-component live observer rendering. One-time sourced schema1 migration and plain-master relog crash isolation. Quest92572 criterion binding has CPU proof; unresolved vendor reference prevents live acquisition. No default grants, legal outdoor bounds or charter policy invented; final heads/gates remain in handoff.
+
 ## 2026-10-11 — Housing paid collection both-skin proof
 
 [Housing](systems/housing.md): native private5870 real Pawdo pick/gossip/50g purchase, normal bag UseItem, exact decor1693 stored0→1 and reauthentication persistence in Modern/Forever. Eight inspected1280px PNGs. Authenticated missing Pawdo appearance/hat receipt chains instead of substituting assets; fixture corrected to actual clickable gossip text and separate BagsUI. No granted item/decor, canonical world.db writes, house-grant inference or completed whole-goal claim.
