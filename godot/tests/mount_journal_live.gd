@@ -127,27 +127,24 @@ func buy_mare() -> bool:
 	return true
 
 func open_vendor() -> bool:
-	var deadline := Time.get_ticks_msec() + 60000
-	var angle := 0.0
-	while Time.get_ticks_msec() < deadline:
-		var units := client.get_node_or_null("WorldUnits")
-		if units != null:
-			for unit in units.get_children():
-				if str(unit.name) != "Katie Hunter": continue
-				var area := unit.find_child("UnitPick", true, false) as Area3D
-				if area == null: continue
-				var camera := root.get_camera_3d()
-				var point := camera.unproject_position((area.get_child(0) as Node3D).global_position)
-				if UnitPicker.pick(camera, point) == area.get_meta("unit_server_id"):
-					await motion(point, false)
-					await button_event(point, MOUSE_BUTTON_RIGHT, true)
-					await button_event(point, MOUSE_BUTTON_RIGHT, false)
-					return await wait_until(func(): return client.merchant_state().open, "authentic Katie Hunter vendor")
-		angle += PI / 8.0
-		client.set_camera_orbit(angle, -0.25, 8.0)
-		await wait_frames(20)
-	fail("Katie Hunter not visible to native pick at prepared authentic spawn")
-	return false
+	# Setup sends the existing NPC interaction request; purchase/use remains native input.
+	var reply := await ipc(["quest", "interact", "--npc", "Katie Hunter"])
+	if reply.is_empty(): return false
+	return await wait_until(func(): return client.merchant_state().open, "authentic Katie Hunter vendor")
+
+func ipc(arguments: Array) -> String:
+	var worker := Thread.new()
+	var argv := ["--signal=KILL", "15", OS.get_environment("GAME_ENGINE_CLI"), "--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id()] + arguments
+	var error := worker.start(func():
+		var output := []
+		var code := OS.execute("/usr/bin/timeout", argv, output, true)
+		return {"code": code, "text": "\n".join(output)})
+	if error != OK: fail("Cannot start IPC setup worker"); return ""
+	while worker.is_alive(): await process_frame
+	var result: Dictionary = worker.wait_to_finish()
+	print("MOUNT_SETUP_IPC ", arguments, " code=", result.code, " text=", result.text)
+	if result.code != 0: fail("Bounded NPC setup failed"); return ""
+	return result.text
 
 func open_mounts() -> void:
 	await click("MinimapLauncherButton")
