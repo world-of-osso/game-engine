@@ -183,6 +183,9 @@ def import_presentation(connection, items):
     connection.execute('CREATE TABLE map_difficulty (map_id INTEGER, difficulty_id INTEGER)')
     with (items / 'MapDifficulty.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO map_difficulty VALUES(?,?)', ((int(row['MapID']), int(row['DifficultyID'])) for row in csv.DictReader(handle) if int(row['DifficultyID']) != 0))
+    connection.execute('CREATE TABLE map_type (ID INTEGER PRIMARY KEY, instance_type INTEGER)')
+    with (items / 'Map.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO map_type VALUES(?,?)', ((int(row['ID']), int(row['InstanceType'])) for row in csv.DictReader(handle)))
     connection.execute('CREATE TABLE journal_text (tag TEXT PRIMARY KEY, text TEXT)')
     with (items / 'GlobalStrings.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO journal_text VALUES(?,?)',

@@ -4,7 +4,7 @@ Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern
 
 ## Required behavior
 
-- Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list.
+- Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list. Classify dungeons from pinned Map.InstanceType, not JournalInstance.Flags (Wailing Caverns43 has zero Journal flags).
 - Encounter: existing 3D model renderer; Overview and expandable Abilities from JournalEncounterSection, role/difficulty filters. Collapse on one page must not hide sections on another page whose parent is not rendered there. JournalEncounterXDifficulty restricts boss visibility and choices.
 - Loot from JournalEncounterItem with difficulty/class/spec and Retail slot categories (robes share Chest; weapon variants map to MainHand/OffHand; other drops have an Other category).
 - Item Sets: Retail compact named rows, item-level ordering (then case-insensitive name and descending set ID), authored item icons, class/spec filtering with a specific spec selected for a class. Pinned ItemSet membership and the shared Retail item-level scaling tables are authoritative; rows and item tooltips use the same squished level. Mixed-level sets display their highest effective member level. Entering Item Sets normalizes an unspecified spec, using the active player spec for that class or its first authored spec. Search filters sets directly. Tutorials uses the authored Catch Up Experience text/art, not invented journal help. Show its unavailable realm service explicitly until RPE is backed.

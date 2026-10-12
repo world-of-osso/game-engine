@@ -309,6 +309,18 @@ fn both_skins_render_authored_ability_loot_and_raid_text() {
 }
 
 #[test]
+fn wailing_caverns_boss_link_selects_the_dungeon_tab() {
+    let mut view = journal();
+    view.select_encounter(475).unwrap();
+    assert_eq!(view.catalog.encounter(475).unwrap().name, "Lord Cobrahn");
+    assert_eq!(
+        view.tab,
+        Tab::Dungeons,
+        "Map43 is an authored dungeon even though JournalInstance.Flags is zero"
+    );
+}
+
+#[test]
 fn raid_selection_search_and_back_preserve_authored_identity() {
     let mut view = journal();
     view.apply("journal:tab:raids").unwrap();

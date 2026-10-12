@@ -152,7 +152,7 @@ impl Catalog {
         )?;
         let instances = query(
             &db,
-            "SELECT ID,Name_lang,Description_lang,MapID,BackgroundFileDataID,ButtonFileDataID,LoreFileDataID,Flags FROM JournalInstance ORDER BY ID",
+            "SELECT j.ID,j.Name_lang,j.Description_lang,j.MapID,j.BackgroundFileDataID,j.ButtonFileDataID,j.LoreFileDataID,m.instance_type FROM JournalInstance j JOIN map_type m ON m.ID=j.MapID ORDER BY j.ID",
             |r| {
                 let id = r.get(0)?;
                 Ok(Instance {
@@ -163,7 +163,7 @@ impl Catalog {
                     background: r.get(4)?,
                     button: r.get(5)?,
                     lore: r.get(6)?,
-                    dungeon: r.get::<_, u32>(7)? & 1 != 0,
+                    dungeon: r.get::<_, u32>(7)? == 1,
                     tiers: tier_links.get(&id).cloned().unwrap_or_default(),
                 })
             },
