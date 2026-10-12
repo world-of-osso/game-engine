@@ -1,3 +1,7 @@
+## 2026-10-12 — Epic source rules and AV channel boundary
+
+[Epic continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12): AV1/Isle30,10–40/team, levels20–90,700/400reinforcements. AV15node/four-minute/tower75/captain100/general/mine45s pure proof;20-account channel source-entry/eight-second cancellableOpening/actual NPC death/return proof. Native/live and Isle runtime remain pending.
+
 ## 2026-10-12 — Retire redundant client-publication gate
 
 [Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
