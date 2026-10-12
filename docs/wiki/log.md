@@ -1,3 +1,7 @@
+## 2026-10-12 — Housing atomic dye backend (not native feature)
+
+[Dye authority](systems/housing.md#dye-authority-without-native-recoloring): source slot/item binding and any-category rule, transient player-scoped preview/cancel, atomic per-changed-slot owned dye commit, real bag-placement rollback, preserved dyed variants through remove/store/reopen/re-place, and schema3 nonzero undyed count preservation. Native recoloring/variant controls and live acquisition remain explicitly unavailable; no user-visible feature claim.
+
 ## 2026-10-12 — Housing HouseSettings access authority
 
 [HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
