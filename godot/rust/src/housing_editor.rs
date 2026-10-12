@@ -76,8 +76,37 @@ impl GameClient {
             let decor = value
                 .parse()
                 .map_err(|_| "Invalid stored decor identity.")?;
-            model.editor.begin_place(&self.housing.authority, decor)?;
+            let source = model
+                .catalog
+                .decor
+                .iter()
+                .find(|source| source.id == decor)
+                .ok_or("Stored decor source is unavailable.")?;
+            model.editor.begin_place(&self.housing.authority, source)?;
             self.housing.decor.clear_preview();
+            return Ok(true);
+        }
+        use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+        let mode = match action {
+            "housing:expert" => Some(EditorMode::Expert),
+            "housing:basic" => Some(EditorMode::Basic),
+            _ => None,
+        };
+        if let Some(mode) = mode {
+            model.editor.set_mode(mode);
+            self.housing.expert_held = [false; 8];
+            self.housing.decor.clear_preview();
+            self.housing.decor.restore_saved();
+            return Ok(true);
+        }
+        let submode = match action {
+            "housing:precision:translate" => Some(PrecisionSubmode::Translate),
+            "housing:precision:rotate" => Some(PrecisionSubmode::Rotate),
+            "housing:precision:scale" => Some(PrecisionSubmode::Scale),
+            _ => None,
+        };
+        if let Some(submode) = submode {
+            model.editor.set_submode(submode);
             return Ok(true);
         }
         let command = match action {
@@ -89,8 +118,10 @@ impl GameClient {
                 .rotate(&self.housing.authority, BASIC_ROTATION_STEP)?,
             "housing:remove" => model.editor.remove(&self.housing.authority)?,
             "housing:cancel" => {
-                model.editor = Default::default();
+                model.editor.cancel();
+                self.housing.expert_held = [false; 8];
                 self.housing.decor.clear_preview();
+                self.housing.decor.restore_saved();
                 return Ok(true);
             }
             _ => return Ok(false),
@@ -101,17 +132,21 @@ impl GameClient {
 
     fn editor_ui_contains(&self, point: Vector2) -> bool {
         self.housing.ui.as_ref().is_some_and(|ui| {
-            ["HouseEditorStorageFrame", "HouseEditorModeBar"]
-                .iter()
-                .any(|name| {
-                    ui.bind().frame_viewport_rect(name).is_some_and(|rect| {
-                        Rect2::new(
-                            Vector2::new(rect[0], rect[1]),
-                            Vector2::new(rect[2], rect[3]),
-                        )
-                        .contains_point(point)
-                    })
+            [
+                "HouseEditorStorageFrame",
+                "HouseEditorModeBar",
+                "HouseEditorExpertSubmodeBar",
+            ]
+            .iter()
+            .any(|name| {
+                ui.bind().frame_viewport_rect(name).is_some_and(|rect| {
+                    Rect2::new(
+                        Vector2::new(rect[0], rect[1]),
+                        Vector2::new(rect[2], rect[3]),
+                    )
+                    .contains_point(point)
                 })
+            })
         })
     }
 
@@ -126,6 +161,9 @@ impl GameClient {
             .is_none_or(|model| model.surface != HousingSurface::Editor)
         {
             return Ok(false);
+        }
+        if self.housing_expert_key(event)? {
+            return Ok(true);
         }
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
             let point = motion.get_position();
@@ -178,6 +216,28 @@ impl GameClient {
         {
             self.housing.decor.clear_preview();
             self.request_housing(command)?;
+        } else if let Some(instance) = picked {
+            let decor_id = self
+                .housing
+                .authority
+                .state
+                .as_ref()
+                .and_then(|state| state.layout.as_ref())
+                .and_then(|layout| {
+                    layout
+                        .decor
+                        .iter()
+                        .find(|decor| decor.instance_id == instance)
+                })
+                .map(|decor| decor.decor_id)
+                .ok_or("Selected decor source is unavailable.")?;
+            let source = model
+                .catalog
+                .decor
+                .iter()
+                .find(|decor| decor.id == decor_id)
+                .ok_or("Selected decor is absent from the authenticated catalog.")?;
+            model.editor.scale_allowed = source.model_type == 1;
         }
         Ok(true)
     }
@@ -189,7 +249,7 @@ impl GameClient {
         let Some(decor_id) = model.editor.placing else {
             return Ok(());
         };
-        let yaw = model.editor.yaw;
+        let editor = model.editor.clone();
         let catalog = model.catalog.clone();
         let camera = self
             .base()
@@ -206,8 +266,7 @@ impl GameClient {
             &self.data_root,
             &catalog,
             decor_id,
-            ground,
-            yaw,
+            editor.placement_transform(ground.to_array())?,
         )
     }
 }
@@ -265,10 +324,130 @@ impl GameClient {
                 row.set("decor_id", decor.decor_id);
                 row.set("position", Vector3::from_array(decor.transform.position));
                 row.set("yaw", decor.transform.yaw);
+                row.set("pitch", decor.transform.pitch);
+                row.set("roll", decor.transform.roll);
+                row.set("scale", decor.transform.scale);
                 placed.push(&row);
             }
         }
         output.set("decor", &placed.to_variant());
         output
+    }
+}
+
+// Native key choices/rates are input tuning, not claims about Retail's defaults.
+const EXPERT_INCREMENT_RATE: f32 = 0.5;
+const EXPERT_KEYS: [godot::global::Key; 8] = [
+    godot::global::Key::LEFT,
+    godot::global::Key::RIGHT,
+    godot::global::Key::UP,
+    godot::global::Key::DOWN,
+    godot::global::Key::PAGEUP,
+    godot::global::Key::PAGEDOWN,
+    godot::global::Key::Q,
+    godot::global::Key::E,
+];
+
+impl GameClient {
+    fn housing_expert_key(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> Result<bool, String> {
+        use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+        use godot::global::Key;
+        let Some(model) = &mut self.housing.model else {
+            return Ok(false);
+        };
+        if model.editor.mode != EditorMode::Expert {
+            return Ok(false);
+        }
+        let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() else {
+            return Ok(false);
+        };
+        let code = key.get_keycode();
+        if let Some(index) = EXPERT_KEYS.iter().position(|candidate| *candidate == code) {
+            self.housing.expert_held[index] = key.is_pressed() && !model.pending;
+            return Ok(true);
+        }
+        if !matches!(
+            code,
+            Key::KEY_1
+                | Key::KEY_2
+                | Key::KEY_3
+                | Key::X
+                | Key::ENTER
+                | Key::KP_ENTER
+                | Key::ESCAPE
+        ) {
+            return Ok(false);
+        }
+        if !key.is_pressed() || key.is_echo() || model.pending {
+            return Ok(true);
+        }
+        match code {
+            Key::KEY_1 => model.editor.set_submode(PrecisionSubmode::Translate),
+            Key::KEY_2 => model.editor.set_submode(PrecisionSubmode::Rotate),
+            Key::KEY_3 => model.editor.set_submode(PrecisionSubmode::Scale),
+            Key::X => model.editor.next_axis(),
+            Key::ESCAPE => {
+                model.editor.cancel();
+                self.housing.expert_held = [false; 8];
+                self.housing.decor.restore_saved();
+            }
+            Key::ENTER | Key::KP_ENTER => {
+                let command = model.editor.commit_expert(&self.housing.authority)?;
+                model.editor.cancel();
+                self.housing.expert_held = [false; 8];
+                self.housing.decor.restore_saved();
+                self.request_housing(command)?;
+            }
+            _ => unreachable!("recognized expert key"),
+        }
+        Ok(true)
+    }
+
+    pub(super) fn advance_housing_precision(&mut self) -> Result<(), String> {
+        use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+        let delta = self.base().get_process_delta_time() as f32;
+        let Some(model) = &mut self.housing.model else {
+            return Ok(());
+        };
+        if model.surface != HousingSurface::Editor
+            || model.editor.mode != EditorMode::Expert
+            || model.pending
+            || model.editor.expert_transform().is_none()
+        {
+            return Ok(());
+        }
+        let held = self.housing.expert_held;
+        let direction = |positive: usize, negative: usize| {
+            f32::from(u8::from(held[positive])) - f32::from(u8::from(held[negative]))
+        };
+        let step = delta * EXPERT_INCREMENT_RATE;
+        match model.editor.submode {
+            PrecisionSubmode::Translate => model.editor.translate_expert([
+                direction(1, 0) * step,
+                direction(4, 5) * step,
+                direction(3, 2) * step,
+            ])?,
+            PrecisionSubmode::Rotate | PrecisionSubmode::Scale => {
+                let change = direction(7, 6) * step;
+                if change != 0.0 {
+                    if let Err(error) = model.editor.increment_expert(change) {
+                        self.housing.expert_held = [false; 8];
+                        return Err(error);
+                    }
+                }
+            }
+        }
+        let transform = model
+            .editor
+            .expert_transform()
+            .ok_or("Expert selection disappeared.")?;
+        let instance = model
+            .editor
+            .selected
+            .ok_or("Expert decor identity disappeared.")?;
+        self.housing.decor.stage(instance, transform)
     }
 }

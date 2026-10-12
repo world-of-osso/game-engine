@@ -19,6 +19,9 @@ pub struct Decor {
     /// Literal DB2 ModelType; no inferred M2/WMO naming.
     pub model_type: u32,
     pub model_fdid: u32,
+    /// InitialRotation degrees converted from Z-up DB2 to Y-up Euler radians.
+    pub initial_rotation: [f32; 3],
+    pub initial_scale: f32,
     pub thumbnail_fdid: u32,
     pub order: i32,
     pub subcategories: Vec<u32>,
@@ -234,6 +237,12 @@ pub(crate) fn load_connection(
             item_id: number(&fields, "ItemID")?,
             model_type: number(&fields, "ModelType")?,
             model_fdid: number(&fields, "ModelFileDataID")?,
+            initial_rotation: [
+                number::<f32>(&fields, "InitialRotation_0")?.to_radians(),
+                number::<f32>(&fields, "InitialRotation_2")?.to_radians(),
+                -number::<f32>(&fields, "InitialRotation_1")?.to_radians(),
+            ],
+            initial_scale: number(&fields, "InitialScale")?,
             thumbnail_fdid: number(&fields, "ThumbnailFileDataID")?,
             order: number(&fields, "OrderIndex")?,
             subcategories: Vec::new(),

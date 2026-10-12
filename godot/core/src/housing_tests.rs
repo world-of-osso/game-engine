@@ -16,12 +16,12 @@ fn catalog_connection() -> Connection {
         (
             "HouseDecor",
             80,
-            json!({"ID":"80", "Name_lang":"Ornate Stonework Fireplace", "ItemID":"235994", "ModelType":"1", "ModelFileDataID":"6033663", "ThumbnailFileDataID":"7415905", "StartingQuantity":"1", "OrderIndex":"1"}),
+            json!({"ID":"80", "Name_lang":"Ornate Stonework Fireplace", "ItemID":"235994", "ModelType":"1", "ModelFileDataID":"6033663", "ThumbnailFileDataID":"7415905", "StartingQuantity":"1", "OrderIndex":"1", "InitialRotation_0":"0.0", "InitialRotation_1":"0.0", "InitialRotation_2":"0.0", "InitialScale":"1.0"}),
         ),
         (
             "HouseDecor",
             81,
-            json!({"ID":"81", "Name_lang":"Tusked Fireplace", "ItemID":"245398", "ModelType":"1", "ModelFileDataID":"6033664", "ThumbnailFileDataID":"7415913", "StartingQuantity":"1", "OrderIndex":"2"}),
+            json!({"ID":"81", "Name_lang":"Tusked Fireplace", "ItemID":"245398", "ModelType":"1", "ModelFileDataID":"6033664", "ThumbnailFileDataID":"7415913", "StartingQuantity":"1", "OrderIndex":"2", "InitialRotation_0":"0.0", "InitialRotation_1":"0.0", "InitialRotation_2":"0.0", "InitialScale":"1.0"}),
         ),
         (
             "DecorCategory",
@@ -65,6 +65,8 @@ fn housing_reads_qualified_names_categories_and_authored_models_without_ownershi
     assert_eq!(fireplace.model_fdid, 6033663);
     assert_eq!(fireplace.thumbnail_fdid, 7415905);
     assert_eq!(fireplace.subcategories, vec![21]);
+    assert_eq!(fireplace.initial_rotation, [0.0; 3]);
+    assert_eq!(fireplace.initial_scale, 1.0);
     assert_eq!(catalog.categories[0].name, "Furnishings");
     assert_eq!(catalog.subcategories[0].name, "Fireplaces");
     assert_eq!(catalog.encrypted_records, 20);

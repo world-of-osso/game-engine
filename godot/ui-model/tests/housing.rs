@@ -269,6 +269,8 @@ fn housing_editor_native_storage_and_owner_controls_follow_the_same_layout_in_bo
                     item_id: 245259,
                     model_type: 1,
                     model_fdid: 1096761,
+                    initial_rotation: [0.0; 3],
+                    initial_scale: 1.0,
                     thumbnail_fdid: 7421877,
                     order: 328,
                     subcategories: vec![],
@@ -343,6 +345,8 @@ fn catalog_preview_reports_owned_count_sources_and_missing_image_in_both_skins()
                     item_id: 245259,
                     model_type: 1,
                     model_fdid: 1096761,
+                    initial_rotation: [0.0; 3],
+                    initial_scale: 1.0,
                     thumbnail_fdid: 7421877,
                     order: 328,
                     subcategories: vec![],
@@ -539,5 +543,59 @@ fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
                 .get_by_name("HousingFilterCollectionAllTick")
                 .is_some()
         );
+    }
+}
+
+#[test]
+fn housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_editor::EditorMode;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for can_edit in [true, false] {
+            let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+            model.surface = HousingSurface::Editor;
+            model.editor.set_mode(EditorMode::Expert);
+            let authority = HousingAuthority {
+                state: Some(shared::protocol::HousingState {
+                    build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                    layout: Some(shared::protocol::HouseLayout {
+                        house_id: 1,
+                        can_edit,
+                        decor: vec![],
+                    }),
+                    ..Default::default()
+                }),
+                error: None,
+            };
+            let mut context = SharedContext::new();
+            context.insert(HousingView {
+                model,
+                authority,
+                viewport: [1280.0, 720.0],
+                money: None,
+                missing_thumbnails: BTreeSet::new(),
+                vendor_names: Default::default(),
+            });
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+            for name in [
+                "TranslateSubmodeButton",
+                "RotateSubmodeButton",
+                "ScaleSubmodeButton",
+            ] {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                assert_eq!(frame.width, Dimension::Fixed(64.0));
+                assert_eq!(frame.height, Dimension::Fixed(64.0));
+                let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                    panic!("native precision button required")
+                };
+                assert_eq!(
+                    button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
+                    !can_edit
+                );
+            }
+        }
     }
 }

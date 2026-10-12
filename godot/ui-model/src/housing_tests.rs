@@ -101,6 +101,8 @@ fn dashboard() -> HousingDashboard {
                 item_id: 235994,
                 model_type: 1,
                 model_fdid: 6033663,
+                initial_rotation: [0.0; 3],
+                initial_scale: 1.0,
                 thumbnail_fdid: 7415905,
                 order: id as i32,
                 subcategories: if id == 80 { vec![21] } else { vec![1] },
