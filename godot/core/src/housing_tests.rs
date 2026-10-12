@@ -260,3 +260,39 @@ fn housing_names_category_icons_by_retail_atlas_key_and_marks_dyeable_decor() {
     assert!(catalog.resolve_icons(&elements).is_err());
     std::fs::remove_file(&elements).unwrap();
 }
+
+#[test]
+fn housing_names_neighborhood_art_by_its_authored_texture_kit() {
+    let db = catalog_connection();
+    // NeighborhoodMap 1 Founder's Point (map 2735) and 7 Home Interior (no kit).
+    insert(
+        &db,
+        "NeighborhoodMap",
+        1,
+        json!({"ID":"1", "MapID":"2735", "UiTextureKitID":"5721"}),
+    );
+    insert(
+        &db,
+        "NeighborhoodMap",
+        7,
+        json!({"ID":"7", "MapID":"2783", "UiTextureKitID":"0"}),
+    );
+    let mut catalog =
+        load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    assert_eq!(catalog.neighborhood_texture(1), None);
+    let kits =
+        std::env::temp_dir().join(format!("housing-texture-kits-{}.csv", std::process::id()));
+    std::fs::write(&kits, "ID,KitPrefix\n5720,durotar\n5721,elwynn\n").unwrap();
+    catalog.resolve_texture_kits(&kits).unwrap();
+    assert_eq!(catalog.neighborhood_texture(1), Some("elwynn"));
+    assert_eq!(catalog.neighborhood_texture(7), None);
+    assert_eq!(catalog.neighborhood_texture(2), None);
+    std::fs::write(&kits, "ID,KitPrefix\n5720,durotar\n").unwrap();
+    assert!(
+        catalog
+            .resolve_texture_kits(&kits)
+            .unwrap_err()
+            .contains("5721")
+    );
+    std::fs::remove_file(&kits).unwrap();
+}

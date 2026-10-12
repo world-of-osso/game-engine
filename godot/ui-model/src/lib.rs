@@ -67,6 +67,7 @@ pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
 pub mod housing;
+pub mod housing_bulletin_component;
 pub mod housing_component;
 pub mod housing_editor;
 pub mod housing_editor_component;

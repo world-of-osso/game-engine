@@ -66,11 +66,23 @@ pub struct Subcategory {
     pub icon: Option<String>,
 }
 
+/// NeighborhoodMap row's art: Retail C_Housing.GetNeighborhoodTextureSuffix names
+/// `housing-dashboard-bg-<suffix>` from its UiTextureKit.
+#[derive(Clone, Debug, PartialEq)]
+pub struct NeighborhoodMap {
+    pub id: u32,
+    /// UiTextureKitID 0 names no kit.
+    pub texture_kit: u32,
+    /// UiTextureKit.KitPrefix, from `resolve_texture_kits`.
+    pub texture_suffix: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct HousingCatalog {
     pub decor: Vec<Decor>,
     pub categories: Vec<Category>,
     pub subcategories: Vec<Subcategory>,
+    pub neighborhoods: Vec<NeighborhoodMap>,
     pub encrypted_records: u32,
     pub missing_tables: Vec<String>,
     /// Whether the cache carries the CollectableSource tables at all.
@@ -116,6 +128,42 @@ impl HousingCatalog {
             subcategory.icon = key(subcategory.icon_element)?;
         }
         Ok(())
+    }
+
+    /// Names each neighborhood's texture kit prefix from UiTextureKit.csv.
+    pub fn resolve_texture_kits(&mut self, kits: &Path) -> Result<(), String> {
+        let text = std::fs::read_to_string(kits)
+            .map_err(|error| format!("read {}: {error}", kits.display()))?;
+        let mut records = parse_csv_records(&text).into_iter();
+        let header = records.next().unwrap_or_default();
+        let (id, prefix) = (
+            header_index(&header, "ID", kits)?,
+            header_index(&header, "KitPrefix", kits)?,
+        );
+        let prefixes: HashMap<u32, String> = records
+            .filter_map(|record| Some((record.get(id)?.parse().ok()?, record.get(prefix)?.clone())))
+            .collect();
+        for neighborhood in &mut self.neighborhoods {
+            if neighborhood.texture_kit == 0 {
+                continue;
+            }
+            let prefix = prefixes.get(&neighborhood.texture_kit).ok_or_else(|| {
+                format!(
+                    "NeighborhoodMap {} UiTextureKit {} is missing",
+                    neighborhood.id, neighborhood.texture_kit
+                )
+            })?;
+            neighborhood.texture_suffix = Some(prefix.clone());
+        }
+        Ok(())
+    }
+
+    pub fn neighborhood_texture(&self, id: u32) -> Option<&str> {
+        self.neighborhoods
+            .iter()
+            .find(|neighborhood| neighborhood.id == id)?
+            .texture_suffix
+            .as_deref()
     }
 }
 
@@ -226,6 +274,13 @@ pub(crate) fn load_connection(
         if let Some(&index) = decor_indexes.get(&number::<u32>(&fields, "HouseDecorID")?) {
             catalog.decor[index].dyeable = true;
         }
+    }
+    for (id, fields) in rows(db, key, "NeighborhoodMap")? {
+        catalog.neighborhoods.push(NeighborhoodMap {
+            id,
+            texture_kit: number(&fields, "UiTextureKitID")?,
+            texture_suffix: None,
+        });
     }
     read_sources(db, key, &mut catalog, &decor_indexes)?;
     catalog.decor.sort_by_key(|decor| (decor.order, decor.id));

@@ -1,4 +1,4 @@
-//! Retail HouseFinder954x490 and cornerstone purchase340x320 native controls.
+//! Retail HouseFinder954x490, cornerstone purchase340x320 and bulletin board controls.
 use crate::housing::HousingSurface;
 use crate::housing_component::HousingView;
 use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
@@ -18,6 +18,7 @@ pub fn navigation_screen(view: &HousingView) -> Element {
     match view.model.surface {
         HousingSurface::Finder => finder(view),
         HousingSurface::Cornerstone(plot) => cornerstone(view, plot),
+        HousingSurface::BulletinBoard => crate::housing_bulletin_component::bulletin_board(view),
         HousingSurface::Dashboard | HousingSurface::Editor => {
             unreachable!("surface uses its own component")
         }

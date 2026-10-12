@@ -4,8 +4,8 @@ use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::housing::{
-    CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard, HousingSurface,
-    SEARCH_FIELD,
+    BulletinBoard, CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard,
+    HousingSurface, SEARCH_FIELD,
 };
 use game_engine_ui_model::housing_component::{HousingView, housing_screen};
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
@@ -13,6 +13,7 @@ use godot::prelude::*;
 use std::sync::Arc;
 const PURCHASE_POPUP: &str = "HOUSING_BUY_PLOT";
 const ATLAS_ELEMENTS: &str = "db2/12.1.0.69933/UiTextureAtlasElement.csv";
+const TEXTURE_KITS: &str = "db2/12.1.0.69933/UiTextureKit.csv";
 
 #[derive(Default)]
 pub(crate) struct HousingHud {
@@ -49,6 +50,7 @@ impl GameClient {
         if self.housing.model.is_none() {
             let mut catalog = HousingCatalog::load(&self.data_root.join("cache/housing.sqlite"))?;
             catalog.resolve_icons(&self.data_root.join(ATLAS_ELEMENTS))?;
+            catalog.resolve_texture_kits(&self.data_root.join(TEXTURE_KITS))?;
             self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
         }
         Ok(())
@@ -75,17 +77,21 @@ impl GameClient {
         reply: shared::protocol::HousingReply,
     ) -> Result<(), String> {
         let opened = reply.state.opened_cornerstone;
+        let board = reply.state.bulletin_board.clone();
         let answered = reply.request_id == self.housing.next_request_id;
         let accepted = self.housing.authority.receive(reply);
         if answered && let Some(model) = &mut self.housing.model {
             model.pending = false;
         }
-        if accepted.is_ok()
-            && let Some(plot) = opened
-        {
+        if accepted.is_ok() && (opened.is_some() || board.is_some()) {
             self.ensure_housing_model()?;
             if let Some(model) = &mut self.housing.model {
-                model.surface = HousingSurface::Cornerstone(plot);
+                if let Some(plot) = opened {
+                    model.surface = HousingSurface::Cornerstone(plot);
+                } else if let Some(roster) = board {
+                    model.surface = HousingSurface::BulletinBoard;
+                    model.bulletin_board = Some(BulletinBoard::new(roster));
+                }
             }
             if self.housing.ui.is_none() {
                 self.mount_housing_dashboard()?;
