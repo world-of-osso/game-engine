@@ -10,7 +10,7 @@ use ui_toolkit::{atlas::ActiveSkin, rsx, screen::SharedContext, widget_def::Elem
 
 use crate::{
     adventure_guide::{LIST, button, scroll, text},
-    bank_art::{WHITE, texture},
+    bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
     quest_art::{DynName, named_atlas_texture},
 };
@@ -491,9 +491,10 @@ fn suggestion_row(suggestion: &AdventureSuggestion, index: usize) -> Element {
 }
 
 fn suggestion_text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
-    ui_toolkit::widgets::with_attr(
-        text(name, value, rect),
-        "font_color",
-        "0.2824,0.0157,0.0157,1.0".into(),
+    label(
+        name.into(),
+        value,
+        rect,
+        (12., "0.2824,0.0157,0.0157,1.0", "LEFT"),
     )
 }
