@@ -1,13 +1,16 @@
 //! Native Housing Dashboard lifecycle and authoritative account storage; no default grants.
+use crate::replicated::UnitFields;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::housing::{
-    DashboardTab, HousingAuthority, HousingDashboard, SEARCH_FIELD,
+    DashboardTab, HousingAuthority, HousingDashboard, HousingSurface, SEARCH_FIELD,
 };
 use game_engine_ui_model::housing_component::{HousingView, housing_screen};
+use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
 use std::sync::Arc;
+const PURCHASE_POPUP: &str = "HOUSING_BUY_PLOT";
 
 #[derive(Default)]
 pub(crate) struct HousingHud {
@@ -15,6 +18,7 @@ pub(crate) struct HousingHud {
     pub ui: Option<Gd<RegistryUi>>,
     pub authority: HousingAuthority,
     next_request_id: u64,
+    confirming_plot: Option<u32>,
 }
 
 impl GameClient {
@@ -23,14 +27,27 @@ impl GameClient {
             self.close_housing();
             return Ok(());
         }
-        if self.housing.model.is_none() {
-            let path = self.data_root.join("cache/housing.sqlite");
-            let catalog = HousingCatalog::load(&path)?;
-            self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
+        self.ensure_housing_model()?;
+        if let Some(model) = &mut self.housing.model {
+            model.surface = HousingSurface::Dashboard;
         }
         self.mount_housing_dashboard()?;
-        // Authored NeighborhoodMap1 (Founder's Point), not an ownership grant or entry.
-        self.request_housing(shared::protocol::HousingCommand::ListPlots { neighborhood_id: 1 })
+        let neighborhood_id = self
+            .housing
+            .model
+            .as_ref()
+            .ok_or("Housing model is unavailable.")?
+            .neighborhood;
+        // Browsing an authored neighborhood is not an ownership grant or entry.
+        self.request_housing(shared::protocol::HousingCommand::ListPlots { neighborhood_id })
+    }
+
+    fn ensure_housing_model(&mut self) -> Result<(), String> {
+        if self.housing.model.is_none() {
+            let catalog = HousingCatalog::load(&self.data_root.join("cache/housing.sqlite"))?;
+            self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
+        }
+        Ok(())
     }
 
     fn mount_housing_dashboard(&mut self) -> Result<(), String> {
@@ -53,7 +70,24 @@ impl GameClient {
         &mut self,
         reply: shared::protocol::HousingReply,
     ) -> Result<(), String> {
-        let message = match self.housing.authority.receive(reply) {
+        let opened = reply.state.opened_cornerstone;
+        let answered = reply.request_id == self.housing.next_request_id;
+        let accepted = self.housing.authority.receive(reply);
+        if answered && let Some(model) = &mut self.housing.model {
+            model.pending = false;
+        }
+        if accepted.is_ok()
+            && let Some(plot) = opened
+        {
+            self.ensure_housing_model()?;
+            if let Some(model) = &mut self.housing.model {
+                model.surface = HousingSurface::Cornerstone(plot);
+            }
+            if self.housing.ui.is_none() {
+                self.mount_housing_dashboard()?;
+            }
+        }
+        let message = match accepted {
             Ok(()) => self.housing.authority.error.clone(),
             Err(message) => Some(message),
         };
@@ -76,10 +110,15 @@ impl GameClient {
             })
             .map_err(|error| error.to_string())?;
         self.housing.next_request_id = request_id;
+        if let Some(model) = &mut self.housing.model {
+            model.pending = true;
+        }
         Ok(())
     }
 
     pub(super) fn close_housing(&mut self) {
+        self.group_frames.popups.hide(PURCHASE_POPUP);
+        self.housing.confirming_plot = None;
         if let Some(ui) = self.housing.ui.take() {
             ui.free();
         }
@@ -116,6 +155,10 @@ impl GameClient {
             model,
             authority: self.housing.authority.clone(),
             viewport: [size.x / scale, size.y / scale],
+            money: self
+                .world
+                .local_player_id()
+                .and_then(|id| self.replica.unit(id)?.gold()),
             missing_thumbnails,
         })
     }
@@ -179,11 +222,22 @@ impl GameClient {
             self.close_housing();
             return Ok(true);
         }
+        if action == "housing:purchase" {
+            self.confirm_housing_purchase()?;
+            return Ok(true);
+        }
         let model = self
             .housing
             .model
             .as_mut()
             .ok_or("Housing UI has no catalog model")?;
+        if model.pending {
+            return Ok(true);
+        }
+        if let Some(request) = model.navigation_request(action)? {
+            self.request_housing(request)?;
+            return Ok(true);
+        }
         match action {
             "housing:info" => model.tab = DashboardTab::HouseInfo,
             "housing:catalog" => model.tab = DashboardTab::Catalog,
@@ -196,6 +250,62 @@ impl GameClient {
             _ => apply_catalog_action(model, action)?,
         }
         Ok(true)
+    }
+
+    fn confirm_housing_purchase(&mut self) -> Result<(), String> {
+        let Some(model) = &self.housing.model else {
+            return Err("Housing model is unavailable.".into());
+        };
+        if model.pending {
+            return Err("Finish the current housing request first.".into());
+        }
+        let HousingSurface::Cornerstone(plot_id) = model.surface else {
+            return Err("Interact with a cornerstone before purchasing.".into());
+        };
+        let plot = self
+            .housing
+            .authority
+            .state
+            .as_ref()
+            .and_then(|state| state.plots.iter().find(|plot| plot.plot_id == plot_id))
+            .ok_or("This plot has not been confirmed by the server.")?;
+        if plot.house_id.is_some() {
+            return Err("This plot is already owned.".into());
+        }
+        let money = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold());
+        if !money.is_some_and(|money| money >= plot.cost) {
+            return Err("Money is unconfirmed or insufficient for this plot.".into());
+        }
+        let price = game_engine_ui_model::housing_navigation_component::format_money(plot.cost);
+        self.housing.confirming_plot = Some(plot_id);
+        self.group_frames.popups.push(PopupSpec {
+            key: PURCHASE_POPUP.into(),
+            text: format!("Purchase Plot {} for {price}?", plot.plot_index),
+            accept_label: "Buy".into(),
+            cancel_label: Some("Cancel".into()),
+            timeout: None,
+            confirm_text: None,
+        });
+        self.physical_input.clear_gameplay();
+        Ok(())
+    }
+
+    pub(super) fn dispatch_housing_popup_results(
+        &mut self,
+        results: &[PopupResult],
+    ) -> Result<(), FrameError> {
+        for result in results.iter().filter(|result| result.key == PURCHASE_POPUP) {
+            let Some(plot_id) = self.housing.confirming_plot.take() else {
+                continue;
+            };
+            if result.outcome == PopupOutcome::Accepted {
+                self.request_housing(shared::protocol::HousingCommand::PurchasePlot { plot_id })?;
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn housing_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {

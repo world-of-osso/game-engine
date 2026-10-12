@@ -93,11 +93,14 @@ fn cornerstone(view: &HousingView, plot_id: u32) -> Element {
     let location = neighborhood_location(plot.neighborhood_id);
     let price = format_money(plot.cost);
     let owned = plot.house_id.is_some();
-    let buy_disabled = owned || view.model.pending;
+    let can_afford = view.money.is_some_and(|money| money >= plot.cost);
+    let buy_disabled = owned || view.model.pending || !can_afford;
     let status = if owned {
         "Plot purchased. No verified first-house exterior/interior grant source is available."
     } else if view.model.pending {
         "Waiting for the server…"
+    } else if !can_afford {
+        "Money is unconfirmed or insufficient for this plot."
     } else {
         "Purchase is charged by the server. Catalog membership grants no decor or house components."
     };
