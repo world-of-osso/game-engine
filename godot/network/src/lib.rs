@@ -275,6 +275,7 @@ impl NetworkBridge {
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
             .receive::<protocol::SpellChargesUpdate>()
+            .receive::<protocol::SpellCostSnapshot>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
             // Server-computed damage meter sessions.
