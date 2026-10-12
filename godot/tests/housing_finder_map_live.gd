@@ -16,7 +16,7 @@ func run_test() -> void:
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and not client.housing_state().get("pending", true), "confirmed housing dashboard"): return
 	await click_control(housing_control("HousingDashboardHouseFinderButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HouseFinderMapTile0") != null and not client.housing_state().pending and client.housing_state().get("plots", []).size() == 55, "source map and authoritative plots"): return
+	if not await wait_housing(func(): return housing_control("HouseFinderMapTile0") != null and not client.housing_state().get("pending", true) and client.housing_state().get("plots", []).size() == 55, "source map and authoritative plots"): return
 	await frames(60)
 	var expected_sale: int = 0
 	var expected_friends: int = 0
@@ -49,7 +49,7 @@ func run_test() -> void:
 		fail("Finder visit must use exact source teleport without payment")
 		return
 	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return not client.housing_state().pending, "post-visit authoritative ownership"): return
+	if not await wait_housing(func(): return not client.housing_state().get("pending", true), "post-visit authoritative ownership"): return
 	if client.housing_state().houses.size() != owned:
 		fail("Finder visit granted property")
 		return
