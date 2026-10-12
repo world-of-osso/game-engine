@@ -52,6 +52,8 @@ func run_fixture() -> void:
 		for entry in client.merchant_state().bags:
 			if int(entry.item_id) == ITEM_ID: bag_name = "ContainerFrame%dSlot%d" % [entry.bag, entry.slot]
 		if bag_name.is_empty(): fail("Authentic mount item missing from owned backpack"); return
+		await capture("bag-before-learn")
+		print("MOUNT_ITEM_INPUT ", bag_name, " rect=", control(bag_name).get_global_rect(), " bags=", client.merchant_state().bags)
 		await click(bag_name, MOUSE_BUTTON_RIGHT)
 		if not await wait_until(func(): return not learned().is_empty(), "UseItem learns Mount18"): return
 		for entry in client.merchant_state().bags:
@@ -85,13 +87,13 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return mounted(), "normal spell-mounted rider", 60000): return
 	await capture("summoned")
 	await click("MountJournalMountButton")
-	if not await wait_until(func(): return not mounted(), "real aura dismount"): return
+	if not await wait_until(func(): return dismounted(), "real aura dismount"): return
 	await capture("dismounted")
 	await click("MountJournalSummonRandomFavorite")
 	if not await wait_until(func(): return mounted(), "random favourite normal mount spell", 60000): return
 	await capture("random-favourite")
 	await click("MountJournalMountButton")
-	if not await wait_until(func(): return not mounted(), "final dismount"): return
+	if not await wait_until(func(): return dismounted(), "final dismount"): return
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
 	client.free()
 	quit(0)
@@ -123,6 +125,12 @@ func mounted() -> bool:
 	for aura in client.aura_state().buffs:
 		if int(aura.spell_id) == SPELL_ID: return true
 	return false
+
+func dismounted() -> bool:
+	if not learned().is_empty() and learned().active: return false
+	for aura in client.aura_state().buffs:
+		if int(aura.spell_id) == SPELL_ID: return false
+	return true
 
 func control(name: String) -> Control:
 	for node in client.find_children(name, "Control", true, false):
@@ -202,5 +210,9 @@ func wait_frames(count: int) -> void:
 	for frame in range(count): await process_frame
 
 func fail(message: String) -> void:
+	if client != null and not receipts.is_empty():
+		var file := FileAccess.open(receipts.path_join(skin + "-failure.json"), FileAccess.WRITE)
+		file.store_string(JSON.stringify({"failure": message, "mounts": client.mount_journal_state(), "merchant": client.merchant_state()}, "\t"))
+		file.close()
 	push_error("Mount Journal live: " + message)
 	quit(1)
