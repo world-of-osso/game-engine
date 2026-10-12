@@ -178,8 +178,65 @@ fn eye_of_the_storm_both_skin_tower_flag_hud_source_column_and_results() {
     set_thread_skin(ActiveSkin::Modern);
 }
 
+#[test]
+fn kotmogu_both_skin_orb_hud_source_columns_queue_and_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let template = shared::battleground::temple_of_kotmogu();
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name.clone();
+        bg.score_a = 42;
+        bg.world_states = vec![(6964, 1), (6969, 1), (6716, 1), (6715, 1)];
+        bg.players[0].objective_scores = vec![(418, 1), (419, 42)];
+        let mut view = PvpView::default();
+        view.action("pvp:select:699");
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(699)));
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 42 / 1500    Horde 1 / 1500",
+        );
+        assert_text(&registry, "WorldStateOrb212094", "Orange Orb\nAlliance");
+        assert_text(&registry, "WorldStateOrb212091", "Blue Orb\nHorde");
+        assert_text(&registry, "WorldStateOrb212093", "Green Orb\nAt base");
+        assert_text(&registry, "WorldStateOrb212092", "Purple Orb\nAt base");
+        assert_text(&registry, "PVPMatchCategory7", "Orb Possessions");
+        assert_text(&registry, "PVPMatchCategory8", "Victory Points");
+        assert_text(&registry, "PVPMatchPlayer81Stat418", "1");
+        assert_text(&registry, "PVPMatchPlayer81Stat419", "42");
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+        assert!(registry.get_by_name("PVPMatchHonorReward").is_none());
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
-    let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let handle = registry
+        .get_by_name(name)
+        .unwrap_or_else(|| panic!("{name}: missing font string"));
+    let frame = registry.get(handle).unwrap();
     let WidgetData::FontString(label) = frame.widget_data.as_ref().unwrap() else {
         panic!("{name}: expected a native font string")
     };
