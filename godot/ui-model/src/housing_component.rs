@@ -466,7 +466,7 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
         "common-dropdown-icon-checkmark-yellow",
         model.dyeable_only,
         "housing:filter:dyeable",
-        (14.0, false),
+        (20.0, false),
     );
     let collection: Element = [
         (CollectionFilter::All, "All", "all"),
@@ -494,7 +494,7 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
         pos_type: "absolute", left: 574.0, top: 54.0, strata: FrameStrata::Tooltip, mouse_enabled: true,
         {background} {dyeable}
         fontstring { name: "HousingFilterCollectionLabel", text: "Collection", width: 180.0, height: 20.0,
-            pos_type: "absolute", left: 28.0, top: 36.0, font_size: 12.0, justify_h: "LEFT",
+            pos_type: "absolute", left: 28.0, top: 42.0, font_size: 12.0, justify_h: "LEFT",
             font_color: "1.0,0.82,0.0,1.0" }
         {collection}
     } }
