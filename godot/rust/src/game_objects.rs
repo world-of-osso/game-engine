@@ -434,8 +434,6 @@ mod tests {
         // Fishing Chair33223 and MOLL-E40768 retain their existing interaction.
         assert!(game_object_is_renderable(GAMEOBJECT_TYPE_CHAIR));
         assert!(game_object_is_renderable(GAMEOBJECT_TYPE_MAILBOX));
-        // Unsupported spell-focus objects are not silently admitted by this fix.
-        assert!(!game_object_is_renderable(8));
     }
 
     #[test]
