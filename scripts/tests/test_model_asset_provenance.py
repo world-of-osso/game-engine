@@ -28,6 +28,7 @@ class ModelAssetProvenanceTests(unittest.TestCase):
                 db.executemany("INSERT INTO resolution VALUES (?, ?)",
                                [(6429362, hashlib.md5(raw).digest()),
                                 (6429658, hashlib.md5(raw).digest())])
+            db.close()
             identity["resolution_sha256"] = hashlib.sha256(resolution.read_bytes()).hexdigest()
             assets = []
             for fdid in [6429362, 6429658]:
