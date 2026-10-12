@@ -105,7 +105,10 @@ pub const QUEST_NUMBER: MapArt = art(QUEST_POI.0, QUEST_POI.1, (67.0, 99.0, 35.0
 pub const QUEST_TURN_IN: MapArt = art(QUEST_POI.0, QUEST_POI.1, (67.0, 99.0, 1.0, 33.0));
 
 /// Every texture the frame chrome draws, for hosts that cache textures on demand.
-pub const CHROME_FDIDS: [u32; 9] = [
+/// QuestUtils.lua default Worldquest-icon, pinned atlas743/member27230.
+pub const WORLD_QUEST: MapArt = art(1_339_312, (512.0, 512.0), (334.0, 366.0, 400.0, 432.0));
+
+pub const CHROME_FDIDS: [u32; 10] = [
     METAL.0,
     METAL_VERTICAL.0,
     METAL_HORIZONTAL.0,
@@ -115,4 +118,5 @@ pub const CHROME_FDIDS: [u32; 9] = [
     803_894,
     OBJECT_ICONS.0,
     QUEST_POI.0,
+    1_339_312,
 ];

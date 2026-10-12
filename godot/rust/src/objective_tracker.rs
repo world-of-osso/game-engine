@@ -13,7 +13,9 @@ use ui_toolkit::registry::FrameRegistry;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 /// `interface/questframe/questtracker.blp` and the POI button sheets (`quest_art.rs`).
-const TRACKER_FDIDS: [u32; 4] = [5_320_671, 5_320_914, 5_423_566, 3_509_168];
+const TRACKER_FDIDS: [u32; 7] = [
+    5_320_671, 5_320_914, 5_423_566, 3_509_168, 137_012, 1_113_812, 1_339_312,
+];
 
 #[derive(Default)]
 pub(crate) struct ObjectiveTracker {

@@ -1,0 +1,133 @@
+//! Retail WorldQuestDataProvider / WorldQuestObjectiveTracker presentation.
+use crate::quest_runtime::QuestRuntime;
+use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation};
+use crate::ui::screens::world_map_frame_component::{MapPin, MapPinType};
+use crate::ui_map_data::UiMapCatalog;
+use shared::protocol::AvailableWorldQuest;
+use ui_toolkit::widgets::font_string::GameFont;
+use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+
+struct DynName(String);
+
+pub fn map_pins(
+    catalog: &UiMapCatalog,
+    map_id: u32,
+    runtime: &QuestRuntime,
+    now: i64,
+) -> Vec<MapPin> {
+    let server_now = now + runtime.server_clock_offset;
+    runtime
+        .world_quests
+        .iter()
+        .filter(|quest| quest.expires_at > server_now)
+        .filter_map(|quest| {
+            let [x, y] = catalog.map_position(
+                map_id,
+                quest.map_id,
+                [quest.position.x as f32, quest.position.y as f32, 0.],
+            )?;
+            Some(MapPin {
+                pin_type: MapPinType::WorldQuest,
+                quest_id: Some(quest.quest_id),
+                label: quest.title.clone(),
+                badge: String::new(),
+                x,
+                y,
+            })
+        })
+        .collect()
+}
+
+pub fn tooltip(quest: &AvailableWorldQuest, now: i64, position: [f32; 2]) -> TooltipPresentation {
+    let remaining = (quest.expires_at - now).max(0);
+    let mut lines = vec![TooltipLineState::new(format!(
+        "Time Remaining: {}h {}m",
+        remaining / 3600,
+        remaining % 3600 / 60
+    ))];
+    if quest.rewards.money > 0 {
+        lines.push(TooltipLineState::money(
+            "Reward",
+            u64::from(quest.rewards.money),
+        ));
+    }
+    lines.extend(
+        quest
+            .rewards
+            .items
+            .iter()
+            .map(|item| TooltipLineState::new(format!("{} x{}", item.name, item.count))),
+    );
+    if quest.xp > 0 {
+        lines.push(TooltipLineState::new(format!("{} XP", quest.xp)));
+    }
+    lines.extend(
+        quest.currencies.iter().map(|reward| {
+            TooltipLineState::new(format!("Currency {}: {}", reward.id, reward.amount))
+        }),
+    );
+    lines.extend(quest.reputation.iter().map(|reward| {
+        TooltipLineState::new(format!("Reputation {}: {:+}", reward.id, reward.amount))
+    }));
+    if lines.len() == 1 {
+        lines.push(TooltipLineState::new("No reward data"));
+    }
+    TooltipPresentation {
+        visible: true,
+        x: position[0],
+        y: position[1],
+        title: quest.title.clone(),
+        lines,
+        ..Default::default()
+    }
+}
+
+/// BonusTrackerProgressBarTemplate: 191x17 fill, 192x38 block.
+pub fn progress_bar(id: u32, progress: (u32, u32), y: f32, scale: f32) -> Element {
+    let (current, total) = progress;
+    let fraction = if total == 0 {
+        0.
+    } else {
+        (current as f32 / total as f32).clamp(0., 1.)
+    };
+    let text = format!("{current}/{total} ({}%)", (fraction * 100.).round() as u32);
+    let fill = 191. * fraction * scale;
+    let mut elements = rsx! {
+        r#frame {name: {DynName(format!("WorldQuest{id}ProgressBackground"))},width: {191.*scale},height:{17.*scale},background_color:"0.04,0.07,0.18,1",pos_type:"absolute",left:{30.*scale},top:{y*scale}}
+        texture {name: {DynName(format!("WorldQuest{id}ProgressFill"))},texture_fdid:137012u32,width:{fill},height:{17.*scale},hidden:{fill <= 0.},vertex_color:"0.26,0.42,1,1",pos_type:"absolute",left:{30.*scale},top:{y*scale}}
+    };
+    elements.extend(crate::quest_art::named_atlas_texture(
+        format!("WorldQuest{id}ProgressFrame"),
+        "bonusobjectives-bar-frame-5",
+        (22. * scale, (y - 17.) * scale, 240. * scale, 51. * scale),
+    ));
+    elements.extend(rsx! {fontstring {name: {DynName(format!("WorldQuest{id}ProgressLabel"))},text:{text.as_str()},font:GameFont::FrizQuadrata,font_size:{12.*scale},font_color:"1,1,1,1",justify_h:"CENTER",width:{191.*scale},height:{17.*scale},pos_type:"absolute",left:{30.*scale},top:{y*scale}}});
+    elements
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WorldQuestToast {
+    pub title: String,
+    pub completed: bool,
+}
+
+pub fn toast_screen(ctx: &SharedContext) -> Element {
+    let state = ctx
+        .get::<WorldQuestToast>()
+        .expect("world quest toast state");
+    let label = if state.completed {
+        "World Quest Complete!"
+    } else {
+        "World Quest"
+    };
+    let mut content = crate::quest_art::named_atlas_texture(
+        "WorldQuestToastBackground".into(),
+        "bonusobjectives-title-bg",
+        (0., 0., 400., 60.),
+    );
+    content.extend(rsx! {
+        fontstring {name:"WorldQuestToastStatus",text:label,font:GameFont::FrizQuadrata,font_size:16.,font_color:"1,0.82,0,1",justify_h:"CENTER",width:400.,height:24.,pos_type:"absolute",left:0.,top:2.}
+        fontstring {name:"WorldQuestToastTitle",text:{state.title.as_str()},font:GameFont::FrizQuadrata,font_size:14.,font_color:"1,1,1,1",justify_h:"CENTER",width:400.,height:24.,pos_type:"absolute",left:0.,top:28.}
+    });
+    rsx! {r#frame {name:"WorldQuestToast",width:400.,height:60.,pos_type:"absolute",left:"50%",margin_left:-200.,top:"20%",{content}}}
+}
