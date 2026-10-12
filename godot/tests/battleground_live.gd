@@ -64,6 +64,9 @@ func live_run() -> void:
 			return
 
 func pointer(point: Vector2, button: MouseButton) -> void:
+	# A private headless compositor has no physical pointer-enter event.
+	# Viewport requires this notification before synthetic mouse input reaches GUI controls.
+	root.notify_mouse_entered()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
