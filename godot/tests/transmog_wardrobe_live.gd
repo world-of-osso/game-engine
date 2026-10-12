@@ -175,7 +175,7 @@ func check_items() -> bool:
 ## Real Enum.TransmogSource toggles; filtering changes no pending choice or quote.
 func check_filters() -> bool:
 	await click_control(control("TransmogSource1181"), MOUSE_BUTTON_LEFT)
-	var pending_before := transmog().pending
+	var pending_before: int = transmog().pending
 	var cost_before: String = ui.frame_text("TransmogPendingCostAmount0")
 	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return control("TransmogFilterSource4") != null, "Sources menu"):
