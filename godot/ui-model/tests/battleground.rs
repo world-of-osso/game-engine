@@ -293,6 +293,63 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
     set_thread_skin(ActiveSkin::Modern);
 }
 
+#[test]
+fn seething_both_skin_resource_score_source_column_and_automatic_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let template = shared::battleground::seething_shore();
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name;
+        bg.score_a = 1400;
+        bg.world_states = vec![(13845, 1400), (13844, 1), (13846, 1500)];
+        bg.players[0].objective_scores = vec![(744, 14)];
+        let mut view = PvpView {
+            visible: true,
+            ..Default::default()
+        };
+        view.action("pvp:select:894");
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(894)));
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 1400 / 1500    Horde 1 / 1500",
+        );
+        assert_text(&registry, "PVPMatchCategory7", "Azerite Collected");
+        assert_text(&registry, "PVPMatchPlayer81Stat744", "14");
+        assert!(
+            registry.get_by_name("WorldStateFlags").is_none(),
+            "resource race has no team flags"
+        );
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.score_a = 1500;
+        bg.players[0].objective_scores = vec![(744, 15)];
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+        assert_text(&registry, "PVPMatchPlayer81Stat744", "15");
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
     let handle = registry
         .get_by_name(name)
