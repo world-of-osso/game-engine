@@ -23,6 +23,10 @@ func run_test() -> void:
 		return
 	await click_control(housing_control("HouseEditorExpertDecorModeButton"), MOUSE_BUTTON_LEFT)
 	if not await select_saved_decor(): return
+	var instructions: Control = housing_control("HouseEditorInstructions")
+	if instructions == null or absf(instructions.get_global_rect().get_center().y - root.size.y / 2.0) > 2.0:
+		fail("Expert instructions must use the Retail right-centre anchor, not overlap the minimap")
+		return
 	var original: Dictionary = precision_receipt()
 	if not await mouse_stage_all_axes(): return
 	if not matches_precision(original, false):
