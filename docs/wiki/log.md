@@ -1,3 +1,7 @@
+## 2026-10-12 — Banner and Preyhunter natural expiry
+
+[Scaled scenery](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12): both-skin real journal use/source scale and natural60s/120s actor removal pass on current merged native/server builds. Earlier Banner/Preyhunter expiry gap closed; no clock shortcuts or broader certification.
+
 ## 2026-10-12 — Orb displayed-model animation
 
 [Orb](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12): source race/sex server mapping, authenticated private closure, real movement/idle RED and displayed-model animation fix. Modern/Forever now prove10137/run5/cancellation/actual native mesh reattachment;10 scoped world tests, native build and fmt pass.321 preflight candidates are not1166 effect certification; remaining scope open.
@@ -14,7 +18,7 @@
 [Cooldown/assist audit](investigations/cooldown-assist-data.md): all40 authored candidate inventories and exact ModifierTree gates, owner effective costs, initial charge publication, source-definite numeric outcomes with explicit equality/prediction gaps. Both private skins prove moving Retail ants on matching action/viewer surfaces and actual assistant35395 CastSuccess/2→1 charge depletion. Maintained driver uses build-qualified placement before login; assistant GCD-origin and undecoded semantics remain explicit.
 ## 2026-10-12 — Authored toy display state kits
 
-[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.
+[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry subsequently passed above; display replacement and broader per-toy/procedural/positioner coverage remain open.
 
 ## 2026-10-11 — Toy input and source rendering
 
