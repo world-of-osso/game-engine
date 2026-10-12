@@ -31,6 +31,14 @@ Proof at this checkpoint: 82 scoped shared battleground tests; two actual HostCl
 
 Live fixture support accounts are source-minimum rosters with required `BG_BATTLEGROUND_ID` and `BG_ACCOUNT_PREFIX=fb_*`; a native client supplies the remaining participant. Private ports remain 5710–5712. Remaining maps and the acceptance matrix are tracked in the [client coverage contract](../../specs/battleground-lifecycle.md#coverage-expansion--active2026-10-12).
 
+## Kotmogu — bounded both-skin proof 2026-10-12
+
+Source queue 699/map 998 has four required accounts, authored TC-scripted orbs and a separate shared `KotmoguBattle`: one orb per player, direct home return on death/departure, five-second region ticks and simultaneous-limit draw. Native type24 orb visuals/cursor, four possession WorldState cells and DB2-ordered Orb Possessions 418/Victory Points 419 share the same source layout in both skins. Server channel proof covers entry, physical use, death/respawn, measured counters, 1500 victory and all-player exact origin return.
+
+Private 5712 Modern/Forever runs each use one rendered client plus three NetworkBridge peers, physical orange-orb use and natural center ticks through 1500. Both show measured418=1/419=1500, automatic Victory after closing the live scoreboard, exact native server-origin return and all-peer map/clear. Eighteen inspected1280×720 PNGs and `data/diagnostics/bg-coverage-2026-10-12/kotmogu-live-proof.json` retain evidence. Private fixture level40/alive/source Goldshire baseline setup precedes matching; admin only accelerates authored travel during the match. Combat aura/kill bonus, visible checker geometry and source NPC appearance/asset failures remain gaps, not full Retail/scenery certification.
+
+The harness now waits for the server's next four-character periodic save after returns before quitting sessions and killing its private server. The dirty-save interval is300 ticks/15seconds; premature teardown had left saved battleground-map records that a fresh process could not re-enter. A same-map admin teleport updates position without NewWorld, so peer readiness must not wait for a nonexistent transfer packet. Canonical world.db remains lead-owned; [source importer commands](../../../../game-server/docs/specs/battleground-lifecycle.md#kotmogu-continuation--active-2026-10-12) are the publication contract.
+
 ## PvP progression integration — verified 2026-10-11
 
 The same PvP view owns Quick Match/Rated/Premade categories and authoritative Honor/Conquest wallet text. Unknown season cap/rating are optional fields, not zero/default policy. ClassTalentsFrame contains the separate Mainline three-slot talent tray and War Mode control. Runtime source catalogs are mandatory; the [server progression contract](../../../../game-server/docs/specs/pvp-progression.md#lead-import-checklist) owns import instructions and remaining numeric gaps.

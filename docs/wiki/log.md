@@ -1,3 +1,7 @@
+## 2026-10-12 — Kotmogu both-skin private lifecycle
+
+[Kotmogu](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12): source queue699/map998, four real accounts, physical orb use and natural center ticks through1500, measured418/419, automatic results and exact native origin return; eighteen inspected PNGs. Private teardown waits for returned actors' periodic save. Combat aura/kill bonus and scenery/asset parity remain explicit gaps.
+
 ## 2026-10-12 — Eye of the Storm rules and PvP list scrolling
 
 [Eye of the Storm](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): queue 7/map 566 with TDB control-zone towers, Netherstorm flag scoring/drop/respawn, WorldStates and PvpStat 183. Server channel and both-skin UI tests pass. Live proof is blocked by missing M2 floor support at both start points. The PvP queue ScrollBox now scrolls with the native wheel and steppers.
