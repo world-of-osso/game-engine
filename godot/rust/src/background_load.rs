@@ -3,7 +3,7 @@
 
 use std::thread::JoinHandle;
 
-pub(crate) struct BackgroundLoad<T> {
+pub(crate) struct BackgroundLoad<T: Send + 'static> {
     worker: Option<JoinHandle<T>>,
     loaded: Option<T>,
 }
@@ -51,8 +51,16 @@ impl<T: Send + 'static> BackgroundLoad<T> {
     }
 
     /// Own the result taken by an earlier `poll`.
-    pub(crate) fn into_loaded(self) -> Option<T> {
-        self.loaded
+    pub(crate) fn into_loaded(mut self) -> Option<T> {
+        self.loaded.take()
+    }
+}
+
+impl<T: Send + 'static> Drop for BackgroundLoad<T> {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            game_engine_core::worker_shutdown::track(worker);
+        }
     }
 }
 

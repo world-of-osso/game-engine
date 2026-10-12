@@ -127,6 +127,7 @@ pub mod vehicle_seat;
 pub mod wmo_surface_data;
 #[cfg(test)]
 mod wmo_surface_data_tests;
+pub mod worker_shutdown;
 pub mod world_time;
 pub use asset::m2_batch_data;
 #[path = "cache_source_mtime.rs"]
