@@ -64,8 +64,9 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 24] = [
+        const SOURCES: [Source; 25] = [
             GameClient::journal_set_tooltip,
+            GameClient::transmog_set_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -117,6 +118,33 @@ impl GameClient {
         let mut hovered = self.item_owned(hit, owner, OwnerSide::Right, slot)?;
         hovered.tooltip.content.lines.extend(lines);
         Some(hovered)
+    }
+
+    /// TransmogSetModelMixin:OnEnter -> RefreshTooltip, `ANCHOR_RIGHT`.
+    fn transmog_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, set_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            name_of(frame)?
+                .strip_prefix("TransmogSet")?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let set = self
+            .transmog
+            .book
+            .state
+            .as_ref()?
+            .sets
+            .iter()
+            .find(|set| set.set_id == set_id)?;
+        let tooltip = game_engine_ui_model::game_tooltip::transmog::transmog_set_tooltip(set);
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
     }
 
     fn journal_bonus_descriptions(&self, set: u32) -> std::collections::BTreeMap<u32, String> {
