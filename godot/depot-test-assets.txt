@@ -2,6 +2,8 @@
 # Paladin Avenging Wrath: authentic local-CASC wing/cast sheets and particle textures.
 models/165644.m2
 models/16564400.skin
+models/166338.m2
+models/16633800.skin
 models/2368643.m2
 models/236864300.skin
 models/2368644.m2
