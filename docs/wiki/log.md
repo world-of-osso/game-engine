@@ -3340,3 +3340,7 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-11 — integrated native gathering baseline
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
+
+## 2026-10-12 — Mount model assets staged
+
+All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; additive package contains566 new M2 receipts and complete skins/textures/animations, with hash-guarded lead-only publication. Both-skin native census remains in progress;170 newly missing identities lack readable Mount rows. [Scope and proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
