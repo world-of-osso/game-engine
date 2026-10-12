@@ -56,6 +56,8 @@ func run_fixture() -> void:
 	journal.name = "QuestOverflowUI"
 	var targets = JSON.parse_string(FileAccess.get_file_as_string(OS.get_environment("MOUNT_ASSET_TARGETS")))
 	for target in targets:
+		if target.get("hide_collected", false):
+			await toggle_collected_filter()
 		var search = control("MountJournalSearchBox")
 		search.text = target.name
 		search.emit_signal("text_changed", target.name)
@@ -99,6 +101,8 @@ func run_fixture() -> void:
 				full.resize(1280, roundi(float(full.get_height()) * 1280.0 / full.get_width()))
 			full.save_png(out + "/journal-%d.png" % int(target.mount_id))
 		print("MOUNT_ASSET_RENDER ", target.mount_id, " meshes=", meshes, " pixels=", stats)
+		if target.get("hide_collected", false):
+			await toggle_collected_filter()
 	finish("")
 
 func control(name: String) -> Control:
@@ -120,6 +124,12 @@ func click(name: String) -> void:
 		button.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
 		root.push_input(button)
 		await frames(2)
+
+func toggle_collected_filter() -> void:
+	await click("MountJournalFilterButton")
+	await click("MountJournalFilter0")
+	await click("MountJournalFilterButton")
+	await frames(8)
 
 func rotate_preview() -> void:
 	var host = control("MountJournalModelScene")
