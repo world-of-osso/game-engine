@@ -1,3 +1,7 @@
+## 2026-10-12 — Housing HouseSettings access authority
+
+[HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
+
 ## 2026-10-12 — Eye both-skin private lifecycle
 
 [Eye](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12):16 real accounts per skin, M2-supported source entry, four presence-held towers, three physical flag captures, natural1500/183=3, automaticVictory/exact native origin/all15peer return;16ACKs then periodic save.20 inspected PNGs and eye-live-proof.json retain bounded proof. Fixture sequential worker entry resolves burst handshake timeout without extending deadlines; private startup waits processed admin readiness. Player-body art and preparation/resurrection/rewards remain uncertified.
