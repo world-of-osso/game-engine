@@ -1081,13 +1081,16 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
         .into_iter()
         .enumerate()
         {
-            choices.extend(panel_button(
-                format!("AchievementFilter{action}"),
-                text,
-                &format!("achievement:filter:{action}"),
-                true,
-                (0.0, index as f32 * 24.0, 112.0, 24.0),
-            ));
+            let name = DynName(format!("AchievementFilter{action}"));
+            let action = format!("achievement:filter:{action}");
+            choices.extend(rsx! { button {
+                name, text, width:112.0, height:24.0, font_size:12.0,
+                onclick:action.as_str(), strata:FrameStrata::Tooltip,
+                button_atlas_up:"defaultbutton-nineslice-up",
+                button_atlas_pressed:"defaultbutton-nineslice-pressed",
+                button_atlas_highlight:"defaultbutton-nineslice-highlight",
+                pos_type:"absolute", left:0.0, top:{index as f32 * 24.0},
+            }});
         }
         content.extend(
             rsx! {r#frame {name:"AchievementFilterMenu",width:112.0,height:72.0,
