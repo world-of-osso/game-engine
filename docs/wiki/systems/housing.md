@@ -10,9 +10,15 @@ The server binds requests to authenticated links, resolves property-owned map co
 
 ## Proof boundary
 
-Verified: 2026-10-11. Static native both-skin catalog captures are in `/syncthing/AgentShared/2026-10-11/housing/housing-core-{modern,forever}-catalog-current.png`. Those captures predate the owned-storage UI extension and do not prove it. Focused server tests cover simultaneous buyers, durable ownership, conserved layouts, read-only visitors, actual wire/arrival ordering, database reopen/login, and one-shot normal bag collection. Client storage transport/model and native collection proof are separate gates.
+Verified: 2026-10-11. Private UDP5870 native both-skin proof follows actual Pawdo pointer interaction, menu40669's wares choice, paid MerchantFrame purchase and normal backpack right-click. Both accounts pay500000 copper, consume item245259 and show exactly one decor1693 after real reauthentication. Gold/position are explicit private fixture setup; no item/decor is granted. Runtime account_state confirms Modern/Forever. Eight inspected1280px before/purchase/collected/relogged PNGs are in `/syncthing/AgentShared/2026-10-11/housing/housing-core-{modern,forever}-{before,vendor-purchase,collected,relogged}.png`. Receipts/logs live in `data/diagnostics/housing-core-2026-10-11/collection/{modern2,forever}/`.
+
+Post-merge focused proof: server10, importer4, native libs8, both-skin registry integration1 and full protocol1730 pass; server/native checks have no warnings. Model clearing/unknown versus known-zero, real UDP storage delivery, competing buyers, durable ownership, conserved layouts, read-only visitor snapshots and wire/arrival/database-reopen/login are covered. Native placement/entry/editor/visitor scenes remain separate gates.
 
 No verified first-house exterior/interior grant exists. House entry is explicitly refused; no substitute model, room, floor, grant or ownership is fabricated. Basic/expert editor, visitor scene convergence and later housing ranks remain open.
+
+## Required Pawdo asset receipts
+
+Display137392's real model535052 initially could not render because extracted-only appearance textures lacked receipts. Authenticated existing bytes against the actual local Retail build config/root before no-clobber publication: texture577566, eighteen authored appearance/material textures and the Pandaren-male hat2266768/SFID2267296 chain. No model/texture was substituted or unqualified path allowed at runtime. Additive `model-asset-index-housing-core-pawdo-*` fragments and evidence in `data/diagnostics/housing-core-2026-10-11/pawdo-assets/` preserve the verified identity. The isolated test cache linked already-published receipt fragments while keeping its housing catalog private. See [asset ownership](../../specs/product-isolated-model-assets.md).
 
 ## Authored cornerstone discovery
 

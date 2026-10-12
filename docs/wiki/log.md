@@ -1,3 +1,7 @@
+## 2026-10-11 — Housing paid collection both-skin proof
+
+[Housing](systems/housing.md): native private5870 real Pawdo pick/gossip/50g purchase, normal bag UseItem, exact decor1693 stored0→1 and reauthentication persistence in Modern/Forever. Eight inspected1280px PNGs. Authenticated missing Pawdo appearance/hat receipt chains instead of substituting assets; fixture corrected to actual clickable gossip text and separate BagsUI. No granted item/decor, canonical world.db writes, house-grant inference or completed whole-goal claim.
+
 ## 2026-10-11 — Housing ownership/storage continuation
 
 [Housing](systems/housing.md): static both-skin catalog re-captured after category icon changes on private5870. Dedicated server property admission, wire/arrival cornerstone purchase, restart admission and bounded authentic bag collection added with focused behavioral tests. Native ownership storage bridge added; its fresh command/live gates remain separate. Local GameObjects DB2 resolves the previously missing cornerstone template/model chain. No default exterior/interior grants, canonical database writes or completed whole-goal claim.
