@@ -36,9 +36,9 @@ impl CatalogPreview {
         self.dragging = false;
     }
 
-    fn select(
+    fn load_selection(
         &mut self,
-        mut host: Gd<Control>,
+        host: Gd<Control>,
         data: &Path,
         catalog: &HousingCatalog,
         decor_id: u32,
@@ -54,28 +54,12 @@ impl CatalogPreview {
         self.attempted = Some(decor_id);
         match load_catalog_actor(data, catalog, decor_id) {
             Ok((visual, bounds)) => {
-                let mut pivot = Node3D::new_alloc();
-                pivot.set_name("HousingCatalogPivot");
-                pivot.add_child(&visual);
-                let mut scene = Scene::new(host);
-                scene.replace_model(pivot);
-                frame_catalog_bounds(&mut scene, bounds);
+                self.scene = Some(mount_catalog_actor(host, visual, bounds));
                 self.bounds = Some(bounds);
-                self.scene = Some(scene);
                 Ok(())
             }
             Err(error) => {
-                let mut label = Label::new_alloc();
-                label.set_name("HousingCatalogPreviewUnavailable");
-                label.set_text("Preview unavailable");
-                label.set_tooltip_text(&error);
-                label.set_horizontal_alignment(godot::global::HorizontalAlignment::CENTER);
-                label.set_vertical_alignment(godot::global::VerticalAlignment::CENTER);
-                host.add_child(&label);
-                label.set_anchors_and_offsets_preset(
-                    godot::classes::control::LayoutPreset::FULL_RECT,
-                );
-                self.error_label = Some(label);
+                self.error_label = Some(mount_unavailable_preview(host, &error));
                 Err(error)
             }
         }
@@ -111,6 +95,28 @@ impl CatalogPreview {
         }
         false
     }
+}
+
+fn mount_catalog_actor(host: Gd<Control>, visual: Gd<Node3D>, bounds: Aabb) -> Scene {
+    let mut pivot = Node3D::new_alloc();
+    pivot.set_name("HousingCatalogPivot");
+    pivot.add_child(&visual);
+    let mut scene = Scene::new(host);
+    scene.replace_model(pivot);
+    frame_catalog_bounds(&mut scene, bounds);
+    scene
+}
+
+fn mount_unavailable_preview(mut host: Gd<Control>, error: &str) -> Gd<Label> {
+    let mut label = Label::new_alloc();
+    label.set_name("HousingCatalogPreviewUnavailable");
+    label.set_text("Preview unavailable");
+    label.set_tooltip_text(error);
+    label.set_horizontal_alignment(godot::global::HorizontalAlignment::CENTER);
+    label.set_vertical_alignment(godot::global::VerticalAlignment::CENTER);
+    host.add_child(&label);
+    label.set_anchors_and_offsets_preset(godot::classes::control::LayoutPreset::FULL_RECT);
+    label
 }
 
 fn load_catalog_actor(
@@ -217,10 +223,10 @@ impl GameClient {
             .ok_or("Housing catalog missing")?
             .catalog
             .clone();
-        if let Err(error) = self
-            .housing
-            .catalog_preview
-            .select(host, &self.data_root, &catalog, id)
+        if let Err(error) =
+            self.housing
+                .catalog_preview
+                .load_selection(host, &self.data_root, &catalog, id)
         {
             // Selection attempts are cached; log once, keep the source's unavailable UI.
             godot_warn!("Housing catalog preview: {error}");
@@ -269,8 +275,10 @@ impl WowHousingPreviewProbe {
     fn select_decor(&mut self, host: Gd<Control>, decor_id: i64) -> GString {
         let data = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
         let data = std::path::PathBuf::from(data.to_string());
-        let result = HousingCatalog::load(&data.join("cache/housing.sqlite"))
-            .and_then(|catalog| self.preview.select(host, &data, &catalog, decor_id as u32));
+        let result = HousingCatalog::load(&data.join("cache/housing.sqlite")).and_then(|catalog| {
+            self.preview
+                .load_selection(host, &data, &catalog, decor_id as u32)
+        });
         let error = result.err().unwrap_or_default();
         GString::from(error.as_str())
     }
