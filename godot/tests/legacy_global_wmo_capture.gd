@@ -32,7 +32,14 @@ func run_test() -> void:
 	camera.current = true
 	for frame in 120:
 		await process_frame
+	# One map per client avoids unrelated asynchronous carryover between previews.
+	var map_id := int(OS.get_environment("GLOBAL_WMO_MAP"))
+	if not MAPS.any(func(spec): return spec[0] == map_id):
+		fail("GLOBAL_WMO_MAP must name one of the three recovered maps")
+		return
 	for spec in MAPS:
+		if spec[0] != map_id:
+			continue
 		var error: String = client.preview_world_map(spec[1], Vector3.ZERO)
 		if not error.is_empty():
 			fail(error)
