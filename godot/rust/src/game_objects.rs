@@ -12,7 +12,10 @@ use crate::{
 use game_engine_core::csv_util::parse_csv_line;
 use game_engine_network::replica::Unit;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
-use godot::{classes::Node3D, prelude::*};
+use godot::{
+    classes::{Node3D, PhysicsDirectSpaceState3D, PhysicsRayQueryParameters3D},
+    prelude::*,
+};
 use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
@@ -21,6 +24,9 @@ use shared::protocol::{
     GameObjectVisible,
 };
 use std::{collections::HashMap, path::PathBuf};
+
+/// Separate from baked scenery: only these live meshes follow GO collision state.
+pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
 
 struct ObjectNode {
     /// The display its loaded visual shows.
@@ -292,6 +298,23 @@ impl GameObjects {
     }
 }
 
+/// Dedicated authored GO collision, using the same step/search/normal rules as M2 floors.
+pub(crate) fn floor_hit(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3) -> Option<f32> {
+    let from =
+        Vector3::from_array((feet + glam::Vec3::Y * shared::ground::STEP_UP_HEIGHT).to_array());
+    let to =
+        Vector3::from_array((feet - glam::Vec3::Y * shared::ground::FLOOR_SEARCH_DEPTH).to_array());
+    let mut query = PhysicsRayQueryParameters3D::create(from, to)
+        .expect("Godot could not allocate game-object floor ray parameters");
+    query.set_collision_mask(GAME_OBJECT_LAYER);
+    let hit = space.clone().intersect_ray(&query);
+    let normal = hit.get("normal")?.to::<Vector3>();
+    if normal.y < shared::ground::min_walkable_normal_y() {
+        return None;
+    }
+    Some(hit.get("position")?.to::<Vector3>().y)
+}
+
 fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
     if let Some(mut collision) = object
         .node
@@ -299,7 +322,7 @@ fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
         .and_then(|node| node.try_cast::<godot::classes::StaticBody3D>().ok())
     {
         let layer = if enabled {
-            crate::terrain::doodad_collision::DOODAD_LAYER
+            crate::terrain::doodad_collision::DOODAD_LAYER | GAME_OBJECT_LAYER
         } else {
             0
         };
