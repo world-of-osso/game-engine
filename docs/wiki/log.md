@@ -1,9 +1,13 @@
+## 2026-10-12 — Eye both-skin private lifecycle
+
+[Eye](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12):16 real accounts per skin, M2-supported source entry, four presence-held towers, three physical flag captures, natural1500/183=3, automaticVictory/exact native origin/all15peer return;16ACKs then periodic save.20 inspected PNGs and eye-live-proof.json retain bounded proof. Fixture sequential worker entry resolves burst handshake timeout without extending deadlines; private startup waits processed admin readiness. Player-body art and preparation/resurrection/rewards remain uncertified.
+
 ## 2026-10-12 — Combat-assist source-gap re-audit and replay
 
 [Cooldown/assist audit](investigations/cooldown-assist-data.md#source-gap-re-audit--2026-10-12): exact1229376/470418 DB2 rows and pinned TC cast/GCD paths do not define assistant-origin penalty handling; no guessed multiplier. Nonzero chargeValue2 has no authored rows in this build. Native observation captures one evaluator decision for exact private Holy Power/charge/cost/target replay; comparator semantics remain unchanged.
 ## 2026-10-12 — Silvershard both-skin private lifecycle
 
-[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Canonical assets/cache remain lead-owned; broader preparation/graveyard/visual-aura parity remains open.
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Lead has published canonical assets/cache; public708 remains hidden until the blocked client bundle publishes. Broader preparation/graveyard/visual-aura parity remains open.
 
 ## 2026-10-12 — Silvershard private content prerequisites
 
