@@ -99,6 +99,15 @@ impl HousingDashboard {
         action: &str,
     ) -> Result<Option<shared::protocol::HousingCommand>, String> {
         use shared::protocol::HousingCommand;
+        if action == "housing:leave" {
+            return Ok(Some(HousingCommand::LeaveHouse));
+        }
+        if let Some(value) = action.strip_prefix("housing:home:") {
+            let house_id = value
+                .parse::<u64>()
+                .map_err(|_| "Invalid house identity.")?;
+            return Ok(Some(HousingCommand::EnterHouse { house_id }));
+        }
         if action == "housing:finder" {
             self.surface = HousingSurface::Finder;
             return Ok(Some(HousingCommand::ListPlots {

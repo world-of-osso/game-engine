@@ -71,7 +71,33 @@ fn house_info(view: &HousingView) -> Element {
         None => "House ownership has not been confirmed by the server. Catalog browsing does not grant a house.".into(),
     };
     let status = unavailable("HouseInfoContent", &message);
-    rsx! { {status}
+    let homes: Element = view
+        .authority
+        .state
+        .as_ref()
+        .into_iter()
+        .flat_map(|state| state.owned_houses.iter())
+        .enumerate()
+        .flat_map(|(index, house)| {
+            let action = format!("housing:home:{}", house.house_id);
+            let name = DynName(format!("HousingHomeVisit{}", house.house_id));
+            let top = 300.0 + index as f32 * 36.0;
+            rsx! { button { name, text: "Visit Home Interior", width: 200.0, height: 32.0,
+                pos_type: "absolute", left: 307.0, top, onclick: action,
+                disabled: view.model.pending }
+            }
+        })
+        .collect();
+    let leaving = view
+        .authority
+        .state
+        .as_ref()
+        .is_some_and(|state| state.layout.is_some());
+    let hide_leaving = !leaving;
+    rsx! { {status} {homes}
+        button { name: "HousingHomeLeave", text: "Leave House", width: 160.0, height: 32.0,
+            pos_type: "absolute", left: 327.0, top: 395.0, onclick: "housing:leave",
+            hidden: hide_leaving, disabled: view.model.pending }
         button { name: "HousingDashboardHouseFinderButton", text: "Find a Home",
             width: 160.0, height: 32.0, pos_type: "absolute", left: 327.0, top: 350.0,
             onclick: "housing:finder" }
