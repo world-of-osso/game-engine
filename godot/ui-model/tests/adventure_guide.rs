@@ -101,6 +101,7 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut view = journal();
     view.visible = true;
     view.apply("journal:class:2").unwrap();
