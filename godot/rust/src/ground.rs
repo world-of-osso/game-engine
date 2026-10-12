@@ -156,6 +156,86 @@ mod tests {
 
     use super::*;
 
+    fn load_floor_map(map: &str, tile: (u32, u32)) -> StreamedTerrain {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut terrain = StreamedTerrain::new(data_root);
+        terrain.request_map(map.into(), tile).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(90);
+        while !terrain.parsed_tiles.contains_key(&tile) {
+            terrain.poll().expect("terrain worker alive");
+            assert!(
+                Instant::now() < deadline,
+                "{map}: {:?}",
+                terrain
+                    .state()
+                    .failures
+                    .iter()
+                    .map(|f| &f.error)
+                    .collect::<Vec<_>>()
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        terrain
+    }
+
+    fn stand_and_walk(terrain: &StreamedTerrain, start: Vec3, expected_height: f32, distance: f32) {
+        let ground = TerrainGround {
+            terrain,
+            walls: &|_, _, _| None,
+        };
+        match ground.probe(start) {
+            GroundState::Supported(height) => {
+                assert!((height - expected_height).abs() < 1.0, "M2 floor: {height}")
+            }
+            other => panic!("M2 floor unsupported: {other:?}"),
+        }
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        let mut feet = start;
+        for _ in 0..300 {
+            feet = movement.predict(
+                feet,
+                crate::gameplay::MovementFrame {
+                    direction: [0.0; 3],
+                    speed: 0.0,
+                    vertical: 0.0,
+                },
+                false,
+                &ground,
+                &mut |_, to, _| to,
+                1.0 / 60.0,
+            );
+        }
+        assert!(
+            (feet.y - expected_height).abs() < 1.0,
+            "fell while standing: {feet}"
+        );
+        for _ in 0..60 {
+            let frame = crate::gameplay::MovementFrame {
+                direction: [1.0, 0.0, 0.0],
+                speed: distance,
+                vertical: 0.0,
+            };
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        }
+        assert!(feet.x > start.x + distance * 0.9, "failed to walk: {feet}");
+        assert!(
+            (feet.y - expected_height).abs() < 2.0,
+            "fell while walking: {feet}"
+        );
+    }
+
+    #[test]
+    fn m2_floor_eots_real_start_stands_and_walks_before_render_spawns() {
+        let terrain = load_floor_map("NetherstormBG", (29, 27));
+        stand_and_walk(&terrain, Vec3::new(2523.76, 1247.7, -1596.13), 1247.7, 3.0);
+    }
+
+    #[test]
+    fn m2_floor_northshire_stonepyre_stands_and_walks_before_render_spawns() {
+        let terrain = load_floor_map("Azeroth", (32, 48));
+        stand_and_walk(&terrain, Vec3::new(-8922.681, 87.57, 139.566), 87.57, 0.8);
+    }
+
     #[test]
     fn stockade_worker_floor_support_respects_bounds_and_reset() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
