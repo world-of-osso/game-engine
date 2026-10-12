@@ -26,6 +26,26 @@ fn editable_layout(authority: &HousingAuthority) -> Result<&HouseLayout, String>
 }
 
 impl EditorInteraction {
+    /// BasicDecorMode.DecorMoveOverlay commits an active placement on the next click;
+    /// it must not re-select the same object merely because the ray still hits it.
+    pub fn pointer_click(
+        &mut self,
+        authority: &HousingAuthority,
+        picked: Option<u64>,
+        ground: Option<[f32; 3]>,
+    ) -> Result<Option<HousingCommand>, String> {
+        let can_edit = layout(authority)?.can_edit;
+        let choosing = self.placing.is_none() && self.selected.is_none();
+        if choosing || !can_edit {
+            if let Some(instance) = picked {
+                self.select(authority, instance)?;
+            }
+            return Ok(None);
+        }
+        let position = ground.ok_or("No authored ground surface is under the pointer.")?;
+        self.commit_at(authority, position).map(Some)
+    }
+
     pub fn begin_place(
         &mut self,
         authority: &HousingAuthority,
