@@ -157,6 +157,8 @@ func check_items() -> bool:
 	if control("TransmogSource%d" % NON_COLLECTABLE) != null:
 		fail("Non-collectable Smotts' Cutlass is listed")
 		return false
+	if not await wait_card_models("TransmogSource*ModelScene"):
+		return false
 	await save_shot("01-items.png")
 	await type_into("TransmogSearchBox", "Gladius")
 	if not await wait_for(func(_s): return control("TransmogSource821") != null and control("TransmogSource1181") == null, "filtered Gladius collection"):
@@ -207,6 +209,8 @@ func save_outfit(outfit: int, avoid: Array, pending_shot: String, saved_shot: St
 	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == illusion_name, "illusion %s tooltip" % illusion_name, 10000):
 		print("TRANSMOG_TOOLTIP ", client.tooltip_state())
 		return false
+	if not await wait_card_models("TransmogIllusionEntry*ModelScene"):
+		return false
 	if pending_shot != "":
 		await save_shot(pending_shot)
 	var before: int = transmog().money
@@ -218,7 +222,8 @@ func save_outfit(outfit: int, avoid: Array, pending_shot: String, saved_shot: St
 		print("TRANSMOG_STATE ", transmog())
 		return false
 	saved[outfit] = {"source": source, "illusion": illusion}
-	await frames(10)
+	if not await wait_card_models("TransmogIllusionEntry*ModelScene"):
+		return false
 	await save_shot(saved_shot)
 	print("TRANSMOG_OUTFIT_SAVED outfit=", outfit, " source=", source, " illusion=", illusion, " gold=", before, "->", transmog().money)
 	return true
@@ -245,7 +250,8 @@ func check_outfit_load() -> bool:
 	if not await wait_for(loaded, "loaded outfit %d" % outfit):
 		print("TRANSMOG_STATE ", transmog())
 		return false
-	await frames(10)
+	if not await wait_card_models("TransmogIllusionEntry*ModelScene"):
+		return false
 	await save_shot("05-outfit-load.png")
 	print("TRANSMOG_OUTFIT_LOADED outfit=", outfit, " ", transmog().outfits)
 	await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
@@ -263,7 +269,8 @@ func check_sets() -> bool:
 	if not ui.frame_text(card + "Status").begins_with("Incomplete"):
 		fail("Set %d is not shown incomplete: %s" % [SET_ID, progress])
 		return false
-	await frames(10)
+	if not await wait_card_models("TransmogSet*ModelScene"):
+		return false
 	await save_shot("06-sets.png")
 	await hover_point(control(card).get_global_rect().get_center())
 	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == SET_NAME, "set tooltip", 10000):
@@ -301,13 +308,30 @@ func check_custom_sets() -> bool:
 	var card := "TransmogCustomSet%d" % id
 	if not await wait_for(func(_s): return control(card) != null and preview_model(card + "ModelScene") != null, "custom set card", 60000):
 		return false
-	await frames(10)
+	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
 	await save_shot("10-custom-set-saved.png")
 	print("TRANSMOG_CUSTOM_SET id=", id, " name=", name)
 	return true
 
 func transmog() -> Dictionary:
 	return client.transmog_state()
+
+## Every card on the page shows its 3D preview, so captures never show loading cells.
+func wait_card_models(pattern: String) -> bool:
+	if await wait_for(func(_s): return card_models_ready(pattern), "card models " + pattern, 60000):
+		await frames(10)
+		return true
+	return false
+
+func card_models_ready(pattern: String) -> bool:
+	var hosts := ui.find_children(pattern, "", true, false)
+	if hosts.is_empty():
+		return false
+	for host in hosts:
+		if preview_model(host.name) == null:
+			return false
+	return true
 
 func measure_collection_pixels(source: int) -> int:
 	var host_name := "TransmogSource%dModelScene" % source
