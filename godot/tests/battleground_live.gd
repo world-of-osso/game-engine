@@ -54,6 +54,15 @@ func live_run() -> void:
 							var model_path := str(model.get_meta("m2_source_path", "")) if model != null else ""
 							var model_visible := model != null and model.is_visible_in_tree()
 							result.units.append({"name": str(unit.get_meta("unit_name")), "path": str(unit.get_path()), "position": [position.x, position.y, position.z], "model_path": model_path, "model_visible": model_visible})
+			"objects":
+				result.objects = []
+				for object in root.find_children("Mailbox_*", "Node3D", true, false):
+					if object is Node3D and object.has_meta("game_object_entry"):
+						var position: Vector3 = object.global_position
+						var model := object.find_child("GameObjectModel", true, false) as Node3D
+						var model_path := str(model.get_meta("m2_source_path", "")) if model != null else ""
+						var model_visible := model != null and model.is_visible_in_tree()
+						result.objects.append({"name": str(object.get_meta("game_object_name")), "entry": int(object.get_meta("game_object_entry")), "server_id": int(object.get_meta("game_object_server_id")), "position": [position.x, position.y, position.z], "model_path": model_path, "model_visible": model_visible})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
