@@ -1,3 +1,7 @@
+## 2026-10-12 — All13 representative class gate
+
+[Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): rebuilt DH162243 damage/Fury and Evoker431443 Fire/Arcane repeat close all13 representative both-skin gates, with26 inspected requested PNGs. Private processes stopped, cache/products links restored. Full spell/talent goal remains open; this is not every legal build, coefficient or rotation.
+
 ## 2026-10-12 — Class completeness continuation
 
 [Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): private both-skin spell receipts for nine additional classes; DH startup exposed authored133320→29124→display0 being dropped, then a nonexistent-display lookup. Native RED/GREEN preserves occupied no-visual slots without weakening missing/invalid metadata errors; targeted core6/shared renderer1 pass. DH/Evoker rebuilt native gates and full13/all40 goal remain open.
