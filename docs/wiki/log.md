@@ -3302,3 +3302,7 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-11 — integrated native gathering baseline
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
+
+## 2026-10-12 — Arena lifecycle and rated reference
+
+[Native arenas](systems/arenas.md): source map/starts/gates/orbs, team-based preparation/attack rules, persistent-caster orb visibility, scored elimination/origins and full-group TC-reference rating. Nine scoped server cases include real skirmish/rated HostClient lifecycles; four both-skin UI cases and nine native object cases pass. Private rendered/UDP acceptance and final integration remain pending; no season/payout, Shuffle role/round or dampening policy invented.
