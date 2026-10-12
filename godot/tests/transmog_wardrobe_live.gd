@@ -1,8 +1,25 @@
 extends "res://tests/world_merchant_flow.gd"
-## Real native Wardrobe on private55087; owned fb_transmog_a/TransmogA fixture.
-## Both skins use the same test. TRANSMOG_SHOTS is a durable diagnostic directory.
+## Real native Retail12.1 Transmogrify frame on private5926; owned fb_transmog_a/TransmogA.
+## Both skins run against the same account, so every step derives its targets from the
+## current server state. TRANSMOG_SHOTS is a durable diagnostic directory.
+
+const SERVER := "127.0.0.1:5926"
+const SOURCES := [821, 1181]
+## Smotts' Cutlass (TransmogSourceTypeEnum9): Retail lists only usable collected sources.
+const NON_COLLECTABLE := 1473
+## Battlegear of Might: the private character wears its Burnished Helm and Pauldrons.
+const SET_ID := 853
+const SET_NAME := "Battlegear of Might"
+const MAIN_HAND := 16
+## OutfitEntry2 "Outfit 1" and3 "Outfit 2" (automatically awarded).
+const OUTFITS := [2, 3]
+## Default-collected TransmogIllusion IDs: Lifestealing, Crusader, Striking.
+const ILLUSIONS := [3, 13, 22]
+const APPLY_COST := 1500
 
 var shots := ""
+var ui: Node
+var saved := {}
 
 func _initialize() -> void:
 	if OS.get_environment("TRANSMOG_WEAPON_IMAGE") != "":
@@ -22,8 +39,8 @@ func check_weapon_image() -> void:
 
 func run_test() -> void:
 	shots = OS.get_environment("TRANSMOG_SHOTS")
-	if shots == "" or OS.get_environment("GODOT_TEST_SERVER") != "127.0.0.1:55087":
-		fail("Set TRANSMOG_SHOTS and private GODOT_TEST_SERVER=127.0.0.1:55087")
+	if shots == "" or OS.get_environment("GODOT_TEST_SERVER") != SERVER:
+		fail("Set TRANSMOG_SHOTS and private GODOT_TEST_SERVER=" + SERVER)
 		return
 	DirAccess.make_dir_recursive_absolute(shots)
 	root.size = Vector2i(1280, 720)
@@ -33,7 +50,7 @@ func run_test() -> void:
 	await frames(5)
 	if not await wait_for(func(s): return s.item_catalog_loaded, "startup item catalog", 90000):
 		return
-	var error = client.connect_account("127.0.0.1:55087", "fb_transmog_a", "fbtest", false)
+	var error = client.connect_account(SERVER, "fb_transmog_a", "fbtest", false)
 	if error != "":
 		fail(error)
 		return
@@ -58,100 +75,526 @@ func run_test() -> void:
 	if not await wait_for(func(_s): return control("AuctionGossipOption0") != null, "Hashom gossip", 60000):
 		return
 	await click_control(control("AuctionGossipOption0"), MOUSE_BUTTON_LEFT)
-	if not await wait_for(func(_s): return control("TransmogSlot16") != null, "native Wardrobe", 60000):
+	if not await wait_for(func(_s): return control("TransmogSlot16") != null, "native Transmogrify frame", 60000):
 		return
+	ui = client.get_node("TransmogUI")
+	if OS.get_environment("TRANSMOG_RELOG") == "1":
+		if not await check_relog():
+			return
+		print("PASS TRANSMOG_RELOG_LIVE skin=", expected_skin)
+		client.free()
+		quit(0)
+		return
+	for step in ["check_layout", "check_preview_controls", "check_items", "check_filters", "check_icon_selector", "check_outfits", "check_outfit_load", "check_sets", "check_custom_sets"]:
+		if not await Callable(self, step).call():
+			return
+	var witness := {"skin": expected_skin, "money": transmog().money, "applied_main_hand": transmog().applied[MAIN_HAND], "outfits": saved, "icons": transmog().outfit_icons}
+	var file := FileAccess.open(shots + "/relog-witness.json", FileAccess.WRITE)
+	file.store_string(JSON.stringify(witness))
+	file.close()
+	print("TRANSMOG_RELOG_WITNESS ", JSON.stringify(witness))
+	await tap(KEY_ESCAPE)
+	await frames(10)
+	if client.get_node_or_null("TransmogUI") != null:
+		fail("Escape retained the Transmogrify frame and detached previews")
+		return
+	print("PASS TRANSMOG_WARDROBE_LIVE")
+	client.free()
+	quit(0)
+
+## Native Retail right-click Edit → IconSelector → CommitOutfitInfo, not paid Apply.
+func check_icon_selector() -> bool:
+	for index in OUTFITS.size():
+		var outfit: int = OUTFITS[index]
+		# IconDataProvider index1 is the sourced134400 question mark; explicitly chosen, never a fallback.
+		var icon := 135274 if index == 0 else 134400
+		await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_RIGHT)
+		if not await wait_for(func(_s): return control("TransmogOutfitEditMenu") != null, "outfit context menu"):
+			return false
+		await click_control(control("TransmogOutfitEditMenu"), MOUSE_BUTTON_LEFT)
+		if not await wait_for(func(_s): return control("TransmogOutfitIconSelector") != null, "IconSelector"):
+			return false
+		var before := transmog()
+		await click_control(control("TransmogIcon%d" % icon), MOUSE_BUTTON_LEFT)
+		await type_into("TransmogOutfitIconName", "Blade %d %s" % [index + 1, OS.get_environment("TRANSMOG_SKIN")])
+		await save_shot("18-icon-selector-%d.png" % outfit)
+		await click_control(control("TransmogOutfitIconOkay"), MOUSE_BUTTON_LEFT)
+		if not await wait_for(func(_s): return not transmog().busy and transmog().outfit_icons[outfit] == icon and control("TransmogOutfitIconSelector") == null, "selected outfit icon committed", 30000):
+			print("TRANSMOG_STATE ", transmog())
+			return false
+		if transmog().money != before.money or transmog().applied != before.applied or transmog().pending != before.pending:
+			fail("Metadata icon edit spent money or applied gear")
+			return false
+		await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_RIGHT)
+		if not await wait_for(func(_s): return control("TransmogOutfitEditMenu") != null, "reopened outfit context menu"):
+			return false
+		await click_control(control("TransmogOutfitEditMenu"), MOUSE_BUTTON_LEFT)
+		if not await wait_for(func(_s): return control("TransmogOutfitSelectedIcon") != null, "edit restores selected icon"):
+			return false
+		await click_control(control("TransmogOutfitIconCancel"), MOUSE_BUTTON_LEFT)
+		print("TRANSMOG_ICON_EDIT outfit=", outfit, " selected=", icon, " gold_unchanged=", before.money)
+	await save_shot("19-outfit-icons.png")
+	return true
+
+## A separate Godot process authenticates and re-enters InMap against persisted redb.
+func check_relog() -> bool:
+	var file := FileAccess.open(shots + "/relog-witness.json", FileAccess.READ)
+	if file == null:
+		fail("Relog witness missing")
+		return false
+	var expected: Dictionary = JSON.parse_string(file.get_as_text())
+	file.close()
+	var now := transmog()
+	if now.money != int(expected.money) or now.applied[MAIN_HAND] != int(expected.applied_main_hand):
+		fail("Relog did not persist paid appearance/gold: " + str(now))
+		return false
+	for key in expected.outfits:
+		var outfit := int(key)
+		await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_LEFT)
+		if not await wait_for(func(_s): return transmog().viewed_outfit == outfit, "relogged outfit"):
+			return false
+		var record: Dictionary = expected.outfits[key]
+		if transmog().effective[MAIN_HAND] != int(record.source) or transmog().illusions.get(MAIN_HAND, 0) != int(record.illusion) or transmog().outfit_icons[outfit] != int(expected.icons[key]):
+			fail("Saved outfit source/illusion/selected icon lost after relog")
+			return false
+		print("TRANSMOG_RELOG_OUTFIT outfit=", outfit, " source=", record.source, " illusion=", record.illusion, " icon=", transmog().outfit_icons[outfit])
+		if control("TransmogClearAllPendingButton") != null:
+			await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
 	await click_control(control("TransmogSlot16"), MOUSE_BUTTON_LEFT)
-	if not await wait_for(func(_s): return preview_model("TransmogCharacterModelScene") != null, "character preview", 60000):
-		return
+	if not await wait_card_models("TransmogSource*ModelScene"):
+		return false
+	await save_shot("20-relog-persisted.png")
+	print("TRANSMOG_RELOG_PERSISTED skin=", expected.skin, " paid_main_hand=", now.applied[MAIN_HAND], " money=", now.money)
+	return true
+
+## TransmogFrame1618x883: outfits, character and collection regions left to right.
+func check_layout() -> bool:
+	await click_control(control("TransmogSlot16"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return preview_model("TransmogCharacterModelScene") != null and control("TransmogSource821") != null, "character preview and main-hand sources", 60000):
+		return false
 	await frames(20)
-	var model_rect := control("TransmogCharacterModelScene").get_global_rect()
-	if control("TransmogSlot1").get_global_rect().end.x > model_rect.position.x or control("TransmogSlot16").get_global_rect().position.x < model_rect.end.x:
-		fail("Slot columns are not on opposite sides of the character preview")
-		return
-	if control("TransmogOutfitDropdown").get_global_rect().end.y > model_rect.position.y or control("TransmogApplyButton").get_global_rect().position.y < model_rect.end.y:
-		fail("Outfits/Apply do not bracket the preview vertically")
-		return
-	await save_shot("01-applied.png")
+	var frame := control("TransmogFrame").get_global_rect()
+	if not Rect2(Vector2.ZERO, Vector2(root.size)).encloses(frame):
+		fail("Transmogrify frame %s exceeds the %s viewport" % [frame, root.size])
+		return false
+	var model := control("TransmogCharacterModelScene").get_global_rect()
+	if control("TransmogOutfitEntry2Button").get_global_rect().end.x > model.position.x or control("TransmogSource821").get_global_rect().position.x < model.end.x:
+		fail("Outfits, character preview and collection are not left to right")
+		return false
+	if control("TransmogSlot1").get_global_rect().get_center().x >= control("TransmogSlot10").get_global_rect().get_center().x:
+		fail("Left and right gear columns are swapped")
+		return false
+	if control("TransmogSlot16").get_global_rect().position.y < control("TransmogSlot1").get_global_rect().end.y:
+		fail("Main hand is not in the bottom weapon row")
+		return false
+	return true
+
+func check_preview_controls() -> bool:
 	var preview := preview_model("TransmogCharacterModelScene")
 	var weapon = preview.find_child("EquipmentMainHand", true, false) as Node3D
 	if weapon == null:
 		fail("Preview has no main-hand weapon node")
-		return
+		return false
 	var weapon_pixels := await measure_weapon_pixels(weapon)
 	print("TRANSMOG_WEAPON_PIXELS ", weapon_pixels, " parent=", weapon.get_parent().name, " visible=", weapon.is_visible_in_tree())
 	if weapon_pixels < 25:
 		fail("Main-hand weapon contributes only %d preview pixels" % weapon_pixels)
-		return
-	for source in [821, 1181]:
-		var host := "TransmogSource%dModelScene" % source
-		if not await wait_for(func(_s): return preview_model(host) != null, "3D source%d" % source, 60000):
-			return
-		var actor := preview_model(host)
-		if actor.find_children("*", "MeshInstance3D", true, false).is_empty():
-			fail("Source%d has no 3D meshes" % source)
-			return
-		var pixels := await measure_collection_pixels(source)
-		print("TRANSMOG_COLLECTION_PIXELS source=", source, " pixels=", pixels)
-		if pixels < 5:
-			fail("Source%d model is covered by its state overlay" % source)
-			return
-	print("TRANSMOG_COLLECTION_3D_READY")
+		return false
 	var initial_yaw := preview.rotation.y
 	await click_control(control("TransmogRotateLeft"), MOUSE_BUTTON_LEFT)
 	await frames(2)
 	if is_equal_approx(preview.rotation.y, initial_yaw):
 		fail("Rotate-left did not rotate the detached model")
-		return
-	await click_control(control("TransmogRotateRight"), MOUSE_BUTTON_LEFT)
-	await click_control(control("TransmogSheatheButton"), MOUSE_BUTTON_LEFT)
+		return false
+	await click_control(control("TransmogResetRotation"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogSheatheWeaponToggle"), MOUSE_BUTTON_LEFT)
 	await frames(2)
 	if weapon.get_parent().name == "Attachment1":
 		fail("Sheathe kept main-hand in the palm")
-		return
-	await click_control(control("TransmogSheatheButton"), MOUSE_BUTTON_LEFT)
+		return false
+	await click_control(control("TransmogSheatheWeaponToggle"), MOUSE_BUTTON_LEFT)
 	await frames(2)
 	if weapon.get_parent().name != "Attachment1":
 		fail("Draw did not restore main-hand to the palm")
-		return
+		return false
 	print("TRANSMOG_PREVIEW_CONTROLS_READY")
-	var ui = client.get_node("TransmogUI")
-	await enter_search("Gladius")
+	return true
+
+## Items tab: collected usable sources as 3D cards; the non-collectable source is absent.
+func check_items() -> bool:
+	for source in SOURCES:
+		var host := "TransmogSource%dModelScene" % source
+		if not await wait_for(func(_s): return preview_model(host) != null, "3D source %d" % source, 60000):
+			return false
+		var pixels := await measure_collection_pixels(source)
+		print("TRANSMOG_COLLECTION_PIXELS source=", source, " pixels=", pixels)
+		if pixels < 5:
+			fail("Source %d model is covered by its state overlay" % source)
+			return false
+	if control("TransmogSource%d" % NON_COLLECTABLE) != null:
+		fail("Non-collectable Smotts' Cutlass is listed")
+		return false
+	if not await wait_card_models("TransmogSource*ModelScene"):
+		return false
+	await save_shot("01-items.png")
+	await type_into("TransmogSearchBox", "Gladius")
 	if not await wait_for(func(_s): return control("TransmogSource821") != null and control("TransmogSource1181") == null, "filtered Gladius collection"):
-		return
-	await save_shot("02-search.png")
-	await enter_search("not collected")
+		return false
+	await type_into("TransmogSearchBox", "not collected")
 	if not await wait_for(func(_s): return ui.frame_text("TransmogNoSources") == "No matches.", "no search matches"):
-		return
-	await enter_search("")
+		return false
+	await type_into("TransmogSearchBox", "")
 	if not await wait_for(func(_s): return preview_model("TransmogSource1181ModelScene") != null, "restored collection model", 60000):
-		return
+		return false
 	print("TRANSMOG_SEARCH_AND_MODEL_RESTORE_READY")
-	var before: int = client.merchant_state().money
-	var applied = ui.frame_text("TransmogSource821Status")
-	var next_source := 1181 if applied == "Applied" else 821
-	await click_control(control("TransmogSource%d" % next_source), MOUSE_BUTTON_LEFT)
-	if not await wait_for(func(_s): return ui.frame_text("TransmogSource%dStatus" % next_source) == "Pending", "pending source"):
-		return
-	if await measure_collection_pixels(next_source) < 5:
-		fail("Pending source model is covered by its overlay")
-		return
-	await save_shot("02-pending.png")
-	await click_control(control("TransmogApplyButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_for(func(_s): return ui.frame_text("TransmogSource%dStatus" % next_source) == "Applied" and client.merchant_state().money == before - 1500, "paid authoritative Apply", 30000):
-		return
-	if await measure_collection_pixels(next_source) < 5:
-		fail("Applied source model is covered by its overlay")
-		return
-	await save_shot("03-applied.png")
-	print("TRANSMOG_PAID_APPLY source=", next_source, " gold=", before, "->", client.merchant_state().money)
-	await tap(KEY_ESCAPE)
-	await frames(10)
-	if client.get_node_or_null("TransmogUI") != null:
-		fail("Escape retained the Wardrobe and detached previews")
-		return
-	print("PASS TRANSMOG_WARDROBE_LIVE")
-	client.free()
-	quit(0)
+	return true
+
+## Real Enum.TransmogSource toggles; filtering changes no pending choice or quote.
+func check_filters() -> bool:
+	var source: int = SOURCES[0] if transmog().applied[MAIN_HAND] == SOURCES[1] else SOURCES[1]
+	var other: int = SOURCES[1] if source == SOURCES[0] else SOURCES[0]
+	var filter_type := 3 if source == SOURCES[0] else 4
+	await click_control(control("TransmogSource%d" % source), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().pending == 1, "appearance staged before filtering"):
+		return false
+	var pending_before: int = transmog().pending
+	if not await wait_for(func(_s): return ui.frame_text("TransmogPendingCostAmount0") == "15", "native 15 silver quote"):
+		return false
+	var cost_before: String = ui.frame_text("TransmogPendingCostAmount0")
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogFilterSource4") != null, "Sources menu"):
+		return false
+	await save_shot("11-source-filters.png")
+	# World Drop row crosses the fifth real card; Vendor sits above the model grid.
+	var filter_row := control("TransmogFilterSource4")
+	await hover_point(filter_row.get_global_rect().get_center())
+	var hovered := root.gui_get_hovered_control()
+	print("TRANSMOG_FILTER_HIT target=", filter_row.name, " z=", filter_row.z_index, " hovered=", hovered.name if hovered != null else "none")
+	if hovered != filter_row:
+		fail("Sources popup click hits a collection card instead of its row")
+		return false
+	var click_point := filter_row.get_global_rect().get_center()
+	var covered_card := ""
+	for candidate in ui.find_children("TransmogSource*", "", true, false):
+		if candidate is Control and String(candidate.name).trim_prefix("TransmogSource").is_valid_int() and candidate.get_global_rect().has_point(click_point):
+			covered_card = candidate.name
+	if covered_card == "":
+		fail("Popup click-through witness does not overlap a real source card")
+		return false
+	var applied_before: Dictionary = transmog().applied.duplicate()
+	await click_control(filter_row, MOUSE_BUTTON_LEFT)
+	if transmog().effective[MAIN_HAND] != source or transmog().applied != applied_before or transmog().pending != pending_before:
+		fail("Menu row activated its underlying source card")
+		return false
+	print("TRANSMOG_POPUP_NO_CLICK_THROUGH card=", covered_card, " effective_main_hand=", transmog().effective[MAIN_HAND], " staged=", source)
+	if filter_type != 4:
+		await click_control(control("TransmogFilterSource4"), MOUSE_BUTTON_LEFT)
+		await click_control(control("TransmogFilterSource%d" % filter_type), MOUSE_BUTTON_LEFT)
+	print("TRANSMOG_FILTER_TOGGLE ", ui.frame_text("TransmogFilterSource%dText" % filter_type))
+	if not await wait_for(func(_s): return control("TransmogSource%d" % source) == null and control("TransmogSource%d" % other) != null, "pending source filtered out"):
+		return false
+	if transmog().effective[MAIN_HAND] != source or transmog().pending != pending_before or ui.frame_text("TransmogPendingCostAmount0") != cost_before:
+		fail("Sources filter changed staged appearances or quote")
+		return false
+	if transmog().applied != applied_before:
+		fail("Menu click activated the card under the popup")
+		return false
+	print("TRANSMOG_POPUP_NO_CLICK_THROUGH card=", covered_card, " effective_main_hand=", transmog().effective[MAIN_HAND], " staged=", source)
+	await click_control(control("TransmogFilterNone"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogSource821") == null and ui.frame_text("TransmogNoSources") == "No matches.", "Uncheck All"):
+		return false
+	await click_control(control("TransmogFilterAll"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_card_models("TransmogSource*ModelScene"):
+		return false
+	await hover_point(control("TransmogSource821").get_global_rect().get_center())
+	var hovered_pixels := await measure_collection_pixels(821)
+	if hovered_pixels < 5:
+		fail("Item hover border covered its model")
+		return false
+	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == "Gladius" and client.tooltip_state().lines.size() > 0, "source tooltip content", 10000):
+		print("TRANSMOG_TOOLTIP ", client.tooltip_state())
+		return false
+	print("TRANSMOG_SOURCE_TOOLTIP ", client.tooltip_state())
+	await save_shot("12-source-hover.png")
+	await hover_point(Vector2(5, 5))
+	if transmog().pending > 0:
+		await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
+	print("TRANSMOG_FILTERS_READY pending=", pending_before, " cost=", cost_before, " hover_pixels=", hovered_pixels)
+	return await wait_for(func(_s): return transmog().pending == 0, "filtered staging cleared")
+
+## Save Outfit (CommitAndApplyAllPending): paid ApplyTransmog, then the outfit commit
+## with its weapon illusion. Each outfit gets a different appearance and illusion.
+func check_outfits() -> bool:
+	if not await save_outfit(OUTFITS[0], [], "02-outfit1-pending.png", "03-outfit1-saved.png"):
+		return false
+	return await save_outfit(OUTFITS[1], [saved[OUTFITS[0]].illusion], "", "04-outfit2-saved.png")
+
+func save_outfit(outfit: int, avoid: Array, pending_shot: String, saved_shot: String) -> bool:
+	if not await view_outfit(outfit):
+		return false
+	var state := transmog()
+	var applied: int = state.applied[MAIN_HAND]
+	var source: int = SOURCES[1] if applied == SOURCES[0] else SOURCES[0]
+	var illusion := 0
+	for candidate in ILLUSIONS:
+		if candidate != state.illusions.get(MAIN_HAND, 0) and not avoid.has(candidate):
+			illusion = candidate
+			break
+	await click_control(control("TransmogSlot16"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogSource%d" % source) != null, "main-hand source %d" % source):
+		return false
+	await click_control(control("TransmogSource%d" % source), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == source, "pending source %d" % source):
+		return false
+	await click_control(control("TransmogIllusion16"), MOUSE_BUTTON_LEFT)
+	var entry := "TransmogIllusionEntry%d" % illusion
+	if not await wait_for(func(_s): return control(entry) != null and preview_model(entry + "ModelScene") != null, "illusion %d card" % illusion, 60000):
+		return false
+	await click_control(control(entry), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().illusions.get(MAIN_HAND, 0) == illusion and transmog().pending == 2, "pending illusion %d" % illusion):
+		return false
+	# ItemModelBaseMixin:OnEnter: illusion cards name the illusion in GameTooltip.
+	var illusion_name: String = ui.frame_text(entry + "Name")
+	await hover_point(control(entry).get_global_rect().get_center())
+	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == illusion_name, "illusion %s tooltip" % illusion_name, 10000):
+		print("TRANSMOG_TOOLTIP ", client.tooltip_state())
+		return false
+	if not await wait_card_models("TransmogIllusionEntry*ModelScene"):
+		return false
+	if pending_shot != "":
+		await save_shot(pending_shot)
+	var before: int = transmog().money
+	print("TRANSMOG_PAID_STAGE skin=", OS.get_environment("TRANSMOG_SKIN"), " source=", source, " effective_main_hand=", transmog().effective[MAIN_HAND], " applied_main_hand=", transmog().applied[MAIN_HAND], " money=", before, " quote=", APPLY_COST)
+	await click_control(control("TransmogSaveOutfitButton"), MOUSE_BUTTON_LEFT)
+	print("TRANSMOG_PAID_APPLY_SENT source=", source)
+	var committed := func(_s):
+		var now := transmog()
+		return not now.busy and now.pending == 0 and now.money == before - APPLY_COST and now.applied[MAIN_HAND] == source and now.illusions.get(MAIN_HAND, 0) == illusion and now.error == ""
+	if not await wait_for(committed, "paid Apply and outfit %d commit" % outfit, 30000):
+		print("TRANSMOG_STATE ", transmog())
+		return false
+	saved[outfit] = {"source": source, "illusion": illusion}
+	if not await wait_card_models("TransmogIllusionEntry*ModelScene"):
+		return false
+	await save_shot(saved_shot)
+	print("TRANSMOG_OUTFIT_SAVED outfit=", outfit, " source=", source, " illusion=", illusion, " gold=", before, "->", transmog().money)
+	return true
+
+func view_outfit(outfit: int) -> bool:
+	await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().viewed_outfit == outfit, "viewed outfit %d" % outfit):
+		return false
+	if transmog().pending > 0:
+		await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
+		if not await wait_for(func(_s): return transmog().pending == 0, "cleared pending outfit changes"):
+			return false
+	return true
+
+## ChangeViewedOutfit: Outfit 1's saved appearance becomes pending against the applied
+## Outfit 2 appearance, and its saved illusion is shown.
+func check_outfit_load() -> bool:
+	var outfit: int = OUTFITS[0]
+	var expected: Dictionary = saved[outfit]
+	await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_LEFT)
+	var loaded := func(_s):
+		var now := transmog()
+		return now.viewed_outfit == outfit and now.effective[MAIN_HAND] == expected.source and now.applied[MAIN_HAND] != expected.source and now.illusions.get(MAIN_HAND, 0) == expected.illusion and now.pending == 1
+	if not await wait_for(loaded, "loaded outfit %d" % outfit):
+		print("TRANSMOG_STATE ", transmog())
+		return false
+	if not await wait_card_models("TransmogIllusionEntry*ModelScene"):
+		return false
+	await save_shot("05-outfit-load.png")
+	print("TRANSMOG_OUTFIT_LOADED outfit=", outfit, " ", transmog().outfits)
+	await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
+	return await wait_for(func(_s): return transmog().pending == 0, "cleared loaded outfit")
+
+## Sets tab: the started set with collected and uncollected primary appearances.
+func check_sets() -> bool:
+	await click_control(control("TransmogSetsTab"), MOUSE_BUTTON_LEFT)
+	var card := "TransmogSet%d" % SET_ID
+	if not await wait_for(func(_s): return control(card) != null and preview_model(card + "ModelScene") != null, "set %d card" % SET_ID, 60000):
+		print("TRANSMOG_STATE ", transmog())
+		return false
+	var progress: String = transmog().sets[SET_ID]
+	print("TRANSMOG_SET ", progress, " status=", ui.frame_text(card + "Status"))
+	if not ui.frame_text(card + "Status").begins_with("Incomplete"):
+		fail("Set %d is not shown incomplete: %s" % [SET_ID, progress])
+		return false
+	if not await wait_card_models("TransmogSet*ModelScene"):
+		return false
+	await save_shot("06-sets.png")
+	await hover_point(control(card).get_global_rect().get_center())
+	if not await wait_for(func(_s): return client.tooltip_state().visible and client.tooltip_state().title == SET_NAME, "set tooltip", 10000):
+		print("TRANSMOG_TOOLTIP ", client.tooltip_state())
+		return false
+	var tooltip: Dictionary = client.tooltip_state()
+	if tooltip.lines.size() != 8:
+		fail("Might tooltip must list all eight primary pieces: " + str(tooltip))
+		return false
+	for line in tooltip.lines:
+		if String(line).split("|")[0].is_empty():
+			fail("Set tooltip has an empty primary-piece name")
+			return false
+	print("TRANSMOG_SET_TOOLTIP_CONTENT ", tooltip)
+	await save_shot("07-set-tooltip.png")
+	await hover_point(Vector2(5, 5))
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogFilterUncollected") != null, "Set completion menu"):
+		return false
+	await click_control(control("TransmogFilterUncollected"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control(card) == null and control("TransmogFilterButton") != null, "incomplete set excluded, filter retained"):
+		return false
+	await save_shot("13-set-filters.png")
+	await click_control(control("TransmogFilterUncollected"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return preview_model(card + "ModelScene") != null, "incomplete set restored", 60000):
+		return false
+	print("TRANSMOG_SET_FILTERS_READY")
+	var before := transmog()
+	await click_control(control(card), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().pending > 0, "collected set pieces staged"):
+		return false
+	var staged := transmog()
+	if staged.money != before.money or staged.applied != before.applied:
+		fail("Trying a set charged money or changed equipped appearances")
+		return false
+	await save_shot("14-set-staged.png")
+	print("TRANSMOG_SET_STAGED pending=", staged.pending)
+	await click_control(control("TransmogClearAllPendingButton"), MOUSE_BUTTON_LEFT)
+	return await wait_for(func(_s): return transmog().pending == 0, "set staging cleared")
+
+## Custom Sets tab: New Custom Set names the current appearances (TRANSMOG_CUSTOM_SET_NAME).
+func check_custom_sets() -> bool:
+	await click_control(control("TransmogCustomSetsTab"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogNewCustomSetButton") != null, "Custom Sets tab"):
+		return false
+	var before: Dictionary = transmog().custom_sets
+	if before.is_empty():
+		if ui.frame_text("TransmogCustomSetsNone") != "You don't have any Custom Sets":
+			fail("Empty Custom Sets tab lacks TRANSMOG_CUSTOM_SETS_NONE")
+			return false
+		await save_shot("08-custom-sets-empty.png")
+	if before.size() <= 9:
+		fail("Native Custom Sets paging needs more than nine real account presets")
+		return false
+	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
+	await save_shot("16-custom-page1.png")
+	await click_control(control("TransmogNextPage"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return ui.frame_text("TransmogPage").begins_with("2 /"), "Custom Sets page2"):
+		return false
+	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
+	await save_shot("17-custom-page2.png")
+	print("TRANSMOG_CUSTOM_BOTH_PAGES skin=", OS.get_environment("TRANSMOG_SKIN"), " count=", before.size())
+	await click_control(control("TransmogPreviousPage"), MOUSE_BUTTON_LEFT)
+	var name := "Z " + OS.get_environment("TRANSMOG_SKIN") + " Blade"
+	await click_control(control("TransmogNewCustomSetButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return control("TransmogNamePopupEditBox") != null, "custom set name popup"):
+		return false
+	await type_into("TransmogNamePopupEditBox", name)
+	await save_shot("09-custom-set-name.png")
+	await click_control(control("TransmogNamePopupButton1"), MOUSE_BUTTON_LEFT)
+	var created := func(_s):
+		var now := transmog()
+		return not now.busy and now.custom_sets.size() == before.size() + 1 and now.custom_sets.values().has(name)
+	if not await wait_for(created, "custom set " + name, 30000):
+		print("TRANSMOG_STATE ", transmog())
+		return false
+	var id := -1
+	for key in transmog().custom_sets:
+		if not before.has(key):
+			id = key
+	var card := "TransmogCustomSet%d" % id
+	if not await show_custom_set(id):
+		return false
+	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
+	# The set's saved main-hand appearance is drawn in the card model's hand.
+	var blade = preview_model(card + "ModelScene").find_child("EquipmentMainHand", true, false) as Node3D
+	if blade == null or blade.get_parent().name != "Attachment1":
+		fail("Custom set card does not hold its main-hand appearance")
+		return false
+	var blade_pixels := await card_node_pixels(card + "ModelScene", blade)
+	print("TRANSMOG_CUSTOM_SET_BLADE_PIXELS ", blade_pixels)
+	if blade_pixels < 20:
+		fail("Custom set card blade contributes only %d pixels" % blade_pixels)
+		return false
+	await save_shot("10-custom-set-saved.png")
+	print("TRANSMOG_CUSTOM_SET id=", id, " name=", name)
+	var source: int = transmog().effective[MAIN_HAND]
+	var money: int = transmog().money
+	await click_control(control("TransmogSlot16"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogDisplayTypeEquipped"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == 0 and transmog().pending == 1, "equipped appearance staged"):
+		return false
+	await click_control(control("TransmogCustomSetsTab"), MOUSE_BUTTON_LEFT)
+	if not await show_custom_set(id):
+		return false
+	await click_control(control(card), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == source and transmog().pending == 0 and transmog().money == money, "Custom Set loaded without applying or charging"):
+		return false
+	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
+	await save_shot("15-custom-set-loaded.png")
+	print("TRANSMOG_CUSTOM_SET_LOADED id=", id)
+	return true
+
+## RefreshCollectionEntries retains the current page and sorts presets by name.
+## An account with more than nine presets requires real Next Page input, not a reset.
+func show_custom_set(id: int) -> bool:
+	var card := "TransmogCustomSet%d" % id
+	var pages := ceili(transmog().custom_sets.size() / 9.0)
+	for page in pages:
+		if control(card) != null:
+			print("TRANSMOG_CUSTOM_SET_PAGE id=", id, " page=", page + 1)
+			return await wait_for(func(_s): return preview_model(card + "ModelScene") != null, "custom set card", 60000)
+		var next := control("TransmogNextPage") as BaseButton
+		if next == null or next.disabled:
+			break
+		await click_control(next, MOUSE_BUTTON_LEFT)
+		await frames(5)
+	fail("Saved Custom Set %d absent from its %d pages" % [id, pages])
+	return false
+
+func transmog() -> Dictionary:
+	return client.transmog_state()
+
+## Every card on the page shows its 3D preview, so captures never show loading cells.
+func wait_card_models(pattern: String) -> bool:
+	if await wait_for(func(_s): return card_models_ready(pattern), "card models " + pattern, 60000):
+		await frames(10)
+		return true
+	return false
+
+## Pixels of one card viewport that change when `node` is hidden, animation paused.
+func card_node_pixels(host_name: String, node: Node3D) -> int:
+	var viewport := control(host_name).find_child("CharacterModelViewport", true, false) as SubViewport
+	var animation = preview_model(host_name).find_child("M2Animation", true, false)
+	if animation != null:
+		animation.set_paused(true)
+		animation.set_process(false)
+	node.visible = false
+	await frames(2)
+	var hidden := viewport.get_texture().get_image()
+	node.visible = true
+	await frames(2)
+	var shown := viewport.get_texture().get_image()
+	if animation != null:
+		animation.set_process(true)
+		animation.set_paused(false)
+	return changed_pixels(hidden, shown)
+
+func card_models_ready(pattern: String) -> bool:
+	var hosts := ui.find_children(pattern, "", true, false)
+	if hosts.is_empty():
+		return false
+	for host in hosts:
+		if preview_model(host.name) == null:
+			return false
+	return true
 
 func measure_collection_pixels(source: int) -> int:
 	var host_name := "TransmogSource%dModelScene" % source
@@ -170,8 +613,8 @@ func measure_collection_pixels(source: int) -> int:
 	print("TRANSMOG_COLLECTION_REGION ", source, " ", region, " image=", hidden.get_size())
 	return changed_pixels(hidden.get_region(region), visible.get_region(region))
 
-func enter_search(value: String) -> void:
-	await click_control(control("TransmogSearchBox"), MOUSE_BUTTON_LEFT)
+func type_into(field: String, value: String) -> void:
+	await click_control(control(field), MOUSE_BUTTON_LEFT)
 	var select_all := InputEventKey.new()
 	select_all.keycode = KEY_A
 	select_all.physical_keycode = KEY_A

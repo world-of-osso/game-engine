@@ -125,3 +125,21 @@ fn zone_art_tiles_are_trimmed_to_the_layer() {
         150
     );
 }
+
+#[test]
+fn housing_dedicated_map_follows_assignment_relation_not_names_or_edit_bounds() {
+    let maps = catalog();
+    assert_eq!(maps.map_for_system(2735, 2).unwrap(), Some(2401));
+    assert_eq!(maps.map_for_system(2736, 2).unwrap(), Some(2402));
+    assert_eq!(maps.map_for_system(999999, 2).unwrap(), None);
+    // Independent UiMapAssignment68589 and NeighborhoodPlot417 source coordinates.
+    let actual = maps
+        .map_position(2401, 2735, [2942.743896484375, -214.265625, 113.112846])
+        .unwrap();
+    let expected = [
+        (2935.419921875 + 214.265625) / (2935.419921875 + 2454.169921875),
+        (4762.5 - 2942.743896484375) / (4762.5 - 1168.75),
+    ];
+    assert!(close(actual, expected));
+    assert!(!maps.art(2401).unwrap().placed_tiles().is_empty());
+}

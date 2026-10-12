@@ -1,7 +1,8 @@
-extends "res://tests/world_auction_flow.gd"
+extends SceneTree
 
 # Private-server native-input proof driver. No fabricated queue or match state.
 var directory := ""
+var client: Node
 func _initialize() -> void:
 	Engine.max_fps = 20
 	call_deferred("live_run")
@@ -26,14 +27,33 @@ func live_run() -> void:
 		last = input
 		var command: Dictionary = JSON.parse_string(input)
 		var result: Dictionary = {"id": command.id}
+		var finish := false
 		match command.action:
 			"snapshot":
+				var hovered := root.gui_get_hovered_control()
+				result.pointer_hover = str(hovered.get_path()) if hovered != null else ""
+				result.client_processing = client.is_processing()
+				result.gui_input_disabled = root.gui_disable_input
+				result.mouse_mode = Input.mouse_mode
+				result.window_visible = root.visible
+				result.startup_args = OS.get_cmdline_user_args()
 				result.account = client.account_state()
 				result.controls = []
 				for node in root.find_children("*", "Control", true, false):
 					if node.is_visible_in_tree():
 						var rect: Rect2 = node.get_global_rect()
 						result.controls.append({"name": str(node.name), "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "text": str(node.text) if node is Label or node is Button else ""})
+			"units":
+				result.units = []
+				var units := root.find_child("WorldUnits", true, false)
+				if units != null:
+					for unit in units.get_children():
+						if unit is Node3D and unit.has_meta("unit_name"):
+							var position: Vector3 = unit.global_position
+							var model := unit.find_child("NpcModel", true, false) as Node3D
+							var model_path := str(model.get_meta("m2_source_path", "")) if model != null else ""
+							var model_visible := model != null and model.is_visible_in_tree()
+							result.units.append({"name": str(unit.get_meta("unit_name")), "path": str(unit.get_path()), "position": [position.x, position.y, position.z], "model_path": model_path, "model_visible": model_visible})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
@@ -43,13 +63,58 @@ func live_run() -> void:
 				if target == null or not target.is_visible_in_tree():
 					result.error = "Missing visible native control: " + str(command.name)
 				else:
+					result.target = str(target.get_path())
+					result.mouse_filter = target.mouse_filter
+					result.target_viewport = str(target.get_viewport().get_path())
 					await pointer(target.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+					result.input_handled = root.is_input_handled()
 			"key":
 				await tap(int(command.key))
 			"quit":
 				client.free()
-				quit(0)
+				finish = true
 		await frames(3)
 		var response := FileAccess.open(directory.path_join("response.json"), FileAccess.WRITE)
 		response.store_string(JSON.stringify(result))
 		response.close()
+		if finish:
+			quit(0)
+			return
+
+func pointer(point: Vector2, button: MouseButton) -> void:
+	# A private headless compositor has no physical pointer-enter event.
+	# Viewport requires this notification before synthetic mouse input reaches GUI controls.
+	root.notify_mouse_entered()
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	await process_frame
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.button_mask = (1 << (button - 1)) if pressed else 0
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(3)
+
+func tap(key: Key) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = key
+		event.physical_keycode = key
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(3)
+
+func frames(count: int) -> void:
+	for _frame in range(count):
+		await process_frame
+
+func fail(message: String) -> void:
+	push_error("FIXTURE BATTLEGROUND: " + message)
+	quit(1)

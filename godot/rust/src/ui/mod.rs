@@ -709,6 +709,7 @@ impl ICanvasLayer for RegistryUi {
         if let Err(error) = projection.draw_arrived_textures(&mut model.registry) {
             crate::frame_error::report_once(&format!("UI textures: {error}"));
         }
+        projection.advance_assisted_highlights(delta, &model.registry);
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
@@ -1106,6 +1107,19 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub(crate) fn show_housing(
+        &mut self,
+        view: game_engine_ui_model::housing_component::HousingView,
+    ) -> Result<(), String> {
+        self.show_quest_window(
+            view,
+            game_engine_ui_model::housing_component::housing_screen,
+        )?;
+        self.enable_cursor_inputs();
+        self.toplevel = true;
+        Ok(())
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
     pub fn show_main_action_bar(&mut self, state: MainActionBarState) -> Result<(), String> {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
@@ -1446,6 +1460,31 @@ impl RegistryUi {
         // `toplevel="true"`.
         self.toplevel = true;
         self.show_viewport_screen_in(state, build, ScreenPostsetup::None, registry, parent)
+    }
+
+    /// The Retail TransmogFrame and its TRANSMOG_CUSTOM_SET_NAME StaticPopup.
+    pub(crate) fn show_transmog(
+        &mut self,
+        view: game_engine_ui_model::transmog_frame::TransmogView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            view,
+            game_engine_ui_model::transmog_frame::transmog_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
     }
 
     /// Initialize a dedicated RegistryUi instance for the MerchantFrame, backpack and
