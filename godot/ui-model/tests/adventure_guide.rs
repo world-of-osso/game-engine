@@ -150,6 +150,75 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
 }
 
 #[test]
+fn set_tooltip_uses_authentic_members_thresholds_and_inactive_legacy_flag() {
+    use game_engine_ui_model::{
+        adventure_guide_tooltip::set_lines,
+        bag_data::{InventorySlot, InventoryState},
+    };
+    use shared::protocol::EquipmentSlot;
+    let mut view = journal();
+    view.spec = 70;
+    let set = view.catalog.sets.iter().find(|set| set.id == 900).unwrap();
+    let mut inventory = InventoryState::default();
+    let missing_descriptions = std::collections::BTreeMap::new();
+    let lines = set_lines(&view, set, &inventory, &missing_descriptions);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text == "Lightsworn Battlegear (0/5)")
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text == "Legacy Set: Bonus is inactive")
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text.contains("(2) Set:") && line.left_text.contains("70765"))
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text.contains("(4) Set:") && line.left_text.contains("70762"))
+    );
+    for (slot, id) in [
+        (EquipmentSlot::Chest, 51717),
+        (EquipmentSlot::Hands, 51718),
+        (EquipmentSlot::Head, 51719),
+        (EquipmentSlot::Legs, 51720),
+        (EquipmentSlot::Shoulder, 51721),
+    ] {
+        inventory.equipment.insert(
+            slot,
+            InventorySlot {
+                item_id: id,
+                count: 1,
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
+                ..Default::default()
+            },
+        );
+    }
+    let lines = set_lines(&view, set, &inventory, &missing_descriptions);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text == "Lightsworn Battlegear (5/5)")
+    );
+    assert!(
+        lines
+            .iter()
+            .filter(|line| line.left_text.contains(" Set:"))
+            .all(|line| line.left_color == [0.5, 0.5, 0.5, 1.])
+    );
+    assert!(
+        lines.iter().any(
+            |line| line.left_text == "Lightsworn Helmet" && line.left_color == [1., 1., 1., 1.]
+        )
+    );
+}
+
+#[test]
 fn pending_guide_shows_loading_without_catalog_choices() {
     let mut view = journal();
     view.visible = true;
