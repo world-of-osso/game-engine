@@ -63,6 +63,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<Mounted>(),
         Codec::of::<shared::components::VehiclePassenger>(),
         Codec::of::<MovementControl>(),
+        Codec::of::<shared::components::ForcedFacing>(),
         Codec::of::<WorldArrival>(),
         Codec::of::<Zone>(),
         Codec::of::<GuildMembership>(),
