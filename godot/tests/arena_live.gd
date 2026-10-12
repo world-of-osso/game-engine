@@ -31,6 +31,7 @@ func live_run() -> void:
 		match command.action:
 			"snapshot":
 				result.account = client.account_state()
+				result.target = client.target_state()
 				result.controls = []
 				for node in root.find_children("*", "Control", true, false):
 					if node.is_visible_in_tree():
