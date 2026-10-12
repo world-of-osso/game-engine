@@ -6,7 +6,11 @@ use std::{
     sync::{Arc, LazyLock, Mutex},
 };
 
-use game_engine_core::{blp, creature_display_data::CreatureDisplay, m2};
+use game_engine_core::{
+    blp,
+    creature_display_data::{CreatureDisplay, display_geoset_visible},
+    m2,
+};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
@@ -24,6 +28,8 @@ use crate::equipment_appearance_data::{RuntimeModelAppearance, model_attachment_
 pub(crate) struct CreatureGear {
     /// Armor item models, at their slots' default attachments.
     pub(crate) armor_models: Vec<RuntimeModelAppearance>,
+    /// Raw CDI geoset rows for a CMD-declared ordinary model; no character profile.
+    pub(crate) extra_geosets: Option<Vec<(u16, u16)>>,
     /// Virtual item models, each with the attachment its sheath state places it on
     /// (`None`: not shown).
     pub(crate) items: Vec<(RuntimeModelAppearance, Option<u32>)>,
@@ -78,6 +84,9 @@ pub(crate) fn build_creature_model(
     let parsed = &model.model;
     let path = GString::from(model.path.to_string_lossy().as_ref());
     let (mut model, missing) = build_model(parsed, &path, &display.skin_fdids, appearance)?;
+    if let Some(geosets) = &gear.extra_geosets {
+        apply_display_geosets(&mut model, geosets);
+    }
     let items = held_items(&model, &resolver, &gear.items);
     let models: Vec<_> = gear
         .armor_models
@@ -103,6 +112,19 @@ pub(crate) fn build_creature_model(
         }
     }
     Ok((model, missing))
+}
+
+/// Apply only to this model's own batches, before adding armor or virtual-item children.
+fn apply_display_geosets(model: &mut Gd<Node3D>, geosets: &[(u16, u16)]) {
+    for child in model.get_children().iter_shared() {
+        let Ok(mut mesh) = child.try_cast::<godot::classes::MeshInstance3D>() else {
+            continue;
+        };
+        let part = mesh.get_meta(super::M2_MESH_PART_META).to::<i64>();
+        let part = u16::try_from(part).expect("M2 batch mesh part is a u16");
+        let visible = display_geoset_visible(part, mesh.is_visible(), geosets);
+        mesh.set_visible(visible);
+    }
 }
 
 /// The virtual items `model` can hold: it has the attachment of the item's slot
@@ -438,6 +460,7 @@ mod tests {
         let display = CreatureDisplay {
             source_product: game_engine_core::asset_product::AssetProduct::Retail,
             model_fdid: 126278,
+            uses_display_geosets: false,
             skin_fdids: [126280, 0, 0, 0],
             scale_milli: 1000,
             pet_instance_scale_milli: 1000,
@@ -487,6 +510,7 @@ mod tests {
         let display = CreatureDisplay {
             source_product: game_engine_core::asset_product::AssetProduct::Retail,
             model_fdid: 1011653,
+            uses_display_geosets: false,
             skin_fdids: [0; 4],
             scale_milli: 1000,
             pet_instance_scale_milli: 1000,
