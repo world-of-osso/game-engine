@@ -14,13 +14,21 @@ ASSETS = Path(__file__).resolve().parents[2] / "data/diagnostics/cooldown-assist
 
 
 class CooldownAssistExportTests(unittest.TestCase):
-    def export(self, table, fdid):
+    def export(self, table, fdid, assets=ASSETS):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "table.csv"
-            with patch("sys.argv", [str(SCRIPT), table, str(ASSETS / f"{fdid}.db2"), str(output)]):
+            with patch("sys.argv", [str(SCRIPT), table, str(assets / f"{fdid}.db2"), str(output)]):
                 EXPORT.main()
             with output.open() as stream:
                 return list(csv.DictReader(stream))
+
+    def test_cooldown_modifier_tree_uses_real_known_spell_and_aura_gates(self):
+        rows = self.export("ModifierTree", 1267645, ASSETS.parent / "cooldown-assist3-2026-10-12/assets")
+        by_id = {int(row["ID"]): row for row in rows}
+        self.assertEqual(len(rows), 315726)
+        self.assertEqual(by_id[455815], {"ID": "455815", "Parent": "0", "Operator": "8", "Amount": "1", "Type": "0", "Asset": "0", "SecondaryAsset": "0", "TertiaryAsset": "0"})
+        self.assertEqual((by_id[455816]["Parent"], by_id[455816]["Type"], by_id[455816]["Asset"]), ("455815", "104", "228920"))
+        self.assertEqual((by_id[459007]["Operator"], by_id[459007]["Asset"]), ("3", "386763"))
 
     def test_authored_spec_categories_and_order(self):
         sets = self.export("CooldownSet", 6405756)
