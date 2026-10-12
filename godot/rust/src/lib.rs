@@ -1099,6 +1099,12 @@ impl GameClient {
         self.character_frame_snapshot()
     }
 
+    /// Read-only Transmogrifier book state for automation; requests come from frame input.
+    #[func]
+    fn transmog_state(&self) -> VarDictionary {
+        self.transmog_snapshot()
+    }
+
     #[func]
     fn auction_state(&self) -> VarDictionary {
         self.auction_snapshot()

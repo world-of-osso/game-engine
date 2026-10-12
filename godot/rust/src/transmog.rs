@@ -25,6 +25,14 @@ use shared::protocol::{
 const CHARACTER_VIEW_YAW: f32 = std::f32::consts::FRAC_PI_4;
 const ROTATE_STEP: f32 = std::f32::consts::FRAC_PI_8;
 
+fn choice_id(choice: TransmogChoice) -> i64 {
+    match choice {
+        TransmogChoice::Original => 0,
+        TransmogChoice::Hidden => -1,
+        TransmogChoice::Source(id) => i64::from(id),
+    }
+}
+
 fn transmog_sheath(sheathed: bool) -> SheathState {
     if sheathed {
         SheathState::Unarmed
@@ -104,6 +112,54 @@ impl GameClient {
             self.account.send_transmog_query(state.npc)?;
         }
         Ok(())
+    }
+
+    pub(super) fn transmog_snapshot(&self) -> VarDictionary {
+        let book = &self.transmog.book;
+        let mut state = VarDictionary::new();
+        state.set("open", book.state.is_some());
+        state.set("tab", format!("{:?}", book.tab).as_str());
+        state.set("money", book.money as i64);
+        state.set("pending", book.pending_count() as i64);
+        state.set("busy", book.busy());
+        state.set("error", book.error.as_str());
+        state.set("viewed_outfit", book.viewed_outfit.map_or(-1, i64::from));
+        let mut outfits = VarDictionary::new();
+        for row in book.outfit_rows() {
+            outfits.set(i64::from(row.id), row.name.as_str());
+        }
+        state.set("outfits", &outfits);
+        let mut sets = VarDictionary::new();
+        for (set, progress) in book.available_sets() {
+            sets.set(
+                i64::from(set.set_id),
+                format!("{} {}/{}", set.name, progress.collected, progress.total).as_str(),
+            );
+        }
+        state.set("sets", &sets);
+        let mut custom = VarDictionary::new();
+        for set in book.custom_sets() {
+            custom.set(set.id as i64, set.name.as_str());
+        }
+        state.set("custom_sets", &custom);
+        let mut illusions = VarDictionary::new();
+        // Source ID, 0 for the equipped item's own appearance, -1 for hidden.
+        let mut applied = VarDictionary::new();
+        let mut effective = VarDictionary::new();
+        if let Some(state) = &book.state {
+            for slot in &state.slots {
+                let inv = i64::from(slot.slot.inv_slot_id());
+                if let Some(id) = book.effective_illusion(slot.slot) {
+                    illusions.set(inv, i64::from(id));
+                }
+                applied.set(inv, choice_id(slot.applied));
+                effective.set(inv, choice_id(book.effective_choice(slot)));
+            }
+        }
+        state.set("illusions", &illusions);
+        state.set("applied", &applied);
+        state.set("effective", &effective);
+        state
     }
 
     pub(super) fn transmog_closed_for(&mut self, npc: u64) {
