@@ -10,7 +10,7 @@ func proof_cases() -> Array:
 func prove_toy(sample: Array) -> void:
 	if int(sample[0]) == 67097:
 		if not await wait_until(func(): return client.spells_state().known.has(2538) and bag_count(2672) > 0, "owned cooking setup", 120000): return
-		var errors := client.spells_state().errors.size()
+		var errors: int = client.spells_state().errors.size()
 		var meat := bag_count(2672)
 		var food := bag_count(2679)
 		if client.use_spell(2538) != "": fail("native cooking request unavailable"); return
