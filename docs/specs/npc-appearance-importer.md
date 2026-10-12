@@ -46,6 +46,12 @@ Local-only Python stdlib importer in `scripts/import_npc_appearance.py`. Produce
 - [x] Remaining-type audit (verified: 2026-10-07): raw local-CASC Extra/options/geosets joined to every world spawn display; no omitted compositor profile can consume the remaining types. Ordinary displays correctly have no Extra profile. Type5's fourth creature variation was lost in the separate native creature-display catalog importer, now retained/re-imported with all prior fields unchanged. Types21/22's second raw profile91615 is outside the current appearance cache but neither Void Elf M2 consumes them. This is texture-consumer classification, not a full-world appearance import or sweep. [Per-type audit/proof](npc-appearance.md#remaining-type-world-audit-and-proof-2026-10-07).
 - [x] Full-catalog blocker resolved: material `444164` (display `85531`) resolves to texture `1984904` from the local enUS `TextureFileData`.
 
+## Whole-world appearance resolution gate
+
+`--world-db` roots include hosted continents and every instance map, all template alternatives (including zero-weight/inactive references) and explicit spawn modelid. Census reports source absence separately from actual selectable models. Before/after evidence distinguishes imported coverage, source-authenticated asset bytes and native rendering; file presence alone is never a rendered claim.
+
+The opt-in core test `full_world_named_bosses_resolve_profiles_displays_and_required_asset_receipts` reads prepared read-only caches through production queries. Concrete roots: Cobrahn4213/Extra2462/NightElf male/bake1060054 and hair1029851; ordinary Skum4203/model1625963/variation1626025; Onyxia8570/model123465; Lucifron13031/nested texture147868; high-spawn22132/model125876. `NPC_APPEARANCE_ACCEPTANCE_DATA` selects an immutable before or after data root. Native both-skin acceptance remains a separate gate.
+
 ## Out of scope
 
 Renderer changes, native/runtime execution, network extraction, general-purpose DB2 decoding, and automatic replacement of production caches.
