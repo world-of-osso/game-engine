@@ -15,7 +15,7 @@ ASSETS = Path(__file__).resolve().parents[2] / "data/diagnostics/cooldown-assist
 
 class CooldownAssistExportTests(unittest.TestCase):
     def export(self, table, fdid, assets=ASSETS):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(dir=ASSETS.parent) as tmp:
             output = Path(tmp) / "table.csv"
             with patch("sys.argv", [str(SCRIPT), table, str(assets / f"{fdid}.db2"), str(output)]):
                 EXPORT.main()
