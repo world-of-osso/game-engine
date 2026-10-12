@@ -24,6 +24,20 @@ fn housing_navigation_requests_authored_neighborhoods_without_claiming_property(
 }
 
 #[test]
+fn housing_home_navigation_requests_house_identity_without_component_grants() {
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    assert_eq!(
+        model.navigation_request("housing:home:41").unwrap(),
+        Some(shared::protocol::HousingCommand::EnterHouse { house_id: 41 })
+    );
+    assert_eq!(
+        model.navigation_request("housing:leave").unwrap(),
+        Some(shared::protocol::HousingCommand::LeaveHouse)
+    );
+    assert!(model.navigation_request("housing:home:invalid").is_err());
+}
+
+#[test]
 fn housing_storage_stays_unknown_until_a_qualified_snapshot_and_clears_on_logout() {
     use shared::protocol::{HousingReply, HousingState, StoredDecor};
     let mut authority = HousingAuthority::default();
