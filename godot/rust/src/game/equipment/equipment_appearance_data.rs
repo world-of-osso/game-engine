@@ -827,6 +827,16 @@ mod tests {
     }
 
     #[test]
+    fn owned_retail_native_zero_display_keeps_slot_without_drawing_equipment() {
+        let result = resolve(vec![entry(EquipmentVisualSlot::Head, 133_320)]);
+        assert!(result.explicit_slots.contains(&EquipmentVisualSlot::Head));
+        assert!(result.runtime_models.is_empty());
+        assert!(result.outfit.item_textures.is_empty());
+        assert!(result.outfit.geoset_overrides.is_empty());
+        assert!(result.hidden_character_geoset_ids.is_empty());
+    }
+
+    #[test]
     fn baked_appearance_ailee_keeps_boot_geosets_without_unused_body_overlay() {
         let data = data_dir();
         let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
