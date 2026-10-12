@@ -27,7 +27,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "character select", 120000): return
 	await click("CharCard_" + OS.get_environment("MOUNT_CHARACTER_INDEX"))
 	await click("EnterWorld")
-	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0 and control("CollectionsMicroButton") != null, "world/catalog", 180000): return
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0 and control("MinimapLauncherButton") != null, "world/catalog", 180000): return
 	var ready := FileAccess.open(OS.get_environment("MOUNT_READY_FILE"), FileAccess.WRITE)
 	ready.store_string(str(client.account_state()))
 	ready.close()
@@ -35,7 +35,7 @@ func run_fixture() -> void:
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(90)
-	await click("CollectionsMicroButton")
+	await open_mounts()
 	if not await wait_until(func(): return control("MountJournalSearchBox") != null, "Mounts tab"): return
 	await click("MountJournalSearchBox")
 	await type_text("Chestnut Mare")
@@ -45,7 +45,7 @@ func run_fixture() -> void:
 		if learned().is_empty() or not learned().favourite: fail("Account mount/favourite did not survive character change: " + str(client.mount_journal_state())); return
 	else:
 		if not learned().is_empty(): fail("Fresh account already owns mare"); return
-		await click("CollectionsMicroButton")
+		await tap(KEY_ESCAPE)
 		await click("MainMenuBarBackpackButton")
 		if not await wait_until(func(): return control("ContainerFrame0") != null, "backpack"): return
 		var bag_name := ""
@@ -57,7 +57,7 @@ func run_fixture() -> void:
 		for entry in client.merchant_state().bags:
 			if int(entry.item_id) == ITEM_ID: fail("Learning did not consume item5655"); return
 		await tap(KEY_ESCAPE)
-		await click("CollectionsMicroButton")
+		await open_mounts()
 		if not await wait_until(func(): return control("MountJournalRow18") != null, "learned mount row"): return
 		await capture("learned")
 		await click("MountJournalRow18", MOUSE_BUTTON_RIGHT)
@@ -88,6 +88,11 @@ func run_fixture() -> void:
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
 	client.free()
 	quit(0)
+
+func open_mounts() -> void:
+	await click("MinimapLauncherButton")
+	if not await wait_until(func(): return control("LauncherEntryCollectionsMicroButton") != null, "Collections launcher entry"): return
+	await click("LauncherEntryCollectionsMicroButton")
 
 func learned() -> Dictionary:
 	for mount in client.mount_journal_state().collected:
