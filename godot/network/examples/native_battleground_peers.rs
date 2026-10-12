@@ -1,4 +1,4 @@
-//! Nine lightweight real-UDP account peers alongside one native Godot client.
+//! Source-minimum real-UDP account peers alongside one native Godot client.
 //! No simulated match state, synthetic roster or server shortcuts.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage};
 use shared::protocol::*;
@@ -10,6 +10,8 @@ use std::{
 };
 struct Peer {
     index: usize,
+    username: String,
+    battleground_id: u32,
     bridge: NetworkBridge,
     entered: bool,
     map: Option<u32>,
@@ -22,7 +24,7 @@ impl Peer {
                 .downcast::<LoginResponse>()
                 .map_err(|_| "login type")?;
             if !reply.success {
-                return Err(format!("fb_bg{} login: {:?}", self.index, reply.error));
+                return Err(format!("{} login: {:?}", self.username, reply.error));
             }
             let character = reply.characters.first().ok_or("Empty roster")?;
             self.bridge.send::<_, AuthChannel>(SelectCharacter {
@@ -43,13 +45,13 @@ impl Peer {
                 .map_err(|_| "transfer type")?;
             self.map = Some(destination.map_id);
             self.bridge.send::<_, TransferChannel>(WorldPortAck)?;
-            println!("fb_bg{} WorldPortAck map{}", self.index, destination.map_id);
+            println!("{} WorldPortAck map{}", self.username, destination.map_id);
         } else if message.is::<PvpStateUpdate>() {
             let update = message
                 .downcast::<PvpStateUpdate>()
                 .map_err(|_| "pvp type")?;
             if let Some(error) = update.error {
-                return Err(format!("fb_bg{} PvP: {error}", self.index));
+                return Err(format!("{} PvP: {error}", self.username));
             }
             if let Some(snapshot) = update.snapshot {
                 self.snapshot = Some(snapshot);
@@ -59,11 +61,11 @@ impl Peer {
     }
     fn action(&self, action: &str) -> Result<(), String> {
         if !self.entered {
-            return Err(format!("fb_bg{} has not entered", self.index));
+            return Err(format!("{} has not entered", self.username));
         }
         match action {
             "queue" => self.bridge.send::<_, PvpChannel>(QueueForBattleground {
-                battleground_id: 1014,
+                battleground_id: self.battleground_id,
             }),
             "accept" | "decline" => {
                 let match_id = self
@@ -110,25 +112,39 @@ fn run() -> Result<(), String> {
     if !address.ip().is_loopback() || !(5710..=5712).contains(&address.port()) {
         return Err("Private UDP5710–5712 only".into());
     }
+    let battleground_id = std::env::var("BG_BATTLEGROUND_ID")
+        .map_err(|e| e.to_string())?
+        .parse()
+        .map_err(|e: std::num::ParseIntError| e.to_string())?;
+    let template = shared::battleground::template_by_id(battleground_id)
+        .ok_or("Unknown source battleground")?;
+    let prefix = std::env::var("BG_ACCOUNT_PREFIX").map_err(|e| e.to_string())?;
+    if !prefix.starts_with("fb_") {
+        return Err("Only private fb_* accounts are allowed".into());
+    }
+    let count = usize::from(template.min_players_per_team) * 2 - 1;
     let mut peers = Vec::new();
     let clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos() as u64;
-    for index in 1..=9 {
+    for index in 1..=count {
         let bridge = BridgeConfig::new()
             .receive::<LoginResponse>()
             .receive::<EnterWorldResponse>()
             .receive::<NewWorld>()
             .receive::<PvpStateUpdate>()
             .connect(address, clock + index as u64)?;
+        let username = format!("{prefix}{index}");
         bridge.send::<_, AuthChannel>(LoginRequest {
             token: None,
-            username: format!("fb_bg{index}"),
+            username: username.clone(),
             password: "fbtest".into(),
         })?;
         peers.push(Peer {
             index,
+            username,
+            battleground_id,
             bridge,
             entered: false,
             map: None,
@@ -143,7 +159,7 @@ fn run() -> Result<(), String> {
                 match event {
                     Event::Message(message) => peer.receive(message)?,
                     Event::Disconnected(reason) => {
-                        return Err(format!("fb_bg{} disconnected: {reason:?}", peer.index));
+                        return Err(format!("{} disconnected: {reason:?}", peer.username));
                     }
                     Event::ProtocolRejected(reason) => return Err(reason),
                     _ => {}
