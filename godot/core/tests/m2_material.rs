@@ -141,6 +141,36 @@ fn avenging_wrath_local_opacity_follows_start_hold_and_decay_not_application_age
 }
 
 #[test]
+fn single_timeline_material_tints_apply_to_other_authored_sequences() {
+    use m2_material::MaterialTime;
+
+    for fdid in [165644, 356426, 125854] {
+        let effect = model(fdid);
+        let tracks = MaterialTracks::of(&effect);
+        let binding = m2_material::batch_binding(&effect, &effect.batches[0], &[0; 3]).unwrap();
+        let sample = |sequence| {
+            m2_material::sample_material(
+                &tracks,
+                &binding,
+                MaterialTime {
+                    sequence,
+                    time_ms: 150,
+                    global_ms: 450,
+                },
+            )
+        };
+        let authored_tint = sample(0).mesh_color;
+        assert_ne!(authored_tint, [1.0; 3], "Source tinted model {fdid}");
+        assert_eq!(sample(1).mesh_color, authored_tint, "Model {fdid} clip 1");
+        assert_eq!(
+            sample(effect.sequences.len() - 1).mesh_color,
+            authored_tint,
+            "Model {fdid} last clip"
+        );
+    }
+}
+
+#[test]
 fn constant_local_material_keys_still_update_when_the_playing_clip_changes() {
     use m2_material::MaterialTime;
 
