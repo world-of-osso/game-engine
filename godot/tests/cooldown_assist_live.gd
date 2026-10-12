@@ -378,17 +378,13 @@ func prove_grounded() -> bool:
 	if surface == null:
 		fail("Retail destination surface not loaded")
 		return false
-	var predicted := coordinates(state.local_player_position)
-	var authority := coordinates(state.local_server_position)
+	var predicted: Vector3 = state.local_player_position
+	var authority: Vector3 = state.local_server_position
 	if absf(predicted.y - float(surface)) > 0.02 or absf(authority.y - float(surface)) > 0.02:
 		write_json("ground-blocker", {"surface": surface, "account": state})
 		fail("Private destination must use place-private-character.py before login, not legacy NPC Z")
 		return false
 	return true
-
-func coordinates(value: String) -> Vector3:
-	var parts := value.trim_prefix("(").trim_suffix(")").split(",")
-	return Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
 
 func viewer_remaining(cooldown_id: int) -> float:
 	for icon in client.cooldown_viewer_state().get("icons", []):
