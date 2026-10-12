@@ -304,11 +304,19 @@ func check_custom_sets() -> bool:
 	if not await wait_for(created, "custom set " + name, 30000):
 		print("TRANSMOG_STATE ", transmog())
 		return false
-	var id: int = transmog().custom_sets.find_key(name)
+	var id := -1
+	for key in transmog().custom_sets:
+		if not before.has(key):
+			id = key
 	var card := "TransmogCustomSet%d" % id
 	if not await wait_for(func(_s): return control(card) != null and preview_model(card + "ModelScene") != null, "custom set card", 60000):
 		return false
 	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
+	# The set's saved main-hand appearance is in the card model's hand.
+	var blade = preview_model(card + "ModelScene").find_child("EquipmentMainHand", true, false)
+	if blade == null or blade.get_parent().name != "Attachment1":
+		fail("Custom set card does not hold its main-hand appearance: %s" % [blade.get_parent().name if blade != null else "missing"])
 		return false
 	await save_shot("10-custom-set-saved.png")
 	print("TRANSMOG_CUSTOM_SET id=", id, " name=", name)
