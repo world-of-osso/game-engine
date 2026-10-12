@@ -1,3 +1,7 @@
+## 2026-10-12 — Arena preparation object visibility
+
+[Native arenas](systems/arenas.md#preparation-and-detection-consumers): real Cage preparation reproduced32727/type4 incorrectly hiding game objects through unit-only reciprocal invisibility checks. Pinned TC explicitly excludes non-units; a source-channel/Interest fixture now covers that boundary. Dynamic native/final gates remain tracked in the handoff.
+
 ## 2026-10-12 — Combat-assist source-gap re-audit and replay
 
 [Cooldown/assist audit](investigations/cooldown-assist-data.md#source-gap-re-audit--2026-10-12): exact1229376/470418 DB2 rows and pinned TC cast/GCD paths do not define assistant-origin penalty handling; no guessed multiplier. Nonzero chargeValue2 has no authored rows in this build. Native observation captures one evaluator decision for exact private Holy Power/charge/cost/target replay; comparator semantics remain unchanged.
