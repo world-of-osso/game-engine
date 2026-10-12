@@ -19,7 +19,7 @@ func prove_toy(sample: Array) -> void:
 	if sample[6]:
 		clicked = await place_cursor_scenery()
 		if failed: return
-	receipts.append({"phase": "scaled-activation", "item": sample[0], "clicked": str(clicked), "account": client.account_state(), "toys": client.toybox_state()})
+	receipts.append({"phase": "scaled-activation", "ticks_msec": Time.get_ticks_msec(), "item": sample[0], "clicked": str(clicked), "account": client.account_state(), "toys": client.toybox_state()})
 	write_receipts()
 	if not await wait_until(func(): return scenery(str(sample[3])) != null, "source scenery native meshes " + str(sample[0]), 120000): return
 	var placed := scenery(str(sample[3]))
