@@ -51,12 +51,26 @@ fn button(
     let (left, top, width, height) = rect;
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
+    let (normal, pressed, disabled_art) =
+        if matches!(name, "TransmogApplyButton" | "TransmogSaveOutfitButton") {
+            (
+                "128-redbutton-left",
+                "128-redbutton-left-pressed",
+                "128-redbutton-left-disabled",
+            )
+        } else {
+            (
+                "common-button-tertiary-normal",
+                "common-button-tertiary-pressed",
+                "common-button-tertiary-disabled",
+            )
+        };
     rsx! { button { name: {DynName(name.into())}, width, height, left, top,
     pos_type: "absolute", disabled, text: caption, font_size: 12.0,
     button_default_skin: false, onclick: action,
-    button_atlas_up: "common-button-tertiary-normal",
-    button_atlas_pressed: "common-button-tertiary-pressed",
-    button_atlas_disabled: "common-button-tertiary-disabled",
+    button_atlas_up: normal,
+    button_atlas_pressed: pressed,
+    button_atlas_disabled: disabled_art,
     button_atlas_highlight: "common-button-tertiary-normal" } }
 }
 
@@ -223,8 +237,33 @@ fn character_region(book: &TransmogBook) -> Element {
     {
         out.extend(slot_button(book, slot, 581.5 + index as f32 * 64.0, 754.0));
     }
+    out.extend(illusion_slots());
     out.extend(preview_controls());
     out
+}
+
+fn illusion_slots() -> Element {
+    [16, 17]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, slot)| {
+            let name = format!("TransmogIllusion{slot}");
+            let mut art = atlas(
+                format!("{name}Icon"),
+                "transmog-gearslot-unassigned-enchant",
+                (6.5, 6.5, 29.0, 29.0),
+            );
+            art.extend(atlas(
+                format!("{name}Border"),
+                "transmog-gearslot-disabled-small",
+                (0.0, 0.0, 42.0, 42.0),
+            ));
+            // The wire contract has no illusion choice; never submit it as an item source.
+            rsx! { button { name: {DynName(name)}, width: 42.0, height: 42.0,
+            left: {590.0 + index as f32 * 64.0}, top: 794.0, pos_type: "absolute",
+            button_default_skin: false, disabled: true, {art} } }
+        })
+        .collect()
 }
 
 fn preview_controls() -> Element {
@@ -326,23 +365,8 @@ fn slot_icon(book: &TransmogBook, slot: &shared::protocol::TransmogSlot) -> Opti
 }
 
 fn wardrobe_region(book: &TransmogBook) -> Element {
-    let mut out = text(
-        "TransmogWardrobeHeading",
-        "Items",
-        (COLLECTION_LEFT, 33.0, 95.0, 24.0),
-        GOLD,
-    );
-    out.extend(text(
-        "TransmogSearchLabel",
-        "Search",
-        (1265.0, 80.0, 78.0, 20.0),
-        WHITE,
-    ));
-    out.extend(
-        rsx! { editbox { name: {DynName(SEARCH.into())}, width: 180.0, height: 20.0,
-        left: 1360.0, top: 80.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
-        text_insets: "4,4,0,0", max_letters: 40, text: {book.search.as_str()} } },
-    );
+    let mut out = collection_tabs();
+    out.extend(search_box(book));
     out.extend(selected_slot_controls(book));
     out.extend(
         book.page_sources()
@@ -352,6 +376,55 @@ fn wardrobe_region(book: &TransmogBook) -> Element {
     );
     out.extend(paging_controls(book));
     out
+}
+
+fn collection_tabs() -> Element {
+    [("TransmogItemsTab", "Items", true), ("TransmogSetsTab", "Sets", false), ("TransmogCustomSetsTab", "Custom Sets", false)]
+        .into_iter().enumerate().flat_map(|(index, (name, caption, selected))| {
+            let prefix = if selected { "uiframe-activetab" } else { "uiframe-tab" };
+            let height = if selected { 42.0 } else { 36.0 };
+            let mut art = Vec::new();
+            // TabSystemTopButtonTemplate rotates right cap onto the left and vice versa.
+            for (suffix, x, width) in [("right", -7.0, 37.0), ("center", 30.0, 30.0), ("left", 60.0, 35.0)] {
+                let member = if suffix == "center" { format!("_{prefix}-{suffix}") } else { format!("{prefix}-{suffix}") };
+                let rotation = std::f32::consts::PI;
+                art.extend(rsx! { texture { name: {DynName(format!("{name}{suffix}"))}, width, height,
+                left: x, top: 0.0, pos_type: "absolute", texture_atlas: {member.as_str()}, rotation } });
+            }
+            if selected { art.extend(atlas(format!("{name}Highlight"), "transmog-tab-hl", (2.0, 26.0, 90.0, 1.0))); }
+            let color = if selected { WHITE } else { "0.5,0.5,0.5,1" };
+            art.extend(label(format!("{name}Text"), caption, (0.0, 3.0, 95.0, 28.0), (12.0, color, "CENTER")));
+            rsx! { button { name: {DynName(name.into())}, width: 95.0, height: 32.0,
+            left: {1004.0 + index as f32 * 96.0}, top: 33.0, pos_type: "absolute",
+            button_default_skin: false, disabled: true, {art} } }
+        }).collect()
+}
+
+fn search_box(book: &TransmogBook) -> Element {
+    let mut art = atlas(
+        "TransmogSearchBackground".into(),
+        "common-searchbar-a",
+        (0.0, 0.0, 142.0, 19.0),
+    );
+    art.extend(atlas(
+        "TransmogSearchIcon".into(),
+        "common-searchbar-icon-a",
+        (4.0, 4.0, 12.0, 12.0),
+    ));
+    let clear_visible = !book.search.is_empty();
+    let clear_art = atlas(
+        "TransmogSearchClearIcon".into(),
+        "common-search-clearbutton",
+        (3.0, 3.0, 10.0, 10.0),
+    );
+    art.extend(
+        rsx! { button { name: "TransmogSearchClear", width: 17.0, height: 17.0,
+        left: 122.0, top: 1.0, pos_type: "absolute", visible: clear_visible,
+        button_default_skin: false, onclick: "transmog:clear-search", {clear_art} } },
+    );
+    rsx! { editbox { name: {DynName(SEARCH.into())}, width: 142.0, height: 19.0,
+    left: 1345.0, top: 79.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
+    text_insets: "22,22,0,0", max_letters: 40, text: {book.search.as_str()}, {art} } }
 }
 
 fn selected_slot_controls(book: &TransmogBook) -> Element {
@@ -399,28 +472,29 @@ fn paging_controls(book: &TransmogBook) -> Element {
     let mut out = text(
         "TransmogPage",
         &format!("{} / {}", book.page + 1, book.pages()),
-        (1260.0, 850.0, 80.0, 24.0),
+        (1225.0, 832.0, 64.0, 32.0),
         WHITE,
     );
     out.extend(button(
         "TransmogPreviousPage",
-        "<",
+        "",
         "transmog:previous",
         book.page > 0,
-        (1220.0, 850.0, 24.0, 24.0),
+        (1294.0, 832.0, 32.0, 32.0),
     ));
     out.extend(button(
         "TransmogNextPage",
-        ">",
+        "",
         "transmog:next",
         book.page + 1 < book.pages(),
-        (1360.0, 850.0, 24.0, 24.0),
+        (1331.0, 832.0, 32.0, 32.0),
     ));
     out
 }
 
 /// Collection overlay centers must not conceal the native models.
 pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    apply_paging_art(registry);
     for source in view.book.page_sources() {
         for state in ["Applied", "Pending"] {
             let name = format!("TransmogSource{}{state}", source.source_id);
@@ -434,6 +508,25 @@ pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::regist
             };
             texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
         }
+    }
+}
+
+/// Blizzard_PagingControls.xml file textures; ids from the maintained local listfile.
+fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, widgets::texture::TextureSource};
+    for (name, normal, pressed, disabled) in [
+        ("TransmogPreviousPage", 130869, 130868, 130867),
+        ("TransmogNextPage", 130866, 130865, 130864),
+    ] {
+        let id = registry.get_by_name(name).expect("transmog paging control");
+        let frame = registry.get_mut(id).expect("registered paging control");
+        let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
+            panic!("{name} is not a button")
+        };
+        button.normal_texture = Some(TextureSource::FileDataId(normal));
+        button.pushed_texture = Some(TextureSource::FileDataId(pressed));
+        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
+        button.highlight_texture = Some(TextureSource::FileDataId(130757));
     }
 }
 

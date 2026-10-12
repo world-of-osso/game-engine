@@ -119,6 +119,39 @@ fn default_skin_follows_hover_pushed_and_disabled_state() {
 }
 
 #[test]
+fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
+    for (state, suffix) in [
+        (ButtonState::Normal, ""),
+        (ButtonState::Pushed, "-pressed"),
+        (ButtonState::Disabled, "-disabled"),
+    ] {
+        let frame = button(ButtonData {
+            normal_texture: atlas("128-redbutton-left"),
+            state,
+            use_default_skin: false,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 200.0, 28.0);
+        assert_eq!(parts.len(), 3);
+        assert_eq!(
+            parts[0].source,
+            atlas(&format!("128-redbutton-left{suffix}"))
+        );
+        assert_eq!(
+            parts[1].source,
+            atlas(&format!("_128-redbutton-center{suffix}"))
+        );
+        assert_eq!(
+            parts[2].source,
+            atlas(&format!("128-redbutton-right{suffix}"))
+        );
+        assert_eq!(parts[0].rect[2], 114.0 * 28.0 / 128.0);
+        assert_eq!(parts[2].rect[2], 292.0 * 28.0 / 128.0);
+        assert_eq!(parts[2].rect[0] + parts[2].rect[2], 200.0);
+    }
+}
+
+#[test]
 fn authored_button_textures_replace_the_default_skin() {
     let data = ButtonData {
         normal_texture: atlas("128-redbutton-up"),

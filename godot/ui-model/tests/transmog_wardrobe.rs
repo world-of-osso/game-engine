@@ -184,6 +184,11 @@ fn transmog_wardrobe_exposes_model_cells_fixed_slots_and_outfit_gap_in_both_skin
             "TransmogSheatheButton",
             "TransmogRaceBackground",
             "TransmogSearchBox",
+            "TransmogItemsTab",
+            "TransmogSetsTab",
+            "TransmogCustomSetsTab",
+            "TransmogIllusion16",
+            "TransmogIllusion17",
         ] {
             assert!(
                 registry.get_by_name(name).is_some(),
