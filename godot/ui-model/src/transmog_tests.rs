@@ -27,10 +27,10 @@ fn state() -> TransmogState {
 }
 
 #[test]
-fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_changes() {
+fn transmog_wardrobe_pages_have_twenty_models_and_clamp_after_collection_changes() {
     let mut collection = state();
     let source = collection.slots[0].sources[0].clone();
-    collection.slots[0].sources = (0..37)
+    collection.slots[0].sources = (0..41)
         .map(|index| TransmogSource {
             source_id: 821 + index,
             name: format!("Gladius {index}"),
@@ -40,9 +40,9 @@ fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_chang
     let mut book = TransmogBook::default();
     book.receive(collection);
     assert_eq!(book.pages(), 3);
-    assert_eq!(book.page_sources().len(), 18);
+    assert_eq!(book.page_sources().len(), 20);
     book.page = 1;
-    assert_eq!(book.page_sources()[0].source_id, 839);
+    assert_eq!(book.page_sources()[0].source_id, 841);
     book.page = 2;
     assert_eq!(book.page_sources().len(), 1);
     book.receive(state());

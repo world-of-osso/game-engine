@@ -5,8 +5,9 @@ use shared::protocol::{
 };
 use std::collections::BTreeMap;
 
-/// Blizzard_Wardrobe.lua:566–568: three rows of six DressUpModel cells.
-pub const SOURCES_PER_PAGE: usize = 18;
+/// Retail12.1 TransmogItemModelTemplate100×132 in584×640 PagedContent, padding20.
+/// Five columns and four rows; only visible cells own native subviewports.
+pub const SOURCES_PER_PAGE: usize = 20;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct TransmogBook {
