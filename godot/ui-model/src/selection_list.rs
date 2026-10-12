@@ -27,7 +27,7 @@ pub fn row(
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
     rsx! { button { name: {DynName(name)}, left, top, width, height, pos_type: "absolute",
-        disabled, onclick: action, button_default_skin: false,
+        disabled, onclick: action, button_default_skin: false, strata: crate::ui::strata::FrameStrata::Dialog,
         button_atlas_highlight: HOVER, button_highlight_alpha: 0.35, {content}
     } }
 }

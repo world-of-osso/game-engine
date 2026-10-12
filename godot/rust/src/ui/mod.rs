@@ -665,9 +665,45 @@ impl RegistryModel {
 
     fn focus_frame(&mut self, id: u64) {
         self.registry.focused_frame = Some(id);
+        self.set_button(id, |button| button.highlight_locked = true);
+        self.reveal_selection_row(id);
+    }
+
+    fn reveal_selection_row(&mut self, id: u64) {
+        let Some(frame) = self.registry.get(id) else {
+            return;
+        };
+        if !game_engine_ui_model::selection_list::is_selection_row(frame) {
+            return;
+        }
+        let Some(row) = frame.layout_rect.as_ref() else {
+            return;
+        };
+        let mut parent = frame.parent_id;
+        while let Some(id) = parent {
+            let Some(frame) = self.registry.get(id) else {
+                return;
+            };
+            if let Some(name) = frame.name.as_deref()
+                && let Some(list) = self.registry.scroll_lists.get(name)
+                && let Some(bounds) = frame.layout_rect.as_ref()
+            {
+                let delta = if row.y < bounds.y {
+                    row.y - bounds.y
+                } else {
+                    (row.y + row.height - bounds.y - bounds.height).max(0.0)
+                };
+                let offset = (list.first_row as f32 + delta).max(0.0) as usize;
+                let name = name.to_owned();
+                self.registry.scroll_lists.scroll_to(&name, offset);
+                return;
+            }
+            parent = frame.parent_id;
+        }
     }
 
     fn blur_frame(&mut self, id: u64) {
+        self.set_button(id, |button| button.highlight_locked = false);
         if self.registry.focused_frame == Some(id) {
             self.registry.focused_frame = None;
         }

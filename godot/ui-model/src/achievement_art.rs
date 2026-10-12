@@ -153,9 +153,13 @@ pub(super) fn category_row(
         if child { WHITE } else { GOLD },
         action,
     ));
-    rsx! { button { name:{DynName(format!("{name}Button"))},width,height:24.0,
-        left:x,top:y,pos_type:"absolute",onclick:action,button_default_skin:false, {content}
-    } }
+    crate::selection_list::row(
+        format!("{name}Button"),
+        action,
+        true,
+        (x, y, width, 24.0),
+        content,
+    )
 }
 
 /// Mainline ScrollBox with its native MinimalScrollBar; input and offsets belong to the registry.

@@ -1311,10 +1311,15 @@ fn achievement_rows(ctx: &SharedContext, window: &AchievementWindow) -> Element 
         };
         let height = achievement_row_height(entry, expanded, window.criterion_offset);
         let children = achievement_row(entry, 0.0, expanded, height);
-        content.extend(rsx! {button {name:{DynName(format!("Achievement{}Row",entry.achievement_id))},
-            onclick:{format!("achievement:row:{}",entry.achievement_id)},button_default_skin:false,width:500.0,height,
-            left:0.0,top:y,pos_type:"absolute", {children} {criteria}
-        }});
+        let mut children = children;
+        children.extend(criteria);
+        content.extend(crate::selection_list::row(
+            format!("Achievement{}Row", entry.achievement_id),
+            &format!("achievement:row:{}", entry.achievement_id),
+            true,
+            (0.0, y, 500.0, height),
+            children,
+        ));
         y += height + 1.0;
     }
     if window.displayed_entries().is_empty() {

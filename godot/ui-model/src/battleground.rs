@@ -262,11 +262,17 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
-        children.extend(panel_button(
+        children.extend(crate::selection_list::text_row(
             format!("PVPQueueFrameCategoryButton{}", index + 1),
             title,
             action,
             true,
+            view.category
+                == [
+                    PvpCategory::QuickMatch,
+                    PvpCategory::Rated,
+                    PvpCategory::PremadeGroups,
+                ][index],
             (10.0, 66.0 + index as f32 * 80.0, 168.0, 50.0),
         ));
     }

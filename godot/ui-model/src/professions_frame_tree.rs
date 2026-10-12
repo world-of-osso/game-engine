@@ -206,8 +206,13 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
         ));
     }
     let action = format!("profession:select:{}", recipe.spell_id);
-    rsx! { button { name: {DynName(prefix)}, width: {ROW_WIDTH - 10.0}, height: ROW_HEIGHT,
-    left: 10.0, top: y, pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (10.0, y, ROW_WIDTH - 10.0, ROW_HEIGHT),
+        children,
+    )
 }
 
 fn recipe_row_art(

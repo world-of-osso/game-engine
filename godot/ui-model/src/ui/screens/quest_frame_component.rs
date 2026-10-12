@@ -419,7 +419,7 @@ fn plain_icon(name: String, fdid: u32, top: f32) -> Element {
 }
 
 fn list_row(name: String, text: &str, action: &str, top: f32) -> Element {
-    rsx! {
+    let content = rsx! {
         fontstring {
             name: {DynName(format!("{name}Text"))},
             width: {CONTENT_W - 20.0},
@@ -429,12 +429,18 @@ fn list_row(name: String, text: &str, action: &str, top: f32) -> Element {
             font_size: BODY_FONT,
             font_color: QUEST_TEXT_COLOR,
             justify_h: "LEFT",
-            onclick: action,
             pos_type: "absolute",
-            left: {CONTENT_X + 20.0},
-            top: {top + 1.0},
+            left: 20.0,
+            top: 1.0,
         }
-    }
+    };
+    crate::selection_list::row(
+        name,
+        action,
+        true,
+        (CONTENT_X, top, CONTENT_W, LIST_ROW_H),
+        content,
+    )
 }
 
 /// The scroll child's text column: the panels' content inset, in scroll-frame coordinates.

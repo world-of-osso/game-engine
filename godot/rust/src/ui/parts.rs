@@ -231,7 +231,7 @@ fn project_sliced_background(
 fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
     let rect = [0.0, 0.0, width, height];
     match &frame.widget_data {
-        Some(WidgetData::Button(button)) => match select_button_texture_source(button) {
+        Some(WidgetData::Button(button)) => match select_button_base_texture_source(button) {
             Some(source) => Some(textured(rect, source.clone(), Crop::Full, WHITE)),
             None => frame.background_color.map(|color| solid(rect, color)),
         },
@@ -413,7 +413,7 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     };
     if frame.nine_slice.is_some()
         || button_skin(frame).is_some()
-        || !button.hovered
+        || !(button.hovered || button.highlight_locked)
         || button.state == ButtonState::Disabled
     {
         return;
