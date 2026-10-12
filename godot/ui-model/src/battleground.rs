@@ -634,7 +634,11 @@ fn score_rows(
         // Combat counters remain uninstrumented. Dashes mean unknown, not measured zero.
         let values = [
             player.name.clone(),
-            "—".into(),
+            if bg.arena.is_some() {
+                player.killing_blows.to_string()
+            } else {
+                "—".into()
+            },
             player.honorable_kills.map_or("—".into(), |n| n.to_string()),
             if bg.arena.is_some() {
                 player.deaths.to_string()
@@ -642,8 +646,16 @@ fn score_rows(
                 "—".into()
             },
             player.honor_level.map_or("—".into(), |n| n.to_string()),
-            "—".into(),
-            "—".into(),
+            if bg.arena.is_some() {
+                player.damage_done.to_string()
+            } else {
+                "—".into()
+            },
+            if bg.arena.is_some() {
+                player.healing_done.to_string()
+            } else {
+                "—".into()
+            },
             rating.map_or_else(
                 || player.flag_captures.to_string(),
                 |change| {
