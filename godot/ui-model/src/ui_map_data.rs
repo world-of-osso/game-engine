@@ -142,7 +142,7 @@ pub struct UiMapCatalog {
 }
 
 impl UiMapCatalog {
-    /// The world-system maps and their art from the DB2 CSV exports in `dir`.
+    /// Maps in every UI system and their art from the DB2 CSV exports in `dir`.
     pub fn load(dir: &Path) -> Result<Self, String> {
         let maps = read_maps(dir)?;
         let assignments = read_assignments(dir)?;
@@ -152,6 +152,29 @@ impl UiMapCatalog {
             assignments,
             arts,
         })
+    }
+
+    /// A unique UiMapAssignment relation for a world map and requested UI system.
+    /// Housing uses the dedicated System2 maps, never name matching or World fallback.
+    pub fn map_for_system(&self, map_id: u32, system: u8) -> Result<Option<u32>, String> {
+        let ids: std::collections::BTreeSet<_> = self
+            .assignments
+            .iter()
+            .filter(|(id, rows)| {
+                self.map(**id).is_some_and(|map| map.system == system)
+                    && rows
+                        .iter()
+                        .any(|row| row.map_id == map_id && row.wmo_group == 0)
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        match ids.len() {
+            0 => Ok(None),
+            1 => Ok(ids.first().copied()),
+            _ => Err(format!(
+                "World map{map_id} has multiple UI system{system} assignments."
+            )),
+        }
     }
 
     pub fn map(&self, id: u32) -> Option<&UiMapInfo> {
