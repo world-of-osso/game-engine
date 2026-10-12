@@ -2,6 +2,10 @@
 
 [Transmog UI](systems/transmog-apply.md): sourced static portrait and set hover, tooltip-only set titles, player-selected persisted outfit icons with versioned legacy migration, real popup-over-card nonactivation, both Custom Sets pages, and separate-process paid gold/appearance/icon relog in both skins.38 inspected PNGs plus manifest republished; full global macro/spell icon catalogue and existing disabled policy boundaries remain explicit.
 
+## 2026-10-12 — Housing unsnapped Expert mouse proof
+
+[Housing](systems/housing.md#basicexpert-editing-and-observers): source rotate/scale widget art, native selected-decor XYZ dragging, press-relative preview/cancel/commit, outside-release capture and both-skin private same-process relog proof. Retail right-centre instruction anchor fixes observed minimap overlap. Shift increments/native3D handle identity remain source gaps; no substitute art or interpreted GameParameter numbers.
+
 ## 2026-10-12 — Housing source Finder and precision continuation
 
 [Housing](systems/housing.md): dedicated System2 map/standard projection, real persisted friend discovery (no synthetic occupied-plot list), physical bulletin roster, both-skin staged XYZ/scale cancel/commit/relog and five-component live observer rendering. One-time sourced schema1 migration and plain-master relog crash isolation. Quest92572 criterion binding has CPU proof; unresolved vendor reference prevents live acquisition. No default grants, legal outdoor bounds or charter policy invented; final heads/gates remain in handoff.
