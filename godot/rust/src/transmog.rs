@@ -270,6 +270,11 @@ impl GameClient {
             "transmog:save-outfit" => return Ok(book.save_outfit()),
             "transmog:undo" => book.undo(),
             "transmog:clear-search" => book.set_search(String::new()),
+            "transmog:filters" => book.filters_open = !book.filters_open,
+            "transmog:filter:all" => book.set_all_source_filters(true),
+            "transmog:filter:none" => book.set_all_source_filters(false),
+            "transmog:filter:collected" => book.toggle_collected_sets(),
+            "transmog:filter:uncollected" => book.toggle_uncollected_sets(),
             "transmog:original" if book.illusion_selected => {
                 book.stage_illusion(None);
             }
@@ -454,6 +459,7 @@ fn apply_transmog_id_action(book: &mut TransmogBook, action: &str) -> Result<(),
             book.select_illusion(slot(value)?);
             true
         }
+        "filter-source" => book.toggle_source_filter(id(value, "source filter")?),
         "source" => book.stage(TransmogChoice::Source(id(value, "source")?)),
         "illusion" => book.stage_illusion(Some(id(value, "illusion")?)),
         "outfit" => book.view_outfit(id(value, "outfit")?),

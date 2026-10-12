@@ -212,6 +212,33 @@ fn drawn(registry: &FrameRegistry, name: &str) -> bool {
 
 /// Status and name strings are automation hooks; Retail draws none of them on cards.
 #[test]
+fn transmog_filter_menus_expose_real_source_types_and_completion_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut items = book();
+        items.filters_open = true;
+        let registry = build(skin, items);
+        assert!(enabled(&registry, "TransmogFilterButton"));
+        assert_eq!(text(&registry, "TransmogFilterSource3Text"), "✓ Vendor");
+        assert_eq!(text(&registry, "TransmogFilterSource4Text"), "✓ World Drop");
+        let mut sets = book();
+        sets.set_tab(WardrobeTab::Sets);
+        sets.filters_open = true;
+        let registry = build(skin, sets);
+        assert!(enabled(&registry, "TransmogFilterButton"));
+        assert_eq!(
+            text(&registry, "TransmogFilterCollectedText"),
+            "✓ Collected"
+        );
+        assert_eq!(
+            text(&registry, "TransmogFilterUncollectedText"),
+            "✓ Not Collected"
+        );
+        assert!(!enabled(&registry, "TransmogFilterPve"));
+        assert!(!enabled(&registry, "TransmogFilterPvp"));
+    }
+}
+
+#[test]
 fn transmog_state_hooks_and_empty_search_clear_are_not_drawn() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());

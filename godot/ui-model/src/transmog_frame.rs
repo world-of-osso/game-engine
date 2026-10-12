@@ -10,6 +10,7 @@ use shared::protocol::{EquipmentSlot, TransmogChoice};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 mod collection;
+mod filters;
 pub use collection::{
     NAME_POPUP_EDITBOX, apply_transmog_art, custom_set_model_scene, illusion_model_scene,
     set_model_scene, source_model_scene,
