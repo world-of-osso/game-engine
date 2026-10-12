@@ -1447,6 +1447,31 @@ impl RegistryUi {
         self.show_viewport_screen_in(state, build, ScreenPostsetup::None, registry, parent)
     }
 
+    /// The Retail TransmogFrame and its TRANSMOG_CUSTOM_SET_NAME StaticPopup.
+    pub(crate) fn show_transmog(
+        &mut self,
+        view: game_engine_ui_model::transmog_frame::TransmogView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            view,
+            game_engine_ui_model::transmog_frame::transmog_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the MerchantFrame, backpack and
     /// StackSplitFrame, with the `metal_frame` window border composed from its atlases.
     pub fn show_merchant(&mut self, states: MerchantStates) -> Result<(), String> {
