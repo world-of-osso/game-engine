@@ -43,6 +43,7 @@ References:
 - [x] Interact With Target (`interact_target`) is unbound by default: the Retail tutorial warns when no key is assigned (Blizzard_Tutorials_Frame_Tutorials.lua:94-99).
   - Pressing it interacts with the soft target through the right-click paths: use the object, loot, attack, or `InteractNpc`.
   - It does not change the hard target.
+  - Player immunity (`UNIT_FLAG_IMMUNE_TO_PC`, 0x100) prevents the attack path even for neutral quest givers/enders. NPC-only immunity does not prevent player attacks. Source: TrinityCore `WorldObject::IsValidAttackTarget`; concrete TDB Lord Autumnvale127080 flags320 regression in `auto_attack::tests`.
 - [ ] Enemy and friend soft targets (`softTargetIconEnemy` is saved but nothing reads it), `SoftTargetInteractRangeIsHard`, world text icon distance scaling, soft target tooltips.
 
 ## Quest objects
@@ -52,6 +53,10 @@ References:
 - [x] Both-skin UDP fixture: `account::meetingstones_tests::quest_objects_and_meetingstones_udp_use_and_combat_answers_both_skins`; cursor contract: `game_objects::tests::quest_objects_show_interact_cursor_and_render_without_changing_decoration_cursor`.
 
 - [ ] Native quest-credit live fixture: `godot/tests/quest_objectives_live.gd`, using authored `QOBJ_SCENARIO` JSON, private `GODOT_TEST_SERVER`, `fb_*` `QF_ACCOUNT`, own `QF_ADMIN` socket and `QF_SHOTS`. Real screen ray-picked right-click → GO use/loot; real bag right-click → item spell; real quest dialog → reward. Admin only creates characters, sets level and travels/revives; it never fills objective counters. Both-skin rendered acceptance remains pending until the fixture succeeds.
+
+## Zone population proof —2026-10-11
+
+Private UDP5916 both Modern/Forever skins use the native Interact Key and physical registry-pointer input to accept/reward Drustvar48677, Isle of Dorn82747 and Terokkar9961; neutral Lord Autumnvale127080 now respects authored player immunity instead of auto-attack. No administrative quest credit. Native taxi discovery/flight2037→2034 is also recorded. [Census, copy command and exact proof boundaries](../../../game-server/docs/zone-population-counts.md) own the dataset;24 inspected latest-data PNGs in `/syncthing/AgentShared/2026-10-11/zone-population/`. Appearance/receipt/surface/navigation gaps remain explicit; no complete-world visual certification.
 
 ## Proof
 
