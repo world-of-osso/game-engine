@@ -854,6 +854,25 @@ mod tests {
     }
 
     #[test]
+    fn legacy_blacksmith_map_loads_authored_global_wmo_and_groups() {
+        let map = cached_assets()
+            .read_map_wdt("6HU_GARRISON_Blacksmithing_hub")
+            .unwrap();
+        assert_eq!(map.map_id, 1212);
+        assert!(map.tiles.active.is_empty());
+        let wmo = map.global_wmo.unwrap();
+        assert_eq!(wmo.asset.root_fdid, 948620);
+        assert_eq!(wmo.asset.groups.len(), 1);
+        assert!(
+            wmo.asset
+                .groups
+                .iter()
+                .any(|group| !group.batches.is_empty())
+        );
+        assert_eq!(wmo.placement.position, [0.0; 3]);
+    }
+
+    #[test]
     fn reads_cached_map_flags_and_global_wmo_placement() {
         let assets = cached_assets();
         let azeroth = assets.read_map_wdt("azeroth").expect("cached Azeroth WDT");
