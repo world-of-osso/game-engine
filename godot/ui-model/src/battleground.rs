@@ -473,9 +473,14 @@ fn flag_text(flag: FlagState) -> String {
 fn score_text(bg: &BattlegroundSnapshot) -> String {
     let template =
         shared::battleground::template_by_id(bg.battleground_id).expect("source match template");
+    let limit = if template.objective == shared::battleground::BgObjective::Reinforcements {
+        template.starting_reinforcements
+    } else {
+        template.win_score
+    };
     format!(
         "Alliance {} / {}    Horde {} / {}",
-        bg.score_a, template.win_score, bg.score_b, template.win_score
+        bg.score_a, limit, bg.score_b, limit
     )
 }
 fn world_state(bg: &BattlegroundSnapshot, id: u32) -> Option<i32> {
@@ -606,8 +611,8 @@ fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
     if bg.map_id == 2656 {
         return deephaul_hud(bg);
     }
-    if bg.map_id == 1803 {
-        // Resource race: score only, not the generic team-flag cells.
+    if matches!(bg.map_id, 30 | 1803) {
+        // Reinforcements/resource race: no unrelated team-flag cells.
         return vec![];
     }
     if bg.map_id == 727 {
