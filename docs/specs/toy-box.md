@@ -14,6 +14,7 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 - Hover displays toy identity, source, ownership and unavailable reason. Collections micro-menu opens/closes the journal.
 
 - Source-scaled stationary summons preserve the TDB template-model display multiplier independently of native ModelData/CDI visual scale. Underlight Sealamp170476 uses replicated root multiplier.35; no reskin or substitute model. Aura object-scale changes compose with and restore that source multiplier, without assigning scenery to the combat-pet frame.
+- Stationary creatures display their authored CDI StateSpellVisualKit independently from the summoning cast. Underlight Sealamp92605 holds kit116424/model1398891 and Lightning-Blessed Spire131280 holds kit236744/model1952826. Start once when the unit visual becomes available, retain it across frames, and remove pending/active effects when that visual is replaced or its actor despawns. No synthetic unit aura or server cast is introduced.
 - Replicated UnitScale applies aura61 additive scale to the unit root, preserving each native visual's own scale and restoring1 on removal. Both skins share this world presentation.
 
 - Replicated FeatherFall caps only downward player prediction at7yd/s while aura105 is active; upward jumps retain their impulse and removal restores ordinary gravity. Reference: TrinityCore MovementUtil.cpp terminalSafefallVelocity and a352b1fa HandleAuraFeatherFall.

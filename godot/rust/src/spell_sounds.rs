@@ -72,6 +72,8 @@ pub(crate) enum SoundHold {
     Cast { unit: u64, spell_id: u32 },
     /// Aura `instance` on unit `unit`.
     Aura { unit: u64, instance: u32 },
+    /// This unit's display visual is replaced or removed.
+    Display { unit: u64, visual: u64 },
     /// Its parent (a missile) is freed on landing.
     Parent,
 }
