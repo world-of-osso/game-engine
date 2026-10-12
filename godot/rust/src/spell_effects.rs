@@ -135,6 +135,7 @@ struct ActiveEffect {
     spell_id: u32,
     kit_id: u32,
     model_fdid: u32,
+    alpha: f32,
     lifetime: Lifetime,
     clips: EffectClips,
     phase: Phase,

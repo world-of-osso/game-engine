@@ -121,6 +121,7 @@ impl SpellEffects {
         self.effects_root(world)?;
         let (mut node, particles) = self.build_effect(effect, model.model_fdid, &parent)?;
         node.set_transform(kit_model_transform(model));
+        apply_kit_model_alpha(&mut node, model.alpha);
         Ok(ActiveEffect {
             node,
             particles,
@@ -128,6 +129,7 @@ impl SpellEffects {
             spell_id: pending.spell_id,
             kit_id: pending.kit_id,
             model_fdid: model.model_fdid,
+            alpha: model.alpha,
             lifetime: pending.lifetime,
             clips,
             phase,
@@ -149,7 +151,13 @@ impl SpellEffects {
         self.pools.begin_frame();
         for effect in &mut self.active {
             if let Some(particles) = &mut effect.particles {
-                particles.update_and_draw(&effect.node, delta, 1.0, &view, &mut self.pools);
+                particles.update_and_draw(
+                    &effect.node,
+                    delta,
+                    effect.alpha,
+                    &view,
+                    &mut self.pools,
+                );
             }
         }
         for missile in &mut self.missiles {
@@ -158,6 +166,18 @@ impl SpellEffects {
             }
         }
         self.pools.end_frame();
+    }
+}
+
+fn apply_kit_model_alpha(node: &mut Gd<Node3D>, alpha: f32) {
+    let meshes = node
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    for mesh in meshes.iter_shared() {
+        mesh.cast::<godot::classes::MeshInstance3D>()
+            .set_transparency(1.0 - alpha);
     }
 }
 

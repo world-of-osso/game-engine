@@ -41,9 +41,9 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 
 #[test]
 fn toyfx14_display_state_kits_resolve_authored_scenery_attachments() {
-    for (display, kit_id, model, scale) in [
-        (92605, 116424, 1398891, 0.5),
-        (131280, 236744, 1952826, 0.25),
+    for (display, kit_id, model, scale, alpha) in [
+        (92605, 116424, 1398891, 0.5, 1.0),
+        (131280, 236744, 1952826, 0.25, 0.35),
     ] {
         let kit = catalog().display_state_kit(display).unwrap();
         assert_eq!(kit.kit_id, kit_id);
@@ -52,6 +52,7 @@ fn toyfx14_display_state_kits_resolve_authored_scenery_attachments() {
         assert_eq!(kit.models[0].model_fdid, model);
         assert_eq!(kit.models[0].attachment, Some(19));
         assert_eq!(kit.models[0].scale, scale);
+        assert_eq!(kit.models[0].alpha, alpha);
     }
     assert_eq!(catalog().display_state_kit(127931), None);
     assert_eq!(catalog().display_state_kit(145135), None);
