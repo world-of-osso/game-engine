@@ -49,6 +49,8 @@ func live_run() -> void:
 					await pointer(target.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
 			"key":
 				await tap(int(command.key))
+			"key_down", "key_up":
+				push_key(int(command.key), command.action == "key_down")
 			"quit":
 				client.free()
 				quit(0)
@@ -73,13 +75,16 @@ func pointer(point: Vector2, button: MouseButton) -> void:
 		await process_frame
 	await frames(3)
 
+func push_key(key: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = key
+	event.physical_keycode = key
+	event.pressed = pressed
+	root.push_input(event, true)
+
 func tap(key: Key) -> void:
 	for pressed in [true, false]:
-		var event := InputEventKey.new()
-		event.keycode = key
-		event.physical_keycode = key
-		event.pressed = pressed
-		root.push_input(event, true)
+		push_key(key, pressed)
 		await process_frame
 	await frames(3)
 
