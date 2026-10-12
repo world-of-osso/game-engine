@@ -20,6 +20,7 @@ struct Peer {
     player: Option<u64>,
     map: Option<String>,
     catalog: Option<ToyCollectionUpdate>,
+    inventory: Option<InventorySnapshot>,
 }
 
 impl Peer {
@@ -79,6 +80,12 @@ impl Peer {
                     .map_err(|_| "terrain type")?
                     .map_name,
             );
+        } else if message.is::<InventorySnapshot>() {
+            self.inventory = Some(
+                message
+                    .downcast::<InventorySnapshot>()
+                    .map_err(|_| "inventory type")?,
+            );
         } else if message.is::<ToyCollectionUpdate>() {
             self.catalog = Some(
                 message
@@ -89,7 +96,7 @@ impl Peer {
             let reply = message
                 .downcast::<ToyResult>()
                 .map_err(|_| "toy result type")?;
-            if reply.operation == ToyOperation::Use && reply.error.is_some() {
+            if reply.error.is_some() {
                 return Err(format!(
                     "UseToy{} refused: {:?}",
                     reply.item_id, reply.error
@@ -117,6 +124,38 @@ impl Peer {
         self.replica.units().any(|unit| {
             unit.get::<Npc>()
                 .is_some_and(|npc| npc.template_id == entry)
+        })
+    }
+
+    fn learned(&self, item: u32) -> bool {
+        self.catalog.as_ref().is_some_and(|catalog| {
+            catalog
+                .toys
+                .iter()
+                .any(|toy| toy.item_id == item && toy.learned)
+        })
+    }
+
+    fn learn_toy(&self, item: u32) -> Result<(), String> {
+        if self.learned(item) {
+            return Ok(());
+        }
+        let bags = &self.inventory.as_ref().ok_or("inventory not ready")?.bags;
+        let location = bags
+            .iter()
+            .find_map(|bag| {
+                bag.items
+                    .iter()
+                    .find(|slot| slot.item.item_id == item)
+                    .map(|slot| ItemLocation::Bag {
+                        bag: bag.bag,
+                        slot: slot.slot,
+                    })
+            })
+            .ok_or_else(|| format!("source physical toy{item} absent"))?;
+        self.bridge.send::<_, InventoryChannel>(UseItem {
+            location,
+            target: None,
         })
     }
 
@@ -159,6 +198,7 @@ fn connect_peer(variable: &str, offset: u64) -> Result<Peer, String> {
         .receive::<NewWorld>()
         .receive::<LoadTerrain>()
         .receive::<ToyCollectionUpdate>()
+        .receive::<InventorySnapshot>()
         .receive::<ToyResult>()
         .receive::<CastFailed>()
         .connect(
@@ -178,6 +218,7 @@ fn connect_peer(variable: &str, offset: u64) -> Result<Peer, String> {
         player: None,
         map: None,
         catalog: None,
+        inventory: None,
     })
 }
 
@@ -231,12 +272,17 @@ fn run() -> Result<(), String> {
     let mut owner = connect_peer("TOY_PRIVATE_OWNER", 0)?;
     let mut observer = connect_peer("TOY_PRIVATE_OBSERVER", 1)?;
     wait_peers(&mut owner, &mut observer, |a, b| {
-        a.position().is_some() && b.position().is_some() && a.catalog.is_some()
+        a.position().is_some()
+            && b.position().is_some()
+            && a.catalog.is_some()
+            && a.inventory.is_some()
     })?;
     require_same_map_and_reach(&owner, &observer)?;
     if owner.sees_entry(PRIVATE_ENTRY) || observer.sees_entry(PRIVATE_ENTRY) {
         return Err("pre-existing private sign; no duplicate source cast".into());
     }
+    owner.learn_toy(PUBLIC_TOY)?;
+    wait_peers(&mut owner, &mut observer, |a, _| a.learned(PUBLIC_TOY))?;
     owner.use_toy(PUBLIC_TOY)?;
     wait_peers(&mut owner, &mut observer, |a, b| {
         a.sees_entry(PUBLIC_ENTRY) && b.sees_entry(PUBLIC_ENTRY)
