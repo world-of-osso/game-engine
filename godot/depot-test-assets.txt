@@ -1,4 +1,6 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Real legacy MWMO/MODF name-index regression, already extracted from local CASC.
+terrain/952203.wdt
 # Retail cooldown categories and assisted rotation: local CASC exact-layout exports.
 db2/12.1.0.69933/CooldownSet.csv
 db2/12.1.0.69933/CooldownSetSpell.csv
@@ -358,6 +360,8 @@ db2/12.1.0.69933/SpellVisualAnim.csv
 db2/12.1.0.69933/SpellVisualMissile.csv
 db2/12.1.0.69933/AnimKitSegment.csv
 db2/12.1.0.69933/PlayerCondition.csv
+db2/12.1.0.69933/ModifierTree.csv
+textures/6992992.blp
 db2/12.1.0.69933/AnimationData.csv
 db2/12.1.0.69933/SoundKit.csv
 db2/12.1.0.69933/SoundKitEntry.csv

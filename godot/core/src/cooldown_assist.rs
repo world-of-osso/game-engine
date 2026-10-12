@@ -59,7 +59,7 @@ struct AssistedStep {
     rules: Vec<(u32, AssistedRule)>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Recommendation {
     Spell(u32),
     /// Spec has no authored rotation. Never substitute another spec's list.

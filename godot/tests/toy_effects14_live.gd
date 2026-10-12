@@ -56,6 +56,7 @@ func prove_toy(sample: Array) -> void:
 	await click("CollectionsMicroButton")
 	if not await wait_until(func(): return has_aura(spell) and native_display(display), "source transform " + str(display), 120000): return
 	await capture("toy%d-display%d" % [item, display])
+	if failed: return
 	await cancel_aura(spell)
 	if failed: return
 	if not await wait_until(func(): return not has_aura(spell) and native_display(-1), "native restoration", 120000): return
@@ -65,7 +66,14 @@ func native_display(expected: int) -> bool:
 	var state = client.account_state()
 	if state.local_player_id == null: return false
 	var model = client.unit_display(int(state.local_player_id))
-	return not model.is_empty() and int(model.display_id) == expected and model.visual
+	if model.is_empty() or int(model.display_id) != expected or not model.visual: return false
+	# unit_display reflects the requested appearance while the old model may still be visible.
+	for unit in client.find_children(character, "Node3D", true, false):
+		var visual := unit.get_node_or_null("PlayerModel" if expected < 0 else "NpcVisualRoot")
+		if visual == null or visual.find_children("*", "MeshInstance3D", true, false).is_empty(): continue
+		if expected < 0: return true
+		if int(visual.get_meta("creature_display_id")) == expected: return true
+	return false
 
 func capture(label: String) -> void:
 	await create_timer(1.0).timeout

@@ -44,6 +44,10 @@ mod gameplay;
 mod ground;
 mod guild_charters;
 mod guild_ranks;
+mod housing;
+mod housing_decor;
+mod housing_editor;
+mod housing_mouse;
 mod hud_edit;
 mod input;
 mod input_keys;
@@ -241,6 +245,7 @@ pub struct GameClient {
     world_map: world_map::WorldMap,
     flight_map: flight_map::FlightMap,
     toybox: toybox::ToyJournal,
+    housing: housing::HousingHud,
     mount_journal: mount_journal::MountJournal,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
@@ -403,6 +408,7 @@ impl INode3D for GameClient {
             world_map: world_map::WorldMap::default(),
             flight_map: flight_map::FlightMap::default(),
             toybox: toybox::ToyJournal::default(),
+            housing: housing::HousingHud::default(),
             mount_journal: mount_journal::MountJournal::default(),
             minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
@@ -526,7 +532,8 @@ impl INode3D for GameClient {
                 return;
             }
         }
-        if self.mount_journal_pointer(&event)
+        if self.housing_pointer(&event)
+            || self.mount_journal_pointer(&event)
             || self.toybox_pointer(&event)
             || self.flight_map_pointer(&event)
             || self.world_map_pointer(&event)
@@ -537,6 +544,7 @@ impl INode3D for GameClient {
             || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
+            || self.battleground_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
@@ -825,9 +833,38 @@ impl GameClient {
         }
     }
 
+    /// Offline fixture: select the same art skin as the saved in-world layout.
+    #[func]
+    fn preview_world_skin(&mut self, forever: bool) -> GString {
+        use game_engine_core::ui_layout_data::{ActiveLayout, LayoutSkin};
+        let skin = if forever {
+            LayoutSkin::Forever
+        } else {
+            LayoutSkin::Modern
+        };
+        let layout = ActiveLayout {
+            name: if forever { "Forever" } else { "Modern" }.into(),
+            skin,
+            ..Default::default()
+        };
+        GString::from(
+            self.apply_ui_layout(layout)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
     /// Offline fixture: run production lighting without an authenticated local player.
     #[func]
     fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
+        // Offline previews do not enter Loading, which normally attaches global WMOs.
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.global_wmo.sync(&mut parent, &self.terrain);
+        if let Some(wmo) = self.global_wmo.take_spawned() {
+            self.world_objects
+                .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
+        }
         let result = self.sync_preview_world_lighting(position, camera);
         match result {
             Ok(()) => GString::new(),
@@ -1102,6 +1139,12 @@ impl GameClient {
     #[func]
     fn character_frame_state(&self) -> VarDictionary {
         self.character_frame_snapshot()
+    }
+
+    /// Read-only Transmogrifier book state for automation; requests come from frame input.
+    #[func]
+    fn transmog_state(&self) -> VarDictionary {
+        self.transmog_snapshot()
     }
 
     #[func]
@@ -1417,6 +1460,7 @@ impl GameClient {
             &mut self.launcher.ui,
             &mut self.world_map.ui,
             &mut self.toybox.ui,
+            &mut self.housing.ui,
         ] {
             if let Some(ui) = ui {
                 visit(ui)?;
@@ -2028,6 +2072,7 @@ impl GameClient {
             ("Chat", |c, d| c.update_chat(d)),
             ("Flight map", |c, _| c.update_flight_map()),
             ("Toy Box", |c, d| c.update_toybox(d)),
+            ("Housing", |c, _| c.update_housing()),
             ("Encounter", |c, d| c.update_encounter(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
@@ -2220,8 +2265,11 @@ impl GameClient {
             }
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
-            AccountEvent::TransmogState(state) => self.receive_transmog_state(state),
+            AccountEvent::TransmogState(state) => self.receive_transmog_state(state)?,
             AccountEvent::TransmogFailed(failed) => self.receive_transmog_failure(failed)?,
+            AccountEvent::TransmogOutfitFailed(failed) => {
+                self.transmog.book.receive_outfit_failure(failed)
+            }
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::Stable(message) => self.receive_stable(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
@@ -2291,6 +2339,7 @@ impl GameClient {
                 self.tooltips.receive_appearances(update);
                 self.refresh_transmog()?;
             }
+            AccountEvent::Housing(reply) => self.receive_housing_reply(reply)?,
             AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
             AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
@@ -2702,6 +2751,8 @@ impl GameClient {
     fn reset_world(&mut self) -> Result<(), String> {
         self.close_toybox();
         self.toybox.model = Default::default();
+        self.close_housing();
+        self.housing.model = None;
         self.cancel_ground_target();
         self.encounter.clear();
         self.stop_sound();
