@@ -71,30 +71,30 @@ fn state() -> TransmogState {
                 ],
             },
         ],
-        catalogue: vec![
-            TransmogCatalogueSource {
-                source: chest,
-                collection: TransmogCollectionState::Collected,
-                slots: vec![EquipmentSlot::Chest],
-            },
-            TransmogCatalogueSource {
-                source: source(
-                    70595,
-                    25940,
-                    124924,
-                    142246,
-                    "Wild Combatant's Chain Gauntlets",
-                    10,
-                ),
-                collection: TransmogCollectionState::Uncollected,
-                slots: vec![EquipmentSlot::Hands],
-            },
-        ],
         sets: vec![TransmogSet {
             set_id: 13,
             parent_set_id: 80,
             name: "Wild Combatant's Chain Armor".into(),
             source_ids: vec![70594, 70595],
+            primary_appearances: vec![
+                TransmogCatalogueSource {
+                    source: chest,
+                    collection: TransmogCollectionState::Collected,
+                    slots: vec![EquipmentSlot::Chest],
+                },
+                TransmogCatalogueSource {
+                    source: source(
+                        70595,
+                        25940,
+                        124924,
+                        142246,
+                        "Wild Combatant's Chain Gauntlets",
+                        10,
+                    ),
+                    collection: TransmogCollectionState::Uncollected,
+                    slots: vec![EquipmentSlot::Hands],
+                },
+            ],
         }],
         outfit_entries: vec![
             TransmogOutfitEntry {
@@ -350,7 +350,23 @@ fn transmog_sets_tab_marks_incomplete_sets_and_staged_set_state() {
         );
         assert!(registry.get_by_name("TransmogSet13State").is_none());
         assert!(sets.use_set(13));
+        let registry = build(skin, sets.clone());
+        assert!(
+            registry.get_by_name("TransmogSet13State").is_none(),
+            "the unequipped hands slot shows no set member"
+        );
+        // A set covering only the equipped chest: complete, and matched once staged.
+        let mut complete = state();
+        complete.sets[0].primary_appearances.truncate(1);
+        sets.receive(complete);
+        assert!(sets.use_set(13));
         let registry = build(skin, sets);
+        assert_eq!(text(&registry, "TransmogSet13Status"), "Collected (1/1)");
+        assert!(
+            registry
+                .get_by_name("TransmogSet13IncompleteOverlay")
+                .is_none()
+        );
         assert_eq!(
             texture(&registry, "TransmogSet13State"),
             ui_toolkit::widgets::texture::TextureSource::Atlas(

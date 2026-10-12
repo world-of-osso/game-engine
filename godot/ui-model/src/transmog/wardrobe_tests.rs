@@ -1,6 +1,6 @@
 //! Local Retail12.1.0.69933 identities: Gladius821/Deadman Blade1181 (collected),
-//! Smotts' Cutlass1473 (TransmogSourceTypeEnum9, non-collectable), TransmogSet13
-//! "Wild Combatant's Chain Armor" members70594 chest/70595 gauntlets, TransmogIllusion3
+//! TransmogSet13
+//! "Wild Combatant's Chain Armor" members70596 helm/70594 chest/70595 gauntlets, TransmogIllusion3
 //! Lifestealing (default collected) and2 Unholy Weapon (condition-locked), OutfitEntry2/3
 //! awarded and4 purchased.
 use super::*;
@@ -47,6 +47,30 @@ fn chain_armor() -> TransmogSource {
     )
 }
 
+fn gauntlets() -> TransmogSource {
+    source(
+        70595,
+        25940,
+        124924,
+        142246,
+        1092122,
+        "Wild Combatant's Chain Gauntlets",
+        10,
+    )
+}
+
+fn helm() -> TransmogSource {
+    source(
+        70596,
+        25941,
+        124925,
+        142242,
+        1092123,
+        "Wild Combatant's Chain Helm",
+        1,
+    )
+}
+
 fn slot(
     slot: EquipmentSlot,
     guid: u64,
@@ -67,7 +91,7 @@ fn slot(
     }
 }
 
-fn catalogue(
+fn piece(
     source: TransmogSource,
     collection: TransmogCollectionState,
     slot: EquipmentSlot,
@@ -125,46 +149,28 @@ fn wardrobe() -> TransmogState {
                 vec![gladius(), deadman()],
             ),
         ],
-        catalogue: vec![
-            catalogue(
-                gladius(),
-                TransmogCollectionState::Collected,
-                EquipmentSlot::MainHand,
-            ),
-            catalogue(
-                deadman(),
-                TransmogCollectionState::Collected,
-                EquipmentSlot::MainHand,
-            ),
-            catalogue(
-                source(1473, 720, 3935, 184632, 135274, "Smotts' Cutlass", 13),
-                TransmogCollectionState::NonCollectable,
-                EquipmentSlot::MainHand,
-            ),
-            catalogue(
-                chain_armor(),
-                TransmogCollectionState::Collected,
-                EquipmentSlot::Chest,
-            ),
-            catalogue(
-                source(
-                    70595,
-                    25940,
-                    124924,
-                    142246,
-                    1092122,
-                    "Wild Combatant's Chain Gauntlets",
-                    10,
-                ),
-                TransmogCollectionState::Uncollected,
-                EquipmentSlot::Hands,
-            ),
-        ],
         sets: vec![TransmogSet {
             set_id: 13,
             parent_set_id: 80,
             name: "Wild Combatant's Chain Armor".into(),
-            source_ids: vec![70594, 70595],
+            source_ids: vec![70594, 70595, 70596],
+            primary_appearances: vec![
+                piece(
+                    helm(),
+                    TransmogCollectionState::Uncollected,
+                    EquipmentSlot::Head,
+                ),
+                piece(
+                    chain_armor(),
+                    TransmogCollectionState::Collected,
+                    EquipmentSlot::Chest,
+                ),
+                piece(
+                    gauntlets(),
+                    TransmogCollectionState::Uncollected,
+                    EquipmentSlot::Hands,
+                ),
+            ],
         }],
         outfit_entries: vec![
             entry(1, "Default", 1, 0, 0, 1),
@@ -369,7 +375,7 @@ fn transmog_viewing_a_saved_outfit_stages_its_appearances_and_shows_its_illusion
 }
 
 #[test]
-fn transmog_sets_count_collected_slots_and_stage_only_usable_members() {
+fn transmog_sets_count_every_slot_and_stage_only_usable_members() {
     let mut book = book();
     book.set_tab(WardrobeTab::Sets);
     let sets = book.page_sets();
@@ -379,8 +385,9 @@ fn transmog_sets_count_collected_slots_and_stage_only_usable_members() {
         sets[0].1,
         SetProgress {
             collected: 1,
-            total: 2
-        }
+            total: 3
+        },
+        "unequipped head still counts"
     );
     assert_eq!(book.set_match(sets[0].0), None);
     assert!(book.use_set(13));
@@ -389,22 +396,39 @@ fn transmog_sets_count_collected_slots_and_stage_only_usable_members() {
         BTreeMap::from([(EquipmentSlot::Chest, TransmogChoice::Source(70594))]),
         "uncollected gauntlets are not staged"
     );
+    assert_eq!(
+        book.set_match(&book.state.as_ref().unwrap().sets[0]),
+        None,
+        "Retail requires every covered slot, and the head shows nothing"
+    );
     let equipment = book.set_equipment(13).unwrap();
     assert_eq!(
         equipment
             .entries
             .iter()
-            .map(|entry| entry.display_info_id)
+            .map(|entry| (entry.slot, entry.display_info_id))
             .collect::<Vec<_>>(),
-        vec![Some(142240), Some(142246)],
-        "set model wears collected and uncollected members"
+        vec![
+            (shared::components::EquipmentVisualSlot::Head, Some(142242)),
+            (shared::components::EquipmentVisualSlot::Chest, Some(142240)),
+            (shared::components::EquipmentVisualSlot::Hands, Some(142246)),
+        ],
+        "set model tries on every primary appearance"
     );
-    let mut none = wardrobe();
-    none.catalogue[3].collection = TransmogCollectionState::Uncollected;
-    book.receive(none);
-    assert!(
-        book.page_sets().is_empty(),
-        "no collected member: not an available set"
+}
+
+#[test]
+fn transmog_set_matches_when_every_covered_slot_shows_a_member() {
+    let mut state = wardrobe();
+    state.sets[0].primary_appearances.remove(0);
+    state.sets[0].primary_appearances[1].collection = TransmogCollectionState::Collected;
+    state.slots[1].sources = vec![gauntlets()];
+    let mut book = TransmogBook::default();
+    book.receive(state);
+    assert!(book.use_set(13));
+    assert_eq!(
+        book.set_match(&book.state.as_ref().unwrap().sets[0]),
+        Some(true)
     );
 }
 

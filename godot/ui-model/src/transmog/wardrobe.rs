@@ -46,7 +46,7 @@ pub struct OutfitRow {
     pub name: String,
 }
 
-/// C_TransmogSets primary-appearance counts over the set members the catalogue exposes.
+/// C_TransmogSets set source counts: collected primary appearances of all of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SetProgress {
     pub collected: usize,
@@ -439,40 +439,20 @@ impl TransmogBook {
             .collect()
     }
 
-    /// Set members the catalogue lists, grouped by their first eligible equipment slot.
-    fn set_members(
-        &self,
-        set: &TransmogSet,
-    ) -> BTreeMap<EquipmentSlot, Vec<&TransmogCatalogueSource>> {
-        let mut members: BTreeMap<_, Vec<_>> = BTreeMap::new();
-        for entry in self.state.iter().flat_map(|state| &state.catalogue) {
-            if set.source_ids.contains(&entry.source.source_id)
-                && let Some(slot) = entry.slots.first()
-            {
-                members.entry(*slot).or_default().push(entry);
-            }
-        }
-        members
-    }
-
+    /// C_TransmogSets primary appearances: one piece per transmog slot (server-computed).
     pub fn set_progress(&self, set: &TransmogSet) -> SetProgress {
-        let members = self.set_members(set);
         SetProgress {
-            collected: members
-                .values()
-                .filter(|entries| {
-                    entries
-                        .iter()
-                        .any(|entry| entry.collection == TransmogCollectionState::Collected)
-                })
+            collected: set
+                .primary_appearances
+                .iter()
+                .filter(|piece| piece.collection == TransmogCollectionState::Collected)
                 .count(),
-            total: members.len(),
+            total: set.primary_appearances.len(),
         }
     }
 
-    /// GetAvailableSets: class-usable sets with a collected appearance, collected first
-    /// (SortSets); the remaining expansion/patch/uiOrder keys are not exported, so setID
-    /// descending decides ties.
+    /// GetAvailableSets (the server lists only started sets), collected first (SortSets);
+    /// expansion/patch/uiOrder keys are not exported, so setID descending decides ties.
     pub fn available_sets(&self) -> Vec<(&TransmogSet, SetProgress)> {
         let query = self.search.trim().to_lowercase();
         let mut sets: Vec<_> = self
@@ -481,7 +461,6 @@ impl TransmogBook {
             .flat_map(|state| &state.sets)
             .filter(|set| query.is_empty() || set.name.to_lowercase().contains(&query))
             .map(|set| (set, self.set_progress(set)))
-            .filter(|(_, progress)| progress.collected > 0)
             .collect();
         sets.sort_by(|(left, lp), (right, rp)| {
             let left_done = lp.collected == lp.total;
@@ -537,27 +516,25 @@ impl TransmogBook {
         true
     }
 
-    /// GetFirstMatchingSetID: Some(pending) when every equipped slot with set members
-    /// shows one of them.
+    /// GetFirstMatchingSetID: Some(pending) when every slot the set covers shows one of
+    /// its members; a slot with nothing equipped shows none.
     pub fn set_match(&self, set: &TransmogSet) -> Option<bool> {
-        let members = self.set_members(set);
         let state = self.state.as_ref()?;
-        let mut matched = false;
         let mut pending = false;
-        for slot in &state.slots {
-            if !members.contains_key(&slot.slot) {
-                continue;
-            }
+        for piece in &set.primary_appearances {
+            let slot = state
+                .slots
+                .iter()
+                .find(|slot| piece.slots.contains(&slot.slot))?;
             let TransmogChoice::Source(id) = self.effective_choice(slot) else {
                 return None;
             };
             if !set.source_ids.contains(&id) {
                 return None;
             }
-            matched = true;
             pending |= self.pending.contains_key(&slot.slot);
         }
-        matched.then_some(pending)
+        (!set.primary_appearances.is_empty()).then_some(pending)
     }
 
     /// GetFirstMatchingCustomSetID.
@@ -574,21 +551,27 @@ impl TransmogBook {
         (!set.choices.is_empty()).then_some(pending)
     }
 
-    /// Dress the set model in one member per equipped slot (collected members first).
+    /// TransmogSetModelMixin:UpdateSet: an undressed player trying on every primary appearance.
     pub fn set_equipment(&self, set_id: u32) -> Option<shared::components::EquipmentAppearance> {
-        let state = self.state.as_ref()?;
-        let set = state.sets.iter().find(|set| set.set_id == set_id)?;
-        let members = self.set_members(set);
-        let entries = state
-            .slots
+        let set = self
+            .state
+            .as_ref()?
+            .sets
             .iter()
-            .filter_map(|slot| {
-                let candidates = members.get(&slot.slot)?;
-                let entry = candidates
-                    .iter()
-                    .find(|entry| entry.collection == TransmogCollectionState::Collected)
-                    .or_else(|| candidates.first())?;
-                appearance_entry(slot, &entry.source)
+            .find(|set| set.set_id == set_id)?;
+        let entries = set
+            .primary_appearances
+            .iter()
+            .filter_map(|piece| {
+                let source = &piece.source;
+                Some(shared::components::EquippedAppearanceEntry {
+                    slot: piece.slots.first()?.visual_slot()?,
+                    item_id: Some(source.item_id),
+                    definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+                    display_info_id: Some(source.display_id),
+                    inventory_type: source.inventory_type,
+                    hidden: false,
+                })
             })
             .collect();
         Some(shared::components::EquipmentAppearance { entries })
