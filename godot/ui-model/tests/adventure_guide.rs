@@ -19,6 +19,37 @@ fn journal() -> View {
     }
 }
 #[test]
+fn owned_keystones_browse_authentic_dungeons_without_active_run() {
+    use shared::protocol::KeystoneInfo;
+    let mut view = journal();
+    view.keys = vec![KeystoneInfo {
+        item_guid: 42,
+        item_id: 180653,
+        challenge_id: 401,
+        level: 8,
+        affixes: vec![],
+    }];
+    view.owned_keys_only = true;
+    view.tier = 68;
+    let maps: Vec<_> = view
+        .instances()
+        .iter()
+        .map(|instance| instance.map)
+        .collect();
+    assert_eq!(
+        maps,
+        vec![2515],
+        "Owned Azure key selects its authored dungeon across expansion filters"
+    );
+    assert!(view.challenge.is_none());
+    view.keys.clear();
+    assert!(
+        view.instances().is_empty(),
+        "No active run or manufactured key substitutes for an empty authoritative bag"
+    );
+}
+
+#[test]
 fn journal_shows_authoritative_keystone_only_for_its_dungeon() {
     use shared::protocol::{ChallengePhase, ChallengeRun, KeystoneInfo};
     let mut view = journal();

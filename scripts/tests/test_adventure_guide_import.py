@@ -17,7 +17,7 @@ class JournalImportTests(unittest.TestCase):
         source = Path(os.environ['ADVENTURE_GUIDE_SOURCE'])
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / 'journal.sqlite'
-            module.import_cache(source / 'db2', source, output, Path(os.environ['ADVENTURE_GUIDE_ITEMS']))
+            module.import_cache(source / 'db2', source, output, Path(os.environ['ADVENTURE_GUIDE_ITEMS']), Path(os.environ['ADVENTURE_GUIDE_WORLD']))
             with sqlite3.connect(output) as conn:
                 encounter = conn.execute('SELECT ID,Name_lang,JournalInstanceID,FirstSectionID FROM JournalEncounter WHERE ID=663').fetchone()
                 self.assertEqual(encounter[1], 'Jandice Barov')
@@ -27,6 +27,8 @@ class JournalImportTests(unittest.TestCase):
                 self.assertGreater(conn.execute('SELECT COUNT(*) FROM JournalEncounterItem WHERE JournalEncounterID=663').fetchone()[0], 0)
                 self.assertGreater(conn.execute('SELECT COUNT(*) FROM JournalItemXDifficulty d JOIN JournalEncounterItem i ON i.ID=d.JournalEncounterItemID').fetchone()[0], 1000)
                 self.assertEqual(conn.execute('SELECT build FROM source').fetchone()[0], '12.1.0.69933')
+                self.assertIsNotNone(conn.execute("SELECT name FROM sqlite_master WHERE name='challenge_dungeon'").fetchone(), 'Owned keystones require authentic challenge-to-Journal map data')
+                self.assertEqual(conn.execute('SELECT map_id,name,time_limit_ms FROM challenge_dungeon WHERE ID=401').fetchone(), (2515, 'The Azure Vault', 2250000))
 
     def test_rejects_mismatched_layout_without_replacing_cache(self):
         module = importlib.util.module_from_spec(SPEC)
