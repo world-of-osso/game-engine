@@ -1,6 +1,6 @@
 ## 2026-10-12 — Source-backed battleground node maps
 
-[Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type42 native rendering.82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private5712 both-skin16-account source capture/resource/victory/return proof adds14 inspected PNGs; Gilneas full live acceptance remains pending after a receipt-order harness race. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+[Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type42 native rendering.82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private5712 both-skin16-account source capture/resource/victory/return proof adds14 inspected PNGs; Gilneas private5712 both-skin6-account proof (three physical nodes,1500 victory, return) adds14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
 
 ## 2026-10-11 — Retail talent placement
 
