@@ -183,6 +183,28 @@ fn bc5_rejects_zero_and_overflowing_dimensions() {
     assert!(decode_rgba(&bc5_blp(u32::MAX, u32::MAX, &[])).is_err());
 }
 
+/// Ocean Simulator's authored wave texture must reach native GPU upload too.
+#[test]
+fn toyfx14_ocean_bc5_texture_uploads_authored_red_green_pixels() {
+    let image = decode_gpu(&texture(2_022_306)).unwrap();
+    assert_eq!(image.format, GpuFormat::Rgba8);
+    assert_eq!((image.width, image.height), (1024, 1024));
+    assert!(!image.mipmaps);
+    assert_eq!(image.data.len(), 1024 * 1024 * 4);
+    assert_eq!(
+        &image.data[..16],
+        &[
+            0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255
+        ]
+    );
+    assert!(
+        image
+            .data
+            .chunks_exact(4)
+            .all(|pixel| pixel[2] == 0 && pixel[3] == 255)
+    );
+}
+
 /// Azerite liquid normal map FDID 1886758 is BLP2 pixel format 11 (BC5).
 #[test]
 fn bc5_normal_map_decodes_red_green_channels() {

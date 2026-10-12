@@ -133,28 +133,32 @@ pub struct GpuImage {
 /// such image format: it uploads `FORMAT_DXT1` as `DATA_FORMAT_BC1_RGB_UNORM_BLOCK`
 /// (4.7.2 `texture_storage.cpp`), where punch-through texels are opaque black.
 pub fn decode_gpu(bytes: &[u8]) -> Result<GpuImage, String> {
+    if let Some(rgba) = decode_bc5(bytes)? {
+        return Ok(convert_rgba_for_upload(rgba));
+    }
     let blp = load_blp_from_buf(bytes).map_err(|e| format!("Failed to load BLP: {e}"))?;
     let (width, height) = (blp.header.width, blp.header.height);
     let (format, dxtn) = match &blp.content {
         BlpContent::Dxt1(dxtn) => (BlockFormat::Dxt1, dxtn),
         BlpContent::Dxt3(dxtn) => (BlockFormat::Dxt3, dxtn),
         BlpContent::Dxt5(dxtn) => (BlockFormat::Dxt5, dxtn),
-        _ => {
-            let rgba = decode_rgba(bytes)?;
-            return Ok(GpuImage {
-                format: GpuFormat::Rgba8,
-                width: rgba.width,
-                height: rgba.height,
-                mipmaps: false,
-                data: rgba.pixels,
-            });
-        }
+        _ => return Ok(convert_rgba_for_upload(decode_rgba(bytes)?)),
     };
     let image = compressed_image(format, dxtn, width, height)?;
     if format == BlockFormat::Dxt1 && blp.header.alpha_bits() > 0 {
         return Ok(decompress_bc1(image));
     }
     Ok(image)
+}
+
+fn convert_rgba_for_upload(rgba: RgbaImage) -> GpuImage {
+    GpuImage {
+        format: GpuFormat::Rgba8,
+        width: rgba.width,
+        height: rgba.height,
+        mipmaps: false,
+        data: rgba.pixels,
+    }
 }
 
 fn compressed_image(

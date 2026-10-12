@@ -10,6 +10,36 @@
 
 [Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
 
+## 2026-10-11 — Toy input and source rendering
+
+[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance is still pending.
+
+## 2026-10-12 — Mount Journal final acceptance
+
+[Mounts](systems/mounts.md#mount-journal): merged master; both-skin private vendor learn/favourite/summon/random, alternate-character persistence and two-account AH buy/mail/learn pass at the merged revision. Remaining preview receipt coverage is recorded in the [contract](../specs/mount-journal.md#known-gaps-current-cycle).
+
+## 2026-10-11 — Mount Journal implementation/data checkpoint
+
+[Mounts](systems/mounts.md#mount-journal): account-authoritative native journal, strict local mount-root appearance extension and private Modern item/preview observation. Behavioural and cache-preservation proof recorded; both-skin acceptance/final gate remain open in the [contract](../specs/mount-journal.md).
+## 2026-10-11 — World-quest final bounded continuation
+
+[World quests](investigations/world-quest-availability.md): strict source XP/cap inputs and Amount0 trigger booleans; current import239/244,5 source/producer gaps retained. Both latest-master integrations,23 WQ/12 importer/1 both-skin UI/1,733 protocol tests and native build/check/fmt pass. Matching private5861 binaries complete real86948 via administrator-driven authored creature deaths,11765XP, living Modern/Forever actors; Modern relog empty. Source/producer gaps and natural acquisition remain open; no synthetic trigger geometry, canonical world.db writes or shared-realm operations. Owned processes stopped.
+
+## 2026-10-11 — World-quest criteria and reward caps
+
+[World quests](investigations/world-quest-availability.md): all3 current single-leaf criteria trees use fresh persisted task counters, including real420847 aura application. Source standing caps now gate reputation gains without suppressing losses. New master merges retain staged numeric+profession wallet rewards; strict NPC-map fixtures restored and17 tests pass. Private import239/244 polygons; remaining3 trigger tasks lack template bindings and2 labels have no local memberships.22 current post-merge world-quest tests pass; current native UI test/build pass. Fresh natural/living proof and final gates remain open.
+
+## 2026-10-11 — World-quest dynamic objectives
+
+[World quests](investigations/world-quest-availability.md): dynamic rows replace legacy slot loss; authored optional/hidden/weighted/sequenced/quest-bound flags retained. Authoritative TalkTo, personal PvP death and difficulty-specific authentic creature-label credit added. Bound loot persists counters without bag creation or unrelated reward-time consumption; accepted tasks settle outside the polygon. Targeted RED→GREEN runtime/import proofs; refreshed read-only private import236/244 polygon quests,8 unresolved sources,12 without supported rewards. Older both-skin administrator-fed PNGs are not current natural-gameplay proof. Whole goal remains open.
+
+## 2026-10-11 — World-quest polygon/native continuation
+
+[World quests](investigations/world-quest-availability.md): implement authenticated POI polygons, approved duration defaults, window-scoped completion, pinned XP/numeric rewards, availability transport and both-skin pins/tooltips/tracker/timer/toasts. Private5861 real86941 completes through administrator-supplied authentic objective items, consumes6items and pays11765 XP in Modern/Forever; replay suppressed, six inspected PNGs published. Native/WoW coordinate conversion and signed sort category startup failures repaired. Whole coverage remains open:106 authentic objective shapes excluded by existing representation; natural collection/living actors not certified. Private actors expose existing terrain/death limitation. All owned processes stopped; no canonical world.db/5000 operations.
+
+## 2026-10-11 — World-quest deterministic foundations
+
+[World quests](../specs/world-quests.md): implement user-authorized realm rotation with four authentic604800s durations, private-copy importer and persisted task/watch expiry. Preserve full raw TDB rewards; exclude unknown durations rather than guess. Additional local task/condition extraction identifies remaining eligibility joins. Repair inline AreaPOI relationship duplication (RED→GREEN); decode3,909 POIs/1,070 states/154 buffs with zero matching task/stage/boss-name joins. Task-area acceptance and both-skin native/live completion remain open. No canonical data writes, UDP5000 operations or PNG acceptance claim.
 ## 2026-10-11 — Retail talent placement
 
 [Talents placement](systems/talents.md#retail-placement-correction-2026-10-11): source-derived class pan and DB2 centers replace fit zoom/126px row rebasing; BOTTOM-centered page,200px PvP tray/4px gaps and label. Ret/Arcane both-skin behavioral regression and private5921 before/after proof tracked in the talent-centering evidence ledger.
@@ -27,6 +57,9 @@
 ## 2026-10-11 — Whole-world NPC appearance
 
 [Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
+## 2026-10-11 — Authored boss-mod warnings
+
+[Boss encounters](systems/boss-encounters.md#boss-mod-continuation--verified2026-10-11): display required rendered enUS warning_text with the spell icon, not a locale key/generic name. Model RED→GREEN, both-skin screen, actual UDP order/native geometry and check/fmt pass. Private5906 Hydrospawn/Zevrim bars/warnings in both skins have eight inspected1280PNG receipts; [server coverage](../../../game-server/docs/bossmod-data-coverage.md) owns outstanding native-input clocks. No shared realm changes.
 
 ## 2026-10-11 — AchievementFrame art
 
@@ -46,6 +79,9 @@
 ## 2026-10-11 — Encounter timeline/warnings
 
 [Boss encounters](systems/boss-encounters.md#scheduler-timeline--verified-2026-10-11): actual SmartAI/EventMap timers, ordered accepted-cast/phase events, bars/track and severity text/icons/audio, saved view choices and four Edit Mode movers. Native offscreen warning/covered timer text/unregistered sound failures reproduced and corrected. Both-skin Cobrahn and data-bound Skum countdown→actual cast/warning, real audio-play receipts, saved view choices, Forever live track movement and movers inspected; [acceptance](../specs/encounter-timeline.md#sources--acceptance) owns18 PNGs and exact coverage limits. Private5850 only; no invented timers or realm5000 changes.
+## 2026-10-11 — World-quest source boundary
+
+[Investigation](investigations/world-quest-availability.md): pinned QuestInfo classification and archive/SQLite template fields agree for4,207 world quests. Actual quest pools/events supply zero matching quests. Local-CASC follow-through finds four managed-state duration definitions but no matching current-stage defaults/activation epochs; historical ScheduledWorldState payloads fail local root resolution. [Contract](../specs/world-quests.md) remains unchecked. Read-only census receipt retained; no runtime code, canonical writes, server/client process or PNG proof.
 
 ## 2026-10-11 — Native follower LFG transport
 ## 2026-10-11 — Native Mythic Mentor
@@ -676,6 +712,8 @@ MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](syste
 MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
 
 # Wiki Log
+
+-2026-10-11 Mount Journal continuation: real UDP paid vendor learning and known feedback; traced stale favourite before client receipt, implemented compact row publication/retained SharedContext view, added generation regression and central no-mount-transmog test.
 
 ## 2026-10-06 — Rendered Stormwind resource scheduling
 

@@ -12,6 +12,7 @@ References:
 
 ## What it must do
 
+- [x] Right-clicking a living non-hostile NPC with interaction flags opens its service instead of attacking it, including neutral Harold Winston (FactionTemplate2007). Existing neutral creatures without service flags remain attackable; hostile reactions never gain service priority. Authored NON_ATTACKABLE, IMMUNE_TO_PC and NOT_SELECTABLE flags prevent player attack requests.
 - [x] The server's `VendorInventory` (sent when the vendor role opens) opens the frame.
   - Title is the NPC name; tab 1 is selected.
   - It opens as the NPC-driven Panel in window slot L, together with the backpack (`OpenAllBags`, MF.lua OnShow).

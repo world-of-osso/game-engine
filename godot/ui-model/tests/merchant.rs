@@ -34,6 +34,7 @@ fn data_root() {
 
 fn item(slot: u32, item_id: u32, name: &str, price: u32) -> VendorItem {
     VendorItem {
+        extra_costs: Vec::new(),
         slot,
         item_id,
         name: name.into(),
@@ -61,6 +62,7 @@ fn godric() -> VendorInventory {
             item(4, 2384, "Tarnished Chain Bracers", 45),
             item(5, 2385, "Tarnished Chain Gloves", 45),
             VendorItem {
+                extra_costs: Vec::new(),
                 usable: false,
                 ..item(6, 17184, "Small Shield", 36)
             },
@@ -72,6 +74,7 @@ fn godric() -> VendorInventory {
 /// `content_npc_vendor` 152: 25 copper per 5 bread and 5 per 5 water, stacking to 20.
 fn danil() -> VendorInventory {
     let bundle = |slot, item_id, name: &str, price| VendorItem {
+        extra_costs: Vec::new(),
         stack_count: 5,
         max_stack: 20,
         ..item(slot, item_id, name, price)
@@ -155,6 +158,58 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         Some(WidgetData::FontString(text)) => text.text.clone(),
         other => panic!("{name} is {other:?}"),
     }
+}
+
+#[test]
+fn mount_vendor_authored_item_and_currency_costs_render_with_gold() {
+    use shared::protocol::VendorCost;
+    let mut inventory = godric();
+    inventory.items.truncate(1);
+    inventory.items[0].extra_costs = vec![VendorCost {
+        currency: false,
+        id: 137642,
+        amount: 15,
+        name: "Mark of Honor".into(),
+        icon_file_data_id: 1322720,
+    }];
+    inventory.items[0].price = 0;
+    let token_session = session(inventory.clone(), "Thanthaldis Snowgleam", 0);
+    let registry = render(&token_session);
+    assert_eq!(
+        text(&registry, "MerchantItem1AltCurrencyFrameItem1Text"),
+        "15"
+    );
+    assert!(
+        registry
+            .get_by_name("MerchantItem1MoneyFrameAmount0")
+            .is_none(),
+        "Token-only mount offers must not display a misleading zero-copper price"
+    );
+    // Authored cost2671: 500 gold and5 Champion's Seals.
+    inventory.items[0].price = 5_000_000;
+    inventory.items[0].extra_costs = vec![VendorCost {
+        currency: true,
+        id: 241,
+        amount: 5,
+        name: "Champion's Seal".into(),
+        icon_file_data_id: 236246,
+    }];
+    let registry = render(&session(inventory, "Tournament vendor", 5_000_000));
+    assert_eq!(text(&registry, "MerchantItem1MoneyFrameAmount0"), "500");
+    assert_eq!(
+        text(&registry, "MerchantItem1AltCurrencyFrameItem1Text"),
+        "5"
+    );
+    assert!(
+        registry
+            .get_by_name("MerchantItem1MoneyFrameCoin0")
+            .is_some()
+    );
+    assert!(
+        registry
+            .get_by_name("MerchantItem1AltCurrencyFrameItem1Texture")
+            .is_some()
+    );
 }
 
 #[test]
