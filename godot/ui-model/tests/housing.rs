@@ -98,7 +98,9 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
         let button = registry
             .get(registry.get_by_name("HousingCornerstoneBuyButton").unwrap())
             .unwrap();
-        assert!(matches!(&button.widget_data,Some(WidgetData::Button(data)) if !data.enabled));
+        assert!(
+            matches!(&button.widget_data,Some(WidgetData::Button(data)) if data.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+        );
     }
 }
 
