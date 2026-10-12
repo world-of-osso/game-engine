@@ -1,8 +1,10 @@
 //! Retail Mainline Adventure Guide; both skins share the same 800×496 layout.
 use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, portrait_border};
-use game_engine_core::adventure_guide::{Catalog, Instance, Item, Section, difficulty_matches};
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, portrait_border};
+use game_engine_core::adventure_guide::{
+    Catalog, Instance, Item, ItemSet, Section, difficulty_matches,
+};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -21,6 +23,8 @@ pub enum Tab {
     Raids,
     ItemSets,
     Tutorials,
+    Monthly,
+    Suggested,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Page {
@@ -53,12 +57,17 @@ pub struct View {
     pub role: u32,
     pub class: u32,
     pub spec: u32,
+    pub player_spec: Option<u32>,
     pub slot: u32,
     pub filter_menu: Option<LootFilter>,
     pub search: String,
     pub collapsed: BTreeSet<u32>,
     pub lockouts: Vec<(u32, String)>,
     pub challenge: Option<shared::protocol::ChallengeRun>,
+    pub keys: Vec<shared::protocol::KeystoneInfo>,
+    pub owned_keys_only: bool,
+    pub activities: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
+    pub activity_filters: crate::adventure_activities::ActivityFilters,
 }
 impl Default for View {
     fn default() -> Self {
@@ -78,12 +87,17 @@ impl Default for View {
             role: 0,
             class: 0,
             spec: 0,
+            player_spec: None,
             slot: 0,
             filter_menu: None,
             search: String::new(),
             collapsed: BTreeSet::new(),
             lockouts: Vec::new(),
             challenge: None,
+            keys: Vec::new(),
+            owned_keys_only: false,
+            activities: None,
+            activity_filters: Default::default(),
         }
     }
 }
@@ -102,6 +116,103 @@ impl View {
                 .join("\n"),
         )
     }
+    pub fn set_member(&self, frame_name: &str) -> Option<(&ItemSet, &Item)> {
+        let (set, item) = frame_name.strip_prefix("JournalSet")?.split_once("Item")?;
+        let set: u32 = set.parse().ok()?;
+        let item: u32 = item.parse().ok()?;
+        let set = self
+            .catalog
+            .sets
+            .iter()
+            .find(|row| row.id == set && row.items.contains(&item))?;
+        Some((set, self.catalog.items.get(&item)?))
+    }
+    pub fn item_sets(&self) -> Vec<&ItemSet> {
+        let search = self.search.to_lowercase();
+        let mut sets: Vec<_> = self
+            .catalog
+            .sets
+            .iter()
+            .filter(|set| {
+                let items: Vec<_> = set
+                    .items
+                    .iter()
+                    .filter_map(|id| self.catalog.items.get(id))
+                    .collect();
+                set.name.to_lowercase().contains(&search)
+                    && !items.is_empty()
+                    && items.iter().all(|item| {
+                        let class_matches = self.class == 0
+                            || item.class_mask == -1
+                            || item.class_mask & (1 << (self.class - 1)) != 0;
+                        class_matches && self.matches_specialization(item.id)
+                    })
+            })
+            .collect();
+        sets.sort_by(|a, b| {
+            self.set_level(b)
+                .cmp(&self.set_level(a))
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                .then_with(|| b.id.cmp(&a.id))
+        });
+        sets
+    }
+    fn set_level(&self, set: &ItemSet) -> Option<u32> {
+        set.items
+            .iter()
+            .filter_map(|id| crate::item_catalog::item_catalog_entry(*id))
+            .map(|item| {
+                u32::from(crate::item_stats::item_level_for(
+                    shared::item_data::ItemDefinitionSource::Retail,
+                    item,
+                ))
+            })
+            .max()
+    }
+    fn choose_set_specialization(&self) -> u32 {
+        let specs: Vec<_> = self
+            .catalog
+            .specs
+            .iter()
+            .filter(|spec| spec.class == self.class && spec.name != "Initial")
+            .collect();
+        specs
+            .iter()
+            .find(|spec| Some(spec.id) == self.player_spec)
+            .or_else(|| specs.first())
+            .map_or(0, |spec| spec.id)
+    }
+    pub fn owned_keys(
+        &self,
+        map: u32,
+    ) -> Vec<(
+        &shared::protocol::KeystoneInfo,
+        &game_engine_core::adventure_guide::ChallengeDungeon,
+    )> {
+        self.keys
+            .iter()
+            .filter_map(|key| {
+                let dungeon = self.catalog.challenge_dungeons.get(&key.challenge_id)?;
+                (dungeon.map == map).then_some((key, dungeon))
+            })
+            .collect()
+    }
+    pub fn owned_key_text(&self) -> Option<String> {
+        let instance = self.catalog.instance(self.instance?)?;
+        let rows: Vec<_> = self
+            .owned_keys(instance.map)
+            .iter()
+            .map(|(key, dungeon)| {
+                format!(
+                    "Owned Keystone: {} +{} · Time Limit: {}",
+                    dungeon.name,
+                    key.level,
+                    crate::challenge::clock(dungeon.time_limit_ms)
+                )
+            })
+            .collect();
+        (!rows.is_empty()).then(|| rows.join("\n"))
+    }
     pub fn instances(&self) -> Vec<&Instance> {
         let search = self.search.to_lowercase();
         self.catalog
@@ -109,7 +220,11 @@ impl View {
             .iter()
             .filter(|i| {
                 i.dungeon == (self.tab == Tab::Dungeons)
-                    && i.tiers.contains(&self.tier)
+                    && if self.owned_keys_only && self.tab == Tab::Dungeons {
+                        !self.owned_keys(i.map).is_empty()
+                    } else {
+                        i.tiers.contains(&self.tier)
+                    }
                     && i.name.to_lowercase().contains(&search)
             })
             .collect()
@@ -275,11 +390,37 @@ impl View {
                     Some("raids") => Tab::Raids,
                     Some("sets") => Tab::ItemSets,
                     Some("tutorials") => Tab::Tutorials,
+                    Some("monthly") => Tab::Monthly,
+                    Some("suggested") => Tab::Suggested,
                     _ => return Err("Unknown journal tab".into()),
                 };
+                if self.tab == Tab::ItemSets && self.spec == 0 {
+                    self.spec = self.choose_set_specialization();
+                }
                 self.instance = None;
                 self.encounter = None;
+                self.filter_menu = None;
                 self.search.clear();
+            }
+            "activity-filter" => {
+                self.activity_filters.tracked_only = match value {
+                    Some("all") => false,
+                    Some("tracked") => true,
+                    _ => return Err("Unknown activity filter".into()),
+                };
+            }
+            "activity-tag" => self.activity_filters.tag = number()?,
+            "activity" => {
+                let id = number()?;
+                self.activity_filters.selected = if self.activity_filters.selected == Some(id) {
+                    None
+                } else {
+                    Some(id)
+                };
+            }
+            "owned-keys" => {
+                self.owned_keys_only = !self.owned_keys_only;
+                self.tier_open = false;
             }
             "tier-menu" => self.tier_open = !self.tier_open,
             "tier" => {
@@ -347,7 +488,11 @@ impl View {
             }
             "class" => {
                 self.class = number()?;
-                self.spec = 0;
+                self.spec = if self.tab == Tab::ItemSets {
+                    self.choose_set_specialization()
+                } else {
+                    0
+                };
                 self.filter_menu = None;
             }
             "spec" => {
@@ -369,11 +514,16 @@ impl View {
         Ok(())
     }
 }
-fn button(name: String, text: &str, action: &str, rect: (f32, f32, f32, f32)) -> Element {
+pub(crate) fn button(
+    name: String,
+    text: &str,
+    action: &str,
+    rect: (f32, f32, f32, f32),
+) -> Element {
     let (left, top, width, height) = rect;
     rsx! {button {name:{DynName(name)},text,onclick:action,left,top,width,height,pos_type:"absolute",font_size:12.0,font_color:NORMAL_FONT_COLOR,button_atlas_up:"defaultbutton-nineslice-up",button_atlas_pressed:"defaultbutton-nineslice-pressed",button_atlas_highlight:"defaultbutton-nineslice-highlight"}}
 }
-fn text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
+pub(crate) fn text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
     label(name.into(), value, rect, (12., WHITE, "LEFT"))
 }
 
@@ -402,6 +552,8 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         ("Raids", "raids"),
         ("Item Sets", "sets"),
         ("Tutorials", "tutorials"),
+        ("Traveler's Log", "monthly"),
+        ("Suggested", "suggested"),
     ]
     .into_iter()
     .enumerate()
@@ -410,7 +562,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             format!("EncounterJournalTab{index}"),
             title,
             &format!("journal:tab:{action}"),
-            (12. + index as f32 * 120., 496., 117., 24.),
+            (12. + index as f32 * 130., 496., 127., 24.),
         ));
     }
     body.extend(if view.loading {
@@ -423,6 +575,15 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         match view.tab {
             Tab::Tutorials => tutorials(view),
             Tab::ItemSets => sets(ctx, view),
+            Tab::Monthly => crate::adventure_activities::monthly(
+                ctx,
+                view.activities.as_deref(),
+                &view.activity_filters,
+                &view.search,
+            ),
+            Tab::Suggested => {
+                crate::adventure_activities::suggested(ctx, view.activities.as_deref())
+            }
             _ => {
                 if view.instance.is_some() {
                     encounter_page(ctx, view)
@@ -432,7 +593,11 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             }
         }
     });
-    if !view.loading && view.search.chars().count() >= 3 && view.page != Page::Loot {
+    if !view.loading
+        && matches!(view.tab, Tab::Dungeons | Tab::Raids)
+        && view.search.chars().count() >= 3
+        && view.page != Page::Loot
+    {
         body.extend(search_results(ctx, view));
     }
     let left = (view.viewport[0] - 800.) / 2.;
@@ -459,8 +624,21 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
     let content = rows
         .iter()
         .enumerate()
-        .flat_map(|(index, instance)| instance_card(index, instance))
+        .flat_map(|(index, instance)| instance_card(index, instance, view))
         .collect();
+    if view.tab == Tab::Dungeons {
+        let title = if view.owned_keys_only {
+            "Owned Keystones ✓"
+        } else {
+            "Owned Keystones"
+        };
+        controls.extend(button(
+            "JournalOwnedKeystones".into(),
+            title,
+            "journal:owned-keys",
+            (270., 65., 210., 24.),
+        ));
+    }
     controls.extend(scroll(
         ctx,
         content,
@@ -486,7 +664,7 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
     }
     controls
 }
-fn instance_card(index: usize, instance: &Instance) -> Element {
+fn instance_card(index: usize, instance: &Instance, view: &View) -> Element {
     let left = (index % 4) as f32 * 191.;
     let top = (index / 4) as f32 * 130.;
     let mut art = texture(
@@ -500,6 +678,13 @@ fn instance_card(index: usize, instance: &Instance) -> Element {
         &instance.name,
         (4., 106., 177., 22.),
     ));
+    if let Some((key, _)) = view.owned_keys(instance.map).first() {
+        art.extend(text(
+            &format!("JournalInstance{}Key", instance.id),
+            &format!("+{}", key.level),
+            (130., 80., 50., 22.),
+        ));
+    }
     let name = DynName(format!("JournalInstance{}", instance.id));
     let action = format!("journal:instance:{}", instance.id);
     rsx! {r#frame {name:{name},left,top,width:185.0,height:128.0,pos_type:"absolute",mouse_enabled:true,onclick:{action.as_str()},{art}}}
@@ -545,10 +730,15 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         ));
     }
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
-        if let Some(challenge) = view.challenge_text() {
+        let key_text = [view.owned_key_text(), view.challenge_text()]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !key_text.is_empty() {
             out.extend(text(
                 "EncounterJournalKeystone",
-                &challenge,
+                &key_text,
                 (205., 295., 550., 175.),
             ));
         }
@@ -559,11 +749,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
                 205.,
                 105.,
                 550.,
-                if view.challenge_text().is_some() {
-                    175.
-                } else {
-                    340.
-                },
+                if !key_text.is_empty() { 175. } else { 340. },
             ),
         ));
         return out;
@@ -872,7 +1058,10 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         LootFilter::Spec => ("Spec", "spec", 1),
         LootFilter::Slot => ("Slot", "slot", 2),
     };
-    let entries = loot_filter_entries(view, menu);
+    let entries: Vec<_> = loot_filter_entries(view, menu)
+        .into_iter()
+        .filter(|(id, _)| view.tab != Tab::ItemSets || menu != LootFilter::Spec || *id != 0)
+        .collect();
     let height = (entries.len() as f32 * 24.).min(300.);
     let children = entries
         .iter()
@@ -894,41 +1083,118 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         "EncounterJournalFilterList",
     );
     let left = 202. + index as f32 * 190.;
-    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top:175.0,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{content}}}
+    let top = if view.tab == Tab::ItemSets { 89. } else { 175. };
+    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{content}}}
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
-    let search = view.search.to_lowercase();
+    let rows = view.item_sets();
     let offset = ctx.scroll_first_row(LIST) as f32;
-    let visible = |top: f32, height: f32| top + height >= offset && top <= offset + 416.;
-    let mut y = 0.;
-    let mut content = Vec::new();
-    for set in view
-        .catalog
-        .sets
+    let content = rows
         .iter()
-        .filter(|s| s.name.to_lowercase().contains(&search))
-    {
-        if visible(y, 24.) {
-            content.extend(text(
-                &format!("JournalSet{}", set.id),
-                &set.name,
-                (4., y, 730., 24.),
-            ));
-        }
-        y += 26.;
-        for item in set.items.iter().filter_map(|id| view.catalog.items.get(id)) {
-            if visible(y, 20.) {
-                content.extend(text(
-                    &format!("JournalSet{}Item{}", set.id, item.id),
-                    &item.name,
-                    (20., y, 714., 20.),
-                ));
-            }
-            y += 22.;
-        }
-        y += 10.;
+        .enumerate()
+        .filter(|(index, _)| {
+            let top = *index as f32 * 54.;
+            top + 41. >= offset && top <= offset + 370.
+        })
+        .flat_map(|(index, set)| item_set_row(view, set, index as f32 * 54.))
+        .collect();
+    let mut out = scroll(
+        ctx,
+        content,
+        (15., 110., 770., 370.),
+        (rows.len() as f32 * 54.).max(370.),
+    );
+    out.extend(set_filter_buttons(view));
+    if let Some(menu) = view.filter_menu {
+        out.extend(loot_filter_menu(ctx, view, menu));
     }
-    scroll(ctx, content, (15., 65., 770., 416.), y.max(416.))
+    out
+}
+fn set_filter_buttons(view: &View) -> Element {
+    let class = view
+        .catalog
+        .classes
+        .get(&view.class)
+        .map(String::as_str)
+        .unwrap_or("All classes");
+    let spec = view
+        .catalog
+        .specs
+        .iter()
+        .find(|spec| spec.id == view.spec)
+        .map(|spec| spec.name.as_str())
+        .unwrap_or("All specs");
+    let controls: Element = [("Class", class, "class"), ("Spec", spec, "spec")]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, (name, title, key))| {
+            button(
+                format!("Journal{name}Filter"),
+                title,
+                &format!("journal:filter:{key}"),
+                (202. + index as f32 * 190., 0., 184., 24.),
+            )
+        })
+        .collect();
+    rsx! {r#frame {name:"JournalSetFilters",left:0.0,top:65.0,width:790.0,height:24.0,pos_type:"absolute",{controls}}}
+}
+fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
+    let mut children = named_atlas_texture(
+        format!("JournalSet{}Background", set.id),
+        "loottab-set-background",
+        (0., 0., 744., 41.),
+    );
+    let quality = set
+        .items
+        .iter()
+        .filter_map(|id| view.catalog.items.get(id))
+        .next()
+        .map_or(1, |item| item.quality as u8);
+    children.extend(label(
+        format!("JournalSet{}", set.id),
+        &set.name,
+        (39., 4., 318., 20.),
+        (12., crate::merchant_data::quality_color(quality), "LEFT"),
+    ));
+    let level_text = match view.set_level(set) {
+        Some(level) => format!("Item Level {level}"),
+        None => "Item level unavailable".into(),
+    };
+    children.extend(text(
+        &format!("JournalSet{}Level", set.id),
+        &level_text,
+        (39., 24., 318., 16.),
+    ));
+    let mut items: Vec<_> = set
+        .items
+        .iter()
+        .filter_map(|id| view.catalog.items.get(id))
+        .collect();
+    items.sort_by_key(|item| (slot_order(item.slot), item.id));
+    children.extend(items.iter().enumerate().flat_map(|(index, item)| {
+        let prefix = format!("JournalSet{}Item{}", set.id, item.id);
+        let mut icon = texture(format!("{prefix}Icon"), item.icon, (2.,2.,28.,28.), WHITE);
+        let border = match item.quality {
+            2 => Some("loottab-set-itemborder-green"),
+            3 => Some("loottab-set-itemborder-blue"),
+            4 => Some("loottab-set-itemborder-purple"),
+            _ => None,
+        };
+        if let Some(atlas) = border {
+            icon.extend(named_atlas_texture(format!("{prefix}Border"), atlas, (-2.,0.,40.,32.)));
+        }
+        let left = 360. + index as f32 * 37.;
+        rsx! {r#frame {name:{DynName(prefix)},left,top:4.0,width:32.0,height:32.0,pos_type:"absolute",mouse_enabled:true,{icon}}}
+    }));
+    rsx! {r#frame {name:{DynName(format!("JournalSet{}Row",set.id))},left:10.0,top,width:744.0,height:41.0,pos_type:"absolute",background_color:"0.12,0.10,0.08,1.0",{children}}}
+}
+fn slot_order(slot: u32) -> usize {
+    [
+        1, 2, 3, 16, 5, 20, 9, 10, 6, 7, 8, 11, 12, 13, 17, 21, 22, 14, 23, 15, 26, 28,
+    ]
+    .iter()
+    .position(|id| *id == slot)
+    .unwrap_or(22)
 }
 fn search_results(ctx: &SharedContext, view: &View) -> Element {
     let search = view.search.to_lowercase();
@@ -1011,7 +1277,7 @@ fn tutorials(view: &View) -> Element {
     ));
     out
 }
-fn scroll(
+pub(crate) fn scroll(
     ctx: &SharedContext,
     children: Element,
     rect: (f32, f32, f32, f32),

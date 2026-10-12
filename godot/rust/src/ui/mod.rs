@@ -1589,11 +1589,15 @@ impl RegistryUi {
         let filter_changed = (
             shown.scope,
             shown.statistics,
+            shown.guild,
+            shown.filter,
             shown.selected_category,
             shown.search_text.as_str(),
         ) != (
             state.scope,
             state.statistics,
+            state.guild,
+            state.filter,
             state.selected_category,
             state.search_text.as_str(),
         );
