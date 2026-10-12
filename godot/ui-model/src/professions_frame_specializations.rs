@@ -8,6 +8,9 @@ use ui_toolkit::{
     widget_def::{Attr, Element, WidgetChild},
 };
 
+#[path = "professions_specializations_layout.rs"]
+mod layout;
+
 pub(super) fn page(view: &ProfessionView) -> Element {
     let state = &view.specializations;
     let mut out = art::atlas(
@@ -61,20 +64,30 @@ pub(super) fn page(view: &ProfessionView) -> Element {
     out.extend(art::atlas(
         "ProfessionSpecTreeBackground",
         &member,
-        (2.0, 110.0, 706.0, 490.0),
+        (2.0, 85.0, 706.0, 521.0),
     ));
     out.extend(art::atlas(
         "ProfessionSpecDialBackground",
         "Professions-Specializations-Background-Dial",
-        (710.0, 110.0, 430.0, 490.0),
+        (668.0, 85.0, 474.0, 521.0),
     ));
     out.extend(label(
         "ProfessionSpecTreeName".into(),
         &tree.name,
-        (32.0, 119.0, 650.0, 30.0),
+        (32.0, 97.0, 650.0, 30.0),
         (18.0, HIGHLIGHT_FONT_COLOR, "LEFT"),
     ));
-    let centers = node_centers(tree);
+    let centers = match layout::path_centers(tree) {
+        Ok(centers) => centers,
+        Err(error) => {
+            out.extend(text(
+                "ProfessionSpecLayoutError",
+                &error,
+                (32.0, 160.0, 650.0, 100.0),
+            ));
+            return out;
+        }
+    };
     out.extend(edges(tree, &centers));
     for node in state.path_nodes() {
         let center = centers[&node.node_id];
@@ -118,25 +131,6 @@ pub(super) fn page(view: &ProfessionView) -> Element {
         out.extend(unlock_confirmation(view));
     }
     out
-}
-fn node_centers(tree: &ProfessionSpecTreeSnapshot) -> std::collections::BTreeMap<u32, [f32; 2]> {
-    let min_x = tree.nodes.iter().map(|n| n.pos_x).min().unwrap_or(0) as f32;
-    let max_x = tree.nodes.iter().map(|n| n.pos_x).max().unwrap_or(0) as f32;
-    let min_y = tree.nodes.iter().map(|n| n.pos_y).min().unwrap_or(0) as f32;
-    let max_y = tree.nodes.iter().map(|n| n.pos_y).max().unwrap_or(0) as f32;
-    let scale = (590.0 / (max_x - min_x).max(1.0)).min(345.0 / (max_y - min_y).max(1.0));
-    tree.nodes
-        .iter()
-        .map(|n| {
-            (
-                n.node_id,
-                [
-                    355.0 + (n.pos_x as f32 - (min_x + max_x) * 0.5) * scale,
-                    363.0 + (n.pos_y as f32 - (min_y + max_y) * 0.5) * scale,
-                ],
-            )
-        })
-        .collect()
 }
 fn edges(
     tree: &ProfessionSpecTreeSnapshot,

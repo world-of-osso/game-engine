@@ -35,9 +35,6 @@ impl SpecializationDraft {
             .copied()
             .filter(|entry| self.rank(tree.tree_id, entry) + entry.granted_rank < entry.max_rank)
             .collect();
-        if let Some(entry) = unfinished.iter().copied().find(|entry| entry.available) {
-            return Some(entry);
-        }
         if let Some(entry) = unfinished.first() {
             return Some(*entry);
         }

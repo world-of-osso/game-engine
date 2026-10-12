@@ -63,6 +63,113 @@ fn state() -> ProfessionView {
     view.book.visible = true;
     view
 }
+fn tree350_view() -> ProfessionView {
+    let mut view = state();
+    view.specializations.selected_node = Some(28546);
+    let tree = &mut view.specializations.snapshot.as_mut().unwrap().trees[0];
+    tree.root_node_id = 28546;
+    let template = tree.nodes[0].clone();
+    tree.nodes = [
+        (28536, 36261, 20),
+        (28537, 36267, 20),
+        (28538, 36273, 20),
+        (28539, 36279, 20),
+        (28540, 36287, 30),
+        (28541, 36293, 20),
+        (28542, 36299, 20),
+        (28543, 36305, 20),
+        (28544, 36311, 20),
+        (28545, 36319, 30),
+        (28546, 36327, 30),
+    ]
+    .into_iter()
+    .flat_map(|(id, entry, max_rank)| {
+        let mut unlock = template.clone();
+        unlock.node_id = id;
+        unlock.entry_id = 36328 + (id - 28536);
+        unlock.kind = 1;
+        unlock.pos_x = 0;
+        unlock.pos_y = 0;
+        unlock.rank = u32::from(id == 28546);
+        unlock.max_rank = 1;
+        unlock.available = false;
+        unlock.unavailable_reason = Some("Locked".into());
+        let mut knowledge = unlock.clone();
+        knowledge.entry_id = entry;
+        knowledge.rank = 0;
+        knowledge.max_rank = max_rank;
+        knowledge.available = id == 28546;
+        knowledge.unavailable_reason = if knowledge.available {
+            None
+        } else {
+            Some("Locked".into())
+        };
+        [unlock, knowledge]
+    })
+    .collect();
+    tree.edges = [
+        (28540, 28536),
+        (28540, 28537),
+        (28540, 28538),
+        (28540, 28539),
+        (28546, 28540),
+        (28545, 28541),
+        (28545, 28542),
+        (28545, 28543),
+        (28545, 28544),
+        (28546, 28545),
+    ]
+    .into_iter()
+    .map(|(left_node_id, right_node_id)| ProfessionSpecEdgeSnapshot {
+        left_node_id,
+        right_node_id,
+        kind: 0,
+        visual_style: 1,
+    })
+    .collect();
+    view
+}
+#[test]
+fn specialization_tree350_uses_retail_radial_positions_and_one_button_per_path() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(tree350_view(), skin);
+        let buttons = registry
+            .frames_iter()
+            .filter(|f| {
+                f.name.as_deref().is_some_and(|name| {
+                    name.strip_prefix("ProfessionSpecNode")
+                        .is_some_and(|id| id.parse::<u32>().is_ok())
+                })
+            })
+            .count();
+        assert_eq!(buttons, 11);
+        assert_eq!(text(&registry, "ProfessionSpecRank28546"), "0/30");
+        for (node, x, y) in [
+            (28546, 349.0, 376.0),
+            (28540, 264.1472, 460.8528),
+            (28545, 433.8528, 460.8528),
+        ] {
+            let button = frame(&registry, &format!("ProfessionSpecNode{node}"));
+            let ui_toolkit::layout_values::Val::Px(left) = button.position.left else {
+                panic!("pixel path position")
+            };
+            let ui_toolkit::layout_values::Val::Px(top) = button.position.top else {
+                panic!("pixel path position")
+            };
+            assert!(
+                (left + 27.5 - x).abs() < 0.02,
+                "path {node} x: {}",
+                left + 27.5
+            );
+            assert!(
+                (top + 27.5 - y).abs() < 0.02,
+                "path {node} y: {}",
+                top + 27.5
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
 fn render(view: ProfessionView, skin: ActiveSkin) -> FrameRegistry {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
