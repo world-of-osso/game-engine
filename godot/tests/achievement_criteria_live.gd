@@ -22,6 +22,9 @@ func run_test() -> void:
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	# Cold catalog loading blocks the main thread; finish it before starting the handshake.
+	if not await wait_for(func(): return client.merchant_state().item_catalog_loaded, "startup item catalog", 90000):
+		return
 	var error = client.connect_account("127.0.0.1:5898", account, "fbtest", false)
 	if error != "":
 		fail("Login: " + error)
@@ -289,7 +292,7 @@ func capture(stage: String) -> void:
 
 func fail(message: String) -> void:
 	if client != null:
-		print("CRITERIA_FAILURE_STATE target=", client.target_state(), " merchant=", client.merchant_state())
+		print("CRITERIA_FAILURE_STATE account=", client.account_state(), " target=", client.target_state(), " merchant=", client.merchant_state())
 		root.get_texture().get_image().save_png(evidence + "/failure-%d.png" % Time.get_ticks_msec())
 	push_error("CRITERIA_LIVE_FAIL " + message)
 	quit(1)
