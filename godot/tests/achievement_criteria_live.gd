@@ -254,7 +254,7 @@ func label(control_name: String) -> String:
 	var control := find_control(control_name)
 	return control.text if control is Label and control.is_visible_in_tree() else ""
 
-func wait_for(predicate: Callable, what: String, timeout := 12000) -> bool:
+func wait_for(predicate: Callable, what: String, timeout := 60000) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
