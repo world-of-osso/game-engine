@@ -23,7 +23,7 @@ const SCENE := {
 # fdid, skin batch index (file order), view direction (Godot axes), zoom (<1 closer),
 # focus (0..1 inside the batch bounds), time (material clock ms), minimum compared pixels.
 const CASES := [
-	{"name": "avenging_wrath_held_feathers", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900, "animation": 158, "sequence": 1, "local_time": 150},
+	{"name": "avenging_wrath_held_feathers", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.05, "focus": Vector3(0.5, 0.5, 0.25), "orthographic": true, "time": 900, "animation": 158, "sequence": 1, "local_time": 150},
 	{"name": "avenging_wrath_core_premultiplied", "fdid": 2368645, "batch": 0, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
 	{"name": "avenging_wrath_feathers_mod2x_t2", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900},
 	{"name": "avenging_wrath_feathers_second_sheet", "fdid": 2368645, "batch": 2, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900},
@@ -231,7 +231,15 @@ func frame_camera(vertices: PackedVector3Array, case: Dictionary) -> void:
 	var center := bounds.position + bounds.size * focus
 	var radius := bounds.size.length() * 0.5 * float(case.get("zoom", 1.0))
 	var direction := (case.view as Vector3).normalized()
-	var distance := maxf(radius / sin(deg_to_rad(camera.fov * 0.5)), 0.05)
+	var distance: float
+	if case.get("orthographic", false):
+		# Magnify a folded feather sheet without putting the camera inside its bounds.
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.size = maxf(radius * 2.0, 0.05)
+		distance = maxf(bounds.size.length() * 2.0, 1.0)
+	else:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		distance = maxf(radius / sin(deg_to_rad(camera.fov * 0.5)), 0.05)
 	var up := Vector3.UP if absf(direction.y) < 0.95 else Vector3.FORWARD
 	camera.look_at_from_position(center + direction * distance, center, up)
 
