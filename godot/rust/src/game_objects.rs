@@ -28,6 +28,38 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 /// Separate from baked scenery: only these live meshes follow GO collision state.
 pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
+const COLLISION_BENCH_SAMPLES: usize = 1200;
+const COLLISION_BENCH_PLAYERS: usize = 6;
+const COLLISION_BENCH_WALL_LENGTH: f32 = 7.0;
+
+fn measure_live_queries(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    feet: glam::Vec3,
+) -> (Vec<f64>, i64) {
+    let mut samples = Vec::with_capacity(COLLISION_BENCH_SAMPLES);
+    let mut hits = 0_i64;
+    for frame in 0..COLLISION_BENCH_SAMPLES {
+        let started = std::time::Instant::now();
+        for player in 0..COLLISION_BENCH_PLAYERS {
+            let angle = ((frame + player * 60) as f32).to_radians();
+            let direction = glam::Vec3::new(angle.cos(), 0.0, angle.sin());
+            let point = feet + direction * (player as f32 * 0.25);
+            hits += i64::from(floor_hit(space, point).is_some());
+            hits += i64::from(
+                crate::wmo::collision::wall_hit(
+                    space,
+                    point + glam::Vec3::Y,
+                    direction,
+                    COLLISION_BENCH_WALL_LENGTH,
+                )
+                .is_some(),
+            );
+        }
+        samples.push(started.elapsed().as_secs_f64() * 1e6);
+    }
+    samples.sort_by(f64::total_cmp);
+    (samples, hits)
+}
 
 struct ObjectNode {
     /// The display its loaded visual shows.
@@ -142,29 +174,13 @@ impl GameObjects {
         &self,
         space: &Gd<PhysicsDirectSpaceState3D>,
         feet: glam::Vec3,
-    ) -> Dictionary {
-        let mut samples = Vec::with_capacity(1200);
-        let mut hits = 0_i64;
-        for frame in 0..1200 {
-            let started = std::time::Instant::now();
-            for player in 0..6 {
-                let angle = (frame + player * 60) as f32 * 0.017453292;
-                let direction = glam::Vec3::new(angle.cos(), 0.0, angle.sin());
-                let point = feet + direction * (player as f32 * 0.25);
-                hits += i64::from(floor_hit(space, point).is_some());
-                hits += i64::from(
-                    crate::wmo::collision::wall_hit(space, point + glam::Vec3::Y, direction, 7.0)
-                        .is_some(),
-                );
-            }
-            samples.push(started.elapsed().as_secs_f64() * 1e6);
-        }
-        samples.sort_by(f64::total_cmp);
-        let mut result = Dictionary::new();
-        result.set("samples", 1200);
-        result.set("players_per_sample", 6);
-        result.set("floor_queries_per_sample", 6);
-        result.set("wall_queries_per_sample", 6);
+    ) -> VarDictionary {
+        let (samples, hits) = measure_live_queries(space, feet);
+        let mut result = VarDictionary::new();
+        result.set("samples", COLLISION_BENCH_SAMPLES as i64);
+        result.set("players_per_sample", COLLISION_BENCH_PLAYERS as i64);
+        result.set("floor_queries_per_sample", COLLISION_BENCH_PLAYERS as i64);
+        result.set("wall_queries_per_sample", COLLISION_BENCH_PLAYERS as i64);
         result.set("loaded_objects", self.objects.len() as i64);
         result.set("observed_hits", hits);
         for (name, index) in [

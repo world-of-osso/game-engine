@@ -877,8 +877,8 @@ impl GameClient {
 
     /// Explicit arena proof measurement; never runs during normal gameplay.
     #[func]
-    fn benchmark_arena_collision(&self) -> Dictionary {
-        let mut error = Dictionary::new();
+    fn benchmark_arena_collision(&self) -> VarDictionary {
+        let mut error = VarDictionary::new();
         let Some(transform) = self.world.local_player_transform() else {
             error.set("error", "No local player for arena collision measurement");
             return error;
