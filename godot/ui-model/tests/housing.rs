@@ -548,6 +548,10 @@ fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
 
 #[test]
 fn housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use game_engine_ui_model::housing_editor::EditorMode;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
