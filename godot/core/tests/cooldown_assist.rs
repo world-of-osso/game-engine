@@ -292,6 +292,59 @@ fn cooldown_assist_numeric_rules_never_guess_unverified_equality_boundaries() {
     );
 }
 
+#[test]
+fn cooldown_assist_all_forty_specs_preserve_exact_source_identities_and_order() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    // These tables contain only integer cells; decode the external CSV contract
+    // independently of the catalog's join/ordering implementation.
+    let read = |table: &str| -> Vec<Vec<i64>> {
+        std::fs::read_to_string(dir.join(format!("{table}.csv")))
+            .unwrap()
+            .lines()
+            .skip(1)
+            .map(|line| {
+                line.split(',')
+                    .map(|cell| cell.trim_matches('"').parse().unwrap())
+                    .collect()
+            })
+            .collect()
+    };
+    let sets: BTreeMap<_, _> = read("CooldownSet")
+        .into_iter()
+        .map(|row| (row[0], row[1]))
+        .collect();
+    let source = read("CooldownSetSpell");
+    let data = catalog();
+    let specs: std::collections::BTreeSet<_> = read("AssistedCombat")
+        .into_iter()
+        .map(|row| row[1])
+        .collect();
+    assert_eq!(specs.len(), 40);
+    for spec in specs {
+        let mut expected: Vec<_> = source.iter().filter(|row| matches!(sets.get(&row[1]), Some(set_spec) if *set_spec == 0 || *set_spec == spec)).map(|row| (row[0] as u32, row[2] as u32, row[3] as u32, row[5] as u32, row[4] as u32, row[6] as u32)).collect();
+        expected.sort_by_key(|(id, _, category, order, _, _)| (*category, *order, *id));
+        let actual: Vec<_> = data
+            .cooldowns(spec as u32, |_| Ok(true))
+            .unwrap()
+            .iter()
+            .map(|entry| {
+                (
+                    entry.id,
+                    entry.spell_id,
+                    entry.category,
+                    entry.order,
+                    entry.player_condition_id,
+                    entry.flags,
+                )
+            })
+            .collect();
+        assert_eq!(
+            actual, expected,
+            "authored identities/order/conditions/flags for spec{spec}"
+        );
+    }
+}
+
 /// Exact authored candidate counts, including spec-agnostic sets, before actor gates.
 /// Frost/Devourer have no authored tracked bars; do not invent entries for them.
 #[test]
