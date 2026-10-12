@@ -6,6 +6,12 @@
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Source warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12) — four actual-use/native lifetime identities, Swarthy’s two authored state models and explicit screenshot/per-effect pixel boundary.
+
+- [Scaled scenery natural expiry](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12) — both-skin actual Banner60s/Preyhunter120s expiry, preserving authored display/root scale and no combat pet ownership.
+
+- [Orb costume animation](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12) — displayed-model animation routing, both-skin actual use/run/native reattachment;20 server variants, private authenticated assets and remaining per-toy boundary.
+
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.

@@ -17,6 +17,18 @@
 ## 2026-10-12 — Source-backed battleground node maps
 
 [Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+## 2026-10-12 — Source warning-sign batches
+
+[Warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12): four source actor identities, both-skin real learning/use/mesh/scale/natural expiry. Swarthy195897 additionally proves one start/two authored models/scales/root offsets/scene-wide cleanup. Weak first-three captures await genuine cooldowns; per-effect pixel/particle certification remains separate. Prepared325 is not1166 completion; authenticated private preparation and source admission preserve existing gates.
+
+## 2026-10-12 — Banner and Preyhunter natural expiry
+
+[Scaled scenery](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12): both-skin real journal use/source scale and natural60s/120s actor removal pass on current merged native/server builds. Earlier Banner/Preyhunter expiry gap closed; no clock shortcuts or broader certification.
+
+## 2026-10-12 — Orb displayed-model animation
+
+[Orb](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12): source race/sex server mapping, authenticated private closure, real movement/idle RED and displayed-model animation fix. Modern/Forever now prove10137/run5/cancellation/actual native mesh reattachment;10 scoped world tests, native build and fmt pass.321 preflight candidates are not1166 effect certification; remaining scope open.
+
 ## 2026-10-12 — Stockade full-bake regression
 
 [Stockade floor fall](investigations/stockade-floor-fall.md#full-m2-bake-authentic-barrel-support--verified-2026-10-12): barrel199563/MODD523 in the sole selected/default set0 authentically supports(103,76) at-33.924946. Existing fall columns remain unsupported; server/native tests move bare WMO controls off the barrel and explicitly assert its hull support. No rebake or loader changes.
@@ -37,6 +49,7 @@
 ## 2026-10-12 — Authored M2 doodad floors
 
 [Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
+[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry subsequently passed above; display replacement and broader per-toy/procedural/positioner coverage remain open.
 
 ## 2026-10-11 — Toy input and source rendering
 
