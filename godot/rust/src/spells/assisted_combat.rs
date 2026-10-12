@@ -7,7 +7,7 @@ use game_engine_core::assisted_combat::{
 use game_engine_core::cooldown_assist::Recommendation;
 use game_engine_core::spell_catalog::CatalogSpell;
 use godot::prelude::*;
-use shared::components::{CombatStatus, Health, Position};
+use shared::components::{CombatStatus, Health, Position, UnitPowers, UnitRunes};
 
 use super::cooldown_viewer::ViewerLoad;
 use crate::GameClient;
@@ -85,7 +85,7 @@ impl GameClient {
             .collect();
         for rule in data.catalog.rotation_rules(spec) {
             if needed.contains(&rule.step_spell)
-                && matches!(rule.condition_type, 1 | 2 | 14 | 56)
+                && matches!(rule.condition_type, 1 | 2 | 14 | 56 | 65 | 66)
                 && rule.values[0] != 0
             {
                 needed.insert(rule.values[0]);
@@ -130,7 +130,39 @@ impl GameClient {
             .and_then(|unit| unit.get::<Position>())
             .ok_or("Assisted target position not received")?;
         let distance = position_distance(player_position, target_position);
+        let mut powers: std::collections::BTreeMap<_, _> = self
+            .replica
+            .unit(player)
+            .and_then(|unit| unit.get::<UnitPowers>())
+            .into_iter()
+            .flat_map(|pools| pools.entries.iter())
+            .map(|entry| (entry.power as u8, f64::from(entry.current)))
+            .collect();
+        if let Some(runes) = self
+            .replica
+            .unit(player)
+            .and_then(|unit| unit.get::<UnitRunes>())
+        {
+            powers.insert(
+                5,
+                runes
+                    .ready_in_ms
+                    .iter()
+                    .filter(|remaining| **remaining == 0)
+                    .count() as f64,
+            );
+        }
+        let health_pct = |unit| {
+            self.replica
+                .unit(unit)
+                .and_then(|unit| unit.get::<Health>())
+                .filter(|health| health.max > 0.0)
+                .map(|health| f64::from(health.current) * 100.0 / f64::from(health.max))
+        };
         let mut facts = AssistedFacts {
+            powers,
+            player_health_pct: health_pct(player),
+            target_health_pct: health_pct(target),
             known: self.account.spells.known().iter().copied().collect(),
             player_auras: self
                 .unit_aura_views_now(player)
@@ -155,10 +187,22 @@ impl GameClient {
             facts
                 .ready
                 .insert(*id, self.read_assisted_readiness(effective, spell));
-            facts.affordable.insert(
+            if let ViewerLoad::Ready(data) = &self.spells.cooldowns.load
+                && let Some(category) = data.catalog.charge_category(effective)
+                && let Some(charges) = self.account.spells.charges(category)
+            {
+                facts.charges.insert(*id, charges.current);
+            }
+            facts.cooldowns_ms.insert(
                 *id,
-                read_zero_cost_affordability(spell, &facts.player_auras),
+                self.account
+                    .spells
+                    .button_cooldown(effective, false)
+                    .map_or(0.0, |clock| f64::from(clock.remaining) * 1000.0),
             );
+            facts
+                .affordable
+                .insert(*id, self.account.spells.affordable(effective));
             let in_range = distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0];
             facts.in_range.insert(*id, Ok(in_range));
         }
@@ -222,24 +266,6 @@ impl GameClient {
         state.set("rotation_spells", &spells);
         state
     }
-}
-
-fn read_zero_cost_affordability(
-    spell: &CatalogSpell,
-    auras: &BTreeSet<u32>,
-) -> Result<bool, String> {
-    for cost in &spell.powers {
-        if cost.required_aura_spell_id != 0 && !auras.contains(&cost.required_aura_spell_id) {
-            continue;
-        }
-        if cost.flat != 0 || cost.pct != 0.0 {
-            return Err(format!(
-                "Assisted spell {}: effective nonzero caster cost/modifiers are not replicated",
-                spell.id
-            ));
-        }
-    }
-    Ok(true)
 }
 
 fn position_distance(a: &Position, b: &Position) -> f32 {

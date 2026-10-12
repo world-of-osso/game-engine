@@ -119,6 +119,7 @@ pub(crate) struct PlayerSpells {
     gcd: Option<CooldownTimer>,
     /// By `ChargeCategory`.
     charges: HashMap<u32, ChargeTimer>,
+    costs: HashMap<u32, shared::protocol::SpellCostReading>,
 }
 
 impl Default for PlayerSpells {
@@ -130,11 +131,32 @@ impl Default for PlayerSpells {
             cooldowns: HashMap::new(),
             gcd: None,
             charges: HashMap::new(),
+            costs: HashMap::new(),
         }
     }
 }
 
 impl PlayerSpells {
+    pub fn apply_costs(&mut self, snapshot: shared::protocol::SpellCostSnapshot) {
+        self.costs = snapshot
+            .spells
+            .into_iter()
+            .map(|reading| (reading.spell_id, reading))
+            .collect();
+    }
+
+    pub fn affordable(&self, spell: u32) -> Result<bool, String> {
+        let reading = self
+            .costs
+            .get(&spell)
+            .ok_or_else(|| format!("spell {spell}: effective cost not received"))?;
+        reading
+            .costs
+            .as_ref()
+            .map(|_| reading.affordable)
+            .map_err(Clone::clone)
+    }
+
     pub fn known(&self) -> &[u32] {
         &self.known
     }
@@ -253,6 +275,34 @@ impl PlayerSpells {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn cooldown_assist_cost_readings_replace_stale_values_and_preserve_errors() {
+        use shared::protocol::{EffectivePowerCost, SpellCostReading, SpellCostSnapshot};
+        let mut state = super::PlayerSpells::default();
+        assert!(state.affordable(12294).is_err());
+        for affordable in [false, true] {
+            state.apply_costs(SpellCostSnapshot {
+                spells: vec![SpellCostReading {
+                    spell_id: 12294,
+                    costs: Ok(vec![EffectivePowerCost {
+                        power_type: 1,
+                        amount: 300.0,
+                    }]),
+                    affordable,
+                }],
+            });
+            assert_eq!(state.affordable(12294), Ok(affordable));
+        }
+        state.apply_costs(SpellCostSnapshot {
+            spells: vec![SpellCostReading {
+                spell_id: 133,
+                costs: Err("base mana absent".into()),
+                affordable: false,
+            }],
+        });
+        assert!(state.affordable(12294).is_err());
+        assert_eq!(state.affordable(133), Err("base mana absent".into()));
+    }
     use game_engine_core::spell_catalog::{CatalogEffect, CatalogSpell};
 
     use super::*;
