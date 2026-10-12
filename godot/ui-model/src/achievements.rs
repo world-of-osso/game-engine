@@ -3,6 +3,8 @@
 use crate::quest_art::{DynName, panel_button};
 #[path = "achievement_art.rs"]
 mod artwork;
+#[path = "achievement_comparison.rs"]
+mod comparison_view;
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{
     ACHIEVEMENT_SEARCH_MAX_CHARS, AchievementCatalogEntry, AchievementCatalogPage,
@@ -67,6 +69,7 @@ pub const ART: &[u32] = &[
     235412,
     452109,
     HEADER_SHIELD_FDID,
+    235401,
 ];
 /// Retail Mainline/Blizzard_AchievementUI.xml:1979-1984, UI-Achievement-TinyShield.
 const HEADER_SHIELD_FDID: u32 = 235_415;
@@ -83,6 +86,8 @@ pub struct AchievementComparison {
     pub name: String,
     pub error: Option<String>,
     pub window: AchievementWindow,
+    /// Exact own-row IDs queried independently of the other faction's category cursor.
+    pub entries: BTreeMap<u32, Option<AchievementCatalogEntry>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -422,6 +427,7 @@ impl AchievementWindow {
             name: String::new(),
             error: None,
             window: AchievementWindow::default(),
+            entries: BTreeMap::new(),
         }));
         requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
         if !self.categories_loaded {
@@ -602,8 +608,37 @@ impl AchievementWindow {
                     .collect()
             }
         };
+        let mut requests = requests;
+        requests.extend(self.request_comparison_rows());
         self.enqueue(requests)
     }
+
+    fn request_comparison_rows(&self) -> Vec<QueryAchievementCatalog> {
+        let Some(comparison) = self
+            .comparison
+            .as_ref()
+            .filter(|other| other.error.is_none())
+        else {
+            return Vec::new();
+        };
+        let rows = if self.selected_category.is_none() && self.selected_achievement.is_none() {
+            self.summary
+                .as_ref()
+                .map_or_else(Vec::new, |summary| summary.recent.iter().collect())
+        } else {
+            self.displayed_entries()
+        };
+        rows.into_iter()
+            .filter(|entry| !comparison.entries.contains_key(&entry.achievement_id))
+            .map(|entry| QueryAchievementCatalog::Comparison {
+                target_entity: comparison.target_entity,
+                query: Box::new(QueryAchievementCatalog::Achievement {
+                    achievement_id: entry.achievement_id,
+                }),
+            })
+            .collect()
+    }
+
     fn apply_comparison(
         &mut self,
         target: u64,
@@ -625,6 +660,7 @@ impl AchievementWindow {
         let Some(page) = page else {
             return Vec::new();
         };
+        comparison_view::cache_page(comparison, &page);
         comparison
             .window
             .apply(*page)
@@ -960,13 +996,20 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
     content.extend(category_panel(ctx, window));
     content.extend(scope_tabs(window));
     content.extend(browse_controls(window));
-    if show_summary {
+    if window.comparison.is_some() {
+        content.extend(comparison_view::content(ctx, window, show_summary));
+    } else if show_summary {
         content.extend(summary_panel(window));
     } else {
         content.extend(achievement_rows(ctx, window));
     }
+    let width = if window.comparison.is_some() {
+        888.0
+    } else {
+        768.0
+    };
     rsx! { r#frame {
-        name: {DynName(FRAME.into())}, width: 768.0, height: 500.0, strata: FrameStrata::Dialog,
+        name: {DynName(FRAME.into())}, width, height: 500.0, strata: FrameStrata::Dialog,
         hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 0.0, top: 104.0,
         {content}
     } }
