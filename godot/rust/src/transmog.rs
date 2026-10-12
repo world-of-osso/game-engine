@@ -122,6 +122,9 @@ impl GameClient {
         state.set("money", book.money as i64);
         state.set("pending", book.pending_count() as i64);
         state.set("busy", book.busy());
+        state.set("applying", book.applying);
+        state.set("saving", format!("{:?}", book.saving).as_str());
+        state.set("queued_save", book.queued_save.is_some());
         state.set("error", book.error.as_str());
         state.set("viewed_outfit", book.viewed_outfit.map_or(-1, i64::from));
         let mut outfits = VarDictionary::new();
