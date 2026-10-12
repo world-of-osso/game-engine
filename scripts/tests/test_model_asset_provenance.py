@@ -16,6 +16,40 @@ SPEC.loader.exec_module(chains)
 
 
 class ModelAssetProvenanceTests(unittest.TestCase):
+    def test_verified_wmo_root_and_groups_publish_without_m2_relabelling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            key = "dcfc90fffd79ba00406ae46f5f657592"
+            identity = {"product": "wow", "build_key": key, "build": "12.1.0.69933"}
+            raw = b"REVM" + (4).to_bytes(4, "little") + (17).to_bytes(4, "little")
+            resolution = root / "resolution.sqlite"
+            with sqlite3.connect(resolution) as db:
+                db.execute("CREATE TABLE resolution (fdid INTEGER, content_key BLOB)")
+                db.executemany("INSERT INTO resolution VALUES (?, ?)",
+                               [(6429362, hashlib.md5(raw).digest()),
+                                (6429658, hashlib.md5(raw).digest())])
+            identity["resolution_sha256"] = hashlib.sha256(resolution.read_bytes()).hexdigest()
+            assets = []
+            for fdid in [6429362, 6429658]:
+                source = root / f"{fdid}.wmo"
+                source.write_bytes(raw)
+                assets.append({"product": "wow", "build_key": key, "fdid": fdid,
+                               "kind": "wmo", "source_path": str(source),
+                               "content_key": hashlib.md5(raw).hexdigest(),
+                               "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)})
+            staged = root / "staged.json"
+            staged.write_text(json.dumps({"source_identity": identity, "assets": assets,
+                                          "dependencies": {"6429362.wmo": {"wmo": [6429658]}},
+                                          "metadata": [], "failures": []}))
+            data = root / "data"
+            result = chains.import_staged_chain(data, "wow", staged, resolution, "housing-wmo")
+            self.assertEqual([(asset["fdid"], asset["kind"]) for asset in result["assets"]],
+                             [(6429362, "wmo"), (6429658, "wmo")])
+            for asset in result["assets"]:
+                self.assertEqual((data / asset["path"]).read_bytes(), raw)
+                self.assertTrue(asset["path"].endswith(".wmo"))
+            self.assertFalse(list(data.rglob("*.m2")))
+
     def test_installed_asset_build_is_not_relabelled_to_metadata_build(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
