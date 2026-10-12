@@ -30,6 +30,10 @@ func live_run() -> void:
 		var finish := false
 		match command.action:
 			"snapshot":
+				var hovered := root.gui_get_hovered_control()
+				result.pointer_hover = str(hovered.get_path()) if hovered != null else ""
+				result.client_processing = client.is_processing()
+				result.startup_args = OS.get_cmdline_user_args()
 				result.account = client.account_state()
 				result.controls = []
 				for node in root.find_children("*", "Control", true, false):
