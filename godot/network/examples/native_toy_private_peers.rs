@@ -1,4 +1,4 @@
-//! Real private5911 UDP UseToy: source-private73781 vs public66768, two accounts.
+//! Real private5911 UDP UseToy: source-private88280 vs public66768, two accounts.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage, replica::Replica};
 use shared::components::{Health, Npc, Position};
 use shared::protocol::*;
@@ -9,8 +9,8 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
-const PRIVATE_TOY: u32 = 104331;
-const PRIVATE_ENTRY: u32 = 73781;
+const PRIVATE_TOY: u32 = 119039;
+const PRIVATE_ENTRY: u32 = 88280;
 const PUBLIC_TOY: u32 = 89869;
 const PUBLIC_ENTRY: u32 = 66768;
 
