@@ -214,7 +214,8 @@ impl WowHousingPreviewProbe {
         let data = std::path::PathBuf::from(data.to_string());
         let result = HousingCatalog::load(&data.join("cache/housing.sqlite"))
             .and_then(|catalog| self.preview.select(host, &data, &catalog, decor_id as u32));
-        result.err().unwrap_or_default().into()
+        let error = result.err().unwrap_or_default();
+        GString::from(error.as_str())
     }
 
     #[func]
