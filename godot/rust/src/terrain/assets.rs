@@ -170,12 +170,13 @@ impl NativeTerrainAssets {
             .map_err(|error| format!("{}: {error}", path.display()))?;
         let global_wmo = wdt::parse_wdt_global_wmo(&bytes)
             .map_err(|error| format!("{}: {error}", path.display()))?
-            .map(|placement| {
+            .map(|mut placement| {
                 let asset = crate::wmo::assets::read_placement(
                     &self.resolver,
                     &self.data_root,
                     &placement,
                 )?;
+                placement.fdid = Some(asset.root_fdid);
                 let surface = classify_wmo_surface(&asset.root, &self.resolver);
                 Ok::<_, String>(PlacedWmo::new(placement, asset, surface))
             })
@@ -862,6 +863,7 @@ mod tests {
         assert!(map.tiles.active.is_empty());
         let wmo = map.global_wmo.unwrap();
         assert_eq!(wmo.asset.root_fdid, 948620);
+        assert_eq!(wmo.placement.fdid, Some(948620));
         assert_eq!(wmo.asset.groups.len(), 1);
         assert!(
             wmo.asset
