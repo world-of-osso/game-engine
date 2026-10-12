@@ -125,6 +125,7 @@ func run_fixture() -> void:
 	await motion(Vector2(1100, 950))
 	await capture("guild-roster")
 	root.size = Vector2i(1600, 1000)
+	await settle(12)
 	await pointer("GuildControlButton")
 	if not await wait_until(func(): return control("GuildRankRow1") != null, "guild rank list"): return
 	await pointer("GuildRankRow1")
@@ -133,6 +134,7 @@ func run_fixture() -> void:
 	await pointer("GuildControlUICloseButton")
 	await pointer("CommunitiesFrameCloseButton")
 	root.size = Vector2i(1280, 720)
+	await settle(12)
 	await tap(KEY_Z)
 	if not await wait_until(func(): return control("AuctionGossipOption0") != null, "source Hashom gossip"): return
 	await pointer("AuctionGossipOption0")

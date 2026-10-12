@@ -4,7 +4,7 @@ use shared::protocol::NpcFlags;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{BlipKind, DynName, MinimapBlip, SheetArt, object_icon};
+use super::{BlipKind, MinimapBlip, SheetArt, object_icon};
 use crate::ui::strata::FrameStrata;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
