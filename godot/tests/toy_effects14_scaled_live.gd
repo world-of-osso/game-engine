@@ -19,7 +19,9 @@ func prove_toy(sample: Array) -> void:
 	if sample[6]:
 		clicked = await place_cursor_scenery()
 		if failed: return
-	if not await wait_until(func(): return scenery(str(sample[3])) != null, "source scenery native meshes", 120000): return
+	receipts.append({"phase": "scaled-activation", "item": sample[0], "clicked": str(clicked), "account": client.account_state(), "toys": client.toybox_state()})
+	write_receipts()
+	if not await wait_until(func(): return scenery(str(sample[3])) != null, "source scenery native meshes " + str(sample[0]), 120000): return
 	var placed := scenery(str(sample[3]))
 	if abs(placed.scale.x - float(sample[4])) > 0.00001: fail("authored display scale was dropped"); return
 	if clicked != null and placed.global_position.distance_to(clicked) > 0.2: fail("scaled scenery ignored clicked point"); return
