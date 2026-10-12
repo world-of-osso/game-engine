@@ -155,10 +155,9 @@ impl GameClient {
             facts
                 .ready
                 .insert(*id, self.read_assisted_readiness(effective, spell));
-            facts.affordable.insert(
-                *id,
-                read_zero_cost_affordability(spell, &facts.player_auras),
-            );
+            facts
+                .affordable
+                .insert(*id, self.account.spells.affordable(effective));
             let in_range = distance >= spell.range.min_yd[0] && distance <= spell.range.max_yd[0];
             facts.in_range.insert(*id, Ok(in_range));
         }
@@ -222,24 +221,6 @@ impl GameClient {
         state.set("rotation_spells", &spells);
         state
     }
-}
-
-fn read_zero_cost_affordability(
-    spell: &CatalogSpell,
-    auras: &BTreeSet<u32>,
-) -> Result<bool, String> {
-    for cost in &spell.powers {
-        if cost.required_aura_spell_id != 0 && !auras.contains(&cost.required_aura_spell_id) {
-            continue;
-        }
-        if cost.flat != 0 || cost.pct != 0.0 {
-            return Err(format!(
-                "Assisted spell {}: effective nonzero caster cost/modifiers are not replicated",
-                spell.id
-            ));
-        }
-    }
-    Ok(true)
 }
 
 fn position_distance(a: &Position, b: &Position) -> f32 {
