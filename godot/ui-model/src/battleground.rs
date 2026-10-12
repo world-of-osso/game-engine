@@ -4,7 +4,9 @@ use crate::bank_art::{WHITE, label};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagState};
-use shared::protocol::{BattlegroundSnapshot, PvpSnapshot, PvpStateUpdate};
+use shared::protocol::{ArenaQueueMode, BattlegroundSnapshot, PvpSnapshot, PvpStateUpdate};
+#[path = "arena_ui.rs"]
+mod arena_ui;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,6 +15,8 @@ pub enum PvpAction {
     WarMode(bool),
     SelectTalent { slot: u8, talent_id: u32 },
     Queue(u32),
+    Arena(ArenaQueueMode),
+    Target(u64),
     Dequeue,
     Respond { match_id: u64, accepted: bool },
     Leave(u64),
@@ -36,6 +40,7 @@ pub struct PvpView {
     pub results_dismissed: bool,
     pub talent_slot: Option<u8>,
     pub category: PvpCategory,
+    pub selected_arena: Option<ArenaQueueMode>,
 }
 impl Default for PvpView {
     fn default() -> Self {
@@ -50,6 +55,7 @@ impl Default for PvpView {
             results_dismissed: false,
             talent_slot: None,
             category: PvpCategory::QuickMatch,
+            selected_arena: None,
         }
     }
 }
@@ -153,7 +159,29 @@ impl PvpView {
             }
             return None;
         }
+        if let Some(entity) = action
+            .strip_prefix("pvp:target:")
+            .and_then(|id| id.parse::<u64>().ok())
+        {
+            let bg = self.battleground()?;
+            let unit = bg
+                .arena
+                .as_ref()?
+                .units
+                .iter()
+                .find(|unit| unit.entity == entity && unit.team != bg.team)?;
+            return Some(PvpAction::Target(unit.entity));
+        }
         if self.pending {
+            return None;
+        }
+        if action.starts_with("pvp:activity:") {
+            self.selected_arena = match action {
+                "pvp:activity:warsong" => None,
+                "pvp:activity:2v2" => Some(ArenaQueueMode::Skirmish2v2),
+                "pvp:activity:3v3" => Some(ArenaQueueMode::Skirmish3v3),
+                _ => return None,
+            };
             return None;
         }
         if let Some(id) = action
@@ -199,7 +227,10 @@ impl PvpView {
                 if self.battleground().is_none()
                     && self.snapshot.as_ref().is_none_or(|s| s.queue.is_none()) =>
             {
-                PvpAction::Queue(1014)
+                match self.selected_arena {
+                    Some(mode) => PvpAction::Arena(mode),
+                    None => PvpAction::Queue(1014),
+                }
             }
             "pvp:dequeue" if self.snapshot.as_ref().is_some_and(|s| s.queue.is_some()) => {
                 PvpAction::Dequeue
@@ -265,17 +296,27 @@ fn queue(view: &PvpView) -> Element {
     }
     children.extend(text(
         "HonorFrameTitle",
-        "Battlegrounds",
+        "Quick Match",
         (194.0, 52.0, 300.0, 22.0),
     ));
     children.extend(panel_button(
         "HonorFrameSpecificBattlegroundButton".into(),
         "Warsong Gulch",
-        "",
-        false,
-        (194.0, 90.0, 340.0, 52.0),
+        "pvp:activity:warsong",
+        !view.pending,
+        (194.0, 90.0, 340.0, 40.0),
     ));
-    children.extend(text("HonorFrameDescription", "Capture the enemy flag and return it to your base.\nFirst team to capture three flags wins.\n10–90 • 5–10 players per team", (194.0, 157.0, 340.0, 100.0)));
+    children.extend(arena_ui::queue_choices(view));
+    let description = match view.selected_arena {
+        Some(ArenaQueueMode::Skirmish2v2) => "Arena Skirmish • 2v2",
+        Some(ArenaQueueMode::Skirmish3v3) => "Arena Skirmish • 3v3",
+        _ => "Warsong Gulch • First to three captures",
+    };
+    children.extend(text(
+        "HonorFrameDescription",
+        description,
+        (194.0, 228.0, 340.0, 26.0),
+    ));
     let queued = view.snapshot.as_ref().is_some_and(|s| s.queue.is_some());
     let status = if view.pending {
         "Waiting for server"
@@ -399,6 +440,9 @@ fn hud(view: &PvpView) -> Element {
     let Some(bg) = view.battleground().filter(|b| b.accepted) else {
         return vec![];
     };
+    if bg.arena.is_some() {
+        return arena_ui::arena_hud(view, bg);
+    }
     let mut children = label(
         "WorldStateScore".into(),
         &format!("Alliance {} / 3    Horde {} / 3", bg.score_a, bg.score_b),
@@ -471,6 +515,9 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
+        if bg.arena.is_some() && i >= 7 {
+            continue;
+        }
         let (x, width) = column(i);
         children.extend(text(
             &format!("PVPMatchCategory{i}"),
@@ -497,7 +544,11 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     }
     children.extend(panel_button(
         "PVPMatchLeaveButton".into(),
-        "Leave Battleground",
+        if bg.arena.is_some() {
+            "Leave Arena"
+        } else {
+            "Leave Battleground"
+        },
         "pvp:leave",
         !view.pending,
         (804.0, height - 62.0, 190.0, 22.0),
@@ -553,7 +604,11 @@ fn score_rows(
             player.name.clone(),
             "—".into(),
             player.honorable_kills.map_or("—".into(), |n| n.to_string()),
-            "—".into(),
+            if bg.arena.is_some() {
+                player.deaths.to_string()
+            } else {
+                "—".into()
+            },
             player.honor_level.map_or("—".into(), |n| n.to_string()),
             "—".into(),
             "—".into(),
@@ -564,6 +619,9 @@ fn score_rows(
             "", "KB", "HK", "Deaths", "Honor", "Damage", "Healing", "Captures", "Returns",
         ];
         for (i, value) in values.iter().enumerate() {
+            if bg.arena.is_some() && i >= 7 {
+                continue;
+            }
             let (x, width) = column(i);
             content.extend(text(
                 &format!("PVPMatchPlayer{}{}", player.character_id, suffixes[i]),
