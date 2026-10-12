@@ -17,6 +17,12 @@ pub(crate) struct MountJournal {
     dragging: bool,
 }
 impl MountJournal {
+    pub(crate) fn preview_ready(&self) -> bool {
+        self.display.is_some()
+    }
+    pub(crate) fn preview_yaw(&self) -> f32 {
+        self.yaw
+    }
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -84,6 +90,36 @@ impl GameClient {
             self.mount_journal.view.reselect();
         }
         loop {
+            let alternate = ui.bind_mut().pop_alt_click();
+            let Some((action, right, _)) = alternate else {
+                break;
+            };
+            if right {
+                if let Some(id) = action
+                    .strip_prefix("mount:select:")
+                    .and_then(|id| id.parse::<u32>().ok())
+                {
+                    self.mount_journal.view.selected = Some(id);
+                    let rect = ui
+                        .bind()
+                        .frame_viewport_rect(&format!("MountJournalRow{id}"))
+                        .ok_or("Mount row bounds missing")?;
+                    let journal = ui
+                        .bind()
+                        .frame_viewport_rect("CollectionsJournal")
+                        .ok_or("Mount Journal bounds missing")?;
+                    let scale = self.effective_ui_scale();
+                    self.mount_journal.view.context = Some((
+                        id,
+                        [
+                            (rect[0] + rect[2] - journal[0]) / scale,
+                            (rect[1] - journal[1]) / scale,
+                        ],
+                    ));
+                }
+            }
+        }
+        loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
                 break;
@@ -103,7 +139,14 @@ impl GameClient {
             );
             return Ok(());
         }
+        if matches!(
+            action,
+            "mount:summon" | "mount:favourite" | "mount:context-close"
+        ) {
+            self.mount_journal.view.context = None;
+        }
         match action {
+            "mount:context-close" => {}
             "collections:close" => self.close_mount_journal(),
             "collections:mounts" => {}
             "collections:pets" => {

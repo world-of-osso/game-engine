@@ -63,6 +63,7 @@ mod merchant_window;
 mod minimap;
 mod mirror_timers;
 mod mount_journal;
+mod mount_journal_snapshot;
 mod mythic_mentor;
 mod nameplate_auras;
 mod nameplate_cast_bar;
