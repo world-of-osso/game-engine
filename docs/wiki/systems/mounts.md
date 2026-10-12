@@ -28,6 +28,20 @@ Already-known feedback uses authentic server teaching-item links and account own
 
 The preview loads the mount's real creature display only through verified [product-isolated receipts](../../specs/product-isolated-model-assets.md). A worktree whose de-linked `data/cache` predates the canonical `npc-appearance-retail` fragment lacks receipts for models such as Chopper234727 and logs `No verified asset receipt`; canonical data has it.
 
+### Mount asset closure staging — 2026-10-12
+
+`scripts/stage_mount_model_assets.py` traverses every pinned Retail69933 MountXDisplay alternative through CreatureDisplayInfo/CreatureModelData, display replacement textures and authored Extra/customization/item resources. Local CASC config, encoding and root content hashes authenticate both prior extracted bytes and newly extracted payloads. No CDN, inferred ownership or zero-filled payload is accepted.
+
+The candidate package at `data/diagnostics/mount-model-assets-2026-10-12/cache-package/` increases model-receipt coverage509→1,971 Mount IDs (120→686 model FDIDs), complete asset-chain coverage322→1,971 and all-alternative coverage320→1,971. Native-format fragment:10,050 new receipts, including566 M2s;2,119 companion aliases. Five PFID physics satellites are authenticated audit-only files because native previews do not consume them and the runtime receipt format rejects `phys`. No missing payloads or unresolved graph edges remain. Canonical creature/profile caches already cover these displays; a fresh strict import preserves exactly the same rows, so publication does not replace SQLite caches.
+
+`apply_cache_package.py` validates by default, checks the frozen canonical receipt-input set and every destination before hash, and publishes only with `--apply`; the lead owns publication.12,170 artifact paths add3,968,862,232 bytes (3.6963GiB). Package staging does not certify a release bundle or mutate canonical model/cache files.
+
+Native census uses `godot/tests/mount_asset_preview.gd`, the landed Mount Journal and a matching privateUDP5910 server, with the slot's product/cache overlay pointing at the staged package and `extracted-only` runtime mode. Full both-skin census is still running.1,292 previously missing mount identities have readable Mount rows;170 additional newly missing identities have authored MountXDisplay/assets but no readable Mount row/name/spell, so journal selection is unresolved, not fabricated. There are277 absent Mount rows overall, including97 whose model receipts predate this package.
+
+Fixture boundary: the normal Mount Journal host does not route scroll input to its list controller. The fixture reparents that same live RegistryUi under the existing UiAuditProbe to forward native thumb-drag input and reach virtualized duplicate-name rows; model loading/rendering remains the real journal path. Remove that fixture routing when the normal host wires `scroll_list_input`. This is not normal-host scrolling acceptance.
+
+Sources: package `_proof/{source-identity,census-before,census-after,asset-graph,unresolvable-journal-mounts,native-preview-summary}.json`, `manifest.json`, and the staging/publication scripts. [Journal requirements](../../specs/mount-journal.md) and [no-install closure](offline-asset-closure.md) retain the broader acceptance boundary.
+
 ## Passenger mounts
 
 Contract and acceptance: [passenger mounts](../../specs/passenger-mounts.md). `Mounted` carries VehicleID and eight indexed occupancy slots; `VehiclePassenger` carries the driver's server entity bits, seat index and VehicleSeat row. The server validates group membership, living/range and `InMap { map_id, instance_id }` conditions and enter/exit non-control seat flags, controls passenger movement and ejects invalid ownership. Passengers follow driver-relative M2 bind-pose positions; the server does not animate mount bones. Production players have `InMap`, not the NPC `Zone` component; boarding fixtures use `auth_character::spawn_player_entity` so they exercise that boundary.
