@@ -74,7 +74,10 @@ func open_editor_home() -> bool:
 		if not await wait_housing(func():
 			var hud: Control = housing_named_control("MicroMenuUI", "HousingMicroButton")
 			return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783 and hud != null and hud.get_instance_id() != previous_hud, "new house-copy HUD",420000): return false
+		# Registry projection needs its initial layout frames before physical input.
+		await frames(5)
 		await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
+		await frames(5)
 	if not await wait_housing(func(): return client.housing_state().get("house_id",0) == editor_house and client.housing_state().get("can_edit",false), "confirmed owner layout"): return false
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null, "real editor storage"): return false
