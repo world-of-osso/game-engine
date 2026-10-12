@@ -90,8 +90,7 @@ fn run() -> Result<(), String> {
         .receive::<LoginResponse>()
         .receive::<EnterWorldResponse>()
         .receive::<NewWorld>()
-        .receive::<AchievementStateUpdate>()
-        .receive::<AchievementCatalogPage>()
+        .receive_achievements()
         .connect(
             address
                 .parse()
