@@ -67,9 +67,13 @@ func open_editor_home() -> bool:
 		await click_control(housing_control("HousingAccess%d" % editor_house), MOUSE_BUTTON_LEFT)
 		if not await wait_housing(func(): return home_allows_visitors(), "explicit owner visitor permission"): return false
 	if int(client.account_state().world_map_id) != 2783 or client.housing_state().get("house_id",0) != editor_house:
+		var previous_hud: int = housing_named_control("MicroMenuUI", "HousingMicroButton").get_instance_id()
 		await click_control(housing_control("HousingHomeVisit%d" % editor_house), MOUSE_BUTTON_LEFT)
-		if not await wait_housing(func(): return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783, "authored home map",420000): return false
-		if not await wait_housing(func(): return housing_named_control("MicroMenuUI", "HousingMicroButton") != null, "house HUD ready"): return false
+		# Two house copies share map2783. The old map/HUD cannot prove the new
+		# world-port finished; wait for its actual HUD generation before querying.
+		if not await wait_housing(func():
+			var hud: Control = housing_named_control("MicroMenuUI", "HousingMicroButton")
+			return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783 and hud != null and hud.get_instance_id() != previous_hud, "new house-copy HUD",420000): return false
 		await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.housing_state().get("house_id",0) == editor_house and client.housing_state().get("can_edit",false), "confirmed owner layout"): return false
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
