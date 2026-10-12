@@ -2,7 +2,9 @@
 use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, portrait_border};
-use game_engine_core::adventure_guide::{Catalog, Instance, Item, Section, difficulty_matches};
+use game_engine_core::adventure_guide::{
+    Catalog, Instance, Item, ItemSet, Section, difficulty_matches,
+};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -101,6 +103,44 @@ impl View {
                 .collect::<Vec<_>>()
                 .join("\n"),
         )
+    }
+    pub fn item_sets(&self) -> Vec<&ItemSet> {
+        let search = self.search.to_lowercase();
+        let mut sets: Vec<_> = self
+            .catalog
+            .sets
+            .iter()
+            .filter(|set| {
+                let items: Vec<_> = set
+                    .items
+                    .iter()
+                    .filter_map(|id| self.catalog.items.get(id))
+                    .collect();
+                set.name.to_lowercase().contains(&search)
+                    && !items.is_empty()
+                    && items.iter().all(|item| {
+                        let class_matches = self.class == 0
+                            || item.class_mask == -1
+                            || item.class_mask & (1 << (self.class - 1)) != 0;
+                        class_matches && self.matches_specialization(item.id)
+                    })
+            })
+            .collect();
+        sets.sort_by(|a, b| {
+            self.set_level(b)
+                .cmp(&self.set_level(a))
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                .then_with(|| b.id.cmp(&a.id))
+        });
+        sets
+    }
+    fn set_level(&self, set: &ItemSet) -> u32 {
+        set.items
+            .iter()
+            .filter_map(|id| self.catalog.items.get(id))
+            .map(|item| item.level)
+            .max()
+            .unwrap_or(0)
     }
     pub fn instances(&self) -> Vec<&Instance> {
         let search = self.search.to_lowercase();
@@ -279,6 +319,7 @@ impl View {
                 };
                 self.instance = None;
                 self.encounter = None;
+                self.filter_menu = None;
                 self.search.clear();
             }
             "tier-menu" => self.tier_open = !self.tier_open,
@@ -347,7 +388,15 @@ impl View {
             }
             "class" => {
                 self.class = number()?;
-                self.spec = 0;
+                self.spec = if self.tab == Tab::ItemSets {
+                    self.catalog
+                        .specs
+                        .iter()
+                        .find(|spec| spec.class == self.class && spec.name != "Initial")
+                        .map_or(0, |spec| spec.id)
+                } else {
+                    0
+                };
                 self.filter_menu = None;
             }
             "spec" => {
@@ -432,7 +481,11 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
             }
         }
     });
-    if !view.loading && view.search.chars().count() >= 3 && view.page != Page::Loot {
+    if !view.loading
+        && matches!(view.tab, Tab::Dungeons | Tab::Raids)
+        && view.search.chars().count() >= 3
+        && view.page != Page::Loot
+    {
         body.extend(search_results(ctx, view));
     }
     let left = (view.viewport[0] - 800.) / 2.;
@@ -872,7 +925,10 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         LootFilter::Spec => ("Spec", "spec", 1),
         LootFilter::Slot => ("Slot", "slot", 2),
     };
-    let entries = loot_filter_entries(view, menu);
+    let entries: Vec<_> = loot_filter_entries(view, menu)
+        .into_iter()
+        .filter(|(id, _)| view.tab != Tab::ItemSets || menu != LootFilter::Spec || *id != 0)
+        .collect();
     let height = (entries.len() as f32 * 24.).min(300.);
     let children = entries
         .iter()
@@ -894,41 +950,96 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         "EncounterJournalFilterList",
     );
     let left = 202. + index as f32 * 190.;
-    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top:175.0,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{content}}}
+    let top = if view.tab == Tab::ItemSets { 89. } else { 175. };
+    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{content}}}
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
-    let search = view.search.to_lowercase();
+    let rows = view.item_sets();
     let offset = ctx.scroll_first_row(LIST) as f32;
-    let visible = |top: f32, height: f32| top + height >= offset && top <= offset + 416.;
-    let mut y = 0.;
-    let mut content = Vec::new();
-    for set in view
-        .catalog
-        .sets
+    let content = rows
         .iter()
-        .filter(|s| s.name.to_lowercase().contains(&search))
-    {
-        if visible(y, 24.) {
-            content.extend(text(
-                &format!("JournalSet{}", set.id),
-                &set.name,
-                (4., y, 730., 24.),
-            ));
-        }
-        y += 26.;
-        for item in set.items.iter().filter_map(|id| view.catalog.items.get(id)) {
-            if visible(y, 20.) {
-                content.extend(text(
-                    &format!("JournalSet{}Item{}", set.id, item.id),
-                    &item.name,
-                    (20., y, 714., 20.),
-                ));
-            }
-            y += 22.;
-        }
-        y += 10.;
+        .enumerate()
+        .filter(|(index, _)| {
+            let top = *index as f32 * 54.;
+            top + 41. >= offset && top <= offset + 370.
+        })
+        .flat_map(|(index, set)| item_set_row(view, set, index as f32 * 54.))
+        .collect();
+    let mut out = scroll(
+        ctx,
+        content,
+        (15., 110., 770., 370.),
+        (rows.len() as f32 * 54.).max(370.),
+    );
+    out.extend(set_filter_buttons(view));
+    if let Some(menu) = view.filter_menu {
+        out.extend(loot_filter_menu(ctx, view, menu));
     }
-    scroll(ctx, content, (15., 65., 770., 416.), y.max(416.))
+    out
+}
+fn set_filter_buttons(view: &View) -> Element {
+    let class = view
+        .catalog
+        .classes
+        .get(&view.class)
+        .map(String::as_str)
+        .unwrap_or("All classes");
+    let spec = view
+        .catalog
+        .specs
+        .iter()
+        .find(|spec| spec.id == view.spec)
+        .map(|spec| spec.name.as_str())
+        .unwrap_or("All specs");
+    let controls: Element = [("Class", class, "class"), ("Spec", spec, "spec")]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, (name, title, key))| {
+            button(
+                format!("Journal{name}Filter"),
+                title,
+                &format!("journal:filter:{key}"),
+                (202. + index as f32 * 190., 0., 184., 24.),
+            )
+        })
+        .collect();
+    rsx! {r#frame {name:"JournalSetFilters",left:0.0,top:65.0,width:790.0,height:24.0,pos_type:"absolute",{controls}}}
+}
+fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
+    let mut children = text(
+        &format!("JournalSet{}", set.id),
+        &set.name,
+        (39., 4., 318., 20.),
+    );
+    children.extend(text(
+        &format!("JournalSet{}Level", set.id),
+        &format!("Item Level {}", view.set_level(set)),
+        (39., 24., 318., 16.),
+    ));
+    let mut items: Vec<_> = set
+        .items
+        .iter()
+        .filter_map(|id| view.catalog.items.get(id))
+        .collect();
+    items.sort_by_key(|item| (slot_order(item.slot), item.id));
+    children.extend(items.iter().enumerate().flat_map(|(index, item)| {
+        let prefix = format!("JournalSet{}Item{}", set.id, item.id);
+        texture(
+            format!("{prefix}Icon"),
+            item.icon,
+            (360. + index as f32 * 37., 6., 28., 28.),
+            WHITE,
+        )
+    }));
+    rsx! {r#frame {name:{DynName(format!("JournalSet{}Row",set.id))},left:10.0,top,width:744.0,height:41.0,pos_type:"absolute",background_color:"0.12,0.10,0.08,1.0",{children}}}
+}
+fn slot_order(slot: u32) -> usize {
+    [
+        1, 2, 3, 16, 5, 20, 9, 10, 6, 7, 8, 11, 12, 13, 17, 21, 22, 14, 23, 15, 26, 28,
+    ]
+    .iter()
+    .position(|id| *id == slot)
+    .unwrap_or(22)
 }
 fn search_results(ctx: &SharedContext, view: &View) -> Element {
     let search = view.search.to_lowercase();
