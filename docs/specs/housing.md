@@ -22,6 +22,10 @@ HouseInfo distinguishes unconfirmed ownership from a confirmed account-owned plo
 
 Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG captures. Static importer/loader tests do not prove gameplay or UI. `godot/tests/housing_collection_live.gd` exercises real Pawdo pointer interaction, paid vendor purchase, normal bag right-click collection, exact qualified storage count and account reauthentication; fixture money/position setup remains explicit and grants no item/decor.
 
+## Native neighborhood and cornerstone controls
+
+The dashboard's Find a Home action opens a954×490 House Finder shell with the two authored map locations and authoritative plot counts. Its Visit Neighborhood action requests real housing admission; browsing never ports or grants ownership. The map preview remains explicitly unavailable rather than fabricated. Ordinary world cornerstone interaction sends UseGameObject; only its authenticated HousingReply inspection opens the340×320 purchase controls. Display the actual plot index and copper cost, confirm the irreversible purchase, disable repeat submission while pending and show ownership only after the server's paid claim. Both skins share controls/layout/behavior. Default house component grants remain unavailable.
+
 ## Local catalog promotion (lead-owned canonical writes)
 
 After landing the server importer, run it with the audit evidence and pinned build/key as described in game-server `docs/specs/housing-catalog.md`, using `--db /home/osso/Projects/world-of-osso/game-engine/data/cache/housing.sqlite` for the client cache. Agents test with isolated output only.

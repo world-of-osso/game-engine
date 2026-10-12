@@ -53,8 +53,19 @@ pub enum DashboardTab {
     Collection,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum HousingSurface {
+    #[default]
+    Dashboard,
+    Finder,
+    Cornerstone(u32),
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct HousingDashboard {
+    pub surface: HousingSurface,
+    pub neighborhood: u32,
+    pub pending: bool,
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
     pub category: Option<u32>,
@@ -69,6 +80,9 @@ impl HousingDashboard {
     pub fn new(catalog: Arc<HousingCatalog>) -> Self {
         let selection = catalog.decor.first().map(|decor| decor.id);
         Self {
+            surface: HousingSurface::Dashboard,
+            neighborhood: 1,
+            pending: false,
             catalog,
             search: String::new(),
             category: None,
