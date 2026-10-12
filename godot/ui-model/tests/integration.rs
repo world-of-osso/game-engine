@@ -79,6 +79,7 @@ mod portrait_party_frame;
 mod professions_art;
 mod pvp_progression;
 mod quest_flow;
+mod world_quests;
 mod quest_poi_hover;
 mod raid_entry;
 mod readycheck_afk;
