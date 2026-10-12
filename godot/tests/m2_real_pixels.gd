@@ -373,6 +373,10 @@ func lods(material: Dictionary, images: Array, arrays: Array, transform: Transfo
 
 # The pixel's colour per WebWowViewer: [rgb (authored), alpha, discarded].
 func shade(material: Dictionary, images: Array, uvs: Array, world: Dictionary, lod: Array) -> Array:
+	# WebWowViewerCpp forEachVisibleMesh skips final transparency below 0.0001
+	# before evaluating the combiner, even BlendAdd whose RGB ignores output alpha.
+	if material.mesh_color.a < 0.0001:
+		return [Vector3.ZERO, 0.0, true]
 	var coords := sampled_uvs(material.pixel, uvs)
 	var texels := [Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]
 	for slot in images.size():

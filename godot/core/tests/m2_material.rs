@@ -98,6 +98,13 @@ fn avenging_wrath_batches_bind_authored_glows_and_premultiplied_blending() {
         assert_eq!(binding.texture_types, vec![0; binding.textures.len()]);
         assert_eq!(binding.texture_wrap, wrap);
         assert!(binding.apply_weight);
+        if index > 0 {
+            let sample = m2_material::sample_material(&MaterialTracks::of(&wings), &binding, 900);
+            assert_eq!(
+                sample.opacity, 0.0,
+                "Authored inactive feather sheet {index}"
+            );
+        }
     }
 }
 
