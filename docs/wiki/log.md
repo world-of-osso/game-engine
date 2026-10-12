@@ -13,6 +13,9 @@
 ## 2026-10-11 — Encounter timeline/warnings
 
 [Boss encounters](systems/boss-encounters.md#scheduler-timeline--verified-2026-10-11): actual SmartAI/EventMap timers, ordered accepted-cast/phase events, bars/track and severity text/icons/audio, saved view choices and four Edit Mode movers. Native offscreen warning/covered timer text/unregistered sound failures reproduced and corrected. Both-skin Cobrahn and data-bound Skum countdown→actual cast/warning, real audio-play receipts, saved view choices, Forever live track movement and movers inspected; [acceptance](../specs/encounter-timeline.md#sources--acceptance) owns18 PNGs and exact coverage limits. Private5850 only; no invented timers or realm5000 changes.
+## 2026-10-11 — World-quest source boundary
+
+[Investigation](investigations/world-quest-availability.md): pinned QuestInfo classification and archive/SQLite template fields agree for4,207 world quests. Actual quest pools/events supply zero matching quests. Local-CASC follow-through finds four managed-state duration definitions but no matching current-stage defaults/activation epochs; historical ScheduledWorldState payloads fail local root resolution. [Contract](../specs/world-quests.md) remains unchecked. Read-only census receipt retained; no runtime code, canonical writes, server/client process or PNG proof.
 
 ## 2026-10-11 — Native follower LFG transport
 ## 2026-10-11 — Native Mythic Mentor
