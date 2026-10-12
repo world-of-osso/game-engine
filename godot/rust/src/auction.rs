@@ -155,7 +155,23 @@ impl GameClient {
             if self.auction.gossip.take().is_some() {
                 self.auction.free_ui();
             }
-            let view = self.auction.session.native_view(&self.auction.texts);
+            let mut view = self.auction.session.native_view(&self.auction.texts);
+            for row in &mut view.frame.browse {
+                if let Some(item) = self
+                    .auction
+                    .session
+                    .net
+                    .browse_results
+                    .iter()
+                    .find(|item| item.item_id == row.item_id)
+                {
+                    row.item.name = self.mount_journal.view.item_label(
+                        item.definition_source,
+                        item.item_id,
+                        &row.item.name,
+                    );
+                }
+            }
             let scale = self.effective_ui_scale();
             if self.auction.ui.is_none() {
                 let mut ui = RegistryUi::new_alloc();

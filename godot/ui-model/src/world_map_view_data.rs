@@ -162,6 +162,7 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
             .and_then(|uv| highlight(catalog, map_id, uv)),
         pins,
         highlighted_quest: None,
+        world_quest_tooltip: None,
         quest_areas,
         player: request
             .player

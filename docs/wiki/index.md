@@ -1,5 +1,8 @@
 # Wiki Index
 
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+
+- [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview, five data-derived filters and strict MountXDisplay appearance closure; acceptance tracked in the linked contract.
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
 - [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
 
@@ -14,6 +17,8 @@
 
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
+- [World-quest availability and native tasks](investigations/world-quest-availability.md) — authentic polygons/policy durations, per-character transport, automatic source settlement and both-skin native controlled completion;239/244 polygon quests admitted,5 unresolved objective sources and natural/living gameplay remain open.
+
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
@@ -119,7 +124,7 @@ Engine subsystems and how they work.
 
 - [meeting-stones](systems/meeting-stones.md) — native stone/ritual picking and shared summon popup lifecycle; contract owns current proof and gaps.
 
-- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/actual scheduler timeline, clickable compact boss frames, managed tracker, severity warnings/audio and Edit Mode; bounded native proof.
+- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/authored addon timeline and rendered warning text, clickable compact boss frames, managed tracker/audio/Edit Mode; private both-skin two-encounter proof, native-input data gaps.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; replicated remote corpse/ghost presentation and Dead status labels; stable viewer-relative taps and both-skin health greying.
 - [forever-data](systems/forever-data.md) — [Readable-section correction](systems/forever-data.md#readable-section-correction-2026-10-09): all seven previously missing Extras are readable; encrypted option/geoset parent ownership remains unknown, no deactivation authorized after corrected audit. [Local NPC source/cape investigation](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08): CDI-membership catalog separation and required cape binding; offline source/asset error table, native batches blocked by local data. [Retained native checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.

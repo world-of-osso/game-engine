@@ -25,6 +25,7 @@ fn kobold_camp_cleanup(current: u32) -> QuestEntrySnapshot {
             completed: current >= 8,
             kind: QuestObjectiveKind::Monster,
             object_id: 6,
+            optional: false,
         }],
         level: 2,
         sort_id: 9,

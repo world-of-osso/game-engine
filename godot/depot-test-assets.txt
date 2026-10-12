@@ -384,6 +384,7 @@ db2/12.1.0.69933/CharComponentTextureLayouts.csv
 db2/12.1.0.69933/ChrModelMaterial.csv
 textures/464811.blp
 textures/1886758.blp
+textures/2022306.blp
 textures/464043.blp
 textures/198077.blp
 textures/1022933.blp
