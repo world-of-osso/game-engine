@@ -10,7 +10,7 @@ use crate::ui::ui_parent::UiParent;
 use crate::ui::{RegistryModel, ScreenPostsetup};
 
 const EYE_ROW: &str = "HonorFrameSpecificBattlegroundButton7";
-const LAST_ROW: &str = "HonorFrameSpecificBattlegroundButton699";
+const LAST_ROW: &str = "HonorFrameSpecificBattlegroundButton708";
 
 fn queue_frame() -> RegistryModel {
     game_engine_ui_model::paths::set_data_root(
@@ -64,21 +64,19 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
         top - 80.0,
         "sixth row requires a second step"
     );
+    assert!(!row_inside_list(&model, LAST_ROW));
+    press_stepper(&mut model, forward);
+    rebuild(&mut model);
     assert!(row_inside_list(&model, LAST_ROW));
+    let end = rect(&model, EYE_ROW).unwrap().y;
     press_stepper(&mut model, forward);
     rebuild(&mut model);
     assert_eq!(
         rect(&model, EYE_ROW).unwrap().y,
-        top - 80.0,
+        end,
         "clamped after the final row is visible"
     );
-    assert!(
-        model
-            .registry
-            .get_by_name("HonorFrameSpecificBattlegroundButton708")
-            .is_none(),
-        "Silvershard stays unavailable until its complete runtime is implemented"
-    );
+    assert!(row_inside_list(&model, LAST_ROW));
 
     let mut model = queue_frame();
     assert!(wheel(&mut model, SPECIFIC_LIST, false));

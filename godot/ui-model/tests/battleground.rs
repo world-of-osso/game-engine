@@ -232,6 +232,63 @@ fn kotmogu_both_skin_orb_hud_source_columns_queue_and_results() {
     set_thread_skin(ActiveSkin::Modern);
 }
 
+#[test]
+fn silvershard_both_skin_cart_hud_source_column_queue_and_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let template = shared::battleground::silvershard_mines();
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name;
+        bg.score_a = 42;
+        bg.world_states = vec![(6881, 1), (6879, 1), (6439, 0), (6440, 0)];
+        bg.players[0].objective_scores = vec![(428, 3)];
+        let mut view = PvpView::default();
+        view.visible = true;
+        view.action("pvp:select:708");
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(708)));
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HonorFrameSpecificBattlegroundButton708")
+                .is_some()
+        );
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 42 / 1500    Horde 1 / 1500",
+        );
+        assert_text(&registry, "WorldStateCart0", "South Cart\nAlliance");
+        assert_text(&registry, "WorldStateCart1", "North Cart\nHorde");
+        assert_text(&registry, "WorldStateCart2", "East Cart\nNeutral");
+        assert_text(&registry, "PVPMatchCategory7", "Carts Controlled");
+        assert_text(&registry, "PVPMatchPlayer81Stat428", "3");
+        assert!(registry.get_by_name("WorldStateFlags").is_none());
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
     let handle = registry
         .get_by_name(name)

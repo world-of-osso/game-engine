@@ -1,3 +1,14 @@
+## 2026-10-12 — Combat-assist source-gap re-audit and replay
+
+[Cooldown/assist audit](investigations/cooldown-assist-data.md#source-gap-re-audit--2026-10-12): exact1229376/470418 DB2 rows and pinned TC cast/GCD paths do not define assistant-origin penalty handling; no guessed multiplier. Nonzero chargeValue2 has no authored rows in this build. Native observation captures one evaluator decision for exact private Holy Power/charge/cost/target replay; comparator semantics remain unchanged.
+## 2026-10-12 — Silvershard both-skin private lifecycle
+
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Canonical assets/cache remain lead-owned; broader preparation/graveyard/visual-aura parity remains open.
+
+## 2026-10-12 — Silvershard private content prerequisites
+
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): actual promoted switches pass source three-second casts/cancellation/copy checks;1,758 real-floor route approaches replace unsafe NPC-pivot travel. Modern private lifecycle reaches1500/428/exact return, but its carts were invisible. Two ordinary appearance rows and authenticated Retail model chains are staged privately; both-skin rendered acceptance remains open. Eye matched live rerun is now unblocked by landed M2 floors.
+
 ## 2026-10-12 — Transmog icon and relog completion
 
 [Transmog UI](systems/transmog-apply.md): sourced static portrait and set hover, tooltip-only set titles, player-selected persisted outfit icons with versioned legacy migration, real popup-over-card nonactivation, both Custom Sets pages, and separate-process paid gold/appearance/icon relog in both skins.38 inspected PNGs plus manifest republished; full global macro/spell icon catalogue and existing disabled policy boundaries remain explicit.
@@ -32,6 +43,10 @@
 ## 2026-10-12 — Source-backed battleground node maps
 
 [Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+## 2026-10-12 — Source dice and item-label rendering
+
+[Dice](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12): actual-use source one1–100/two1–6 scripts, party/self result audience,40yd emotes and data/context/signature refusal boundaries. Native raw-item-markup RED fixed through received label/colour parsing;25 scoped chat regressions, both-skin actual journal/chat proof and current check/fmt pass. Canonical327 preflight candidates are not1166 certification; item interaction and stronger sign composition remain separate.
+
 ## 2026-10-12 — Source warning-sign batches
 
 [Warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12): four source actor identities, both-skin real learning/use/mesh/scale/natural expiry. Swarthy195897 additionally proves one start/two authored models/scales/root offsets/scene-wide cleanup. Weak first-three captures await genuine cooldowns; per-effect pixel/particle certification remains separate. Prepared325 is not1166 completion; authenticated private preparation and source admission preserve existing gates.

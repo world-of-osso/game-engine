@@ -149,16 +149,16 @@ func run_fixture() -> void:
 	await prove_timer()
 	if failed:
 		return
-	await key(KEY_TAB)
-	var attack_error: String = client.use_spell(20271)
-	if not attack_error.is_empty():
-		fail(attack_error)
+	if not await enter_private_combat():
 		return
 	# Wait through the setup Judgment's authored recharge and authoritative combat entry.
 	deadline = Time.get_ticks_msec() + 30000
 	while (client.assisted_combat_state().get("next_spell", 0) == 0 or not client.assisted_combat_state().in_combat) and Time.get_ticks_msec() < deadline:
 		await process_frame
-	if client.assisted_combat_state().get("next_spell", 0) == 0 or not client.assisted_combat_state().in_combat:
+	if not client.assisted_combat_state().in_combat:
+		fail("Authoritative combat ended before the assistant proof")
+		return
+	if client.assisted_combat_state().get("next_spell", 0) == 0:
 		write_json("assisted-blocker", {"assisted": client.assisted_combat_state(), "target": client.target_state()})
 		await capture("assistant-unresolved")
 		var before_blocked: int = client.spells_state().sent.size()
@@ -175,6 +175,10 @@ func run_fixture() -> void:
 	expected = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
 	var successes_before: int = client.spells_state().cast_success.size()
+	var charge_before := viewer_charge(expected)
+	if expected not in [35395, 20271] or int(charge_before.get("charges", -1)) != 2:
+		fail("Ret private charge proof requires an authored recommendation with two real charges")
+		return
 	await click("ActionButton6")
 	deadline = Time.get_ticks_msec() + 5000
 	while client.spells_state().cast_success.size() <= successes_before and Time.get_ticks_msec() < deadline:
@@ -187,10 +191,66 @@ func run_fixture() -> void:
 		fail("Assistant request did not resolve as the exact server CastSuccess")
 		return
 	await capture("assisted-cast")
-	print("PASS: real manager clocks, authored single-button cast and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
+	var charge_after := viewer_charge(expected)
+	if int(charge_after.get("charges", -1)) != int(charge_before.charges) - 1 or float(charge_after.get("remaining", 0.0)) <= 0.0:
+		fail("Authoritative assisted cast must consume one charge and start recharge")
+		return
+	write_json("charge-proof", {"before": charge_before, "after": charge_after, "cast": expected})
+	await prove_recommendation_update(expected)
+	if failed:
+		return
+	print("PASS: real manager clocks, authored single-button cast, charge consumption/recharge, recommendation update and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
 	quit(0)
 
-func prove_highlights(expected: int) -> bool:
+func prove_recommendation_update(previous: int) -> void:
+	var deadline := Time.get_ticks_msec() + 10000
+	var observed: Dictionary = client.assisted_combat_state()
+	# Observe the existing target first: gained Holy Power can enable a spender
+	# immediately. If it dies, select another ordinary enemy; never assign facts.
+	while (int(observed.next_spell) == 0 or int(observed.next_spell) == previous) and Time.get_ticks_msec() < deadline:
+		if client.target_state().get("health_text", "").begins_with("0 /"):
+			await key(KEY_TAB)
+		await process_frame
+		observed = client.assisted_combat_state()
+	if int(observed.next_spell) == 0 or int(observed.next_spell) == previous:
+		fail("No distinct post-cast authored recommendation observed")
+		return
+	var evaluation: Variant = JSON.parse_string(observed.get("evaluation_json", ""))
+	if not evaluation is Dictionary or not evaluation.get("selection", {}).get("Ok", {}) is Dictionary:
+		fail("Post-cast recommendation needs same-decision facts for exact core replay")
+		return
+	if int(evaluation.selection.Ok.get("Spell", 0)) != int(observed.next_spell):
+		fail("Recorded core selection differs from observed recommendation")
+		return
+	write_json("recommendation-update-proof", {"before": previous, "after": int(observed.next_spell), "assisted": observed, "evaluation": evaluation, "target": client.target_state()})
+	await capture("recommendation-updated")
+
+func enter_private_combat() -> bool:
+	# Tab candidates move behind real M2/WMO occluders. A selected target alone
+	# does not prove cast admission; cycle ordinary targets until own CastSuccess.
+	for attempt in range(8):
+		await key(KEY_TAB)
+		var before: int = client.spells_state().cast_success.size()
+		var error: String = client.use_spell(20271)
+		if not error.is_empty():
+			fail(error)
+			return false
+		var deadline := Time.get_ticks_msec() + 3000
+		while (client.spells_state().cast_success.size() == before or not client.assisted_combat_state().in_combat) and Time.get_ticks_msec() < deadline:
+			await process_frame
+		if client.spells_state().cast_success.size() > before and client.assisted_combat_state().in_combat:
+			write_json("combat-entry-proof", {"attempt": attempt + 1, "spells": client.spells_state(), "target": client.target_state()})
+			return true
+	fail("No Tab-selected enemy admitted authoritative Judgment within eight attempts")
+	return false
+
+func viewer_charge(spell: int) -> Dictionary:
+	for icon in client.cooldown_viewer_state().icons:
+		if int(icon.spell_id) == spell:
+			return icon
+	return {}
+
+func prove_highlights(expected: int, prefix: String = "assisted-highlight") -> bool:
 	var viewer_name := ""
 	for icon in client.cooldown_viewer_state().icons:
 		if int(icon.spell_id) == expected and bool(icon.highlight):
@@ -229,7 +289,7 @@ func prove_highlights(expected: int) -> bool:
 			fail("Retail highlight must be a loaded crop: " + name + " (" + actual + ")")
 			return false
 		crops[name] = atlas.region
-	await capture("assisted-highlight-frame1")
+	await capture(prefix + "-frame1")
 	await create_timer(0.12).timeout
 	for name in crops:
 		var rect := control(name).get_node("Parts/Part0") as TextureRect
@@ -237,8 +297,8 @@ func prove_highlights(expected: int) -> bool:
 		if atlas.region == crops[name]:
 			fail("Retail ants flipbook did not advance: " + name)
 			return false
-	await capture("assisted-highlight-frame2")
-	write_json("highlight-proof", {"spell": expected, "viewer": viewer_name, "action": action_name, "in_combat": client.assisted_combat_state().in_combat})
+	await capture(prefix + "-frame2")
+	write_json(prefix + "-proof", {"spell": expected, "viewer": viewer_name, "action": action_name, "in_combat": client.assisted_combat_state().in_combat})
 	return true
 
 func scroll_to(name: String) -> bool:
