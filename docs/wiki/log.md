@@ -1,3 +1,7 @@
+## 2026-10-12 — Orb displayed-model animation
+
+[Orb](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12): source race/sex server mapping, authenticated private closure, real movement/idle RED and displayed-model animation fix. Modern/Forever now prove10137/run5/cancellation/actual native mesh reattachment;10 scoped world tests, native build and fmt pass.321 preflight candidates are not1166 effect certification; remaining scope open.
+
 ## 2026-10-12 — Authored toy display state kits
 
 [Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.

@@ -96,6 +96,14 @@ Both source owner M2s2358259/1625030 have empty attachment and lookup tables. At
 
 Current artifacts: `modern-state-kit-ground-green`, `forever-state-kit-ground-green`, `modern-lamp-state-kit-green`, `forever-lamp-state-kit-green` under the continuation root. Both identities start once, preserve source attachment scale/ground origin and expire naturally; requested state PNGs are in AgentShared. Unsupported procedural/positioner/conditional kit payloads and per-toy rendering remain explicit. No Positioner CSV exports exist in the pinned local source; remaining positioner-dependent cosmetics are not admitted by this change.
 
+## Orb costume animation and restoration (2026-10-12)
+
+[Orb contract](../../specs/toy-box.md) uses server item1973/spell16739 and the pinned TrinityCore native race/sex mapping. All20 server variants pass actual learning/use/cancellation; unmapped Goblin refuses before cooldown. This is not native certification of all20 appearances. Prepared/canonical preflight census is321/1166, not complete-effect coverage.
+
+A transformed local player is rendered through `NpcVisualRoot/NpcModel`, not `PlayerModel`. Local locomotion, footsteps and mounted rider animation now use the existing `UnitNode::animation_player()` lookup. Its path follows the currently displayed `visual_player_model`, not requested appearance while an asynchronous replacement is loading. Native RED observed physical movement35.923yd with idle clip0; corrected both-skin processes select run5 without player-animation errors.
+
+Latest `modern-orb-displayed-green`/`forever-orb-displayed-green` receipts prove actual journal activation10137, physical movement2.388/1.914yd, cancellation, and attached native player meshes. `unit_display` alone previously reported requested restoration before the old costume was replaced; the fixture now waits for actual `PlayerModel` or matching costume metadata/meshes. Both logs contain native attachment completion before PASS. Requested1280×720 costume/restoration PNGs were inspected. Evidence lives in `/home/osso/.worktrees/logs/toy-effects14-continuation/`; authenticated3613-asset closure and20 appearance profiles remain private, canonical promotion lead-owned. Owned5911 server/client processes stopped. Other mapped variants have server proof and authenticated preparation only; remaining toys and broader lifecycle/positioner/script coverage stay open.
+
 ## Sources
 
 - [Toy Box contract](../../specs/toy-box.md)

@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Orb costume animation](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12) — displayed-model animation routing, both-skin actual use/run/native reattachment;20 server variants, private authenticated assets and remaining per-toy boundary.
+
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview, five data-derived filters and strict MountXDisplay appearance closure; acceptance tracked in the linked contract.
