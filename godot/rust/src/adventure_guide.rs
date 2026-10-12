@@ -393,6 +393,21 @@ impl GameClient {
         state.set("owned_key_count", view.keys.len() as i64);
         state.set("item_set_count", view.item_sets().len() as i64);
         state.set("lockout_count", view.lockouts.len() as i64);
+        state.set("activity_snapshot_received", view.activities.is_some());
+        if let Some(snapshot) = &view.activities {
+            state.set("activity_count", snapshot.activities.len() as i64);
+            state.set("suggestion_count", snapshot.suggestions.len() as i64);
+            state.set("activity_points", snapshot.points);
+            state.set("activity_month", snapshot.month.month);
+            state.set(
+                "activity_source_error",
+                snapshot.source_error.as_deref().unwrap_or(""),
+            );
+            state.set(
+                "tracked_activity_count",
+                snapshot.activities.iter().filter(|row| row.tracked).count() as i64,
+            );
+        }
         state.set(
             "model_display",
             self.adventure_guide.shown.map(i64::from).unwrap_or(-1),

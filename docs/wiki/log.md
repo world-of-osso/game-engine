@@ -1,3 +1,7 @@
+## 2026-10-11 — Adventure Guide realm continuation
+
+[Guide](systems/adventure-guide.md#realm-activities-and-suggestions): authentic signed activity priorities, persisted monthly criteria/tracking and conservative suggestion gates; native snapshot/query/tab wiring. Server4/4, UI20/20 and UDP1/1; native both-skin continuation proof pending.
+
 ## 2026-10-11 — Whole-world NPC appearance
 
 [Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
