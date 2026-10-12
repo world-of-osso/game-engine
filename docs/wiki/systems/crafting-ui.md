@@ -1,43 +1,54 @@
 # Crafting UI
 
-Verified: 2026-10-11 (bounded development proof, not final/live acceptance).
+Verified: 2026-10-11 — private both-skin Leatherworking specialization and cross-character fixed-output order/mail proof. [Contract](../../specs/crafting-ui.md) owns requirements; [existing professions](native-professions-crafting.md) owns recipe/trainer behavior. Retail Mainline defines both skins' elements; Forever changes art.
 
-[Contract](../../specs/crafting-ui.md) owns requirements/gaps. [Existing professions](native-professions-crafting.md) owns fixed-output recipe/trainer behavior. Retail Mainline owns both skins' layout; Forever only selects art.
+## Projection and authority
 
-## Current projection
+`ProfessionView` selects Recipes, Specializations, Orders or the disabled recraft schematic. Customer orders use the separate825×568 PortraitFrame; crafter orders use942×658 ProfessionsFrame; specialization page is1144px. Backgrounds, tabs, paths and dial art use the authored Retail atlases and profession kit.
 
-`ProfessionView` selects Recipes, Specializations, Orders or the Recipes-page recraft schematic. Customer orders render a separate825×568 PortraitFrame; crafter orders use the942×658 ProfessionsFrame. Specializations use the1144px page and authored profession background kit. Shared top tabs use Mainline TabSystem rotation/active art, not an additional skin-specific layout.
+Specialization snapshots retain every authored node entry. One displayed path chooses the first unfinished entry in source order; drafts key tree/node/entry. Displayed knowledge ranks exclude the unlock tier. Currency records map TraitCurrencyIDs to wallet CurrencyTypesIDs or derived unlock tokens. Mainline Specializations.lua432-578 supplies radial positions when source coordinates are zero.
 
-Specialization state keeps server snapshots separate from staged absolute purchased ranks. Currency costs use TraitCurrencyIDs; snapshot currency records map wallet-backed CurrencyTypesIDs and derived unlock tokens. Apply submits the complete selected-tree purchased-rank configuration once: committed positive ranks plus draft overrides, preserving authored entry order and excluding granted-only ranks. Root unlock uses the same full configuration. The first private Modern run exposed the prior staged-only payload removing committed unlock36338; server refused it and the native fixture correctly failed after Undo erased the uncommitted point. Undo discards local purchases; root unlock requires confirmation. Native tooltip ownership resolves hovered node frames and presents source description/ranks/lock reasons. Authored edges come from the server. Retail Specializations.lua432-578 supplies radial placement for zero-coordinate path nodes. Entries remain in authored order; one node button selects the first unfinished entry, with drafts keyed by tree/node/entry. Displayed knowledge ranks exclude the unlock tier. No invented tree topology or level-based knowledge grants.
+Apply sends the **complete selected-tree purchased configuration**: positive committed ranks plus staged overrides, in authored entry order. Granted-only ranks are not purchases. Root unlock uses the same full configuration. First live Modern Apply exposed the old staged-only payload removing committed unlock36338; server refused it. Engine650e9249a preserves unlock36338 and knowledge36327; native Undo after successful Apply cannot erase the committed point.
 
-Selected-path dial perks use the source `path_node_id`, requirement and independent `is_major_bonus` bit. Mainline Templates.lua23-26 supplies the1.4-radian dial gap; Specializations.lua724-749 places minor/major milestones at177/189px. Perk flipbooks show their first90px cell for unearned/pending and last for committed; only pending milestones show the authored border glow. The protocol now exposes the independent major bit. Both-skin scoped dial rendering passed at engineecbc67dd4; native/live verification remains pending. Hovered perk frames use the source description and parent-path requirement, with distinct unearned/pending/committed state rather than misleading purchase ranks.
+Dial perks filter source `path_node_id`; the major bonus bit is independent of subpath unlock. Templates.lua23-26 supplies the1.4-radian gap; Specializations.lua724-749 supplies177/189px milestone radii. Unearned/pending use the first90px flipbook cell; committed uses the last. Pending milestones use the authored glow. Native hover resolves path/perk ownership, source descriptions, requirements and unearned/pending/earned state.
 
-Orders use the server's source-scoped fixed-output recipe list, not the customer's profession knowledge or all local create-item spells. The customer form preserves exact requirement quantities separately from contribution counts; money boxes use copper conversion, recipient/duration dropdowns expose explicit choices. Claim/fulfill/release/cancel consume server eligibility flags and never optimistically change orders/inventory. Server completion/mail is the authority.
+Customer service opens only from authoritative InteractionOpened/Closed. Source-scoped recipes do not require the customer to own the profession. Exact requirements and supplied counts stay separate; commission uses copper. Claim/release/fulfill/cancel follow server eligibility. Completion removes the row from open orders and reports `Order completed`; the cast/effect24 backend delivers result and commission through system mail, never optimistic client inventory changes.
 
-Recraft's owned-item input slot and disabled submission are visible. The server contract has no supported operation evaluator/owned-item lineage, so there is no recraft submission wire message and no CREATE_ITEM24 substitution. This remains a goal gap, not completed recrafting.
+Recraft exposes its Retail owned-item input/output element but submission is disabled: no supported operation evaluator/owned-instance lineage exists. No CREATE_ITEM24 substitution or recraft wire message is invented.
 
-## Development proof ledger
+## Native acceptance
 
-Canonical artifacts: `data/diagnostics/crafting-ui-2026-10-11/`. No final native/private-server screenshots yet.
+One private UDP5871 server lineage: initial integrated07b23ad9, then owner restart atd0593dad for the skill_line0 customer catalog fix; protocol2a48bdc. No UDP5000, instance map or canonical world/cache mutation.
 
-- Tabs: RED absent Specializations text; subsequent authored atlas-name correction; both-skin tab/art tests GREEN.
-- Staged ranks: RED no staging; currency/edge protocol extension adopted; three model tests GREEN as part of15 scoped model tests atd98bbcc4d.
-- Orders: RED no place/claim request;15 scoped model tests GREEN atd98bbcc4d. Source-catalog/can_release extension later changes that proof scope; rerun required.
-- Screens: RED absent customer/crafter/recraft frames;10 scoped integration tests GREEN at2e32e9463.
-- Menus: RED cyclic recipient control; four scoped order screen tests GREEN atbdb429cd2.
-- Takeover at2824296b4/protocol5b3cdcc:20 model+14 screen tests,5 native dispatch/geometry/mask tests and native extension/CLI build GREEN. New tier metadata exposed an incomplete catalog fixture;38e711d16 corrects its source columns/table. Logs:takeover-model-full.log (RED),takeover-model-green.log,takeover-native-tests.log,takeover-native-build.log. Native live fixture uses normal character selection and physical frame/NPC/mailbox input; no result injection.
+| Scope | Concrete proof |
+|---|---|
+| Specialization, both skins | Craftmodern/Craftforever, Dragon Isles LW2830, tree350/node28546: confirmed unlock, stage/Undo, Apply0→1/30, knowledge25→24, post-Apply Undo preserves rank; resolved+1Skill path and+5Ingenuity perk tooltips |
+| Public customer orders, both skins | Authentic Clerk Gretal215258/menu30243/OptionNpc50; Glacial Cloak28208→22658×1; supplied22682×5,14048×4,7080×2,14227×4;1g escrow100000→90000 per customer |
+| Crafter, both skins | Separate Craftworker, Classic Tailoring2540rank300, knows28208; native claim→Create→authoritative completion/removal; no output item fabricated in crafter bags |
+| Result/commission mail, both skins | Actual Northshire mailbox202578; each customer claims22658×1; worker claims two10000-copper system commissions, wallet100000→110000→120000 |
+| Acquisition/quality/recraft | Skills, knowledge25 and achievement15876 were fixture-primed, **not acquisition proof**. No variable-quality/concentration outcome or recraft operation claim |
 
-## Remaining integration
+`godot/tests/crafting_ui_live.gd` drives normal character selection and physical controls. It samples actual posed model triangles, not unreliable bounds centers; startup graphics overrides the initial FPS cap, so input is paced after entering world. Initial completed-row and mail-row selector assumptions were corrected to the actual server/UI contract. Original failed logs remain; no failed run is relabeled as a passing fixture.
 
-Customer NPC lifecycle and ordered unlock/knowledge entries are wired. Selected-path perk ownership is supplied; major-perk art flags and source-resolved trait descriptions remain pending in the shared contract. Joint private UDP5871 fb_* proof is pending. Final origin/master integration, targeted tests/check/fmt, independent verification, push and inspected both-skin PNG publication remain open. Never use UDP5000 or canonical world.db writes for this work.
+Broker source appearance and authenticated local-CASC closure were staged privately by the server owner. Strict receipt loading exposed duplicates; publication retained79 missing identities after85 matching duplicates were excluded. Canonical appearance cache remained unchanged; engine-s6's temporary cache link was restored after proof. Unrelated NPC1052435 receipt gaps did not block these cases.
+
+## Proof ledger and evidence
+
+SSOT: canonical `data/diagnostics/crafting-ui-2026-10-11/`. Inspected PNGs only are published to `/syncthing/AgentShared/2026-10-11/crafting-ui/`; logs, configuration and tokens are not published there.
+
+- Model/screen21+20 at9c46abd33/protocol2a48bdc; native extension/CLI and helper-backed scoped check passed. Full-config RED at96894163f, eight specialization tests GREEN at650e9249a.
+- Native logs: `live/modern-customer/spec-attempt2.log`, `live/forever-customer/spec.log`, `live/modern-customer/order-posed.log`, `live/forever-customer/order.log`, `live/forever-worker/craft.log`, customer/worker receiving-mail logs in those skin directories.
+- Modern cast did complete; its first fixture incorrectly waited for a retained Completed detail (`live/modern-worker/craft.log`). Actual completion PNG and subsequent result/commission claims prove its outcome; corrected Forever cast fixture passes.
+- Final integration/gate revisions are recorded in the shared crafting-ui handoff and diagnostics final logs. No full suite or CI certification is implied.
 
 ## Sources
 
-- [Crafting UI contract](../../specs/crafting-ui.md) — source grounding and acceptance.
-- `godot/ui-model/src/professions_specializations.rs`, `professions_orders.rs`, `professions_frame*.rs` — state and render decisions.
-- `godot/rust/src/professions.rs`, `professions_orders.rs`, `account.rs`, `tooltip_sources.rs` — native input/transport/tooltip wiring.
-- Canonical diagnostic logs listed above — scoped command evidence.
+- [Crafting UI contract](../../specs/crafting-ui.md) — behavior and explicit gaps.
+- `godot/ui-model/src/professions_specializations*.rs`, `professions_frame*.rs`, `professions_orders.rs` — state and Retail projection.
+- `godot/rust/src/professions*.rs`, `account.rs`, `tooltip_sources.rs` — native lifecycle/input/transport/hover.
+- Local Retail `Blizzard_Professions*`; `Blizzard_ProfessionsCustomerOrdersForm.xml` supplies the shared auctionhouse-background-index panels.
 
 ## See Also
 
-- [[native-professions-crafting]] — established Recipes/trainer pipeline.
+- [[native-professions-crafting]] — existing recipe/trainer pipeline.
+- [[forever-preset]] — authenticated character skin selection.

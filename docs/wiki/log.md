@@ -1,6 +1,6 @@
-## 2026-10-11 — Crafting UI development
+## 2026-10-11 — Crafting UI private acceptance
 
-[Crafting UI](systems/crafting-ui.md): shared Retail specialization tree/draft controls, separate customer/crafter fixed-output order views and disabled recraft slot. Scoped RED/GREEN model/screen proof and native build recorded; joint UDP5872 proof and integration remain open, not certified.
+[Crafting UI](systems/crafting-ui.md): both skins on private UDP5871 spend a source Leatherworking point, place a public Glacial Cloak order, claim/cast on a separate Tailor and receive item/commission through the actual mailbox. Native Apply exposed omitted committed unlock ranks; full selected-tree configurations fix it. Source radial/perk art and resolved tooltips have scoped/native proof. Skills/knowledge/achievement were fixture-primed; quality/concentration and recraft operation remain unsupported. Private broker appearance/authenticated local-CASC receipts were staged without canonical cache edits; slot cache link restored. Final integration/gates remain in the handoff until recorded.
 
 ## 2026-10-11 — AchievementFrame art
 
