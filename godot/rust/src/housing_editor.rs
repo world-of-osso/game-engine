@@ -236,6 +236,14 @@ impl GameClient {
             stored.push(&row);
         }
         output.set("stored", &stored.to_variant());
+        let mut account_placed: Array<VarDictionary> = Array::new();
+        for decor in &state.placed {
+            let mut row = VarDictionary::new();
+            row.set("decor_id", decor.decor_id);
+            row.set("quantity", decor.quantity);
+            account_placed.push(&row);
+        }
+        output.set("placed", &account_placed.to_variant());
         let mut houses: Array<VarDictionary> = Array::new();
         for house in &state.owned_houses {
             let mut row = VarDictionary::new();

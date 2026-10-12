@@ -199,16 +199,31 @@ fn catalog(view: &HousingView) -> Element {
         .collect();
     let preview = preview(view);
     let filter = filter_menu(model, authority.state.is_some());
-    let category_title = model
-        .category
-        .and_then(|id| {
-            model
-                .catalog
-                .categories
-                .iter()
-                .find(|category| category.id == id)
-        })
-        .map_or("All Decor", |category| category.name.as_str());
+    // HousingCatalogCategoriesMixin:GetFocusedCategoryString: HOUSING_CATALOG_CATEGORY_PATH_FMT
+    // for a focused subcategory; the All category in highlight, others in normal color.
+    let category_id = model.category.unwrap_or(crate::housing::ALL_CATEGORY);
+    let category = model
+        .catalog
+        .categories
+        .iter()
+        .find(|category| category.id == category_id);
+    let subcategory = model.subcategory.and_then(|id| {
+        model
+            .catalog
+            .subcategories
+            .iter()
+            .find(|subcategory| subcategory.id == id)
+    });
+    let category_title = match (category, subcategory) {
+        (Some(category), Some(subcategory)) => format!("{} | {}", category.name, subcategory.name),
+        (Some(category), None) => category.name.clone(),
+        (None, _) => String::new(),
+    };
+    let category_color = if model.category.is_none() {
+        "1.0,1.0,1.0,1.0"
+    } else {
+        "1.0,0.82,0.0,1.0"
+    };
     let ownership = match &view.authority.state {
         Some(state) => {
             let quantity: u64 = state
@@ -234,8 +249,9 @@ fn catalog(view: &HousingView) -> Element {
             font_size: 12.0, font_color: "0.5,0.5,0.5,1.0", justify_h: "LEFT" }
         button { name: "HousingCatalogFilters", text: "Filter", width: 100.0, height: 20.0,
             pos_type: "absolute", left: 704.0, top: 30.0, onclick: "housing:filters" }
-        fontstring { name: "HousingCatalogCategoryText", text: category_title, width: 315.0, height: 20.0,
-            pos_type: "absolute", left: 100.0, top: 67.0, font_size: 12.0, justify_h: "LEFT" }
+        fontstring { name: "HousingCatalogCategoryText", text: {category_title.as_str()}, width: 315.0, height: 20.0,
+            pos_type: "absolute", left: 100.0, top: 67.0, font_size: 12.0, justify_h: "LEFT",
+            font_color: category_color }
         r#frame { name: "HousingCatalogOptionsContainer", width: 344.0, height: 418.0,
             pos_type: "absolute", left: 100.0, top: 87.0, {entries} }
         fontstring { name: "HousingCatalogStatus", text: {footer.as_str()}, width: 744.0, height: 26.0,

@@ -381,6 +381,11 @@ fn catalog_subcategory_column_and_collection_filters_render_in_both_skins() {
                 if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
         };
         assert!(registry.get_by_name("HousingCategory1").is_none());
+        let Some(WidgetData::FontString(title)) = &frame("HousingCatalogCategoryText").widget_data
+        else {
+            panic!("missing category text")
+        };
+        assert_eq!(title.text, "Furnishings");
         assert_eq!(
             frame("HousingCategoryBackButton").onclick.as_deref(),
             Some("housing:category:back")

@@ -64,6 +64,6 @@ func show_tesla(quantity: int, phase: String) -> bool:
 	await click_control(search,MOUSE_BUTTON_LEFT)
 	search.select_all()
 	await housing_type_text(TESLA_NAME)
-	if not await wait_housing(func(): return housing_text("HousingPreviewName") == TESLA_NAME and housing_text("HousingPreviewDetails").contains("Stored decor: %d;" % quantity) and housing_text("HousingPreviewDetails").contains("Decor 2330 · Item 246487"), "actual Tesla storage %d" % quantity): return false
-	tesla_receipts.append({"phase":phase, "skin":housing_skin, "details":housing_text("HousingPreviewDetails"), "state":client.housing_state(), "merchant":client.merchant_state()})
+	if not await wait_housing(func(): return housing_text("HousingPreviewName") == TESLA_NAME and catalog_stored(TESLA_DECOR) == quantity and housing_count(TESLA_DECOR, "stored") == quantity, "actual Tesla storage %d" % quantity): return false
+	tesla_receipts.append({"phase":phase, "skin":housing_skin, "owned":housing_text("HousingPreviewNumOwned"), "sources":housing_text("HousingPreviewSourceInfo"), "state":client.housing_state(), "merchant":client.merchant_state()})
 	return await capture_housing(phase)
