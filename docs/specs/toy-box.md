@@ -17,6 +17,7 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 
 - Aura293 SpellSet extends existing aura332 AuraView.overrides consumption: first six main slots use OverrideSpellData order, zero entries and remaining main slots are empty, other bars stay unchanged. Newest set wins; removal restores stored actions without rebinding. Existing main-bar art is retained; dedicated Retail OverrideActionBar chrome is not added here.
 
+- Stationary toy creatures retain summoned ownership without taking the controlled combat-pet frame, pet portrait or party pet rows. Ownership alone does not identify a pet; replicated player-controlled flags are also required, and non-combat companions remain excluded.
 - Replicated effect50 generic decorations (type5), chairs (type7), and mailboxes (type19) render their authored GameObjectDisplayInfo assets and server scale in both skins. Decoration visibility does not imply interaction: generic props have no interaction cursor or picking area.
 
 - Authored zero-scale spell billboard bones remain collapsed without an invalid matrix-to-quaternion conversion. Later nonzero animation samples resume camera-facing presentation; no minimum scale or replacement pose is invented (Ethereal Portal75136, model165651).

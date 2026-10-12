@@ -43,6 +43,7 @@ func prove_toy(sample: Array) -> void:
 		await process_frame
 	if not await wait_until(func(): return scarecrow() != null, "source scarecrow at clicked ground", 120000): return
 	var placed := scarecrow()
+	if control("PetFrame") != null: fail("stationary scenery stole the combat pet frame"); return
 	if placed.global_position.distance_to(clicked) > 0.2: fail("toy ignored clicked ground"); return
 	if placed.global_position.distance_to(actor.global_position) < 1.0: fail("toy cast at player's feet"); return
 	if client.find_child("GroundSpellReticle", true, false) != null: fail("reticle survived completed click"); return
