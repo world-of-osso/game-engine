@@ -14,9 +14,10 @@ fn query_display_reads_model_all_skins_and_scale() {
             skin_fdid_3 INTEGER NOT NULL,
             scale_milli INTEGER NOT NULL,
             source_product TEXT NOT NULL,
-            pet_instance_scale_milli INTEGER NOT NULL
+            pet_instance_scale_milli INTEGER NOT NULL,
+            uses_display_geosets INTEGER NOT NULL
         );
-        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow', 700);",
+        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow', 700, 0);",
     )
     .unwrap();
 
@@ -25,12 +26,40 @@ fn query_display_reads_model_all_skins_and_scale() {
         Some(CreatureDisplay {
             source_product: crate::asset_product::AssetProduct::Retail,
             model_fdid: 1234,
+            uses_display_geosets: false,
             skin_fdids: [567, 890, 123, 456],
             scale_milli: 1750,
             pet_instance_scale_milli: 700,
         })
     );
     assert_eq!(query_display(&conn, 43).unwrap(), None);
+}
+
+#[test]
+fn ordinary_display_geoset_selection_uses_one_based_mesh_groups() {
+    use crate::creature_display_data::display_geoset_visible;
+    // Buzzard1105: CMD10253/FDID1661349, GeosetData343, source index0/value1.
+    let parts = [0, 101, 102];
+    let visible: Vec<_> = parts
+        .into_iter()
+        .filter(|part| display_geoset_visible(*part, true, &[(0, 1)]))
+        .collect();
+    assert_eq!(visible, [0, 101]);
+    // Boar1967: CMD10605/FDID1733750, source index0/value2; group2 omitted.
+    let visible: Vec<_> = [0, 101, 102, 103, 201]
+        .into_iter()
+        .filter(|part| display_geoset_visible(*part, true, &[(0, 2)]))
+        .collect();
+    assert_eq!(visible, [0, 102]);
+    // A declared empty selection leaves the base, not every variant.
+    assert!(!display_geoset_visible(101, true, &[]));
+    assert!(display_geoset_visible(0, true, &[]));
+    assert!(!display_geoset_visible(0, false, &[]));
+    assert!(display_geoset_visible(901, true, &[]));
+    assert!(!display_geoset_visible(901, true, &[(8, 2)]));
+    assert!(display_geoset_visible(902, true, &[(8, 2)]));
+    assert!(display_geoset_visible(100, true, &[(0, 0)]));
+    assert!(!display_geoset_visible(101, true, &[(0, 0)]));
 }
 
 #[test]
