@@ -62,21 +62,25 @@ pub fn parse_wdt_global_wmo(data: &[u8]) -> Result<Option<WmoPlacement>, String>
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         if tag == b"FDOM" {
-            let placement = parse_modf(payload, names, &offsets)?
-                .into_iter()
-                .next()
-                .map(|mut placement| {
-                    placement.path = placement
-                        .path
-                        .map(|path| path.to_lowercase().replace('\\', "/"));
-                    placement
-                });
-            return placement
-                .map(Some)
-                .ok_or_else(|| "global-WMO WDT MODF is empty".to_string());
+            return parse_global_modf(payload, names, &offsets).map(Some);
         }
     }
     Err("global-WMO WDT has no MODF".to_string())
+}
+
+fn parse_global_modf(
+    payload: &[u8],
+    names: &[u8],
+    offsets: &[u32],
+) -> Result<WmoPlacement, String> {
+    let mut placement = parse_modf(payload, names, offsets)?
+        .into_iter()
+        .next()
+        .ok_or("global-WMO WDT MODF is empty")?;
+    placement.path = placement
+        .path
+        .map(|path| path.to_lowercase().replace('\\', "/"));
+    Ok(placement)
 }
 
 fn mwmo_name_offsets(names: &[u8]) -> Vec<u32> {
