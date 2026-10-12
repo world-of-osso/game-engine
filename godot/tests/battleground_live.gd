@@ -27,6 +27,7 @@ func live_run() -> void:
 		last = input
 		var command: Dictionary = JSON.parse_string(input)
 		var result: Dictionary = {"id": command.id}
+		var finish := false
 		match command.action:
 			"snapshot":
 				result.account = client.account_state()
@@ -49,11 +50,14 @@ func live_run() -> void:
 				await tap(int(command.key))
 			"quit":
 				client.free()
-				quit(0)
+				finish = true
 		await frames(3)
 		var response := FileAccess.open(directory.path_join("response.json"), FileAccess.WRITE)
 		response.store_string(JSON.stringify(result))
 		response.close()
+		if finish:
+			quit(0)
+			return
 
 func pointer(point: Vector2, button: MouseButton) -> void:
 	var motion := InputEventMouseMotion.new()
