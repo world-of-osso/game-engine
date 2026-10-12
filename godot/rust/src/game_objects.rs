@@ -136,6 +136,48 @@ impl GameObjects {
             pools.set_density(density);
         }
     }
+    /// Measure actual Godot GO-floor and WMO/live-GO wall rays in the loaded arena.
+    /// Six query positions per sample bound a full 3v3 frame, not just an empty ray.
+    pub(crate) fn benchmark_live_queries(
+        &self,
+        space: &Gd<PhysicsDirectSpaceState3D>,
+        feet: glam::Vec3,
+    ) -> Dictionary {
+        let mut samples = Vec::with_capacity(1200);
+        let mut hits = 0_i64;
+        for frame in 0..1200 {
+            let started = std::time::Instant::now();
+            for player in 0..6 {
+                let angle = (frame + player * 60) as f32 * 0.017453292;
+                let direction = glam::Vec3::new(angle.cos(), 0.0, angle.sin());
+                let point = feet + direction * (player as f32 * 0.25);
+                hits += i64::from(floor_hit(space, point).is_some());
+                hits += i64::from(
+                    crate::wmo::collision::wall_hit(space, point + glam::Vec3::Y, direction, 7.0)
+                        .is_some(),
+                );
+            }
+            samples.push(started.elapsed().as_secs_f64() * 1e6);
+        }
+        samples.sort_by(f64::total_cmp);
+        let mut result = Dictionary::new();
+        result.set("samples", 1200);
+        result.set("players_per_sample", 6);
+        result.set("floor_queries_per_sample", 6);
+        result.set("wall_queries_per_sample", 6);
+        result.set("loaded_objects", self.objects.len() as i64);
+        result.set("observed_hits", hits);
+        for (name, index) in [
+            ("p50_us", 600),
+            ("p95_us", 1140),
+            ("p99_us", 1188),
+            ("max_us", 1199),
+        ] {
+            result.set(name, samples[index]);
+        }
+        result
+    }
+
     /// Whether `id` is a shown usable game object.
     pub fn contains(&self, id: u64) -> bool {
         self.objects.contains_key(&id)

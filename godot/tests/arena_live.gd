@@ -46,6 +46,8 @@ func live_run() -> void:
 					var model = node.get_node_or_null("GameObjectModel")
 					var collision = node.get_node_or_null("GameObjectModel/M2Collision") as StaticBody3D
 					result.objects.append({"entry": node.get_meta("game_object_entry"), "server_id": node.get_meta("game_object_server_id"), "position": str(node.global_position), "model_fdid": model.get_meta("model_file_data_id") if model else null, "collision_layer": collision.collision_layer if collision else null})
+			"benchmark_collision":
+				result.measurement = client.benchmark_arena_collision()
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
