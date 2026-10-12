@@ -55,6 +55,7 @@ pub struct View {
     pub role: u32,
     pub class: u32,
     pub spec: u32,
+    pub player_spec: u32,
     pub slot: u32,
     pub filter_menu: Option<LootFilter>,
     pub search: String,
@@ -82,6 +83,7 @@ impl Default for View {
             role: 0,
             class: 0,
             spec: 0,
+            player_spec: 0,
             slot: 0,
             filter_menu: None,
             search: String::new(),
@@ -156,10 +158,28 @@ impl View {
     fn set_level(&self, set: &ItemSet) -> u32 {
         set.items
             .iter()
-            .filter_map(|id| self.catalog.items.get(id))
-            .map(|item| item.level)
+            .filter_map(|id| crate::item_catalog::item_catalog_entry(*id))
+            .map(|item| {
+                u32::from(crate::item_stats::item_level_for(
+                    shared::item_data::ItemDefinitionSource::Retail,
+                    item,
+                ))
+            })
             .max()
             .unwrap_or(0)
+    }
+    fn choose_set_specialization(&self) -> u32 {
+        let specs: Vec<_> = self
+            .catalog
+            .specs
+            .iter()
+            .filter(|spec| spec.class == self.class && spec.name != "Initial")
+            .collect();
+        specs
+            .iter()
+            .find(|spec| spec.id == self.player_spec)
+            .or_else(|| specs.first())
+            .map_or(0, |spec| spec.id)
     }
     pub fn owned_keys(
         &self,
@@ -371,6 +391,9 @@ impl View {
                     Some("tutorials") => Tab::Tutorials,
                     _ => return Err("Unknown journal tab".into()),
                 };
+                if self.tab == Tab::ItemSets && self.spec == 0 {
+                    self.spec = self.choose_set_specialization();
+                }
                 self.instance = None;
                 self.encounter = None;
                 self.filter_menu = None;
@@ -447,11 +470,7 @@ impl View {
             "class" => {
                 self.class = number()?;
                 self.spec = if self.tab == Tab::ItemSets {
-                    self.catalog
-                        .specs
-                        .iter()
-                        .find(|spec| spec.class == self.class && spec.name != "Initial")
-                        .map_or(0, |spec| spec.id)
+                    self.choose_set_specialization()
                 } else {
                     0
                 };

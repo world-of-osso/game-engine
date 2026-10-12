@@ -103,7 +103,13 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
     .unwrap();
     let mut view = journal();
     view.visible = true;
+    view.apply("journal:class:2").unwrap();
+    assert_eq!(view.spec, 0);
     view.apply("journal:tab:sets").unwrap();
+    assert_ne!(
+        view.spec, 0,
+        "Entering Item Sets must choose a specific class specialization"
+    );
     view.apply("journal:class:2").unwrap();
     view.apply("journal:spec:70").unwrap();
     view.search = "Lightsworn Battlegear".into();
@@ -121,6 +127,16 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
         registry.get_by_name("JournalSet900Item51719Icon").is_some(),
         "Retail set row includes item icons"
     );
+    let level = registry
+        .get(registry.get_by_name("JournalSet900Level").unwrap())
+        .unwrap();
+    match &level.widget_data {
+        Some(WidgetData::FontString(font)) => assert_eq!(
+            font.text, "Item Level 15",
+            "Set level uses the same authentic Retail squish as its item tooltip"
+        ),
+        other => panic!("Expected item level, got {other:?}"),
+    }
     assert!(registry.get_by_name("JournalClassFilter").is_some());
     view.apply("journal:class:1").unwrap();
     view.apply("journal:spec:71").unwrap();
