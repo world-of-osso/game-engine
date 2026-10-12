@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Linked cooking-fire proof](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12) — actual both-skin Little Wickerman/source.25 model/particles, real cooking and Cozy Fire cancellation-refresh; seven-item backend and per-variant boundaries.
+
 - [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
 - [Cooking focus and replicated-object fire](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12) — real both-skin journal/recipe/emitter proof; linked-trap and per-variant pixel boundaries explicit.
 
