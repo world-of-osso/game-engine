@@ -158,12 +158,8 @@ func run_fixture() -> void:
 	root.size = Vector2i(1280, 720)
 	await settle(12)
 	if not await open_hashom(): return
-	await settle(30)
-	print("SELLIST_SERVICE open=", client.transmog_state().open, " error=", client.transmog_state().error, " target=", client.target_state().target)
-	for node in root.find_children("*", "Control", true, false):
-		if node.is_visible_in_tree() and ("Gossip" in str(node.name) or "TransmogOutfit" in str(node.name)):
-			print("SELLIST_SERVICE_CONTROL ", node.name)
 	if not await wait_until(func(): return control("AuctionGossipOption0") != null, "source Hashom gossip"): return
+	await capture("service-choices")
 	await pointer("AuctionGossipOption0")
 	if not await wait_until(func(): return control("TransmogOutfitEntry3Button") != null and not (control("TransmogOutfitEntry3Button") as Button).disabled, "source transmog outfits"): return
 	await pointer("TransmogOutfitEntry3Button")
