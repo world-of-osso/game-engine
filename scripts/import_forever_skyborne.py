@@ -509,6 +509,7 @@ def validate_magic(raw, extension, content_key=None):
         return
     magics = {
         "m2": (b"MD21", b"MD20"),
+        "wmo": (b"REVM",),
         "skin": (b"SKIN",),
         "blp": (b"BLP2",),
         "anim": (b"AFM2", b"AFSA", b"AFSB"),

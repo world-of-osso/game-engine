@@ -274,7 +274,11 @@ impl Scene {
 
     /// Face the model and fit its height into the frame.
     fn frame_camera(&mut self, model: &Gd<Node3D>) {
-        let bounds = preview_model_bounds(model);
+        self.frame_bounds(preview_model_bounds(model));
+    }
+
+    /// Fit explicit authored bounds (e.g. HousingModelPreview's collision preference).
+    pub(crate) fn frame_bounds(&mut self, bounds: Aabb) {
         let size = self.viewport.get_size();
         let aspect = size.x as f32 / size.y as f32;
         let extent = bounds.size.y.max(bounds.size.z / aspect).max(0.1);
