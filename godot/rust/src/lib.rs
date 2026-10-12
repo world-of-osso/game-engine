@@ -825,6 +825,28 @@ impl GameClient {
         }
     }
 
+    /// Offline fixture: select the same art skin as the saved in-world layout.
+    #[func]
+    fn preview_world_skin(&mut self, forever: bool) -> GString {
+        use game_engine_core::ui_layout_data::{ActiveLayout, LayoutSkin};
+        let skin = if forever {
+            LayoutSkin::Forever
+        } else {
+            LayoutSkin::Modern
+        };
+        let layout = ActiveLayout {
+            name: if forever { "Forever" } else { "Modern" }.into(),
+            skin,
+            ..Default::default()
+        };
+        GString::from(
+            self.apply_ui_layout(layout)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
     /// Offline fixture: run production lighting without an authenticated local player.
     #[func]
     fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
