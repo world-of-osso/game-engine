@@ -522,7 +522,8 @@ class Closure:
         names = table.get("MOTX", b"")
         for i, row in enumerate(records(table.get("MOMT", b""), 64)):
             shader = u32(row, 4)
-            extra = {19: 3, 20: 6}.get(shader, 0)
+            # MOMT22/23 map to retail pixel19/20 (iWmoApi.h), not MOMT19/20.
+            extra = {22: 3, 23: 6}.get(shader, 0)
             for offset in [12, 24, 36] + [40 + i * 4 for i in range(extra)]:
                 value = u32(row, offset)
                 if not value:

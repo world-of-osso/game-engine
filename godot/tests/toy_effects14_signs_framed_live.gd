@@ -1,4 +1,8 @@
 extends "res://tests/toy_effects14_warning_signs_live.gd"
+
+func wait_until(predicate: Callable, label: String, timeout: int = 30000) -> bool:
+	print("SIGN_PROOF_WAIT ", label)
+	return await super.wait_until(predicate, label, timeout)
 # Frame real loaded sign meshes; do not move the actor or invent a toy destination.
 func capture(label: String) -> void:
 	if label == "native":
