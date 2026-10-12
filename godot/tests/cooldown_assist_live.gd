@@ -97,8 +97,11 @@ func run_fixture() -> void:
 	await capture("world-online")
 	if OS.get_environment("COOLDOWN_ASSIST_ADMIN") == "1":
 		var ready := FileAccess.open(directory.path_join("online.ready"), FileAccess.WRITE)
-		ready.store_string("private fb_cooldown_assist online")
+		ready.store_string("private owned account online")
 		ready.close()
+		if OS.get_environment("COOLDOWN_ASSIST_RESTORE") == "1":
+			await prove_restoration()
+			return
 		deadline = Time.get_ticks_msec() + 120000
 		while not FileAccess.file_exists(directory.path_join("server-setup.done")) and Time.get_ticks_msec() < deadline:
 			await process_frame
@@ -385,6 +388,29 @@ func place_assistant() -> void:
 				break
 			await click("SpellBookNextPageButton")
 	fail("Learned Single-Button Assistant absent from spellbook")
+
+func prove_restoration() -> void:
+	var deadline := Time.get_ticks_msec() + 30000
+	while control("CooldownViewer19389") == null and Time.get_ticks_msec() < deadline:
+		await process_frame
+	var icons: Array = client.cooldown_viewer_state().icons
+	if icons.is_empty() or int(icons[0].cooldown_id) != 19389:
+		fail("Fresh process lost saved per-spec manager order")
+		return
+	var selected := []
+	for icon in icons:
+		selected.append(int(icon.cooldown_id))
+	if not selected.has(92839) or not selected.has(68661):
+		fail("Fresh process lost saved tracked icon/bar choices")
+		return
+	var expected := OS.get_environment("COOLDOWN_ASSIST_EXPECTED_POSITION").split(",")
+	var position := control("EssentialCooldownViewer").get_global_rect().position
+	if expected.size() != 2 or position.distance_to(Vector2(float(expected[0]), float(expected[1]))) > 1.0:
+		fail("Fresh process lost account Edit Mode placement")
+		return
+	await capture("restored-manager")
+	print("RESTORE_PASS: fresh process retains source-supported choices/order and account layout")
+	quit(0)
 
 func prove_grounded() -> bool:
 	var state: Dictionary = client.account_state()
