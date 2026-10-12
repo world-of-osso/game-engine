@@ -11,6 +11,7 @@ pub enum OrderMenu {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CraftingOrders {
+    pub npc: Option<u64>,
     pub menu: Option<OrderMenu>,
     pub snapshot: Option<CraftingOrdersSnapshot>,
     pub customer: bool,
@@ -30,6 +31,7 @@ pub struct CraftingOrders {
 impl Default for CraftingOrders {
     fn default() -> Self {
         Self {
+            npc: None,
             menu: None,
             snapshot: None,
             customer: false,
@@ -48,6 +50,27 @@ impl Default for CraftingOrders {
     }
 }
 impl CraftingOrders {
+    pub fn open_customer(&mut self, npc: u64) -> CraftingOrderRequest {
+        *self = Self {
+            npc: Some(npc),
+            customer: true,
+            creating: true,
+            pending: true,
+            ..Default::default()
+        };
+        CraftingOrderRequest::Query {
+            skill_line: 0,
+            kind: CraftingOrderKind::Public,
+            mine: true,
+        }
+    }
+    pub fn close_for(&mut self, npc: u64) -> bool {
+        if self.npc != Some(npc) {
+            return false;
+        }
+        *self = Self::default();
+        true
+    }
     pub fn selected_order(&self) -> Option<&CraftingOrderSnapshot> {
         self.snapshot
             .as_ref()?

@@ -2228,11 +2228,13 @@ impl GameClient {
                     self.trainer_closed_for(*npc);
                     self.transmog_closed_for(*npc);
                 }
+                let orders_opened = self.receive_crafting_order_interaction(&message)?;
                 let stable_opened = self.stable_npc_message(&message);
                 if !self.charter_npc_message(&message)?
                     && !self.receive_quest_npc_message(&message)?
                     && !self.bank_npc_message(&message)
                     && !stable_opened
+                    && !orders_opened
                 {
                     self.receive_npc_message(message)?;
                 }

@@ -39,6 +39,42 @@ fn bags() -> InventoryState {
     }
 }
 #[test]
+fn orders_customer_service_opens_scoped_query_and_closes_only_for_its_npc() {
+    let mut orders = CraftingOrders::default();
+    assert_eq!(
+        orders.open_customer(215258),
+        CraftingOrderRequest::Query {
+            skill_line: 0,
+            kind: CraftingOrderKind::Public,
+            mine: true
+        }
+    );
+    assert_eq!(orders.npc, Some(215258));
+    assert!(orders.customer);
+    assert!(orders.creating);
+    assert!(orders.pending);
+    assert!(!orders.close_for(219043));
+    assert_eq!(orders.npc, Some(215258));
+    assert!(orders.close_for(215258));
+    assert_eq!(orders.npc, None);
+    assert!(!orders.customer);
+    assert!(!orders.pending);
+    orders.receive(CraftingOrderStateUpdate {
+        snapshot: Some(CraftingOrdersSnapshot {
+            skill_line: 0,
+            kind: CraftingOrderKind::Public,
+            mine: true,
+            recipes: vec![],
+            orders: vec![],
+        }),
+        message: None,
+        error: None,
+    });
+    assert_eq!(orders.npc, None);
+    assert!(!orders.customer);
+}
+
+#[test]
 fn order_customer_places_exact_authored_reagents_without_crafting_or_mutating_bags() {
     let inventory = bags();
     let original = inventory.clone();
