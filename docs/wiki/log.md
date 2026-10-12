@@ -1,3 +1,7 @@
+## 2026-10-12 — Source-backed battleground node maps
+
+[Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type42 native rendering.82 scoped shared tests, two full channel fixtures and three native/UI tests pass; private both-skin live/PNG acceptance remains pending. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+
 ## 2026-10-11 — Retail talent placement
 
 [Talents placement](systems/talents.md#retail-placement-correction-2026-10-11): source-derived class pan and DB2 centers replace fit zoom/126px row rebasing; BOTTOM-centered page,200px PvP tray/4px gaps and label. Ret/Arcane both-skin behavioral regression and private5921 before/after proof tracked in the talent-centering evidence ledger.
