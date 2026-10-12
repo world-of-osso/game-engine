@@ -59,6 +59,7 @@ pub enum HousingSurface {
     Dashboard,
     Finder,
     Cornerstone(u32),
+    Editor,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -74,6 +75,7 @@ pub struct HousingDashboard {
     pub selection: Option<u32>,
     pub tab: DashboardTab,
     pub filters_open: bool,
+    pub editor: crate::housing_editor::EditorInteraction,
 }
 
 impl HousingDashboard {
@@ -91,6 +93,7 @@ impl HousingDashboard {
             selection,
             tab: DashboardTab::HouseInfo,
             filters_open: false,
+            editor: crate::housing_editor::EditorInteraction::default(),
         }
     }
 
