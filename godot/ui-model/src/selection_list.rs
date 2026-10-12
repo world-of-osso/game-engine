@@ -2,7 +2,7 @@
 //! LFGList.xml's search entry uses `search-highlight`; its group rows use
 //! `groupfinder-highlightbar-blue`. Atlas resolution selects Forever art only
 //! when that skin has an authored member for the same atlas name.
-use crate::bank_art::{WHITE, label};
+use crate::bank_art::{WHITE, label, texture};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use ui_toolkit::{
     frame::{Frame, WidgetData},
@@ -27,7 +27,7 @@ pub fn row(
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
     rsx! { button { name: {DynName(name)}, left, top, width, height, pos_type: "absolute",
-        disabled, onclick: action, button_default_skin: false, strata: crate::ui::strata::FrameStrata::Dialog,
+        disabled, onclick: action, button_default_skin: false,
         button_atlas_highlight: HOVER, button_highlight_alpha: 0.35, {content}
     } }
 }
@@ -45,7 +45,7 @@ pub fn text_row(
     let mut content = rsx! { r#frame { name: {DynName(format!("{name}Selected"))}, width, height,
         hidden, pos_type: "absolute", left: 0.0, top: 0.0,
         {named_atlas_texture(format!("{name}SelectedArt"), SELECTED, (0.0,0.0,width,height))}
-        {label(format!("{name}Check"), "✓", (width-22.0,0.0,20.0,height), (12.0,WHITE,"CENTER"))}
+        {texture(format!("{name}Check"), 130751, (width-22.0,(height-16.0)/2.0,16.0,16.0), WHITE)}
     } };
     let color = if enabled {
         NORMAL_FONT_COLOR
@@ -64,6 +64,9 @@ pub fn text_row(
 /// These rows opt into native keyboard focus; ordinary push buttons keep their
 /// existing behavior. Their hover atlas identifies the shared row representation.
 pub fn is_selection_row(frame: &Frame) -> bool {
-    matches!(&frame.widget_data, Some(WidgetData::Button(button))
-        if !button.use_default_skin && button.highlight_texture == Some(TextureSource::Atlas(HOVER.into())))
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return false;
+    };
+    !button.use_default_skin
+        && matches!(&button.highlight_texture, Some(TextureSource::Atlas(name)) if name == HOVER)
 }

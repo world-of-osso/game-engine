@@ -20,12 +20,18 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
         } else {
             Vec::new()
         };
-        rows.extend(rsx! { button {name:{DynName(name.clone())},onclick:{action.as_str()},disabled,
-            button_default_skin:false,width:{164.0*scale},height:{28.0*scale},pos_type:"absolute",left:{6.0*scale},top,
+        let content = rsx! {
             fontstring {name:{DynName(format!("{name}Text"))},text:{config.name.as_str()},width:{136.0*scale},height:{28.0*scale},
                 font_size:{12.0*scale},font_color:TAB_TEXT,justify_h:"LEFT",mouse_enabled:false} {check}
-        }
-        button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},disabled,button_default_skin:false,
+        };
+        rows.extend(crate::selection_list::row(
+            name.clone(),
+            &action,
+            enabled,
+            (6.0 * scale, top, 164.0 * scale, 28.0 * scale),
+            content,
+        ));
+        rows.extend(rsx! { button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},disabled,button_default_skin:false,
             width:{16.0*scale},height:{16.0*scale},pos_type:"absolute",left:{178.0*scale},top:{top+6.0*scale},
             texture {name:{DynName(format!("{name}Gear"))},texture_fdid:311226,width:{16.0*scale},height:{16.0*scale},mouse_enabled:false,
                 pos_type:"absolute",left:0.0,top:0.0}

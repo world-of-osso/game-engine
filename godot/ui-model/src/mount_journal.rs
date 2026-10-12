@@ -2,7 +2,7 @@
 use crate::bank_art::{WHITE, cropped, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::mount_source::readable_source;
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
+use crate::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
 use shared::protocol::mount_journal_types::{AQUATIC, FLYING, GROUND, RIDE_ALONG, SKYRIDING};
 use shared::protocol::{MountJournalEntry, MountJournalUpdate};
 use std::collections::{BTreeMap, BTreeSet};
