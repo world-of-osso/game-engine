@@ -217,6 +217,7 @@ pub enum AccountEvent {
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     TransmogState(shared::protocol::TransmogState),
     TransmogFailed(shared::protocol::TransmogFailed),
+    TransmogOutfitFailed(shared::protocol::TransmogOutfitFailed),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     Stable(StableMessage),
@@ -249,6 +250,7 @@ pub enum AccountEvent {
     MountJournal(shared::protocol::MountJournalUpdate),
     Toys(shared::protocol::ToyCollectionUpdate),
     ToyResult(shared::protocol::ToyResult),
+    Housing(shared::protocol::HousingReply),
     ToyCooldown(SpellCooldownUpdate),
 }
 
@@ -621,6 +623,15 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_housing(
+        &self,
+        request: shared::protocol::HousingRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::HousingChannel>(request)
+            .map_err(SessionError)
+    }
+
     pub fn send_mount(&self, mount_id: u32, dismiss: bool) -> Result<(), SessionError> {
         if dismiss {
             self.bridge()?
@@ -764,13 +775,25 @@ impl Account {
             .map_err(SessionError)
     }
 
-    pub fn send_transmog_apply(
+    /// Paid Apply or an outfit/custom-set save (game_engine_ui_model::transmog::TransmogSend).
+    pub fn send_transmog(
         &self,
-        request: shared::protocol::ApplyTransmog,
+        request: game_engine_ui_model::transmog::TransmogSend,
     ) -> Result<(), SessionError> {
-        self.bridge()?
-            .send::<_, shared::protocol::TransmogChannel>(request)
-            .map_err(SessionError)
+        use game_engine_ui_model::transmog::TransmogSend;
+        let bridge = self.bridge()?;
+        match request {
+            TransmogSend::Apply(apply) => {
+                bridge.send::<_, shared::protocol::TransmogChannel>(apply)
+            }
+            TransmogSend::SaveOutfit(save) => {
+                bridge.send::<_, shared::protocol::TransmogChannel>(save)
+            }
+            TransmogSend::SaveCustomSet(save) => {
+                bridge.send::<_, shared::protocol::TransmogChannel>(save)
+            }
+        }
+        .map_err(SessionError)
     }
 
     pub fn send_transmog_query(&self, npc: u64) -> Result<(), SessionError> {
@@ -1561,6 +1584,10 @@ impl Account {
             output.push(AccountEvent::TransmogFailed(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::TransmogOutfitFailed>() {
+            output.push(AccountEvent::TransmogOutfitFailed(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::TrainerList>() {
             output.push(AccountEvent::TrainerList(decode(message)?));
             return Ok(());
@@ -1673,6 +1700,10 @@ impl Account {
         }
         if message.is::<CreatureTooltip>() {
             output.push(AccountEvent::CreatureTooltip(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::HousingReply>() {
+            output.push(AccountEvent::Housing(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::MountJournalUpdate>() {
@@ -2416,6 +2447,10 @@ fn quest_message(
 #[cfg(test)]
 #[path = "account_toys_tests.rs"]
 mod toys_tests;
+
+#[cfg(test)]
+#[path = "account_housing_tests.rs"]
+mod housing_tests;
 
 #[cfg(test)]
 #[path = "account_mythic_mentor_tests.rs"]

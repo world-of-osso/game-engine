@@ -129,10 +129,7 @@ pub(super) fn animate_mounted(
     fallbacks: &HashMap<u16, u16>,
 ) -> Option<Result<(), String>> {
     if let Some(passenger) = &unit.passenger {
-        let mut rider = unit
-            .visual
-            .as_ref()?
-            .try_get_node_as::<WowAnimationPlayer>("M2Animation")?;
+        let mut rider = unit.animation_player()?;
         return Some(
             rider
                 .bind_mut()
@@ -141,10 +138,7 @@ pub(super) fn animate_mounted(
         );
     }
     let mount = unit.mount.as_ref()?.node.as_ref()?;
-    let mut rider = unit
-        .visual
-        .as_ref()?
-        .try_get_node_as::<WowAnimationPlayer>("M2Animation")?;
+    let mut rider = unit.animation_player()?;
     let Some(mut animation) = mount.try_get_node_as::<WowAnimationPlayer>("NpcModel/M2Animation")
     else {
         return Some(Err(format!("Mount of {} has no bone animation", unit.name)));

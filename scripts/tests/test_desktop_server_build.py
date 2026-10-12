@@ -50,6 +50,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.put(self.root, "crates/server/src/main.rs", "old source")
         self.put(self.root, "crates/server/src/ground_gaps.tsv", "0\tmissing_tile\n")
         self.put(self.root, "crates/server/src/encounter_compat.csv", "map,boss\n")
+        self.put(self.root, "scripts/reference/catalog.json", '{"rows": []}')
         self.put(self.root, "vendor/bevy_replicon/src/lib.rs", "replicon patch")
         self.put(
             self.root, "vendor/lightyear_replication/src/lib.rs", "replication patch"
@@ -62,6 +63,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.put(self.root, "crates/server/src/main.rs", "working source")
         self.put(self.root, "crates/server/src/new.rs", "untracked source")
         self.put(self.root, "crates/server/src/untracked.tsv", "not a compile input")
+        self.put(self.root, "scripts/untracked.json", "not a compile input")
         for name in ("data/secret.rs", "target/leak.rs", ".env", "token.txt"):
             self.put(self.root, name, "SECRET")
         self.fake = self.base / "fake-transport"
@@ -141,6 +143,9 @@ class DesktopServerBuildTests(unittest.TestCase):
             files["game-server/crates/server/src/encounter_compat.csv"], "map,boss\n"
         )
         self.assertEqual(
+            files["game-server/scripts/reference/catalog.json"], '{"rows": []}'
+        )
+        self.assertEqual(
             files["game-server/vendor/bevy_replicon/src/lib.rs"], "replicon patch"
         )
         self.assertEqual(
@@ -152,6 +157,7 @@ class DesktopServerBuildTests(unittest.TestCase):
             "netcode patch",
         )
         self.assertNotIn("game-server/crates/server/src/untracked.tsv", files)
+        self.assertNotIn("game-server/scripts/untracked.json", files)
         self.assertNotIn("SECRET", files.values())
         self.assertEqual(result["host"], "desktop")
         self.assertEqual(result["target"], "artifact")
