@@ -106,7 +106,8 @@ func run_test() -> void:
 func check_icon_selector() -> bool:
 	for index in OUTFITS.size():
 		var outfit: int = OUTFITS[index]
-		var icon := 135274 if index == 0 else 135343
+		# IconDataProvider index1 is the sourced134400 question mark; explicitly chosen, never a fallback.
+		var icon := 135274 if index == 0 else 134400
 		await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_RIGHT)
 		if not await wait_for(func(_s): return control("TransmogOutfitEditMenu") != null, "outfit context menu"):
 			return false
@@ -125,6 +126,8 @@ func check_icon_selector() -> bool:
 			fail("Metadata icon edit spent money or applied gear")
 			return false
 		await click_control(control("TransmogOutfitEntry%dButton" % outfit), MOUSE_BUTTON_RIGHT)
+		if not await wait_for(func(_s): return control("TransmogOutfitEditMenu") != null, "reopened outfit context menu"):
+			return false
 		await click_control(control("TransmogOutfitEditMenu"), MOUSE_BUTTON_LEFT)
 		if not await wait_for(func(_s): return control("TransmogOutfitSelectedIcon") != null, "edit restores selected icon"):
 			return false
