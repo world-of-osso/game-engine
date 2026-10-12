@@ -11,9 +11,7 @@ use crate::{
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     transmog::{TransmogBook, TransmogSend, WardrobeTab},
-    transmog_frame::{
-        HEIGHT, MODEL_SCENE, NAME_POPUP_EDITBOX, TransmogView, WIDTH, transmog_screen,
-    },
+    transmog_frame::{HEIGHT, MODEL_SCENE, NAME_POPUP_EDITBOX, TransmogView, WIDTH},
 };
 use godot::prelude::*;
 use shared::components::{Gold, SheathState};
@@ -344,7 +342,7 @@ impl GameClient {
         let result = {
             let mut host = ui.bind_mut();
             host.set_ui_scale(scale)
-                .and_then(|()| host.show_quest_window(view, transmog_screen))
+                .and_then(|()| host.show_transmog(view))
         };
         if let Err(error) = result {
             ui.free();
