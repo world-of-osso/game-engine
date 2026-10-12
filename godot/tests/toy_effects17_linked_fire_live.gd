@@ -1,7 +1,7 @@
 extends "res://tests/toy_effects16_cooking_live.gd"
 # Actual owned-item learning/journal use, recipe and source Cozy Fire refresh.
 func proof_cases() -> Array:
-	return [[70722, 99767, 208935, "Little Wickerman", 10726, 1.0, 524488]]
+	return [[70722, 99767, 208935, "Little Wickerman", 10726, 0.25, 524488]]
 
 func prove_toy(sample: Array) -> void:
 	if not await wait_until(func(): return bag_count(2672) > 0, "owned recipe reagents", 120000): return
