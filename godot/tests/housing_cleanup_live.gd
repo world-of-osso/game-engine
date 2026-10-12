@@ -18,10 +18,17 @@ func run_test() -> void:
 	root.add_child(client)
 	if not await connect_housing_account(): return
 	if not await open_cleanup_house(): return
+	if OS.get_environment("HOUSING_CLEANUP_RESTORE_ONLY") == "1":
+		if not await place_owned_bookcase(): return
+		print("PASS: private5870 Cleanup paid storage restore ", housing_skin)
+		client.free()
+		quit(0)
+		return
 	var before: Dictionary = client.housing_state()
 	if before.decor.size() != 1 or int(before.decor[0].decor_id) != 1693:
 		fail("Cleanup needs the exact paid bookcase retained by previous live receipts")
 		return
+	if not await wait_housing(func(): return placed_node() != null, "confirmed Cleanup visual"): return
 	if not await enter_cleanup(): return
 	var hit: Dictionary = find_visible_cornerstone_triangle(placed_node(), int(before.decor[0].instance_id))
 	if hit.is_empty():
@@ -54,7 +61,9 @@ func push_mouse_motion(point: Vector2) -> void:
 	Input.warp_mouse(point)
 
 func ready_dashboard() -> bool:
-	await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
+	print("CLEANUP_DASHBOARD_BEFORE ", client.account_state(), " housing=", client.housing_state(), " dashboard=", client.get_node_or_null("HousingDashboardUI") != null)
+	if not await click_exposed_control(housing_named_control("MicroMenuUI", "HousingMicroButton")): return false
+	print("CLEANUP_DASHBOARD_CLICK housing=", client.housing_state(), " dashboard=", client.get_node_or_null("HousingDashboardUI") != null)
 	return await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed", false) and not client.housing_state().get("pending", true), "ready Cleanup dashboard")
 
 func open_cleanup_house() -> bool:
@@ -76,7 +85,7 @@ func open_cleanup_house() -> bool:
 			return client.account_state().screen == "InWorld" and int(client.account_state().world_map_id) == 2783 and hud != null and hud.get_instance_id() != old_hud, "new Cleanup house-copy HUD", 420000): return false
 		await frames(20)
 		if not await ready_dashboard(): return false
-	if not await wait_housing(func(): return client.housing_state().get("house_id", 0) == editor_house and client.housing_state().get("can_edit", not is_owner) == is_owner and not client.housing_state().get("pending", true) and placed_node() != null, "confirmed Cleanup layout/visual"): return false
+	if not await wait_housing(func(): return client.housing_state().get("house_id", 0) == editor_house and client.housing_state().get("can_edit", not is_owner) == is_owner and not client.housing_state().get("pending", true), "confirmed Cleanup layout"): return false
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
 	return await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null and housing_control("HouseEditorCleanupModeButton") != null, "Cleanup mode entry")
 
