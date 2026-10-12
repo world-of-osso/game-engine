@@ -73,6 +73,7 @@ pub mod housing_editor;
 pub mod housing_editor_component;
 #[cfg(test)]
 mod housing_editor_tests;
+pub mod housing_finder_component;
 pub mod housing_navigation_component;
 #[cfg(test)]
 mod housing_tests;

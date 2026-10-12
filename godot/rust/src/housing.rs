@@ -52,7 +52,13 @@ impl GameClient {
             let mut catalog = HousingCatalog::load(&self.data_root.join("cache/housing.sqlite"))?;
             catalog.resolve_icons(&self.data_root.join(ATLAS_ELEMENTS))?;
             catalog.resolve_texture_kits(&self.data_root.join(TEXTURE_KITS))?;
-            self.housing.model = Some(HousingDashboard::new(Arc::new(catalog)));
+            let mut model = HousingDashboard::new(Arc::new(catalog));
+            model.maps = Some(Arc::new(
+                game_engine_ui_model::ui_map_data::UiMapCatalog::load(
+                    &self.data_root.join("db2/12.1.0.69933"),
+                )?,
+            ));
+            self.housing.model = Some(model);
         }
         Ok(())
     }
@@ -305,6 +311,11 @@ impl GameClient {
         if model.pending {
             return Ok(true);
         }
+        if let Some(value) = action.strip_prefix("housing:finder-plot:") {
+            let id = value.parse::<u32>().map_err(|_| "Invalid plot identity.")?;
+            model.select_finder_plot(authority, id)?;
+            return Ok(true);
+        }
         if let Some(request) = model.navigation_request(action)? {
             self.request_housing(request)?;
             return Ok(true);
@@ -312,6 +323,7 @@ impl GameClient {
         match action {
             // navigation_request applied this local sort without sending a request.
             action if action.starts_with("housing:roster-sort:") => {}
+            "housing:finder-back" => {}
             "housing:info" => model.tab = DashboardTab::HouseInfo,
             "housing:catalog" => model.tab = DashboardTab::Catalog,
             "housing:collection" => model.tab = DashboardTab::Collection,

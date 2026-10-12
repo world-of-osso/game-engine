@@ -162,6 +162,8 @@ impl BulletinBoard {
 pub struct HousingDashboard {
     pub surface: HousingSurface,
     pub neighborhood: u32,
+    pub finder_plot: Option<u32>,
+    pub maps: Option<Arc<crate::ui_map_data::UiMapCatalog>>,
     pub pending: bool,
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
@@ -184,6 +186,8 @@ impl HousingDashboard {
         Self {
             surface: HousingSurface::Dashboard,
             neighborhood: 1,
+            finder_plot: None,
+            maps: None,
             pending: false,
             catalog,
             search: String::new(),
@@ -198,6 +202,32 @@ impl HousingDashboard {
             editor: crate::housing_editor::EditorInteraction::default(),
             bulletin_board: None,
         }
+    }
+
+    pub fn select_finder_plot(
+        &mut self,
+        authority: &HousingAuthority,
+        id: u32,
+    ) -> Result<(), String> {
+        use shared::protocol::HousingPlotOwnerType;
+        let plot = authority
+            .state
+            .as_ref()
+            .and_then(|state| {
+                state
+                    .plots
+                    .iter()
+                    .find(|plot| plot.plot_id == id && plot.neighborhood_id == self.neighborhood)
+            })
+            .ok_or("Plot data has not been confirmed by the server.")?;
+        if !matches!(
+            plot.owner_type,
+            HousingPlotOwnerType::None | HousingPlotOwnerType::Friend
+        ) {
+            return Err("Retail Finder displays only sale and friend plots.".into());
+        }
+        self.finder_plot = Some(id);
+        Ok(())
     }
 
     pub fn navigation_request(
@@ -242,10 +272,20 @@ impl HousingDashboard {
                 .map_err(|_| "Invalid house identity.")?;
             return Ok(Some(HousingCommand::EnterHouse { house_id }));
         }
+        if action == "housing:finder-back" {
+            self.finder_plot = None;
+            return Ok(None);
+        }
         if action == "housing:finder" {
+            self.finder_plot = None;
             self.surface = HousingSurface::Finder;
             return Ok(Some(HousingCommand::ListPlots {
                 neighborhood_id: self.neighborhood,
+            }));
+        }
+        if action == "housing:visit-plot" {
+            return Ok(Some(HousingCommand::VisitPlot {
+                plot_id: self.finder_plot.ok_or("Select an authored plot first.")?,
             }));
         }
         if action == "housing:visit" {
@@ -261,6 +301,7 @@ impl HousingDashboard {
                 return Err("Neighborhood is not in the authenticated shipping catalog.".into());
             }
             self.neighborhood = id;
+            self.finder_plot = None;
             return Ok(Some(HousingCommand::ListPlots {
                 neighborhood_id: id,
             }));

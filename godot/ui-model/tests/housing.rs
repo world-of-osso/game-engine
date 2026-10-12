@@ -29,6 +29,7 @@ fn neighborhood_finder_and_authenticated_cornerstone_controls_match_in_both_skin
             cost: 10_000_000,
             house_id: None,
             owner_character_id: None,
+            owner_type: shared::protocol::HousingPlotOwnerType::None,
         };
         let mut authority = game_engine_ui_model::housing::HousingAuthority::default();
         authority
@@ -601,5 +602,121 @@ fn housing_expert_native_submodes_hide_storage_and_preserve_visitor_restrictions
                 );
             }
         }
+    }
+}
+
+#[test]
+fn housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_both_skins() {
+    use game_engine_core::housing::NeighborhoodMap;
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use shared::protocol::{HousingPlot, HousingPlotOwnerType, HousingState};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let maps = Arc::new(
+        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&data.join("db2/12.1.0.69933"))
+            .unwrap(),
+    );
+    let roles = [
+        HousingPlotOwnerType::None,
+        HousingPlotOwnerType::Friend,
+        HousingPlotOwnerType::Stranger,
+        HousingPlotOwnerType::SelfOwned,
+    ];
+    let coordinates = [
+        [2942.7439, -214.26563, 113.11285],
+        [2674.3176, 651.8455, 49.225697],
+        [2523.3455, 171.17882, 60.40972],
+        [3166.5469, -525.7153, 190.65105],
+    ];
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog {
+            neighborhoods: vec![NeighborhoodMap {
+                id: 1,
+                map_id: 2735,
+                texture_kit: 5721,
+                texture_suffix: Some("elwynn".into()),
+            }],
+            ..Default::default()
+        }));
+        model.surface = HousingSurface::Finder;
+        model.maps = Some(maps.clone());
+        let plots = roles
+            .into_iter()
+            .enumerate()
+            .map(|(index, owner_type)| HousingPlot {
+                plot_id: 417 + index as u32,
+                neighborhood_id: 1,
+                plot_index: index as u32,
+                name: String::new(),
+                cornerstone: coordinates[index],
+                teleport: coordinates[index],
+                cost: 10_000_000,
+                house_id: if index == 0 { None } else { Some(index as u64) },
+                owner_character_id: if index == 0 {
+                    None
+                } else {
+                    Some(31 + index as u64)
+                },
+                owner_type,
+            })
+            .collect();
+        let authority = HousingAuthority {
+            state: Some(HousingState {
+                build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                plots,
+                ..Default::default()
+            }),
+            error: None,
+        };
+        assert!(model.select_finder_plot(&authority, 419).is_err());
+        let mut view = HousingView {
+            model,
+            authority,
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        assert!(registry.get_by_name("HouseFinderMapTile0").is_some());
+        assert!(
+            registry
+                .get_by_name("HouseFinderPlotForSalePin417")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseFinderFriendsPlotPin418")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseFinderFriendsPlotPin419")
+                .is_none()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseFinderFriendsPlotPin420")
+                .is_none()
+        );
+        assert!(registry.get_by_name("HouseFinderVisitHouse1").is_none());
+        view.model.select_finder_plot(&view.authority, 417).unwrap();
+        context.insert(view.clone());
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        let button = registry
+            .get(registry.get_by_name("HouseFinderPlotVisitButton").unwrap())
+            .unwrap();
+        assert_eq!(button.onclick.as_deref(), Some("housing:visit-plot"));
+        view.model.select_finder_plot(&view.authority, 418).unwrap();
+        context.insert(view);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        let button = registry
+            .get(registry.get_by_name("HouseFinderPlotVisitButton").unwrap())
+            .unwrap();
+        assert_eq!(button.onclick.as_deref(), Some("housing:home:1"));
     }
 }

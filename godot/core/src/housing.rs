@@ -74,6 +74,7 @@ pub struct Subcategory {
 #[derive(Clone, Debug, PartialEq)]
 pub struct NeighborhoodMap {
     pub id: u32,
+    pub map_id: u32,
     /// UiTextureKitID 0 names no kit.
     pub texture_kit: u32,
     /// UiTextureKit.KitPrefix, from `resolve_texture_kits`.
@@ -287,6 +288,7 @@ pub(crate) fn load_connection(
     for (id, fields) in rows(db, key, "NeighborhoodMap")? {
         catalog.neighborhoods.push(NeighborhoodMap {
             id,
+            map_id: number(&fields, "MapID")?,
             texture_kit: number(&fields, "UiTextureKitID")?,
             texture_suffix: None,
         });
