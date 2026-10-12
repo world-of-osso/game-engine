@@ -552,28 +552,63 @@ fn kotmogu_hud(bg: &BattlegroundSnapshot) -> Element {
     hud_cells(cells)
 }
 
-fn silvershard_hud(bg: &BattlegroundSnapshot) -> Element {
-    let cells = shared::battleground::SILVERSHARD_CARTS
-        .iter()
+fn cart_cells(
+    bg: &BattlegroundSnapshot,
+    definitions: impl Iterator<Item = (&'static str, [u32; 2])>,
+) -> Vec<(String, String)> {
+    definitions
         .enumerate()
-        .map(|(index, cart)| {
-            let owner = if world_state(bg, cart.world_states[0]) == Some(1) {
-                "Alliance"
-            } else if world_state(bg, cart.world_states[1]) == Some(1) {
-                "Horde"
-            } else {
-                "Neutral"
+        .map(|(index, (name, states))| {
+            let owner = match (world_state(bg, states[0]), world_state(bg, states[1])) {
+                (Some(1), Some(1)) => "—",
+                (Some(1), _) => "Alliance",
+                (_, Some(1)) => "Horde",
+                (Some(0), Some(0)) => "Neutral",
+                _ => "—",
             };
-            (
-                format!("WorldStateCart{index}"),
-                format!("{}\n{owner}", cart.name),
-            )
+            (format!("WorldStateCart{index}"), format!("{name}\n{owner}"))
         })
-        .collect();
+        .collect()
+}
+
+fn silvershard_hud(bg: &BattlegroundSnapshot) -> Element {
+    hud_cells(cart_cells(
+        bg,
+        shared::battleground::SILVERSHARD_CARTS
+            .iter()
+            .map(|cart| (cart.name, cart.world_states)),
+    ))
+}
+
+fn deephaul_hud(bg: &BattlegroundSnapshot) -> Element {
+    let mut cells = cart_cells(
+        bg,
+        shared::battleground::DEEPHAUL_CARTS
+            .iter()
+            .map(|cart| (cart.name, cart.world_states)),
+    );
+    let crystal = if world_state(bg, 1545) == Some(2) {
+        "Alliance"
+    } else if world_state(bg, 1546) == Some(2) {
+        "Horde"
+    } else {
+        match world_state(bg, 25412) {
+            Some(3) => "Unclaimed",
+            Some(0) => "Inactive",
+            _ => "—",
+        }
+    };
+    cells.push((
+        "WorldStateCrystal".into(),
+        format!("Deephaul Crystal\n{crystal}"),
+    ));
     hud_cells(cells)
 }
 
 fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if bg.map_id == 2656 {
+        return deephaul_hud(bg);
+    }
     if bg.map_id == 1803 {
         // Resource race: score only, not the generic team-flag cells.
         return vec![];
