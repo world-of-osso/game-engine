@@ -64,11 +64,12 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 27] = [
+        const SOURCES: [Source; 28] = [
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
             GameClient::transmog_source_tooltip,
             GameClient::transmog_illusion_tooltip,
+            GameClient::housing_catalog_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -94,6 +95,27 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    /// `HousingCatalogEntry{decor}`: HousingCatalogDecorEntryMixin tooltip, `ANCHOR_RIGHT`.
+    fn housing_catalog_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            name_of(frame)?
+                .strip_prefix("HousingCatalogEntry")?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let model = self.housing.model.as_ref()?;
+        let decor = model.catalog.decor.iter().find(|decor| decor.id == id)?;
+        let tooltip = game_engine_ui_model::housing::decor_entry_tooltip(
+            decor,
+            &model.catalog,
+            &self.housing.authority,
+        );
+        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

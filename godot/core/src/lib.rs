@@ -75,6 +75,9 @@ pub mod ground_effect_data;
 #[cfg(test)]
 mod ground_effect_data_tests;
 pub mod horizon;
+pub mod housing;
+#[cfg(test)]
+mod housing_tests;
 #[path = "input_bindings_data.rs"]
 pub mod input_bindings_data;
 #[path = "rendering/lighting/light_lookup_data.rs"]
