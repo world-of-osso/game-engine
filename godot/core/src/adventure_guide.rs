@@ -72,7 +72,16 @@ pub struct Item {
 pub struct ItemSet {
     pub id: u32,
     pub name: String,
+    pub flags: u32,
     pub items: Vec<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetBonus {
+    pub spec: u32,
+    pub spell: u32,
+    pub trait_subtree: u32,
+    pub threshold: u32,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Specialization {
@@ -80,6 +89,14 @@ pub struct Specialization {
     pub name: String,
     pub class: u32,
 }
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChallengeDungeon {
+    pub id: u32,
+    pub map: u32,
+    pub name: String,
+    pub time_limit_ms: u64,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Catalog {
     pub tiers: Vec<Tier>,
@@ -90,6 +107,8 @@ pub struct Catalog {
     pub loot: Vec<Loot>,
     pub items: BTreeMap<u32, Item>,
     pub sets: Vec<ItemSet>,
+    pub set_bonuses: BTreeMap<u32, Vec<SetBonus>>,
+    pub challenge_dungeons: BTreeMap<u32, ChallengeDungeon>,
     pub specs: Vec<Specialization>,
     pub section_difficulties: BTreeMap<u32, Vec<u32>>,
     pub encounter_difficulties: BTreeMap<u32, Vec<u32>>,
@@ -143,7 +162,7 @@ impl Catalog {
         )?;
         let instances = query(
             &db,
-            "SELECT ID,Name_lang,Description_lang,MapID,BackgroundFileDataID,ButtonFileDataID,LoreFileDataID,Flags FROM JournalInstance ORDER BY ID",
+            "SELECT j.ID,j.Name_lang,j.Description_lang,j.MapID,j.BackgroundFileDataID,j.ButtonFileDataID,j.LoreFileDataID,m.instance_type FROM JournalInstance j JOIN map_type m ON m.ID=j.MapID ORDER BY j.ID",
             |r| {
                 let id = r.get(0)?;
                 Ok(Instance {
@@ -154,7 +173,7 @@ impl Catalog {
                     background: r.get(4)?,
                     button: r.get(5)?,
                     lore: r.get(6)?,
-                    dungeon: r.get::<_, u32>(7)? & 1 != 0,
+                    dungeon: r.get::<_, u32>(7)? == 1,
                     tiers: tier_links.get(&id).cloned().unwrap_or_default(),
                 })
             },
@@ -233,6 +252,7 @@ impl Catalog {
             Ok(ItemSet {
                 id: r.get(0)?,
                 name: r.get(1)?,
+                flags: r.get(2)?,
                 items: items.into_iter().filter(|i| *i != 0).collect(),
             })
         })?;
@@ -247,6 +267,25 @@ impl Catalog {
                 })
             },
         )?;
+        let mut set_bonuses: BTreeMap<u32, Vec<SetBonus>> = BTreeMap::new();
+        let bonuses = query(
+            &db,
+            "SELECT ItemSetID,ChrSpecID,SpellID,TraitSubTreeID,Threshold FROM ItemSetSpell ORDER BY Threshold,ID",
+            |r| {
+                Ok((
+                    r.get::<_, u32>(0)?,
+                    SetBonus {
+                        spec: r.get(1)?,
+                        spell: r.get(2)?,
+                        trait_subtree: r.get(3)?,
+                        threshold: r.get(4)?,
+                    },
+                ))
+            },
+        )?;
+        for (set, bonus) in bonuses {
+            set_bonuses.entry(set).or_default().push(bonus);
+        }
         Ok(Self {
             tiers,
             instances,
@@ -256,6 +295,22 @@ impl Catalog {
             loot,
             items,
             sets,
+            set_bonuses,
+            challenge_dungeons: query(
+                &db,
+                "SELECT ID,map_id,name,time_limit_ms FROM challenge_dungeon",
+                |r| {
+                    Ok(ChallengeDungeon {
+                        id: r.get(0)?,
+                        map: r.get(1)?,
+                        name: r.get(2)?,
+                        time_limit_ms: r.get(3)?,
+                    })
+                },
+            )?
+            .into_iter()
+            .map(|dungeon| (dungeon.id, dungeon))
+            .collect(),
             specs,
             encounter_difficulties: relations(
                 &db,
