@@ -26,7 +26,7 @@ Live Modern preview exposed a tab-transition root cause: desired Catalog tab was
 
 ### Preview asset publication boundary
 
-The maintained closure walker had confused MOMT22/23 with pixel19/20: it omitted actual parallax/DF auxiliary textures and misclassified unused words of MOMT19/20 as FDIDs. The renderer and importer already use the correct mapping. Concrete binary fixtures reproduce both omitted and invented dependencies; the walker now uses MOMT22→3extra and23→6extra words. Actual housing pillar6429362 needs auxiliary BLP5984930. Publication uses frozen build-key/content-key receipts and the existing no-clobber importer; canonical cache mutation remains lead-only.
+The maintained closure walker had confused MOMT22/23 with pixel19/20: it omitted actual parallax/DF auxiliary textures and misclassified unused words of MOMT19/20 as FDIDs. The renderer and importer already use the correct mapping. Concrete binary fixtures reproduce both omitted and invented dependencies; the walker now uses MOMT22→3extra and23→6extra words. Actual housing pillar6429362 needs auxiliary BLP5984930. The importer and runtime receipt index previously rejected WMO kind despite the renderer loading those files. Both now accept authenticated .wmo/REVM records under the same build/product namespace, without M2 relabeling. Publication uses frozen build-key/content-key receipts and the existing no-clobber importer; canonical cache mutation remains lead-only.
 
 ## Retail neighborhood discovery
 
