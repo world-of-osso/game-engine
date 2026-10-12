@@ -1,3 +1,7 @@
+## 2026-10-12 — Avenging Wrath local material playback
+
+[Material time](investigations/avenging-wrath-material-time.md): source2368645 local alpha and native Hold158 rendering prove material tracks incorrectly looped Stand on application age. Local sampling now receives owning-model playback; globals retain their shared clock. Seven actual private source casts cover both skins; published candidate assets/cache/shaders match local hashes. Hold GREEN and the original rainbow reproduction remain open at this commit; Positioner59 enum semantics remain unsourced.
+
 ## 2026-10-12 — Eye both-skin private lifecycle
 
 [Eye](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12):16 real accounts per skin, M2-supported source entry, four presence-held towers, three physical flag captures, natural1500/183=3, automaticVictory/exact native origin/all15peer return;16ACKs then periodic save.20 inspected PNGs and eye-live-proof.json retain bounded proof. Fixture sequential worker entry resolves burst handshake timeout without extending deadlines; private startup waits processed admin readiness. Player-body art and preparation/resurrection/rewards remain uncertified.

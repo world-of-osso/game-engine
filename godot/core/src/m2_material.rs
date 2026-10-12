@@ -231,6 +231,14 @@ pub fn batch_binding(
     })
 }
 
+/// Model playback for local tracks, application time for global-sequence tracks.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MaterialTime {
+    pub sequence: usize,
+    pub time_ms: u32,
+    pub global_ms: u32,
+}
+
 /// A model's material animation tracks and their timelines, apart from its geometry.
 pub struct MaterialTracks {
     pub global_sequences: Vec<u32>,
@@ -255,34 +263,49 @@ impl MaterialTracks {
         }
     }
 
-    /// Application time on a track's timeline: global tracks wrap their global
-    /// sequence; local tracks loop the Stand the reference keeps playing.
-    pub fn track_time<T>(&self, track: &AnimTrack<T>, elapsed_ms: u32) -> u32 {
-        let duration = match usize::try_from(track.global_sequence) {
-            Ok(index) => self.global_sequences.get(index).copied().unwrap_or(0),
-            Err(_) => self.stand_ms,
-        };
-        if duration == 0 {
-            0
-        } else {
-            elapsed_ms % duration
+    /// Stand loop for a model without a playing skeletal animation.
+    pub fn stand_time(&self, global_ms: u32) -> MaterialTime {
+        MaterialTime {
+            sequence: 0,
+            time_ms: if self.stand_ms == 0 {
+                0
+            } else {
+                global_ms % self.stand_ms
+            },
+            global_ms,
         }
+    }
+
+    /// Local tracks use the playing sequence; global tracks always use timeline 0.
+    fn track_time<T>(&self, track: &AnimTrack<T>, time: MaterialTime) -> Option<(usize, u32)> {
+        let Ok(index) = usize::try_from(track.global_sequence) else {
+            return Some((time.sequence, time.time_ms));
+        };
+        let duration = *self.global_sequences.get(index)?;
+        Some((
+            0,
+            if duration == 0 {
+                0
+            } else {
+                time.global_ms % duration
+            },
+        ))
     }
 }
 
-/// animateTrack over sequence 0: interpolation 0 holds a key, 1 interpolates linearly
-/// (the only types it supports); before the first key it holds the first.
+/// animateTrack on the selected timeline: interpolation 0 holds a key, 1 interpolates
+/// linearly; before the first key it holds the first.
 fn animate<T: Copy>(
     track: &AnimTrack<T>,
     tracks: &MaterialTracks,
-    elapsed_ms: u32,
+    time: MaterialTime,
     lerp: impl Fn(T, T, f32) -> T,
 ) -> Option<T> {
-    let (times, values) = track.sequences.first()?;
+    let (sequence, time) = tracks.track_time(track, time)?;
+    let (times, values) = track.sequences.get(sequence)?;
     if times.is_empty() || values.len() < times.len() {
         return None;
     }
-    let time = tracks.track_time(track, elapsed_ms);
     let next = times.partition_point(|&key| key <= time);
     if next == 0 {
         return Some(values[0]);
@@ -299,9 +322,9 @@ fn animate<T: Copy>(
 pub fn sample_fixed16(
     track: &AnimTrack<i16>,
     tracks: &MaterialTracks,
-    elapsed_ms: u32,
+    time: MaterialTime,
 ) -> Option<f32> {
-    animate(track, tracks, elapsed_ms, |a, b, t| {
+    animate(track, tracks, time, |a, b, t| {
         (a as f32 + (b as f32 - a as f32) * t) as i16
     })
     .map(|value| value as f32 / 32767.0)
@@ -310,9 +333,9 @@ pub fn sample_fixed16(
 pub fn sample_vec3(
     track: &AnimTrack<[f32; 3]>,
     tracks: &MaterialTracks,
-    elapsed_ms: u32,
+    time: MaterialTime,
 ) -> Option<[f32; 3]> {
-    animate(track, tracks, elapsed_ms, |a, b, t| {
+    animate(track, tracks, time, |a, b, t| {
         [0, 1, 2].map(|i| a[i] + (b[i] - a[i]) * t)
     })
 }
@@ -320,9 +343,9 @@ pub fn sample_vec3(
 fn sample_quat(
     track: &AnimTrack<[f32; 4]>,
     tracks: &MaterialTracks,
-    elapsed_ms: u32,
+    time: MaterialTime,
 ) -> Option<[f32; 4]> {
-    animate(track, tracks, elapsed_ms, |a, b, t| {
+    animate(track, tracks, time, |a, b, t| {
         let sign = if (0..4).map(|i| a[i] * b[i]).sum::<f32>() < 0.0 {
             -1.0
         } else {
@@ -378,10 +401,10 @@ fn about_center(matrix: &Affine, linear: &Affine) -> Affine {
 pub fn texture_matrix(
     transform: &TextureAnimTracks,
     tracks: &MaterialTracks,
-    elapsed_ms: u32,
+    time: MaterialTime,
 ) -> TextureMatrix {
     let mut matrix = AFFINE_IDENTITY;
-    if let Some([x, y, z, w]) = sample_quat(&transform.rotation, tracks, elapsed_ms) {
+    if let Some([x, y, z, w]) = sample_quat(&transform.rotation, tracks, time) {
         let rotation = [
             [
                 1.0 - 2.0 * (y * y + z * z),
@@ -404,7 +427,7 @@ pub fn texture_matrix(
         ];
         matrix = about_center(&matrix, &rotation);
     }
-    if let Some([sx, sy, sz]) = sample_vec3(&transform.scale, tracks, elapsed_ms) {
+    if let Some([sx, sy, sz]) = sample_vec3(&transform.scale, tracks, time) {
         let scale = [
             [sx, 0.0, 0.0, 0.0],
             [0.0, sy, 0.0, 0.0],
@@ -412,7 +435,7 @@ pub fn texture_matrix(
         ];
         matrix = about_center(&matrix, &scale);
     }
-    if let Some([tx, ty, tz]) = sample_vec3(&transform.translation, tracks, elapsed_ms) {
+    if let Some([tx, ty, tz]) = sample_vec3(&transform.translation, tracks, time) {
         matrix = compose(&matrix, &translation(tx, ty, tz));
     }
     [
@@ -425,7 +448,7 @@ pub fn texture_matrix(
     ]
 }
 
-/// The batch's animated material inputs at `elapsed_ms`.
+/// The batch's animated material inputs at model playback and global time.
 #[derive(Debug, PartialEq)]
 pub struct MaterialSample {
     pub mesh_color: [f32; 3],
@@ -438,52 +461,51 @@ pub struct MaterialSample {
 pub fn sample_material(
     tracks: &MaterialTracks,
     binding: &BatchBinding,
-    elapsed_ms: u32,
+    time: MaterialTime,
 ) -> MaterialSample {
     let color = binding.color.map(|index| &tracks.colors[index]);
     let weights = binding.texture_weights.map(|index| {
         index
-            .and_then(|index| sample_fixed16(&tracks.weights[index], tracks, elapsed_ms))
+            .and_then(|index| sample_fixed16(&tracks.weights[index], tracks, time))
             .unwrap_or(1.0)
     });
     let mut opacity = color
-        .and_then(|color| sample_fixed16(&color.opacity, tracks, elapsed_ms))
+        .and_then(|color| sample_fixed16(&color.opacity, tracks, time))
         .unwrap_or(1.0);
     if binding.apply_weight {
         opacity *= weights[0];
     }
     MaterialSample {
         mesh_color: color
-            .and_then(|color| sample_vec3(&color.color, tracks, elapsed_ms))
+            .and_then(|color| sample_vec3(&color.color, tracks, time))
             .unwrap_or([1.0; 3]),
         opacity: opacity.clamp(0.0, 1.0),
         texture_weights: weights,
         texture_matrices: binding.texture_transforms.map(|index| {
             index.map_or(IDENTITY_MATRIX, |index| {
-                texture_matrix(&tracks.transforms[index], tracks, elapsed_ms)
+                texture_matrix(&tracks.transforms[index], tracks, time)
             })
         }),
     }
 }
 
-/// Some input of the material has more than one key: it changes with time.
+/// Some input changes with time or when the model switches sequence.
 pub fn material_animates(tracks: &MaterialTracks, binding: &BatchBinding) -> bool {
-    fn keyed<T>(track: &AnimTrack<T>) -> bool {
-        track
-            .sequences
-            .first()
-            .is_some_and(|(times, _)| times.len() > 1)
+    fn varies<T: PartialEq>(track: &AnimTrack<T>) -> bool {
+        !crate::m2::track_is_constant(track)
     }
     binding.color.is_some_and(|index| {
         let color = &tracks.colors[index];
-        keyed(&color.color) || keyed(&color.opacity)
+        varies(&color.color) || varies(&color.opacity)
     }) || binding
         .texture_weights
         .iter()
         .flatten()
-        .any(|&index| keyed(&tracks.weights[index]))
+        .any(|&index| varies(&tracks.weights[index]))
         || binding.texture_transforms.iter().flatten().any(|&index| {
             let transform = &tracks.transforms[index];
-            keyed(&transform.translation) || keyed(&transform.rotation) || keyed(&transform.scale)
+            varies(&transform.translation)
+                || varies(&transform.rotation)
+                || varies(&transform.scale)
         })
 }
