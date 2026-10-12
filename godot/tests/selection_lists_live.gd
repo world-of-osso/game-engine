@@ -45,7 +45,9 @@ func pointer(name: String, button := MOUSE_BUTTON_LEFT) -> void:
 	if target == null or not target.is_visible_in_tree():
 		fail("Missing visible control: " + name)
 		return
-	var point := target.get_global_rect().get_center()
+	await pointer_at(target.get_global_rect().get_center(), button)
+
+func pointer_at(point: Vector2, button: MouseButton) -> void:
 	await motion(point)
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
@@ -66,6 +68,24 @@ func tap(key: Key) -> void:
 		root.push_input(event, true)
 		await process_frame
 	await settle()
+
+func open_hashom() -> bool:
+	if not await wait_until(func(): return root.find_child("Warpweaver Hashom", true, false) != null, "authentic Hashom actor"): return false
+	var actor := root.find_child("Warpweaver Hashom", true, false)
+	var pick := actor.find_child("UnitPick", true, false) as Area3D
+	if pick == null: fail("Hashom has no native pick shape"); return false
+	for index in range(16):
+		client.set_camera_orbit(index * TAU / 16.0, -0.3, 6.0)
+		await settle(3)
+		var camera := root.get_camera_3d()
+		var point3: Vector3 = (pick.get_child(0) as Node3D).global_position
+		if camera.is_position_in_frustum(point3):
+			var point := camera.unproject_position(point3)
+			if UnitPicker.pick(camera, point) == pick.get_meta("unit_server_id"):
+				await pointer_at(point, MOUSE_BUTTON_RIGHT)
+				return true
+	fail("No unoccluded native Hashom pick point")
+	return false
 
 func capture(suffix: String) -> void:
 	await settle(30)
@@ -132,23 +152,29 @@ func run_fixture() -> void:
 	await pointer("GuildControlButton")
 	if not await wait_until(func(): return control("GuildRankRow1") != null, "guild rank list"): return
 	await pointer("GuildRankRow1")
+	if stage == "after":
+		var expected_rank: String = control("GuildRankRow2Name").text
+		await tap(KEY_DOWN)
+		await tap(KEY_ENTER)
+		if not await wait_until(func(): return control("GuildRankName").text == expected_rank, "keyboard guild rank selection"): return
+		await pointer("GuildRankRow1")
 	await motion(Vector2(1500, 950))
 	await capture("guild-rank-selected")
 	await pointer("GuildControlUICloseButton")
 	await pointer("CommunitiesFrameCloseButton")
 	root.size = Vector2i(1280, 720)
 	await settle(12)
-	print("SELECTION_LIST_POSITION ", client.account_state().local_player_position)
-	var units := root.find_child("WorldUnits", true, false)
-	if units != null:
-		for unit in units.get_children():
-			if unit.has_meta("unit_name") and "Hashom" in str(unit.get_meta("unit_name")):
-				print("SELECTION_LIST_HASHOM ", unit.global_position)
-	await tap(KEY_Z)
+	if not await open_hashom(): return
 	if not await wait_until(func(): return control("AuctionGossipOption0") != null, "source Hashom gossip"): return
 	await pointer("AuctionGossipOption0")
-	if not await wait_until(func(): return control("TransmogOutfitEntry3Button") != null, "source transmog outfits"): return
+	if not await wait_until(func(): return control("TransmogOutfitEntry3Button") != null and not (control("TransmogOutfitEntry3Button") as Button).disabled, "source transmog outfits"): return
 	await pointer("TransmogOutfitEntry3Button")
+	if not await wait_until(func(): return client.transmog_state().viewed_outfit == 3, "viewed outfit"): return
+	if stage == "after":
+		await pointer("TransmogOutfitEntry2Button")
+		await tap(KEY_DOWN)
+		await tap(KEY_ENTER)
+		if not await wait_until(func(): return client.transmog_state().viewed_outfit == 3, "keyboard outfit selection"): return
 	await motion(Vector2(1150, 680))
 	await capture("outfit-selected")
 	print("SELECTION_LIST_PASS stage=", stage, " skin=", skin)
