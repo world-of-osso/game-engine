@@ -26,7 +26,7 @@ func run_test() -> void:
 			quit(1)
 			return
 		var viewport: SubViewport = view.find_child("CharacterModelViewport", true, false)
-		if viewport == null or not viewport.use_own_world_3d or not viewport.transparent_bg:
+		if viewport == null or not viewport.own_world_3d or not viewport.transparent_bg:
 			printerr("FAIL: catalog camera shares gameplay world")
 			quit(1)
 			return
