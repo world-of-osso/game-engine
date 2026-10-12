@@ -53,6 +53,80 @@ fn reads_distinct_appearances_with_full_choice_ids_and_sorted_geosets() {
     );
 }
 
+/// Real prepared catalogs and source-authenticated assets, not synthetic display substitutions.
+#[test]
+#[ignore = "requires NPC_APPEARANCE_ACCEPTANCE_DATA pointing at a prepared local data root"]
+fn full_world_named_bosses_resolve_profiles_displays_and_required_asset_receipts() {
+    use crate::asset_product::AssetProduct;
+    use crate::creature_display_data::query_display;
+    use crate::model_asset_index::ModelAssetIndex;
+    use rusqlite::OpenFlags;
+    use std::path::PathBuf;
+
+    let data = PathBuf::from(std::env::var("NPC_APPEARANCE_ACCEPTANCE_DATA").unwrap());
+    let appearances = Connection::open_with_flags(
+        data.join("cache/npc_appearance.sqlite"),
+        OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    let cobrahn = query_authored_npc_appearance(&appearances, 4213)
+        .unwrap()
+        .unwrap();
+    assert_eq!((cobrahn.race, cobrahn.sex, cobrahn.class), (4, 0, 0));
+    assert_eq!(cobrahn.baked_texture_fdid, Some(1060054));
+    assert_eq!(
+        cobrahn.choice_ids,
+        vec![
+            702, 723, 740, 754, 763, 769, 782, 789, 7610, 8018, 8040, 8062, 8084, 8094, 8107, 8129,
+            8166,
+        ]
+    );
+    for display in [4203, 8570, 22132] {
+        assert_eq!(
+            query_authored_npc_appearance(&appearances, display).unwrap(),
+            None
+        );
+    }
+    let displays = Connection::open_with_flags(
+        data.join("cache/creature_display.sqlite"),
+        OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    let skum = query_display(&displays, 4203).unwrap().unwrap();
+    assert_eq!(skum.model_fdid, 1625963);
+    assert_eq!(skum.skin_fdids, [1626025, 0, 0, 0]);
+    assert_eq!(skum.source_product, AssetProduct::Retail);
+    assert_eq!(
+        query_display(&displays, 4213).unwrap().unwrap().scale_milli,
+        1200
+    );
+    assert_eq!(
+        query_display(&displays, 8570).unwrap().unwrap().model_fdid,
+        123465
+    );
+    let assets = ModelAssetIndex::load(&data).unwrap();
+    for (display, fdid, kind) in [
+        (4213, 974343, "m2"),
+        (4213, 1060054, "blp"),
+        (4213, 1029851, "blp"),
+        (4203, 1625963, "m2"),
+        (4203, 1626025, "blp"),
+        (8570, 123465, "m2"),
+        (13031, 147868, "blp"),
+        (22132, 125876, "m2"),
+    ] {
+        let receipt = assets
+            .receipt(AssetProduct::Retail, fdid, kind)
+            .unwrap_or_else(|error| panic!("display {display}: {error}"));
+        let bytes = std::fs::read(data.join(&receipt.path)).unwrap();
+        assert_eq!(
+            bytes.len() as u64,
+            receipt.bytes,
+            "display {display} asset {fdid}"
+        );
+    }
+}
+
 #[test]
 fn ordinary_display_in_coverage_has_no_appearance() {
     assert_eq!(query_authored_npc_appearance(&fixture(), 99).unwrap(), None);
