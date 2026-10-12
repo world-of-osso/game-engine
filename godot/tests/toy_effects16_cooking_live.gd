@@ -39,12 +39,19 @@ func prove_toy(sample: Array) -> void:
 	if not model.find_children("*", "Area3D", true, false).is_empty(): fail("cooking-only focus gained interaction"); return
 	if not await wait_until(func(): return int(object.get_meta("game_object_particle_quads", 0)) > 0, "authored game-object fire particles"): return
 	if int(object.get_meta("game_object_particle_emitters", 0)) != 1: fail("wrong authored fire emitter count"); return
+	if not await wait_until(func(): return client.spells_state().casting == 0 and client.spells_state().gcd_ms == 0, "source fire cast completion"): return
 	var meat := bag_count(2672)
 	var food := bag_count(2679)
 	if client.use_spell(2538) != "": fail("native cooking request unavailable"); return
 	if not await wait_until(func(): return bag_count(2672) == meat - 1 and bag_count(2679) == food + 1, "real recipe reagents/output"): return
 	receipts.append({"phase": "source-fire-cooking", "item": sample[0], "entry": sample[2], "display": sample[4], "fdid": sample[6], "scale": object.scale.x, "meshes": model.find_children("*", "MeshInstance3D", true, false).size(), "particles": client.account_state().get("game_object_particles"), "source_emitters": int(object.get_meta("game_object_particle_emitters")), "submitted_quads": int(object.get_meta("game_object_particle_quads")), "meat_before": meat, "meat_after": bag_count(2672), "food_before": food, "food_after": bag_count(2679), "spells": client.spells_state()})
 	await capture_fire(object, "cooking-toy%d" % sample[0])
+
+func fail(message: String) -> void:
+	if client != null:
+		receipts.append({"phase": "cooking-failure", "error": message, "spells": client.spells_state(), "bags": client.merchant_state().bags})
+		write_receipts()
+	super.fail(message)
 
 func bag_count(item: int) -> int:
 	var count := 0
