@@ -76,7 +76,9 @@ func run_fixture() -> void:
 		if not await wait_until(func(): return int(client.mount_journal_state().selected) == int(target.mount_id) and client.mount_journal_state().preview_ready, 90000):
 			failures.append({"mount_id": target.mount_id, "reason": "detached preview did not become ready", "selected": client.mount_journal_state().selected})
 			continue
-		await frames(6)
+		if target.get("rotate", false):
+			await rotate_preview()
+		await frames(int(target.get("settle_frames", 6)))
 		var model_host = control("MountJournalModelScene")
 		var viewport = find_viewport(model_host)
 		if viewport == null:
@@ -90,7 +92,7 @@ func run_fixture() -> void:
 		var save_error := image.save_png(path)
 		if meshes == 0 or int(stats.opaque_samples) < 20 or save_error != OK:
 			failures.append({"mount_id": target.mount_id, "reason": "empty geometry/pixels or failed capture", "meshes": meshes, "pixels": stats, "save_error": save_error})
-		results.append({"mount_id": target.mount_id, "name": target.name, "requested_model_fdid": target.model_fdid, "skin": expected_skin, "meshes": meshes, "pixels": stats, "image": path})
+		results.append({"mount_id": target.mount_id, "name": target.name, "requested_model_fdid": target.model_fdid, "skin": expected_skin, "meshes": meshes, "pixels": stats, "yaw": client.mount_journal_state().yaw, "image": path})
 		if target.get("sample", false):
 			var full: Image = root.get_texture().get_image()
 			if full.get_width() > 1280:
@@ -118,6 +120,33 @@ func click(name: String) -> void:
 		button.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
 		root.push_input(button)
 		await frames(2)
+
+func rotate_preview() -> void:
+	var host = control("MountJournalModelScene")
+	var at := host.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	root.push_input(motion)
+	await frames(2)
+	var button := InputEventMouseButton.new()
+	button.position = at
+	button.button_index = MOUSE_BUTTON_LEFT
+	button.button_mask = MOUSE_BUTTON_MASK_LEFT
+	button.pressed = true
+	root.push_input(button)
+	await frames(2)
+	motion = InputEventMouseMotion.new()
+	motion.position = at + Vector2(157, 0)
+	motion.relative = Vector2(157, 0)
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(motion)
+	await frames(2)
+	button = InputEventMouseButton.new()
+	button.position = motion.position
+	button.button_index = MOUSE_BUTTON_LEFT
+	button.pressed = false
+	root.push_input(button)
+	await frames(4)
 
 func row_visible(name: String) -> bool:
 	var row = control(name)
