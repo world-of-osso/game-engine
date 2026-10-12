@@ -23,6 +23,7 @@ const SCENE := {
 # fdid, skin batch index (file order), view direction (Godot axes), zoom (<1 closer),
 # focus (0..1 inside the batch bounds), time (material clock ms), minimum compared pixels.
 const CASES := [
+	{"name": "avenging_wrath_held_feathers", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900, "animation": 158, "sequence": 1, "local_time": 150},
 	{"name": "avenging_wrath_core_premultiplied", "fdid": 2368645, "batch": 0, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
 	{"name": "avenging_wrath_feathers_mod2x_t2", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900},
 	{"name": "avenging_wrath_feathers_second_sheet", "fdid": 2368645, "batch": 2, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900},
@@ -163,6 +164,8 @@ static func mip_chain(image: Image) -> Array:
 func run_case(case: Dictionary) -> bool:
 	var model_path := DATA + "models/%d.m2" % case.fdid
 	var oracle := Oracle.new(read_bytes(model_path), read_bytes(DATA + "models/%d00.skin" % case.fdid))
+	oracle.playing_sequence = int(case.get("sequence", 0))
+	oracle.local_time_ms = int(case.get("local_time", -1))
 	var info := oracle.batch(case.batch)
 	var time_ms: int = case.get("time", 0)
 	var material := oracle.material(info, time_ms)
@@ -181,6 +184,14 @@ func run_case(case: Dictionary) -> bool:
 	var animation := model.get_node_or_null("M2Animation")
 	if animation != null:
 		animation.process_mode = Node.PROCESS_MODE_DISABLED
+		if not animation.call("play_animation", int(case.get("animation", 0)), true):
+			push_error("%s: authored model animation unavailable" % case.name)
+			model.free()
+			return false
+		if not animation.call("advance_time_ms", float(case.get("local_time", time_ms))):
+			push_error("%s: model timeline advance failed" % case.name)
+			model.free()
+			return false
 	var target := model.get_node_or_null("Batch%d" % node_index(oracle, case.batch)) as MeshInstance3D
 	if target == null:
 		push_error("%s: no node for batch %d (colour alpha/weight 0 at time 0: %s, weight %s)" % [case.name, case.batch, oracle.mesh_color(info, 0), oracle.weight(info, 0, 0)])
