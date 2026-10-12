@@ -62,6 +62,10 @@ func spend_knowledge() -> bool:
 	var committed := text("ProfessionSpecDetailedRank")
 	var knowledge := text("ProfessionSpecKnowledge")
 	await capture("1-committed-tree")
+	if not await observe_trait_tooltip("ProfessionSpecNode" + OS.get_environment("CRAFTING_NODE"), "1-path-tooltip"):
+		return false
+	if not await observe_trait_tooltip("ProfessionSpecPerk" + OS.get_environment("CRAFTING_PERK"), "1-perk-tooltip"):
+		return false
 	await press("ProfessionSpecSpend")
 	if not await wait_until(func(): return text("ProfessionSpecDetailedRank") != committed, "staged knowledge point"):
 		return false
@@ -76,6 +80,24 @@ func spend_knowledge() -> bool:
 		return false
 	print("CRAFTING SPEC before=", committed, " after=", staged, " knowledge_before=", knowledge, " knowledge_after=", text("ProfessionSpecKnowledge"), " status=", text("ProfessionSpecStatus"))
 	await capture("3-applied-point")
+	return true
+
+func observe_trait_tooltip(name: String, shot: String) -> bool:
+	if not shown(name):
+		return fail("Missing source trait control: " + name)
+	var point := control(name).get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	Input.warp_mouse(point)
+	if not await wait_until(func(): return client.tooltip_state().visible, "native trait tooltip ownership"):
+		return false
+	var tooltip: Dictionary = client.tooltip_state()
+	print("CRAFTING TOOLTIP ", name, " ", tooltip)
+	if str(tooltip.lines).contains("$ev") or str(tooltip.lines).contains("$en"):
+		return fail("Unresolved source profession trait effect tokens")
+	await capture(shot)
 	return true
 
 func place_public_order() -> bool:
