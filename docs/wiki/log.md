@@ -1,3 +1,7 @@
+## 2026-10-12 — Combat assist source-supported continuation
+
+[Cooldown/assist audit](investigations/cooldown-assist-data.md): all40 authored candidate inventories and exact ModifierTree gates, owner effective costs, initial charge publication, source-definite numeric outcomes with explicit equality/prediction gaps. Both private skins prove moving Retail ants on matching action/viewer surfaces and actual assistant35395 CastSuccess/2→1 charge depletion. Maintained driver uses build-qualified placement before login; assistant GCD-origin and undecoded semantics remain explicit.
+
 ## 2026-10-11 — Toy input and source rendering
 
 [Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance is still pending.
