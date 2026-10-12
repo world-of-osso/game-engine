@@ -94,8 +94,8 @@ impl GameClient {
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, item) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            self.adventure_guide.view.set_item(frame.name.as_deref()?)
+        let (owner, (set, item)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            self.adventure_guide.view.set_member(frame.name.as_deref()?)
         })?;
         let slot = named_item_for(
             shared::item_data::ItemDefinitionSource::Retail,
@@ -106,7 +106,50 @@ impl GameClient {
             0,
         );
         drop(ui);
-        self.item_owned(hit, owner, OwnerSide::Right, slot)
+        let descriptions = self.journal_bonus_descriptions(set.id);
+        let lines = game_engine_ui_model::adventure_guide_tooltip::set_lines(
+            &self.adventure_guide.view,
+            set,
+            &self.merchant.session.inventory,
+            &descriptions,
+        );
+        let mut hovered = self.item_owned(hit, owner, OwnerSide::Right, slot)?;
+        hovered.tooltip.content.lines.extend(lines);
+        Some(hovered)
+    }
+
+    fn journal_bonus_descriptions(&self, set: u32) -> std::collections::BTreeMap<u32, String> {
+        let catalog = self
+            .spells
+            .catalog()
+            .expect("Loaded Journal requires spell catalog");
+        let context = SpellTextContext {
+            known_spells: self.account.spells.known().to_vec(),
+            auras: Vec::new(),
+            spec_id: (self.adventure_guide.view.spec != 0)
+                .then_some(self.adventure_guide.view.spec),
+            caster_power: self.local_caster_power(),
+        };
+        self.adventure_guide
+            .view
+            .catalog
+            .set_bonuses
+            .get(&set)
+            .into_iter()
+            .flatten()
+            .filter_map(
+                |bonus| match catalog.render_description(bonus.spell, &context) {
+                    Ok(text) => Some((bonus.spell, text)),
+                    Err(error) => {
+                        crate::frame_error::report_once(&format!(
+                            "Journal set{set} bonus{}: {error}",
+                            bonus.spell
+                        ));
+                        None
+                    }
+                },
+            )
+            .collect()
     }
 
     fn spell_game_tooltip(&self, spell_id: u32, available_at: Option<u32>) -> GameTooltip {
