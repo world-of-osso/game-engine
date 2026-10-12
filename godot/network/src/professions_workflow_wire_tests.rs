@@ -106,7 +106,13 @@ fn professions_workflow_bridge_delivers_catalog_and_errors_and_sends_absolute_co
             if message.is::<ProfessionSpecializationStateUpdate>() {
                 received_specialization = message.downcast().ok();
             } else if message.is::<CraftingOrderStateUpdate>() {
-                received_orders.push(message.downcast::<CraftingOrderStateUpdate>().unwrap());
+                received_orders.push(
+                    message
+                        .downcast::<CraftingOrderStateUpdate>()
+                        .unwrap_or_else(|_| {
+                            panic!("Typed crafting order update could not be decoded")
+                        }),
+                );
             }
         }
         thread::sleep(Duration::from_millis(5));
