@@ -3,6 +3,23 @@
 - [Native arenas](systems/arenas.md) — source skirmish/rated groups, preparation/gates, persistent-caster Shadow Sight, scored outcomes/origins; scoped behavioral proof, rendered acceptance pending.
 
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin catalog/acquisition, basic/expert staged keyboard and unsnapped mouse transforms, visitor/observer proof and sourced schema migration; charter/default grants/outdoor bounds remain explicit source gaps.
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Dice scripts and received item labels](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12) — source roll count/audience, native raw-markup RED and plain/coloured unsplit labels; both-skin actual-use chat proof.
+
+- [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
+
+- [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits rerun after M2 floors landed.
+- [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical asset/cache publication remains lead-owned.
+- [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
+
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
+- [Source warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12) — four actual-use/native lifetime identities, Swarthy’s two authored state models and explicit screenshot/per-effect pixel boundary.
+
+- [Scaled scenery natural expiry](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12) — both-skin actual Banner60s/Preyhunter120s expiry, preserving authored display/root scale and no combat pet ownership.
+
+- [Orb costume animation](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12) — displayed-model animation routing, both-skin actual use/run/native reattachment;20 server variants, private authenticated assets and remaining per-toy boundary.
+
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
@@ -13,7 +30,7 @@
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
-- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored category inventories/ModifierTree gates, effective server costs, both-skin real assistant CastSuccess/charge depletion/animated Retail ants; exact unresolved rule boundaries and assistant GCD-origin remain gaps.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
 - [Native Mythic Mentor](systems/mythic-mentor.md) — built-in party Keys panel, server bag authority, loading lifetime and icon overlay ordering.
@@ -29,11 +46,10 @@
 - [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
 
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
-- [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
+- [Native transmog application](systems/transmog-apply.md) — Retail12.1 both-skin selected outfit icons, popup isolation, eight-piece tooltips, two-page presets and exact paid Apply with fresh-process gold/appearance relog; PvE/PvP classifier and conditional/enchant-effect boundaries remain explicit.
 - [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
 - [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
-- [Native transmog application](systems/transmog-apply.md) — shared Wardrobe slot/layout/search,3Dmodel pages, visible weapon profiles and authored additive state borders; both-skin native composited-pixel/paidApply proof, inherited self/observer/relog proof; server-backed outfits/camera-data gaps explicit.
 - [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.

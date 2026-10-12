@@ -170,12 +170,13 @@ impl NativeTerrainAssets {
             .map_err(|error| format!("{}: {error}", path.display()))?;
         let global_wmo = wdt::parse_wdt_global_wmo(&bytes)
             .map_err(|error| format!("{}: {error}", path.display()))?
-            .map(|placement| {
+            .map(|mut placement| {
                 let asset = crate::wmo::assets::read_placement(
                     &self.resolver,
                     &self.data_root,
                     &placement,
                 )?;
+                placement.fdid = Some(asset.root_fdid);
                 let surface = classify_wmo_surface(&asset.root, &self.resolver);
                 Ok::<_, String>(PlacedWmo::new(placement, asset, surface))
             })
@@ -851,6 +852,26 @@ mod tests {
             .err()
             .unwrap();
         assert!(error.contains("zero FileDataID"), "{error}");
+    }
+
+    #[test]
+    fn legacy_blacksmith_map_loads_authored_global_wmo_and_groups() {
+        let map = cached_assets()
+            .read_map_wdt("6HU_GARRISON_Blacksmithing_hub")
+            .unwrap();
+        assert_eq!(map.map_id, 1212);
+        assert!(map.tiles.active.is_empty());
+        let wmo = map.global_wmo.unwrap();
+        assert_eq!(wmo.asset.root_fdid, 948620);
+        assert_eq!(wmo.placement.fdid, Some(948620));
+        assert_eq!(wmo.asset.groups.len(), 1);
+        assert!(
+            wmo.asset
+                .groups
+                .iter()
+                .any(|group| !group.batches.is_empty())
+        );
+        assert_eq!(wmo.placement.position, [0.0; 3]);
     }
 
     #[test]
