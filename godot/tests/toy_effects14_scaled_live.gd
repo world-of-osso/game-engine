@@ -12,8 +12,8 @@ func prove_toy(sample: Array) -> void:
 	var edit := control("ToyBoxSearchBox") as LineEdit
 	edit.select_all()
 	await type_text(str(sample[3]))
-	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == str(sample[3]), "source scaled toy search"): return
-	await click("ToySpellButton1")
+	if not await wait_until(func(): return matching_toy_button(str(sample[3])) != "", "source scaled toy search"): return
+	await click(matching_toy_button(str(sample[3])))
 	await click("CollectionsMicroButton")
 	var clicked = null
 	if sample[6]:
@@ -36,6 +36,13 @@ func prove_toy(sample: Array) -> void:
 	await create_timer(1.0).timeout
 	receipts.append({"phase": "scaled-source-scenery", "item": sample[0], "entry": sample[5], "display": sample[2], "source_display_scale": sample[4], "replicated_root_scale": [placed.scale.x, placed.scale.y, placed.scale.z], "native_visual_scale": [visual.scale.x, visual.scale.y, visual.scale.z], "meshes": model.find_children("*", "MeshInstance3D", true, false).size(), "clicked": str(clicked), "placed": str(placed.global_position)})
 	await capture("toy%d-display%d-scale%s" % [sample[0], sample[2], str(sample[4]).replace(".", "")])
+
+func matching_toy_button(title: String) -> String:
+	for index in range(1, 19):
+		var name := "ToySpellButton%d" % index
+		var label = control(name + "Name")
+		if label != null and label.text == title: return name
+	return ""
 
 func scenery(title: String) -> Node3D:
 	for unit in client.find_children(title, "Node3D", true, false):
