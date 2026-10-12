@@ -71,6 +71,10 @@ pub fn cast_failed_text(
             "Your Enchanting skill is not high enough to disenchant that"
         }
         CastFailReason::NotKnown => "Spell not learned",
+        // The retained Retail UI cache does not supply these GlobalStrings.
+        // Preserve the source failure names rather than inventing form labels.
+        CastFailReason::NotShapeshift => "SPELL_FAILED_NOT_SHAPESHIFT",
+        CastFailReason::OnlyShapeshift => "SPELL_FAILED_ONLY_SHAPESHIFT",
     };
     text.to_string()
 }
