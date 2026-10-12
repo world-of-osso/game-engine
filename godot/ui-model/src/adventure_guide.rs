@@ -1,7 +1,7 @@
 //! Retail Mainline Adventure Guide; both skins share the same 800×496 layout.
 use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, portrait_border};
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, portrait_border};
 use game_engine_core::adventure_guide::{
     Catalog, Instance, Item, ItemSet, Section, difficulty_matches,
 };
@@ -155,7 +155,7 @@ impl View {
         });
         sets
     }
-    fn set_level(&self, set: &ItemSet) -> u32 {
+    fn set_level(&self, set: &ItemSet) -> Option<u32> {
         set.items
             .iter()
             .filter_map(|id| crate::item_catalog::item_catalog_entry(*id))
@@ -166,7 +166,6 @@ impl View {
                 ))
             })
             .max()
-            .unwrap_or(0)
     }
     fn choose_set_specialization(&self) -> u32 {
         let specs: Vec<_> = self
@@ -1104,14 +1103,30 @@ fn set_filter_buttons(view: &View) -> Element {
     rsx! {r#frame {name:"JournalSetFilters",left:0.0,top:65.0,width:790.0,height:24.0,pos_type:"absolute",{controls}}}
 }
 fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
-    let mut children = text(
-        &format!("JournalSet{}", set.id),
+    let mut children = named_atlas_texture(
+        format!("JournalSet{}Background", set.id),
+        "loottab-set-background",
+        (0., 0., 744., 41.),
+    );
+    let quality = set
+        .items
+        .iter()
+        .filter_map(|id| view.catalog.items.get(id))
+        .next()
+        .map_or(1, |item| item.quality as u8);
+    children.extend(label(
+        format!("JournalSet{}", set.id),
         &set.name,
         (39., 4., 318., 20.),
-    );
+        (12., crate::merchant_data::quality_color(quality), "LEFT"),
+    ));
+    let level_text = match view.set_level(set) {
+        Some(level) => format!("Item Level {level}"),
+        None => "Item level unavailable".into(),
+    };
     children.extend(text(
         &format!("JournalSet{}Level", set.id),
-        &format!("Item Level {}", view.set_level(set)),
+        &level_text,
         (39., 24., 318., 16.),
     ));
     let mut items: Vec<_> = set
@@ -1122,7 +1137,16 @@ fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
     items.sort_by_key(|item| (slot_order(item.slot), item.id));
     children.extend(items.iter().enumerate().flat_map(|(index, item)| {
         let prefix = format!("JournalSet{}Item{}", set.id, item.id);
-        let icon = texture(format!("{prefix}Icon"), item.icon, (2., 2., 28., 28.), WHITE);
+        let mut icon = texture(format!("{prefix}Icon"), item.icon, (2.,2.,28.,28.), WHITE);
+        let border = match item.quality {
+            2 => Some("loottab-set-itemborder-green"),
+            3 => Some("loottab-set-itemborder-blue"),
+            4 => Some("loottab-set-itemborder-purple"),
+            _ => None,
+        };
+        if let Some(atlas) = border {
+            icon.extend(named_atlas_texture(format!("{prefix}Border"), atlas, (-2.,0.,40.,32.)));
+        }
         let left = 360. + index as f32 * 37.;
         rsx! {r#frame {name:{DynName(prefix)},left,top:4.0,width:32.0,height:32.0,pos_type:"absolute",mouse_enabled:true,{icon}}}
     }));

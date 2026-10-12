@@ -133,7 +133,9 @@ impl GameClient {
             return Ok(());
         }
         if !self.adventure_guide.loaded {
-            if self.spells.catalog().is_none() {
+            if self.spells.catalog().is_none()
+                || game_engine_ui_model::item_catalog::item_catalog().is_none()
+            {
                 self.sync_adventure_guide()?;
                 return Ok(());
             }
