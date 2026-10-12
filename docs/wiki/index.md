@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Source warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12) — four actual-use/native lifetime identities, Swarthy’s two authored state models and explicit screenshot/per-effect pixel boundary.
+
 - [Scaled scenery natural expiry](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12) — both-skin actual Banner60s/Preyhunter120s expiry, preserving authored display/root scale and no combat pet ownership.
 
 - [Orb costume animation](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12) — displayed-model animation routing, both-skin actual use/run/native reattachment;20 server variants, private authenticated assets and remaining per-toy boundary.
