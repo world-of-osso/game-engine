@@ -68,7 +68,8 @@ fn rows(book: &TransmogBook) -> Vec<Row> {
 }
 
 pub(super) fn menu(book: &TransmogBook) -> Element {
-    if !book.filters_open || book.illusion_selected {
+    let viewing_illusions = book.tab == WardrobeTab::Items && book.illusion_selected;
+    if !book.filters_open || viewing_illusions {
         return Vec::new();
     }
     let rows = rows(book);
