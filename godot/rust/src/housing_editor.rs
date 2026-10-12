@@ -323,10 +323,17 @@ impl GameClient {
         for house in &state.owned_houses {
             let mut row = VarDictionary::new();
             row.set("house_id", house.house_id as i64);
-            let access = house
-                .house_access_anyone
-                .map_or(Variant::nil(), |allowed| allowed.to_variant());
-            row.set("access_anyone", &access);
+            if let Some(access) = house.house_access {
+                let mut flags = VarDictionary::new();
+                flags.set("anyone", access.anyone);
+                flags.set("neighbors", access.neighbors);
+                flags.set("guild", access.guild);
+                flags.set("friends", access.friends);
+                flags.set("party", access.party);
+                row.set("access", &flags.to_variant());
+            } else {
+                row.set("access", &Variant::nil());
+            }
             houses.push(&row);
         }
         output.set("houses", &houses.to_variant());

@@ -19,7 +19,7 @@ pub fn navigation_screen(view: &HousingView) -> Element {
         HousingSurface::Finder => finder(view),
         HousingSurface::Cornerstone(plot) => cornerstone(view, plot),
         HousingSurface::BulletinBoard => crate::housing_bulletin_component::bulletin_board(view),
-        HousingSurface::Dashboard | HousingSurface::Editor => {
+        HousingSurface::Dashboard | HousingSurface::Editor | HousingSurface::HouseSettings => {
             unreachable!("surface uses its own component")
         }
     }

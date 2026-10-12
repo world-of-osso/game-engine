@@ -146,6 +146,7 @@ impl GameClient {
         if let Some(model) = &mut self.housing.model {
             model.surface = HousingSurface::Dashboard;
             model.editor = Default::default();
+            model.settings = None;
         }
         self.housing.decor.restore_saved();
         self.group_frames.popups.hide(PURCHASE_POPUP);
@@ -320,6 +321,13 @@ impl GameClient {
         } = &mut self.housing;
         let model = model.as_mut().ok_or("Housing UI has no catalog model")?;
         if model.pending {
+            return Ok(true);
+        }
+        if action.starts_with("housing:settings:") {
+            if let Some(request) = model.settings_request(authority, action)? {
+                self.request_housing(request)?;
+                self.close_housing();
+            }
             return Ok(true);
         }
         if let Some(value) = action.strip_prefix("housing:finder-plot:") {
