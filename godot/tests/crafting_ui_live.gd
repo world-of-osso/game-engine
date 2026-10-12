@@ -21,6 +21,8 @@ func run_test() -> void:
 		return
 	if not await enter_world(OS.get_environment("BANK_CHARACTER")):
 		return
+	# Client graphics startup overrides the SceneTree's initial cap. Replay human-paced input.
+	Engine.max_fps = 60
 	print("CRAFTING ACCOUNT ", client.account_state().ui_skin, " ", OS.get_environment("BANK_CHARACTER"))
 	var completed := false
 	match role:
@@ -170,7 +172,21 @@ func click_at(point: Vector2, button: int) -> void:
 			if npc.has_meta("unit_server_id"):
 				var id: int = npc.get_meta("unit_server_id")
 				print("CRAFTING BROKER id=", id, " position=", npc.global_position, " distance=", npc.global_position.distance_to(state.local_player_position), " rules=", client.nameplate_rules(id))
-	await super.click_at(point, button)
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	Input.warp_mouse(point)
+	await create_timer(0.03).timeout
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.pressed = pressed
+		root.push_input(event, true)
+		await create_timer(0.05).timeout
+	await wait_frames(3)
 	if button == MOUSE_BUTTON_RIGHT:
 		await wait_frames(10)
 		print("CRAFTING PICK_AFTER target=", client.target_state(), " merchant_error=", client.merchant_state().get("error", ""))
