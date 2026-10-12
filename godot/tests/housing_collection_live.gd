@@ -77,12 +77,12 @@ func open_pawdo_shop(vendor: Dictionary) -> bool:
 	for node in client.find_children("*Gossip*", "", true, false):
 		print("HOUSING_GOSSIP_NODE ", node.get_path(), " visible=", node.is_visible_in_tree() if node is CanvasItem else false)
 	if not await capture_housing("pawdo-after-right-click"): return false
-	if not await wait_housing(func(): return housing_named_control("QuestFrameUI", "GossipOption1") != null, "Pawdo's authored gossip"): return false
+	if not await wait_housing(func(): return housing_named_control("QuestFrameUI", "GossipOption1Text") != null, "Pawdo's authored gossip"): return false
 	var text: Control = housing_named_control("QuestFrameUI", "GossipOption1Text")
 	if text == null or str(text.get("text")) != "Show me your wares.":
 		fail("Pawdo option1 does not match the authentic wares choice")
 		return false
-	await click_control(housing_named_control("QuestFrameUI", "GossipOption1"), MOUSE_BUTTON_LEFT)
+	await click_control(housing_named_control("QuestFrameUI", "GossipOption1Text"), MOUSE_BUTTON_LEFT)
 	return await wait_for(func(s): return s.open and s.vendor_name == PAWDO_NAME, "Pawdo merchant frame")
 
 func collect_bookcase() -> bool:
