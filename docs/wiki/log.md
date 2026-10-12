@@ -1,3 +1,7 @@
+## 2026-10-11 — Retail achievement structure
+
+[Categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11): requested14 player roots and real pinned DB2 children; Guild/Statistics bottom tabs, independent completion filters, native dropdown scene-order input correction and filter-scroll reset. Integratedee4bfaafa22 targeted tests/build/check/fmt pass; private5899fb_achievementsui both-skin11-stage proof,22 inspected PNGs. Guild progress endpoint and independent verifier unavailable; no criteria edits, full suites or UDP5000 operations.
+
 ## 2026-10-11 — Whole-world NPC appearance
 
 [Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
