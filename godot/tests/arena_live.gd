@@ -38,6 +38,7 @@ func live_run() -> void:
 						var rect: Rect2 = node.get_global_rect()
 						result.controls.append({"name": str(node.name), "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "text": str(node.text) if node is Label or node is Button else ""})
 			"objects":
+				result.replication = client.mail_state().get("replicated_objects", [])
 				result.objects = []
 				for node in root.find_children("Mailbox_*", "Node3D", true, false):
 					if not node.has_meta("game_object_entry"):
