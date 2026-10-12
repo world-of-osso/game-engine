@@ -41,7 +41,13 @@ fn atlas(name: String, art: &str, rect: (f32, f32, f32, f32)) -> Element {
 }
 
 /// Blizzard's tertiary controls, never the project's implicit wooden push-button skin.
-fn button(name: &str, caption: &str, action: &str, enabled: bool, rect: (f32, f32, f32, f32)) -> Element {
+fn button(
+    name: &str,
+    caption: &str,
+    action: &str,
+    enabled: bool,
+    rect: (f32, f32, f32, f32),
+) -> Element {
     let (left, top, width, height) = rect;
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
@@ -56,10 +62,18 @@ fn button(name: &str, caption: &str, action: &str, enabled: bool, rect: (f32, f3
 
 pub fn transmog_screen(ctx: &SharedContext) -> Element {
     let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
-    let Some(view) = ctx.get::<TransmogView>().filter(|view| view.book.state.is_some()) else {
+    let Some(view) = ctx
+        .get::<TransmogView>()
+        .filter(|view| view.book.state.is_some())
+    else {
         return vec![];
     };
-    let mut children = window_chrome("TransmogFrame", (WIDTH, HEIGHT), "Transmogrify", "transmog:close");
+    let mut children = window_chrome(
+        "TransmogFrame",
+        (WIDTH, HEIGHT),
+        "Transmogrify",
+        "transmog:close",
+    );
     children.extend(region_art());
     children.extend(outfit_region());
     children.extend(character_region(&view.book));
@@ -72,32 +86,109 @@ pub fn transmog_screen(ctx: &SharedContext) -> Element {
 
 fn region_art() -> Element {
     [
-        ("TransmogOutfitBackground", "transmog-outfit-darkbg", (2.0, 21.0, 312.0, 860.0)),
-        ("TransmogRaceBackground", "transmog-locationbg", (CHARACTER_LEFT, 21.0, 658.0, 860.0)),
-        ("TransmogCollectionBackground", "transmog-tabs-frame-bg", (976.0, 60.0, 631.0, 811.0)),
-        ("TransmogOutfitTop", "transmog-outfit-toptexture", (2.0, 21.0, 312.0, 64.0)),
-        ("TransmogOutfitBottom", "transmog-outfit-bottomtexture", (2.0, 807.0, 312.0, 74.0)),
-    ].into_iter().flat_map(|(name, art, rect)| atlas(name.into(), art, rect)).collect()
+        (
+            "TransmogOutfitBackground",
+            "transmog-outfit-darkbg",
+            (2.0, 21.0, 312.0, 860.0),
+        ),
+        (
+            "TransmogRaceBackground",
+            "transmog-locationbg",
+            (CHARACTER_LEFT, 21.0, 658.0, 860.0),
+        ),
+        (
+            "TransmogCollectionBackground",
+            "transmog-tabs-frame-bg",
+            (976.0, 60.0, 631.0, 811.0),
+        ),
+        (
+            "TransmogOutfitTop",
+            "transmog-outfit-toptexture",
+            (2.0, 21.0, 312.0, 64.0),
+        ),
+        (
+            "TransmogOutfitBottom",
+            "transmog-outfit-bottomtexture",
+            (2.0, 807.0, 312.0, 74.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, art, rect)| atlas(name.into(), art, rect))
+    .collect()
 }
 
 fn outfit_region() -> Element {
-    let mut out = text("TransmogOutfitHeading", "Outfits", (22.0, 45.0, 270.0, 24.0), GOLD);
+    let mut out = text(
+        "TransmogOutfitHeading",
+        "Outfits",
+        (22.0, 45.0, 270.0, 24.0),
+        GOLD,
+    );
     // Retain the explicit server gap; a client-only save must not impersonate persistence.
-    out.extend(button("TransmogOutfitDropdown", "Outfits unavailable", "transmog:outfits", false, (11.0, 123.0, 287.0, 43.0)));
-    out.extend(button("TransmogSaveOutfitButton", "Save Outfit", "transmog:save-outfit", false, (11.0, 839.0, 128.0, 28.0)));
+    out.extend(button(
+        "TransmogOutfitDropdown",
+        "Outfits unavailable",
+        "transmog:outfits",
+        false,
+        (11.0, 123.0, 287.0, 43.0),
+    ));
+    out.extend(button(
+        "TransmogSaveOutfitButton",
+        "Save Outfit",
+        "transmog:save-outfit",
+        false,
+        (11.0, 839.0, 128.0, 28.0),
+    ));
     out
 }
 
 fn apply_region(book: &TransmogBook) -> Element {
-    let mut out = text("TransmogPendingChanges", &format!("{} pending changes", book.pending.len()), (524.0, 815.0, 260.0, 22.0), GOLD);
+    let mut out = text(
+        "TransmogPendingChanges",
+        &format!("{} pending changes", book.pending.len()),
+        (524.0, 815.0, 260.0, 22.0),
+        GOLD,
+    );
     match book.pending_cost() {
-        Some(cost) => out.extend(money_colored("TransmogPendingCost", cost, (509.0, 857.0), MoneyAlign::Left, WHITE)),
-        None => out.extend(text("TransmogCostUnavailable", "Cost unavailable in local data", (474.0, 845.0, 320.0, 22.0), RED)),
+        Some(cost) => out.extend(money_colored(
+            "TransmogPendingCost",
+            cost,
+            (509.0, 857.0),
+            MoneyAlign::Left,
+            WHITE,
+        )),
+        None => out.extend(text(
+            "TransmogCostUnavailable",
+            "Cost unavailable in local data",
+            (474.0, 845.0, 320.0, 22.0),
+            RED,
+        )),
     }
-    out.extend(button("TransmogApplyButton", if book.applying { "Applying..." } else { "Apply" }, "transmog:apply", book.can_apply(), (664.0, 840.0, 128.0, 28.0)));
-    out.extend(button("TransmogUndoButton", "Undo", "transmog:undo", !book.applying && !book.pending.is_empty(), (894.0, 155.0, 36.0, 36.0)));
+    out.extend(button(
+        "TransmogApplyButton",
+        if book.applying {
+            "Applying..."
+        } else {
+            "Apply"
+        },
+        "transmog:apply",
+        book.can_apply(),
+        (664.0, 840.0, 128.0, 28.0),
+    ));
+    out.extend(button(
+        "TransmogUndoButton",
+        "Undo",
+        "transmog:undo",
+        !book.applying && !book.pending.is_empty(),
+        (894.0, 155.0, 36.0, 36.0),
+    ));
     if !book.error.is_empty() {
-        out.extend(text("TransmogError", &book.error, (409.0, 105.0, 468.0, 24.0), RED));
+        out.extend(text(
+            "TransmogError",
+            &book.error,
+            (409.0, 105.0, 468.0, 24.0),
+            RED,
+        ));
     }
     out
 }
@@ -105,15 +196,31 @@ fn apply_region(book: &TransmogBook) -> Element {
 fn character_region(book: &TransmogBook) -> Element {
     let mut out = rsx! { r#frame { name: {DynName(MODEL_SCENE.into())}, width: 480.0, height: 640.0,
     left: 403.0, top: 135.0, pos_type: "absolute" } };
-    let left = [EquipmentSlot::Head, EquipmentSlot::Shoulder, EquipmentSlot::Back, EquipmentSlot::Chest, EquipmentSlot::Shirt, EquipmentSlot::Tabard, EquipmentSlot::Wrist];
-    let right = [EquipmentSlot::Hands, EquipmentSlot::Waist, EquipmentSlot::Legs, EquipmentSlot::Feet];
+    let left = [
+        EquipmentSlot::Head,
+        EquipmentSlot::Shoulder,
+        EquipmentSlot::Back,
+        EquipmentSlot::Chest,
+        EquipmentSlot::Shirt,
+        EquipmentSlot::Tabard,
+        EquipmentSlot::Wrist,
+    ];
+    let right = [
+        EquipmentSlot::Hands,
+        EquipmentSlot::Waist,
+        EquipmentSlot::Legs,
+        EquipmentSlot::Feet,
+    ];
     for (column, slots) in [(342.0, left.as_slice()), (885.0, right.as_slice())] {
         let top = 21.0 + (860.0 - (slots.len() as f32 * 64.0 - 5.0)) * 0.5;
         for (row, slot) in slots.iter().enumerate() {
             out.extend(slot_button(book, *slot, column, top + row as f32 * 64.0));
         }
     }
-    for (index, slot) in [EquipmentSlot::MainHand, EquipmentSlot::OffHand].into_iter().enumerate() {
+    for (index, slot) in [EquipmentSlot::MainHand, EquipmentSlot::OffHand]
+        .into_iter()
+        .enumerate()
+    {
         out.extend(slot_button(book, slot, 581.5 + index as f32 * 64.0, 754.0));
     }
     out.extend(preview_controls());
@@ -122,19 +229,46 @@ fn character_region(book: &TransmogBook) -> Element {
 
 fn preview_controls() -> Element {
     [
-        ("TransmogRotateLeft", "<", "transmog:rotate-left", (574.0, 39.0, 28.0, 24.0)),
-        ("TransmogSheatheButton", "Sheathe / Draw", "transmog:sheathe", (342.0, 70.0, 160.0, 24.0)),
-        ("TransmogRotateRight", ">", "transmog:rotate-right", (679.0, 39.0, 28.0, 24.0)),
-    ].into_iter().flat_map(|(name, text, action, rect)| button(name, text, action, true, rect)).collect()
+        (
+            "TransmogRotateLeft",
+            "<",
+            "transmog:rotate-left",
+            (574.0, 39.0, 28.0, 24.0),
+        ),
+        (
+            "TransmogSheatheButton",
+            "Sheathe / Draw",
+            "transmog:sheathe",
+            (342.0, 70.0, 160.0, 24.0),
+        ),
+        (
+            "TransmogRotateRight",
+            ">",
+            "transmog:rotate-right",
+            (679.0, 39.0, 28.0, 24.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, text, action, rect)| button(name, text, action, true, rect))
+    .collect()
 }
 
 fn slot_button(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Element {
     let name = format!("TransmogSlot{}", slot.inv_slot_id());
-    let state = book.state.as_ref().and_then(|state| state.slots.iter().find(|entry| entry.slot == slot));
-    let mut children = atlas(format!("{name}EmptyIcon"), slot_atlas(slot), (10.0, 10.0, 39.0, 39.0));
+    let state = book
+        .state
+        .as_ref()
+        .and_then(|state| state.slots.iter().find(|entry| entry.slot == slot));
+    let mut children = atlas(
+        format!("{name}EmptyIcon"),
+        slot_atlas(slot),
+        (10.0, 10.0, 39.0, 39.0),
+    );
     if let Some(icon) = state.and_then(|slot| slot_icon(book, slot)) {
-        children.extend(rsx! { texture { name: {DynName(format!("{name}Icon"))}, width: 45.0, height: 45.0,
-        left: 7.0, top: 7.0, pos_type: "absolute", texture_fdid: icon } });
+        children.extend(
+            rsx! { texture { name: {DynName(format!("{name}Icon"))}, width: 45.0, height: 45.0,
+            left: 7.0, top: 7.0, pos_type: "absolute", texture_fdid: icon } },
+        );
     }
     children.extend(slot_border(book, slot, state));
     let disabled = book.applying || state.is_none();
@@ -143,63 +277,145 @@ fn slot_button(book: &TransmogBook, slot: EquipmentSlot, x: f32, y: f32) -> Elem
     pos_type: "absolute", button_default_skin: false, disabled, onclick: {action.as_str()}, {children} } }
 }
 
-fn slot_border(book: &TransmogBook, slot: EquipmentSlot, state: Option<&shared::protocol::TransmogSlot>) -> Element {
+fn slot_border(
+    book: &TransmogBook,
+    slot: EquipmentSlot,
+    state: Option<&shared::protocol::TransmogSlot>,
+) -> Element {
     let pending = book.pending.contains_key(&slot);
-    let border = if state.is_none() { "transmog-gearslot-disabled" }
-        else if pending { "transmog-gearslot-pending" }
-        else if state.is_some_and(|state| state.applied != TransmogChoice::Original) { "transmog-gearslot-transmogrified" }
-        else { "transmog-gearslot-default" };
+    let border = if state.is_none() {
+        "transmog-gearslot-disabled"
+    } else if pending {
+        "transmog-gearslot-pending"
+    } else if state.is_some_and(|state| state.applied != TransmogChoice::Original) {
+        "transmog-gearslot-transmogrified"
+    } else {
+        "transmog-gearslot-default"
+    };
     let size = if pending { 76.0 } else { 59.0 };
     let inset = (59.0 - size) * 0.5;
     let name = format!("TransmogSlot{}", slot.inv_slot_id());
     let mut out = atlas(format!("{name}Border"), border, (inset, inset, size, size));
     if book.selected == Some(slot) {
-        out.extend(atlas(format!("{name}Selected"), "transmog-gearslot-selected", (-3.0, -3.0, 65.0, 65.0)));
+        out.extend(atlas(
+            format!("{name}Selected"),
+            "transmog-gearslot-selected",
+            (-3.0, -3.0, 65.0, 65.0),
+        ));
     }
     out
 }
 
 fn slot_icon(book: &TransmogBook, slot: &shared::protocol::TransmogSlot) -> Option<u32> {
-    let choice = book.pending.get(&slot.slot).copied().unwrap_or(slot.applied);
+    let choice = book
+        .pending
+        .get(&slot.slot)
+        .copied()
+        .unwrap_or(slot.applied);
     match choice {
         TransmogChoice::Source(id) => {
             let source = slot.sources.iter().find(|source| source.source_id == id)?;
             (source.icon_fdid != 0).then_some(source.icon_fdid)
         }
-        TransmogChoice::Original => crate::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id).map(|item| item.icon_fdid),
+        TransmogChoice::Original => {
+            crate::item_catalog::item_catalog_entry_for(slot.definition_source, slot.item_id)
+                .map(|item| item.icon_fdid)
+        }
         TransmogChoice::Hidden => None,
     }
 }
 
 fn wardrobe_region(book: &TransmogBook) -> Element {
-    let mut out = text("TransmogWardrobeHeading", "Items", (COLLECTION_LEFT, 33.0, 95.0, 24.0), GOLD);
-    out.extend(text("TransmogSearchLabel", "Search", (1265.0, 80.0, 78.0, 20.0), WHITE));
-    out.extend(rsx! { editbox { name: {DynName(SEARCH.into())}, width: 180.0, height: 20.0,
-    left: 1360.0, top: 80.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
-    text_insets: "4,4,0,0", max_letters: 40, text: {book.search.as_str()} } });
+    let mut out = text(
+        "TransmogWardrobeHeading",
+        "Items",
+        (COLLECTION_LEFT, 33.0, 95.0, 24.0),
+        GOLD,
+    );
+    out.extend(text(
+        "TransmogSearchLabel",
+        "Search",
+        (1265.0, 80.0, 78.0, 20.0),
+        WHITE,
+    ));
+    out.extend(
+        rsx! { editbox { name: {DynName(SEARCH.into())}, width: 180.0, height: 20.0,
+        left: 1360.0, top: 80.0, pos_type: "absolute", font_size: 12.0, font_color: WHITE,
+        text_insets: "4,4,0,0", max_letters: 40, text: {book.search.as_str()} } },
+    );
     out.extend(selected_slot_controls(book));
-    out.extend(book.page_sources().iter().enumerate().flat_map(|(index, source)| source_button(book, source, index)));
+    out.extend(
+        book.page_sources()
+            .iter()
+            .enumerate()
+            .flat_map(|(index, source)| source_button(book, source, index)),
+    );
     out.extend(paging_controls(book));
     out
 }
 
 fn selected_slot_controls(book: &TransmogBook) -> Element {
-    let Some(slot) = book.selected_slot() else { return vec![] };
-    let mut out = text("TransmogSelectedSlot", slot_name(slot.slot), (995.0, 114.0, 250.0, 24.0), WHITE);
-    out.extend(button("TransmogOriginalButton", "Equipped", "transmog:original", !book.applying, (COLLECTION_LEFT, 158.0, 180.0, 32.0)));
+    let Some(slot) = book.selected_slot() else {
+        return vec![];
+    };
+    let mut out = text(
+        "TransmogSelectedSlot",
+        slot_name(slot.slot),
+        (995.0, 114.0, 250.0, 24.0),
+        WHITE,
+    );
+    out.extend(button(
+        "TransmogOriginalButton",
+        "Equipped",
+        "transmog:original",
+        !book.applying,
+        (COLLECTION_LEFT, 158.0, 180.0, 32.0),
+    ));
     if slot.can_hide {
-        out.extend(button("TransmogHideButton", "Hidden", "transmog:hide", !book.applying, (COLLECTION_LEFT + 205.0, 158.0, 180.0, 32.0)));
+        out.extend(button(
+            "TransmogHideButton",
+            "Hidden",
+            "transmog:hide",
+            !book.applying,
+            (COLLECTION_LEFT + 205.0, 158.0, 180.0, 32.0),
+        ));
     }
     if book.page_sources().is_empty() {
-        out.extend(text("TransmogNoSources", if slot.sources.is_empty() { "No collected appearances usable for this item." } else { "No matches." }, (COLLECTION_LEFT, 245.0, 550.0, 48.0), WHITE));
+        out.extend(text(
+            "TransmogNoSources",
+            if slot.sources.is_empty() {
+                "No collected appearances usable for this item."
+            } else {
+                "No matches."
+            },
+            (COLLECTION_LEFT, 245.0, 550.0, 48.0),
+            WHITE,
+        ));
     }
     out
 }
 
 fn paging_controls(book: &TransmogBook) -> Element {
-    let mut out = text("TransmogPage", &format!("{} / {}", book.page + 1, book.pages()), (1260.0, 850.0, 80.0, 24.0), WHITE);
-    out.extend(button("TransmogPreviousPage", "<", "transmog:previous", book.page > 0, (1220.0, 850.0, 24.0, 24.0)));
-    out.extend(button("TransmogNextPage", ">", "transmog:next", book.page + 1 < book.pages(), (1360.0, 850.0, 24.0, 24.0)));
+    let mut out = text(
+        "TransmogPage",
+        &format!("{} / {}", book.page + 1, book.pages()),
+        (1260.0, 850.0, 80.0, 24.0),
+        WHITE,
+    );
+    out.extend(button(
+        "TransmogPreviousPage",
+        "<",
+        "transmog:previous",
+        book.page > 0,
+        (1220.0, 850.0, 24.0, 24.0),
+    ));
+    out.extend(button(
+        "TransmogNextPage",
+        ">",
+        "transmog:next",
+        book.page + 1 < book.pages(),
+        (1360.0, 850.0, 24.0, 24.0),
+    ));
     out
 }
 
@@ -208,9 +424,12 @@ pub fn apply_transmog_art(view: &TransmogView, registry: &mut ui_toolkit::regist
     for source in view.book.page_sources() {
         for state in ["Applied", "Pending"] {
             let name = format!("TransmogSource{}{state}", source.source_id);
-            let Some(id) = registry.get_by_name(&name) else { continue };
+            let Some(id) = registry.get_by_name(&name) else {
+                continue;
+            };
             let frame = registry.get_mut(id).expect("registered transmog overlay");
-            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data else {
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
+            else {
                 panic!("Transmog overlay {name} is not a texture");
             };
             texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
@@ -229,17 +448,39 @@ fn source_button(book: &TransmogBook, source: &TransmogSource, index: usize) -> 
     let action = format!("transmog:source:{}", source.source_id);
     let mut children = rsx! { r#frame { name: {DynName(source_model_scene(source.source_id))}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
     left: 0.0, top: 0.0, pos_type: "absolute", background_color: "0,0,0,1" } };
-    children.extend(atlas(format!("{prefix}Border"), "transmog-itemcard-default", (-7.0, -7.0, 114.0, 146.0)));
-    let applied = book.selected_slot().is_some_and(|slot| slot.applied == TransmogChoice::Source(source.source_id));
-    let pending = book.selected.is_some_and(|slot| book.pending.get(&slot) == Some(&TransmogChoice::Source(source.source_id)));
+    children.extend(atlas(
+        format!("{prefix}Border"),
+        "transmog-itemcard-default",
+        (-7.0, -7.0, 114.0, 146.0),
+    ));
+    let applied = book
+        .selected_slot()
+        .is_some_and(|slot| slot.applied == TransmogChoice::Source(source.source_id));
+    let pending = book.selected.is_some_and(|slot| {
+        book.pending.get(&slot) == Some(&TransmogChoice::Source(source.source_id))
+    });
     if applied {
-        children.extend(atlas(format!("{prefix}Applied"), "transmog-itemcard-current", (-7.0, -7.0, 114.0, 146.0)));
+        children.extend(atlas(
+            format!("{prefix}Applied"),
+            "transmog-itemcard-current",
+            (-7.0, -7.0, 114.0, 146.0),
+        ));
     }
     if pending {
-        children.extend(atlas(format!("{prefix}Pending"), "transmog-itemcard-transmogrified-pending", (-7.0, -7.0, 114.0, 146.0)));
+        children.extend(atlas(
+            format!("{prefix}Pending"),
+            "transmog-itemcard-transmogrified-pending",
+            (-7.0, -7.0, 114.0, 146.0),
+        ));
     }
     // Semantic status remains available to automation without a non-Retail caption below every model.
-    let status = if pending { "Pending" } else if applied { "Applied" } else { "Collected" };
+    let status = if pending {
+        "Pending"
+    } else if applied {
+        "Applied"
+    } else {
+        "Collected"
+    };
     children.extend(rsx! { fontstring { name: {DynName(format!("{prefix}Status"))}, text: status, visible: false } });
     let disabled = book.applying;
     rsx! { button { name: {DynName(prefix)}, width: MODEL_WIDTH, height: MODEL_HEIGHT,
