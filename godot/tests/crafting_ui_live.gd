@@ -76,8 +76,12 @@ func spend_knowledge() -> bool:
 		return false
 	await press("ProfessionSpecSpend")
 	await press("ProfessionSpecApply")
-	if not await wait_until(func(): return text("ProfessionSpecDetailedRank") == staged and text("ProfessionSpecStatus") != "", "authoritative point commit"):
+	if not await wait_until(func(): return text("ProfessionSpecDetailedRank") == staged and control("ProfessionSpecSpend") is Button and not control("ProfessionSpecSpend").disabled and text("ProfessionSpecStatus") != "", "authoritative point commit response"):
 		return false
+	# After the response, Undo must not erase the newly committed server rank.
+	await press("ProfessionSpecUndo")
+	if text("ProfessionSpecDetailedRank") != staged:
+		return fail("Apply did not commit the staged knowledge rank")
 	print("CRAFTING SPEC before=", committed, " after=", staged, " knowledge_before=", knowledge, " knowledge_after=", text("ProfessionSpecKnowledge"), " status=", text("ProfessionSpecStatus"))
 	await capture("3-applied-point")
 	return true
