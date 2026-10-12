@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Whole-world NPC appearance coverage](investigations/npc-appearance-coverage.md) — source census, strict world-root imports, ordinary geoset/source-asset recovery, selected server scale and private both-skin named-actor proof; canonical cache publication remains lead-owned.
+
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
 - [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — authored DB2 joins; both-skin private four-category clocks/settings/Edit Mode/assistant placement proof; exact rotation and hostile combat acceptance remain open.
