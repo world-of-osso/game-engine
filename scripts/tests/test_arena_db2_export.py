@@ -18,7 +18,8 @@ class ArenaExportTest(unittest.TestCase):
             source = Path(__file__).with_name('fixtures') / 'pvp-1360265.db2'
             with patch('sys.argv', [str(SCRIPT), 'BattlemasterList', str(source), str(output)]):
                 EXPORT.main()
-            rows = {int(r['ID']): r for r in csv.DictReader(output.open())}
+            with output.open() as stream:
+                rows = {int(r['ID']): r for r in csv.DictReader(stream)}
             self.assertEqual(rows[8]['Name_lang'], 'Ruins of Lordaeron')
             self.assertEqual(rows[8]['InstanceType'], '4')
             self.assertEqual(rows[8]['MinLevel'], '10')
