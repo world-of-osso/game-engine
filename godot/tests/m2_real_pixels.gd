@@ -23,6 +23,12 @@ const SCENE := {
 # fdid, skin batch index (file order), view direction (Godot axes), zoom (<1 closer),
 # focus (0..1 inside the batch bounds), time (material clock ms), minimum compared pixels.
 const CASES := [
+	{"name": "avenging_wrath_core_premultiplied", "fdid": 2368645, "batch": 0, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
+	{"name": "avenging_wrath_feathers_mod2x_t2", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
+	{"name": "avenging_wrath_feathers_second_sheet", "fdid": 2368645, "batch": 2, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
+	{"name": "avenging_wrath_feathers_third_sheet", "fdid": 2368645, "batch": 3, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
+	{"name": "avenging_wrath_cast_glow", "fdid": 2368643, "batch": 0, "view": Vector3(0.1, 1.0, 0.1), "time": 900},
+	{"name": "avenging_wrath_classic_feathers", "fdid": 165644, "batch": 2, "view": Vector3(1.0, 0.1, 0.1), "time": 900},
 	{"name": "cenarius_additive_glow", "fdid": 1261840, "batch": 1, "view": Vector3(0.2, 0.2, 1.0), "zoom": 0.5},
 	{"name": "twilight_dragonspawn_additive_mod2x_scroll", "fdid": 356426, "batch": 0, "view": Vector3(0.3, 0.2, 1.0), "zoom": 0.5, "time": 600},
 	{"name": "shade_additive_env", "fdid": 125854, "batch": 2, "view": Vector3(0.2, 0.2, 1.0), "zoom": 0.6},
