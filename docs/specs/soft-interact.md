@@ -43,6 +43,7 @@ References:
 - [x] Interact With Target (`interact_target`) is unbound by default: the Retail tutorial warns when no key is assigned (Blizzard_Tutorials_Frame_Tutorials.lua:94-99).
   - Pressing it interacts with the soft target through the right-click paths: use the object, loot, attack, or `InteractNpc`.
   - It does not change the hard target.
+  - Player immunity (`UNIT_FLAG_IMMUNE_TO_PC`, 0x100) prevents the attack path even for neutral quest givers/enders. NPC-only immunity does not prevent player attacks. Source: TrinityCore `WorldObject::IsValidAttackTarget`; concrete TDB Lord Autumnvale127080 flags320 regression in `auto_attack::tests`.
 - [ ] Enemy and friend soft targets (`softTargetIconEnemy` is saved but nothing reads it), `SoftTargetInteractRangeIsHard`, world text icon distance scaling, soft target tooltips.
 
 ## Quest objects
