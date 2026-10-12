@@ -217,6 +217,7 @@ pub enum AccountEvent {
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     TransmogState(shared::protocol::TransmogState),
     TransmogFailed(shared::protocol::TransmogFailed),
+    TransmogOutfitFailed(shared::protocol::TransmogOutfitFailed),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     Stable(StableMessage),
@@ -732,13 +733,25 @@ impl Account {
             .map_err(SessionError)
     }
 
-    pub fn send_transmog_apply(
+    /// Paid Apply or an outfit/custom-set save (game_engine_ui_model::transmog::TransmogSend).
+    pub fn send_transmog(
         &self,
-        request: shared::protocol::ApplyTransmog,
+        request: game_engine_ui_model::transmog::TransmogSend,
     ) -> Result<(), SessionError> {
-        self.bridge()?
-            .send::<_, shared::protocol::TransmogChannel>(request)
-            .map_err(SessionError)
+        use game_engine_ui_model::transmog::TransmogSend;
+        let bridge = self.bridge()?;
+        match request {
+            TransmogSend::Apply(apply) => {
+                bridge.send::<_, shared::protocol::TransmogChannel>(apply)
+            }
+            TransmogSend::SaveOutfit(save) => {
+                bridge.send::<_, shared::protocol::TransmogChannel>(save)
+            }
+            TransmogSend::SaveCustomSet(save) => {
+                bridge.send::<_, shared::protocol::TransmogChannel>(save)
+            }
+        }
+        .map_err(SessionError)
     }
 
     pub fn send_transmog_query(&self, npc: u64) -> Result<(), SessionError> {
@@ -1527,6 +1540,10 @@ impl Account {
         }
         if message.is::<shared::protocol::TransmogFailed>() {
             output.push(AccountEvent::TransmogFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TransmogOutfitFailed>() {
+            output.push(AccountEvent::TransmogOutfitFailed(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::TrainerList>() {

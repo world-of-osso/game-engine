@@ -594,6 +594,30 @@ impl TransmogBook {
         Some(shared::components::EquipmentAppearance { entries })
     }
 
+    /// Illusion entries show the selected weapon's current appearance (UpdateItem IsIllusion).
+    pub fn weapon_equipment(
+        &self,
+        slot: EquipmentSlot,
+    ) -> Option<shared::components::EquipmentAppearance> {
+        let slot = self.state.as_ref()?.slots.iter().find(|s| s.slot == slot)?;
+        let entry = match self.effective_choice(slot) {
+            TransmogChoice::Source(id) => {
+                appearance_entry(slot, slot.sources.iter().find(|s| s.source_id == id)?)?
+            }
+            _ => shared::components::EquippedAppearanceEntry {
+                slot: slot.slot.visual_slot()?,
+                item_id: Some(slot.item_id),
+                definition_source: Some(slot.definition_source),
+                display_info_id: None,
+                inventory_type: slot.inventory_type,
+                hidden: false,
+            },
+        };
+        Some(shared::components::EquipmentAppearance {
+            entries: vec![entry],
+        })
+    }
+
     pub fn custom_set_equipment(&self, id: u64) -> Option<shared::components::EquipmentAppearance> {
         let state = self.state.as_ref()?;
         let set = state.custom_sets.iter().find(|set| set.id == id)?;
