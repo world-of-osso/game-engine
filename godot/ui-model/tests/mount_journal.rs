@@ -40,6 +40,10 @@ fn mount_journal_source_renders_real_db2_markup_as_readable_vendor_zone_and_cost
         registry::FrameRegistry,
         screen::{Screen, SharedContext},
     };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut view = view();
     view.visible = true;
     let mut shared = SharedContext::new();
