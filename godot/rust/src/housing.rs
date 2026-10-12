@@ -141,6 +141,7 @@ impl GameClient {
     pub(super) fn close_housing(&mut self) {
         self.housing.catalog_preview.reset();
         self.housing.decor.clear_preview();
+        self.housing.decor.highlight(None);
         self.housing.expert_held = [false; 8];
         self.housing.mouse_pointer = None;
         if let Some(model) = &mut self.housing.model {
