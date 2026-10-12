@@ -55,6 +55,14 @@ func live_run() -> void:
 					result.error = "Missing visible native control: " + str(command.name)
 				else:
 					await pointer(target.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+			"scroll":
+				var target = root.find_child(command.name, true, false) as Control
+				if target == null or not target.is_visible_in_tree():
+					result.error = "Missing visible native control: " + str(command.name)
+				else:
+					var button := MOUSE_BUTTON_WHEEL_DOWN if command.steps > 0 else MOUSE_BUTTON_WHEEL_UP
+					for _step in range(abs(int(command.steps))):
+						await pointer(target.get_global_rect().get_center(), button)
 			"key":
 				await tap(int(command.key))
 			"key_down", "key_up":
