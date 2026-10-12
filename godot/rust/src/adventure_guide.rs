@@ -55,6 +55,9 @@ impl GameClient {
             .send_request_raid_info()
             .map_err(|error| error.to_string())?;
         self.account
+            .send_challenge_request(shared::protocol::ChallengeRequest::Query)
+            .map_err(|error| error.to_string())?;
+        self.account
             .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
             .map_err(|error| error.to_string())
     }
