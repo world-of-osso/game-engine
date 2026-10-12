@@ -77,9 +77,18 @@ pub struct CategoryPage {
     pub next: Option<u32>,
     pub loaded: bool,
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AchievementComparison {
+    pub target_entity: u64,
+    pub name: String,
+    pub error: Option<String>,
+    pub window: AchievementWindow,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AchievementWindow {
     pub visible: bool,
+    pub comparison: Option<Box<AchievementComparison>>,
     /// Mainline categories reveal one parent's children at a time.
     pub expanded_category: Option<u32>,
     /// Selection and expansion differ: a newly loaded page starts collapsed.
@@ -105,8 +114,15 @@ impl AchievementWindow {
     pub fn action(&mut self, action: &str) -> Vec<QueryAchievementCatalog> {
         let mut requests = Vec::new();
         match action {
-            OPEN_ACTION => self.toggle(&mut requests),
-            "achievement:close" => self.visible = false,
+            OPEN_ACTION => {
+                self.comparison = None;
+                self.toggle(&mut requests);
+            }
+            "achievement:close" => {
+                self.visible = false;
+                self.comparison = None;
+            }
+            "achievement:stop_compare" => self.comparison = None,
             "achievement:statistics" => self.change_statistics(true),
             "achievement:achievements" => self.change_statistics(false),
             "achievement:summary" => {
@@ -221,7 +237,12 @@ impl AchievementWindow {
         }
     }
     fn select_action(&mut self, action: &str, requests: &mut Vec<QueryAchievementCatalog>) {
-        if let Some(text) = action.strip_prefix("achievement:search:") {
+        if let Some(target) = action
+            .strip_prefix("achievement:compare:")
+            .and_then(|id| id.parse().ok())
+        {
+            self.start_comparison(target, requests);
+        } else if let Some(text) = action.strip_prefix("achievement:search:") {
             self.search(text, requests);
         } else if let Some(id) = action
             .strip_prefix("achievement:restore:")
@@ -272,7 +293,11 @@ impl AchievementWindow {
             self.detail = None;
             self.selected_achievement = None;
             self.criterion_offset = 0;
-            if !self.pages.get(&id).is_some_and(|page| page.loaded) {
+            let other_missing = self
+                .comparison
+                .as_ref()
+                .is_some_and(|other| !other.window.pages.get(&id).is_some_and(|page| page.loaded));
+            if other_missing || !self.pages.get(&id).is_some_and(|page| page.loaded) {
                 requests.push(self.category_request(id, 0));
             } else {
                 self.select_first();
@@ -379,7 +404,72 @@ impl AchievementWindow {
             });
         }
     }
-    fn enqueue(&mut self, requests: Vec<QueryAchievementCatalog>) -> Vec<QueryAchievementCatalog> {
+    fn start_comparison(
+        &mut self,
+        target_entity: u64,
+        requests: &mut Vec<QueryAchievementCatalog>,
+    ) {
+        self.visible = true;
+        self.selected_category = None;
+        self.selected_achievement = None;
+        self.expanded_achievement = None;
+        self.search_text.clear();
+        self.statistics = false;
+        self.pending
+            .retain(|request| !matches!(request, QueryAchievementCatalog::Comparison { .. }));
+        self.comparison = Some(Box::new(AchievementComparison {
+            target_entity,
+            name: String::new(),
+            error: None,
+            window: AchievementWindow::default(),
+        }));
+        requests.push(QueryAchievementCatalog::Summary { scope: self.scope });
+        if !self.categories_loaded {
+            requests.push(QueryAchievementCatalog::Categories { after_id: 0 });
+        }
+    }
+
+    fn comparison_requests(
+        &mut self,
+        requests: &[QueryAchievementCatalog],
+    ) -> Vec<QueryAchievementCatalog> {
+        let Some(comparison) = self.comparison.as_mut() else {
+            return Vec::new();
+        };
+        let other = &mut comparison.window;
+        other.selected_category = self.selected_category;
+        other.selected_achievement = self.selected_achievement;
+        other.expanded_achievement = self.expanded_achievement;
+        other.statistics = self.statistics;
+        other.scope = self.scope;
+        other.search_text = self.search_text.clone();
+        let queries = requests
+            .iter()
+            .filter(|request| {
+                !matches!(
+                    request,
+                    QueryAchievementCatalog::Categories { .. }
+                        | QueryAchievementCatalog::Comparison { .. }
+                )
+            })
+            .cloned()
+            .collect();
+        other
+            .enqueue(queries)
+            .into_iter()
+            .map(|query| QueryAchievementCatalog::Comparison {
+                target_entity: comparison.target_entity,
+                query: Box::new(query),
+            })
+            .collect()
+    }
+
+    fn enqueue(
+        &mut self,
+        mut requests: Vec<QueryAchievementCatalog>,
+    ) -> Vec<QueryAchievementCatalog> {
+        let comparisons = self.comparison_requests(&requests);
+        requests.extend(comparisons);
         requests
             .into_iter()
             .filter(|request| {
@@ -401,6 +491,12 @@ impl AchievementWindow {
             .position(|request| reply_matches(request, &page))
             .map(|index| self.pending.remove(index));
         let requests = match page {
+            AchievementCatalogPage::Comparison {
+                target_entity,
+                target_name,
+                page,
+                error,
+            } => self.apply_comparison(target_entity, target_name, page, error),
             AchievementCatalogPage::Search {
                 text,
                 scope,
@@ -508,6 +604,38 @@ impl AchievementWindow {
         };
         self.enqueue(requests)
     }
+    fn apply_comparison(
+        &mut self,
+        target: u64,
+        name: String,
+        page: Option<Box<AchievementCatalogPage>>,
+        error: Option<String>,
+    ) -> Vec<QueryAchievementCatalog> {
+        let Some(comparison) = self
+            .comparison
+            .as_mut()
+            .filter(|value| value.target_entity == target)
+        else {
+            return Vec::new();
+        };
+        comparison.error = error;
+        if !name.is_empty() {
+            comparison.name = name;
+        }
+        let Some(page) = page else {
+            return Vec::new();
+        };
+        comparison
+            .window
+            .apply(*page)
+            .into_iter()
+            .map(|query| QueryAchievementCatalog::Comparison {
+                target_entity: target,
+                query: Box::new(query),
+            })
+            .collect()
+    }
+
     fn tracked_criteria_request(&self, id: u32) -> Option<QueryAchievementCatalog> {
         let after_id = self
             .tracked
@@ -711,6 +839,21 @@ fn update_achievement(entries: &mut Vec<AchievementCatalogEntry>, entry: Achieve
 
 fn reply_matches(request: &QueryAchievementCatalog, page: &AchievementCatalogPage) -> bool {
     match (request, page) {
+        (
+            QueryAchievementCatalog::Comparison {
+                target_entity: requested,
+                query,
+            },
+            AchievementCatalogPage::Comparison {
+                target_entity,
+                page,
+                error,
+                ..
+            },
+        ) => {
+            requested == target_entity
+                && (error.is_some() || page.as_ref().is_some_and(|page| reply_matches(query, page)))
+        }
         (
             QueryAchievementCatalog::Statistics {
                 category_id: requested,
