@@ -386,14 +386,12 @@ fn tile(view: &HousingView, index: usize, decor: &Decor) -> Element {
 }
 
 /// Retail HousingModelPreview: name, SourceInfo and NumOwned over the preview area.
-/// The decor thumbnail stands in for the unavailable 3D model scene.
+/// Receipt-backed 3D rendering is mounted by the native host, separately from ownership.
 fn preview(view: &HousingView) -> Element {
     let Some(decor) = view.model.selected(&view.authority) else {
         return rsx! { fontstring { name: "HousingPreviewEmpty", text: "No matching decor.",
         width: 350.0, height: 50.0, pos_type: "absolute", left: 457.0, top: 240.0 } };
     };
-    let missing =
-        decor.thumbnail_fdid == 0 || view.missing_thumbnails.contains(&decor.thumbnail_fdid);
     let source = if view.model.catalog.sources_imported {
         crate::housing::source_lines(decor, &view.vendor_names).join("\n")
     } else {
@@ -432,10 +430,9 @@ fn preview(view: &HousingView) -> Element {
         fontstring { name: "HousingPreviewNumOwned", text: {owned_text.as_str()}, width: 300.0, height: 16.0,
             pos_type: "absolute", left: owned_left, top: owned_top, font_size: 12.0, justify_h: "LEFT",
             hidden: hide_owned, mouse_enabled: true }
-        texture { name: "HousingPreviewThumbnail", texture_fdid: {decor.thumbnail_fdid},
-            width: 256.0, height: 256.0, pos_type: "absolute", left: 52.0, top: 139.0, hidden: missing }
-        fontstring { name: "HousingPreviewMissing", text: "Preview unavailable", width: 301.0, height: 256.0,
-            pos_type: "absolute", left: 30.0, top: 139.0, font_size: 14.0, hidden: {!missing} }
+        r#frame { name: "HousingCatalogModelScene", width: 301.0, height: 334.0,
+            pos_type: "absolute", left: 30.0, top: 100.0, mouse_enabled: true }
+
     } }
 }
 
