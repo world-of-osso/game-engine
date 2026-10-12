@@ -10,7 +10,7 @@ Native Retail Mainline battleground PvP UI, backed by existing shared PvP messag
 - [x] Display retained roster/objective columns, All/Alliance/Horde filters and winner/defeat results. Ended opens results even after closing the live scoreboard; unknown honor is absent and uninstrumented combat columns are explicitly unknown.
 - [x] Submit leave for an accepted match, including Waiting; the server decides whether arrival is complete and performs the authoritative origin transfer. Modern and Forever share the same native behavior.
 
-Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 accept/leave buttons, PVPMatchScoreboard1024×420, PVPMatchResults1024×620. The Mainline SpecificScrollBox selects implemented source-backed modes: WSG1014, Arathi1018 and Gilneas120. Selection is retained in the queue request; unsupported modes are not fabricated. Node maps display authoritative POI states,1500-resource limits and measured Bases Assaulted/Defended columns rather than WSG flags/captures.
+Retail source geometry: PVPUIFrame 563×428, PVPReadyDialog 306×210 with 115×22 accept/leave buttons, PVPMatchScoreboard 1024×420, PVPMatchResults 1024×620. The Mainline SpecificScrollBox selects implemented source-backed modes: WSG 1014, Arathi 1018 and Gilneas 120. Selection is retained in the queue request; unsupported modes are not fabricated. Node maps display authoritative POI states, 1500-resource limits and measured Bases Assaulted/Defended columns rather than WSG flags/captures.
 
 ## How it works
 
@@ -32,12 +32,12 @@ Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 a
 - Server `crates/server/src/maps/tests.rs::ten_warsong_players_accept_over_the_channel_then_ack_one_reserved_map` — retained ten-player typed-channel entry, physical source objectives, outcome and origin return.
 - Native private UDP5710 runs,2026-10-11: Modern and Forever, ten real accounts each; source-position travel acceleration, native object use, three captures, complete roster/outcome and all-player origin-map returns. Native invite decline in both skins; Modern automatic end-results regression. [Receipt boundaries](../wiki/systems/battlegrounds.md#bounded-live-proof).
 
-## Coverage expansion — active2026-10-12
+## Coverage expansion — active 2026-10-12
 
 - [ ] Entire source-backed random/epic coverage is in scope: Arathi Basin, Battle for Gilneas, Twin Peaks, Eye of the Storm, Temple of Kotmogu, Silvershard Mines, Seething Shore, Deephaul Ravine, Alterac Valley and Isle of Conquest. Deepwind Gorge lacks TDB authored placements; record this source gap, never fabricate a layout.
 - [ ] Per-BG server behavior tests and private real-UDP Modern/Forever native queue/invite/entry/objectives/scoreboard/end/leave proof, with inspected PNGs under `/syncthing/AgentShared/2026-10-12/bg-coverage/`.
 
-Arathi/Gilneas native selection, objective HUD, map-specific counters and type42 render/interaction are implemented. Arathi (16 accounts) and Gilneas (6 accounts) each have private UDP5712 Modern/Forever lifecycle proof with14 inspected PNGs per map. Twin Peaks (10 accounts) reuses the flag HUD with its own PvpStat columns and has the same both-skin proof (three physical captures, Victory, return;16 PNGs). Scoreboard objective columns now render each map's sourced PvpStat titles in PvpScoreboardLayout order (WSG shows Flag Returns before Flag Captures). Both maps have real-channel server proof; three focused native/UI tests cover both skins. The older WSG receipts below are not evidence for another map. See [server source and promotion contract](../../../game-server/docs/specs/battleground-lifecycle.md#coverage-expansion--active-2026-10-12).
+Arathi/Gilneas native selection, objective HUD, map-specific counters and type 42 render/interaction are implemented. Arathi (16 accounts) and Gilneas (6 accounts) each have private UDP 5712 Modern/Forever lifecycle proof with 14 inspected PNGs per map. Twin Peaks (10 accounts) reuses the flag HUD with its own PvpStat columns and has the same both-skin proof (three physical captures, Victory, return; 16 PNGs). Scoreboard objective columns now render each map's sourced PvpStat titles in PvpScoreboardLayout order (WSG shows Flag Returns before Flag Captures). Both maps have real-channel server proof; three focused native/UI tests cover both skins. The older WSG receipts below are not evidence for another map. See [server source and promotion contract](../../../game-server/docs/specs/battleground-lifecycle.md#coverage-expansion--active-2026-10-12).
 
 ## Known gaps (current cycle)
 

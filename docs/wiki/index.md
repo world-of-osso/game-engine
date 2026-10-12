@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Source-backed battleground node maps](systems/battlegrounds.md#source-node-maps--implementation-proof2026-10-12) — Arathi/Gilneas ordered capture/resource rules, authoritative WorldStates and map-specific native columns; scoped channel/both-skin UI proof, private live acceptance pending.
+- [Source-backed battleground node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas ordered capture/resource rules, authoritative WorldStates and map-specific native columns; scoped channel/both-skin UI proof, private live acceptance pending.
 
 - [Crafting UI](systems/crafting-ui.md) — both-skin private knowledge spending and cross-character public order/cast/result/commission-mail proof; Retail source art, full committed-rank configurations and explicit disabled recraft boundary.
 - [Retail achievement categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11) — requested14 player roots, real DB2 children, separate Guild/Statistics trees, native completion dropdown and both-skin private5899 proof; Guild progress authority remains unavailable.
