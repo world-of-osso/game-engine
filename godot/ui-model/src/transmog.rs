@@ -1,7 +1,7 @@
 //! Server-authoritative Transmogrify pending state; staging never mutates equipment.
 use shared::protocol::{
-    ApplyTransmog, EquipmentSlot, SaveTransmogOutfit, TransmogCatalogueSource, TransmogChange,
-    TransmogChoice, TransmogError, TransmogFailed, TransmogSlot, TransmogSource, TransmogState,
+    ApplyTransmog, EquipmentSlot, SaveTransmogOutfit, TransmogChange, TransmogChoice,
+    TransmogError, TransmogFailed, TransmogSlot, TransmogSource, TransmogState,
 };
 use std::collections::BTreeMap;
 
@@ -332,14 +332,6 @@ impl TransmogBook {
             WardrobeTab::Situations => (0, 1),
         };
         count.div_ceil(per_page).max(1)
-    }
-
-    pub fn catalogue_source(&self, source_id: u32) -> Option<&TransmogCatalogueSource> {
-        self.state
-            .as_ref()?
-            .catalogue
-            .iter()
-            .find(|entry| entry.source.source_id == source_id)
     }
 }
 
