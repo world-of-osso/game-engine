@@ -243,6 +243,7 @@ pub enum AccountEvent {
     CreatureTooltip(CreatureTooltip),
     /// The account's learned appearances.
     Appearances(AppearanceCollectionUpdate),
+    MountJournal(shared::protocol::MountJournalUpdate),
     Toys(shared::protocol::ToyCollectionUpdate),
     ToyResult(shared::protocol::ToyResult),
     ToyCooldown(SpellCooldownUpdate),
@@ -612,6 +613,37 @@ impl Account {
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(SetDungeonDifficulty { difficulty_id })
+            .map_err(SessionError)
+    }
+
+    pub fn send_mount(&self, mount_id: u32, dismiss: bool) -> Result<(), SessionError> {
+        if dismiss {
+            self.bridge()?
+                .send::<_, shared::protocol::CollectionChannel>(shared::protocol::DismissMount)
+                .map_err(SessionError)
+        } else {
+            self.bridge()?
+                .send::<_, shared::protocol::CollectionChannel>(shared::protocol::SummonMount {
+                    mount_id,
+                })
+                .map_err(SessionError)
+        }
+    }
+
+    pub fn send_mount_favourite(&self, mount_id: u32, favourite: bool) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::SetMountFavourite {
+                mount_id,
+                favourite,
+            })
+            .map_err(SessionError)
+    }
+
+    pub fn send_random_favourite_mount(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(
+                shared::protocol::SummonRandomFavouriteMount,
+            )
             .map_err(SessionError)
     }
 
@@ -1600,6 +1632,10 @@ impl Account {
         }
         if message.is::<CreatureTooltip>() {
             output.push(AccountEvent::CreatureTooltip(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::MountJournalUpdate>() {
+            output.push(AccountEvent::MountJournal(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::ToyCollectionUpdate>() {
