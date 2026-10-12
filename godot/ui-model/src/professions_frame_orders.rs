@@ -192,6 +192,9 @@ fn detail(view: &ProfessionView) -> Element {
     let Some(order) = view.orders.selected_order() else {
         return vec![];
     };
+    if view.orders.customer {
+        return customer_detail(view, order);
+    }
     let mut out = art::atlas(
         "CraftingOrderInfoBackground",
         "auctionhouse-background-index",
@@ -253,7 +256,7 @@ fn detail(view: &ProfessionView) -> Element {
             (330.0, 240.0 + index as f32 * 45.0, 460.0, 36.0),
         ));
     }
-    let y = if view.orders.customer { 480.0 } else { 625.0 };
+    let y = 625.0;
     let remaining = order.expires_at.saturating_sub(view.now_unix);
     out.extend(text(
         "CraftingOrderTimeRemaining",
@@ -264,35 +267,132 @@ fn detail(view: &ProfessionView) -> Element {
         ),
         (330.0, y - 60.0, 460.0, 22.0),
     ));
-    if view.orders.customer {
-        out.extend(panel_button(
-            "CraftingOrderCancel".into(),
-            "Cancel Order",
-            "profession:order:cancel",
-            order.can_cancel && !view.orders.pending,
-            (640.0, y, 150.0, 22.0),
+
+    out.extend(panel_button(
+        "CraftingOrderClaim".into(),
+        "Start Order",
+        "profession:order:claim",
+        order.can_claim && !view.orders.pending,
+        (745.0, y, 180.0, 22.0),
+    ));
+    out.extend(panel_button(
+        "CraftingOrderFulfill".into(),
+        "Create",
+        "profession:order:fulfill",
+        order.can_fulfill && !view.orders.pending,
+        (835.0, y - 30.0, 90.0, 22.0),
+    ));
+    out.extend(panel_button(
+        "CraftingOrderRelease".into(),
+        "Release Order",
+        "profession:order:release",
+        order.can_release && !view.orders.pending,
+        (665.0, y - 30.0, 150.0, 22.0),
+    ));
+    out
+}
+fn customer_background() -> Element {
+    let mut out = art::atlas(
+        "ProfessionsSchematicBackground",
+        "auctionhouse-background-index",
+        (5.0, 60.0, 520.0, 480.0),
+    );
+    out.extend(art::atlas(
+        "CraftingOrderFormRight",
+        "auctionhouse-background-index",
+        (525.0, 60.0, 295.0, 480.0),
+    ));
+    out
+}
+fn customer_detail(view: &ProfessionView, order: &CraftingOrderSnapshot) -> Element {
+    let mut out = customer_background();
+    out.extend(panel_button(
+        "CraftingOrderBack".into(),
+        "Back",
+        "profession:order:back",
+        !view.orders.pending,
+        (60.0, 32.0, 107.0, 22.0),
+    ));
+    out.extend(output(view, order.item_id, order.count, (28.0, 88.0)));
+    out.extend(text(
+        "CraftingOrderOutputName",
+        view.items
+            .get(&order.item_id)
+            .map_or("", |item| item.name.as_str()),
+        (95.0, 89.0, 415.0, 44.0),
+    ));
+    out.extend(text(
+        "CraftingOrderRecipientDisplay",
+        &format!("{:?}", order.kind),
+        (540.0, 78.0, 255.0, 24.0),
+    ));
+    if let Some(crafter) = &order.crafter {
+        out.extend(text(
+            "CraftingOrderCrafter",
+            crafter,
+            (540.0, 107.0, 255.0, 24.0),
         ));
-    } else {
-        out.extend(panel_button(
-            "CraftingOrderClaim".into(),
-            "Start Order",
-            "profession:order:claim",
-            order.can_claim && !view.orders.pending,
-            (745.0, y, 180.0, 22.0),
-        ));
-        out.extend(panel_button(
-            "CraftingOrderFulfill".into(),
-            "Create",
-            "profession:order:fulfill",
-            order.can_fulfill && !view.orders.pending,
-            (835.0, y - 30.0, 90.0, 22.0),
-        ));
-        out.extend(panel_button(
-            "CraftingOrderRelease".into(),
-            "Release Order",
-            "profession:order:release",
-            order.can_release && !view.orders.pending,
-            (665.0, y - 30.0, 150.0, 22.0),
+    }
+    out.extend(text(
+        "CraftingOrderState",
+        &format!("{:?}", order.status),
+        (540.0, 142.0, 255.0, 24.0),
+    ));
+    out.extend(customer_committed_reagents(view, order));
+    out.extend(text(
+        "CraftingOrderNoteLabel",
+        "Note to Crafter:",
+        (545.0, 210.0, 240.0, 20.0),
+    ));
+    out.extend(text(
+        "CraftingOrderNoteText",
+        &order.note,
+        (545.0, 240.0, 240.0, 120.0),
+    ));
+    out.extend(text(
+        "CraftingOrderCommission",
+        &format!("Commission: {}", money_text(order.commission)),
+        (540.0, 399.0, 255.0, 24.0),
+    ));
+    let remaining = order.expires_at.saturating_sub(view.now_unix);
+    out.extend(text(
+        "CraftingOrderTimeRemaining",
+        &format!(
+            "Time Remaining: {}h {}m",
+            remaining / 3600,
+            (remaining % 3600) / 60
+        ),
+        (540.0, 439.0, 255.0, 24.0),
+    ));
+    out.extend(panel_button(
+        "CraftingOrderCancel".into(),
+        "Cancel Order",
+        "profession:order:cancel",
+        order.can_cancel && !view.orders.pending,
+        (650.0, 498.0, 150.0, 22.0),
+    ));
+    out
+}
+fn customer_committed_reagents(view: &ProfessionView, order: &CraftingOrderSnapshot) -> Element {
+    let mut out = text(
+        "CraftingOrderReagentsTitle",
+        "Reagents",
+        (28.0, 179.0, 370.0, 20.0),
+    );
+    for (index, reagent) in order.reagents.iter().enumerate() {
+        let name = view
+            .items
+            .get(&reagent.item_id)
+            .map_or("", |item| item.name.as_str());
+        out.extend(text(
+            &format!("CraftingOrderReagent{index}"),
+            &format!("{}/{} {name}", reagent.supplied, reagent.quantity),
+            (
+                28.0 + (index / 4) as f32 * 185.0,
+                209.0 + (index % 4) as f32 * 55.0,
+                180.0,
+                50.0,
+            ),
         ));
     }
     out
@@ -324,16 +424,7 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
     let Some(recipe) = view.orders.selected_recipe() else {
         return recipe_list(ctx, view, true);
     };
-    let mut out = art::atlas(
-        "CraftingOrderFormLeft",
-        "auctionhouse-background-index",
-        (5.0, 60.0, 520.0, 480.0),
-    );
-    out.extend(art::atlas(
-        "CraftingOrderFormRight",
-        "auctionhouse-background-index",
-        (525.0, 60.0, 295.0, 480.0),
-    ));
+    let mut out = customer_background();
     out.extend(art::atlas(
         "CraftingOrderRecipeHeader",
         "CraftingOrders-Header-Frame",

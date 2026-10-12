@@ -227,6 +227,25 @@ fn orders_native_customer_frame_is_separate_and_can_cancel_only_own_orders() {
     set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
+fn orders_customer_committed_form_fits_its_retail_portrait_window() {
+    let mut v = view();
+    v.orders.customer = true;
+    let registry = render(v, ActiveSkin::Modern);
+    let background = frame(&registry, "ProfessionsSchematicBackground");
+    let ui_toolkit::layout_values::Val::Px(left) = background.position.left else {
+        panic!("Expected pixels");
+    };
+    let ui_toolkit::frame::Dimension::Fixed(width) = background.width else {
+        panic!("Expected fixed width");
+    };
+    assert!(
+        left + width <= 825.0,
+        "Customer form background exceeds its Retail window: {}",
+        left + width
+    );
+}
+
+#[test]
 fn recraft_native_slot_explicitly_refuses_missing_evaluator_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
