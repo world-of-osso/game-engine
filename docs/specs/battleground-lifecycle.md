@@ -1,6 +1,6 @@
 # Native battleground lifecycle
 
-Native Retail Mainline Warsong Gulch PvP UI, backed by existing shared PvP messages and the [server lifecycle contract](../../../game-server/docs/specs/battleground-lifecycle.md). Source UI lives under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_PVPUI/Mainline`, `Blizzard_GroupFinder/Mainline/PVPHelper.*` and `Blizzard_PVPMatch`. [Implementation and proof](../wiki/systems/battlegrounds.md).
+Native Retail Mainline battleground PvP UI, backed by existing shared PvP messages and the [server lifecycle contract](../../../game-server/docs/specs/battleground-lifecycle.md). Source UI lives under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_PVPUI/Mainline`, `Blizzard_GroupFinder/Mainline/PVPHelper.*` and `Blizzard_PVPMatch`. [Implementation and proof](../wiki/systems/battlegrounds.md).
 
 ## What it must do
 
@@ -10,7 +10,7 @@ Native Retail Mainline Warsong Gulch PvP UI, backed by existing shared PvP messa
 - [x] Display retained roster/objective columns, All/Alliance/Horde filters and winner/defeat results. Ended opens results even after closing the live scoreboard; unknown honor is absent and uninstrumented combat columns are explicitly unknown.
 - [x] Submit leave for an accepted match, including Waiting; the server decides whether arrival is complete and performs the authoritative origin transfer. Modern and Forever share the same native behavior.
 
-Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 accept/leave buttons, PVPMatchScoreboard1024×420, PVPMatchResults1024×620. WSG is the only exposed selectable mode; unsupported queue modes are not fabricated.
+Retail source geometry: PVPUIFrame 563×428, PVPReadyDialog 306×210 with 115×22 accept/leave buttons, PVPMatchScoreboard 1024×420, PVPMatchResults 1024×620. The Mainline SpecificScrollBox selects implemented source-backed modes: WSG 1014, Arathi 1018 and Gilneas 120. Selection is retained in the queue request; unsupported modes are not fabricated. Node maps display authoritative POI states, 1500-resource limits and measured Bases Assaulted/Defended columns rather than WSG flags/captures.
 
 ## How it works
 
@@ -32,6 +32,17 @@ Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 a
 - Server `crates/server/src/maps/tests.rs::ten_warsong_players_accept_over_the_channel_then_ack_one_reserved_map` — retained ten-player typed-channel entry, physical source objectives, outcome and origin return.
 - Native private UDP5710 runs,2026-10-11: Modern and Forever, ten real accounts each; source-position travel acceleration, native object use, three captures, complete roster/outcome and all-player origin-map returns. Native invite decline in both skins; Modern automatic end-results regression. [Receipt boundaries](../wiki/systems/battlegrounds.md#bounded-live-proof).
 
+## Coverage expansion — active 2026-10-12
+
+- [ ] Entire source-backed random/epic coverage is in scope: Arathi Basin, Battle for Gilneas, Twin Peaks, Eye of the Storm, Temple of Kotmogu, Silvershard Mines, Seething Shore, Deephaul Ravine, Alterac Valley and Isle of Conquest. Deepwind Gorge lacks TDB authored placements; record this source gap, never fabricate a layout.
+- [ ] Per-BG server behavior tests and private real-UDP Modern/Forever native queue/invite/entry/objectives/scoreboard/end/leave proof, with inspected PNGs under `/syncthing/AgentShared/2026-10-12/bg-coverage/`.
+
+Arathi/Gilneas native selection, objective HUD, map-specific counters and type 42 render/interaction are implemented. Arathi (16 accounts) and Gilneas (6 accounts) each have private UDP 5712 Modern/Forever lifecycle proof with 14 inspected PNGs per map. Twin Peaks (10 accounts) reuses the flag HUD with its own PvpStat columns and has the same both-skin proof (three physical captures, Victory, return; 16 PNGs). Eye of the Storm shows four tower-control cells and a Netherstorm flag cell from sourced WorldStates plus a single Flag Captures column; the queue list scrolls natively (wheel/steppers) to reach it. Its both-skin UI test and server channel test pass, but live proof is blocked: both start locations stand on an M2 floating rock and M2 floors are unsupported, so players fall and die (`eye-start-floor-finding.json`). Scoreboard objective columns now render each map's sourced PvpStat titles in PvpScoreboardLayout order (WSG shows Flag Returns before Flag Captures). Both maps have real-channel server proof; three focused native/UI tests cover both skins. The older WSG receipts below are not evidence for another map. See [server source and promotion contract](../../../game-server/docs/specs/battleground-lifecycle.md#coverage-expansion--active-2026-10-12).
+
+## Kotmogu continuation — active 2026-10-12
+
+Queue 699/map 998 uses the same native Retail specific queue/invitation/result controls in both skins. Its four Orb of Power cells display authoritative source WorldStates as Alliance/Horde/At base; score limit is 1500. Scoreboard uses DB2 column order: Orb Possessions 418, Victory Points 419. Source type 24 flagstand orb M2s render and offer normal object use. Server channel/protocol rules are proved separately. Private UDP 5712 Modern/Forever proof uses four real accounts: source orb use, natural center ticks, 1500 victory, measured 418=1/419=1500, automatic results after closing the scoreboard and origin return. Eighteen inspected 1280×720 PNGs and `kotmogu-live-proof.json` record boundaries. Fixture baseline level/alive/source-origin setup precedes matching; in-match admin only accelerates authored travel. Canonical source publication, orb combat aura/kill credit and scenery/art parity are not certified; source NPC appearance/asset diagnostics and visible checker geometry remain explicit gaps.
+
 ## Known gaps (current cycle)
 
 - [ ] Integration review remains lead-owned. Scoped UI/object tests, native builds, helper cargo check and changed-Rust formatting pass; full suites are periodic master gates, not per-agent branch runs. No master merge performed.
@@ -39,4 +50,4 @@ Retail source geometry: PVPUIFrame563×428, PVPReadyDialog306×210 with115×22 a
 
 ## Out of scope
 
-Numeric preparation/invitation/match/drop/reset/exit timers and honor rewards lack source policy; never fabricate countdowns or grants. Current server combat counters are not instrumented; native columns do not claim measured zero. Other battleground/rated modes, durable reconnect/origin recovery and Retail dropped-flag visual parity are not implemented by this UI scope. See the server contract for those boundaries.
+Numeric preparation/invitation/match/drop/reset/exit timers and honor rewards lack source policy; never fabricate countdowns or grants. Current server combat counters are not instrumented; native columns do not claim measured zero. Rated modes, durable reconnect/origin recovery and Retail dropped-flag visual parity are not implemented by this UI scope. See the server contract for those boundaries.

@@ -2,6 +2,10 @@
 
 - [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 
+- [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits M2 floors.
+- [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
+
+- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM, source BC5 upload, all four source-scaled identities and two authored CDI state kits/natural expiry; retained per-toy boundaries.
 
 - [Mount Journal](systems/mounts.md#mount-journal) — native account catalog, real-item learning, rotating preview and filters; [staged model closure](systems/mounts.md#mount-asset-closure-staging--2026-10-12) adds authenticated chains for all1,971 mount IDs, with publication and native census boundaries explicit.
