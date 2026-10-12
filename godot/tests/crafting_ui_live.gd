@@ -161,6 +161,20 @@ func fulfill_public_order() -> bool:
 	await capture("3-public-order-completed")
 	return true
 
+func click_at(point: Vector2, button: int) -> void:
+	if button == MOUSE_BUTTON_RIGHT:
+		var state: Dictionary = client.account_state()
+		var hovered := root.gui_get_hovered_control()
+		print("CRAFTING PICK_BEFORE point=", point, " mouse=", root.get_mouse_position(), " gui=", hovered.get_path() if hovered != null else "none", " allowed=", state.gameplay_input_allowed, " player=", state.local_player_position)
+		for npc in client.find_children(OS.get_environment("CRAFTING_BROKER"), "Node3D", true, false):
+			if npc.has_meta("unit_server_id"):
+				var id: int = npc.get_meta("unit_server_id")
+				print("CRAFTING BROKER id=", id, " position=", npc.global_position, " distance=", npc.global_position.distance_to(state.local_player_position), " rules=", client.nameplate_rules(id))
+	await super.click_at(point, button)
+	if button == MOUSE_BUTTON_RIGHT:
+		await wait_frames(10)
+		print("CRAFTING PICK_AFTER target=", client.target_state(), " merchant_error=", client.merchant_state().get("error", ""))
+
 func replace_field(name: String, value: String) -> void:
 	await press(name)
 	for pressed in [true, false]:
