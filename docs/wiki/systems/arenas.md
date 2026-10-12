@@ -10,6 +10,14 @@ Dead entrants receive source battlefield-port full resurrection before transfer 
 
 Shadow Sight uses source spell34709, trap radiusData2/2 and spawn360s respawn. It enables after90s. Consumed objects **hide**, not despawn: deleting their authoritative entity caused aura removal through CasterGone. GameObjectVisible preserves ownership while the client removes the visual. Initial orb visibility is disabled before the entrant observes the new copy.
 
+## Preparation and detection consumers
+
+TC Player::ResetAllPowers restores full health and only the primary pool: mana/energy full, rage/runic/lunar0, other and secondary pools unchanged. Preparation applies it on entry, strictly after5000ms, and when gates open. Source aura72 school/power-mask percentages precede spell-cost modifiers;158 permits PvP talent replacement outside rest areas with ordinary death/combat/cooldown restrictions;215 reconciles the replicated preparation unit flag.
+
+Source stealth16/154, detection17 and Shadow Sight228 now feed per-observer interest, spell targets, melee admission and swings. TC Object.cpp checks combat reach, then front-half arc, then type-specific228, then level/value range capped30yd for player observers. Stationary aura/facing/level changes invalidate visibility. Behavioral fixture uses actual Prowl5215 and physical-orb spell34709. Local Rogue1784 has aura443, whereas pinnedTC443 is MOD_LEECH; no stealth interpretation is manufactured for that incompatible source row. NPC model-specific combat-reach overrides are not certified by the player-focused arena proof.
+
+Additional pinned source files/SHA256 receipts are in tc-a352b1fa/. Live native damage/returns do not by themselves prove stealth detection or power/talent behavior; those are separately asserted by source-backed behavioral tests.
+
 ## Rated reference and scores
 
 Full max-level groups queue through their leader. TC a352b1fa ArenaTeam/Queue and worldserver.conf supply the formula, starting0personal/1500MMR,150window and600s discard. This is explicitly a TC reference, not certification of Blizzard's proprietary Retail MMR. Results persist only after a played outcome; old stored ratings without sourced MMR stay absent from projections. No fabricated match payout, season reset/cap or rating-only queue award exists.
