@@ -10,7 +10,7 @@ Retail Mainline world quests with authoritative availability, POI-area acceptanc
 - [x] Availability snapshots carry active IDs, map/zone, authored POI position, expiry and rewards preview.
 - [x] Native Mainline-style world-map pins/tooltips show time left/rewards; task tracker entries show progress bar/timer; acceptance/completion produce toasts. Local CASC art, both skins.
 - [x] Controlled private UDP5861 proof completes real86941 with administrator-supplied authentic items and real86948 with administrator-driven authored NPC46327 deaths, in Modern/Forever using fb_* accounts. Current matching binaries show7/8→automatic completion/11765XP and living actors; Modern relog has no task. Inspected1280px PNGs under `/syncthing/AgentShared/2026-10-11/world-quests/`. Natural gathering/player combat is not certified.
-- [ ] Integrate origin/master, targeted tests/check/fmt, full protocol suite when changed, explicit branch push and final census/SHAs/import command. Canonical world.db and UDP5000 untouched; protocol overrides uncommitted; patch blocks retained.
+- [x] Integrate origin/master, targeted tests/check/fmt, full protocol suite when changed, explicit branch push and final census/SHAs/import command. Canonical world.db and UDP5000 untouched; protocol overrides uncommitted; patch blocks retained.
 
 ## World of Osso policy
 
