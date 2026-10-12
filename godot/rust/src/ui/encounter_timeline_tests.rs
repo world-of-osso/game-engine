@@ -16,6 +16,7 @@ fn timeline_native_warning_regions_are_centered_in_the_viewport() {
             caster: 3669,
             spell_id: 20805,
             severity: EncounterSeverity::Low,
+            warning_text: "Casting Lightning Bolt".into(),
         },
         0,
         |_| ("Lightning Bolt".into(), 136048),

@@ -696,7 +696,7 @@ impl GameClient {
 
     fn apply_targeting_input(&mut self) {
         let bindings = &self.client_options.bindings;
-        let input = self.physical_input.gameplay_state(true);
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
         if bindings.is_just_pressed(InputAction::TargetNearest, &input) {
             let sorted = self.enemies_nearest_first();
             self.targeting.target = next_target(&sorted, self.targeting.target);

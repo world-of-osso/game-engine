@@ -80,6 +80,14 @@ Incense displays41007/41008 and Harmony41838 needed ordinary appearance coverage
 
 Evidence: `data/diagnostics/toy-live2-2026-10-10/{summary.json,retail-source-capsule.json,retail-comparison.json,appearance-diff.json,scenery-staged.json,learning-boundary.log,learning-full-sequence-green.log,learning-green2-modern.log,learning-green2-forever.log,native-cargo-check.log}`. All456 PNGs in `/syncthing/AgentShared/2026-10-10/toy-live2/` were decoded and visually inspected across57 indexed contact sheets (`inspection-manifest.json`). Earlier setup failures and cooldown replays are retained, not substituted for the final evidence. The per-toy verdict/continuation ledger is `/home/osso/.worktrees/handoff-toy-live2.md`.
 
+## Toy-effects14 witnessed input and source rendering (2026-10-11)
+
+UseToy now carries optional clicked destination and the ordinary player sight witness. Authoritative catalog metadata identifies source unit-targeted spells; the native cursor and journal share activation. Missing points/rays are not replaced with caster positions or permissive server searches. Focused search typing reuses the existing keyboard-free filter: actual Gaze input exposed AssistTarget/F selecting the player despite the LineEdit retaining focus.
+
+Private5911 Modern/Forever proofs cover authentic transforms, ordinary wing/area/enemy kits, native restoration, exact clicked Scarecrow position, Escape cancellation and no scenery PetFrame. Ocean's authenticated source stream mixes nonzero PCM in both skins, following its source precast/cast/impact events; Dummy/output-device boundaries remain separate from decoded/mixed audio. BC5 GPU dispatch now reaches the existing format decoder for real texture2022306 rather than failing before format selection. Native output keeps authored red/green channels, without new pixels or texture substitution.
+
+Requested1280×720 PNGs: `/syncthing/AgentShared/2026-10-11/toy-effects14/`. New proof logs/receipts: `/home/osso/.worktrees/logs/toy-effects14-continuation/`; earlier source receipts remain linked by the [server coverage ledger](../../../../game-server/docs/toy-effects14-coverage.md). Scaled lamp native proof remains pending; prepared320/1166 is not certification of every toy. Authenticated asset publication and appearance extension use private slot output directories only.
+
 ## Sources
 
 - [Toy Box contract](../../specs/toy-box.md)
