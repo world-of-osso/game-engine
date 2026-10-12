@@ -287,6 +287,10 @@ impl GameClient {
             return output;
         };
         output.set("confirmed", true);
+        output.set(
+            "error",
+            self.housing.authority.error.as_deref().unwrap_or(""),
+        );
         if let Some(model) = &self.housing.model {
             output.set("selected", model.editor.selected.map_or(0, |id| id as i64));
             output.set("placing", model.editor.placing.map_or(0, |id| id as i64));
