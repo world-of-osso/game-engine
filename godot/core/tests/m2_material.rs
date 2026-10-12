@@ -170,6 +170,50 @@ fn single_timeline_material_tints_apply_to_other_authored_sequences() {
     }
 }
 
+/// 166338's colour track 0 is global sequence 0 (833ms): gold at 0/333ms,
+/// purple at 833ms, including authored negative green. Output clamping belongs
+/// to the UNORM/shader boundary, not this sampler (WebWowViewerCpp animate.h).
+#[test]
+fn avenging_wrath_light_mesh_keeps_authored_global_rgb_across_local_clips() {
+    use m2_material::MaterialTime;
+
+    let glow = model(166338);
+    let tracks = MaterialTracks::of(&glow);
+    let binding = m2_material::batch_binding(&glow, &glow.batches[0], &[0; 3]).unwrap();
+    assert_eq!(binding.color, Some(0));
+    assert_eq!(tracks.global_sequences[0], 833);
+    let sample = |sequence, time_ms, global_ms| {
+        m2_material::sample_material(
+            &tracks,
+            &binding,
+            MaterialTime {
+                sequence,
+                time_ms,
+                global_ms,
+            },
+        )
+        .mesh_color
+    };
+    for (global_ms, expected) in [
+        (0, [1.0, 132.0 / 255.0, 0.0]),
+        (333, [1.0, 216.0 / 255.0, 0.0]),
+        (700, [0.40416464, 0.17638433, 0.6562824]),
+    ] {
+        let rgb = sample(0, 0, global_ms);
+        for channel in 0..3 {
+            assert!((rgb[channel] - expected[channel]).abs() < 0.000001);
+        }
+        assert_eq!(sample(1, 150, global_ms), rgb);
+        assert_eq!(sample(2, 300, global_ms + 833), rgb);
+    }
+    let purple = sample(0, 0, 832);
+    assert!(
+        purple[1] < 0.0,
+        "Preserve authored negative green: {purple:?}"
+    );
+    assert!(purple[2] > purple[0], "Authored purple: {purple:?}");
+}
+
 #[test]
 fn constant_local_material_keys_still_update_when_the_playing_clip_changes() {
     use m2_material::MaterialTime;
