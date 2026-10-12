@@ -30,7 +30,7 @@ impl GameClient {
             report_once(&format!("Assisted Combat data: {error}"));
         }
         self.spells.cooldowns.assisted_available = self.authored_rotation_available();
-        let decision = self.read_assisted_recommendation();
+        let decision = self.evaluate_and_record_assisted_recommendation();
         let hud = &mut self.spells.cooldowns;
         match decision {
             Ok(recommendation) => {
@@ -61,7 +61,7 @@ impl GameClient {
             .is_some_and(|spec| !data.catalog.rotation_spells(spec).is_empty())
     }
 
-    fn read_assisted_recommendation(&mut self) -> Result<Recommendation, String> {
+    fn evaluate_and_record_assisted_recommendation(&mut self) -> Result<Recommendation, String> {
         if !self.spells.cooldowns.assisted_available {
             return Ok(Recommendation::Unavailable);
         }
