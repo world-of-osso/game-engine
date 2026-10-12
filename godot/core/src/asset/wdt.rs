@@ -62,7 +62,15 @@ pub fn parse_wdt_global_wmo(data: &[u8]) -> Result<Option<WmoPlacement>, String>
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         if tag == b"FDOM" {
-            let placement = parse_modf(payload, names, &offsets)?.into_iter().next();
+            let placement = parse_modf(payload, names, &offsets)?
+                .into_iter()
+                .next()
+                .map(|mut placement| {
+                    placement.path = placement
+                        .path
+                        .map(|path| path.to_lowercase().replace('\\', "/"));
+                    placement
+                });
             return placement
                 .map(Some)
                 .ok_or_else(|| "global-WMO WDT MODF is empty".to_string());
@@ -217,7 +225,7 @@ mod tests {
         assert_eq!(wmo.fdid, None);
         assert_eq!(
             wmo.path.as_deref(),
-            Some("world\\wmo\\draenor\\human\\6hu_garrison_blacksmithing_hub.wmo")
+            Some("world/wmo/draenor/human/6hu_garrison_blacksmithing_hub.wmo")
         );
         assert_eq!(wmo.position, [0.0; 3]);
         assert_eq!(wmo.scale, 1.0);
