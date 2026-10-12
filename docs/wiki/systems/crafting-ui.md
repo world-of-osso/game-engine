@@ -39,7 +39,7 @@ SSOT: canonical `data/diagnostics/crafting-ui-2026-10-11/`. Inspected PNGs only 
 - Model/screen21+20 at9c46abd33/protocol2a48bdc; native extension/CLI and helper-backed scoped check passed. Full-config RED at96894163f, eight specialization tests GREEN at650e9249a.
 - Native logs: `live/modern-customer/spec-attempt2.log`, `live/forever-customer/spec.log`, `live/modern-customer/order-posed.log`, `live/forever-customer/order.log`, `live/forever-worker/craft.log`, customer/worker receiving-mail logs in those skin directories.
 - Modern cast did complete; its first fixture incorrectly waited for a retained Completed detail (`live/modern-worker/craft.log`). Actual completion PNG and subsequent result/commission claims prove its outcome; corrected Forever cast fixture passes.
-- Final integration/gate revisions are recorded in the shared crafting-ui handoff and diagnostics final logs. No full suite or CI certification is implied.
+- Final master integration3f8d83357:21 model+20 screen+5 native+1 wire tests passed; extension/CLI build, helper-backed scoped check and fmt-check passed with no warnings (`final-*.log`). Later acceptance-checkbox edits are docs-only and do not invalidate that code proof. No full suite or CI certification is implied. Independent AskClaude verification was unavailable because OAuth expired.
 
 ## Sources
 
