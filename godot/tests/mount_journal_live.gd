@@ -1,0 +1,182 @@
+extends SceneTree
+# Native input and read-only observations against owned private UDP5901 only.
+const MOUNT_ID := 18
+const ITEM_ID := 5655
+const SPELL_ID := 6648
+var client: Node
+var shots := OS.get_environment("MOUNT_SHOTS")
+var skin := OS.get_environment("MOUNT_SKIN")
+var relog := OS.get_environment("MOUNT_RELOG") == "1"
+var receipts := OS.get_environment("MOUNT_RECEIPTS")
+
+func _initialize() -> void:
+	Engine.max_fps = 60
+	call_deferred("run_fixture")
+
+func run_fixture() -> void:
+	root.size = Vector2i(1280, 720)
+	var account := OS.get_environment("MOUNT_ACCOUNT")
+	if OS.get_environment("GODOT_TEST_SERVER") != "127.0.0.1:5901" or not account.begins_with("fb_mount_") or shots.is_empty() or receipts.is_empty():
+		fail("Explicit private5901, fb_mount_* and evidence paths required")
+		return
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
+	var error: String = client.connect_account("127.0.0.1:5901", account, "fbtest", false)
+	if error != "": fail(error); return
+	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "character select", 120000): return
+	await click("CharCard_" + OS.get_environment("MOUNT_CHARACTER_INDEX"))
+	await click("EnterWorld")
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0 and control("CollectionsMicroButton") != null, "world/catalog", 180000): return
+	var ready := FileAccess.open(OS.get_environment("MOUNT_READY_FILE"), FileAccess.WRITE)
+	ready.store_string(str(client.account_state()))
+	ready.close()
+	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_GO_FILE")), "online riding setup", 120000): return
+	client.set_world_minutes(720.0)
+	client.set_camera_orbit(PI, -0.3, 12.0)
+	await wait_frames(90)
+	await click("CollectionsMicroButton")
+	if not await wait_until(func(): return control("MountJournalSearchBox") != null, "Mounts tab"): return
+	await click("MountJournalSearchBox")
+	await type_text("Chestnut Mare")
+	if not await wait_until(func(): return int(client.mount_journal_state().selected) == MOUNT_ID and client.mount_journal_state().preview_ready, "authentic mount preview", 120000): return
+	await capture("relog-collected" if relog else "uncollected")
+	if relog:
+		if learned().is_empty() or not learned().favourite: fail("Account mount/favourite did not survive character change: " + str(client.mount_journal_state())); return
+	else:
+		if not learned().is_empty(): fail("Fresh account already owns mare"); return
+		await click("CollectionsMicroButton")
+		await click("MainMenuBarBackpackButton")
+		if not await wait_until(func(): return control("ContainerFrame0") != null, "backpack"): return
+		var bag_name := ""
+		for entry in client.merchant_state().bags:
+			if int(entry.item_id) == ITEM_ID: bag_name = "ContainerFrame%dSlot%d" % [entry.bag, entry.slot]
+		if bag_name.is_empty(): fail("Authentic mount item missing from owned backpack"); return
+		await click(bag_name, MOUSE_BUTTON_RIGHT)
+		if not await wait_until(func(): return not learned().is_empty(), "UseItem learns Mount18"): return
+		for entry in client.merchant_state().bags:
+			if int(entry.item_id) == ITEM_ID: fail("Learning did not consume item5655"); return
+		await tap(KEY_ESCAPE)
+		await click("CollectionsMicroButton")
+		if not await wait_until(func(): return control("MountJournalRow18") != null, "learned mount row"): return
+		await capture("learned")
+		await click("MountJournalRow18", MOUSE_BUTTON_RIGHT)
+		if not await wait_until(func(): return control("MountJournalFavoriteToggle") != null, "Retail right-click favourite menu"): return
+		await capture("favourite-menu")
+		await click("MountJournalFavoriteToggle")
+		if not await wait_until(func(): return learned().favourite, "authoritative account favourite"): return
+		await capture("favourite")
+	var model := control("MountJournalModelScene")
+	var start := model.get_global_rect().get_center()
+	await motion(start, false)
+	await button_event(start, MOUSE_BUTTON_LEFT, true)
+	await motion(start + Vector2(90, 0), true, Vector2(90, 0))
+	await button_event(start + Vector2(90, 0), MOUSE_BUTTON_LEFT, false)
+	if abs(float(client.mount_journal_state().yaw)) < 0.5: fail("Native model rotation did not turn preview"); return
+	await capture("rotated")
+	await click("MountJournalMountButton")
+	if not await wait_until(func(): return mounted(), "normal spell-mounted rider", 60000): return
+	await capture("summoned")
+	await click("MountJournalMountButton")
+	if not await wait_until(func(): return not mounted(), "real aura dismount"): return
+	await capture("dismounted")
+	await click("MountJournalSummonRandomFavorite")
+	if not await wait_until(func(): return mounted(), "random favourite normal mount spell", 60000): return
+	await capture("random-favourite")
+	await click("MountJournalMountButton")
+	if not await wait_until(func(): return not mounted(), "final dismount"): return
+	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
+	client.free()
+	quit(0)
+
+func learned() -> Dictionary:
+	for mount in client.mount_journal_state().collected:
+		if int(mount.mount_id) == MOUNT_ID: return mount
+	return {}
+
+func mounted() -> bool:
+	if learned().is_empty() or not learned().active: return false
+	for aura in client.aura_state().buffs:
+		if int(aura.spell_id) == SPELL_ID: return true
+	return false
+
+func control(name: String) -> Control:
+	for node in client.find_children(name, "Control", true, false):
+		if node.is_visible_in_tree(): return node
+	return null
+
+func wait_until(predicate: Callable, label: String, timeout: int = 30000) -> bool:
+	var deadline := Time.get_ticks_msec() + timeout
+	while Time.get_ticks_msec() < deadline:
+		if predicate.call(): return true
+		await process_frame
+	fail("timeout: " + label + " account=" + str(client.account_state()) + " mounts=" + str(client.mount_journal_state()))
+	return false
+
+func click(name: String, button: int = MOUSE_BUTTON_LEFT) -> void:
+	var node := control(name)
+	if node == null: fail("Missing visible control " + name); return
+	var point := node.get_global_rect().get_center()
+	await motion(point, false)
+	await button_event(point, button, true)
+	await button_event(point, button, false)
+	await wait_frames(5)
+
+func motion(point: Vector2, down: bool, relative: Vector2 = Vector2.ZERO) -> void:
+	var event := InputEventMouseMotion.new()
+	event.position = point
+	event.global_position = point
+	event.relative = relative
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+	root.push_input(event, true)
+	await process_frame
+
+func button_event(point: Vector2, button: int, down: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.position = point
+	event.global_position = point
+	event.button_index = button
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down and button == MOUSE_BUTTON_LEFT else 0
+	event.pressed = down
+	root.push_input(event, true)
+	await process_frame
+
+func type_text(value: String) -> void:
+	for character in value:
+		var event := InputEventKey.new()
+		event.unicode = character.unicode_at(0)
+		event.keycode = OS.find_keycode_from_string(character.to_upper())
+		event.physical_keycode = event.keycode
+		event.pressed = true
+		root.push_input(event, true)
+		await process_frame
+		event.pressed = false
+		root.push_input(event, true)
+		await process_frame
+
+func tap(code: Key) -> void:
+	for down in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = code
+		event.physical_keycode = code
+		event.pressed = down
+		root.push_input(event, true)
+		await process_frame
+	await wait_frames(5)
+
+func capture(label: String) -> void:
+	await wait_frames(30)
+	await RenderingServer.frame_post_draw
+	var stem := skin + "-" + ("alt-" if relog else "") + label
+	root.get_texture().get_image().save_png(shots.path_join(stem + ".png"))
+	var file := FileAccess.open(receipts.path_join(stem + ".json"), FileAccess.WRITE)
+	file.store_string(JSON.stringify({"mounts": client.mount_journal_state(), "account": client.account_state(), "auras": client.aura_state()}, "\t"))
+	file.close()
+	print("MOUNT_CAPTURE ", stem)
+
+func wait_frames(count: int) -> void:
+	for frame in range(count): await process_frame
+
+func fail(message: String) -> void:
+	push_error("Mount Journal live: " + message)
+	quit(1)
