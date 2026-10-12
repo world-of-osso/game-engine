@@ -5,6 +5,13 @@
 ## 2026-10-12 — Retire redundant client-publication gate
 
 [Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
+## 2026-10-12 — Retail Cleanup mode both-skin native proof
+
+[Cleanup](systems/housing.md#cleanup-editor-input): source mode entry/storage hidden, visible-mesh hover highlight/name, exact-target single-click owned removal, visitor refusal, quantity conservation and real relog/re-place in both skins. Model21/registry11 and two focused server conservation/paid-variant tests pass; eight inspected PNGs. Highlight styling is native feedback, not certified Retail shader art. Evidence core9; independent gate lead-owned; broader housing remains open.
+
+## 2026-10-12 — Housing atomic dye backend (not native feature)
+
+[Dye authority](systems/housing.md#dye-authority-without-native-recoloring): source slot/item binding and any-category rule, transient player-scoped preview/cancel, atomic per-changed-slot owned dye commit, real bag-placement rollback, preserved dyed variants through remove/store/reopen/re-place, and schema3 nonzero undyed count preservation. Native recoloring/variant controls and live acquisition remain explicitly unavailable; no user-visible feature claim.
 
 ## 2026-10-12 — Deephaul both-skin private lifecycle
 

@@ -26,6 +26,10 @@ Live acceptance: private UDP5870, two fb_* accounts, both skins, inspected PNG c
 
 The dashboard's Find a Home action opens a954×490 House Finder shell with the two authored map locations and authoritative plot counts. Its Visit Neighborhood action requests real housing admission; browsing never ports or grants ownership. The dedicated System2 map uses authored UiMapAssignment relations and tile art; missing relations/art remain explicitly unavailable. Ordinary world cornerstone interaction sends UseGameObject; only its authenticated HousingReply inspection opens the340×320 purchase controls. Display the actual plot index and copper cost, confirm the irreversible purchase, disable repeat submission while pending and show ownership only after the server's paid claim. Both skins share controls/layout/behavior. Default house component grants remain unavailable.
 
+## Dye backend versus native availability
+
+Server/wire supports owner-local staged dyes, explicit atomic commit, preserved dyed storage variants and versioned existing-state migration; see the [server contract](../../../game-server/docs/specs/housing-catalog.md#dye-authority-boundary-serverwire-only). This is not a native dye feature: recoloring, dye acquisition and variant controls remain unavailable. Existing native placements explicitly select the undyed stack (`variant_id=None`), never substitute an undyed actor for an owned dyed variant. No grant is inferred from680decor-slot/77color catalog membership. Currently paid1693/2330 have no dye slots. Source rule: generated HousingDecorDyeSlot allows all color categories; category is labeling only.
+
 ## HouseSettings access controls
 
 Owner House Settings opens the Retail600×550 panel and stages House Access without changing confirmed state. Dropdown Anyone checks/disables all four choices; No One clears/disables them; Limited enables Neighbors/Guild/Friends/Party independently. Explicit Save sends only HouseAccess and closes the panel; close discards the draft. Unconfigured access stays unknown and Save is disabled until an explicit selection. Reopening/relogging reads authoritative settings. Visitors cannot open owner settings. Both skins share the same controls/layout/behavior; Forever changes art only.
@@ -49,6 +53,12 @@ After landing the server importer, run it with the audit evidence and pinned bui
 ## References
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
+
+## Cleanup mode
+
+Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered placed decor, show its name at the pointer, and left-click the actual picked target to remove it into owned storage. Do not require a prior Basic selection or a second click. Empty ground clicks do nothing. A visitor may inspect the hover name but receives a read-only refusal; never change quantities/layout optimistically. Pending requests cannot submit twice. Mode exit/removal/close clears hover and restores saved materials. Existing owner-only RemoveDecor authority preserves paid dye variants and exact stored/placed quantities across relog. Both skins share the same controls/behavior; native highlight styling is presentation, not authenticated Retail shader/art parity.
+
+Source: cached `Blizzard_HouseEditorCleanupMode.lua/.xml` OnShow hides storage, target-selected calls RemoveSelectedDecor, hover shows name/removal errors and XML provides left-click instructions; `HousingCleanupModeUIDocumentation.lua` defines hovered info and selected-target events. Unavailable exterior assembly/locks remain separate source gaps; do not infer new removal policy.
 
 ## Expert transforms
 
