@@ -87,6 +87,11 @@ func wait_map(fdid: int) -> Node3D:
 		if not state.terrain.failures.is_empty():
 			fail("Map resource failure: " + str(state.terrain))
 			return null
+		if state.terrain.global_wmo_fdid == fdid:
+			var error: String = client.preview_world_lighting(Vector3.ZERO, camera.position)
+			if not error.is_empty():
+				fail(error)
+				return null
 		var placed := client.get_node_or_null("WorldWmos/GlobalWmo%d" % fdid) as Node3D
 		if placed != null and not placed.find_children("Group*_Batch*", "MeshInstance3D", true, false).is_empty() and state.world_objects.pending == 0:
 			return placed

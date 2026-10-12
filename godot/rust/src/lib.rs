@@ -850,6 +850,13 @@ impl GameClient {
     /// Offline fixture: run production lighting without an authenticated local player.
     #[func]
     fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
+        // Offline previews do not enter Loading, which normally attaches global WMOs.
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.global_wmo.sync(&mut parent, &self.terrain);
+        if let Some(wmo) = self.global_wmo.take_spawned() {
+            self.world_objects
+                .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
+        }
         let result = self.sync_preview_world_lighting(position, camera);
         match result {
             Ok(()) => GString::new(),
