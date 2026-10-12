@@ -53,6 +53,12 @@ impl SpecializationDraft {
             .collect()
     }
     pub fn display_ranks(&self, node_id: u32) -> Option<(u32, u32)> {
+        self.path_ranks(node_id, true)
+    }
+    pub fn committed_display_ranks(&self, node_id: u32) -> Option<(u32, u32)> {
+        self.path_ranks(node_id, false)
+    }
+    fn path_ranks(&self, node_id: u32, include_pending: bool) -> Option<(u32, u32)> {
         let tree = self.tree()?;
         let entries: Vec<_> = tree
             .nodes
@@ -62,7 +68,14 @@ impl SpecializationDraft {
         let first = entries.first()?;
         let total = entries
             .iter()
-            .map(|entry| self.rank(tree.tree_id, entry) + entry.granted_rank)
+            .map(|entry| {
+                let purchased = if include_pending {
+                    self.rank(tree.tree_id, entry)
+                } else {
+                    entry.rank
+                };
+                purchased + entry.granted_rank
+            })
             .sum::<u32>();
         let maximum = entries.iter().map(|entry| entry.max_rank).sum::<u32>();
         // Mainline GetRanks excludes the first unlock tier of a profession path.

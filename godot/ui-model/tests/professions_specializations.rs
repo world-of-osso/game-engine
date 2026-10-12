@@ -144,6 +144,7 @@ fn specialization_dial_shows_only_selected_path_source_perks() {
         path_node_id: 100,
         required_points: 2,
         unlocks_subpath: false,
+        is_major_bonus: false,
     });
     let mut other = perk.clone();
     other.node_id = 28533;
@@ -153,6 +154,39 @@ fn specialization_dial_shows_only_selected_path_source_perks() {
         let registry = render(view.clone(), skin);
         assert!(registry.get_by_name("ProfessionSpecPerk28534").is_some());
         assert!(registry.get_by_name("ProfessionSpecPerk28533").is_none());
+        let artwork = frame(&registry, "ProfessionSpecPerk28534Artwork");
+        let Some(WidgetData::Texture(before)) = &artwork.widget_data else {
+            panic!("source perk artwork")
+        };
+        let unearned_crop = before.tex_coords;
+        let mut staged = view.clone();
+        assert!(staged.specializations.stage_rank());
+        let registry = render(staged.clone(), skin);
+        assert!(
+            registry
+                .get_by_name("ProfessionSpecPerk28534PendingGlow")
+                .is_some()
+        );
+        let Some(WidgetData::Texture(pending)) =
+            &frame(&registry, "ProfessionSpecPerk28534Artwork").widget_data
+        else {
+            panic!("pending perk artwork")
+        };
+        assert_eq!(pending.tex_coords, unearned_crop);
+        staged.specializations.purchases.clear();
+        staged.specializations.snapshot.as_mut().unwrap().trees[0].nodes[0].rank = 2;
+        let registry = render(staged, skin);
+        assert!(
+            registry
+                .get_by_name("ProfessionSpecPerk28534PendingGlow")
+                .is_none()
+        );
+        let Some(WidgetData::Texture(earned)) =
+            &frame(&registry, "ProfessionSpecPerk28534Artwork").widget_data
+        else {
+            panic!("earned perk artwork")
+        };
+        assert_ne!(earned.tex_coords, unearned_crop);
     }
 }
 

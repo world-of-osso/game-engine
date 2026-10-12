@@ -28,6 +28,28 @@ pub(super) fn atlas(name: &str, member: &str, rect: (f32, f32, f32, f32)) -> Ele
     draw_region(name, region, rect)
 }
 
+/// Mainline perk flipbooks use 90px cells: first frame before commitment, last after.
+pub(super) fn dial_perk(
+    name: &str,
+    member: &str,
+    earned: bool,
+    rect: (f32, f32, f32, f32),
+) -> Element {
+    const PERK_FRAME_SIZE: f32 = 90.0;
+    let mut region =
+        read_region(member).unwrap_or_else(|| panic!("Missing profession atlas {member}"));
+    let frame_width = (region.right - region.left) * PERK_FRAME_SIZE / region.width;
+    let frame_height = (region.bottom - region.top) * PERK_FRAME_SIZE / region.height;
+    if earned {
+        region.left = region.right - frame_width;
+        region.top = region.bottom - frame_height;
+    } else {
+        region.right = region.left + frame_width;
+        region.bottom = region.top + frame_height;
+    }
+    draw_region(name, region, rect)
+}
+
 /// Retail SetAtlas(..., UseAtlasSize): preserve the authored overlay's dimensions.
 pub(super) fn atlas_at_size(name: &str, member: &str, position: (f32, f32)) -> Element {
     let region = read_region(member).unwrap_or_else(|| panic!("Missing profession atlas {member}"));
