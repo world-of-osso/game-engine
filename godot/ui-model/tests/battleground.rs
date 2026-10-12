@@ -41,9 +41,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
                 deaths: 0,
                 damage_done: 0,
                 healing_done: 0,
-                flag_captures: 2,
-                flag_returns: 1,
-                objective_scores: Vec::new(),
+                objective_scores: vec![(929, 1), (928, 2)],
                 honorable_kills: None,
                 honor_level: None,
             }],
@@ -96,8 +94,16 @@ fn node_battleground_both_skin_hud_columns_and_results() {
             );
             assert_text(&registry, "PVPMatchCategory7", "Bases Assaulted");
             assert_text(&registry, "PVPMatchCategory8", "Bases Defended");
-            assert_text(&registry, "PVPMatchPlayer81Captures", "5");
-            assert_text(&registry, "PVPMatchPlayer81Returns", "1");
+            assert_text(
+                &registry,
+                &format!("PVPMatchPlayer81Stat{}", rules.assault_stat),
+                "5",
+            );
+            assert_text(
+                &registry,
+                &format!("PVPMatchPlayer81Stat{}", rules.defense_stat),
+                "1",
+            );
             view.action("pvp:score-close");
             let bg = state.battleground.as_mut().unwrap();
             bg.phase = BgPhase::Ended;
@@ -133,7 +139,7 @@ fn receive(view: &mut PvpView, state: PvpSnapshot) {
 }
 #[test]
 fn node_battleground_selection_preserves_queue_identity() {
-    for id in [1018, 120] {
+    for id in [1018, 120, 108] {
         let mut view = PvpView::default();
         assert_eq!(view.action(&format!("pvp:select:{id}")), None);
         assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(id)));
@@ -210,13 +216,11 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
             panic!("score text missing")
         };
         assert!(label.text.contains("Flagrunner"));
-        let capture = registry
-            .get(registry.get_by_name("PVPMatchPlayer81Captures").unwrap())
-            .unwrap();
-        let WidgetData::FontString(label) = capture.widget_data.as_ref().unwrap() else {
-            panic!("capture text missing")
-        };
-        assert_eq!(label.text, "2");
+        // PvpScoreboardLayout orders WSG Flag Returns (0) before Flag Captures (1).
+        assert_text(&registry, "PVPMatchCategory7", "Flag Returns");
+        assert_text(&registry, "PVPMatchCategory8", "Flag Captures");
+        assert_text(&registry, "PVPMatchPlayer81Stat928", "2");
+        assert_text(&registry, "PVPMatchPlayer81Stat929", "1");
         view.action("pvp:horde");
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
@@ -249,6 +253,59 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
         });
         screen.sync(&context, &mut registry);
         assert_size(&registry, "PVPUIFrame", 563.0, 428.0);
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn twin_peaks_both_skin_flag_hud_source_columns_and_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let template = shared::battleground::twin_peaks();
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name;
+        bg.flags.flag_b = shared::battleground::FlagState::Carried { carrier: 81 };
+        bg.players[0].objective_scores = vec![(290, 2), (291, 1)];
+        let mut view = PvpView::default();
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 2 / 3    Horde 1 / 3",
+        );
+        assert_text(
+            &registry,
+            "WorldStateFlags",
+            "Alliance flag: At base    Horde flag: Carried",
+        );
+        assert_text(&registry, "PVPMatchCategory7", "Flag Captures");
+        assert_text(&registry, "PVPMatchCategory8", "Flag Returns");
+        assert_text(&registry, "PVPMatchPlayer81Stat290", "2");
+        assert_text(&registry, "PVPMatchPlayer81Stat291", "1");
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.score_a = 3;
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+        assert!(registry.get_by_name("PVPMatchHonorReward").is_none());
     }
     set_thread_skin(ActiveSkin::Modern);
 }
