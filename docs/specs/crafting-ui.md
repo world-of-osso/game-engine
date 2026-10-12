@@ -21,7 +21,7 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 - [ ] Expose the Retail owned-item input/output element; submission stays disabled while source operation/lineage is unavailable. Never substitute CREATE_ITEM24 for recrafting.
 
 ### Integration
-- [ ] Behavioral tests and private UDP5872 fb_* native proof cover both skins, followed by origin/master integration, targeted tests, native build and fmt.
+- [ ] Behavioral tests and private UDP5871 fb_* native proof cover both skins, followed by origin/master integration, targeted tests, native build and fmt.
 
 ## How it works
 - [Crafting UI system](../wiki/systems/crafting-ui.md)
@@ -39,9 +39,10 @@ Rust ui-model screens and the native Godot extension extend [ProfessionsFrame](p
 - `godot/ui-model/src/professions_specializations_tests.rs`
 - `godot/ui-model/tests/professions_art.rs`
 - `godot/ui-model/tests/professions_specializations.rs`
+- `godot/tests/crafting_ui_live.gd` — private both-skin specialization, public order and receiving-mail phases.
 
 ## Known gaps (current cycle)
-- [ ] Customer/crafter orders screens, NPC service integration and joint live proof pending.
+- [ ] Customer/crafter screens and NPC service wiring have scoped behavioral proof; joint live proof remains pending.
 - [ ] Recraft evaluator/owned-item lineage unsupported by current server contract; no submission message exists.
 
 ## Out of scope
