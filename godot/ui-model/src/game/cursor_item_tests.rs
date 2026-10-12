@@ -75,6 +75,7 @@ fn vendor() -> MerchantState {
             can_repair: false,
             guild_repair_money: None,
             items: vec![VendorItem {
+                extra_costs: Vec::new(),
                 slot: 3,
                 item_id: 159,
                 name: "Refreshing Spring Water".into(),

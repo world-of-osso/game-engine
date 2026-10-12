@@ -198,6 +198,7 @@ mod tests {
                 completed,
                 kind: shared::protocol::QuestObjectiveKind::Monster,
                 object_id: 49871,
+                optional: false,
             }],
         }
     }

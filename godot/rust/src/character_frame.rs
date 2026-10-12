@@ -270,7 +270,7 @@ impl GameClient {
             ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
             "micro:GuildMicroButton" => self.toggle_guild_ranks()?,
             "micro:LFDMicroButton" => self.toggle_pvp()?,
-            "micro:CollectionsMicroButton" => self.toggle_pet_journal(),
+            "micro:CollectionsMicroButton" => self.toggle_collections(),
             "micro:EJMicroButton" => self.toggle_adventure_guide()?,
             game_engine_ui_model::achievements::OPEN_ACTION => self.toggle_achievements()?,
             _ => match unavailable_message(action) {

@@ -83,8 +83,45 @@ impl GameClient {
         }
         self.toybox.model.acknowledge(item_id);
         self.toybox.model.error = None;
-        self.account.send_use_toy(item_id)
+        self.cancel_ground_target();
+        let spell_id = self.toybox.model.toy(item_id).and_then(|toy| toy.spell_id);
+        if let Some(spell_id) = spell_id
+            && self.begin_ground_toy(item_id, spell_id)
+        {
+            return Ok(());
+        }
+        self.send_toy_activation(item_id, None)
     }
+
+    pub(crate) fn send_toy_activation(
+        &mut self,
+        item_id: u32,
+        destination: Option<[f32; 3]>,
+    ) -> Result<(), SessionError> {
+        let requires_witness = self
+            .toybox
+            .model
+            .toy(item_id)
+            .is_some_and(|toy| toy.requires_target_witness);
+        let witness = if requires_witness {
+            match self.cast_witness(self.targeting_target()) {
+                Ok(ray) => ray,
+                Err(error) => {
+                    self.toybox.model.error = Some(error.clone());
+                    crate::frame_error::report_once(&error);
+                    return Ok(());
+                }
+            }
+        } else {
+            None
+        };
+        self.account.send_use_toy(shared::protocol::UseToy {
+            item_id,
+            destination,
+            witness,
+        })
+    }
+
     pub(super) fn receive_toy_result(
         &mut self,
         result: shared::protocol::ToyResult,
@@ -256,6 +293,10 @@ impl GameClient {
                 self.toggle_pet_journal();
             }
             "collections:toys" => {}
+            "collections:mounts" => {
+                self.close_toybox();
+                self.toggle_mount_journal();
+            }
             "toy_filters" => {
                 self.toybox.model.filters_open = !self.toybox.model.filters_open;
                 self.toybox.model.filter_submenu = None;

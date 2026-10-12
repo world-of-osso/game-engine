@@ -149,6 +149,7 @@ pub struct MerchantCell {
     pub stock: Option<u32>,
     /// Copper.
     pub price: u64,
+    pub extra_costs: Vec<shared::protocol::VendorCost>,
     /// `canAfford == false` greys the price (MF.lua:316).
     pub price_gray: bool,
     pub tint: CellTint,
@@ -359,13 +360,56 @@ fn item_contents(prefix: &str, cell: &MerchantCell) -> Element {
         justify: "LEFT",
     }));
     // `$parentMoneyFrame` BOTTOMLEFT to NameFrame BOTTOMLEFT 2,31 (MF.xml:72-81).
-    children.extend(money(
-        &format!("{prefix}MoneyFrame"),
-        cell.price,
-        (44.0, 45.0),
-        MoneyAlign::Left,
-        cell.price_gray,
-    ));
+    if cell.price > 0 || cell.extra_costs.is_empty() {
+        children.extend(money(
+            &format!("{prefix}MoneyFrame"),
+            cell.price,
+            (44.0, 45.0),
+            MoneyAlign::Left,
+            cell.price_gray,
+        ));
+    }
+    children.extend(alternate_costs(prefix, cell));
+    children
+}
+
+/// SmallAlternateCurrencyFrameTemplate:13px denominations,4px between them.
+fn alternate_costs(prefix: &str, cell: &MerchantCell) -> Element {
+    let mut left = if cell.price > 0 {
+        44.0 + money_width(cell.price) + 4.0
+    } else {
+        42.0
+    };
+    let color = if cell.price_gray {
+        GRAY_FONT_COLOR
+    } else {
+        WHITE
+    };
+    let mut children = Vec::new();
+    for (index, cost) in cell.extra_costs.iter().enumerate() {
+        let name = format!("{prefix}AltCurrencyFrameItem{}", index + 1);
+        let digits = cost.amount.to_string();
+        let width = measure_text(&digits, GameFont::ArialNarrow, MONEY_FONT_SIZE)
+            .expect("alternate currency number font")
+            .0
+            .ceil();
+        children.extend(text(Text {
+            name: format!("{name}Text"),
+            text: &digits,
+            rect: (left, 31.0, width + 1.0, MONEY_H),
+            font: GameFont::ArialNarrow,
+            size: MONEY_FONT_SIZE,
+            color,
+            justify: "LEFT",
+        }));
+        children.extend(texture(
+            format!("{name}Texture"),
+            cost.icon_file_data_id,
+            (left + width + 1.0, 31.5, COIN_SIZE, COIN_SIZE),
+            WHITE,
+        ));
+        left += width + 1.0 + COIN_SIZE + 4.0;
+    }
     children
 }
 
