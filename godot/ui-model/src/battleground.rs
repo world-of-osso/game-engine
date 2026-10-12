@@ -241,9 +241,6 @@ fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
         .into_iter()
         .filter(|template| shared::battleground::has_implemented_objectives(template.map_id))
-        // Remove this publication gate only after the lead confirms a client
-        // bundle ships the source cart/switch appearance rows and model chains.
-        .filter(|template| template.map_id != 727)
         // Seething source starts are ship-relative; retire only after authored
         // transport spawns, transforms and attachment/collision are implemented.
         .filter(|template| template.map_id != 1803)

@@ -233,7 +233,7 @@ fn kotmogu_both_skin_orb_hud_source_columns_queue_and_results() {
 }
 
 #[test]
-fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results() {
+fn silvershard_both_skin_visible_queue_retains_cart_hud_source_column_and_results() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -252,11 +252,8 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
         let mut view = PvpView::default();
         view.visible = true;
         view.action("pvp:select:708");
-        assert_ne!(
-            view.selected_battleground, 708,
-            "unpublished client assets keep Silvershard hidden"
-        );
-        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1014)));
+        assert_eq!(view.selected_battleground, 708);
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(708)));
         receive(&mut view, state.clone());
         view.scoreboard = true;
         let mut context = SharedContext::new();
@@ -268,7 +265,7 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
         assert!(
             registry
                 .get_by_name("HonorFrameSpecificBattlegroundButton708")
-                .is_none()
+                .is_some()
         );
         assert_text(
             &registry,
