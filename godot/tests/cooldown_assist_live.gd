@@ -12,6 +12,8 @@ func _initialize() -> void:
 
 func fail(message: String) -> void:
 	failed = true
+	if is_instance_valid(client):
+		write_json("fixture-failure", {"message": message, "account": client.account_state(), "spells": client.spells_state(), "assisted": client.assisted_combat_state(), "viewer": client.cooldown_viewer_state(), "target": client.target_state()})
 	push_error("Cooldown assist fixture: " + message)
 	quit(1)
 
