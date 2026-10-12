@@ -58,6 +58,7 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   GroundEffectTexture          FDID 1308499
   GroundEffectDoodad           FDID 1308057
   WMOMinimapTexture            FDID 1323241
+  SpellItemEnchantment         FDID 1362771
 """
 
 import csv
@@ -91,6 +92,9 @@ TABLES = {
     "TransmogOutfitSlotOption": (0x8C80370F, [
         ("ID", "id"), ("Name_lang", ("string", 0)), ("OptionEnum", ("u8", 1)),
         ("TransmogOutfitSlotInfoID", "parent"), ("Flags", 3)]),
+    # Illusion names/icons (C_TransmogCollection.GetIllusionInfo).
+    "SpellItemEnchantment": (0xD5D2C264, [
+        ("ID", "id"), ("Name_lang", ("string", 0)), ("IconFileDataID", 6)]),
     # Retail 12.1.0.69933 local CASC; exact wowdev/WoWDBDefs layouts.
     "CooldownSet": (
         0xAA6C140C,
