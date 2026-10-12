@@ -26,12 +26,12 @@ fn catalog_connection() -> Connection {
         (
             "DecorCategory",
             1,
-            json!({"ID":"1", "Name_lang":"Furnishings", "OrderIndex":"2"}),
+            json!({"ID":"1", "Name_lang":"Furnishings", "OrderIndex":"2", "UiTextureAtlasElementID":"29134"}),
         ),
         (
             "DecorSubcategory",
             21,
-            json!({"ID":"21", "Name_lang":"Fireplaces", "DecorCategoryID":"1", "OrderIndex":"0"}),
+            json!({"ID":"21", "Name_lang":"Fireplaces", "DecorCategoryID":"1", "OrderIndex":"0", "UiTextureAtlasElementID":"33476"}),
         ),
         (
             "DecorXDecorSubcategory",
@@ -214,4 +214,49 @@ fn housing_joins_authored_collection_sources_without_inventing_vendor_names() {
     )
     .unwrap();
     assert!(load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").is_err());
+}
+
+#[test]
+fn housing_names_category_icons_by_retail_atlas_key_and_marks_dyeable_decor() {
+    let db = catalog_connection();
+    insert(
+        &db,
+        "DecorDyeSlot",
+        28,
+        json!({"ID":"28", "HouseDecorID":"81", "Channel":"0", "DyeColorCategoryID":"2", "OrderIndex":"0"}),
+    );
+    let mut catalog =
+        load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    assert_eq!(
+        catalog
+            .decor
+            .iter()
+            .map(|decor| (decor.id, decor.dyeable))
+            .collect::<Vec<_>>(),
+        vec![(80, false), (81, true)]
+    );
+    let elements =
+        std::env::temp_dir().join(format!("housing-atlas-elements-{}.csv", std::process::id()));
+    // Local Retail 12.1.0.69933 rows: the data names one state of each icon.
+    std::fs::write(
+        &elements,
+        "Name,ID,Flags\ncategory-icons_furnishings_active,29134,0\ncategory-icons_vines_inactive,33476,0\n",
+    )
+    .unwrap();
+    catalog.resolve_icons(&elements).unwrap();
+    assert_eq!(
+        catalog.categories[0].icon.as_deref(),
+        Some("category-icons_furnishings")
+    );
+    assert_eq!(
+        catalog.subcategories[0].icon.as_deref(),
+        Some("category-icons_vines")
+    );
+    std::fs::write(
+        &elements,
+        "Name,ID,Flags\ncategory-icons_furnishings_active,29134,0\n",
+    )
+    .unwrap();
+    assert!(catalog.resolve_icons(&elements).is_err());
+    std::fs::remove_file(&elements).unwrap();
 }
