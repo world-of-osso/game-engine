@@ -44,7 +44,7 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
     }
     elements.extend(panel_button(
         "ConquestFrameRatedSoloShuffle".into(),
-        "Solo Shuffle — round policy unavailable",
+        "Solo Shuffle — round reset policy unverified",
         "",
         false,
         (194.0, 256.0, 340.0, 40.0),
