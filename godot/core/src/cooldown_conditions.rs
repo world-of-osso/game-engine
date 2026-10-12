@@ -20,6 +20,7 @@ struct ConditionRow {
     race_mask: u64,
     class_mask: u32,
     spec_index: i32,
+    modifier_tree: u32,
     spells: [u32; 4],
     spell_logic: u32,
     aura_spells: [u32; 4],
@@ -31,6 +32,7 @@ struct ConditionRow {
 #[derive(Clone, Debug, Default)]
 pub struct CooldownConditions {
     rows: BTreeMap<u32, ConditionRow>,
+    modifiers: crate::cooldown_modifiers::CooldownModifiers,
 }
 
 impl CooldownConditions {
@@ -60,7 +62,13 @@ impl CooldownConditions {
                 return Err(format!("PlayerCondition {id}: absent authored row"));
             }
         }
-        Ok(Self { rows })
+        let roots = rows
+            .values()
+            .map(|row| row.modifier_tree)
+            .filter(|id| *id != 0)
+            .collect::<Vec<_>>();
+        let modifiers = crate::cooldown_modifiers::CooldownModifiers::load(dir, &roots)?;
+        Ok(Self { rows, modifiers })
     }
 
     pub fn evaluate(&self, id: u32, actor: &ConditionActor<'_>) -> Result<bool, String> {
@@ -98,7 +106,10 @@ impl CooldownConditions {
         let auras = std::array::from_fn(|index| {
             aura_requirement(row.aura_spells[index], row.aura_stacks[index], actor)
         });
-        Ok(row.aura_spells[0] == 0 || condition_logic(row.aura_logic, auras))
+        if row.aura_spells[0] != 0 && !condition_logic(row.aura_logic, auras) {
+            return Ok(false);
+        }
+        self.modifiers.evaluate(row.modifier_tree, actor)
     }
 }
 
@@ -175,6 +186,7 @@ fn read_condition(cells: &Cells) -> Result<ConditionRow, String> {
             | ((number::<i64>(cells, "RaceMasks_1")? as u32 as u64) << 32),
         class_mask: number(cells, "ClassMask")?,
         spec_index: number(cells, "ChrSpecializationIndex")?,
+        modifier_tree: number(cells, "ModifierTreeID")?,
         spells: four(cells, "SpellID")?,
         spell_logic: number(cells, "SpellLogic")?,
         aura_spells: four(cells, "AuraSpellID")?,
@@ -202,6 +214,7 @@ fn supported_field(name: &str) -> bool {
             | "RaceMasks_1"
             | "ClassMask"
             | "ChrSpecializationIndex"
+            | "ModifierTreeID"
             | "SpellLogic"
             | "AuraSpellLogic"
     ) || ["SpellID_", "AuraSpellID_", "AuraStacks_"]
