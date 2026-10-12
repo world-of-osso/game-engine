@@ -7,6 +7,8 @@ use std::collections::{BTreeSet, HashMap};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SIZE: [f32; 2] = [814.0, 544.0];
+/// Filter dropdown frame: five 20-unit rows inside the art's shadow border.
+const FILTER_MENU: [f32; 2] = [230.0, 150.0];
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HousingView {
@@ -443,11 +445,20 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
     if !model.filters_open {
         return vec![];
     }
-    let background = named_atlas_texture(
+    // MenuStyle1Mixin:Generate: common-dropdown-bg at the menu's TOPLEFT(-10, 3) and
+    // BOTTOMRIGHT(10, -3), alpha 0.925. Its art has a soft shadow border, so entries sit
+    // 28 units in from the menu's left edge.
+    let mut background = named_atlas_texture(
         "HousingCatalogFilterMenuBackground".into(),
         "common-dropdown-bg",
-        (-10.0, -3.0, 220.0, 116.0),
+        (-10.0, -3.0, FILTER_MENU[0] + 20.0, FILTER_MENU[1] + 6.0),
     );
+    if let Some(ui_toolkit::widget_def::WidgetChild::Widget(texture)) = background.first_mut() {
+        texture.attrs.push(ui_toolkit::widget_def::Attr::new_static(
+            "alpha",
+            "0.925".into(),
+        ));
+    }
     let dyeable = filter_choice(
         "HousingFilterDyeable",
         "Dyeable Only",
@@ -455,7 +466,7 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
         "common-dropdown-icon-checkmark-yellow",
         model.dyeable_only,
         "housing:filter:dyeable",
-        (8.0, false),
+        (14.0, false),
     );
     let collection: Element = [
         (CollectionFilter::All, "All", "all"),
@@ -479,11 +490,11 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
         )
     })
     .collect();
-    rsx! { r#frame { name: "HousingCatalogFilterMenu", width: 200.0, height: 110.0,
-        pos_type: "absolute", left: 604.0, top: 54.0, strata: FrameStrata::Tooltip, mouse_enabled: true,
+    rsx! { r#frame { name: "HousingCatalogFilterMenu", width: {FILTER_MENU[0]}, height: {FILTER_MENU[1]},
+        pos_type: "absolute", left: 574.0, top: 54.0, strata: FrameStrata::Tooltip, mouse_enabled: true,
         {background} {dyeable}
         fontstring { name: "HousingFilterCollectionLabel", text: "Collection", width: 180.0, height: 20.0,
-            pos_type: "absolute", left: 8.0, top: 30.0, font_size: 12.0, justify_h: "LEFT",
+            pos_type: "absolute", left: 28.0, top: 36.0, font_size: 12.0, justify_h: "LEFT",
             font_color: "1.0,0.82,0.0,1.0" }
         {collection}
     } }
@@ -507,7 +518,7 @@ fn filter_choice(
         ));
     }
     rsx! { button { name: {DynName(name.into())}, width: 184.0, height: 20.0,
-        pos_type: "absolute", left: 8.0, top, onclick: action, disabled,
+        pos_type: "absolute", left: 28.0, top, onclick: action, disabled,
         button_default_skin: false, {children}
         fontstring { name: {DynName(format!("{name}Label"))}, text: label, width: 160.0, height: 20.0,
             pos_type: "absolute", left: 19.0, top: -1.0, font_size: 12.0, justify_h: "LEFT" }
