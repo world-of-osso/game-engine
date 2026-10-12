@@ -27,7 +27,14 @@ func prove_toy(sample: Array) -> void:
 	if clicked != null and placed.global_position.distance_to(clicked) > 0.2: fail("scaled scenery ignored clicked point"); return
 	if control("PetFrame") != null: fail("scenery acquired the combat pet frame"); return
 	var model := placed.find_children("NpcModel", "Node3D", true, false)[0] as Node3D
-	receipts.append({"phase": "scaled-source-scenery", "item": sample[0], "entry": sample[5], "display": sample[2], "source_display_scale": sample[4], "replicated_root_scale": [placed.scale.x, placed.scale.y, placed.scale.z], "native_visual_scale": [model.scale.x, model.scale.y, model.scale.z], "meshes": model.find_children("*", "MeshInstance3D", true, false).size(), "clicked": str(clicked), "placed": str(placed.global_position)})
+	var visual := model.get_parent() as Node3D
+	if int(visual.get_meta("creature_display_id")) != int(sample[2]): fail("wrong scenery source display"); return
+	var display_scale := 0.5 if int(sample[2]) == 131280 else 1.0
+	if abs(visual.scale.x - display_scale) > 0.00001: fail("native CDI scale was dropped"); return
+	var position: Vector3 = client.account_state().local_player_position
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(position.x + 3.0), str(-position.z), str(position.y)]): return
+	await create_timer(1.0).timeout
+	receipts.append({"phase": "scaled-source-scenery", "item": sample[0], "entry": sample[5], "display": sample[2], "source_display_scale": sample[4], "replicated_root_scale": [placed.scale.x, placed.scale.y, placed.scale.z], "native_visual_scale": [visual.scale.x, visual.scale.y, visual.scale.z], "meshes": model.find_children("*", "MeshInstance3D", true, false).size(), "clicked": str(clicked), "placed": str(placed.global_position)})
 	await capture("toy%d-display%d-scale%s" % [sample[0], sample[2], str(sample[4]).replace(".", "")])
 
 func scenery(title: String) -> Node3D:
