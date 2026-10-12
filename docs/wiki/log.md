@@ -1,3 +1,7 @@
+## 2026-10-12 — Shared subtle selection rows
+
+[Selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12): migrate default-button lists to shared Retail hover/selected/check art, preserve specialized rows and real actions, add native keyboard focus/activation/scroll reveal. Modern/Forever private pointer/keyboard/scroll runs pass; thirty before/after PNGs inspected. Targeted model/render tests and check/format pass; absent arena/rated/LFG lists and representative-only native coverage remain explicit.
+
 ## 2026-10-12 — Housing atomic dye backend (not native feature)
 
 [Dye authority](systems/housing.md#dye-authority-without-native-recoloring): source slot/item binding and any-category rule, transient player-scoped preview/cancel, atomic per-changed-slot owned dye commit, real bag-placement rollback, preserved dyed variants through remove/store/reopen/re-place, and schema3 nonzero undyed count preservation. Native recoloring/variant controls and live acquisition remain explicitly unavailable; no user-visible feature claim.
