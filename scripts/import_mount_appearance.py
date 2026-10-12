@@ -32,6 +32,7 @@ def main(argv=None):
     try:
         args.display_id = read_mount_displays(args.mount_catalog)
         args.pet_catalog = None
+        args.world_db = None
         report = import_files(args)
         report["mount_catalog"] = str(args.mount_catalog)
         report["mount_display_roots"] = len(args.display_id)
