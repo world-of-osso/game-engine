@@ -19,6 +19,59 @@ fn journal() -> View {
     }
 }
 #[test]
+fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
+    let mut view = journal();
+    view.visible = true;
+    for tab in ["monthly", "suggested"] {
+        view.apply(&format!("journal:tab:{tab}"))
+            .expect("server-backed tab");
+        let mut shared = SharedContext::new();
+        shared.insert(ActiveSkin::Modern);
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280., 720.);
+        let mut screen = Screen::new(adventure_guide_screen);
+        screen.sync(&shared, &mut registry);
+        let name = if tab == "monthly" {
+            "JournalMonthlyLoading"
+        } else {
+            "JournalSuggestedLoading"
+        };
+        assert!(registry.get_by_name(name).is_some(), "{name}");
+    }
+}
+
+#[test]
+fn owned_keystones_browse_authentic_dungeons_without_active_run() {
+    use shared::protocol::KeystoneInfo;
+    let mut view = journal();
+    view.keys = vec![KeystoneInfo {
+        item_guid: 42,
+        item_id: 180653,
+        challenge_id: 401,
+        level: 8,
+        affixes: vec![],
+    }];
+    view.owned_keys_only = true;
+    view.tier = 68;
+    let maps: Vec<_> = view
+        .instances()
+        .iter()
+        .map(|instance| instance.map)
+        .collect();
+    assert_eq!(
+        maps,
+        vec![2515],
+        "Owned Azure key selects its authored dungeon across expansion filters"
+    );
+    assert!(view.challenge.is_none());
+    view.keys.clear();
+    assert!(
+        view.instances().is_empty(),
+        "No active run or manufactured key substitutes for an empty authoritative bag"
+    );
+}
+
+#[test]
 fn journal_shows_authoritative_keystone_only_for_its_dungeon() {
     use shared::protocol::{ChallengePhase, ChallengeRun, KeystoneInfo};
     let mut view = journal();
@@ -62,6 +115,129 @@ fn journal_shows_authoritative_keystone_only_for_its_dungeon() {
     assert!(!text.contains("Rating"));
     view.instance = Some(67);
     assert!(view.challenge_text().is_none());
+}
+
+#[test]
+fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    let mut view = journal();
+    view.visible = true;
+    view.apply("journal:class:2").unwrap();
+    assert_eq!(view.spec, 0);
+    view.apply("journal:tab:sets").unwrap();
+    assert_ne!(
+        view.spec, 0,
+        "Entering Item Sets must choose a specific class specialization"
+    );
+    view.apply("journal:class:2").unwrap();
+    view.apply("journal:spec:70").unwrap();
+    view.search = "Lightsworn Battlegear".into();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    context.insert(view.clone());
+    let mut registry = FrameRegistry::new(1280., 720.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry.get_by_name("JournalSet900Level").is_some(),
+        "Retail set row includes item level"
+    );
+    assert!(
+        registry.get_by_name("JournalSet900Item51719Icon").is_some(),
+        "Retail set row includes item icons"
+    );
+    let level = registry
+        .get(registry.get_by_name("JournalSet900Level").unwrap())
+        .unwrap();
+    match &level.widget_data {
+        Some(WidgetData::FontString(font)) => assert_eq!(
+            font.text, "Item Level 15",
+            "Set level uses the same authentic Retail squish as its item tooltip"
+        ),
+        other => panic!("Expected item level, got {other:?}"),
+    }
+    assert!(registry.get_by_name("JournalClassFilter").is_some());
+    view.apply("journal:class:1").unwrap();
+    view.apply("journal:spec:71").unwrap();
+    context.insert(view);
+    screen.sync(&context, &mut registry);
+    assert!(
+        registry.get_by_name("JournalSet900").is_none(),
+        "Warrior cannot browse Paladin-only sets"
+    );
+}
+
+#[test]
+fn set_tooltip_uses_authentic_members_thresholds_and_inactive_legacy_flag() {
+    use game_engine_ui_model::{
+        adventure_guide_tooltip::set_lines,
+        bag_data::{InventorySlot, InventoryState},
+    };
+    use shared::protocol::EquipmentSlot;
+    let mut view = journal();
+    view.spec = 70;
+    let set = view.catalog.sets.iter().find(|set| set.id == 900).unwrap();
+    let mut inventory = InventoryState::default();
+    let missing_descriptions = std::collections::BTreeMap::new();
+    let lines = set_lines(&view, set, &inventory, &missing_descriptions);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text == "Lightsworn Battlegear (0/5)")
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text == "Legacy Set: Bonus is inactive")
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text.contains("(2) Set:") && line.left_text.contains("70765"))
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text.contains("(4) Set:") && line.left_text.contains("70762"))
+    );
+    for (slot, id) in [
+        (EquipmentSlot::Chest, 51717),
+        (EquipmentSlot::Hands, 51718),
+        (EquipmentSlot::Head, 51719),
+        (EquipmentSlot::Legs, 51720),
+        (EquipmentSlot::Shoulder, 51721),
+    ] {
+        inventory.equipment.insert(
+            slot,
+            InventorySlot {
+                item_id: id,
+                count: 1,
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
+                ..Default::default()
+            },
+        );
+    }
+    let lines = set_lines(&view, set, &inventory, &missing_descriptions);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.left_text == "Lightsworn Battlegear (5/5)")
+    );
+    assert!(
+        lines
+            .iter()
+            .filter(|line| line.left_text.contains(" Set:"))
+            .all(|line| line.left_color == [0.5, 0.5, 0.5, 1.])
+    );
+    assert!(
+        lines.iter().any(
+            |line| line.left_text == "Lightsworn Helmet" && line.left_color == [1., 1., 1., 1.]
+        )
+    );
 }
 
 #[test]
@@ -221,6 +397,18 @@ fn both_skins_render_authored_ability_loot_and_raid_text() {
         }
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn wailing_caverns_boss_link_selects_the_dungeon_tab() {
+    let mut view = journal();
+    view.select_encounter(475).unwrap();
+    assert_eq!(view.catalog.encounter(475).unwrap().name, "Lord Cobrahn");
+    assert_eq!(
+        view.tab,
+        Tab::Dungeons,
+        "Map43 is an authored dungeon even though JournalInstance.Flags is zero"
+    );
 }
 
 #[test]

@@ -1,6 +1,8 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
+#[cfg(test)]
+mod adventure_guide_wire_tests;
 #[path = "ui/automation_data.rs"]
 pub mod automation_data;
 #[path = "game/state/game_state_enum.rs"]
@@ -224,6 +226,7 @@ impl NetworkBridge {
             // Quest log for the quest log, the objective tracker and the map quest areas;
             // quest giver markers; the quest giver dialog pages and turn-in results.
             .receive::<QuestLogSnapshot>()
+            .receive::<protocol::WorldQuestAvailability>()
             .receive::<QuestLogUpdate>()
             .receive::<QuestGiverStatusMultiple>()
             .receive::<QuestFailed>()
@@ -240,6 +243,7 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
+            .receive::<protocol::AdventureGuideSnapshot>()
             .receive::<protocol::PartyKeystoneSnapshot>()
             .receive::<protocol::ScenarioProgress>()
             .receive_encounters()
@@ -316,6 +320,7 @@ impl NetworkBridge {
             .receive::<protocol::AppearanceCollectionUpdate>()
             .receive::<protocol::TransmogState>()
             .receive::<protocol::TransmogFailed>()
+            .receive::<protocol::MountJournalUpdate>()
             .receive::<protocol::ToyCollectionUpdate>()
             .receive::<protocol::ToyResult>()
             // Bank and guild bank contents, logs and refusals (bank-frame.md).

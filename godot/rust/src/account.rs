@@ -127,6 +127,7 @@ pub struct Account {
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub challenge: shared::protocol::ChallengeSnapshot,
+    pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
@@ -245,6 +246,7 @@ pub enum AccountEvent {
     CreatureTooltip(CreatureTooltip),
     /// The account's learned appearances.
     Appearances(AppearanceCollectionUpdate),
+    MountJournal(shared::protocol::MountJournalUpdate),
     Toys(shared::protocol::ToyCollectionUpdate),
     ToyResult(shared::protocol::ToyResult),
     ToyCooldown(SpellCooldownUpdate),
@@ -350,6 +352,7 @@ impl Account {
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
             challenge: Default::default(),
+            adventure_guide: None,
             party_keystones: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
@@ -411,6 +414,7 @@ impl Account {
         self.raid_difficulty = None;
         self.dungeon_objectives = Default::default();
         self.scenario_objectives = Default::default();
+        self.adventure_guide = None;
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -617,9 +621,40 @@ impl Account {
             .map_err(SessionError)
     }
 
-    pub fn send_use_toy(&self, item_id: u32) -> Result<(), SessionError> {
+    pub fn send_mount(&self, mount_id: u32, dismiss: bool) -> Result<(), SessionError> {
+        if dismiss {
+            self.bridge()?
+                .send::<_, shared::protocol::CollectionChannel>(shared::protocol::DismissMount)
+                .map_err(SessionError)
+        } else {
+            self.bridge()?
+                .send::<_, shared::protocol::CollectionChannel>(shared::protocol::SummonMount {
+                    mount_id,
+                })
+                .map_err(SessionError)
+        }
+    }
+
+    pub fn send_mount_favourite(&self, mount_id: u32, favourite: bool) -> Result<(), SessionError> {
         self.bridge()?
-            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::UseToy { item_id })
+            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::SetMountFavourite {
+                mount_id,
+                favourite,
+            })
+            .map_err(SessionError)
+    }
+
+    pub fn send_random_favourite_mount(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(
+                shared::protocol::SummonRandomFavouriteMount,
+            )
+            .map_err(SessionError)
+    }
+
+    pub fn send_use_toy(&self, request: shared::protocol::UseToy) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(request)
             .map_err(SessionError)
     }
 
@@ -691,6 +726,15 @@ impl Account {
     pub fn send_saved_instance_extend(
         &self,
         request: shared::protocol::SetSavedInstanceExtend,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_adventure_guide(
+        &self,
+        request: shared::protocol::AdventureGuideRequest,
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(request)
@@ -1442,6 +1486,7 @@ impl Account {
                 }
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
+                    self.adventure_guide = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -1630,6 +1675,10 @@ impl Account {
             output.push(AccountEvent::CreatureTooltip(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::MountJournalUpdate>() {
+            output.push(AccountEvent::MountJournal(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::ToyCollectionUpdate>() {
             output.push(AccountEvent::Toys(decode(message)?));
             return Ok(());
@@ -1649,7 +1698,8 @@ impl Account {
     }
 
     fn is_account_state_message(message: &ProtocolMessage) -> bool {
-        message.is::<QuestLogSnapshot>()
+        message.is::<shared::protocol::WorldQuestAvailability>()
+            || message.is::<QuestLogSnapshot>()
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
@@ -1657,6 +1707,7 @@ impl Account {
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ChallengeSnapshot>()
+            || message.is::<shared::protocol::AdventureGuideSnapshot>()
             || message.is::<shared::protocol::PartyKeystoneSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
@@ -1671,6 +1722,10 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::AdventureGuideSnapshot>() {
+            self.adventure_guide = Some(std::sync::Arc::new(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::PartyKeystoneSnapshot>() {
             self.party_keystones = decode(message)?;
             return Ok(());
@@ -1703,6 +1758,11 @@ impl Account {
             self.achievement_requests
                 .extend(self.achievements.refresh(&update));
             output.push(AccountEvent::Achievement(update));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WorldQuestAvailability>() {
+            self.quests
+                .apply_availability(decode(message)?, quest_local_unix());
             return Ok(());
         }
         if message.is::<QuestLogSnapshot>() {
@@ -2136,6 +2196,7 @@ impl Account {
                 }
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
+                    self.adventure_guide = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -2318,7 +2379,7 @@ pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, Stri
 }
 
 /// The quest giver dialog message, or the message back (`QuestChannel`).
-fn quest_local_unix() -> i64 {
+pub(crate) fn quest_local_unix() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock after Unix epoch")

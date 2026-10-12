@@ -64,7 +64,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 23] = [
+        const SOURCES: [Source; 24] = [
+            GameClient::journal_set_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -90,6 +91,66 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, (set, item)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            self.adventure_guide.view.set_member(frame.name.as_deref()?)
+        })?;
+        let slot = named_item_for(
+            shared::item_data::ItemDefinitionSource::Retail,
+            item.id,
+            &item.name,
+            item.quality as u8,
+            1,
+            0,
+        );
+        drop(ui);
+        let descriptions = self.journal_bonus_descriptions(set.id);
+        let lines = game_engine_ui_model::adventure_guide_tooltip::set_lines(
+            &self.adventure_guide.view,
+            set,
+            &self.merchant.session.inventory,
+            &descriptions,
+        );
+        let mut hovered = self.item_owned(hit, owner, OwnerSide::Right, slot)?;
+        hovered.tooltip.content.lines.extend(lines);
+        Some(hovered)
+    }
+
+    fn journal_bonus_descriptions(&self, set: u32) -> std::collections::BTreeMap<u32, String> {
+        let catalog = self
+            .spells
+            .catalog()
+            .expect("Loaded Journal requires spell catalog");
+        let context = SpellTextContext {
+            known_spells: self.account.spells.known().to_vec(),
+            auras: Vec::new(),
+            spec_id: (self.adventure_guide.view.spec != 0)
+                .then_some(self.adventure_guide.view.spec),
+            caster_power: self.local_caster_power(),
+        };
+        self.adventure_guide
+            .view
+            .catalog
+            .set_bonuses
+            .get(&set)
+            .into_iter()
+            .flatten()
+            .filter_map(
+                |bonus| match catalog.render_description(bonus.spell, &context) {
+                    Some(text) => Some((bonus.spell, text)),
+                    None => {
+                        crate::frame_error::report_once(&format!(
+                            "Journal set{set} bonus{}: description unavailable",
+                            bonus.spell
+                        ));
+                        None
+                    }
+                },
+            )
+            .collect()
     }
 
     fn spell_game_tooltip(&self, spell_id: u32, available_at: Option<u32>) -> GameTooltip {
@@ -320,7 +381,12 @@ impl GameClient {
         side: OwnerSide,
         item: InventorySlot,
     ) -> Option<HoveredTooltip> {
-        let tooltip = item_game_tooltip(&item, self.player_level());
+        let mut tooltip = item_game_tooltip(&item, self.player_level());
+        tooltip.content = self.mount_journal.view.item_tooltip(
+            item.definition_source,
+            item.item_id,
+            tooltip.content,
+        );
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, side, tooltip)?,
             item: Some(item),
@@ -607,7 +673,12 @@ impl GameClient {
             auction_row_item(frame.onclick.as_deref()?, &self.auction.session.net)
         })?;
         drop(ui);
-        let tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
+        let mut tooltip = without_sell_price(item_game_tooltip(&item, self.player_level()));
+        tooltip.content = self.mount_journal.view.item_tooltip(
+            item.definition_source,
+            item.item_id,
+            tooltip.content,
+        );
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
             item: Some(item),

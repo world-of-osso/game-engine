@@ -1,6 +1,7 @@
 //! UI integration suites share one harness to avoid repeated dependency linking.
 //! Keep suites as modules; their fixture paths stay relative to the original files.
 
+mod adventure_activities;
 mod adventure_guide;
 mod ahportrait;
 mod atlas_skins;
@@ -59,6 +60,7 @@ mod minimap_ping;
 mod minimap_tracking;
 mod minimapblips;
 mod mirror_timer;
+mod mount_journal;
 mod native_auction;
 mod native_bank_art;
 mod native_bank_moves;
@@ -92,6 +94,7 @@ mod spell_power_text;
 mod spellbook_frame;
 mod spellbook_preview;
 mod status_text_bars;
+mod talent_centering;
 mod talent_footer;
 mod talent_icons;
 mod talent_layout;
@@ -114,4 +117,5 @@ mod unit_frame_atlas;
 mod vigor_bar;
 mod wild_pet_battle;
 mod world_map_quest_panel;
+mod world_quests;
 mod xp_bar;
