@@ -1,3 +1,18 @@
+## 2026-10-12 — Kotmogu both-skin private lifecycle
+
+[Kotmogu](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12): source queue699/map998, four real accounts, physical orb use and natural center ticks through1500, measured418/419, automatic results and exact native origin return; eighteen inspected PNGs. Private teardown waits for returned actors' periodic save. Combat aura/kill bonus and scenery/asset parity remain explicit gaps.
+
+## 2026-10-12 — Eye of the Storm rules and PvP list scrolling
+
+[Eye of the Storm](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): queue 7/map 566 with TDB control-zone towers, Netherstorm flag scoring/drop/respawn, WorldStates and PvpStat 183. Server channel and both-skin UI tests pass. Live proof is blocked by missing M2 floor support at both start points. The PvP queue ScrollBox now scrolls with the native wheel and steppers.
+
+## 2026-10-12 — Twin Peaks and sourced scoreboard columns
+
+[Flag maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Twin Peaks 108/map 726 joins WSG on one shared flag rule set with its PvpStats 290/291 and TC's 15-minute end; scoreboard columns now come from PvpStat/PvpScoreboardLayout for every map. Both-skin private proof: 10 accounts, three physical captures, Victory, return.
+
+## 2026-10-12 — Source-backed battleground node maps
+
+[Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
 ## 2026-10-12 — Stockade full-bake regression
 
 [Stockade floor fall](investigations/stockade-floor-fall.md#full-m2-bake-authentic-barrel-support--verified-2026-10-12): barrel199563/MODD523 in the sole selected/default set0 authentically supports(103,76) at-33.924946. Existing fall columns remain unsupported; server/native tests move bare WMO controls off the barrel and explicitly assert its hull support. No rebake or loader changes.

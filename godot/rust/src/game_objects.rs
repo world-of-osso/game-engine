@@ -82,7 +82,9 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
         | shared::protocol::GAMEOBJECT_TYPE_KEYSTONE_RECEPTACLE
         | GAMEOBJECT_TYPE_CHEST
         | GAMEOBJECT_TYPE_GOOBER
-        | GAMEOBJECT_TYPE_BATTLEGROUND_FLAG => Some(ActiveWowCursor::Interact),
+        | GAMEOBJECT_TYPE_BATTLEGROUND_FLAG
+        | shared::protocol::GAMEOBJECT_TYPE_FLAGSTAND
+        | shared::protocol::GAMEOBJECT_TYPE_CAPTURE_POINT => Some(ActiveWowCursor::Interact),
         _ => None,
     }
 }
@@ -301,6 +303,20 @@ mod tests {
         let flag = shared::protocol::GAMEOBJECT_TYPE_BATTLEGROUND_FLAG;
         assert!(game_object_is_renderable(flag));
         assert_eq!(game_object_cursor(flag), Some(ActiveWowCursor::Interact));
+    }
+
+    #[test]
+    fn kotmogu_orbs_render_and_offer_object_use() {
+        let orb = shared::protocol::GAMEOBJECT_TYPE_FLAGSTAND;
+        assert!(game_object_is_renderable(orb));
+        assert_eq!(game_object_cursor(orb), Some(ActiveWowCursor::Interact));
+    }
+
+    #[test]
+    fn node_battleground_capture_points_render_and_offer_object_use() {
+        let point = shared::protocol::GAMEOBJECT_TYPE_CAPTURE_POINT;
+        assert!(game_object_is_renderable(point));
+        assert_eq!(game_object_cursor(point), Some(ActiveWowCursor::Interact));
     }
 
     #[test]
