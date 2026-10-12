@@ -23,6 +23,7 @@ func run_test() -> void:
 	if not await preview_entry(1693, BOOKCASE_NAME, "preview-bookcase"): return
 	if not await rotate_preview(): return
 	if not await preview_entry(2330, "Gnomish Tesla Coil", "preview-tesla"): return
+	if not await preview_entry(525, "Orgrimmar Round Interior Pillar", "preview-pillar"): return
 	if not await preview_entry(1693, BOOKCASE_NAME, "preview-replaced"): return
 	await click_control(housing_control("HousingDashboardHouseInfoTabButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return preview_view() == null and client.find_children("HousingCatalogActor", "Node3D", true, false).is_empty(), "tab change frees preview scene"): return
