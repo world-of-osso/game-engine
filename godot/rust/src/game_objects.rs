@@ -299,15 +299,10 @@ fn apply_object_animation(
                 object.display_id
             )
         })?;
-    if !player
+    player
         .bind_mut()
-        .select_animation_id(animation.animation_id, animation.looping)?
-    {
-        return Err(format!(
-            "Gameobject display {} lacks source animation {}",
-            object.display_id, animation.animation_id
-        ));
-    }
+        .play_clip(animation.animation_id, animation.looping)
+        .map_err(|error| format!("Gameobject display {}: {error}", object.display_id))?;
     if let Some(mut collision) = object
         .node
         .get_node_or_null("GameObjectModel/M2Collision")
