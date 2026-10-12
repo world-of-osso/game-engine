@@ -610,8 +610,11 @@ impl GameClient {
         let frame = &states.frame;
         let cells = frame.cells.iter().chain(&frame.last_buyback);
         let slots = states.bags.bags.iter().flat_map(|bag| &bag.slots);
-        let new: Vec<u32> = cells
-            .map(|cell| cell.icon_fdid)
+        let cell_icons = cells.flat_map(|cell| {
+            std::iter::once(cell.icon_fdid)
+                .chain(cell.extra_costs.iter().map(|cost| cost.icon_file_data_id))
+        });
+        let new: Vec<u32> = cell_icons
             .chain(slots.map(|slot| slot.icon_fdid))
             .filter(|&fdid| fdid != 0 && self.merchant.cached_icons.insert(fdid))
             .collect();
