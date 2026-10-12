@@ -37,6 +37,14 @@ func live_run() -> void:
 					if node.is_visible_in_tree():
 						var rect: Rect2 = node.get_global_rect()
 						result.controls.append({"name": str(node.name), "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "text": str(node.text) if node is Label or node is Button else ""})
+			"objects":
+				result.objects = []
+				for node in root.find_children("Mailbox_*", "Node3D", true, false):
+					if not node.has_meta("game_object_entry"):
+						continue
+					var model = node.get_node_or_null("GameObjectModel")
+					var collision = node.get_node_or_null("GameObjectModel/M2Collision") as StaticBody3D
+					result.objects.append({"entry": node.get_meta("game_object_entry"), "server_id": node.get_meta("game_object_server_id"), "position": str(node.global_position), "model_fdid": model.get_meta("model_file_data_id") if model else null, "collision_layer": collision.collision_layer if collision else null})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
