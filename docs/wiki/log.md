@@ -2,6 +2,13 @@
 
 [Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance is still pending.
 
+## 2026-10-12 — Mount Journal final acceptance
+
+[Mounts](systems/mounts.md#mount-journal): merged master; both-skin private vendor learn/favourite/summon/random, alternate-character persistence and two-account AH buy/mail/learn pass at the merged revision. Remaining preview receipt coverage is recorded in the [contract](../specs/mount-journal.md#known-gaps-current-cycle).
+
+## 2026-10-11 — Mount Journal implementation/data checkpoint
+
+[Mounts](systems/mounts.md#mount-journal): account-authoritative native journal, strict local mount-root appearance extension and private Modern item/preview observation. Behavioural and cache-preservation proof recorded; both-skin acceptance/final gate remain open in the [contract](../specs/mount-journal.md).
 ## 2026-10-11 — Retail talent placement
 
 [Talents placement](systems/talents.md#retail-placement-correction-2026-10-11): source-derived class pan and DB2 centers replace fit zoom/126px row rebasing; BOTTOM-centered page,200px PvP tray/4px gaps and label. Ret/Arcane both-skin behavioral regression and private5921 before/after proof tracked in the talent-centering evidence ledger.
@@ -671,6 +678,8 @@ MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](syste
 MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
 
 # Wiki Log
+
+-2026-10-11 Mount Journal continuation: real UDP paid vendor learning and known feedback; traced stale favourite before client receipt, implemented compact row publication/retained SharedContext view, added generation regression and central no-mount-transmog test.
 
 ## 2026-10-06 — Rendered Stormwind resource scheduling
 

@@ -319,6 +319,7 @@ impl NetworkBridge {
             .receive::<protocol::AppearanceCollectionUpdate>()
             .receive::<protocol::TransmogState>()
             .receive::<protocol::TransmogFailed>()
+            .receive::<protocol::MountJournalUpdate>()
             .receive::<protocol::ToyCollectionUpdate>()
             .receive::<protocol::ToyResult>()
             // Bank and guild bank contents, logs and refusals (bank-frame.md).
