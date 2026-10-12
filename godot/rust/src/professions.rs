@@ -30,7 +30,6 @@ pub(crate) struct Professions {
     pub(crate) orders: game_engine_ui_model::professions_orders::CraftingOrders,
     order_search: String,
     order_form_initialized: bool,
-    order_npc: Option<u64>,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -108,13 +107,23 @@ impl GameClient {
         self.professions.page = ProfessionPage::Recipes;
         self.professions.order_form_initialized = false;
         self.professions.orders.menu = None;
-        self.professions.order_npc = None;
+        self.professions.orders.npc = None;
+        self.professions.orders.customer = false;
         self.professions.specializations.confirming_unlock = false;
         self.professions.specializations.purchases.clear();
         self.professions.free_ui();
         visible
     }
-    pub(super) fn open_profession_spell(&mut self, spell_id: u32) -> bool {
+    pub(super) fn close_professions_window(&mut self) -> Result<bool, FrameError> {
+        if let Some(npc) = self.professions.orders.npc {
+            self.account.send_close_interaction(npc)?;
+        }
+        Ok(self.close_professions())
+    }
+    pub(super) fn open_profession_spell(
+        &mut self,
+        spell_id: u32,
+    ) -> Result<bool, crate::frame_error::SessionError> {
         let opener = self
             .professions
             .catalog
@@ -122,11 +131,15 @@ impl GameClient {
             .is_some_and(|catalog| catalog.openers.contains_key(&spell_id));
         let known = self.professions.book.snapshot.spells.contains(&spell_id);
         if opener && known {
+            if let Some(npc) = self.professions.orders.npc {
+                self.account.send_close_interaction(npc)?;
+            }
+            self.close_professions();
             self.professions.book.visible = true;
             self.professions.book.quantity = 1;
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
     pub(super) fn profession_spell_ids(&self) -> Vec<u32> {
         self.professions
@@ -148,7 +161,7 @@ impl GameClient {
         }
         self.professions.poll_catalog(&self.data_root)?;
         self.refresh_profession_recipes();
-        self.apply_profession_key();
+        self.apply_profession_key()?;
         if !self.professions.book.visible {
             return Ok(());
         }
@@ -192,9 +205,9 @@ impl GameClient {
                 .map(|recipe| recipe.spell_id);
         }
     }
-    fn apply_profession_key(&mut self) {
+    fn apply_profession_key(&mut self) -> Result<(), FrameError> {
         if self.game_menu_ui.is_some() || !self.account.session.gameplay_input_allowed() {
-            return;
+            return Ok(());
         }
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         if self
@@ -203,12 +216,13 @@ impl GameClient {
             .is_just_pressed(InputAction::ToggleProfessions, &input)
         {
             if self.professions.book.visible {
-                self.close_professions();
+                self.close_professions_window()?;
             } else {
                 self.professions.book.visible = true;
                 self.professions.book.quantity = 1;
             }
         }
+        Ok(())
     }
     fn poll_profession_inputs(&mut self) -> Result<(), FrameError> {
         let Some(mut ui) = self.professions.ui.clone() else {
@@ -230,10 +244,7 @@ impl GameClient {
                 break;
             }
             if action == "profession:close" {
-                if let Some(npc) = self.professions.order_npc.take() {
-                    self.account.send_close_interaction(npc)?;
-                }
-                self.close_professions();
+                self.close_professions_window()?;
                 break;
             }
             if let Some(tab) = action.strip_prefix("profession:tab:") {

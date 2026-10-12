@@ -6,6 +6,41 @@ use game_engine_ui_model::trade::{money_texts, parse_money};
 use shared::protocol::{CraftingOrderKind, CraftingOrderRequest};
 
 impl GameClient {
+    pub(crate) fn receive_crafting_order_interaction(
+        &mut self,
+        message: &crate::account::NpcMessage,
+    ) -> Result<bool, String> {
+        use crate::account::NpcMessage;
+        use shared::protocol::{InteractionKind, NpcRole};
+        match message {
+            NpcMessage::Opened(opened)
+                if opened.kind == InteractionKind::Role(NpcRole::CraftingOrders) =>
+            {
+                self.professions.free_ui();
+                self.professions.page = ProfessionPage::Orders;
+                self.professions.book.visible = true;
+                self.professions.order_form_initialized = false;
+                let request = self.professions.orders.open_customer(opened.npc);
+                self.merchant.session.close();
+                self.mailbox.session.close();
+                self.auction_interaction_closed_any();
+                self.account
+                    .send_crafting_order(request)
+                    .map_err(|error| error.to_string())?;
+                Ok(true)
+            }
+            NpcMessage::Closed(npc) if self.professions.orders.npc == Some(*npc) => {
+                self.professions.orders.close_for(*npc);
+                self.close_professions();
+                Ok(false)
+            }
+            NpcMessage::Opened(_) if self.professions.orders.npc.is_some() => {
+                self.close_professions();
+                Ok(false)
+            }
+            _ => Ok(false),
+        }
+    }
     fn order_skill_line(&self) -> u32 {
         if self.professions.orders.customer {
             return 0;
