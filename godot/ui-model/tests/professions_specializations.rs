@@ -191,6 +191,47 @@ fn specialization_dial_shows_only_selected_path_source_perks() {
 }
 
 #[test]
+fn specialization_major_perk_radius_is_independent_of_subpath_unlock_flag() {
+    let mut view = tree350_view();
+    let tree = &mut view.specializations.snapshot.as_mut().unwrap().trees[0];
+    let mut perk = tree.nodes[0].clone();
+    perk.node_id = 28534;
+    perk.entry_id = 36325;
+    perk.kind = 0;
+    perk.perk = Some(ProfessionSpecPerk {
+        path_node_id: 28546,
+        required_points: 10,
+        unlocks_subpath: true,
+        is_major_bonus: false,
+    });
+    tree.nodes.push(perk);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (major, x, y) in [(false, 796.3305, 226.4551), (true, 787.6072, 218.2147)] {
+            let mut current = view.clone();
+            let perk = current.specializations.snapshot.as_mut().unwrap().trees[0]
+                .nodes
+                .last_mut()
+                .unwrap()
+                .perk
+                .as_mut()
+                .unwrap();
+            perk.is_major_bonus = major;
+            perk.unlocks_subpath = !major;
+            let registry = render(current, skin);
+            let frame = frame(&registry, "ProfessionSpecPerk28534");
+            let ui_toolkit::layout_values::Val::Px(left) = frame.position.left else {
+                panic!("pixel perk position")
+            };
+            let ui_toolkit::layout_values::Val::Px(top) = frame.position.top else {
+                panic!("pixel perk position")
+            };
+            assert!((left + 45.0 - x).abs() < 0.02);
+            assert!((top + 45.0 - y).abs() < 0.02);
+        }
+    }
+}
+
+#[test]
 fn specialization_tree350_uses_retail_radial_positions_and_one_button_per_path() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(tree350_view(), skin);
