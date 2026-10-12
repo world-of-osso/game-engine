@@ -1154,8 +1154,13 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
         epoch: 8,
         controlled: false,
     };
+    let facing = shared::components::ForcedFacing {
+        epoch: 8,
+        yaw: 1.25,
+    };
     server.world_mut().entity_mut(entity).insert((
         next_control,
+        facing,
         Position {
             x: 20.0,
             y: 30.0,
@@ -1167,7 +1172,10 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
         &mut host,
         id,
         "next movement control",
-        |unit| unit.get::<MovementControl>() == Some(&next_control),
+        |unit| {
+            unit.get::<MovementControl>() == Some(&next_control)
+                && unit.get::<shared::components::ForcedFacing>() == Some(&facing)
+        },
     );
     assert_eq!(position_x(host.unit(id).unwrap()), Some(20.0));
 
