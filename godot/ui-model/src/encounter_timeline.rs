@@ -56,13 +56,16 @@ impl EncounterTimeline {
                     .sort_by(|a, b| a.remaining.total_cmp(&b.remaining));
             }
             EncounterTimelineEvent::Cast {
-                spell_id, severity, ..
+                spell_id,
+                severity,
+                warning_text,
+                ..
             } => {
-                let (name, icon) = spell(spell_id);
+                let (_, icon) = spell(spell_id);
                 self.replace_warning(WarningView {
                     spell_id,
                     severity,
-                    name,
+                    name: warning_text,
                     icon,
                     remaining: WARNING_HOLD_SECONDS,
                 });
@@ -180,11 +183,12 @@ mod tests {
                 caster: 3669,
                 spell_id: 20805,
                 severity: EncounterSeverity::Low,
+                warning_text: "Casting Lightning Bolt".into(),
             },
             0,
             spell,
         );
-        assert_eq!(view.warnings[0].name, "Lightning Bolt");
+        assert_eq!(view.warnings[0].name, "Casting Lightning Bolt");
         assert_eq!(view.warnings[0].icon, 136048);
         view.receive(
             EncounterTimelineEvent::Phase {
