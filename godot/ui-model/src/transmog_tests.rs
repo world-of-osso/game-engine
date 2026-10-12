@@ -15,6 +15,7 @@ fn state() -> TransmogState {
             can_hide: false,
             sources: vec![TransmogSource {
                 source_id: 821,
+                source_type: 3,
                 appearance_id: 154,
                 item_id: 2488,
                 display_id: 1542,
@@ -23,14 +24,15 @@ fn state() -> TransmogState {
                 inventory_type: 13,
             }],
         }],
+        ..Default::default()
     }
 }
 
 #[test]
-fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_changes() {
+fn transmog_wardrobe_pages_have_twenty_models_and_clamp_after_collection_changes() {
     let mut collection = state();
     let source = collection.slots[0].sources[0].clone();
-    collection.slots[0].sources = (0..37)
+    collection.slots[0].sources = (0..41)
         .map(|index| TransmogSource {
             source_id: 821 + index,
             name: format!("Gladius {index}"),
@@ -40,9 +42,9 @@ fn transmog_wardrobe_pages_have_eighteen_models_and_clamp_after_collection_chang
     let mut book = TransmogBook::default();
     book.receive(collection);
     assert_eq!(book.pages(), 3);
-    assert_eq!(book.page_sources().len(), 18);
+    assert_eq!(book.page_sources().len(), 20);
     book.page = 1;
-    assert_eq!(book.page_sources()[0].source_id, 839);
+    assert_eq!(book.page_sources()[0].source_id, 841);
     book.page = 2;
     assert_eq!(book.page_sources().len(), 1);
     book.receive(state());
@@ -78,6 +80,7 @@ fn transmog_search_filters_names_without_losing_hidden_pending_choices() {
     let mut collection = state();
     collection.slots[0].sources.push(TransmogSource {
         source_id: 1181,
+        source_type: 4,
         appearance_id: 389,
         item_id: 3295,
         display_id: 1546,

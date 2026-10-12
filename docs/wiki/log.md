@@ -5,9 +5,92 @@
 ## 2026-10-12 — Class completeness continuation
 
 [Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): private both-skin spell receipts for nine additional classes; DH startup exposed authored133320→29124→display0 being dropped, then a nonexistent-display lookup. Native RED/GREEN preserves occupied no-visual slots without weakening missing/invalid metadata errors; targeted core6/shared renderer1 pass. DH/Evoker rebuilt native gates and full13/all40 goal remain open.
+## 2026-10-12 — Combat-assist source-gap re-audit and replay
+
+[Cooldown/assist audit](investigations/cooldown-assist-data.md#source-gap-re-audit--2026-10-12): exact1229376/470418 DB2 rows and pinned TC cast/GCD paths do not define assistant-origin penalty handling; no guessed multiplier. Nonzero chargeValue2 has no authored rows in this build. Native observation captures one evaluator decision for exact private Holy Power/charge/cost/target replay; comparator semantics remain unchanged.
+## 2026-10-12 — Silvershard both-skin private lifecycle
+
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Canonical assets/cache remain lead-owned; broader preparation/graveyard/visual-aura parity remains open.
+
+## 2026-10-12 — Silvershard private content prerequisites
+
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): actual promoted switches pass source three-second casts/cancellation/copy checks;1,758 real-floor route approaches replace unsafe NPC-pivot travel. Modern private lifecycle reaches1500/428/exact return, but its carts were invisible. Two ordinary appearance rows and authenticated Retail model chains are staged privately; both-skin rendered acceptance remains open. Eye matched live rerun is now unblocked by landed M2 floors.
+
+## 2026-10-12 — Transmog icon and relog completion
+
+[Transmog UI](systems/transmog-apply.md): sourced static portrait and set hover, tooltip-only set titles, player-selected persisted outfit icons with versioned legacy migration, real popup-over-card nonactivation, both Custom Sets pages, and separate-process paid gold/appearance/icon relog in both skins.38 inspected PNGs plus manifest republished; full global macro/spell icon catalogue and existing disabled policy boundaries remain explicit.
+
+## 2026-10-12 — Housing unsnapped Expert mouse proof
+
+[Housing](systems/housing.md#basicexpert-editing-and-observers): source rotate/scale widget art, native selected-decor XYZ dragging, press-relative preview/cancel/commit, outside-release capture and both-skin private same-process relog proof. Retail right-centre instruction anchor fixes observed minimap overlap. Shift increments/native3D handle identity remain source gaps; no substitute art or interpreted GameParameter numbers.
+
+## 2026-10-12 — Housing source Finder and precision continuation
+
+[Housing](systems/housing.md): dedicated System2 map/standard projection, real persisted friend discovery (no synthetic occupied-plot list), physical bulletin roster, both-skin staged XYZ/scale cancel/commit/relog and five-component live observer rendering. One-time sourced schema1 migration and plain-master relog crash isolation. Quest92572 criterion binding has CPU proof; unresolved vendor reference prevents live acquisition. No default grants, legal outdoor bounds or charter policy invented; final heads/gates remain in handoff.
+
+## 2026-10-11 — Housing paid collection both-skin proof
+
+[Housing](systems/housing.md): native private5870 real Pawdo pick/gossip/50g purchase, normal bag UseItem, exact decor1693 stored0→1 and reauthentication persistence in Modern/Forever. Eight inspected1280px PNGs. Authenticated missing Pawdo appearance/hat receipt chains instead of substituting assets; fixture corrected to actual clickable gossip text and separate BagsUI. No granted item/decor, canonical world.db writes, house-grant inference or completed whole-goal claim.
+
+## 2026-10-11 — Housing ownership/storage continuation
+
+[Housing](systems/housing.md): static both-skin catalog re-captured after category icon changes on private5870. Dedicated server property admission, wire/arrival cornerstone purchase, restart admission and bounded authentic bag collection added with focused behavioral tests. Native ownership storage bridge added; its fresh command/live gates remain separate. Local GameObjects DB2 resolves the previously missing cornerstone template/model chain. No default exterior/interior grants, canonical database writes or completed whole-goal claim.
+## 2026-10-12 — Kotmogu both-skin private lifecycle
+
+[Kotmogu](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12): source queue699/map998, four real accounts, physical orb use and natural center ticks through1500, measured418/419, automatic results and exact native origin return; eighteen inspected PNGs. Private teardown waits for returned actors' periodic save. Combat aura/kill bonus and scenery/asset parity remain explicit gaps.
+
+## 2026-10-12 — Eye of the Storm rules and PvP list scrolling
+
+[Eye of the Storm](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): queue 7/map 566 with TDB control-zone towers, Netherstorm flag scoring/drop/respawn, WorldStates and PvpStat 183. Server channel and both-skin UI tests pass. Live proof is blocked by missing M2 floor support at both start points. The PvP queue ScrollBox now scrolls with the native wheel and steppers.
+
+## 2026-10-12 — Twin Peaks and sourced scoreboard columns
+
+[Flag maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Twin Peaks 108/map 726 joins WSG on one shared flag rule set with its PvpStats 290/291 and TC's 15-minute end; scoreboard columns now come from PvpStat/PvpScoreboardLayout for every map. Both-skin private proof: 10 accounts, three physical captures, Victory, return.
+
+## 2026-10-12 — Source-backed battleground node maps
+
+[Node maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Arathi/Gilneas source queue identities, timed capture/defense/resource authority, WorldStates, measured objective columns and type 42 native rendering. 82 scoped shared tests, two full channel fixtures and three native/UI tests pass. Arathi private 5712 both-skin 16-account source capture/resource/victory/return proof adds 14 inspected PNGs; Gilneas private 5712 both-skin 6-account proof (three physical nodes, 1500 victory, return) adds 14 more after the harness waited for every peer's invitation before acceptance. Deepwind authored placements and independent WorldState DB2 records remain source gaps.
+## 2026-10-12 — Source dice and item-label rendering
+
+[Dice](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12): actual-use source one1–100/two1–6 scripts, party/self result audience,40yd emotes and data/context/signature refusal boundaries. Native raw-item-markup RED fixed through received label/colour parsing;25 scoped chat regressions, both-skin actual journal/chat proof and current check/fmt pass. Canonical327 preflight candidates are not1166 certification; item interaction and stronger sign composition remain separate.
+
+## 2026-10-12 — Source warning-sign batches
+
+[Warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12): four source actor identities, both-skin real learning/use/mesh/scale/natural expiry. Swarthy195897 additionally proves one start/two authored models/scales/root offsets/scene-wide cleanup. Weak first-three captures await genuine cooldowns; per-effect pixel/particle certification remains separate. Prepared325 is not1166 completion; authenticated private preparation and source admission preserve existing gates.
+
+## 2026-10-12 — Banner and Preyhunter natural expiry
+
+[Scaled scenery](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12): both-skin real journal use/source scale and natural60s/120s actor removal pass on current merged native/server builds. Earlier Banner/Preyhunter expiry gap closed; no clock shortcuts or broader certification.
+
+## 2026-10-12 — Orb displayed-model animation
+
+[Orb](systems/toy-box.md#orb-costume-animation-and-restoration-2026-10-12): source race/sex server mapping, authenticated private closure, real movement/idle RED and displayed-model animation fix. Modern/Forever now prove10137/run5/cancellation/actual native mesh reattachment;10 scoped world tests, native build and fmt pass.321 preflight candidates are not1166 effect certification; remaining scope open.
+
+## 2026-10-12 — Stockade full-bake regression
+
+[Stockade floor fall](investigations/stockade-floor-fall.md#full-m2-bake-authentic-barrel-support--verified-2026-10-12): barrel199563/MODD523 in the sole selected/default set0 authentically supports(103,76) at-33.924946. Existing fall columns remain unsupported; server/native tests move bare WMO controls off the barrel and explicitly assert its hull support. No rebake or loader changes.
+
+## 2026-10-12 — Authored M2 doodad floors
+
+[Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
+## 2026-10-12 — Combat assist source-supported continuation
+
+[Cooldown/assist audit](investigations/cooldown-assist-data.md): all40 authored candidate inventories and exact ModifierTree gates, owner effective costs, initial charge publication, source-definite numeric outcomes with explicit equality/prediction gaps. Both private skins prove moving Retail ants on matching action/viewer surfaces and actual assistant35395 CastSuccess/2→1 charge depletion. Maintained driver uses build-qualified placement before login; assistant GCD-origin and undecoded semantics remain explicit.
+## 2026-10-12 — Legacy global-WMO floor closure
+
+[Legacy WDTs](investigations/legacy-global-wmo.md):193 MWMO name-index failures and13 terrain-less no-MAID maps recover;498 M2 tiles/6,983,272bytes.704-file staged floor package validates without publication. Fresh private maps1213/1214/1258 render in both skins with extracted-only mode;110 absent WDTs and broader no-install certification remain explicit.
+
+## 2026-10-12 — Authored toy display state kits
+
+[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry, display replacement and broader per-toy/procedural/positioner coverage remain open.
+## 2026-10-12 — Authored M2 doodad floors
+
+[Player ground](systems/player-ground.md#native-m2-floors--verified-2026-10-12): shared collision BVH height queries and authored-normal M2 floor companions, ADT and active/global WMO doodad placement, pre-render native movement, real EotS/Northshire standing/walking proof in both skins. Private classification/hosting overrides are diagnostic-only; battleground lifecycle remains bg-coverage-owned. LOS render policy, navigation and camera hulls unchanged.
+[Display kits](systems/toy-box.md#authored-display-state-kits-2026-10-12): real Spire RED, CDI-driven held kit lifecycle, semantic GROUND19 and source mesh/particle alpha. Both skins prove Sealamp116424/Spire236744 models/scales, one start and natural180-second actor/effect expiry;21 authenticated local assets,11 scoped core tests, native builds. Four scaled identities render; Banner/Prey native expiry subsequently passed above; display replacement and broader per-toy/procedural/positioner coverage remain open.
+
 ## 2026-10-11 — Toy input and source rendering
 
-[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance is still pending.
+[Toy Box continuation](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11): private both-skin clicked placement/cancellation, actual target-preserving search and witnessed Gaze, authenticated Ocean PCM mix, and real BC5 GPU dispatch RED→GREEN. Prepared catalog/physical speaker/per-toy rendering boundaries remain explicit; source-scaled lamp acceptance now passes both skins (2026-10-12), actual170476/display92605 with two meshes/root scale0.35/no PetFrame; four scaled identities now render, with Sealamp/Spire authored state-kit/expiry acceptance recorded above; remaining native/per-toy boundaries stay explicit.
 
 ## 2026-10-12 — Mount Journal final acceptance
 
@@ -3347,3 +3430,15 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 ## 2026-10-11 — integrated native gathering baseline
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
+
+## 2026-10-12 — Retail12.1 transmog revamp
+
+[Native transmog](systems/transmog-apply.md#retail121-native-proof--verified2026-10-12): shared-skin outfit/illusion/preset save/load, exact paid Apply, source/completion filters, primary set membership and correct alpha/additive-hover art. Real native popup click ordering RED→GREEN; both-skin private5926 proof includes hidden1500-copper staging and a real second Custom Set page. PvE/PvP classification stays disabled without authoritative/exhaustively verified mapping; conditional acquisition and enchant-effect/price boundaries remain explicit.
+- 2026-10-11 — Housing neighborhood/private ground: both-skin real Finder/admission/physical cornerstone/10M-copper claim/relog proof; authenticated three-map ground/bake closure and triangle-centroid fixture diagnosis in systems/housing.md. House-component grants/editor/visitor convergence remain open.
+## 2026-10-12 — Mount model assets staged
+
+All1,971 MountXDisplay mount chains authenticated from local Retail69933 CASC; additive package contains566 new M2 receipts and complete skins/textures/animations, with hash-guarded lead-only publication. Both-skin native census remains in progress;170 newly missing identities lack readable Mount rows. [Scope and proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).
+
+## 2026-10-12 — Mount asset native census complete
+
+Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered in each skin, including152 dependency-only recoveries and native quarter-turn proof for two small default silhouettes. Hash-guarded package default validation passes12,170 artifacts; lead publication remains pending. Nine inspected PNGs shared; missing journal identities and normal-host scroll boundary remain explicit. [Proof](systems/mounts.md#mount-asset-closure-staging--2026-10-12).

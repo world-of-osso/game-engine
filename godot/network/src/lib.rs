@@ -276,6 +276,7 @@ impl NetworkBridge {
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
             .receive::<protocol::SpellChargesUpdate>()
+            .receive::<protocol::SpellCostSnapshot>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
             // Server-computed damage meter sessions.
@@ -320,9 +321,11 @@ impl NetworkBridge {
             .receive::<protocol::AppearanceCollectionUpdate>()
             .receive::<protocol::TransmogState>()
             .receive::<protocol::TransmogFailed>()
+            .receive::<protocol::TransmogOutfitFailed>()
             .receive::<protocol::MountJournalUpdate>()
             .receive::<protocol::ToyCollectionUpdate>()
             .receive::<protocol::ToyResult>()
+            .receive::<protocol::HousingReply>()
             // Bank and guild bank contents, logs and refusals (bank-frame.md).
             .receive::<protocol::PetStableContents>()
             .receive::<protocol::PetStableFailed>()

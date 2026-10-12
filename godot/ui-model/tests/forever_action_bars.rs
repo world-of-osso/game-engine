@@ -312,6 +312,46 @@ fn modern_bars_draw_exactly_what_their_hand_copied_crops_drew() {
     assert_eq!(trees.lines().count(), fixture::MODERN_TREES.lines().count());
 }
 
+/// Retail Blizzard_ActionBar/Shared/ActionButtonComponentTemplate.xml:67-87:
+/// centered 45px Frame containing a centered 66px ARTWORK Flipbook texture.
+/// Mainline/AssistedCombatManager.lua:219-234 creates that Frame on the action button.
+#[test]
+fn assisted_highlight_keeps_retail_geometry_and_behavior_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for visible in [false, true] {
+            let mut state = bar_state();
+            state.buttons[0].assisted_highlight = visible;
+            let registry = build(skin, state, main_action_bar_screen);
+            let button = frame(&registry, "ActionButton1");
+            let Dimension::Fixed(size) = button.width else {
+                panic!("action button must have a fixed width");
+            };
+            let glow = frame(&registry, "ActionButton1AssistedHighlight");
+            assert_eq!(glow.parent_id, Some(button.id));
+            assert!(glow.widget_data.is_none());
+            assert_eq!(glow.hidden, !visible);
+            assert_close(
+                fixed_rect(&registry, "ActionButton1AssistedHighlight"),
+                (0.0, 0.0, size, size),
+                "centered highlight Frame",
+            );
+            let image = frame(&registry, "ActionButton1AssistedHighlightFlipbook");
+            assert_eq!(image.parent_id, Some(glow.id));
+            let image_size = size * 66.0 / 45.0;
+            let inset = (size - image_size) / 2.0;
+            assert_close(
+                fixed_rect(&registry, "ActionButton1AssistedHighlightFlipbook"),
+                (inset, inset, image_size, image_size),
+                "centered Flipbook texture",
+            );
+            let Some(WidgetData::Texture(art)) = &image.widget_data else {
+                panic!("highlight Flipbook must be a texture");
+            };
+            assert_eq!(art.source, TextureSource::FileDataId(6_992_992));
+        }
+    }
+}
+
 /// Capture from the actual components, independently of the golden comparison.
 #[test]
 #[ignore = "fixture capture; run with --ignored --nocapture"]
