@@ -104,6 +104,44 @@ fn specialization_query_uses_learned_specialization_tier_not_selected_classic_re
 }
 
 #[test]
+fn specialization_perk_tooltip_explains_source_path_and_pending_milestone() {
+    let mut draft = draft();
+    let tree = &mut draft.snapshot.as_mut().unwrap().trees[0];
+    let mut perk = tree.nodes[0].clone();
+    perk.node_id = 28534;
+    perk.entry_id = 36325;
+    perk.name = "Leather armor bonus".into();
+    perk.description = "Gain 5 Skill when crafting leather armor.".into();
+    perk.rank = 0;
+    perk.max_rank = 1;
+    perk.perk = Some(ProfessionSpecPerk {
+        path_node_id: 100,
+        required_points: 2,
+        unlocks_subpath: false,
+        is_major_bonus: false,
+    });
+    tree.nodes.push(perk);
+    let tooltip = draft.tooltip(28534).unwrap();
+    let lines: Vec<_> = tooltip
+        .content
+        .lines
+        .iter()
+        .map(|line| line.left_text.as_str())
+        .collect();
+    assert!(lines.contains(&"Requires 2 points in Leatherworking Discipline"));
+    assert!(!lines.iter().any(|line| line.starts_with("Rank ")));
+    assert!(draft.stage_rank());
+    let tooltip = draft.tooltip(28534).unwrap();
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Pending")
+    );
+}
+
+#[test]
 fn specialization_stages_absolute_ranks_and_spends_only_pending_knowledge() {
     let mut draft = draft();
     assert!(draft.stage_rank());
