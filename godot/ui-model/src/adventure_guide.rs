@@ -108,6 +108,21 @@ impl View {
                 .join("\n"),
         )
     }
+    pub fn set_item(&self, frame_name: &str) -> Option<&Item> {
+        let (set, item) = frame_name.strip_prefix("JournalSet")?.split_once("Item")?;
+        let set: u32 = set.parse().ok()?;
+        let item: u32 = item.parse().ok()?;
+        let member = self
+            .catalog
+            .sets
+            .iter()
+            .any(|row| row.id == set && row.items.contains(&item));
+        if member {
+            self.catalog.items.get(&item)
+        } else {
+            None
+        }
+    }
     pub fn item_sets(&self) -> Vec<&ItemSet> {
         let search = self.search.to_lowercase();
         let mut sets: Vec<_> = self
@@ -1088,12 +1103,9 @@ fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
     items.sort_by_key(|item| (slot_order(item.slot), item.id));
     children.extend(items.iter().enumerate().flat_map(|(index, item)| {
         let prefix = format!("JournalSet{}Item{}", set.id, item.id);
-        texture(
-            format!("{prefix}Icon"),
-            item.icon,
-            (360. + index as f32 * 37., 6., 28., 28.),
-            WHITE,
-        )
+        let icon = texture(format!("{prefix}Icon"), item.icon, (2., 2., 28., 28.), WHITE);
+        let left = 360. + index as f32 * 37.;
+        rsx! {r#frame {name:{DynName(prefix)},left,top:4.0,width:32.0,height:32.0,pos_type:"absolute",mouse_enabled:true,{icon}}}
     }));
     rsx! {r#frame {name:{DynName(format!("JournalSet{}Row",set.id))},left:10.0,top,width:744.0,height:41.0,pos_type:"absolute",background_color:"0.12,0.10,0.08,1.0",{children}}}
 }

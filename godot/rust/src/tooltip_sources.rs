@@ -64,7 +64,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 22] = [
+        const SOURCES: [Source; 23] = [
+            GameClient::journal_set_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -89,6 +90,23 @@ impl GameClient {
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
+    }
+
+    fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, item) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            self.adventure_guide.view.set_item(frame.name.as_deref()?)
+        })?;
+        let slot = named_item_for(
+            shared::item_data::ItemDefinitionSource::Retail,
+            item.id,
+            &item.name,
+            item.quality as u8,
+            1,
+            0,
+        );
+        drop(ui);
+        self.item_owned(hit, owner, OwnerSide::Right, slot)
     }
 
     fn spell_game_tooltip(&self, spell_id: u32, available_at: Option<u32>) -> GameTooltip {
