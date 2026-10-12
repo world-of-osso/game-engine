@@ -139,6 +139,12 @@ impl GameClient {
             return Ok(false);
         };
         let point = button.get_position();
+        godot_print!(
+            "HOUSING_EDITOR_BUTTON point={point:?} ui={} button={:?} pressed={}",
+            self.editor_ui_contains(point),
+            button.get_button_index(),
+            button.is_pressed()
+        );
         if self.editor_ui_contains(point) {
             return Ok(false);
         }
@@ -165,11 +171,19 @@ impl GameClient {
             .model
             .as_mut()
             .ok_or("House editor model is unavailable.")?;
+        godot_print!(
+            "HOUSING_EDITOR_STATE pending={} placing={:?} selected={:?}",
+            model.pending,
+            model.editor.placing,
+            model.editor.selected
+        );
         if model.pending {
             return Ok(true);
         }
+        let picked = crate::unit_pick::pick_unit(&camera, point);
+        godot_print!("HOUSING_EDITOR_PICK picked={picked:?}");
         if model.editor.placing.is_none()
-            && let Some(id) = crate::unit_pick::pick_unit(&camera, point)
+            && let Some(id) = picked
             && self.housing.decor.contains(id)
         {
             model.editor.select(&self.housing.authority, id)?;
@@ -236,6 +250,11 @@ impl GameClient {
             return output;
         };
         output.set("confirmed", true);
+        if let Some(model) = &self.housing.model {
+            output.set("selected", model.editor.selected.map_or(0, |id| id as i64));
+            output.set("placing", model.editor.placing.map_or(0, |id| id as i64));
+            output.set("pending", model.pending);
+        }
         let mut stored: Array<VarDictionary> = Array::new();
         for decor in &state.stored {
             let mut row = VarDictionary::new();

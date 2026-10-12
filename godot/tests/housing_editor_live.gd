@@ -18,10 +18,18 @@ func run_test() -> void:
 	root.add_child(client)
 	if not await connect_housing_account(): return
 	if not await open_editor_home(): return
-	if not await place_owned_bookcase(): return
+	if OS.get_environment("HOUSING_EDITOR_RESUME_PLACED") == "1":
+		if not await wait_housing(func(): return placed_node() != null, "previous authenticated placement node"): return
+		if stored_bookcases() != 0 or client.housing_state().decor.size() != 1 or int(client.housing_state().decor[0].decor_id) != 1693:
+			fail("Resume requires the exact paid bookcase already placed by the prior receipt")
+			return
+		if not await record_editor("resumed"): return
+	else:
+		if not await place_owned_bookcase(): return
 	if not await select_saved_decor(): return
 	var before: Dictionary = client.housing_state()
 	var moved_point: Vector2 = ground_point(7.0)
+	print("HOUSING_EDITOR_MOVE point=", moved_point, " picked=", UnitPicker.pick(camera(), moved_point), " state=", client.housing_state())
 	await click(moved_point, MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.housing_state().decor.size() == 1 and client.housing_state().decor[0].position.distance_to(before.decor[0].position) > 0.5, "authoritative decor movement"): return
 	if not await record_editor("moved"): return
@@ -65,7 +73,7 @@ func open_editor_home() -> bool:
 		await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.housing_state().get("house_id",0) == editor_house and client.housing_state().get("can_edit",false), "confirmed owner layout"): return false
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
-	if not await wait_housing(func(): return housing_control("HouseEditorStored1693") != null, "real editor storage"): return false
+	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null, "real editor storage"): return false
 	return await record_editor("storage")
 
 func home_allows_visitors() -> bool:
