@@ -124,15 +124,21 @@ func prove_ocean(sample: Array) -> void:
 	AudioServer.add_bus_effect(bus, meter)
 	player.bus = "ToySourceProof"
 	var volume := player.volume_linear
-	await create_timer(0.05).timeout
-	var samples := meter.get_buffer(meter.get_frames_available())
+	var frames := 0
 	var peak := 0.0
-	for frame in samples: peak = max(peak, max(abs(frame.x), abs(frame.y)))
-	receipts.append({"phase": "ocean-source-audio", "sound": sound, "volume_linear": volume, "mix_frames": samples.size(), "mix_peak": peak, "listener_enabled": root.get("audio_listener_enable_3d"), "distance_cutoff": player.max_distance if is_instance_valid(player) else -1, "camera_distance": player.global_position.distance_to(root.get_camera_3d().global_position) if is_instance_valid(player) else -1, "master_muted": AudioServer.is_bus_mute(0)})
+	#3D bus routing reaches the audio mixer asynchronously; one initial buffer can
+	#be silence even when the authenticated source is already playing.
+	for poll in range(8):
+		await create_timer(0.1).timeout
+		var samples := meter.get_buffer(meter.get_frames_available())
+		frames += samples.size()
+		for frame in samples: peak = max(peak, max(abs(frame.x), abs(frame.y)))
+		if peak > 0.000001: break
+	receipts.append({"phase": "ocean-source-audio", "sound": sound, "volume_linear": volume, "mix_frames": frames, "mix_peak": peak, "listener_enabled": root.get("audio_listener_enable_3d"), "distance_cutoff": player.max_distance if is_instance_valid(player) else -1, "camera_distance": player.global_position.distance_to(root.get_camera_3d().global_position) if is_instance_valid(player) else -1, "master_muted": AudioServer.is_bus_mute(0)})
 	write_receipts()
 	if is_instance_valid(player): player.bus = "Master"
 	AudioServer.remove_bus(bus)
-	if samples.is_empty() or peak <= 0.000001: fail("source ocean audio mixed no signal"); return
+	if frames == 0 or peak <= 0.000001: fail("source ocean audio mixed no signal"); return
 	if not await wait_until(func(): return ocean_cast_started() and has_aura(298869), "actual source ocean cast completes", 60000): return
 	await capture("ocean-toy168824-source-audio")
 	await cancel_aura(298869)
