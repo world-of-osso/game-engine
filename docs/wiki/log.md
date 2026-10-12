@@ -1,3 +1,7 @@
+## 2026-10-11 — World-quest deterministic foundations
+
+[World quests](../specs/world-quests.md): implement user-authorized realm rotation with four authentic604800s durations, private-copy importer and persisted task/watch expiry. Preserve full raw TDB rewards; exclude unknown durations rather than guess. Additional local task/condition extraction identifies remaining eligibility joins. Repair inline AreaPOI relationship duplication (RED→GREEN); decode3,909 POIs/1,070 states/154 buffs with zero matching task/stage/boss-name joins. Task-area acceptance and both-skin native/live completion remain open. No canonical data writes, UDP5000 operations or PNG acceptance claim.
+
 ## 2026-10-11 — AchievementFrame art
 
 [Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.

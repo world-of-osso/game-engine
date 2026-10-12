@@ -29,16 +29,21 @@ Currently only quests 52847, 52848, 54895, 54896 have authenticated duration joi
 
 ## Implementation inventory
 
-Server rotation calculation, environment configuration and definition loader are being implemented. Lifecycle and client integration remain open. Existing ordinary quest/map/tracker paths are prerequisites, not world-quest acceptance evidence.
+Server rotation calculation, environment configuration, definition loader, private-copy importer and persisted task expiry are implemented. Area-entry acceptance, automatic rewards, availability transport and native client integration remain open. Existing ordinary quest/map/tracker paths are prerequisites, not world-quest acceptance evidence.
 
 ## Tests asserting this spec
 
-None. Existing `world_quest_flow.gd` and `world_quest_progress.gd` fixtures exercise ordinary NPC-given quests, not world quests.
+- Server `world_quests::tests`: deterministic restart/input ordering, half-open boundaries, differing authored durations/capacity and process-isolated environment configuration.
+- Server `world_quests::expiry_tests`: exact-end persisted task/watch removal across actual redb close/reopen, ordinary timed-quest isolation and rejection of zero-duration definitions.
+- `scripts/test_import_world_quests.py`: positive-only duration admission, authentic objectives/POIs/race masks/raw rewards, idempotence, source-copy immutability and output no-clobber.
+
+These tests establish foundations, not area-entry/completion/reward or live UI acceptance. Existing `world_quest_flow.gd` and `world_quest_progress.gd` fixtures exercise ordinary NPC-given quests, not world quests.
 
 ## Known gaps (current cycle)
 
 - [ ] Duration coverage beyond the four managed-state definitions. Missing Retail activation data is no longer a blocker: the explicit realm policy above supplies scheduling.
-- [ ] Server lifecycle, protocol availability payload, both-skin map/tracker/reward integration and private completion proof remain missing.
+- [ ] Retail auto-accept/task-area and eligibility joins for the four admitted quests. All four have AreaGroupID=0, no TDB area-trigger involved relation, single-point static DB2 task pins and no TDB boss spawn. QuestSortID is a category/zone identifier, not evidence of an acceptance radius.
+- [ ] Automatic authentic currency/reputation/spell reward settlement, protocol availability payload, both-skin map/tracker integration and private completion proof remain missing. Raw TDB reward fields are retained by the importer; they have not been awarded.
 
 ## Out of scope
 
