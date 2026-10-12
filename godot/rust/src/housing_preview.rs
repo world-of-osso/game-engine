@@ -18,6 +18,7 @@ pub(crate) struct CatalogPreview {
     error_label: Option<Gd<Label>>,
     attempted: Option<u32>,
     yaw: f32,
+    bounds: Option<Aabb>,
     dragging: bool,
 }
 
@@ -31,6 +32,7 @@ impl CatalogPreview {
         }
         self.attempted = None;
         self.yaw = 0.0;
+        self.bounds = None;
         self.dragging = false;
     }
 
@@ -44,18 +46,21 @@ impl CatalogPreview {
         if self.attempted == Some(decor_id) {
             if let Some(scene) = &mut self.scene {
                 scene.fit_viewport();
+                frame_catalog_bounds(scene, self.bounds.expect("installed catalog bounds"));
             }
             return Ok(());
         }
         self.reset();
         self.attempted = Some(decor_id);
         match load_catalog_actor(data, catalog, decor_id) {
-            Ok(visual) => {
+            Ok((visual, bounds)) => {
                 let mut pivot = Node3D::new_alloc();
                 pivot.set_name("HousingCatalogPivot");
                 pivot.add_child(&visual);
                 let mut scene = Scene::new(host);
                 scene.replace_model(pivot);
+                frame_catalog_bounds(&mut scene, bounds);
+                self.bounds = Some(bounds);
                 self.scene = Some(scene);
                 Ok(())
             }
@@ -80,6 +85,7 @@ impl CatalogPreview {
         self.yaw = yaw;
         if let Some(scene) = &mut self.scene {
             scene.set_model_yaw(yaw);
+            frame_catalog_bounds(scene, self.bounds.expect("installed catalog bounds"));
         }
     }
 
@@ -111,7 +117,7 @@ fn load_catalog_actor(
     data: &Path,
     catalog: &HousingCatalog,
     decor_id: u32,
-) -> Result<Gd<Node3D>, String> {
+) -> Result<(Gd<Node3D>, Aabb), String> {
     let decor = catalog
         .decor
         .iter()
@@ -122,7 +128,21 @@ fn load_catalog_actor(
     visual.set_rotation(Vector3::from_array(decor.initial_rotation));
     visual.set_scale(Vector3::ONE * decor.initial_scale);
     bind_sheet_light(&visual);
-    Ok(visual)
+    // Retail SetPreferModelCollisionBounds(true): frame the solid body rather than
+    // its animation/particle envelope. Models without collision retain header bounds.
+    let bounds_key = if visual.has_meta(crate::assets::M2_COLLISION_BOUNDS_META) {
+        crate::assets::M2_COLLISION_BOUNDS_META
+    } else {
+        crate::assets::M2_BOUNDS_META
+    };
+    let bounds = visual.get_meta(bounds_key).to::<Aabb>();
+    let bounds = visual.get_transform() * bounds;
+    Ok((visual, bounds))
+}
+
+fn frame_catalog_bounds(scene: &mut Scene, bounds: Aabb) {
+    let model = scene.model().expect("catalog pivot installed");
+    scene.frame_bounds(model.get_transform() * bounds);
 }
 
 impl GameClient {

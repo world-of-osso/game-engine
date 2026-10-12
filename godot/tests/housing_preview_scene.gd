@@ -40,6 +40,17 @@ func run_test() -> void:
 			printerr("FAIL: preview retained another catalog entry")
 			quit(1)
 			return
+		if decor_id == 2330:
+			# Authenticated MD20 collision body: Tesla coil z=.000312..6.850825.
+			# Retail requests collision bounds so its emitter envelope cannot shrink it.
+			var camera: Camera3D = viewport.get_camera_3d()
+			var top: Vector2 = camera.unproject_position(visual.to_global(Vector3(0, 6.850825, 0)))
+			var bottom: Vector2 = camera.unproject_position(visual.to_global(Vector3(0, 0.000312, 0)))
+			var body_fraction: float = absf(top.y - bottom.y) / float(viewport.size.y)
+			if body_fraction < 0.6:
+				printerr("FAIL: Tesla collision body is shrunk by emitter envelope: ", body_fraction)
+				quit(1)
+				return
 		probe.rotate_preview(0.5)
 		if not is_equal_approx(visual.get_parent().rotation.y, 0.5):
 			printerr("FAIL: preview rotation did not move independent actor")
