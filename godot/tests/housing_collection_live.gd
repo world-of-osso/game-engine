@@ -52,7 +52,7 @@ func connect_housing_account() -> bool:
 
 func buy_bookcase() -> bool:
 	var vendor: Dictionary = await find_named_vendor(PAWDO_NAME)
-	if vendor.is_empty() or not await open_named_vendor(vendor, PAWDO_NAME): return false
+	if vendor.is_empty() or not await open_pawdo_shop(vendor): return false
 	var before: Dictionary = client.merchant_state()
 	var item_index: int = before.items.find(BOOKCASE_NAME)
 	if item_index < 0 or bag_count(before, BOOKCASE_ITEM) != 0:
@@ -68,6 +68,17 @@ func buy_bookcase() -> bool:
 	if not await capture_housing("vendor-purchase"): return false
 	await click_control(merchant_control("MerchantFrameCloseButton"), MOUSE_BUTTON_LEFT)
 	return await wait_for(func(s): return not s.open, "merchant close before collection")
+
+func open_pawdo_shop(vendor: Dictionary) -> bool:
+	# Authored menu40669, option1: "Show me your wares." Pawdo has QUEST_GIVER+GOSSIP flags.
+	await click(vendor.point, MOUSE_BUTTON_RIGHT)
+	if not await wait_housing(func(): return housing_named_control("QuestFrameUI", "GossipOption1") != null, "Pawdo's authored gossip"): return false
+	var text: Control = housing_named_control("QuestFrameUI", "GossipOption1Text")
+	if text == null or str(text.get("text")) != "Show me your wares.":
+		fail("Pawdo option1 does not match the authentic wares choice")
+		return false
+	await click_control(housing_named_control("QuestFrameUI", "GossipOption1"), MOUSE_BUTTON_LEFT)
+	return await wait_for(func(s): return s.open and s.vendor_name == PAWDO_NAME, "Pawdo merchant frame")
 
 func collect_bookcase() -> bool:
 	if not merchant_visible("ContainerFrame0"):
