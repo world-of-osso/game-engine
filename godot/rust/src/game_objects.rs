@@ -17,7 +17,7 @@ use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
     GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE,
-    GAMEOBJECT_TYPE_RITUAL, GameObjectAnimation, GameObjectInfo,
+    GAMEOBJECT_TYPE_RITUAL, GameObjectAnimation, GameObjectInfo, GameObjectVisible,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -134,6 +134,13 @@ impl GameObjects {
         info: &GameObjectInfo,
     ) -> Result<(), String> {
         let id = unit.server_id;
+        if unit
+            .get::<GameObjectVisible>()
+            .is_some_and(|visible| !visible.0)
+        {
+            self.remove(id);
+            return Ok(());
+        }
         if !game_object_is_renderable(info.go_type) {
             self.remove(id);
             return Ok(());
