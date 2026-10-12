@@ -1,3 +1,7 @@
+## 2026-10-12 — Eye of the Storm rules and PvP list scrolling
+
+[Eye of the Storm](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): queue 7/map 566 with TDB control-zone towers, Netherstorm flag scoring/drop/respawn, WorldStates and PvpStat 183. Server channel and both-skin UI tests pass. Live proof is blocked by missing M2 floor support at both start points. The PvP queue ScrollBox now scrolls with the native wheel and steppers.
+
 ## 2026-10-12 — Twin Peaks and sourced scoreboard columns
 
 [Flag maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12): Twin Peaks 108/map 726 joins WSG on one shared flag rule set with its PvpStats 290/291 and TC's 15-minute end; scoreboard columns now come from PvpStat/PvpScoreboardLayout for every map. Both-skin private proof: 10 accounts, three physical captures, Victory, return.
