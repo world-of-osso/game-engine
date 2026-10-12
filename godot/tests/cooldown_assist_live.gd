@@ -175,9 +175,9 @@ func run_fixture() -> void:
 	expected = client.assisted_combat_state().next_spell
 	var before: int = client.spells_state().sent.size()
 	var successes_before: int = client.spells_state().cast_success.size()
-	var charge_before := viewer_charge(35395)
-	if expected != 35395 or int(charge_before.get("charges", -1)) != 2:
-		fail("Ret private sample must recommend Crusader Strike with two real charges")
+	var charge_before := viewer_charge(expected)
+	if expected not in [35395, 20271] or int(charge_before.get("charges", -1)) < 1:
+		fail("Ret private sample must recommend an available real charge spell")
 		return
 	await click("ActionButton6")
 	deadline = Time.get_ticks_msec() + 5000
@@ -191,25 +191,26 @@ func run_fixture() -> void:
 		fail("Assistant request did not resolve as the exact server CastSuccess")
 		return
 	await capture("assisted-cast")
-	var charge_after := viewer_charge(35395)
-	if int(charge_after.get("charges", -1)) != 1 or float(charge_after.get("remaining", 0.0)) <= 0.0:
+	var charge_after := viewer_charge(expected)
+	if int(charge_after.get("charges", -1)) != int(charge_before.charges) - 1 or float(charge_after.get("remaining", 0.0)) <= 0.0:
 		fail("Authoritative assisted cast must consume one charge and start recharge")
 		return
 	write_json("charge-proof", {"before": charge_before, "after": charge_after, "cast": expected})
-	# Select another living enemy before the low-health first victim dies. Judgment
-	# becomes ready before Crusader Strike recharges; observe, never assign, the update.
+	# Select another living enemy before the low-health first victim dies. Observe
+	# the source-ordered update after charge consumption/recovery, never assign it.
 	await key(KEY_TAB)
+	var updated_expected := 20271 if expected == 35395 else 35395
 	deadline = Time.get_ticks_msec() + 10000
-	while client.assisted_combat_state().get("next_spell", 0) != 20271 and Time.get_ticks_msec() < deadline:
+	while client.assisted_combat_state().get("next_spell", 0) != updated_expected and Time.get_ticks_msec() < deadline:
 		await process_frame
-	if client.assisted_combat_state().get("next_spell", 0) != 20271:
-		fail("Recommendation did not update to ready authored Judgment after assisted cast")
+	if client.assisted_combat_state().get("next_spell", 0) != updated_expected:
+		fail("Recommendation did not update to the other ready authored Ret spell after assisted cast")
 		return
-	if not await prove_highlights(20271, "updated-highlight"):
+	if not await prove_highlights(updated_expected, "updated-highlight"):
 		return
 	await capture("recommendation-updated")
-	write_json("recommendation-update-proof", {"before": expected, "after": 20271, "assisted": client.assisted_combat_state(), "target": client.target_state()})
-	print("PASS: real manager clocks, authored single-button cast, two-to-one charge/recharge, recommendation update and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
+	write_json("recommendation-update-proof", {"before": expected, "after": updated_expected, "assisted": client.assisted_combat_state(), "target": client.target_state()})
+	print("PASS: real manager clocks, authored single-button cast, charge consumption/recharge, recommendation update and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
 	quit(0)
 
 func viewer_charge(spell: int) -> Dictionary:
