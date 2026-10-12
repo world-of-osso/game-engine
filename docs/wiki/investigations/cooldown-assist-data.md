@@ -114,6 +114,27 @@ Art re-authentication: atlas member32008 → element30221 `RotationHelper_Ants_F
 
 The native observer retains the facts and canonical selection from one actual evaluator invocation, before effective-spell presentation mapping. Its `evaluation_json` contains specialization, target, raw powers, health percentages, cooldowns/charges, aura sets, known/readiness/range/authoritative affordability and the exact selected step/error. Snapshot serialization is on demand; no per-frame JSON encoding or second gameplay decision is introduced. The [contract](../../specs/cooldown-assist.md) names the recorded-private replay tests. Casting and predicates remain unchanged.
 
+## Private continuation proof — 2026-10-12, cooldown-assist4
+
+Fresh private UDP5864, `fb_cooldown_assist4_modern`/Coolmodern30 and `fb_cooldown_assist4_forever`/Coolforever31, both level10/spec70. Engine includes origin/master62ceaf544, server3f80f41a, protocol80bec38. The maintained fixture passes in both skins on native builds; no shared realm operations or physics changes.
+
+| Claim | Both-skin observable proof | Boundary |
+|---|---|---|
+| Combat/assistant | Pre-cast `in_combat=true`, real selected/server-echoed Blackrock enemy, matching advancing ants, exact own CastSuccess35395 | Forever's victim dies on that cast; combat can end afterward |
+| Charges | Actual Crusader Strike2→1, positive recharge5.40888s Modern/5.26543s Forever | At the later recommendation sample the charge has naturally recovered to2; do not assert stale1 against newer facts |
+| Recommendation update | Recorded35395→20271; untouched native evaluation JSON replays to exact first eligible20271 in both skins | Captured Holy Power2, real cooldown/charge/cost/target facts; not mere rotation membership |
+| Replay control | Disabling that selected spell's readiness changes the evaluator result | No invented numeric equality or priority changes |
+
+Ten inspected1280×720 PNGs are in `/syncthing/AgentShared/2026-10-12/cooldown-assist4/`; logs, JSON and private redbs remain in `data/diagnostics/cooldown-assist4-2026-10-12/`. Same-decision JSON must be replayed from the preserved `evaluation_json` string: Godot's parsed/display projection converts integer cells to floats and is not the typed native payload.
+
+The harness now waits for **both** own setup CastSuccess and replicated combat entry before cycling targets; CastSuccess can precede combat damage/replication. Moving enemies behind authentic occluders require another ordinary Tab candidate, not removing LoS or changing NPC data. No assistant predicate or casting behavior was changed.
+
+## Sources
+- [Exact assistant DB2 receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/assistant-db2-audit.json) — named rows, reverse references and table counts.
+- [Exact unresolved-rule receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/remaining-predicate-audit.json) —333 rows in wholly undecoded predicate groups, numeric boundary6425, counts, special fields and charge encoding census.
+- [Pinned TC receipt](../../../data/diagnostics/cooldown-assist4-2026-10-12/tc-audit.json) and [Spell.cpp](../../../data/diagnostics/cooldown-assist4-2026-10-12/Spell.cpp) — checked cast/GCD code, not an assumed assistant policy.
+- [Private replay test](../../../godot/core/tests/cooldown_assist_live_replay.rs) and [contract](../../specs/cooldown-assist.md) — exact native snapshot/evaluator acceptance and retained gaps.
+
 ## See Also
 - [Native HUD Edit Mode](../systems/native-hud-edit-mode.md) — shared mover and account persistence behavior.
 - [Spellbook/action bars](../../specs/spellbook-action-bar.md) — actual learned-spell drag/casting surfaces.
