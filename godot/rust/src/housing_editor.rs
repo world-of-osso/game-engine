@@ -136,6 +136,11 @@ impl GameClient {
                 "HouseEditorStorageFrame",
                 "HouseEditorModeBar",
                 "HouseEditorExpertSubmodeBar",
+                "HouseEditorRotateControl",
+                "HouseEditorScaleControl",
+                "HouseEditorScaleThumb",
+                "HouseEditorScaleControlLeft",
+                "HouseEditorScaleControlRight",
             ]
             .iter()
             .any(|name| {
@@ -162,7 +167,7 @@ impl GameClient {
         {
             return Ok(false);
         }
-        if self.housing_expert_key(event)? {
+        if self.housing_expert_key(event)? || self.housing_expert_mouse(event)? {
             return Ok(true);
         }
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
@@ -285,6 +290,16 @@ impl GameClient {
         if let Some(model) = &self.housing.model {
             output.set("selected", model.editor.selected.map_or(0, |id| id as i64));
             output.set("placing", model.editor.placing.map_or(0, |id| id as i64));
+            output.set("manipulating", model.editor.is_manipulating());
+            if let Some(draft) = model.editor.expert_transform() {
+                let mut row = VarDictionary::new();
+                row.set("position", Vector3::from_array(draft.position));
+                row.set("yaw", draft.yaw);
+                row.set("pitch", draft.pitch);
+                row.set("roll", draft.roll);
+                row.set("scale", draft.scale);
+                output.set("draft", row);
+            }
             output.set("pending", model.pending);
             output.set("finder_plot", model.finder_plot.map_or(0, |id| id as i64));
         }
@@ -422,6 +437,9 @@ impl GameClient {
     pub(super) fn advance_housing_precision(&mut self) -> Result<(), String> {
         use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
         let delta = self.base().get_process_delta_time() as f32;
+        if self.advance_housing_mouse(delta * EXPERT_INCREMENT_RATE)? {
+            return Ok(());
+        }
         let Some(model) = &mut self.housing.model else {
             return Ok(());
         };
