@@ -174,14 +174,21 @@ func check_items() -> bool:
 
 ## Real Enum.TransmogSource toggles; filtering changes no pending choice or quote.
 func check_filters() -> bool:
-	await click_control(control("TransmogSource1181"), MOUSE_BUTTON_LEFT)
+	var source: int = SOURCES[0] if transmog().applied[MAIN_HAND] == SOURCES[1] else SOURCES[1]
+	var other: int = SOURCES[1] if source == SOURCES[0] else SOURCES[0]
+	var filter_type := 3 if source == SOURCES[0] else 4
+	await click_control(control("TransmogSource%d" % source), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().pending == 1, "appearance staged before filtering"):
+		return false
 	var pending_before: int = transmog().pending
+	if not await wait_for(func(_s): return ui.frame_text("TransmogPendingCostAmount0") == "15", "native 15 silver quote"):
+		return false
 	var cost_before: String = ui.frame_text("TransmogPendingCostAmount0")
 	await click_control(control("TransmogFilterButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_for(func(_s): return control("TransmogFilterSource4") != null, "Sources menu"):
 		return false
 	await save_shot("11-source-filters.png")
-	var filter_row := control("TransmogFilterSource4")
+	var filter_row := control("TransmogFilterSource%d" % filter_type)
 	await hover_point(filter_row.get_global_rect().get_center())
 	var hovered := root.gui_get_hovered_control()
 	print("TRANSMOG_FILTER_HIT target=", filter_row.name, " z=", filter_row.z_index, " hovered=", hovered.name if hovered != null else "none")
@@ -189,8 +196,8 @@ func check_filters() -> bool:
 		fail("Sources popup click hits a collection card instead of its row")
 		return false
 	await click_control(filter_row, MOUSE_BUTTON_LEFT)
-	print("TRANSMOG_FILTER_TOGGLE ", ui.frame_text("TransmogFilterSource4Text"))
-	if not await wait_for(func(_s): return control("TransmogSource1181") == null and control("TransmogSource821") != null, "World Drop filtered out"):
+	print("TRANSMOG_FILTER_TOGGLE ", ui.frame_text("TransmogFilterSource%dText" % filter_type))
+	if not await wait_for(func(_s): return control("TransmogSource%d" % source) == null and control("TransmogSource%d" % other) != null, "pending source filtered out"):
 		return false
 	if transmog().pending != pending_before or ui.frame_text("TransmogPendingCostAmount0") != cost_before:
 		fail("Sources filter changed staged appearances or quote")
@@ -390,6 +397,20 @@ func check_custom_sets() -> bool:
 		return false
 	await save_shot("10-custom-set-saved.png")
 	print("TRANSMOG_CUSTOM_SET id=", id, " name=", name)
+	var source: int = transmog().effective[MAIN_HAND]
+	var money: int = transmog().money
+	await click_control(control("TransmogSlot16"), MOUSE_BUTTON_LEFT)
+	await click_control(control("TransmogDisplayTypeEquipped"), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == 0 and transmog().pending == 1, "equipped appearance staged"):
+		return false
+	await click_control(control("TransmogCustomSetsTab"), MOUSE_BUTTON_LEFT)
+	await click_control(control(card), MOUSE_BUTTON_LEFT)
+	if not await wait_for(func(_s): return transmog().effective[MAIN_HAND] == source and transmog().pending == 0 and transmog().money == money, "Custom Set loaded without applying or charging"):
+		return false
+	if not await wait_card_models("TransmogCustomSet*ModelScene"):
+		return false
+	await save_shot("15-custom-set-loaded.png")
+	print("TRANSMOG_CUSTOM_SET_LOADED id=", id)
 	return true
 
 func transmog() -> Dictionary:
