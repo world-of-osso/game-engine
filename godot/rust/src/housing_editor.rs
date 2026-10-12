@@ -243,7 +243,7 @@ impl GameClient {
             row.set("quantity", decor.quantity);
             stored.push(&row);
         }
-        output.set("stored", stored.to_variant());
+        output.set("stored", &stored.to_variant());
         let mut placed: Array<VarDictionary> = Array::new();
         if let Some(layout) = &state.layout {
             output.set("house_id", layout.house_id as i64);
@@ -257,7 +257,7 @@ impl GameClient {
                 placed.push(&row);
             }
         }
-        output.set("decor", placed.to_variant());
+        output.set("decor", &placed.to_variant());
         output
     }
 }
