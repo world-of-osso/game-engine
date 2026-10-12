@@ -149,16 +149,16 @@ func run_fixture() -> void:
 	await prove_timer()
 	if failed:
 		return
-	await key(KEY_TAB)
-	var attack_error: String = client.use_spell(20271)
-	if not attack_error.is_empty():
-		fail(attack_error)
+	if not await enter_private_combat():
 		return
 	# Wait through the setup Judgment's authored recharge and authoritative combat entry.
 	deadline = Time.get_ticks_msec() + 30000
 	while (client.assisted_combat_state().get("next_spell", 0) == 0 or not client.assisted_combat_state().in_combat) and Time.get_ticks_msec() < deadline:
 		await process_frame
-	if client.assisted_combat_state().get("next_spell", 0) == 0 or not client.assisted_combat_state().in_combat:
+	if not client.assisted_combat_state().in_combat:
+		fail("Authoritative combat ended before the assistant proof")
+		return
+	if client.assisted_combat_state().get("next_spell", 0) == 0:
 		write_json("assisted-blocker", {"assisted": client.assisted_combat_state(), "target": client.target_state()})
 		await capture("assistant-unresolved")
 		var before_blocked: int = client.spells_state().sent.size()
@@ -212,6 +212,25 @@ func run_fixture() -> void:
 	write_json("recommendation-update-proof", {"before": expected, "after": updated_expected, "assisted": client.assisted_combat_state(), "target": client.target_state()})
 	print("PASS: real manager clocks, authored single-button cast, charge consumption/recharge, recommendation update and matching animated action/viewer highlights; unresolved rule boundaries remain separate")
 	quit(0)
+
+func enter_private_combat() -> bool:
+	# Tab candidates move behind real M2/WMO occluders. A selected target alone
+	# does not prove cast admission; cycle ordinary targets until own CastSuccess.
+	for attempt in range(8):
+		await key(KEY_TAB)
+		var before: int = client.spells_state().cast_success.size()
+		var error: String = client.use_spell(20271)
+		if not error.is_empty():
+			fail(error)
+			return false
+		var deadline := Time.get_ticks_msec() + 3000
+		while client.spells_state().cast_success.size() == before and Time.get_ticks_msec() < deadline:
+			await process_frame
+		if client.spells_state().cast_success.size() > before and client.assisted_combat_state().in_combat:
+			write_json("combat-entry-proof", {"attempt": attempt + 1, "spells": client.spells_state(), "target": client.target_state()})
+			return true
+	fail("No Tab-selected enemy admitted authoritative Judgment within eight attempts")
+	return false
 
 func viewer_charge(spell: int) -> Dictionary:
 	for icon in client.cooldown_viewer_state().icons:
