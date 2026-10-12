@@ -25,8 +25,8 @@ Retail Mainline world quests with authoritative availability, POI-area acceptanc
 | Capability | Current coverage | Proof |
 | --- | --- | --- |
 | Polygon admission/rotation | Source polygons, pinned duration or policy default | Python import and deterministic rotation tests |
-| Objective integration | Dynamic TDB0monster/1item/2game object/3TalkTo/9player kills/15weighted bar/21label kills; authored ordering, flags, Flags2 and weights | Host-message/persistence tests; older live bag progress |
-| Remaining authentic objectives |236/244 admitted;3 criteria-tree quests,3 area-trigger quests and2 absent labels remain excluded; **whole coverage is open**, not an approved exclusion policy | [Exact census](../wiki/investigations/world-quest-availability.md#current-poi-census) |
+| Objective integration | Dynamic TDB0monster/1item/2game object/3TalkTo/9player kills/14single-leaf criteria/15weighted bar/21label kills; authored ordering, flags, Flags2 and weights | Host-message/persistence tests; older live bag progress |
+| Remaining authentic objectives |239/244 admitted;3 area-trigger quests and2 absent labels remain excluded; **whole coverage is open**, not an approved exclusion policy | [Exact census](../wiki/investigations/world-quest-availability.md#current-poi-census) |
 | Completion/replay/expiry | Stored task history; items/money/numeric rewards transaction; pinned QuestXP | Host-message/persistence tests; controlled both-skin live completion |
 | Native presentation | Pins/tooltips, separate World Quests module, timer/bar/toasts | Both-skin UI test plus inspected native PNGs |
 
