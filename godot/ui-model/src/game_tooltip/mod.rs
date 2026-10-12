@@ -9,6 +9,7 @@ pub mod merchant;
 pub mod render;
 pub mod spell;
 pub mod trainer;
+pub mod transmog;
 pub mod unit;
 
 use ui_toolkit::atlas::ActiveSkin;
