@@ -67,7 +67,13 @@ func open_editor_home() -> bool:
 	print("HOUSING_HOME_CLICK dashboard=", client.get_node_or_null("HousingDashboardUI") != null, " confirmed=", client.housing_state().get("confirmed",false), " houses=", client.housing_state().get("houses",[]))
 	if not await wait_housing(func(): return housing_control("HousingHomeVisit%d" % editor_house) != null, "owned home"): return false
 	if not home_allows_visitors():
-		await click_control(housing_control("HousingAccess%d" % editor_house), MOUSE_BUTTON_LEFT)
+		await click_control(housing_control("HousingSettings%d" % editor_house), MOUSE_BUTTON_LEFT)
+		if not await wait_housing(func(): return housing_control("HousingSettingsHouseMode") != null, "House Settings"): return false
+		await click_control(housing_control("HousingSettingsHouseMode"), MOUSE_BUTTON_LEFT)
+		if not await wait_housing(func(): return housing_control("HousingSettingsModeanyone") != null, "access dropdown"): return false
+		await click_control(housing_control("HousingSettingsModeanyone"), MOUSE_BUTTON_LEFT)
+		await click_control(housing_control("HousingSettingsSave"), MOUSE_BUTTON_LEFT)
+		await click_control(housing_named_control("MicroMenuUI", "HousingMicroButton"), MOUSE_BUTTON_LEFT)
 		if not await wait_housing(func(): return home_allows_visitors(), "explicit owner visitor permission"): return false
 	if int(client.account_state().world_map_id) != 2783 or client.housing_state().get("house_id",0) != editor_house:
 		var previous_hud: int = housing_named_control("MicroMenuUI", "HousingMicroButton").get_instance_id()
@@ -88,7 +94,7 @@ func open_editor_home() -> bool:
 
 func home_allows_visitors() -> bool:
 	for house in client.housing_state().get("houses", []):
-		if int(house.house_id) == editor_house: return house.access_anyone == true
+		if int(house.house_id) == editor_house: return house.get("access", {}) is Dictionary and house.access.get("anyone", false) == true
 	return false
 
 func stored_bookcases() -> int:

@@ -1,6 +1,9 @@
 ## 2026-10-12 — Avenging Wrath local material playback
 
 [Material time](investigations/avenging-wrath-material-time.md): source2368645 local alpha and native Hold158 rendering prove material tracks incorrectly looped Stand on application age. Local sampling now receives owning-model playback; globals retain their shared clock. Seven actual private source casts cover both skins; published candidate assets/cache/shaders match local hashes. Hold GREEN and the original rainbow reproduction remain open at this commit; Positioner59 enum semantics remain unsourced.
+## 2026-10-12 — Housing HouseSettings access authority
+
+[HouseSettings](systems/housing.md#housesettings-access): staged source Anyone/No One/Limited, owner-only save, server-derived paid neighbors/persisted owner friends/guild/current party, preserved schema2 permissions and relog rechecks. Twelve private role/mode/skin runs pass; eight inspected saved-mode/denial PNGs published. Plot/blueprint/owner policies stay unavailable. Guild/neighbor/party changes have server tests, not fresh relationship-specific native live proof.
 
 ## 2026-10-12 — Eye both-skin private lifecycle
 
