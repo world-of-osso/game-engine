@@ -73,6 +73,77 @@ fn shield_env_batch_binds_both_textures_clamped() {
     );
 }
 
+/// Avenging Wrath's real wing/core sheet and three scrolling feather sheets. Values
+/// independently read from retail 2368645.m2 and 2373426.skin; no substituted art.
+#[test]
+fn avenging_wrath_batches_bind_authored_glows_and_premultiplied_blending() {
+    let wings = model(2368645);
+    assert_eq!(wings.batches.len(), 4);
+    for (index, unit) in wings.batches.iter().enumerate() {
+        let material = &wings.materials[usize::from(unit.render_flags_index)];
+        assert_eq!((material.flags, material.blend_mode), (0x15, 7));
+        assert_eq!(gx_blend(material.blend_mode), Ok(13));
+        let binding = m2_material::batch_binding(&wings, unit, &[0; 3]).unwrap();
+        let (shader, pixel, vertex, textures, wrap) = if index == 0 {
+            (0x10, 1, 0, vec![Some(2373422)], 0)
+        } else {
+            (0x4014, 7, 2, vec![Some(2373423), Some(2373424)], 15)
+        };
+        assert_eq!(unit.shader_id, shader);
+        assert_eq!(
+            (binding.pixel_shader, binding.vertex_shader),
+            (pixel, vertex)
+        );
+        assert_eq!(binding.textures, textures);
+        assert_eq!(binding.texture_types, vec![0; binding.textures.len()]);
+        assert_eq!(binding.texture_wrap, wrap);
+        assert!(binding.apply_weight);
+    }
+}
+
+#[test]
+fn avenging_wrath_resolved_batch_and_particle_textures_decode_as_authored_files() {
+    use game_engine_core::blp;
+    use std::collections::BTreeSet;
+
+    let mut fdids = BTreeSet::new();
+    for fdid in [2368643, 2368644, 2368645, 2368646, 165644] {
+        let effect = model(fdid);
+        for unit in &effect.batches {
+            let binding = m2_material::batch_binding(&effect, unit, &[0; 3]).unwrap();
+            for texture in binding.textures {
+                fdids.insert(texture.expect("Avenging Wrath has no replaceable mesh texture"));
+            }
+        }
+        for emitter in &effect.particle_emitters {
+            if let Some(layers) = &emitter.multi_texture {
+                for texture in layers.texture_fdids {
+                    fdids.insert(texture.expect("Avenging Wrath particle layer must resolve"));
+                }
+            } else {
+                fdids.insert(
+                    emitter
+                        .texture_fdid
+                        .expect("Avenging Wrath emitter must resolve"),
+                );
+            }
+        }
+    }
+    assert!(fdids.contains(&2373422));
+    assert!(fdids.contains(&2373423));
+    assert!(fdids.contains(&2373424));
+    for fdid in fdids {
+        let path = format!(
+            "{}/../../data/textures/{fdid}.blp",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path}: {error}"));
+        let image = blp::decode_gpu(&bytes).unwrap_or_else(|error| panic!("{fdid}: {error}"));
+        assert!(image.width > 0 && image.height > 0, "{fdid}");
+        assert!(!image.data.is_empty(), "{fdid}");
+    }
+}
+
 /// World tree portal 197068 batch 0: a local rotation track (sequence 0 lasts 16667 ms)
 /// keyed 0 -> 4300 ms from identity to (0, 0, -0.72469, 0.68907), about the texture centre.
 #[test]
