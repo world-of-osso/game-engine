@@ -30,6 +30,7 @@ mod layout;
 mod mentor_host;
 mod meter_preview;
 mod minimap_preview;
+mod mount_journal_host;
 mod options_keybindings;
 mod parts;
 mod party_preview;

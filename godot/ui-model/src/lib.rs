@@ -64,6 +64,7 @@ pub mod group_loot_component;
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod mount_journal;
 pub mod mythic_mentor;
 pub mod pet_journal;
 pub mod pet_stable;
