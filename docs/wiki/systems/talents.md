@@ -15,7 +15,17 @@ Coordinates are page-local UI pixels before the existing whole-window/UI scale. 
 
 Class currency center372,45; spec1211,45 (`ClassTalentsFrame.xml:213–224`). Footer atlas member16021 is1612×82, center806,815. Loadout center148,815, Search360,815, Apply806,812, War Mode1556,813 (`ClassTalentsFrame.xml:226–331`). PvP tray200×70 RIGHT−114; slots58×52 LEFT4 then previous RIGHT+4, centers1331/1393/1455,815 and label RIGHT-to-tray-LEFT−16 (`PvPTalentSlotTemplates.xml:53–78`). Gates retain RIGHT-to-node-LEFT−12 with124×40 hit bounds (`SharedTalentFrame.lua:1423–1425`, `SharedTalentFrameTemplates.xml:36–62`). Hero active nodes retain normalized subtree coordinates and0.85 scale; no class pan is applied to them.
 
-Behavioral regression: `godot/ui-model/tests/talent_centering.rs` checks every emitted main node, tree centers, page origin, hero selector, footer controls and PvP label/spacing for both specs/skins, including an extent-change case. Evidence ledger: `data/diagnostics/talent-centering-2026-10-11/`.
+Behavioral regression: `godot/ui-model/tests/talent_centering.rs` checks every emitted main node, tree centers, page origin, hero selector, footer controls and PvP label/spacing for both specs/skins, including an extent-change case. Evidence ledger: `data/diagnostics/talent-centering-2026-10-11/`. Native1502×860 captures use the existing window/UI scale0.782292; published PNGs are1280×733. Expected screen coordinates include page origin14.86354,99.35104 and that measured scale, not a fabricated screen-centering offset. Before/after errors against Retail (dx,dy pixels) are identical across Modern/Forever:
+
+| Element | Ret before error | Arcane before error | After error |
+|---|---|---|---|
+| Class tree bounds center |+50.357,+18.610|−18.661,+18.532|<0.01 each axis|
+| Spec tree bounds center |+37.436,+17.955|−31.585,+17.955|<0.01 each axis|
+| Hero selector |−2.347,0|−2.347,0|<0.01 each axis|
+| Bottom bar |−2.347,0|−2.347,0|<0.01 each axis|
+| First PvP slot |+14.864,0|+14.864,0|<0.01 each axis|
+
+Ret after screen centers: class305.250,386.413; spec962.219,415.788; hero610.187,221.389; footer645.391,736.919. Arcane after: class305.094,386.452; spec962.219,415.788; hero633.656,221.389; same footer. `measurements.json` records every emitted node, all footer controls and both skins against independently computed raw CSV/Blizzard formulas. PrivateUDP5921/fresh redb/fb_center_* accounts only. No UDP5000/shared realm mutation. Both skins' actual native snapshots report the intended spec and skin;8 before/after PNGs are inspected and published under `/syncthing/AgentShared/2026-10-11/talent-centering/`.
 
 ## Third-pass rendering and live hero selection — verified2026-10-11
 
