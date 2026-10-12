@@ -116,10 +116,22 @@ func show_housing_bookcase(quantity: int, phase: String) -> bool:
 	await click_control(search, MOUSE_BUTTON_LEFT)
 	search.select_all()
 	await housing_type_text(BOOKCASE_NAME)
-	if not await wait_housing(func(): return housing_text("HousingPreviewName") == BOOKCASE_NAME and housing_text("HousingPreviewDetails").contains("Stored decor: %d;" % quantity) and housing_text("HousingPreviewDetails").contains("Decor 1693 · Item 245259"), "authoritative bookcase count " + str(quantity)): return false
-	housing_receipts.append({"phase": phase, "skin": housing_skin, "account": client.account_state(), "details": housing_text("HousingPreviewDetails"), "status": housing_text("HousingCatalogStatus"), "bags": client.merchant_state().bags})
+	if not await wait_housing(func(): return housing_text("HousingPreviewName") == BOOKCASE_NAME and catalog_stored(1693) == quantity and housing_count(1693, "stored") == quantity, "authoritative bookcase count " + str(quantity)): return false
+	housing_receipts.append({"phase": phase, "skin": housing_skin, "account": client.account_state(), "owned": housing_text("HousingPreviewNumOwned"), "sources": housing_text("HousingPreviewSourceInfo"), "status": housing_text("HousingCatalogStatus"), "bags": client.merchant_state().bags})
 	if not write_housing_receipts(): return false
 	return await capture_housing(phase)
+
+# HousingCatalogEntry InfoText: the stored quantity, hidden at zero.
+func catalog_stored(decor_id: int) -> int:
+	var badge: Control = housing_control("HousingCatalogEntry%dQuantity" % decor_id)
+	if badge == null or not badge.is_visible_in_tree(): return 0
+	return int(str(badge.get("text")))
+
+# Server-confirmed account count of `decor_id` in housing_state()[kind] ("stored"/"placed").
+func housing_count(decor_id: int, kind: String) -> int:
+	for decor in client.housing_state().get(kind, []):
+		if int(decor.decor_id) == decor_id: return int(decor.quantity)
+	return 0
 
 func housing_control(name: String) -> Control:
 	return housing_named_control("HousingDashboardUI", name)
