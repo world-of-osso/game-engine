@@ -45,6 +45,7 @@ fn book() -> TransmogBook {
                 },
             ],
         }],
+        ..Default::default()
     });
     book.money = 5000;
     book
@@ -153,7 +154,7 @@ fn transmog_retail_grid_pages_twenty_models_without_losing_pending_cost() {
     assert!(state.can_apply());
 }
 
-fn assert_additive(registry: &FrameRegistry, name: &str) {
+fn assert_retail_alpha(registry: &FrameRegistry, name: &str) {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))
         .unwrap();
@@ -162,8 +163,8 @@ fn assert_additive(registry: &FrameRegistry, name: &str) {
     };
     assert_eq!(
         texture.blend_mode,
-        ui_toolkit::widgets::texture::BlendMode::Additive,
-        "{name}: black authored overlay centers must not cover model pixels"
+        ui_toolkit::widgets::texture::BlendMode::AlphaKey,
+        "{name}: Retail12.1 authored StateTexture uses ordinary alpha"
     );
 }
 
@@ -197,13 +198,13 @@ fn transmog_wardrobe_exposes_model_cells_fixed_slots_and_outfit_gap_in_both_skin
         }
         assert!(registry.get_by_name("TransmogSource821Icon").is_none());
         assert_eq!(text(&registry, "TransmogSource821Status"), "Applied");
-        assert_additive(&registry, "TransmogSource821Applied");
+        assert_retail_alpha(&registry, "TransmogSource821Applied");
         assert_eq!(text(&registry, "TransmogSource1181Status"), "Collected");
         let mut pending = book();
         pending.stage(TransmogChoice::Source(1181));
         let registry = build(skin, pending);
         assert_eq!(text(&registry, "TransmogSource1181Status"), "Pending");
-        assert_additive(&registry, "TransmogSource1181Pending");
+        assert_retail_alpha(&registry, "TransmogSource1181Pending");
         assert_eq!(
             text(&registry, "TransmogPendingChanges"),
             "1 pending changes"
