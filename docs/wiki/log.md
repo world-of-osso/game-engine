@@ -1,3 +1,7 @@
+## 2026-10-12 — Retire redundant client-publication gate
+
+[Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
+
 ## 2026-10-12 — Deephaul both-skin private lifecycle
 
 [Deephaul](systems/battlegrounds.md#deephaul-ravine--bounded-both-skin-proof-2026-10-12):10realaccounts per skin, visible authenticated5770750/603231, source crystal capture/cart presence/motion/replacement, natural1500–418/1020=1/1021=2, automaticVictory/exact origin/nine-peer clear/10ACKs then periodic save.24 inspected PNGs;1,346floor-proved route samples plus flag/trigger approaches.11crystal assets/4aliases staged privately; lead publication, vehicle/preparation/aura/reward/art boundaries remain explicit. Own runtimes stopped; epics then authored Seething transport remain in scope.

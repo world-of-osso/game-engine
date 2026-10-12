@@ -70,12 +70,20 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
     press_stepper(&mut model, forward);
     rebuild(&mut model);
     assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 120.0);
+    assert!(row_inside_list(
+        &model,
+        "HonorFrameSpecificBattlegroundButton708"
+    ));
+    assert!(!row_inside_list(&model, LAST_ROW));
+    press_stepper(&mut model, forward);
+    rebuild(&mut model);
+    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 160.0);
     assert!(row_inside_list(&model, LAST_ROW));
     assert!(
         model
             .registry
             .get_by_name("HonorFrameSpecificBattlegroundButton708")
-            .is_none()
+            .is_some()
     );
     assert!(
         model
@@ -107,6 +115,13 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
         .registry
         .get_by_name(&forward_stepper_name(SPECIFIC_LIST))
         .unwrap();
+    assert!(press_stepper(&mut model, forward));
+    rebuild(&mut model);
+    assert!(row_inside_list(
+        &model,
+        "HonorFrameSpecificBattlegroundButton708"
+    ));
+    assert!(!row_inside_list(&model, LAST_ROW));
     assert!(press_stepper(&mut model, forward));
     rebuild(&mut model);
     assert!(row_inside_list(&model, LAST_ROW));
