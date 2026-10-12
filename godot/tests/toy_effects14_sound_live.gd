@@ -108,7 +108,8 @@ func prove_ocean(sample: Array) -> void:
 	var samples := meter.get_buffer(meter.get_frames_available())
 	var peak := 0.0
 	for frame in samples: peak = max(peak, max(abs(frame.x), abs(frame.y)))
-	receipts.append({"phase": "ocean-source-audio", "sound": sound, "volume_linear": volume, "mix_frames": samples.size(), "mix_peak": peak})
+	receipts.append({"phase": "ocean-source-audio", "sound": sound, "volume_linear": volume, "mix_frames": samples.size(), "mix_peak": peak, "listener_enabled": root.get("audio_listener_enable_3d"), "distance_cutoff": player.max_distance if is_instance_valid(player) else -1, "camera_distance": player.global_position.distance_to(root.get_camera_3d().global_position) if is_instance_valid(player) else -1, "master_muted": AudioServer.is_bus_mute(0)})
+	write_receipts()
 	if is_instance_valid(player): player.bus = "Master"
 	AudioServer.remove_bus(bus)
 	if samples.is_empty() or peak <= 0.000001: fail("source ocean audio mixed no signal"); return
@@ -120,3 +121,7 @@ func prove_ocean(sample: Array) -> void:
 
 func capture(label: String) -> void:
 	await super.capture("target-sound-" + label)
+
+func fail(message: String) -> void:
+	write_receipts()
+	super.fail(message)
