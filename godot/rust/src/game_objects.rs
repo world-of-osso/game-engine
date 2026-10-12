@@ -17,7 +17,7 @@ use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
     GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE,
-    GAMEOBJECT_TYPE_RITUAL, GameObjectInfo,
+    GAMEOBJECT_TYPE_RITUAL, GAMEOBJECT_TYPE_SPELL_FOCUS, GameObjectInfo,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -91,7 +91,10 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
 }
 
 fn game_object_is_renderable(go_type: u8) -> bool {
-    go_type == GAMEOBJECT_TYPE_GENERIC || game_object_cursor(go_type).is_some()
+    matches!(
+        go_type,
+        GAMEOBJECT_TYPE_GENERIC | GAMEOBJECT_TYPE_SPELL_FOCUS
+    ) || game_object_cursor(go_type).is_some()
 }
 
 /// The top centre of an M2's bounding box placed by `model` (the model node's global
