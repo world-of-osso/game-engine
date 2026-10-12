@@ -73,7 +73,7 @@ impl GameClient {
             return Ok(true);
         }
         if let Some(value) = action.strip_prefix("housing:place:") {
-            let decor = value
+            let decor: u32 = value
                 .parse()
                 .map_err(|_| "Invalid stored decor identity.")?;
             let source = model

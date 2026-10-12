@@ -33,3 +33,11 @@ After landing the server importer, run it with the audit evidence and pinned bui
 ## References
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
+
+## Expert transforms
+
+Expert uses the same owned decor and server conservation rules as Basic. Retail Expert Translate/Rotate/Scale submodes stage complete transforms; commit saves once, cancel restores the confirmed layout, rotation axis cycles X→Y→Z, and WMO scaling is refused. Both skins share the64px mode/submode controls and expert's hidden storage drawer. Initial placement uses authenticated HouseDecor InitialRotation/InitialScale, not identity defaults. Persistence migration and finite/positive constraints are in the server contract. Native bindings/rates are documented input tuning rather than certified Retail defaults:1/2/3 choose submode, arrows/PageUp/PageDown translate, Q/E increment rotation/scale, X cycles axis, Enter commits, Esc cancels. Mouse manipulator gizmos and Shift snapping remain unproved; outdoor bounds and default grants remain unsourced.
+
+## Neighborhood source boundary
+
+Authored bulletin-board type48/PlayerInteractionType72 objects open the600×400 Retail roster, showing durable plot owners, online status and repeatable Name/Status/Plot sorting in both skins. Charter/create remain explicitly unavailable: pinned TrinityCore a352 HousingHandler/Packets implement decline-invites only; local TDB1210 carries housing NPC/object records but no authoritative charter fee/signature-count/name-length contract. Generated NeighborhoodNameMaxCharacters0 is not a valid inferred policy. No fee, signature quota or name length is fabricated.
