@@ -173,7 +173,9 @@ func run_fixture() -> void:
 	var before: int = client.spells_state().sent.size()
 	var successes_before: int = client.spells_state().cast_success.size()
 	await click("ActionButton6")
-	await create_timer(0.6).timeout
+	deadline = Time.get_ticks_msec() + 5000
+	while client.spells_state().cast_success.size() <= successes_before and Time.get_ticks_msec() < deadline:
+		await process_frame
 	var after: Dictionary = client.spells_state()
 	if after.sent.size() != before + 1 or int(after.sent[after.sent.size() - 1]) != expected:
 		fail("Assistant did not send exactly its authored recommendation")
