@@ -532,6 +532,7 @@ impl INode3D for GameClient {
             || self.guild_bank_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
+            || self.battleground_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)

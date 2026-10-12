@@ -321,11 +321,25 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     ));
     frame("PVPUIFrame", (563.0, 428.0), (24.0, 90.0), children)
 }
+pub const SPECIFIC_LIST: &str = "HonorFrameSpecificScrollBox";
+const SPECIFIC_ROW_H: f32 = 40.0;
+pub const SCORE_LIST: &str = "PVPMatchScrollBox";
+const SCORE_ROW_H: f32 = 22.0;
+
+/// ScrollBoxListView.lua:637-661: a list pans by its first entry's extent (no spacing here).
+pub fn pvp_pan_extent(list: &str) -> Option<usize> {
+    match list {
+        SPECIFIC_LIST => Some(SPECIFIC_ROW_H as usize),
+        SCORE_LIST => Some(SCORE_ROW_H as usize),
+        _ => None,
+    }
+}
+
 fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     let templates = specific_choices();
-    let height = (templates.len() as f32 * 40.0).max(160.0);
+    let height = (templates.len() as f32 * SPECIFIC_ROW_H).max(160.0);
     let geometry = pixel_geometry(160.0, height, 160.0);
-    let offset = geometry.clamp(context.scroll_first_row("HonorFrameSpecificScrollBox"));
+    let offset = geometry.clamp(context.scroll_first_row(SPECIFIC_LIST));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
     let children: Element = templates
@@ -337,12 +351,12 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
                 &template.name,
                 &format!("pvp:select:{}", template.id),
                 !view.pending,
-                (0.0, index as f32 * 40.0, 324.0, 40.0),
+                (0.0, index as f32 * SPECIFIC_ROW_H, 324.0, SPECIFIC_ROW_H),
             )
         })
         .collect();
     let bar = MinimalScrollBar {
-        list: "HonorFrameSpecificScrollBox",
+        list: SPECIFIC_LIST,
         left: 324.0,
         top: 0.0,
         height: 160.0,
@@ -701,9 +715,9 @@ fn score_rows(
         .iter()
         .filter(|p| view.filter.is_none_or(|team| p.team == team))
         .collect();
-    let height = (players.len() as f32 * 22.0).max(256.0);
+    let height = (players.len() as f32 * SCORE_ROW_H).max(256.0);
     let geometry = pixel_geometry(256.0, height, 256.0);
-    let offset = geometry.clamp(context.scroll_first_row("PVPMatchScrollBox"));
+    let offset = geometry.clamp(context.scroll_first_row(SCORE_LIST));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
     let stats = shared::battleground::pvp_stat_columns(bg.map_id);
@@ -736,12 +750,12 @@ fn score_rows(
             content.extend(text(
                 &format!("PVPMatchPlayer{}{suffix}", player.character_id),
                 &value,
-                (x, index as f32 * 22.0, width, 22.0),
+                (x, index as f32 * SCORE_ROW_H, width, SCORE_ROW_H),
             ));
         }
     }
     let bar = MinimalScrollBar {
-        list: "PVPMatchScrollBox",
+        list: SCORE_LIST,
         left: 938.0,
         top: 0.0,
         height: 256.0,
