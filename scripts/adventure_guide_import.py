@@ -6,6 +6,7 @@ Extract the FDIDs below with casc-local first. Pass the corresponding WoWDBDefs
 Unreadable encrypted records are counted; never synthesize replacement records.
 """
 import argparse
+from contextlib import closing
 import csv
 import importlib.util
 from pathlib import Path
@@ -190,7 +191,7 @@ def import_presentation(connection, items):
 
 
 def read_challenge_dungeons(world):
-    with sqlite3.connect(f'file:{world.resolve()}?mode=ro', uri=True) as connection:
+    with closing(sqlite3.connect(f'file:{world.resolve()}?mode=ro', uri=True)) as connection:
         return connection.execute('SELECT ID,MapID,Name_lang,CriteriaCount_0 * 1000 FROM map_challenge_mode WHERE MaxMedals=3').fetchall()
 
 
@@ -202,7 +203,7 @@ def import_cache(db2, definitions, output, items, world):
     staging = output.with_suffix('.staging.sqlite')
     if staging.exists():
         staging.unlink()
-    with sqlite3.connect(staging) as connection:
+    with closing(sqlite3.connect(staging)) as connection, connection:
         connection.execute('CREATE TABLE source (build TEXT, table_name TEXT, layout TEXT, readable INTEGER, unreadable INTEGER)')
         for table, (columns, rows, dropped) in decoded.items():
             connection.execute(f'CREATE TABLE "{table}" ({", ".join(f"{name} {kind}" for name, kind in columns)})')
