@@ -186,6 +186,7 @@ impl GameClient {
         match action {
             "transmog:apply" => return Ok(book.apply()),
             "transmog:undo" => book.undo(),
+            "transmog:clear-search" => book.set_search(String::new()),
             "transmog:original" => {
                 book.stage(TransmogChoice::Original);
             }

@@ -61,7 +61,9 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         return Vec::new();
     }
     let mut parts = Vec::new();
-    if project_panel_button(frame, width, height, &mut parts) {
+    if project_shared_red_button(frame, width, height, &mut parts)
+        || project_panel_button(frame, width, height, &mut parts)
+    {
         return parts;
     }
     let rect = [0.0, 0.0, width, height];
@@ -87,6 +89,52 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     project_border(frame, width, height, &mut parts);
     project_highlight(frame, width, height, &mut parts);
     parts
+}
+
+/// SharedButtonTemplate inherits128-RedButton; its114px/292px caps scale with height.
+/// Using the three authored members avoids the project's brown whole-button override.
+fn project_shared_red_button(
+    frame: &Frame,
+    width: f32,
+    height: f32,
+    parts: &mut Vec<ImagePart>,
+) -> bool {
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return false;
+    };
+    if button.normal_texture != Some(TextureSource::Atlas("128-redbutton-left".into())) {
+        return false;
+    }
+    let suffix = match button.state {
+        ButtonState::Normal => "",
+        ButtonState::Pushed => "-pressed",
+        ButtonState::Disabled => "-disabled",
+    };
+    let left = 114.0 * height / 128.0;
+    let right = 292.0 * height / 128.0;
+    for (x, w, member) in [
+        (0.0, left, "128-redbutton-left"),
+        (left, width - left - right, "_128-redbutton-center"),
+        (width - right, right, "128-redbutton-right"),
+    ] {
+        parts.push(textured(
+            [x, 0.0, w, height],
+            TextureSource::Atlas(format!("{member}{suffix}")),
+            Crop::Full,
+            WHITE,
+        ));
+    }
+    if button.hovered && button.state != ButtonState::Disabled {
+        let mut highlight = textured(
+            [0.0, 0.0, width, height],
+            TextureSource::Atlas("retail-128-redbutton-highlight".into()),
+            Crop::Full,
+            WHITE,
+        );
+        highlight.additive = true;
+        parts.push(highlight);
+    }
+    true
 }
 
 /// SecureUIPanelTemplates.xml: fixed12px caps on the cropped80×22 sheet member.
