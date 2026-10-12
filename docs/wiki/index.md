@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Dice scripts and received item labels](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12) — source roll count/audience, native raw-markup RED and plain/coloured unsplit labels; both-skin actual-use chat proof.
+
 - [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 
 - [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks both-skin private lifecycle proof; Eye live proof awaits M2 floors.
