@@ -16,17 +16,24 @@ func run_test() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await connect_housing_account(): return
+	if OS.get_environment("HOUSING_RELOG_ONLY") == "1":
+		if not await wait_housing(func(): return int(client.account_state().world_map_id) == 2735 and client.account_state().gameplay_input_allowed, "saved neighborhood admission", 180000): return
+		if not await inspect_board("relogged"): return
+		print("PASS: private5870 fresh-process bulletin board relog ", housing_skin)
+		client.free()
+		quit(0)
+		return
 	if not await enter_neighborhood(): return
 	if not await inspect_board("roster"): return
 	await click_control(housing_control("NeighborhoodRosterColumnPlotButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_text("NeighborhoodRosterEntry1Plot") == "#0" and housing_text("NeighborhoodRosterEntry2Plot") == "#1", "plot order"): return
+	await click_control(housing_control("NeighborhoodRosterColumnPlotButton"), MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return housing_text("NeighborhoodRosterEntry1Plot") == "#1" and housing_text("NeighborhoodRosterEntry2Plot") == "#0", "descending plot order"): return
 	if not await capture_housing("plot-order"): return
 	await click_control(housing_control("NeighborhoodRosterColumnNameButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_text("NeighborhoodRosterEntry1Name") == "Houseproof", "alphabetical order"): return
 	await click_control(housing_control("HousingBulletinBoardFrameCloseButton"), MOUSE_BUTTON_LEFT)
-	if not await connect_housing_account(): return
-	if not await inspect_board("relogged"): return
-	print("PASS: private5870 physical authored bulletin board, real residents, native column sorts and relog ", housing_skin)
+	print("PASS: private5870 physical authored bulletin board, real residents and native column sorts ", housing_skin)
 	client.free()
 	quit(0)
 

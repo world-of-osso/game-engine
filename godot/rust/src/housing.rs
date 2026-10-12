@@ -302,6 +302,8 @@ impl GameClient {
             return Ok(true);
         }
         match action {
+            // navigation_request applied this local sort without sending a request.
+            action if action.starts_with("housing:roster-sort:") => {}
             "housing:info" => model.tab = DashboardTab::HouseInfo,
             "housing:catalog" => model.tab = DashboardTab::Catalog,
             "housing:collection" => model.tab = DashboardTab::Collection,
