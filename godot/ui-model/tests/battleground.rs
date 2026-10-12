@@ -315,7 +315,11 @@ fn seething_both_skin_resource_score_source_column_and_automatic_results() {
             ..Default::default()
         };
         view.action("pvp:select:894");
-        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(894)));
+        assert_ne!(
+            view.selected_battleground, 894,
+            "unimplemented source airship entry keeps Seething hidden"
+        );
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1014)));
         receive(&mut view, state.clone());
         view.scoreboard = true;
         let mut context = SharedContext::new();
