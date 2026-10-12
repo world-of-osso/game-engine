@@ -1,7 +1,9 @@
 //! Retail Mainline Blizzard_MountCollection.lua/.xml, shared by both art skins.
-use crate::bank_art::{WHITE, label, texture};
+use crate::bank_art::{WHITE, cropped, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
+use crate::mount_source::readable_source;
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
+use shared::protocol::mount_journal_types::{AQUATIC, FLYING, GROUND, RIDE_ALONG, SKYRIDING};
 use shared::protocol::{MountJournalEntry, MountJournalUpdate};
 use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -11,9 +13,9 @@ pub const MODEL: &str = "MountJournalModelScene";
 const LIST: &str = "MountJournalScrollBox";
 const ROW_HEIGHT: f32 = 46.0;
 const LIST_HEIGHT: f32 = 478.0;
-const GROUND: u32 = 1;
-const FLYING: u32 = 2;
-const AQUATIC: u32 = 8;
+// TrinityCore a352b1fa DBCEnums.h MountFlags: ServerOnly and ExcludeUntilCollected.
+const SERVER_ONLY: u32 = 0x1;
+const EXCLUDE_UNTIL_COLLECTED: u32 = 0x40;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MountJournalView {
@@ -71,10 +73,16 @@ impl MountJournalView {
                 } else {
                     self.uncollected
                 };
-                let matches_type = [GROUND, FLYING, AQUATIC].into_iter().any(|kind| {
-                    mount.capability_flags & kind != 0 && !self.excluded_types.contains(&kind)
-                });
+                let matches_type = self.excluded_types.is_empty()
+                    || [GROUND, FLYING, AQUATIC, SKYRIDING, RIDE_ALONG]
+                        .into_iter()
+                        .any(|kind| {
+                            mount.journal_types & kind != 0 && !self.excluded_types.contains(&kind)
+                        });
+                let shown = mount.flags & SERVER_ONLY == 0
+                    && (mount.collected || mount.flags & EXCLUDE_UNTIL_COLLECTED == 0);
                 owned
+                    && shown
                     && matches_type
                     && !self.excluded_sources.contains(&mount.source_type)
                     && (search.is_empty() || mount.name.to_lowercase().contains(&search))
@@ -243,28 +251,41 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
     pos_type: "absolute", button_default_skin: false, onclick: {action.as_str()}, {children} } }
 }
 fn mount_details(view: &MountJournalView) -> Element {
-    let mut out = rsx! { r#frame { name: "MountJournalModelScene", width: 405.0, height: 365.0,
+    // Blizzard_MountCollection.xml MountDisplay.YesMountsTex, local listfile FDID651761.
+    let mut out = cropped(
+        "MountJournalBackground".into(),
+        651761,
+        "0,0.78515625,0,1",
+        (292.0, 64.0, 405.0, 510.0),
+    );
+    out.extend(rsx! { r#frame { name: "MountJournalModelScene", width: 405.0, height: 365.0,
         left: 292.0, top: 120.0, pos_type: "absolute", mouse_enabled: true }
         button { name: "MountJournalSummonRandomFavorite", width: 206.0, height: 33.0,
         left: 484.0, top: 33.0, pos_type: "absolute", text: "Summon Random Favorite Mount", font_size: 10.0, onclick: "mount:random" }
-    };
+    });
     if let Some(mount) = view.selected_mount() {
+        out.extend(texture(
+            "MountJournalSelectedIcon".into(),
+            mount.icon_file_data_id,
+            (312.0, 82.0, 38.0, 38.0),
+            WHITE,
+        ));
         out.extend(label(
             "MountJournalName".into(),
             &mount.name,
-            (308.0, 80.0, 370.0, 30.0),
-            (16.0, NORMAL_FONT_COLOR, "CENTER"),
+            (360.0, 83.0, 270.0, 35.0),
+            (16.0, WHITE, "LEFT"),
         ));
         out.extend(label(
             "MountJournalDescription".into(),
             &mount.description,
-            (308.0, 460.0, 370.0, 45.0),
-            (12.0, WHITE, "LEFT"),
+            (312.0, 197.0, 345.0, 55.0),
+            (12.0, NORMAL_FONT_COLOR, "LEFT"),
         ));
         out.extend(label(
             "MountJournalSource".into(),
-            &mount.source_text,
-            (308.0, 507.0, 370.0, 65.0),
+            &readable_source(&mount.source_text),
+            (312.0, 130.0, 345.0, 65.0),
             (11.0, WHITE, "LEFT"),
         ));
         let text = if mount.active { "Dismount" } else { "Mount" };
@@ -296,16 +317,22 @@ fn filter_menu(view: &MountJournalView) -> Element {
         return Vec::new();
     }
     let entries: Vec<(String, String, bool)> = match view.submenu.as_deref() {
-        Some("types") => [(GROUND, "Ground"), (FLYING, "Flying"), (AQUATIC, "Aquatic")]
-            .into_iter()
-            .map(|(kind, name)| {
-                (
-                    format!("mount:type:{kind}"),
-                    name.into(),
-                    !view.excluded_types.contains(&kind),
-                )
-            })
-            .collect(),
+        Some("types") => [
+            (GROUND, "Ground"),
+            (FLYING, "Flying"),
+            (AQUATIC, "Aquatic"),
+            (SKYRIDING, "Skyriding"),
+            (RIDE_ALONG, "Ride Along"),
+        ]
+        .into_iter()
+        .map(|(kind, name)| {
+            (
+                format!("mount:type:{kind}"),
+                name.into(),
+                !view.excluded_types.contains(&kind),
+            )
+        })
+        .collect(),
         Some("sources") => view
             .catalog
             .values()
