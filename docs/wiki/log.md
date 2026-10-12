@@ -1,3 +1,24 @@
+## 2026-10-11 — Retail talent placement
+
+[Talents placement](systems/talents.md#retail-placement-correction-2026-10-11): source-derived class pan and DB2 centers replace fit zoom/126px row rebasing; BOTTOM-centered page,200px PvP tray/4px gaps and label. Ret/Arcane both-skin behavioral regression and private5921 before/after proof tracked in the talent-centering evidence ledger.
+## 2026-10-11 — Adventure Guide realm continuation
+
+[Guide](systems/adventure-guide.md#realm-activities-and-suggestions): signed activity priorities, monthly account criteria/tracking, eligible display-only suggestions and authoritative key refresh. Server5/5, UI20/20, final UDP1/1, native build/check/fmt; both-skin945-row/Track/relog, TrainingGrounds852, owned Azure, first-boss/saved-mask1 and ItemSet reset/tooltip proof. Independent artifact wiring passes; source/calendar/criteria/reward/RPE/icon/token limits remain explicit.
+
+## 2026-10-11 — Crafting UI private acceptance
+
+[Crafting UI](systems/crafting-ui.md): both skins on private UDP5871 spend a source Leatherworking point, place a public Glacial Cloak order, claim/cast on a separate Tailor and receive item/commission through the actual mailbox. Native Apply exposed omitted committed unlock ranks; full selected-tree configurations fix it. Source radial/perk art and resolved tooltips have scoped/native proof. Skills/knowledge/achievement were fixture-primed; quality/concentration and recraft operation remain unsupported. Private broker appearance/authenticated local-CASC receipts were staged without canonical cache edits; slot cache link restored. Master integration3f8d83357 passes47 scoped tests, native extension/CLI build, scoped check and fmt; no full suite or CI certification. Independent AskClaude gate was unavailable (expired OAuth).
+## 2026-10-11 — Retail achievement structure
+
+[Categories and filters](systems/dungeon-achievements.md#retail-categories-and-filters--verified-2026-10-11): requested14 player roots and real pinned DB2 children; Guild/Statistics bottom tabs, independent completion filters, native dropdown scene-order input correction and filter-scroll reset. Integratedee4bfaafa22 targeted tests/build/check/fmt pass; private5899fb_achievementsui both-skin11-stage proof,22 inspected PNGs. Guild progress endpoint and independent verifier unavailable; no criteria edits, full suites or UDP5000 operations.
+
+## 2026-10-11 — Whole-world NPC appearance
+
+[Coverage and publication](investigations/npc-appearance-coverage.md): read-only24599-display/226650-spawn census, private coverage13547 misses→21 source gaps, ordinary geosets1581 and selected server model scale corrected. Cobrahn/Skum/Onyxia both-skin extracted-only native models and9 inspected PNGs; actual Buzzard1105 geometry RED→GREEN. Source-authenticated local assets, preserved canonical rows/Gretal117678 and guarded cache package; canonical cache application remains lead-owned, no full-world native/no-install certificate.
+## 2026-10-11 — Authored boss-mod warnings
+
+[Boss encounters](systems/boss-encounters.md#boss-mod-continuation--verified2026-10-11): display required rendered enUS warning_text with the spell icon, not a locale key/generic name. Model RED→GREEN, both-skin screen, actual UDP order/native geometry and check/fmt pass. Private5906 Hydrospawn/Zevrim bars/warnings in both skins have eight inspected1280PNG receipts; [server coverage](../../../game-server/docs/bossmod-data-coverage.md) owns outstanding native-input clocks. No shared realm changes.
+
 ## 2026-10-11 — AchievementFrame art
 
 [Achievements](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11): Mainline frame/row/status/tab/search templates, native collapsing category ScrollBox, label-only Unicode chat drafts retaining real wire IDs. Current082d6ffa6 both-skin14-stage native art/draft/scroll proof,20 focused UI tests,2 unchanged draft tests and native build/check/fmt pass; inspected PNGs and XML comparison cards published. No independent/full-suite/CI claim. No master merge or shared realm changes.

@@ -150,6 +150,7 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
         let display = CreatureDisplay {
             source_product: AssetProduct::Forever,
             model_fdid: MODEL_FDID,
+            uses_display_geosets: false,
             skin_fdids: [0; 4],
             scale_milli: 1000,
             pet_instance_scale_milli: 1000,
