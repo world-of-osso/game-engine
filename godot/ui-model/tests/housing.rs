@@ -879,6 +879,128 @@ fn housing_expert_mouse_controls_show_real_rotation_and_scale_values_in_both_ski
 }
 
 #[test]
+fn housing_storage_categories_show_owned_roots_then_back_all_and_source_filtered_children_both_skins()
+ {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use shared::protocol::{HouseLayout, HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let mut catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    catalog
+        .resolve_icons(&data.join("db2/12.1.0.69933/UiTextureAtlasElement.csv"))
+        .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(catalog.clone()));
+        model.surface = HousingSurface::Editor;
+        let authority = HousingAuthority {
+            state: Some(HousingState {
+                build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                stored: vec![
+                    StoredDecor {
+                        decor_id: 1693,
+                        quantity: 1,
+                    },
+                    StoredDecor {
+                        decor_id: 2330,
+                        quantity: 1,
+                    },
+                ],
+                layout: Some(HouseLayout {
+                    house_id: 1,
+                    can_edit: true,
+                    decor: vec![],
+                }),
+                ..Default::default()
+            }),
+            error: None,
+        };
+        let mut view = HousingView {
+            model,
+            authority,
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: Default::default(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(housing_screen);
+        screen.sync(&context, &mut registry);
+        for id in [18, 1, 2] {
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("HouseEditorStorageCategory{id}"))
+                        .expect("owned source category"),
+                )
+                .unwrap();
+            assert_eq!(frame.width, Dimension::Fixed(64.0));
+            assert_eq!(frame.height, Dimension::Fixed(64.0));
+            assert_eq!(
+                frame.onclick.as_deref(),
+                Some(format!("housing:storage:category:{id}").as_str())
+            );
+        }
+        for unowned in [4, 5, 6, 9, 17] {
+            assert!(
+                registry
+                    .get_by_name(&format!("HouseEditorStorageCategory{unowned}"))
+                    .is_none()
+            );
+        }
+        view.model
+            .set_storage_category(Some(1), &view.authority)
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("HouseEditorStored1693").is_some());
+        assert!(registry.get_by_name("HouseEditorStored2330").is_none());
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageCategoryBack")
+                .is_some()
+        );
+        let all = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSubcategoryAll")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(all.width, Dimension::Fixed(54.0));
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageSubcategory6")
+                .is_none()
+        ); // Source hides specific subcategory buttons when only one is showable.
+        let title = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageCategoryPath")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(&title.widget_data, Some(WidgetData::FontString(text)) if text.text == "Furnishings")
+        );
+        view.model
+            .set_storage_category(None, &view.authority)
+            .unwrap();
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageCategoryBack")
+                .is_none()
+        );
+        assert!(registry.get_by_name("HouseEditorStored1693").is_some());
+        assert!(registry.get_by_name("HouseEditorStored2330").is_some());
+    }
+}
+
+#[test]
 fn housing_cleanup_hides_storage_and_shows_hover_name_and_readonly_error_in_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use game_engine_ui_model::housing_editor::EditorMode;

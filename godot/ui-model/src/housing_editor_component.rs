@@ -30,6 +30,8 @@ pub fn editor_screen(view: &HousingView) -> Element {
         (0.0, 0.0, 600.0, 68.0),
     );
     let stored = stored_entries(view, disabled);
+    let categories = crate::housing_storage_component::categories(view);
+    let category_path = view.model.storage_category_path();
     let hide_search_hint = !view.model.storage_search.is_empty();
     let status = if can_edit {
         "Owned Decor Storage"
@@ -49,9 +51,10 @@ pub fn editor_screen(view: &HousingView) -> Element {
     rsx! { r#frame { name: "HouseEditorFrame", stretch: true,
         r#frame { name: "HouseEditorStorageFrame", width: 600.0, height: 651.0,
             pos_type: "absolute", left: 0.0, top: 0.0, mouse_enabled: true, strata: FrameStrata::Dialog,
-            {background} {header} {stored}
-            fontstring { name: "HouseEditorStorageTitle", text: status, width: 550.0, height: 32.0,
-                pos_type: "absolute", left: 85.0, top: 68.0, font_size: 14.0 }
+            {background} {header} {stored} {categories}
+            fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:500.0,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
+            fontstring { name: "HouseEditorStorageTitle", text: status, width: 500.0, height: 32.0,
+                pos_type: "absolute", left: 85.0, top: 620.0, font_size: 14.0 }
             editbox {name:"HouseEditorStorageSearchBox",text:{view.model.storage_search.as_str()},width:420.0,height:30.0,pos_type:"absolute",left:20.0,top:20.0,font_size:12.0}
             fontstring {name:"HouseEditorStorageSearchHint",text:"Search",hidden:hide_search_hint,mouse_enabled:false,width:400.0,height:30.0,pos_type:"absolute",left:30.0,top:20.0,font_size:12.0,font_color:"0.5,0.5,0.5,1.0",justify_h:"LEFT"}
         }

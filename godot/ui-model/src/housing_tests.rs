@@ -80,7 +80,7 @@ fn housing_storage_categories_use_real_ownership_and_keep_search_focus_independe
         .iter()
         .map(|subcategory| subcategory.id)
         .collect();
-    assert_eq!(children, vec![6]);
+    assert_eq!(children, vec![6, 7]); // Fireplace80 also belongs to Misc Furnishings7, even when only placed.
     let ids = |model: &HousingDashboard| {
         model
             .stored_entries(&authority)
@@ -88,7 +88,11 @@ fn housing_storage_categories_use_real_ownership_and_keep_search_focus_independe
             .map(|(_, decor)| decor.id)
             .collect::<Vec<_>>()
     };
-    model.set_storage_category(Some(1), &authority).unwrap();
+    assert!(
+        model
+            .storage_focus_action("housing:storage:category:1", &authority)
+            .unwrap()
+    );
     assert_eq!(ids(&model), vec![1693]);
     model.set_storage_subcategory(Some(6), &authority).unwrap();
     assert_eq!(model.storage_subcategory, Some(6));
@@ -114,6 +118,21 @@ fn housing_storage_categories_use_real_ownership_and_keep_search_focus_independe
     assert_eq!(model.storage_category, Some(4));
     model.set_storage_category(Some(18), &authority).unwrap();
     assert_eq!(ids(&model), vec![1693, 2330]);
+    assert!(
+        model
+            .storage_focus_action("housing:storage:category:back", &authority)
+            .unwrap()
+    );
+    assert!(
+        !model
+            .storage_focus_action("housing:category:1", &authority)
+            .unwrap()
+    );
+    assert!(
+        model
+            .storage_focus_action("housing:storage:category:invalid", &authority)
+            .is_err()
+    );
     assert_eq!(model.category, None);
     assert!(model.search.is_empty());
     assert!(
