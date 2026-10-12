@@ -299,22 +299,20 @@ impl GameClient {
     fn query_profession_specializations(&mut self) -> Result<(), FrameError> {
         let skill_line = self
             .professions
-            .book
-            .selected_recipe()
-            .map(|r| r.skill_line)
-            .or_else(|| {
-                self.professions
-                    .book
-                    .snapshot
-                    .lines
-                    .first()
-                    .map(|line| line.skill_line)
-            });
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.specialization_skill_line(&self.professions.book));
         if let Some(skill_line) = skill_line {
             self.account.send_profession_specialization(
                 shared::protocol::ProfessionSpecializationRequest::Query { skill_line },
             )?;
             self.professions.specializations.pending = true;
+        } else {
+            self.professions.specializations =
+                game_engine_ui_model::professions_specializations::SpecializationDraft {
+                    status: "No learned specialization tier for the selected profession.".into(),
+                    ..Default::default()
+                };
         }
         Ok(())
     }

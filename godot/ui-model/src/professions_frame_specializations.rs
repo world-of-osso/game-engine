@@ -26,7 +26,11 @@ pub(super) fn page(view: &ProfessionView) -> Element {
     let Some(snapshot) = &state.snapshot else {
         out.extend(text(
             "ProfessionSpecLoading",
-            "Loading specializations…",
+            if state.pending {
+                "Loading specializations…"
+            } else {
+                "Specializations are unavailable for this profession tier."
+            },
             (32.0, 110.0, 650.0, 28.0),
         ));
         out.extend(text(
