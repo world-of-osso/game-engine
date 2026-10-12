@@ -1,6 +1,6 @@
 //! Source-minimum real-UDP account peers alongside one native Godot client.
 //! No simulated match state, synthetic roster or server shortcuts.
-use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage};
+use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage, replica::Replica};
 use shared::protocol::*;
 use std::{
     fs,
@@ -16,6 +16,7 @@ struct Peer {
     entered: bool,
     map: Option<u32>,
     snapshot: Option<PvpSnapshot>,
+    replica: Replica,
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
@@ -94,8 +95,20 @@ impl Peer {
         }
     }
     fn write_state(&self, directory: &Path) -> Result<(), String> {
-        let value =
-            serde_json::json!({"entered": self.entered,"map":self.map,"snapshot":self.snapshot});
+        let npcs: Vec<_> = self
+            .replica
+            .units()
+            .filter_map(|unit| {
+                let npc = unit.get::<shared::components::Npc>()?;
+                let position = unit.get::<shared::components::Position>()?;
+                Some(
+                    serde_json::json!({"server_id":unit.server_id,"entry":npc.template_id,
+                "name":npc.name,"position":[position.x,position.y,position.z]}),
+                )
+            })
+            .collect();
+        let value = serde_json::json!({"entered": self.entered,"map":self.map,
+            "snapshot":self.snapshot,"npcs":npcs});
         fs::write(
             directory.join(format!("peer{}.json", self.index)),
             serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
@@ -149,6 +162,7 @@ fn run() -> Result<(), String> {
             entered: false,
             map: None,
             snapshot: None,
+            replica: Replica::default(),
         });
     }
     let mut last = String::new();
@@ -158,6 +172,11 @@ fn run() -> Result<(), String> {
             for event in peer.bridge.drain_events()? {
                 match event {
                     Event::Message(message) => peer.receive(message)?,
+                    Event::ReplicationStarted(schema) => peer.replica = Replica::new(schema),
+                    Event::Replication(batch) => peer
+                        .replica
+                        .apply(batch)
+                        .map_err(|error| error.to_string())?,
                     Event::Disconnected(reason) => {
                         return Err(format!("{} disconnected: {reason:?}", peer.username));
                     }
