@@ -10,13 +10,15 @@ use crate::{
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
-    transmog::TransmogBook,
-    transmog_frame::{HEIGHT, MODEL_SCENE, TransmogView, WIDTH, transmog_screen},
+    transmog::{TransmogBook, TransmogSend, WardrobeTab},
+    transmog_frame::{
+        HEIGHT, MODEL_SCENE, NAME_POPUP_EDITBOX, TransmogView, WIDTH, transmog_screen,
+    },
 };
 use godot::prelude::*;
 use shared::components::{Gold, SheathState};
 use shared::protocol::{
-    ApplyTransmog, EquipmentSlot, TransmogChoice, TransmogError, TransmogFailed, TransmogState,
+    EquipmentSlot, TransmogChoice, TransmogError, TransmogFailed, TransmogState,
 };
 
 // The frontal body camera looks along drawn blades. A three-quarter view exposes them.
@@ -40,7 +42,7 @@ pub(crate) struct Transmog {
     yaw: f32,
     sheathed: bool,
     pending: Option<(u64, UnitAppearance)>,
-    collection: std::collections::BTreeMap<u32, collection::CollectionPreview>,
+    collection: std::collections::BTreeMap<String, collection::CollectionPreview>,
 }
 
 impl Transmog {
@@ -56,10 +58,30 @@ impl Transmog {
 }
 
 impl GameClient {
-    pub(super) fn receive_transmog_state(&mut self, state: TransmogState) {
+    pub(super) fn receive_transmog_state(
+        &mut self,
+        state: TransmogState,
+    ) -> Result<(), FrameError> {
         self.merchant.session.close();
         self.auction_interaction_closed_any();
         self.transmog.book.receive(state);
+        // CommitAndApplyAllPending: the outfit commit follows a confirmed paid Apply.
+        if let Some(save) = self.transmog.book.take_queued_save() {
+            self.send_transmog(TransmogSend::SaveOutfit(save))?;
+        }
+        Ok(())
+    }
+
+    fn send_transmog(&mut self, request: TransmogSend) -> Result<(), FrameError> {
+        if let Err(error) = self.account.send_transmog(request) {
+            let book = &mut self.transmog.book;
+            book.applying = false;
+            book.saving = None;
+            book.queued_save = None;
+            book.error = error.to_string();
+            return Err(error.into());
+        }
+        Ok(())
     }
 
     pub(super) fn receive_transmog_failure(
@@ -168,25 +190,32 @@ impl GameClient {
                 break;
             }
             if let Some(request) = self.apply_transmog_action(&action)? {
-                if let Err(error) = self.account.send_transmog_apply(request) {
-                    self.transmog.book.applying = false;
-                    self.transmog.book.error = error.to_string();
-                    return Err(error.into());
-                }
+                self.send_transmog(request)?;
             }
         }
         Ok(())
     }
 
-    fn apply_transmog_action(&mut self, action: &str) -> Result<Option<ApplyTransmog>, String> {
+    fn apply_transmog_action(&mut self, action: &str) -> Result<Option<TransmogSend>, String> {
         if self.apply_transmog_preview_action(action)? {
             return Ok(None);
         }
+        if action == "transmog:name-accept" {
+            let mut ui = self.transmog.ui.clone().ok_or("Transmog UI missing")?;
+            let name = ui
+                .bind_mut()
+                .frame_text(NAME_POPUP_EDITBOX.into())
+                .to_string();
+            return Ok(self.transmog.book.create_custom_set(&name));
+        }
         let book = &mut self.transmog.book;
         match action {
-            "transmog:apply" => return Ok(book.apply()),
+            "transmog:save-outfit" => return Ok(book.save_outfit()),
             "transmog:undo" => book.undo(),
             "transmog:clear-search" => book.set_search(String::new()),
+            "transmog:original" if book.illusion_selected => {
+                book.stage_illusion(None);
+            }
             "transmog:original" => {
                 book.stage(TransmogChoice::Original);
             }
@@ -195,28 +224,12 @@ impl GameClient {
             }
             "transmog:previous" => book.page = book.page.saturating_sub(1),
             "transmog:next" => book.page = (book.page + 1).min(book.pages() - 1),
-            _ => {
-                if let Some(value) = action.strip_prefix("transmog:slot:") {
-                    let id = value
-                        .parse::<u8>()
-                        .map_err(|error| format!("Invalid transmog slot: {error}"))?;
-                    let slot = EquipmentSlot::ALL
-                        .into_iter()
-                        .find(|slot| slot.inv_slot_id() == id)
-                        .ok_or_else(|| format!("Unknown transmog slot {id}"))?;
-                    book.select(slot);
-                } else if let Some(value) = action.strip_prefix("transmog:source:") {
-                    let id = value
-                        .parse::<u32>()
-                        .map_err(|error| format!("Invalid transmog source: {error}"))?;
-                    if !book.stage(TransmogChoice::Source(id)) {
-                        book.error =
-                            "This appearance is not available for the selected slot.".into();
-                    }
-                } else {
-                    return Err(format!("Unknown transmog action {action}"));
-                }
-            }
+            "transmog:tab:items" => book.set_tab(WardrobeTab::Items),
+            "transmog:tab:sets" => book.set_tab(WardrobeTab::Sets),
+            "transmog:tab:custom-sets" => book.set_tab(WardrobeTab::CustomSets),
+            "transmog:new-custom-set" => book.open_custom_set_name(),
+            "transmog:name-cancel" => book.naming_custom_set = false,
+            _ => apply_transmog_id_action(book, action)?,
         }
         Ok(None)
     }
@@ -225,6 +238,7 @@ impl GameClient {
         match action {
             "transmog:rotate-left" => self.transmog.yaw -= ROTATE_STEP,
             "transmog:rotate-right" => self.transmog.yaw += ROTATE_STEP,
+            "transmog:reset-rotation" => self.transmog.yaw = 0.0,
             "transmog:sheathe" => {
                 self.transmog.sheathed = !self.transmog.sheathed;
                 if let (Some(model), Some(appearance)) = (
@@ -255,6 +269,7 @@ impl GameClient {
         let view = TransmogView {
             book: self.transmog.book.clone(),
             viewport_width: size.x / scale,
+            sheathed: self.transmog.sheathed,
             race_id: match self.world.local_player_appearance() {
                 Some(UnitAppearance::Player(player, _)) => player.race,
                 _ => 0,
@@ -350,4 +365,47 @@ impl GameClient {
         self.transmog.shown = Some(appearance);
         Ok(())
     }
+}
+
+/// Actions carrying an equipment slot, appearance, illusion, outfit or set identity.
+fn apply_transmog_id_action(book: &mut TransmogBook, action: &str) -> Result<(), String> {
+    fn id<T: std::str::FromStr>(value: &str, what: &str) -> Result<T, String>
+    where
+        T::Err: std::fmt::Display,
+    {
+        value
+            .parse::<T>()
+            .map_err(|error| format!("Invalid transmog {what}: {error}"))
+    }
+    fn slot(value: &str) -> Result<EquipmentSlot, String> {
+        let inv = id::<u8>(value, "slot")?;
+        EquipmentSlot::ALL
+            .into_iter()
+            .find(|slot| slot.inv_slot_id() == inv)
+            .ok_or_else(|| format!("Unknown transmog slot {inv}"))
+    }
+    let (kind, value) = action
+        .strip_prefix("transmog:")
+        .and_then(|rest| rest.rsplit_once(':'))
+        .ok_or_else(|| format!("Unknown transmog action {action}"))?;
+    let staged = match kind {
+        "slot" => {
+            book.select(slot(value)?);
+            true
+        }
+        "illusion-slot" => {
+            book.select_illusion(slot(value)?);
+            true
+        }
+        "source" => book.stage(TransmogChoice::Source(id(value, "source")?)),
+        "illusion" => book.stage_illusion(Some(id(value, "illusion")?)),
+        "outfit" => book.view_outfit(id(value, "outfit")?),
+        "set" => book.use_set(id(value, "set")?),
+        "custom-set" => book.use_custom_set(id(value, "custom set")?),
+        _ => return Err(format!("Unknown transmog action {action}")),
+    };
+    if !staged {
+        book.error = "This appearance is not available for the selected slot.".into();
+    }
+    Ok(())
 }
