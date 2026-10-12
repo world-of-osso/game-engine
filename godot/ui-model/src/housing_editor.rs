@@ -32,9 +32,55 @@ pub struct EditorInteraction {
     pub mode: EditorMode,
     pub submode: PrecisionSubmode,
     pub scale_allowed: bool,
+    pub mouse_control_anchor: Option<[f32; 2]>,
+    mouse_start: Option<DecorTransform>,
     initial: Option<DecorTransform>,
     draft: Option<DecorTransform>,
     axis: RotationAxis,
+}
+
+fn apply_mouse_offset(
+    mut start: DecorTransform,
+    submode: PrecisionSubmode,
+    axis: RotationAxis,
+    offset: f32,
+) -> Result<DecorTransform, String> {
+    if !offset.is_finite() {
+        return Err("Mouse manipulation offset must be finite.".into());
+    }
+    match submode {
+        PrecisionSubmode::Translate => {
+            let index = match axis {
+                RotationAxis::X => 0,
+                RotationAxis::Y => 1,
+                RotationAxis::Z => 2,
+            };
+            start.position[index] += offset;
+        }
+        PrecisionSubmode::Rotate => match axis {
+            RotationAxis::X => start.pitch += offset,
+            RotationAxis::Y => start.yaw += offset,
+            RotationAxis::Z => start.roll += offset,
+        },
+        PrecisionSubmode::Scale => start.scale += offset,
+    }
+    validate_mouse_transform(start)
+}
+
+fn validate_mouse_transform(transform: DecorTransform) -> Result<DecorTransform, String> {
+    let finite = transform.position.iter().all(|value| value.is_finite())
+        && [
+            transform.yaw,
+            transform.pitch,
+            transform.roll,
+            transform.scale,
+        ]
+        .iter()
+        .all(|value| value.is_finite());
+    if !finite || transform.scale <= 0.0 {
+        return Err("Decor transform must be finite with positive scale.".into());
+    }
+    Ok(transform)
 }
 
 fn layout(authority: &HousingAuthority) -> Result<&HouseLayout, String> {
@@ -67,13 +113,39 @@ impl EditorInteraction {
         };
     }
     pub fn set_submode(&mut self, submode: PrecisionSubmode) {
+        self.end_mouse_drag();
         self.submode = submode;
+    }
+    /// Retail Start/Change/Complete manipulator events stage changes independently
+    /// of CommitDecorMovement. Release is not a persistence command.
+    pub fn begin_mouse_drag(&mut self, authority: &HousingAuthority) -> Result<(), String> {
+        editable_layout(authority)?;
+        if self.mode != EditorMode::Expert {
+            return Err("Mouse precision manipulation requires Expert Mode.".into());
+        }
+        if self.submode == PrecisionSubmode::Scale && !self.scale_allowed {
+            return Err("Retail expert mode cannot scale WMO decor.".into());
+        }
+        self.mouse_start = Some(self.draft.ok_or("Select editable decor before dragging.")?);
+        Ok(())
+    }
+    pub fn is_manipulating(&self) -> bool {
+        self.mouse_start.is_some()
+    }
+    pub fn update_mouse_drag(&mut self, offset: f32) -> Result<(), String> {
+        let start = self.mouse_start.ok_or("No mouse manipulation is active.")?;
+        self.draft = Some(apply_mouse_offset(start, self.submode, self.axis, offset)?);
+        Ok(())
+    }
+    pub fn end_mouse_drag(&mut self) {
+        self.mouse_start = None;
     }
     pub fn rotation_axis(&self) -> RotationAxis {
         self.axis
     }
     /// C_HousingExpertMode.SelectNextRotationAxis: X -> Y -> Z -> X.
     pub fn next_axis(&mut self) {
+        self.end_mouse_drag();
         self.axis = match self.axis {
             RotationAxis::X => RotationAxis::Y,
             RotationAxis::Y => RotationAxis::Z,

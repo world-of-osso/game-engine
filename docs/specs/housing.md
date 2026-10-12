@@ -38,6 +38,10 @@ Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544
 
 Expert uses the same owned decor and server conservation rules as Basic. Retail Expert Translate/Rotate/Scale submodes stage complete transforms; commit saves once, cancel restores the confirmed layout, rotation axis cycles X→Y→Z, and WMO scaling is refused. Both skins share the64px mode/submode controls and expert's hidden storage drawer. Initial placement uses authenticated HouseDecor InitialRotation/InitialScale, not identity defaults. Persistence migration and finite/positive constraints are in the server contract. Native bindings/rates are documented input tuning rather than certified Retail defaults:1/2/3 choose submode, arrows/PageUp/PageDown translate, Q/E increment rotation/scale, X cycles axis, Enter commits, Esc cancels. Mouse manipulator gizmos and Shift snapping remain unproved; outdoor bounds and default grants remain unsourced.
 
+### Mouse precision continuation
+
+Start/Change/Complete mouse manipulation stages an axis transform from its press-time value, never accumulates prior motion twice and never saves on release. Explicit commit remains authoritative; cancel restores saved state. Visitors, unselected targets and WMO scale are refused. Parent-approved2026-10-12 scope uses sourced unsnapped controls only: Retail transform axes/events and scale/rotate widget art. Shift snap increments and native3D handle identity remain named source gaps; do not invent increments, interpret unnamed GameParameter rows or draw substitute3D handles.
+
 ## Neighborhood source boundary
 
 Authored bulletin-board type48/PlayerInteractionType72 objects open the600×400 Retail roster, showing durable plot owners, online status and repeatable Name/Status/Plot sorting in both skins. Charter/create remain explicitly unavailable: pinned TrinityCore a352 HousingHandler/Packets implement decline-invites only; local TDB1210 carries housing NPC/object records but no authoritative charter fee/signature-count/name-length contract. Generated NeighborhoodNameMaxCharacters0 is not a valid inferred policy. No fee, signature quota or name length is fabricated.
