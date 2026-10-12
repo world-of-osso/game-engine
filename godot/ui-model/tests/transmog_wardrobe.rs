@@ -84,10 +84,20 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 fn transmog_retail_frame_and_cells_use_121_natural_dimensions() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = build(skin, book());
-        let frame = registry.get(registry.get_by_name("TransmogFrame").unwrap()).unwrap();
-        assert_eq!((frame.resolved_width(), frame.resolved_height()), (1618.0, 883.0));
-        let model = registry.get(registry.get_by_name("TransmogSource821ModelScene").unwrap()).unwrap();
-        assert_eq!((model.resolved_width(), model.resolved_height()), (100.0, 132.0));
+        let frame = registry
+            .get(registry.get_by_name("TransmogFrame").unwrap())
+            .unwrap();
+        assert_eq!(
+            (frame.resolved_width(), frame.resolved_height()),
+            (1618.0, 883.0)
+        );
+        let model = registry
+            .get(registry.get_by_name("TransmogSource821ModelScene").unwrap())
+            .unwrap();
+        assert_eq!(
+            (model.resolved_width(), model.resolved_height()),
+            (100.0, 132.0)
+        );
     }
 }
 
@@ -102,9 +112,20 @@ fn transmog_slot_icon_tracks_authoritative_applied_and_pending_source() {
             state.stage(choice);
             assert_eq!(state.pending_cost(), Some(expected_cost));
             let registry = build(skin, state.clone());
-            let frame = registry.get(registry.get_by_name("TransmogSlot16Icon").expect("current appearance icon")).unwrap();
-            let Some(WidgetData::Texture(texture)) = &frame.widget_data else { panic!("slot icon") };
-            assert_eq!(texture.source, ui_toolkit::widgets::texture::TextureSource::FileDataId(expected_icon));
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name("TransmogSlot16Icon")
+                        .expect("current appearance icon"),
+                )
+                .unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("slot icon")
+            };
+            assert_eq!(
+                texture.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(expected_icon)
+            );
         }
     }
 }
@@ -114,11 +135,13 @@ fn transmog_retail_grid_pages_twenty_models_without_losing_pending_cost() {
     let mut state = book();
     let slot = &mut state.state.as_mut().unwrap().slots[0];
     let source = slot.sources[0].clone();
-    slot.sources = (0..41).map(|index| TransmogSource {
-        source_id: 821 + index,
-        name: format!("Blade {index}"),
-        ..source.clone()
-    }).collect();
+    slot.sources = (0..41)
+        .map(|index| TransmogSource {
+            source_id: 821 + index,
+            name: format!("Blade {index}"),
+            ..source.clone()
+        })
+        .collect();
     assert_eq!(state.pages(), 3);
     assert_eq!(state.page_sources().len(), 20);
     state.page = 1;
