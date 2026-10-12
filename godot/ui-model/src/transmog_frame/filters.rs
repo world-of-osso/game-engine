@@ -90,9 +90,9 @@ pub(super) fn menu(book: &TransmogBook) -> Element {
         let name = DynName(row.name);
         let top = 6.0 + index as f32 * 22.0;
         children.extend(rsx! { button { name, width: 168.0, height: 22.0, top, left: 0.0,
-            pos_type: "absolute", disabled, button_default_skin: false, onclick: {row.action.as_str()},
+            pos_type: "absolute", frame_level: 61.0, disabled, button_default_skin: false, onclick: {row.action.as_str()},
             button_atlas_highlight: "defaultbutton-nineslice-highlight", {label} } });
     }
     rsx! { r#frame { name: "TransmogFilterMenu", width: 168.0, height, left: 1458.0, top: 100.0,
-    pos_type: "absolute", strata: FrameStrata::FullscreenDialog, mouse_enabled: true, {children} } }
+    pos_type: "absolute", strata: FrameStrata::FullscreenDialog, frame_level: 60.0, mouse_enabled: true, {children} } }
 }
