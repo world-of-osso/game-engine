@@ -1,3 +1,7 @@
+## 2026-10-12 — Deephaul both-skin private lifecycle
+
+[Deephaul](systems/battlegrounds.md#deephaul-ravine--bounded-both-skin-proof-2026-10-12):10realaccounts per skin, visible authenticated5770750/603231, source crystal capture/cart presence/motion/replacement, natural1500–418/1020=1/1021=2, automaticVictory/exact origin/nine-peer clear/10ACKs then periodic save.24 inspected PNGs;1,346floor-proved route samples plus flag/trigger approaches.11crystal assets/4aliases staged privately; lead publication, vehicle/preparation/aura/reward/art boundaries remain explicit. Own runtimes stopped; epics then authored Seething transport remain in scope.
+
 ## 2026-10-12 — Seething objectives and transport entry boundary
 
 [Seething](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12): source dynamic nodes,40s geysers, six-second Gathering,100resources/744 and pure victory; grounded channel fixture remains partial. Starts6337/6380 are transport-relative35/36, not world-space coordinates. Retain TransportSpawnId/refuse unresolved entry/hide894; return to authored transport spawns/transforms/attachment/collision after Deephaul/epics. No native lifecycle or full Retail claim.
