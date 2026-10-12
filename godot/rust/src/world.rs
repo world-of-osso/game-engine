@@ -1543,10 +1543,7 @@ impl WorldUnits {
     pub fn local_footstep_phase(&self) -> Option<(u64, Vector3, (usize, u16, f32, f32))> {
         let id = self.local_player_id?;
         let unit = self.units.get(&id)?;
-        let animation = unit
-            .visual
-            .as_ref()?
-            .try_get_node_as::<WowAnimationPlayer>("M2Animation")?;
+        let animation = unit.animation_player()?;
         Some((
             id,
             unit.node.get_global_position(),
@@ -1581,12 +1578,8 @@ impl WorldUnits {
         if let Some(result) = mount::animate_mounted(unit, locomotion, flying, fallbacks) {
             return result;
         }
-        let visual = unit
-            .visual
-            .as_ref()
-            .ok_or_else(|| format!("Local player {} has no authored visual", unit.name))?;
-        let mut animation = visual
-            .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+        let mut animation = unit
+            .animation_player()
             .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
         let movement = player_movement_clip(unit, &animation, animation_id, jumping, fallbacks);
         animation
