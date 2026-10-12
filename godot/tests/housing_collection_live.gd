@@ -65,6 +65,7 @@ func buy_bookcase() -> bool:
 	await click_control(merchant_control("MerchantItem%d" % (item_index + 1)), MOUSE_BUTTON_RIGHT)
 	if not await wait_for(func(s): return bag_count(s, BOOKCASE_ITEM) == 1 and int(s.money) == int(before.money) - price, "authentic bookcase purchase"): return false
 	housing_receipts.append({"phase": "vendor-purchase", "skin": housing_skin, "before": before, "after": client.merchant_state(), "price": price})
+	if not write_housing_receipts(): return false
 	if not await capture_housing("vendor-purchase"): return false
 	await click_control(merchant_control("MerchantFrameCloseButton"), MOUSE_BUTTON_LEFT)
 	return await wait_for(func(s): return not s.open, "merchant close before collection")
@@ -86,17 +87,21 @@ func open_pawdo_shop(vendor: Dictionary) -> bool:
 	return await wait_for(func(s): return s.open and s.vendor_name == PAWDO_NAME, "Pawdo merchant frame")
 
 func collect_bookcase() -> bool:
-	if not merchant_visible("ContainerFrame0"):
+	var backpack: Control = housing_named_control("BagsUI", "ContainerFrame0")
+	if backpack == null or not backpack.is_visible_in_tree():
 		await tap(KEY_B)
-	if not await wait_housing(func(): return merchant_visible("ContainerFrame0"), "backpack"): return false
+	if not await wait_housing(func():
+		var visible_bag: Control = housing_named_control("BagsUI", "ContainerFrame0")
+		return visible_bag != null and visible_bag.is_visible_in_tree(), "backpack"): return false
 	var item: Dictionary = bag_slot(client.merchant_state(), BOOKCASE_ITEM)
 	if item.is_empty():
 		fail("Purchased bookcase has no authoritative bag placement")
 		return false
 	var before_money: int = int(client.merchant_state().money)
-	await click_control(merchant_control("ContainerFrame%dSlot%d" % [item.bag, item.slot]), MOUSE_BUTTON_RIGHT)
+	await click_control(housing_named_control("BagsUI", "ContainerFrame%dSlot%d" % [item.bag, item.slot]), MOUSE_BUTTON_RIGHT)
 	if not await wait_for(func(s): return bag_count(s, BOOKCASE_ITEM) == 0 and int(s.money) == before_money, "normal bag bookcase collection"): return false
 	housing_receipts.append({"phase": "bag-use", "skin": housing_skin, "item": item, "after": client.merchant_state()})
+	if not write_housing_receipts(): return false
 	await tap(KEY_B)
 	return true
 
@@ -113,6 +118,7 @@ func show_housing_bookcase(quantity: int, phase: String) -> bool:
 	await housing_type_text(BOOKCASE_NAME)
 	if not await wait_housing(func(): return housing_text("HousingPreviewName") == BOOKCASE_NAME and housing_text("HousingPreviewDetails").contains("Stored decor: %d;" % quantity) and housing_text("HousingPreviewDetails").contains("Decor 1693 · Item 245259"), "authoritative bookcase count " + str(quantity)): return false
 	housing_receipts.append({"phase": phase, "skin": housing_skin, "account": client.account_state(), "details": housing_text("HousingPreviewDetails"), "status": housing_text("HousingCatalogStatus"), "bags": client.merchant_state().bags})
+	if not write_housing_receipts(): return false
 	return await capture_housing(phase)
 
 func housing_control(name: String) -> Control:
