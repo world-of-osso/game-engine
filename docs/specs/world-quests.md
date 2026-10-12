@@ -9,7 +9,7 @@ Retail Mainline world quests with authoritative availability, POI-area acceptanc
 - [x] Complete counted objectives through the existing quest system; automatically settle authentic TDB quest_template/addon/reward items, money, XP, currency and reputation only. No invented rewards. Quests without reward data complete without reward and are counted. One completion per quest per active window.
 - [x] Availability snapshots carry active IDs, map/zone, authored POI position, expiry and rewards preview.
 - [x] Native Mainline-style world-map pins/tooltips show time left/rewards; task tracker entries show progress bar/timer; acceptance/completion produce toasts. Local CASC art, both skins.
-- [x] Controlled private UDP5861 proof completes real quest86941 in Modern and Forever using fb_* accounts and administrator-supplied authentic objective items. Inspected PNGs under `/syncthing/AgentShared/2026-10-11/world-quests/`. This proves bag-objective/automatic settlement, not natural gathering or combat; live actors also expose the existing private terrain/death-state limitation.
+- [x] Controlled private UDP5861 proof completes real86941 with administrator-supplied authentic items and real86948 with administrator-driven authored NPC46327 deaths, in Modern/Forever using fb_* accounts. Current matching binaries show7/8→automatic completion/11765XP and living actors; Modern relog has no task. Inspected1280px PNGs under `/syncthing/AgentShared/2026-10-11/world-quests/`. Natural gathering/player combat is not certified.
 - [ ] Integrate origin/master, targeted tests/check/fmt, full protocol suite when changed, explicit branch push and final census/SHAs/import command. Canonical world.db and UDP5000 untouched; protocol overrides uncommitted; patch blocks retained.
 
 ## World of Osso policy
@@ -25,12 +25,12 @@ Retail Mainline world quests with authoritative availability, POI-area acceptanc
 | Capability | Current coverage | Proof |
 | --- | --- | --- |
 | Polygon admission/rotation | Source polygons, pinned duration or policy default | Python import and deterministic rotation tests |
-| Objective integration | Dynamic TDB0monster/1item/2game object/3TalkTo/9player kills/14single-leaf criteria/15weighted bar/21label kills; authored ordering, flags, Flags2 and weights | Host-message/persistence tests; older live bag progress |
+| Objective integration | Dynamic TDB0monster/1item/2game object/3TalkTo/9player kills/14single-leaf criteria/15weighted bar/21label kills; authored ordering, flags, Flags2 and weights | 23 bounded server behavior tests,12 importer tests; controlled real item/creature completion |
 | Remaining authentic objectives |239/244 admitted;3 area-trigger quests and2 absent labels remain excluded; **whole coverage is open**, not an approved exclusion policy | [Exact census](../wiki/investigations/world-quest-availability.md#current-poi-census) |
 | Completion/replay/expiry | Stored task history; items/money/numeric rewards transaction; pinned QuestXP | Host-message/persistence tests; controlled both-skin live completion |
 | Native presentation | Pins/tooltips, separate World Quests module, timer/bar/toasts | Both-skin UI test plus inspected native PNGs |
 
-The existing-system representational boundary is an implementation gap, not absence of authentic objectives. Extending it or approving exclusions needs reconciliation with the user's existing-system-only instruction; no narrower goal has been accepted. Natural objective acquisition and living-character gameplay are not certified by administrator-seeded completion.
+The existing-system representational boundary is an implementation gap, not absence of authentic objectives. Extending it or approving exclusions needs reconciliation with the user's existing-system-only instruction; no narrower goal has been accepted. Natural objective acquisition/player combat is not certified by administrator-seeded completion. Living actors are now demonstrated during controlled creature-credit completion, not ordinary unassisted gameplay.
 
 ## Sources and implementation
 

@@ -21,7 +21,7 @@ Dynamic objective vectors now preserve every authored row, order, optional/hidde
 
 Four definitions have authentic ManagedWorldState durations:52847→113,52848→12,54895→114,54896→115, all604800 seconds. All four have only point pins, so none is currently polygon-admitted. Policy durations cover the imported subset; authentic values would take precedence for any polygon-admitted definition with that join.
 
-Receipt and immutable private database: `/home/osso/.worktrees/world-quests-data/diagnostics/poi-census-v6.json` and `polygon-world-v6.db`. [Server notes](../../../../game-server/docs/world-quests.md) own the reproducible lead import command; canonical world.db is unchanged.
+Receipt and immutable private database: `/home/osso/.worktrees/world-quests-data/diagnostics/poi-census-v7.json` and `polygon-world-v7.db`. [Server notes](../../../../game-server/docs/world-quests.md) own the reproducible lead import command; canonical world.db is unchanged.
 
 ## Runtime and source rewards
 
@@ -33,7 +33,7 @@ Local CASC QuestFactionReward FDID1282622/layout572521898 supplies two signed16-
 
 `WorldQuestAvailability` carries per-character active IDs/title, map/zone/UiMapID, polygon-derived pin position, expiry, items/money/XP/currency/reputation previews and server time. Completed windows disappear from the character's availability list. Native bridge/account reducers retain task identity for tracker/toast routing.
 
-Type19 uses `AreaTrigger::HandleUnitEnter` and `GetTemplate()->Id.Id` (`reference/AreaTrigger.cpp:167–170,1017`), not the static-position DB2 namespace. Required entries32539/35987–35990/40181 lack template/create-property bindings in inspected data. Their Amount0 is boolean source semantics; no task polygon is substituted for trigger geometry. Tasks82468/86610/91804 remain excluded pending authentic bindings.
+Type19 uses `AreaTrigger::HandleUnitEnter` and `GetTemplate()->Id.Id` (`reference/AreaTrigger.cpp:167–170,1017`), not the static-position DB2 namespace. Required entries32539/35987–35990/40181 lack template/create-property bindings in inspected data. Their Amount0 is now loaded as an unset boolean requiring1 (RED→GREEN); production entry credit remains unwired pending authentic bindings. Local AreaTriggerCreateProperties1937227 decodes156 rows, with none of the six required IDs in any raw field. No task polygon is substituted for trigger geometry. Tasks82468/86610/91804 remain excluded pending authentic bindings.
 
 ## Native presentation and private proof
 
@@ -44,6 +44,14 @@ Native map pins are distinct from ordinary numbered quest pins. Auto-watched tas
 Private UDP5861, account fb_worldquests: real quest86941 Elemental Infusion, objective235666 Shadow Infused Shard x6. Modern Wquestfresh31 and Forever Wqforever32 show0/6→2/6→automatic completion, consumed objective items and11765 XP. Authentic items were administrator-supplied through the existing inventory path; no `.quest complete` was used. Modern replay grant leaves six items in bags, no task reacceptance or new completion toast. UI trees prove both skins' timer/bar/tooltips and completion banners; inspected1280px PNGs are in `/syncthing/AgentShared/2026-10-11/world-quests/`.
 
 **Boundary:** this is controlled bag-objective/settlement proof, not natural gathering/combat. Captures expose dead actors from the existing private terrain/spawn-state limitation; ordinary-world physical gameplay/living-character certification is not claimed. Prior attempts against86948's enslaved-inferno objective did not establish natural credit. See the [private terrain destinations investigation](../../../../game-server/docs/wiki/investigations/private-terrain-destinations.md). All owned server/client PIDs and slice were stopped;5861 is free. UDP5000 was untouched.
+
+## Continued controlled creature proof
+
+Following both master integrations, matching extension/CLI/server/protocol binaries on private5861 complete86948 Twilight Bonds with Wqvmodern30 and Wqvforever31 (`fb_worldquests`). Real authored Enslaved Inferno46327 deaths produce0/8→7/8→automatic completion and11765XP. Deaths use explicit administrator damage6000, not `.quest complete` or natural player attacks. Both actors are Alive at capture; the existing revive lifecycle restores full level80 fixture health. NPC/source-position terrain is retained, with no collision or terrain-code fix.
+
+Earlier `live-v6` also verifies a private clock+86400 next-window reacceptance, and an extra creature death does not reaccept/reward Modern in the completed window. Current `live-current` Modern receives completion/XP, then relog confirms no task; its immediate post-toast snapshot still shows the prior7/8 state, so that capture is not proof of instantaneous tracker clearing. Forever current capture waits for the empty log and cleared tracker. Inspected earlier map screenshots show available86959 Dragor's Revenge in Modern and86948 in Forever; do not describe both as the same quest tooltip.
+
+Current bounded receipts:23 server WQ tests,12 importer tests,1 both-skin UI integration test,1,733 full protocol tests; native builds/check/fmt pass. Independent bounded artifact verification passes with whole coverage still open at5 source/producer gaps. Natural acquisition/player combat and all-item-acquisition routes remain uncertified. All owned clients/server and the sanitized `agents-world_quests.slice` are stopped;5861 free. Current proof inputs remain under `world-quests-data/live-current`; durable receipts are copied into canonical engine diagnostic storage, never committed.
 
 ## Historical activation audit
 
