@@ -1,6 +1,13 @@
 ## 2026-10-12 — Combat-assist source-gap re-audit and replay
 
 [Cooldown/assist audit](investigations/cooldown-assist-data.md#source-gap-re-audit--2026-10-12): exact1229376/470418 DB2 rows and pinned TC cast/GCD paths do not define assistant-origin penalty handling; no guessed multiplier. Nonzero chargeValue2 has no authored rows in this build. Native observation captures one evaluator decision for exact private Holy Power/charge/cost/target replay; comparator semantics remain unchanged.
+## 2026-10-12 — Silvershard both-skin private lifecycle
+
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): six real accounts per skin, visible authenticated603231/604785, ordinary3s switch6467 toggle, real cart presence/motion/replacement, natural1500, measured428=6/4, automaticVictory and exact origin/all-peer return. Twenty-two inspected PNGs; teardown observes all returnACKs then periodic save from a preLeave log offset. Canonical assets/cache remain lead-owned; broader preparation/graveyard/visual-aura parity remains open.
+
+## 2026-10-12 — Silvershard private content prerequisites
+
+[Silvershard](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12): actual promoted switches pass source three-second casts/cancellation/copy checks;1,758 real-floor route approaches replace unsafe NPC-pivot travel. Modern private lifecycle reaches1500/428/exact return, but its carts were invisible. Two ordinary appearance rows and authenticated Retail model chains are staged privately; both-skin rendered acceptance remains open. Eye matched live rerun is now unblocked by landed M2 floors.
 
 ## 2026-10-12 — Transmog icon and relog completion
 
