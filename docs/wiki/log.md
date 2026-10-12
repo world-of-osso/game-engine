@@ -1,3 +1,7 @@
+## 2026-10-12 — Source warning-sign batches
+
+[Warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12): four source actor identities, both-skin real learning/use/mesh/scale/natural expiry. Swarthy195897 additionally proves one start/two authored models/scales/root offsets/scene-wide cleanup. Weak first-three captures await genuine cooldowns; per-effect pixel/particle certification remains separate. Prepared325 is not1166 completion; authenticated private preparation and source admission preserve existing gates.
+
 ## 2026-10-12 — Banner and Preyhunter natural expiry
 
 [Scaled scenery](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12): both-skin real journal use/source scale and natural60s/120s actor removal pass on current merged native/server builds. Earlier Banner/Preyhunter expiry gap closed; no clock shortcuts or broader certification.
