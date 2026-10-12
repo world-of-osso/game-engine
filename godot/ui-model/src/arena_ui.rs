@@ -155,7 +155,7 @@ fn enemy_frame(index: usize, unit: &ArenaUnitSnapshot) -> Element {
     };
     let view = CompactUnitView {
         name: unit.name.clone(),
-        class_rgb: [1.0, 0.0, 0.0],
+        class_rgb: crate::damage_meter_data::class_color(unit.class),
         health_fraction,
         power: None,
         role: GroupRoleSnapshot::None,
@@ -168,7 +168,10 @@ fn enemy_frame(index: usize, unit: &ArenaUnitSnapshot) -> Element {
     let top = index as f32 * HEIGHT;
     let mut frame = compact_unit_frame(&name, &view, (0.0, top, WIDTH, HEIGHT), None);
     let target = format!("pvp:target:{}", unit.entity);
-    frame.extend(rsx! { button { name:{DynName(format!("{name}Target"))},width:WIDTH,height:HEIGHT,
-        left:0.0,top,pos_type:"absolute",strata:FrameStrata::Medium,onclick:{target.as_str()},text:"" } });
+    frame.extend(
+        rsx! { button { name:{DynName(format!("{name}Target"))},width:WIDTH,height:HEIGHT,
+        left:0.0,top,pos_type:"absolute",strata:FrameStrata::Medium,button_default_skin:false,
+        onclick:{target.as_str()},text:"" } },
+    );
     frame
 }
