@@ -75,6 +75,7 @@ pub fn cast_failed_text(
         // Preserve the source failure names rather than inventing form labels.
         CastFailReason::NotShapeshift => "SPELL_FAILED_NOT_SHAPESHIFT",
         CastFailReason::OnlyShapeshift => "SPELL_FAILED_ONLY_SHAPESHIFT",
+        CastFailReason::CantDoThatRightNow => "SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW",
     };
     text.to_string()
 }
