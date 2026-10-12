@@ -14,6 +14,14 @@ struct CreatureModelData {
     source_product: AssetProduct,
     fdid: u32,
     scale_milli: u32,
+    uses_display_geosets: bool,
+}
+
+struct ModelDataColumns {
+    id: usize,
+    fdid: usize,
+    scale: Option<usize>,
+    geosets: usize,
 }
 
 struct DisplayInfoColumns {
@@ -100,7 +108,7 @@ fn cache_is_fresh(
     };
     // A cache with the old three-slot schema must be rebuilt even at unchanged mtimes.
     if conn
-        .prepare("SELECT d.skin_fdid_3, d.source_product, d.pet_instance_scale_milli, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
+        .prepare("SELECT d.skin_fdid_3, d.source_product, d.pet_instance_scale_milli, d.uses_display_geosets, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
         .is_err()
     {
         return Ok(false);
@@ -184,6 +192,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              skin_fdid_3 INTEGER NOT NULL,
              scale_milli INTEGER NOT NULL,
              pet_instance_scale_milli INTEGER NOT NULL,
+             uses_display_geosets INTEGER NOT NULL,
              source_product TEXT NOT NULL CHECK(source_product IN ('wow', 'wow_classic_beta'))
          );
          CREATE INDEX idx_creature_displays_model_fdid
@@ -260,8 +269,8 @@ fn read_display_columns(
 fn prepare_display_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
         "INSERT OR IGNORE INTO creature_displays
-         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli, uses_display_geosets)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
     )
     .map_err(|err| format!("prepare creature_displays insert: {err}"))
 }
@@ -290,6 +299,7 @@ fn insert_display_row(
             entry.scale_milli,
             entry.source_product.as_str(),
             entry.pet_instance_scale_milli,
+            entry.uses_display_geosets,
         ))
         .map_err(|err| format!("insert creature display row {display_id}: {err}"))?;
     Ok(())
@@ -306,9 +316,12 @@ fn parse_model_data(
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", path.display()))?;
     let headers: Vec<&str> = header.trim_end_matches(['\r', '\n']).split(',').collect();
-    let id_col = header_index(&headers, "ID", path)?;
-    let fdid_col = header_index(&headers, "FileDataID", path)?;
-    let scale_col = headers.iter().position(|col| col.trim() == "ModelScale");
+    let columns = ModelDataColumns {
+        id: header_index(&headers, "ID", path)?,
+        fdid: header_index(&headers, "FileDataID", path)?,
+        scale: headers.iter().position(|col| col.trim() == "ModelScale"),
+        geosets: header_index(&headers, "CreatureGeosetDataID", path)?,
+    };
 
     let mut line = String::new();
     loop {
@@ -323,11 +336,10 @@ fn parse_model_data(
         insert_model_entry(
             &mut map,
             line.trim_end_matches(['\r', '\n']),
-            id_col,
-            fdid_col,
-            scale_col,
+            &columns,
             source_product,
-        );
+        )
+        .map_err(|error| format!("{}: {error}", path.display()))?;
     }
     Ok(map)
 }
@@ -335,29 +347,34 @@ fn parse_model_data(
 fn insert_model_entry(
     map: &mut HashMap<u32, CreatureModelData>,
     line: &str,
-    id_col: usize,
-    fdid_col: usize,
-    scale_col: Option<usize>,
+    columns: &ModelDataColumns,
     source_product: AssetProduct,
-) {
+) -> Result<(), String> {
     let cols: Vec<&str> = line.split(',').collect();
-    let Some(id) = cols.get(id_col).and_then(|s| s.parse::<u32>().ok()) else {
-        return;
+    let Some(id) = cols.get(columns.id).and_then(|s| s.parse::<u32>().ok()) else {
+        return Ok(());
     };
-    let Some(fdid) = cols.get(fdid_col).and_then(|s| s.parse::<u32>().ok()) else {
-        return;
+    let Some(fdid) = cols.get(columns.fdid).and_then(|s| s.parse::<u32>().ok()) else {
+        return Ok(());
     };
     if fdid == 0 {
-        return;
+        return Ok(());
     }
+    let geoset_data_id = cols
+        .get(columns.geosets)
+        .and_then(|s| s.parse::<u32>().ok())
+        .ok_or_else(|| format!("model {id}: invalid CreatureGeosetDataID"))?;
+
     map.insert(
         id,
         CreatureModelData {
             source_product,
             fdid,
-            scale_milli: parse_scale_milli(scale_col.and_then(|idx| cols.get(idx).copied())),
+            scale_milli: parse_scale_milli(columns.scale.and_then(|idx| cols.get(idx).copied())),
+            uses_display_geosets: geoset_data_id != 0,
         },
     );
+    Ok(())
 }
 
 fn find_display_info_columns(header: &str) -> Option<DisplayInfoColumns> {
@@ -398,6 +415,7 @@ fn parse_display_entry(
         CreatureDisplay {
             source_product: model.source_product,
             model_fdid: model.fdid,
+            uses_display_geosets: model.uses_display_geosets,
             skin_fdids: [
                 parse_fdid(cols.tex_var[0]),
                 parse_fdid(cols.tex_var[1]),
@@ -445,6 +463,47 @@ mod tests {
     use crate::cache_sqlite::open_read_only;
 
     #[test]
+    fn import_ordinary_geoset_gate_and_rebuild_older_catalog() {
+        let dir = std::env::temp_dir().join(format!("creature-geoset-gate-{}", std::process::id()));
+        let csv = dir.join(crate::player_model_data::RETAIL_DB2_DIR);
+        std::fs::create_dir_all(&csv).unwrap();
+        std::fs::write(csv.join("CreatureDisplayInfo.csv"),
+            "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n1105,10253,1,1,0,0,0,0\n4213,7369,1.2,1,0,0,0,0\n").unwrap();
+        std::fs::write(
+            csv.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n10253,1661349,1,343\n7369,974343,1,0\n",
+        )
+        .unwrap();
+        let path = import_creature_display_cache(&dir).unwrap();
+        let conn = Connection::open(&path).unwrap();
+        let buzzard = crate::creature_display_data::query_display(&conn, 1105)
+            .unwrap()
+            .unwrap();
+        assert!(buzzard.uses_display_geosets);
+        let cobrahn = crate::creature_display_data::query_display(&conn, 4213)
+            .unwrap()
+            .unwrap();
+        assert!(!cobrahn.uses_display_geosets);
+        assert_eq!(cobrahn.scale_milli, 1200);
+        conn.execute(
+            "ALTER TABLE creature_displays DROP COLUMN uses_display_geosets",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&path).unwrap();
+        assert!(
+            crate::creature_display_data::query_display(&conn, 1105)
+                .unwrap()
+                .unwrap()
+                .uses_display_geosets
+        );
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn import_pet_instance_scale_preserves_world_scale_and_rebuilds_old_cache() {
         let dir = std::env::temp_dir().join(format!("creature-pet-scale-{}", std::process::id()));
         std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
@@ -453,7 +512,7 @@ mod tests {
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
                 .join("CreatureModelData.csv"),
-            "ID,FileDataID,ModelScale\n7,1100485,2\n",
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,1100485,2,0\n",
         )
         .unwrap();
         let path = import_creature_display_cache(&dir).unwrap();
@@ -494,7 +553,7 @@ mod tests {
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
                 .join("CreatureModelData.csv"),
-            "ID,FileDataID,ModelScale\n2780,4236958,1\n",
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n2780,4236958,1,0\n",
         )
         .unwrap();
         let path = import_creature_display_cache(&dir).unwrap();
@@ -547,7 +606,7 @@ mod tests {
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
                 .join("CreatureModelData.csv"),
-            "ID,FileDataID,ModelScale\n7,9001,1\n",
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,9001,1,0\n",
         )
         .unwrap();
         let cache = import_creature_display_cache(&dir).unwrap();
@@ -582,7 +641,7 @@ mod tests {
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
                 .join("CreatureModelData.csv"),
-            "ID,FileDataID,ModelScale\n1,1011653,1.25\n",
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n1,1011653,1.25,0\n",
         )
         .unwrap();
         std::fs::write(
@@ -592,7 +651,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             forever.join("CreatureModelData.csv"),
-            "ID,FileDataID,ModelScale\n1,7478494,1\n",
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n1,7478494,1,0\n",
         )
         .unwrap();
         let cache = import_creature_display_cache(&dir).unwrap();
@@ -662,7 +721,11 @@ mod tests {
             "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n5,7,1,21,22,23,24,1\n",
         )
         .unwrap();
-        std::fs::write(&model_path, "ID,FileDataID,ModelScale\n7,9001,1.25\n").unwrap();
+        std::fs::write(
+            &model_path,
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,9001,1.25,0\n",
+        )
+        .unwrap();
 
         let cache_path = dir.join("creature_display.sqlite");
         let conn = Connection::open(&cache_path).unwrap();
@@ -680,6 +743,7 @@ mod tests {
             CreatureDisplay {
                 source_product: AssetProduct::Retail,
                 model_fdid: 9001,
+                uses_display_geosets: false,
                 skin_fdids: [11, 12, 0, 0],
                 scale_milli: 1250,
                 pet_instance_scale_milli: 1000,

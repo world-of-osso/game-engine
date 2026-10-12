@@ -40,7 +40,9 @@ pub mod ui {
 }
 
 // In-world chat frame (docs/specs/chat-frame.md).
+pub mod adventure_activities;
 pub mod adventure_guide;
+pub mod adventure_guide_tooltip;
 pub mod battleground;
 pub mod challenge;
 #[path = "game/chat_data.rs"]
@@ -72,7 +74,9 @@ pub mod pet_stable_component;
 pub mod professions;
 pub mod professions_catalog;
 pub mod professions_frame;
+pub mod professions_orders;
 pub mod professions_quality;
+pub mod professions_specializations;
 pub mod raid_manager_component;
 pub mod raid_warning;
 pub mod spell_overrides;

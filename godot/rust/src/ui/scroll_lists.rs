@@ -260,6 +260,15 @@ pub(super) fn release_thumbs(registry: &mut FrameRegistry) -> bool {
 }
 
 impl RegistryUi {
+    pub(crate) fn reset_journal_set_scroll(&mut self) {
+        if let Some(model) = self.model.as_mut() {
+            model
+                .registry
+                .scroll_lists
+                .scroll_to(game_engine_ui_model::adventure_guide::LIST, 0);
+        }
+    }
+
     pub(super) fn advance_scroll_stepper(&mut self, delta: f64) -> Result<(), String> {
         let changed = match (self.model.as_mut(), self.scroll_stepper.as_mut()) {
             (Some(model), Some(held)) => held.advance(model, delta),
