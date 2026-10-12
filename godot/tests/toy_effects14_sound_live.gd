@@ -74,9 +74,9 @@ func target_marker(target: int) -> bool:
 		if int(active.spell) == 179869 and int(active.unit) == target and int(active.model) in [165877, 165878]: return true
 	return false
 
-func ocean_loop() -> Dictionary:
+func ocean_sound() -> Dictionary:
 	for sound in client.spell_visuals_state().sounds:
-		if int(sound.spell) == 298869 and int(sound.sound_kit) == 138396 and bool(sound.looping) and float(sound.stopped_at) < 0:
+		if int(sound.spell) == 298869 and int(sound.sound_kit) in [131351, 138396, 138397] and float(sound.stopped_at) < 0:
 			return sound
 	return {}
 
@@ -88,8 +88,10 @@ func ocean_cast_started() -> bool:
 func prove_ocean(sample: Array) -> void:
 	await activate_named(str(sample[3]))
 	if failed: return
-	if not await wait_until(func(): return ocean_cast_started() and has_aura(298869) and not ocean_loop().is_empty(), "actual cast and authored ocean loop138396", 60000): return
-	var sound := ocean_loop()
+	#138396 belongs to precast1→2, not the180s aura. Capture a currently
+	#playing source precast/cast/impact sound, then prove the actual cast completes.
+	if not await wait_until(func(): return not ocean_sound().is_empty(), "authored ocean sound starts", 60000): return
+	var sound := ocean_sound()
 	var nodes := client.find_children("SpellSound" + str(sound.fdid), "AudioStreamPlayer3D", true, false)
 	if nodes.is_empty(): fail("ocean stream not playing"); return
 	var player := nodes[0] as AudioStreamPlayer3D
@@ -101,17 +103,19 @@ func prove_ocean(sample: Array) -> void:
 	var meter := AudioEffectCapture.new()
 	AudioServer.add_bus_effect(bus, meter)
 	player.bus = "ToySourceProof"
-	await create_timer(0.3).timeout
+	var volume := player.volume_linear
+	await create_timer(0.05).timeout
 	var samples := meter.get_buffer(meter.get_frames_available())
 	var peak := 0.0
 	for frame in samples: peak = max(peak, max(abs(frame.x), abs(frame.y)))
-	receipts.append({"phase": "ocean-source-audio", "sound": sound, "volume_linear": player.volume_linear, "mix_frames": samples.size(), "mix_peak": peak})
-	player.bus = "Master"
+	receipts.append({"phase": "ocean-source-audio", "sound": sound, "volume_linear": volume, "mix_frames": samples.size(), "mix_peak": peak})
+	if is_instance_valid(player): player.bus = "Master"
 	AudioServer.remove_bus(bus)
 	if samples.is_empty() or peak <= 0.000001: fail("source ocean audio mixed no signal"); return
-	await capture("ocean-toy168824-audio138396")
+	if not await wait_until(func(): return ocean_cast_started() and has_aura(298869), "actual source ocean cast completes", 60000): return
+	await capture("ocean-toy168824-source-audio")
 	await cancel_aura(298869)
-	if not await wait_until(func(): return not has_aura(298869) and ocean_loop().is_empty(), "source ocean loop stops with aura", 30000): return
+	if not await wait_until(func(): return not has_aura(298869), "source ocean aura removal", 30000): return
 	await capture("ocean-toy168824-removed")
 
 func capture(label: String) -> void:
