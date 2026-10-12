@@ -161,6 +161,72 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn mount_vendor_authored_item_and_currency_costs_render_with_gold_without_overlap() {
+    use shared::protocol::VendorCost;
+    let mut inventory = godric();
+    inventory.items.truncate(1);
+    inventory.items[0].extra_costs = vec![VendorCost {
+        currency: false,
+        id: 137642,
+        amount: 15,
+        name: "Mark of Honor".into(),
+        icon_file_data_id: 1322720,
+    }];
+    inventory.items[0].price = 0;
+    let token_session = session(inventory.clone(), "Thanthaldis Snowgleam", 0);
+    let registry = render(&token_session);
+    assert_eq!(
+        text(&registry, "MerchantItem1AltCurrencyFrameItem1Text"),
+        "15"
+    );
+    assert!(
+        registry
+            .get_by_name("MerchantItem1MoneyFrameAmount0")
+            .is_none(),
+        "Token-only mount offers must not display a misleading zero-copper price"
+    );
+    // Authored cost2671: 500 gold and5 Champion's Seals.
+    inventory.items[0].price = 5_000_000;
+    inventory.items[0].extra_costs = vec![VendorCost {
+        currency: true,
+        id: 241,
+        amount: 5,
+        name: "Champion's Seal".into(),
+        icon_file_data_id: 236246,
+    }];
+    let registry = render(&session(inventory, "Tournament vendor", 5_000_000));
+    assert_eq!(text(&registry, "MerchantItem1MoneyFrameAmount0"), "500");
+    assert_eq!(
+        text(&registry, "MerchantItem1AltCurrencyFrameItem1Text"),
+        "5"
+    );
+    let money = registry
+        .get(
+            registry
+                .get_by_name("MerchantItem1MoneyFrameCoin0")
+                .unwrap(),
+        )
+        .unwrap()
+        .layout_rect
+        .as_ref()
+        .unwrap();
+    let token = registry
+        .get(
+            registry
+                .get_by_name("MerchantItem1AltCurrencyFrameItem1Text")
+                .unwrap(),
+        )
+        .unwrap()
+        .layout_rect
+        .as_ref()
+        .unwrap();
+    assert!(
+        token.x >= money.x + money.width,
+        "Gold and currency must remain legible side by side"
+    );
+}
+
+#[test]
 fn godric_list_opens_the_frame_with_priced_icons_and_repair() {
     let mut session = session(godric(), "Godric Rothgar", 50);
     let state = session.frame_state();
