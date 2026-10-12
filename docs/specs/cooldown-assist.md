@@ -33,7 +33,8 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. [Au
 - `scripts/tests/test_cooldown_assist_export.py`: authentic DB2 values and joins; no encrypted rows dropped.
 - `godot/core/tests/cooldown_assist.rs`: categories/links, authored order, unknown-rule refusal, readiness, missing specs, all referenced condition loading, signed masks and inactive ContentTuning flags.
 - `godot/ui-model/tests/cooldown_assist.rs`: fractions/charges, aura precedence/expiry, both-skin frame inventory/highlight visibility, per-spec selection/order and registry click emission.
-- `godot/tests/cooldown_assist_live.gd`: real private authentication; options/settings/reorder; four Edit Mode movers, native drag and account layout persistence; assistant spellbook drag; real Divine Shield and Avenging Wrath clocks. Partial runs exit2, never PASS full acceptance.
+- `godot/tests/cooldown_assist_live.gd`: real private authentication; grounded authority/prediction, options/settings/reorder, Edit Mode/persistence, spellbook drag, real aura/cooldown clocks, matching animated surfaces and own authoritative CastSuccess. Partial runs exit2, never PASS combat acceptance.
+- `scripts/tests/run_cooldown_assist_live.py`: private orchestration, owner-checked build-qualified placement before login, marker rendezvous and owned client cleanup.
 
 ## Known gaps (current cycle)
 
@@ -42,7 +43,7 @@ Private UDP5860, `fb_cooldown_assist`/Coolproof, specialization70. Modern run10 
 
 - [ ] Exact numeric/charge/predictive rotation acceptance remains partial. Source-decoded raw resource, health-percent, charge and cooldown-clock comparisons are enabled only away from equality, where strict/inclusive interpretations agree. Equality, mana-percent units, distance/body-radius, aura-duration/stack/count/nearby targeting, predictive67 and nonzero chargeValue2 remain explicit errors. SimC's decoder explicitly marks strictness TODO; its chosen equality results are not Retail proof. Two unidentified rule fields remain unresolved; never guess them.
 - [ ] Effective nonzero caster costs/modifiers now use owner-only server `SpellCostSnapshot` readings from normal cast admission; client cache/wire tests and live consumption must pass before certification.
-- [ ] Private clients fall below loaded terrain and have no selected/server-echoed hostile target despite private revive/teleport setup. No live assisted cast or rendered highlights were proved. No movement remediation is included in this feature branch.
+- [ ] Private combat acceptance is pending with the corrected build-qualified destination. The [existing terrain investigation](../../../game-server/docs/wiki/investigations/private-terrain-destinations.md) traced falls to stale fixture Z, not missing tiles. The maintained driver uses `place-private-character.py` before login; the native fixture requires both authority and prediction on the authored surface. No physics workaround.
 - [x] Both highlight surfaces use Retail `rotationhelper_ants_flipbook` (member32008, FDID6992992), centered66px at45px button scale,30 frames in a5×6 grid per second; hidden surfaces restart at frame0. Live rendered animation, charge counts and fresh-process layout restoration remain proof gates.
 - [ ] The assistant spellbook description states a25% longer global cooldown. The existing actual-spell interception does not yet preserve that authoritative assistant-cast penalty; this remains an execution gap, not a guessed Dummy-effect interpretation.
 

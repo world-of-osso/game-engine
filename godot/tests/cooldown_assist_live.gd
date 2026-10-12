@@ -90,6 +90,8 @@ func run_fixture() -> void:
 	await click("EnterWorld")
 	if not await wait_screen("InWorld"):
 		return
+	if not prove_grounded():
+		return
 	await capture("world-online")
 	if OS.get_environment("COOLDOWN_ASSIST_ADMIN") == "1":
 		var ready := FileAccess.open(directory.path_join("online.ready"), FileAccess.WRITE)
@@ -369,6 +371,24 @@ func place_assistant() -> void:
 				break
 			await click("SpellBookNextPageButton")
 	fail("Learned Single-Button Assistant absent from spellbook")
+
+func prove_grounded() -> bool:
+	var state: Dictionary = client.account_state()
+	var surface: Variant = client.terrain_height_at(-8985.0, 179.0)
+	if surface == null:
+		fail("Retail destination surface not loaded")
+		return false
+	var predicted := coordinates(state.local_player_position)
+	var authority := coordinates(state.local_server_position)
+	if absf(predicted.y - float(surface)) > 0.02 or absf(authority.y - float(surface)) > 0.02:
+		write_json("ground-blocker", {"surface": surface, "account": state})
+		fail("Private destination must use place-private-character.py before login, not legacy NPC Z")
+		return false
+	return true
+
+func coordinates(value: String) -> Vector3:
+	var parts := value.trim_prefix("(").trim_suffix(")").split(",")
+	return Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
 
 func viewer_remaining(cooldown_id: int) -> float:
 	for icon in client.cooldown_viewer_state().get("icons", []):
