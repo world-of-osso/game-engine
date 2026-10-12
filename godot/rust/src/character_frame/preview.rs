@@ -397,7 +397,14 @@ pub(crate) fn bind_preview_light(visual: &Gd<Node3D>, rays: Vector3) {
             continue;
         };
         let mut material = material.cast::<ShaderMaterial>();
-        for name in ["ambient", "horizon_ambient", "ground_ambient"] {
+        // WMO interior batches read interior_ambient instead of the M2 ambient
+        // uniforms. Both must receive this isolated model scene's fill light.
+        for name in [
+            "ambient",
+            "horizon_ambient",
+            "ground_ambient",
+            "interior_ambient",
+        ] {
             material.set_shader_parameter(name, &AMBIENT.to_variant());
         }
         material.set_shader_parameter("direct", &DIRECT.to_variant());

@@ -81,13 +81,20 @@ func preview_entry(decor_id: int, decor_name: String, phase: String) -> bool:
 	await RenderingServer.frame_post_draw
 	var image: Image = viewport.get_texture().get_image()
 	var opaque: int = 0
+	var readable: int = 0
 	for y in range(image.get_height()):
 		for x in range(image.get_width()):
-			if image.get_pixel(x, y).a > 0.1: opaque += 1
+			var color: Color = image.get_pixel(x, y)
+			if color.a <= 0.1: continue
+			opaque += 1
+			if maxf(color.r, maxf(color.g, color.b)) > 0.02: readable += 1
+	if decor_id == 525 and float(readable) / float(maxi(1, opaque)) < 0.6:
+		fail("WMO preview lost its isolated interior fill lighting")
+		return false
 	if opaque < 10:
 		fail("Preview actor has no rendered opaque model pixels")
 		return false
-	preview_receipts.append({"phase": phase, "decor_id": decor_id, "model_fdid": preview_actor().get_meta("model_file_data_id", 0), "meshes": preview_actor().find_children("*", "MeshInstance3D", true, false).size(), "rendered_model_pixels": opaque})
+	preview_receipts.append({"phase": phase, "decor_id": decor_id, "model_fdid": preview_actor().get_meta("model_file_data_id", 0), "meshes": preview_actor().find_children("*", "MeshInstance3D", true, false).size(), "rendered_model_pixels": opaque, "readable_model_pixels": readable})
 	return await capture_housing(phase)
 
 func rotate_preview() -> bool:
