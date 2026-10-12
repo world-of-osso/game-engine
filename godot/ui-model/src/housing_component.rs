@@ -85,9 +85,23 @@ fn house_info(view: &HousingView) -> Element {
             let action = format!("housing:home:{}", house.house_id);
             let name = DynName(format!("HousingHomeVisit{}", house.house_id));
             let top = 300.0 + index as f32 * 36.0;
+            let access_allowed = house.house_access_anyone == Some(true);
+            let access_text = if access_allowed {
+                "Block Visitors"
+            } else {
+                "Allow Visitors"
+            };
+            let access_action = format!(
+                "housing:access:{}:{}",
+                house.house_id,
+                if access_allowed { "off" } else { "on" }
+            );
             rsx! { button { name, text: "Visit Home Interior", width: 200.0, height: 32.0,
                 pos_type: "absolute", left: 307.0, top, onclick: action,
                 disabled: view.model.pending }
+                button { name: {DynName(format!("HousingAccess{}",house.house_id))},
+                    text: access_text, width: 180.0, height: 32.0, pos_type: "absolute",
+                    left: 520.0, top, onclick: access_action, disabled: view.model.pending }
             }
         })
         .collect();

@@ -35,6 +35,20 @@ fn housing_home_navigation_requests_house_identity_without_component_grants() {
         Some(shared::protocol::HousingCommand::LeaveHouse)
     );
     assert!(model.navigation_request("housing:home:invalid").is_err());
+    assert_eq!(
+        model.navigation_request("housing:access:41:on").unwrap(),
+        Some(shared::protocol::HousingCommand::SetHouseAccessAnyone {
+            house_id: 41,
+            allowed: true
+        })
+    );
+    assert_eq!(
+        model.navigation_request("housing:access:41:off").unwrap(),
+        Some(shared::protocol::HousingCommand::SetHouseAccessAnyone {
+            house_id: 41,
+            allowed: false
+        })
+    );
 }
 
 #[test]
