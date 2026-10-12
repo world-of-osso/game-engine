@@ -131,9 +131,17 @@ fn assert_headers_and_baseline(view: &TalentView, registry: &FrameRegistry) {
         }
         first_centers.push(first);
     }
+    // SharedTalentUtil translates DB2 coordinates, not each tree's first row.
+    let first_y = |tree: &game_engine_core::talent_data::TalentTree| {
+        tree.nodes
+            .iter()
+            .map(|node| node.position[1])
+            .fold(f32::INFINITY, f32::min)
+    };
+    let authored_delta = (first_y(&view.graph.class) - first_y(&view.graph.spec)) / 10.0;
     assert!(
-        (first_centers[0] - first_centers[1]).abs() < 0.01,
-        "class/spec top baselines {:?}",
+        (first_centers[0] - first_centers[1] - authored_delta).abs() < 0.01,
+        "class/spec authored top-row delta {:?}",
         first_centers
     );
 }

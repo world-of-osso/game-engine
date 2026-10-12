@@ -13,7 +13,6 @@ const HERO_SCALE: f32 = 0.85;
 // NodesContainer TOP -90 => 102+108-34+90 =266. OffsetY8 is applied to nodes.
 const HERO_TOP: f32 = 266.0;
 const FOOTER_HEIGHT: f32 = 82.0;
-const MAIN_FIRST_ROW: f32 = 126.0;
 const HERO_DIALOG_SIZE: [f32; 2] = [970.0, 832.0];
 const HERO_DIALOG_NODES_TOP: f32 = 417.0;
 #[path = "talents_footer.rs"]
@@ -34,7 +33,8 @@ pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
     rsx! { r#frame {
         name: "ClassTalentsFrame", width: {BOOK_W * scale}, height: {BOOK_H * scale},
         background_color: "0.0,0.0,0.0,1.0",
-        pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * scale},
+        // PlayerSpellsFrame.xml:43-45:1612px page BOTTOM in1618px parent.
+        pos_type: "absolute", pos_x: {(FRAME_W - BOOK_W) / 2.0 * scale}, pos_y: {BOOK_Y * scale},
         {children}
     } }
 }
@@ -68,17 +68,17 @@ fn page_contents(view: &TalentView, scale: f32) -> Element {
         [BOOK_W - 401.0, 45.0],
         scale,
     ));
-    let zoom = main_tree_zoom(view);
+    let pan = class_pan_offset(&graph.class.name);
     children.extend(render_tree(
         &graph.class,
         view,
-        main_tree_layout(&graph.class, zoom),
+        main_tree_layout(&graph.class, pan),
         scale,
     ));
     children.extend(render_tree(
         &graph.spec,
         view,
-        main_tree_layout(&graph.spec, zoom),
+        main_tree_layout(&graph.spec, pan),
         scale,
     ));
     children.extend(hero_selector(view, scale));
@@ -111,43 +111,35 @@ struct TreeLayout {
     centers: BTreeMap<u32, [f32; 2]>,
     node_scale: f32,
 }
-fn main_tree_zoom(view: &TalentView) -> f32 {
-    // Reserve Retail's ButtonsParent bottomPadding. The capstone badge ends10px
-    // below its64px button; its4px thick outline also paints beyond the Label.
-    let bottom = [&view.graph.class, &view.graph.spec]
-        .into_iter()
-        .map(|tree| {
-            let first = first_row_y(tree);
-            tree.nodes
-                .iter()
-                .map(|node| {
-                    (node.position[1] - first) / 10.0 + if is_capstone(node) { 46.0 } else { 20.0 }
-                })
-                .fold(0.0, f32::max)
-        })
-        .fold(0.0, f32::max);
-    ((BOOK_H - FOOTER_HEIGHT - MAIN_FIRST_ROW) / bottom).min(1.0)
+fn class_pan_offset(class: &str) -> [f32; 2] {
+    // ClassTalentUtil.lua ClassVisuals and ClassTalentsFrame.lua UpdateClassVisuals:
+    // basePanOffset = initialBasePanOffset - classVisuals.panOffset.
+    let [x, y] = match class {
+        "Warrior" => [60.0, 31.0],
+        "Paladin" => [-60.0, -29.0],
+        "Hunter" | "Monk" => [0.0, -29.0],
+        "Rogue" | "Mage" | "Druid" | "Demon Hunter" | "Evoker" => [30.0, -29.0],
+        "Priest" => [-30.0, -29.0],
+        "Death Knight" | "Shaman" | "Warlock" => [0.0, 1.0],
+        _ => panic!("No Retail class pan offset for {class}"),
+    };
+    [PAN[0] - x, PAN[1] - y]
 }
-fn first_row_y(tree: &TalentTree) -> f32 {
-    tree.nodes
-        .iter()
-        .map(|node| node.position[1])
-        .fold(f32::INFINITY, f32::min)
-}
-fn main_tree_layout(tree: &TalentTree, zoom: f32) -> TreeLayout {
-    let first = first_row_y(tree);
+fn main_tree_layout(tree: &TalentTree, pan: [f32; 2]) -> TreeLayout {
+    // SharedTalentUtil.TranslateNodePositionsToAnchorPositions; CENTER TOPLEFT.
+    // ButtonsParent has zero top/left padding; shared layout defaults zoom to1.
     let centers = tree
         .nodes
         .iter()
         .map(|node| {
-            let x = node.position[0] / 10.0 - PAN[0];
-            let y = MAIN_FIRST_ROW + (node.position[1] - first) / 10.0 * zoom;
-            (node.id, [BOOK_W / 2.0 + (x - BOOK_W / 2.0) * zoom, y])
+            let x = node.position[0] / 10.0 - pan[0];
+            let y = node.position[1] / 10.0 - pan[1];
+            (node.id, [x, y])
         })
         .collect();
     TreeLayout {
         centers,
-        node_scale: zoom,
+        node_scale: 1.0,
     }
 }
 fn hero_tree_layout(tree: &TalentTree, origin: [f32; 2], node_scale: f32) -> TreeLayout {
@@ -799,8 +791,8 @@ fn choice_flyout(view: &TalentView, scale: f32) -> Element {
 fn choice_node_center(view: &TalentView, node: &TalentNode) -> ([f32; 2], f32) {
     for tree in [&view.graph.class, &view.graph.spec] {
         if tree.nodes.iter().any(|candidate| candidate.id == node.id) {
-            let zoom = main_tree_zoom(view);
-            return (main_tree_layout(tree, zoom).centers[&node.id], zoom);
+            let pan = class_pan_offset(&view.graph.class.name);
+            return (main_tree_layout(tree, pan).centers[&node.id], 1.0);
         }
     }
     let hero = active_hero(view).expect("choice belongs to active subtree");
