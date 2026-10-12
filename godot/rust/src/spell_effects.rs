@@ -68,6 +68,8 @@ enum Lifetime {
     UntilCastEnds,
     /// Until aura `instance` leaves unit `unit` (AuraEnd).
     UntilAuraEnds { unit: u64, instance: u32 },
+    /// Until this display visual is replaced or its unit despawns.
+    UntilDisplayEnds { unit: u64, visual: u64 },
 }
 
 /// What a held kit (one with an end event) lasts for.
@@ -76,7 +78,14 @@ enum KitHold {
     /// The caster's cast or channel.
     Cast,
     /// Aura `instance` on unit `unit`.
-    Aura { unit: u64, instance: u32 },
+    Aura {
+        unit: u64,
+        instance: u32,
+    },
+    Display {
+        unit: u64,
+        visual: u64,
+    },
 }
 
 impl KitHold {
@@ -84,6 +93,7 @@ impl KitHold {
         match self {
             Self::Cast => Lifetime::UntilCastEnds,
             Self::Aura { unit, instance } => Lifetime::UntilAuraEnds { unit, instance },
+            Self::Display { unit, visual } => Lifetime::UntilDisplayEnds { unit, visual },
         }
     }
 
@@ -94,6 +104,7 @@ impl KitHold {
                 spell_id,
             },
             Self::Aura { unit, instance } => SoundHold::Aura { unit, instance },
+            Self::Display { unit, visual } => SoundHold::Display { unit, visual },
         }
     }
 }
@@ -306,6 +317,7 @@ pub struct SpellEffects {
     melee_seen: Vec<melee::MeleeSeen>,
     /// Auras whose kits are held on their units, by (unit, instance).
     auras: HashMap<(u64, u32), auras::HeldAura>,
+    displays: HashMap<u64, displays::HeldDisplay>,
     /// Newest cast starts and resolutions seen, oldest first, bounded.
     casts_seen: Vec<CastSeen>,
     sounds: SpellSounds,
@@ -344,6 +356,7 @@ impl SpellEffects {
             swings: HashMap::new(),
             melee_seen: Vec::new(),
             auras: HashMap::new(),
+            displays: HashMap::new(),
             casts_seen: Vec::new(),
             sounds: SpellSounds::default(),
             next_flight: 0,
@@ -461,6 +474,7 @@ impl SpellEffects {
         self.sounds.reset();
         self.swings.clear();
         self.auras.clear();
+        self.displays.clear();
         // Kit models are their unit's model's children (`spawn_kit_model`), freed with it:
         // a lost link despawns every unit just before the world resets, and the world's
         // reset frees the rest.
@@ -543,6 +557,7 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
 }
 
 mod casts;
+mod displays;
 mod kits;
 mod missiles;
 mod models;
