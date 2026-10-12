@@ -117,14 +117,15 @@ func buy_mare() -> bool:
 	if "Already known|" in client.tooltip_state().lines: fail("Unknown account showed known mount"); return false
 	await capture("vendor-before-buy")
 	await click("MerchantItem2", MOUSE_BUTTON_RIGHT)
-	if not await wait_until(func(): return int(client.merchant_state().money) == before - 10000, "authentic one-gold vendor payment"): return false
-	var found := false
-	for item in client.merchant_state().bags:
-		if int(item.item_id) == ITEM_ID: found = true
-	if not found: fail("Vendor payment produced no mount teaching item"); return false
+	if not await wait_until(func(): return int(client.merchant_state().money) == before - 10000 and has_item(ITEM_ID), "authoritative one-gold purchase and bag delivery"): return false
 	await capture("vendor-purchased")
 	await tap(KEY_ESCAPE)
 	return true
+
+func has_item(item_id: int) -> bool:
+	for item in client.merchant_state().bags:
+		if int(item.item_id) == item_id: return true
+	return false
 
 func open_vendor() -> bool:
 	# Setup sends the existing NPC interaction request; purchase/use remains native input.
