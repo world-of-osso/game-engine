@@ -209,7 +209,17 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
+            let filters = (
+                self.adventure_guide.view.class,
+                self.adventure_guide.view.spec,
+            );
             self.adventure_guide.view.apply(&action)?;
+            let view = &self.adventure_guide.view;
+            if view.tab == game_engine_ui_model::adventure_guide::Tab::ItemSets
+                && filters != (view.class, view.spec)
+            {
+                ui.bind_mut().reset_journal_set_scroll();
+            }
             if !self.adventure_guide.view.visible {
                 self.close_adventure_guide();
                 break;
