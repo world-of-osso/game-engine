@@ -404,6 +404,7 @@ impl GameClient {
         owner: i64,
         action: &str,
         click: game_engine_ui_model::merchant::Click,
+        at: Option<Vector2>,
     ) -> Result<bool, FrameError> {
         if !self
             .housing
@@ -414,7 +415,10 @@ impl GameClient {
             return Ok(false);
         }
         if click.right && action.starts_with("housing:placed-list:select:") {
-            self.open_housing_placed_list_context(action)?;
+            self.open_housing_placed_list_context(
+                action,
+                at.ok_or("Placed-decor context click has no pointer coordinates.")?,
+            )?;
             return Ok(true);
         }
         if action == "housing:close" {
