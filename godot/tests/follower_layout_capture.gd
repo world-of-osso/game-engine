@@ -58,7 +58,9 @@ func verify_xml_geometry(ui: Node) -> bool:
 	}
 	for name in rects:
 		var node = ui.find_child(name, true, false)
-		if node == null or not node.get_global_rect().is_equal_approx(rects[name]):
+		# Native texture projection snaps half-pixel XML centers to whole pixels.
+		var expected := Rect2(rects[name].position.round(), rects[name].size)
+		if node == null or not node.get_global_rect().is_equal_approx(expected):
 			push_error("XML geometry mismatch " + name + ": " + str(node.get_global_rect() if node else null) + " expected " + str(rects[name]))
 			return false
 	var inset = ui.find_child("LFDParentFrameInset", true, false)
