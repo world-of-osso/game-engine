@@ -20,11 +20,22 @@ pub fn finder_contents(view: &HousingView) -> Element {
 }
 
 fn neighborhood_choices(view: &HousingView) -> Element {
-    let choices:Element=[1,2].into_iter().enumerate().flat_map(|(index,id)| {
-        let text=neighborhood_location(id);
-        let top=70.0+index as f32*70.0;
-        rsx! {button {name:{DynName(format!("HouseFinderNeighborhood{id}"))},text,width:217.0,height:63.0,pos_type:"absolute",left:20.0,top,onclick:{format!("housing:neighborhood:{id}")},disabled:view.model.pending}}
-    }).collect();
+    let choices: Element = [1, 2]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, id)| {
+            let text = neighborhood_location(id);
+            let top = 70.0 + index as f32 * 70.0;
+            crate::selection_list::text_row(
+                format!("HouseFinderNeighborhood{id}"),
+                text,
+                &format!("housing:neighborhood:{id}"),
+                (!view.model.pending, false),
+                (20.0, top, 217.0, 63.0),
+                &crate::selection_list::NEIGHBORHOOD,
+            )
+        })
+        .collect();
     let selected = view.model.neighborhood;
     let count = view.authority.state.as_ref().map(|state| {
         state

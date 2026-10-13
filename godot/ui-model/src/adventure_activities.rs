@@ -325,11 +325,13 @@ fn activity_row(row: &ActivityRow<'_>) -> Element {
     let activity = row.activity;
     let id = activity.id;
     let inset = (row.depth.min(3) * 12) as f32;
-    let mut out = button(
+    let mut out = crate::selection_list::text_row(
         format!("JournalActivity{id}"),
         &activity.name,
         &format!("journal:activity:{id}"),
+        (true, row.details.is_some()),
         (inset, row.top, 416. - inset, 32.),
+        &crate::selection_list::SEARCH,
     );
     out.extend(text(
         &format!("JournalActivity{id}Progress"),

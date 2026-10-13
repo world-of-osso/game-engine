@@ -161,12 +161,13 @@ fn roster(session: &GuildRanksSession) -> Element {
                 .get(usize::from(member.rank))
                 .map(|r| r.name.as_str())
                 .unwrap_or("");
-            children.extend(panel_button(
+            children.extend(crate::selection_list::text_row(
                 format!("GuildMember{index}"),
                 &format!("{} — {rank}", member.character_name),
                 &format!("guild:member:{}", member.character_name),
-                true,
+                (true, false),
                 (20.0, 72.0 + (index - offset) as f32 * 30.0, 340.0, 26.0),
+                &crate::selection_list::GUILD_MEMBER,
             ));
         }
     } else if !session.info_open {
@@ -433,22 +434,14 @@ fn rank_list(session: &GuildRanksSession) -> Element {
     if let Some(state) = session.state() {
         for (index, rank) in state.ranks.iter().enumerate() {
             let selected = index == session.selected_index();
-            children.extend(panel_button(
+            children.extend(crate::selection_list::text_row(
                 format!("GuildRankRow{index}"),
                 &rank.name,
                 &format!("guild:rank:{index}"),
-                true,
+                (true, selected),
                 (20.0, 78.0 + index as f32 * 30.0, 200.0, 26.0),
+                &crate::selection_list::SEARCH,
             ));
-            if selected {
-                children.extend(title(
-                    "GuildSelectedRank",
-                    "›",
-                    6.0,
-                    80.0 + index as f32 * 30.0,
-                    14.0,
-                ));
-            }
         }
     }
     let current = session.selected().map(|r| r.name.as_str()).unwrap_or("");
