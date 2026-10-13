@@ -52,12 +52,17 @@ fn gathering_tracking_requires_learned_filter_and_clips_authored_resources() {
 
 #[test]
 fn gathering_tracking_menu_and_authored_art_are_shared_by_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen};
     use ui_toolkit::atlas::ActiveSkin;
     use ui_toolkit::frame::WidgetData;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
         let mut tracking = TrackingState {
             open: true,
             gathering_available: [true, true],
