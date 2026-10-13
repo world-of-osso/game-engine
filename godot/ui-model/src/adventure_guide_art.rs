@@ -37,11 +37,29 @@ pub fn reset_changed_scrolls(
 }
 
 pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    apply_pane_texture_layers(registry);
     sync_search_state(registry);
     apply_button_art(view, registry);
     crate::adventure_guide_sections::sync_header_art(view, registry);
     apply_text_layout(registry);
 }
+/// XML layers keep the ModelScene viewport above its BACKGROUND and below paper OVERLAY.
+fn apply_pane_texture_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::strata::DrawLayer::{Background, Overlay};
+    for (name, layer) in [
+        ("EncounterJournalInstanceSelectBackground", Background),
+        ("EncounterJournalInstanceLoreArt", Background),
+        ("EncounterJournalInstanceBackground", Background),
+        ("EncounterJournalModelPaper", Overlay),
+        ("EncounterJournalModelTitleBG", Overlay),
+        ("EncounterJournalModelTitle", Overlay),
+    ] {
+        if let Some(id) = registry.get_by_name(name) {
+            registry.get_mut(id).unwrap().draw_layer = layer;
+        }
+    }
+}
+
 fn sync_search_state(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::{frame::WidgetData, layout_values::Val, widgets::button::ButtonState};
     let Some(id) = registry.get_by_name(crate::adventure_guide::SEARCH) else {
@@ -286,7 +304,7 @@ pub fn search_box(value: &str) -> Element {
     }
     parts.extend(rsx! {editbox {name:"EncounterJournalSearchBox",text:value,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:40,text_insets:"16,20,0,0",pos_type:"absolute"}});
     let instructions_hidden = !value.is_empty();
-    parts.extend(rsx! {fontstring {name:"EncounterJournalSearchBoxInstructions",text:crate::auction_mail::text("SEARCH"),left:596.0,top:32.0,width:174.0,height:20.0,pos_type:"absolute",font_size:12.0,font_color:"0.5,0.5,0.5,1",hidden:instructions_hidden}});
+    parts.extend(rsx! {fontstring {name:"EncounterJournalSearchBoxInstructions",text:crate::auction_mail::text("SEARCH"),left:596.0,top:32.0,width:174.0,height:20.0,pos_type:"absolute",font_size:12.0,font_color:"0.5,0.5,0.5,1",justify_h:"LEFT",hidden:instructions_hidden}});
     // RSX static float literals truncate fractions; expressions preserve the XML center anchor.
     // Remove this binding when ui-toolkit-macros preserves numeric literal precision.
     let clear_top = 32.0 + (20.0 - 17.0) / 2.0;
