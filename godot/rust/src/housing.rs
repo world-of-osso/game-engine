@@ -277,7 +277,9 @@ impl GameClient {
             }
         }
         drop(host);
-        self.sync_housing_placed_list_input()?;
+        if let Some(model) = self.housing.model.as_mut() {
+            model.reconcile_placed_list(&self.housing.authority);
+        }
         self.query_housing_vendor_names()?;
         self.clear_inactive_housing_preview();
         let view = self.housing_view()?;
@@ -401,6 +403,7 @@ impl GameClient {
         &mut self,
         owner: i64,
         action: &str,
+        click: game_engine_ui_model::merchant::Click,
     ) -> Result<bool, FrameError> {
         if !self
             .housing
@@ -409,6 +412,10 @@ impl GameClient {
             .is_some_and(|ui| ui.instance_id().to_i64() == owner)
         {
             return Ok(false);
+        }
+        if click.right && action.starts_with("housing:placed-list:select:") {
+            self.open_housing_placed_list_context(action)?;
+            return Ok(true);
         }
         if action == "housing:close" {
             self.close_housing();
