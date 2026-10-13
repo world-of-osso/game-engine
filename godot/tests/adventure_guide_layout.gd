@@ -102,7 +102,7 @@ func run() -> void:
 	if not await capture_layout("search-filled"): return
 	if not await click("EncounterJournalSearchBoxClearButton"): return
 	if not edit.text.is_empty() or edit.has_focus():
-		stop("Clear must empty search and release focus")
+		stop("Clear must empty search and release focus: text=%s focus=%s view=%s" % [edit.text, edit.has_focus(), str(client.adventure_guide_state())])
 		return
 	print("GUIDE_LAYOUT_SEARCH limit40+physical-clear PASS")
 	if not await click("JournalInstance67"): return
