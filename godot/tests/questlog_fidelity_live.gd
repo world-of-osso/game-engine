@@ -120,14 +120,23 @@ func check_pet_loadout_models() -> bool:
 	if not await wait_frames(func(): return model_meshes("PetJournalPetCardModelScene") > 0, "authentic pet card model prerequisite", 60000):
 		return false
 	for slot in [0, 1, 2, 0]:
-		await click_control(journal.find_child("PetJournalBattleSlot%d" % slot, true, false) as Control)
+		var button := journal.find_child("PetJournalBattleSlot%d" % slot, true, false) as BaseButton
+		if not await wait_frames(func(): return not button.disabled, "loadout accepts next equip"):
+			return false
+		await click_control(button)
 		if not await wait_frames(func(): return journal.frame_text("PetJournalBattleSlot%dName" % slot) == "Mechanical Squirrel", "server loadout equip"):
 			return false
 		if not await wait_frames(func(): return model_meshes("PetJournalBattleSlot%dModelScene" % slot) > 0, "owned loadout model slot %d" % slot, 60000):
 			return false
+		if not await wait_frames(func(): return not button.disabled, "server loadout acknowledgement"):
+			return false
+		await frames(3)
 		for empty_slot in range(3):
-			if empty_slot != slot and model_meshes("PetJournalBattleSlot%dModelScene" % empty_slot) != 0:
-				fail("Superseded loadout model survived move")
+			var empty := journal.find_child("PetJournalBattleSlot%dEmptySlot" % empty_slot, true, false) != null
+			var meshes := model_meshes("PetJournalBattleSlot%dModelScene" % empty_slot)
+			print("PET_LOADOUT_STATE equip=", slot, " slot=", empty_slot, " empty=", empty, " meshes=", meshes)
+			if empty and meshes != 0:
+				fail("Superseded model survived in an authoritative empty slot")
 				return false
 	await capture("fidelity-pet-loadout-model.png")
 	await tap_collections()
