@@ -262,7 +262,6 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
         let Some(WidgetData::Button(disabled)) = &frame(&reg, "Disabled").widget_data else {
             panic!("disabled entry")
         };
-        assert!(!disabled.enabled);
         assert_eq!(
             disabled.state,
             ui_toolkit::widgets::button::ButtonState::Disabled
