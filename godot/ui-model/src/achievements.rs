@@ -1259,12 +1259,34 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
         AchievementFilter::Completed => "Completed",
         AchievementFilter::Incomplete => "Incomplete",
     };
-    let mut content = panel_button(
-        "AchievementFilterDropdown".into(),
-        title,
-        "achievement:filter_menu",
-        true,
-        (228.0, 29.0, 112.0, 22.0),
+    use crate::menu_primitives::*;
+    // HeaderDetails right -23; Filters TOPRIGHT -8,-6; dropdown topPadding 6.
+    let left = if window.comparison.is_some() {
+        745.0
+    } else {
+        625.0
+    };
+    let mut content = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "AchievementFilterDropdown",
+            label_name: "AchievementFilterText",
+            arrow_name: "AchievementFilterArrow",
+            text: title,
+            width: 112.0,
+            height: 22.0,
+            x: left,
+            y: -31.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some("achievement:filter_menu"),
+        },
+        DropdownState {
+            style: DropdownStyle::Filter,
+            resize_to_text: false,
+            open: window.filter_menu,
+            ..Default::default()
+        },
     );
     if window.filter_menu {
         let mut choices = Vec::new();
@@ -1276,21 +1298,29 @@ fn filter_controls(window: &AchievementWindow, summary: bool) -> Element {
         .into_iter()
         .enumerate()
         {
-            let name = DynName(format!("AchievementFilter{action}"));
+            let name = format!("AchievementFilter{action}");
             let action = format!("achievement:filter:{action}");
-            choices.extend(rsx! { button {
-                name, text, width:112.0, height:24.0, font_size:12.0,
-                onclick:action.as_str(), strata:FrameStrata::Dialog, mouse_enabled:true,
-                button_atlas_up:"defaultbutton-nineslice-up",
-                button_atlas_pressed:"defaultbutton-nineslice-pressed",
-                button_atlas_highlight:"defaultbutton-nineslice-highlight",
-                pos_type:"absolute", left:0.0, top:{index as f32 * 24.0},
-            }});
+            choices.extend(menu_element(
+                ContextMenuItem {
+                    name: &name,
+                    label: text,
+                    action: &action,
+                },
+                MenuElementKind::Radio {
+                    checked: title == text,
+                },
+                true,
+                (8.0, 8.0 + index as f32 * 20.0, 112.0, 20.0),
+            ));
         }
+        let background = crate::selection_list::menu_background(
+            "AchievementFilterMenuBackground".into(),
+            (128.0, 83.0),
+        );
         content.extend(
-            rsx! {r#frame {name:"AchievementFilterMenu",width:112.0,height:72.0,
+            rsx! {r#frame {name:"AchievementFilterMenu",width:128.0,height:83.0,
                 strata:FrameStrata::Dialog,frame_level:30.0,mouse_enabled:true,
-            pos_type:"absolute",left:228.0,top:51.0, {choices}
+            pos_type:"absolute",left,top:53.0, {background} {choices}
             }},
         );
     }
