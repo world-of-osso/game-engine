@@ -84,12 +84,101 @@ fn screen(ctx: &SharedContext) -> Element {
     }
 }
 
+fn raid_state() -> Result<game_engine_ui_model::raid_info::RaidInfoState, String> {
+    use game_engine_ui_model::raid_info::{RaidCatalog, RaidInfoState};
+    let catalog = RaidCatalog::load(&game_engine_ui_model::paths::resolve_data_path(
+        "db2/12.1.0.69933",
+    ))?;
+    let locks: Vec<_> = [409, 469, 533, 249, 532, 565, 544, 580]
+        .into_iter()
+        .enumerate()
+        .map(|(index, map_id)| shared::protocol::InstanceLockInfo {
+            map_id,
+            difficulty_id: 9,
+            instance_id: index as u32 + 1,
+            time_remaining_secs: 4000,
+            completed_mask: 0,
+            locked: true,
+            extended: false,
+        })
+        .collect();
+    Ok(RaidInfoState {
+        visible: true,
+        rows: catalog.rows(&locks, 0)?,
+        ..Default::default()
+    })
+}
+
+fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
+    use shared::{
+        battleground::{BgPhase, BgTeam, FlagObjective},
+        protocol::{BattlegroundPlayerScoreSnapshot, BattlegroundSnapshot, PvpSnapshot},
+    };
+    game_engine_ui_model::battleground::PvpView {
+        scoreboard: true,
+        viewport: [1920.0, 1080.0],
+        snapshot: Some(PvpSnapshot {
+            honor: 0,
+            honor_max: 0,
+            conquest: 0,
+            conquest_max: None,
+            brackets: vec![],
+            queue: None,
+            war_mode: None,
+            talents: None,
+            battleground: Some(BattlegroundSnapshot {
+                match_id: 71,
+                battleground_id: 1014,
+                name: "Warsong Gulch".into(),
+                map_id: 2106,
+                team: BgTeam::A,
+                phase: BgPhase::InProgress,
+                accepted: true,
+                invitation_time_left_secs: None,
+                score_a: 2,
+                score_b: 1,
+                flags: FlagObjective::default(),
+                world_states: vec![],
+                outcome: None,
+                players: vec![BattlegroundPlayerScoreSnapshot {
+                    character_id: 81,
+                    name: "Flagrunner".into(),
+                    class: 1,
+                    level: 90,
+                    team: BgTeam::A,
+                    killing_blows: 0,
+                    deaths: 0,
+                    damage_done: 0,
+                    healing_done: 0,
+                    objective_scores: vec![(929, 1), (928, 2)],
+                    honorable_kills: None,
+                    honor_level: None,
+                }],
+                honor_reward: None,
+                arena: None,
+            }),
+        }),
+        ..Default::default()
+    }
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
     #[func]
     pub fn show_gameplay_panels_preview(&mut self, forever: bool, page: GString) -> GString {
         let page = page.to_string();
-        if !["meter", "tracking", "transmog", "difficulty"].contains(&page.as_str()) {
+        if ![
+            "meter",
+            "tracking",
+            "transmog",
+            "difficulty",
+            "raid",
+            "scoreboard",
+            "talent-menu",
+            "talent-dialog",
+        ]
+        .contains(&page.as_str())
+        {
             return GString::from("Unknown gameplay preview page");
         }
         let skin = if forever {
@@ -100,6 +189,32 @@ impl RegistryUi {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
             self.set_ui_scale(1.0)?;
+            if page == "raid" {
+                return self.show_raid_info(raid_state()?);
+            }
+            if page == "scoreboard" {
+                return self.show_pvp(scoreboard_view());
+            }
+            if page.starts_with("talent-") {
+                let data = game_engine_ui_model::paths::resolve_data_path("");
+                let mut state = game_engine_ui_model::spellbook_preview::load_preview_state(
+                    &data,
+                    game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab::Talents,
+                )?;
+                let editor = &mut state
+                    .talents
+                    .as_mut()
+                    .ok_or("Talent preview missing graph")?
+                    .editor;
+                if page == "talent-menu" {
+                    editor.loadout_menu = true;
+                } else {
+                    editor.loadout_dialog =
+                        Some(game_engine_ui_model::talents::LoadoutDialog::Create);
+                    editor.loadout_name = "Raid Night".into();
+                }
+                return self.show_spellbook(state);
+            }
             if page == "transmog" {
                 let mut book = TransmogBook::default();
                 book.state = Some(shared::protocol::TransmogState::default());
