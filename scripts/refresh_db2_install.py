@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import struct
 import sys
 
 import db2_dbd
@@ -85,6 +86,20 @@ def export_tables(args):
     sys.path.insert(0, str(args.server / 'scripts'))
     import db2_casc
     receipt = {'identity': identity, 'schema_commit': DBD_COMMIT, 'tables': {}, 'unavailable': {}}
+    pending = []
+    for fdid in tables.values():
+        expected = roots.get(fdid)
+        source = raw / f'{fdid}.db2'
+        if expected is not None and (not source.exists() or hashlib.md5(source.read_bytes()).digest() != expected):
+            if source.exists():
+                source.unlink()
+            pending.append(str(fdid))
+    result = subprocess.run([str(args.resolver), *pending, '-o', str(raw)], cwd=args.engine,
+                            env={**os.environ, 'WOW_INSTALL_PATH': str(args.install), 'WOW_PRODUCT': 'wow',
+                                 'ASSET_RESOLVER_CACHE_DIR': str(args.resolver_cache)}, capture_output=True, text=True) if pending else None
+    if result is not None:
+        with (output / 'extraction.log').open('a') as log:
+            log.write(result.stdout + result.stderr)
     for table, fdid in tables.items():
         definition = definitions / f'{table}.dbd'
         expected = roots.get(fdid)
@@ -92,16 +107,8 @@ def export_tables(args):
             receipt['unavailable'][table] = {'fdid': fdid, 'reason': 'absent from active enUS local root'}
             continue
         source = raw / f'{fdid}.db2'
-        # Historical payloads never count as a current-install source.
-        if source.exists() and hashlib.md5(source.read_bytes()).digest() != expected:
-            source.unlink()
-        result = subprocess.run([str(args.resolver), str(fdid), '-o', str(raw)], cwd=args.engine,
-                                env={**os.environ, 'WOW_INSTALL_PATH': str(args.install), 'WOW_PRODUCT': 'wow',
-                                     'ASSET_RESOLVER_CACHE_DIR': str(args.resolver_cache)}, capture_output=True, text=True)
-        with (output / 'extraction.log').open('a') as log:
-            log.write(result.stdout + result.stderr)
-        if result.returncode or not source.exists():
-            receipt['unavailable'][table] = {'fdid': fdid, 'reason': result.stderr.strip()}
+        if not source.exists():
+            receipt['unavailable'][table] = {'fdid': fdid, 'reason': 'local extraction failed; see extraction.log'}
             continue
         data = source.read_bytes()
         authenticated = hashlib.md5(data).digest() == expected
@@ -129,5 +136,4 @@ def main():
 
 
 if __name__ == '__main__':
-    import struct
     main()
