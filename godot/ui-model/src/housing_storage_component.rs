@@ -34,6 +34,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
     let stored = crate::housing_editor_component::stored_entries(view, disabled);
     let categories = categories(view);
     let filters = filters(view);
+    let clear_search = clear_search_button(view);
     let category_path = view.model.storage_category_path();
     let hide_hint = !view.model.storage_search.is_empty();
     let status = if can_edit {
@@ -54,8 +55,22 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
         fontstring {name:"HouseEditorStorageTitle",text:status,width:content_width,height:32.0,pos_type:"absolute",left:85.0,top:footer_top,font_size:14.0}
         editbox {name:"HouseEditorStorageSearchBox",text:{view.model.storage_search.as_str()},width:search_width,height:30.0,pos_type:"absolute",left:20.0,top:20.0,font_size:12.0}
         fontstring {name:"HouseEditorStorageSearchHint",text:"Search",hidden:hide_hint,mouse_enabled:false,width:search_width,height:30.0,pos_type:"absolute",left:30.0,top:20.0,font_size:12.0,font_color:"0.5,0.5,0.5,1.0",justify_h:"LEFT"}
+        {clear_search}
         button {name:"HouseEditorStorageCollapseButton",width:32.0,height:74.0,pos_type:"absolute",left:collapse_left,top:collapse_top,onclick:"housing:storage:collapse",button_default_skin:false,button_atlas_highlight:"house-chest-close-drawer-button",button_highlight_alpha:"0.5",{collapse}}
         button {name:"HouseEditorStorageResizeButton",width:20.0,height:20.0,pos_type:"absolute",left:resize_left,top:resize_top,button_default_skin:false}
+    }}
+}
+
+fn clear_search_button(view: &HousingView) -> Element {
+    let hidden = view.model.storage_search.is_empty() && !view.model.storage_search_focused;
+    let left = view.model.storage_panel.size[0] - 180.0;
+    let icon = named_atlas_texture(
+        "HouseEditorStorageSearchClearIcon".into(),
+        "common-search-clearbutton",
+        (3.0, 3.0, 10.0, 10.0),
+    );
+    rsx! {button {name:"HouseEditorStorageSearchClearButton",width:17.0,height:17.0,pos_type:"absolute",left,top:26.5,hidden,onclick:"housing:storage:search:clear",button_default_skin:false,
+        r#frame {name:"HouseEditorStorageSearchClearArt",width:17.0,height:17.0,alpha:"0.5",mouse_enabled:false,{icon}}
     }}
 }
 
