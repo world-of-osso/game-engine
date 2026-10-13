@@ -77,6 +77,88 @@ pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameReg
     }
 }
 
+/// SharedCollectionTemplates.xml:68-202, two source-sized shadow rings and corners.
+pub fn collection_background_shadows(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
+    let mut out = Vec::new();
+    for (suffix, atlas, edges) in [
+        ("Shadow", "collections-background-shadow-large", true),
+        ("OverlayShadow", "collections-background-shadow-small", true),
+        ("BGCorner", "collections-background-corner", false),
+    ] {
+        out.extend(atlas_corner_ring(prefix, suffix, atlas, rect, edges));
+    }
+    out
+}
+
+fn atlas_corner_ring(
+    prefix: &str,
+    suffix: &str,
+    atlas: &str,
+    (x, y, width, height): (f32, f32, f32, f32),
+    edges: bool,
+) -> Element {
+    use ui_toolkit::atlas::{resolve_region, thread_skin};
+    let region = resolve_region(atlas, thread_skin()).expect("collection shadow atlas");
+    let w = region.width;
+    let h = region.height;
+    let mut pieces = vec![
+        ("TopLeft", (x, y, w, h), [0.0, 1.0, 0.0, 1.0]),
+        ("TopRight", (x + width - w, y, w, h), [1.0, 0.0, 0.0, 1.0]),
+        (
+            "BottomLeft",
+            (x, y + height - h, w, h),
+            [0.0, 1.0, 1.0, 0.0],
+        ),
+        (
+            "BottomRight",
+            (x + width - w, y + height - h, w, h),
+            [1.0, 0.0, 1.0, 0.0],
+        ),
+    ];
+    if edges {
+        pieces.extend([
+            (
+                "Top",
+                (x + w, y, width - 2.0 * w, h),
+                [0.9999, 1.0, 0.0, 1.0],
+            ),
+            (
+                "Bottom",
+                (x + w, y + height - h, width - 2.0 * w, h),
+                [0.9999, 1.0, 1.0, 0.0],
+            ),
+            (
+                "Left",
+                (x, y + h, w, height - 2.0 * h),
+                [0.0, 1.0, 0.9999, 1.0],
+            ),
+            (
+                "Right",
+                (x + width - w, y + h, w, height - 2.0 * h),
+                [1.0, 0.0, 0.9999, 1.0],
+            ),
+        ]);
+    }
+    pieces
+        .into_iter()
+        .flat_map(|(part, (left, top, width, height), [l, r, t, b])| {
+            let uv = format!(
+                "{},{},{},{}",
+                region.left + (region.right - region.left) * l,
+                region.left + (region.right - region.left) * r,
+                region.top + (region.bottom - region.top) * t,
+                region.top + (region.bottom - region.top) * b
+            );
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("collection shadow requires FDID");
+            };
+            rsx! { texture { name: {DynName(format!("{prefix}{suffix}{part}"))},
+            texture_fdid: fdid, tex_coords: {uv.as_str()}, width, height,
+            left, top, pos_type: "absolute" } }
+        })
+        .collect()
+}
+
 fn tabs(selected: usize) -> Element {
     let mut left = 11.0;
     let mut tabs: Vec<_> = TABS
