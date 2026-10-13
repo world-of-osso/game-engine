@@ -304,15 +304,32 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
     )
 }
 fn mount_details(view: &MountJournalView) -> Element {
-    // Blizzard_MountCollection.xml MountDisplay.YesMountsTex, local listfile FDID651761.
-    let mut out = cropped(
+    // Blizzard_MountCollection.xml:397-400,443-466,523-526. LeftInset's bottom
+    // is 606-111=495; RightInset bottom is 495+85=580, left is 4+260+20=284.
+    let border = crate::ui::screens::auction_house_frame_component::inset_border(
+        "MountJournalRightInset",
+        (0.0, 0.0, 413.0, 520.0),
+    );
+    let background = cropped(
         "MountJournalBackground".into(),
         651761,
         "0,0.78515625,0,1",
-        (292.0, 64.0, 405.0, 510.0),
+        (0.0, 0.0, 407.0, 514.0),
     );
-    out.extend(rsx! { r#frame { name: "MountJournalModelScene", width: 405.0, height: 365.0,
-        left: 292.0, top: 120.0, pos_type: "absolute", mouse_enabled: true }
+    let shadow = mount_shadow_overlay();
+    let mut out = rsx! {
+        r#frame { name: "MountJournalRightInset", width: 413.0, height: 520.0,
+            left: 284.0, top: 60.0, pos_type: "absolute", {border}
+            r#frame { name: "MountJournalMountDisplay", width: 407.0, height: 514.0,
+                left: 3.0, top: 3.0, pos_type: "absolute", clip_children: true,
+                {background}
+                r#frame { name: "MountJournalModelScene", width: 407.0, height: 514.0,
+                    left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: true }
+                {shadow}
+            }
+        }
+    };
+    out.extend(rsx! {
         button { name: "MountJournalSummonRandomFavorite", width: 206.0, height: 33.0,
         left: 484.0, top: 33.0, pos_type: "absolute", text: "Summon Random Favorite Mount", font_size: 10.0, onclick: "mount:random" }
     });
@@ -373,6 +390,23 @@ fn mount_details(view: &MountJournalView) -> Element {
     ));
     out
 }
+// SharedUIPanelTemplates.xml:163-224; source files give 64px corners/edges.
+fn mount_shadow_overlay() -> Element {
+    [
+        ("TopLeft", 423810, "0,1,0,1", (0.0, 0.0, 64.0, 64.0)),
+        ("TopRight", 423810, "1,0,0,1", (343.0, 0.0, 64.0, 64.0)),
+        ("BottomLeft", 423810, "0,1,1,0", (0.0, 450.0, 64.0, 64.0)),
+        ("BottomRight", 423810, "1,0,1,0", (343.0, 450.0, 64.0, 64.0)),
+        ("Top", 423813, "0,1,0,1", (64.0, 0.0, 279.0, 64.0)),
+        ("Bottom", 423809, "0,1,0,1", (64.0, 450.0, 279.0, 64.0)),
+        ("Left", 423811, "0,1,0,1", (0.0, 64.0, 64.0, 386.0)),
+        ("Right", 423812, "0,1,0,1", (343.0, 64.0, 64.0, 386.0)),
+    ]
+    .into_iter()
+    .flat_map(|(name, fdid, uv, rect)| cropped(format!("MountJournalShadow{name}"), fdid, uv, rect))
+    .collect()
+}
+
 fn filter_menu(view: &MountJournalView) -> Element {
     if !view.filters_open {
         return Vec::new();
