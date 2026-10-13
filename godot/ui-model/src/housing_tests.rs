@@ -185,6 +185,35 @@ fn housing_home_navigation_requests_house_identity_without_component_grants() {
 }
 
 #[test]
+fn housing_storage_same_focus_is_noop_all_keeps_query_and_changed_specific_focus_clears() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    let authority = owning(&[(1693, 1), (2330, 1)], &[]);
+    let original = authority.clone();
+    model.set_search("Catalog independent".into(), &authority);
+    model.set_storage_category(Some(2), &authority).unwrap();
+    model.set_storage_search("zz".into());
+    model.storage_search_focused = true;
+    model.set_storage_subcategory(None, &authority).unwrap();
+    assert_eq!(
+        model.storage_search, "zz",
+        "same child-All focus must not invoke clear callback"
+    );
+    assert!(model.storage_search_focused);
+    model.set_storage_category(Some(2), &authority).unwrap();
+    assert_eq!(model.storage_search, "zz");
+    model.set_storage_category(None, &authority).unwrap();
+    assert_eq!(model.storage_search, "zz");
+    assert!(model.storage_search_focused);
+    model.set_storage_category(Some(1), &authority).unwrap();
+    assert!(model.storage_search.is_empty());
+    assert!(!model.storage_search_focused);
+    assert_eq!(model.search, "Catalog independent");
+    assert_eq!(authority, original);
+}
+
+#[test]
 fn housing_storage_short_utf8_search_keeps_category_focus_until_three_characters() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();

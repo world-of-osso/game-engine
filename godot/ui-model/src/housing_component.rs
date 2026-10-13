@@ -4,7 +4,9 @@ use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
 use crate::ui::strata::FrameStrata;
 use game_engine_core::housing::Decor;
 use std::collections::{BTreeSet, HashMap};
-use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+use ui_toolkit::{
+    frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
+};
 
 pub const SIZE: [f32; 2] = [814.0, 544.0];
 /// Filter dropdown frame: five 20-unit rows inside the art's shadow border.
@@ -21,6 +23,33 @@ pub struct HousingView {
     pub missing_thumbnails: BTreeSet<u32>,
     /// Creature names the server's creature query returned, for decor vendor sources.
     pub vendor_names: HashMap<u32, String>,
+}
+
+/// SearchBoxTemplate fields not exposed by RSX attrs; apply before native projection.
+pub fn apply_housing_storage_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
+    let Some(id) = registry.get_by_name("HouseEditorStorageSearchBox") else {
+        return;
+    };
+    let frame = registry
+        .get_mut(id)
+        .expect("Housing search frame exists after lookup");
+    let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut() else {
+        panic!("Housing search must be an EditBox");
+    };
+    edit.max_letters = Some(40);
+    edit.text_insets = [16.0, 20.0, 0.0, 0.0];
+    let id = registry
+        .get_by_name("HouseEditorStorageSearchGlyph")
+        .expect("Housing search must include its source magnifier");
+    let frame = registry
+        .get_mut(id)
+        .expect("Housing magnifier exists after lookup");
+    let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
+        panic!("Housing magnifier must be a Texture");
+    };
+    let active = view.model.storage_search_focused || !view.model.storage_search.is_empty();
+    let channel = if active { 1.0 } else { 0.6 };
+    texture.vertex_color = [channel, channel, channel, 1.0];
 }
 
 pub fn housing_screen(context: &SharedContext) -> Element {
