@@ -77,6 +77,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<UnitLevel>(),
         Codec::of::<LevelScaling>(),
         Codec::of::<UnitFactionTemplate>(),
+        Codec::of::<shared::components::CurrentPvpFaction>(),
         Codec::of::<UnitFlags>(),
         Codec::of::<UnitTarget>(),
         Codec::of::<CreatureMotion>(),
