@@ -106,7 +106,7 @@ func purchase_each_collection() -> void:
 	var bought := []
 	for entry in PURCHASES:
 		if not await choose_category(entry[0]): return
-		if not await select_first_available(): return
+		if not await select_first_available(tender): return
 		var state: Dictionary = client.trading_post_state()
 		if state.purchased or state.collected: fail("Fresh account already owns " + str(state)); return
 		var before := await collection_count(entry[2], int(state.item_id))
@@ -200,13 +200,15 @@ func choose_category(id: int) -> bool:
 	await click("PerksProgramCategory%d" % id)
 	return await wait_until(func(): return int(client.trading_post_state().category) == id, "category %d" % id)
 
-func select_first_available() -> bool:
+# First listed row with a bound grant (and, given `budget`, a price within it).
+func select_first_available(budget: int = -1) -> bool:
 	for row in client.trading_post_state().rows:
 		var parts: PackedStringArray = row.split("|")
-		if parts[1] == "1":
-			await click("PerksProgramProduct" + parts[0])
-			return await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0])
-	fail("No available row in category %d" % int(client.trading_post_state().category))
+		if parts[1] != "1": continue
+		await click("PerksProgramProduct" + parts[0])
+		if not await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0]): return false
+		if budget < 0 or int(client.trading_post_state().price) <= budget: return true
+	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
 
 func rotate_model() -> bool:
