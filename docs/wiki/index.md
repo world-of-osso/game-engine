@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [War Banner faction/combat rendering](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13) — replicated team condition, both faction models in both skins, physical source combat removes native back attachments; no cloth certification.
+
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
 
 - [Linked cooking-fire proof](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12) — actual both-skin Little Wickerman/source.25 model/particles, real cooking and Cozy Fire cancellation-refresh; seven-item backend and per-variant boundaries.

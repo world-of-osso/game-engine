@@ -2,6 +2,10 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## War Banner faction and combat presentation (2026-10-13)
+
+Client codec carries `CurrentPvpFaction`, and `SpellEffects::caster_context` reads that scalar rather than deriving team from race/reaction. PlayerCondition parser handles the source field, cache format14 invalidates older catalogs, and all other unsupported requirements remain refused. Source matching300104/300144 selects AuraStart back model2925498/2925497 until AuraEnd. Four private5911 native processes prove both models in Modern/Forever, through actual learning/journal activation and physical source Blackrock Worg right-click combat. Replicated aura removal ends the kit and preserves the native Human/Orc visual; all four receipts observe in_combat=true. Real saved Options controls select the skin and enable Micro Menu (now hidden by both presets), without offline-preview layout defaults. [Single-source coverage/source/asset boundary](../../../../game-server/docs/toy-effects14-coverage.md#current-pvp-faction-and-war-banners-2026-10-13); [client contract](../../specs/toy-box.md).
+
 ## Source-private summon proof (2026-10-12)
 
 Real private5911 UDP peers reproduced source-private Warning Sign73781 appearing in owner and nearby observer replicas. Source flags are now imported and respected by server interest on both observer/target updates, including wild zone spawns. Actual Lilian88280 UDP GREEN is owner-visible/observer-absent while public Scarecrow66768 stays visible to both; no client-side hiding or synthetic actor. [Source contract/import command and coverage](../../../../game-server/docs/toy-effects14-coverage.md#source-private-summons-2026-10-12).
