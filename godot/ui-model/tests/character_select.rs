@@ -187,6 +187,25 @@ fn roster_selection_and_delete_confirmation_follow_shared_state() {
             .get_by_name(DELETE_CONFIRM_DIALOG.0)
             .is_some()
     );
+    // GlueDialog.xml:512 container,150x32 input,200x30 buttons.
+    assert_eq!(
+        frame(&model, DELETE_CONFIRM_DIALOG.0).width,
+        Dimension::Fixed(512.0)
+    );
+    assert_eq!(
+        (
+            frame(&model, DELETE_CONFIRM_INPUT.0).width,
+            frame(&model, DELETE_CONFIRM_INPUT.0).height
+        ),
+        (Dimension::Fixed(150.0), Dimension::Fixed(32.0))
+    );
+    assert_eq!(
+        (
+            frame(&model, DELETE_CONFIRM_BUTTON.0).width,
+            frame(&model, DELETE_CONFIRM_BUTTON.0).height
+        ),
+        (Dimension::Fixed(200.0), Dimension::Fixed(30.0))
+    );
     assert_eq!(
         text(&model, "DeleteCharacterDialogWarning"),
         "This will permanently delete Borin."

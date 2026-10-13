@@ -53,6 +53,8 @@ fn tab_art(name: FrameName) -> Element {
     let highlight_left = if name == MODE_TAB { -45.0 } else { 0.0 };
     let highlight_right = if name == CAMPSITES_TAB { -45.0 } else { 0.0 };
     let hide_divider = name == CAMPSITES_TAB;
+    let divider = ui_toolkit::atlas::get_region("glues-characterselect-tophud-bg-divider")
+        .expect("CharacterSelectNavBar divider atlas");
     rsx! {
         texture {
             name: tab_part(name, "Normal"), width: "auto", height: "auto", texture_atlas: format!("glues-characterselect-tophud-{end}-bg"),
@@ -75,7 +77,8 @@ fn tab_art(name: FrameName) -> Element {
             }
         }
         texture {
-            name: tab_part(name, "Divider"), texture_atlas: "glues-characterselect-tophud-bg-divider",
+            name: tab_part(name, "Divider"), width: divider.width, height: divider.height,
+            texture_atlas: "glues-characterselect-tophud-bg-divider",
             hidden: hide_divider, pos_type: "absolute", right: 0.0, top: "50%", translate_y: "-50%",
         }
     }
