@@ -219,6 +219,7 @@ impl RegistryModel {
         use game_engine_ui_model::quest_scroll::{QuestScrollExtent, quest_scroll_child};
         let mut lists = game_engine_ui_model::quest_frame_component::QUEST_SCROLL_FRAMES.to_vec();
         lists.push(game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL);
+        lists.push("QuestScrollFrame");
         let extent = lists.into_iter().find_map(|list| {
             let child = self.registry.get_by_name(&quest_scroll_child(list))?;
             let height = self.registry.get(child)?.layout_rect.as_ref()?.height;
