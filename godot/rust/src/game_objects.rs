@@ -26,6 +26,8 @@ use shared::protocol::{
 };
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
+mod transport_wmo;
+
 /// Separate from baked scenery: only these live meshes follow GO collision state.
 pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
 const COLLISION_BENCH_SAMPLES: usize = 1200;
@@ -75,6 +77,7 @@ pub(crate) struct GameObjects {
     data_root: PathBuf,
     displays: Option<Result<HashMap<u32, u32>, String>>,
     objects: HashMap<u64, ObjectNode>,
+    transports: HashMap<u64, crate::transport_motion::TransportView>,
     light: Option<TerrainLight>,
     particles: Option<ParticlePools>,
 }
@@ -145,6 +148,7 @@ fn game_object_is_renderable(go_type: u8) -> bool {
     matches!(
         go_type,
         0 | 6
+            | transport_wmo::GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT
             | GAMEOBJECT_TYPE_GENERIC
             | GAMEOBJECT_TYPE_SPELL_FOCUS
             | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR
@@ -164,6 +168,7 @@ impl GameObjects {
             data_root,
             displays: None,
             objects: HashMap::new(),
+            transports: HashMap::new(),
             light: None,
             particles: None,
         }
@@ -219,6 +224,35 @@ impl GameObjects {
     }
     pub fn position(&self, id: u64) -> Option<Vector3> {
         Some(self.objects.get(&id)?.node.get_global_position())
+    }
+    pub fn transport_pose(&self, id: u64) -> Option<shared::transport_route::TransportPose> {
+        Some(self.transports.get(&id)?.pose())
+    }
+    pub fn advance_transports(&mut self, delta: f32) {
+        for (id, view) in &mut self.transports {
+            view.advance(delta);
+            let pose = view.pose();
+            let object = self
+                .objects
+                .get_mut(id)
+                .expect("transport view has a rendered object");
+            object.node.set_position(Vector3::new(
+                pose.position[0],
+                pose.position[2],
+                -pose.position[1],
+            ));
+            object.node.set_rotation(Vector3::new(
+                0.0,
+                pose.orientation + std::f32::consts::FRAC_PI_2,
+                0.0,
+            ));
+            // Node3D transform notifications are deferred. Input queries this deck in
+            // this same frame, so publish its actual child-body transform now.
+            let mut body = object
+                .node
+                .get_node_as::<StaticBody3D>("GameObjectModel/M2Collision");
+            body.force_update_transform();
+        }
     }
     /// The top centre of the object's model bounds, where its soft target icon sits.
     pub fn icon_anchor(&self, id: u64) -> Option<Vector3> {
@@ -321,6 +355,15 @@ impl GameObjects {
         if let Some(animation) = unit.get::<GameObjectAnimation>() {
             apply_object_animation(object, *animation)?;
         }
+        if let Some(state) = unit.get::<shared::components::TransportState>() {
+            match self.transports.get_mut(&id) {
+                Some(view) => view.observe(state)?,
+                None => {
+                    self.transports
+                        .insert(id, crate::transport_motion::TransportView::new(state)?);
+                }
+            }
+        }
         Ok(())
     }
     fn place_particles(
@@ -369,6 +412,9 @@ impl GameObjects {
                 )
             })?;
         let resolver = local_resolver(&self.data_root);
+        if info.go_type == transport_wmo::GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT {
+            return self.load_transport(&resolver, info, fdid);
+        }
         let path = cache_model_files(&resolver, &self.data_root, fdid).map_err(|e| {
             format!(
                 "Game object entry {} display {} model {fdid}: {e}",
@@ -396,6 +442,26 @@ impl GameObjects {
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
         bind_visual_light(&model, self.light.as_ref());
         Ok((model, ModelParticles::from_model(fdid, &parsed)))
+    }
+    fn load_transport(
+        &self,
+        resolver: &osso_asset_resolver::CascListfileResolver,
+        info: &GameObjectInfo,
+        fdid: u32,
+    ) -> Result<(Gd<Node3D>, Option<Rc<ModelParticles>>), String> {
+        let mut model =
+            transport_wmo::load_transport_wmo(resolver, &self.data_root, fdid, self.light.as_ref())
+                .map_err(|e| {
+                    format!(
+                        "Game object entry {} display {}: {e}",
+                        info.entry, info.display_id
+                    )
+                })?;
+        model.set_name("GameObjectModel");
+        model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
+        // WMO and M2 local axes match (ADT MODF and MDDF share `placement_rotation`).
+        model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
+        Ok((model, None))
     }
     /// Advance the source emitters of each replicated, loaded game-object model.
     pub fn update_particles(&mut self, camera: Transform3D, delta: f32) {
@@ -442,6 +508,7 @@ impl GameObjects {
         self.light = light;
     }
     pub fn remove(&mut self, id: u64) {
+        self.transports.remove(&id);
         if let Some(object) = self.objects.remove(&id) {
             object.node.free();
         }
@@ -450,6 +517,7 @@ impl GameObjects {
         for (_, object) in self.objects.drain() {
             object.node.free();
         }
+        self.transports.clear();
         if let Some(pools) = &mut self.particles {
             pools.reset();
         }
@@ -459,6 +527,32 @@ impl GameObjects {
 
 /// Dedicated authored GO collision, using the same step/search/normal rules as M2 floors.
 pub(crate) fn floor_hit(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3) -> Option<f32> {
+    Some(
+        walkable_floor_hit(space, feet)?
+            .get("position")?
+            .to::<Vector3>()
+            .y,
+    )
+}
+
+pub(crate) fn floor_object(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3) -> Option<u64> {
+    let hit = walkable_floor_hit(space, feet)?;
+    let mut node = hit
+        .get("collider")?
+        .try_to::<Gd<godot::classes::Node>>()
+        .ok()?;
+    loop {
+        if node.has_meta("game_object_server_id") {
+            return Some(node.get_meta("game_object_server_id").to::<i64>() as u64);
+        }
+        node = node.get_parent()?;
+    }
+}
+
+fn walkable_floor_hit(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    feet: glam::Vec3,
+) -> Option<VarDictionary> {
     let from =
         Vector3::from_array((feet + glam::Vec3::Y * shared::ground::STEP_UP_HEIGHT).to_array());
     let to =
@@ -471,7 +565,7 @@ pub(crate) fn floor_hit(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3)
     if normal.y < shared::ground::min_walkable_normal_y() {
         return None;
     }
-    Some(hit.get("position")?.to::<Vector3>().y)
+    Some(hit)
 }
 
 fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {

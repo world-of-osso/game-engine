@@ -63,6 +63,21 @@ func live_run() -> void:
 						var model_path := str(model.get_meta("m2_source_path", "")) if model != null else ""
 						var model_visible := model != null and model.is_visible_in_tree()
 						result.objects.append({"name": str(object.get_meta("game_object_name")), "entry": int(object.get_meta("game_object_entry")), "server_id": int(object.get_meta("game_object_server_id")), "position": [position.x, position.y, position.z], "model_path": model_path, "model_visible": model_visible})
+			"transport-floor":
+				result.ships = []
+				for object in root.find_children("Mailbox_*", "Node3D", true, false):
+					if not object.has_meta("game_object_entry"):
+						continue
+					var entry := int(object.get_meta("game_object_entry"))
+					if not entry in [278407, 279254]:
+						continue
+					var model := object.get_node_or_null("GameObjectModel") as Node3D
+					var body := object.get_node_or_null("GameObjectModel/M2Collision") as StaticBody3D
+					var local := Vector3(-29.8623, 20.5534, -0.520232) if entry == 278407 else Vector3(0.875362, 34.1691, 8.07249)
+					var feet: Vector3 = object.global_position + Basis(Vector3.UP, object.rotation.y - PI / 2.0) * local
+					var query := PhysicsRayQueryParameters3D.create(feet + Vector3.UP * 1.6, feet - Vector3.UP * 50.0, 1 << 5)
+					var hit: Dictionary = object.get_world_3d().direct_space_state.intersect_ray(query)
+					result.ships.append({"entry": entry, "position": str(object.global_position), "yaw": object.rotation.y, "model_transform": str(model.global_transform) if model != null else "absent", "collision_transform": str(body.global_transform) if body != null else "absent", "layer": body.collision_layer if body != null else -1, "probe_feet": str(feet), "hit_position": str(hit.get("position", "absent")), "hit_normal": str(hit.get("normal", "absent")), "collider": str(hit.collider.get_path()) if hit.has("collider") else "absent"})
 			"capture":
 				await frames(3)
 				await RenderingServer.frame_post_draw
