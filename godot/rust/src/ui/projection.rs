@@ -512,19 +512,11 @@ impl UiProjection {
                 .as_deref()
                 .unwrap_or(&format!("Frame{}", frame.id)),
         );
-        node.set_mouse_filter(
-            if frame.mouse_enabled
-                || frame.onclick.is_some()
-                || matches!(
-                    frame.widget_type,
-                    WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
-                )
-            {
-                godot::classes::control::MouseFilter::STOP
-            } else {
-                godot::classes::control::MouseFilter::IGNORE
-            },
-        );
+        node.set_mouse_filter(if frame.mouse_enabled {
+            godot::classes::control::MouseFilter::STOP
+        } else {
+            godot::classes::control::MouseFilter::IGNORE
+        });
         let mut parts = Control::new_alloc();
         parts.set_name(PARTS_NODE);
         parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);

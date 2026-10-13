@@ -55,6 +55,10 @@ func run_fixture() -> void:
 		_: await browse()
 
 func layout_proof() -> void:
+	print("TP_LAYOUT_INITIAL footer=", control("PerksProgramFooterFrame").get_global_rect(), " purchase=", control("PerksProgramPurchaseButton").get_global_rect(), " filter=", control("PerksProgramFilter").get_global_rect())
+	if control("PerksProgramFilterBackground").mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		fail("Decorative WowStyle2 Button intercepted owner input")
+		return
 	await capture("vendor-all")
 	await click("PerksProgramPriceSortButton")
 	if not await wait_until(func(): return client.trading_post_state().ascending, "ascending price header"): return
