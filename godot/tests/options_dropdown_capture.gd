@@ -19,10 +19,11 @@ func run() -> void:
         if not dropdown or dropdown.size != Vector2(220,25):
             fail("SettingsDropdownControlMixin width220 / WowStyle2 height25 missing")
             return
-        print("DROPDOWN RECT ", dropdown.get_global_rect(), " mouse=",dropdown.mouse_filter," visible=",dropdown.is_visible_in_tree()," disabled=",dropdown.disabled)
-        root.get_texture().get_image().save_png(output.path_join("diagnostic-options-closed-%s.png" % ["forever" if forever else "modern"]))
+        var background := ui.find_child("Choicestatus_text_displayBackground",true,false) as Control
+        if not background or background.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+            fail("Decorative dropdown Background must not intercept pointer events")
+            return
         await click(ui,"Choicestatus_text_display")
-        print("OBSERVED ACTION ",ui.call("pop_action"))
         if not ui.find_child("OptionsChoicePopupstatus_text_display",true,false):
             fail("Dropdown click did not open radio popup")
             return
@@ -74,7 +75,6 @@ func click_at(ui: Node, point: Vector2) -> void:
         event.pressed = down
         root.push_input(event,true)
         await process_frame
-    print("HOVER NODE ",root.gui_get_hovered_control())
     ui.call("sync_input")
     await process_frame
 func fail(message: String) -> void:
