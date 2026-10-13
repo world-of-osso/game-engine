@@ -1,6 +1,7 @@
 //! Retail Blizzard_Menu templates. Positions retain the original public API:
 //! dropdown y is y-up; context-menu y is y-down. Skin selection belongs to atlas resolution.
-use crate::quest_art::{label, named_atlas_texture, texture};
+use crate::bank_art::{label, texture};
+use crate::quest_art::named_atlas_texture;
 use crate::ui::strata::FrameStrata;
 use std::fmt;
 use ui_toolkit::{rsx, widget_def::Element};
