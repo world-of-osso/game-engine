@@ -512,6 +512,8 @@ impl GameClient {
             output.set("selected", model.editor.selected.map_or(0, |id| id as i64));
             output.set("placing", model.editor.placing.map_or(0, |id| id as i64));
             output.set("manipulating", model.editor.is_manipulating());
+            output.set("precision_submode", format!("{:?}", model.editor.submode));
+            output.set("scale_allowed", model.editor.scale_allowed);
             if let Some(draft) = model.editor.expert_transform() {
                 let mut row = VarDictionary::new();
                 row.set("position", Vector3::from_array(draft.position));

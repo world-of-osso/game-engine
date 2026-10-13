@@ -91,6 +91,8 @@ func stage_assigned_precision() -> bool:
 		await source_key(KEY_F11)
 	if not await record_editor("expert-source-rotate"): return false
 	await source_key(KEY_F10)
+	print("EXPERT_SCALE_DISPATCH state=",client.housing_state()," thumb=",housing_control("HouseEditorScaleThumb")," label=",housing_text("HouseEditorScaleUpInstructionText"))
+	if not await record_editor("expert-source-scale-dispatch"): return false
 	if not await wait_housing(func(): return housing_control("HouseEditorScaleThumb")!=null,"assigned Scale submode"): return false
 	if not await expert_instruction("ScaleUp","Scale Decor Up","F5"): return false
 	var scale_before: float = float(client.housing_state().draft.scale)
@@ -169,10 +171,15 @@ func configure_expert_bindings(clear: bool) -> bool:
 			await click(control.get_global_rect().get_center(),MOUSE_BUTTON_RIGHT)
 			if not await wait_housing(func(): return binding_label(action)=="Not Bound","native Expert right-click unbind"): return false
 		else:
-			if binding_label(action)!="Not Bound":
-				fail("Fixture cannot overwrite an existing Expert assignment: "+action)
+			var assigned_key: String = OS.get_keycode_string(binding[1])
+			if binding_label(action)==assigned_key:
+				# Retry after a failed owned private run: unbind its exact prior fixture key through Options.
+				await click(control.get_global_rect().get_center(),MOUSE_BUTTON_RIGHT)
+				if not await wait_housing(func(): return binding_label(action)=="Not Bound","unbind prior private fixture assignment"): return false
+			elif binding_label(action)!="Not Bound":
+				fail("Fixture cannot overwrite an unexpected Expert assignment: "+action)
 				return false
-			if not await click_exposed_control(control): return false
+			if not await click_exposed_control(menu_control("KeybindingButton"+action)): return false
 			await source_key(binding[1])
 			if not await wait_housing(func(): return binding_label(action)==OS.get_keycode_string(binding[1]),"native Expert binding assignment"): return false
 	if not await record_editor("expert-binding-options-unbound" if clear else "expert-binding-options-assigned"): return false
