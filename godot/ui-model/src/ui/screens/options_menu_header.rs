@@ -78,9 +78,9 @@ fn search_box(text: &str) -> Element {
     rsx! {
         {border}
         editbox {name:"OptionsSearchBox",text,width:350.0,height:22.0,pos_type:"absolute",left:552.0,top:34.0,
-            text_insets:"16,20,0,0",max_letters:64,auto_focus:false,font_size:12.0}
+            text_insets:"16,20,0,0",max_letters:64,auto_focus:false,font_size:10.0}
         fontstring {name:"OptionsSearchHint",text:"Search",hidden:hint_hidden,mouse_enabled:false,
-            width:314.0,height:22.0,left:568.0,top:34.0,pos_type:"absolute",font_size:12.0,color:"0.35,0.35,0.35,1",justify_h:"LEFT"}
+            width:314.0,height:22.0,left:568.0,top:34.0,pos_type:"absolute",font_size:10.0,color:"0.35,0.35,0.35,1",justify_h:"LEFT"}
         {icon}
         button {name:"OptionsSearchClear",width:17.0,height:17.0,left:882.0,top:36.5,pos_type:"absolute",
             hidden:clear_hidden,onclick:"options_search_clear",button_default_skin:false,{clear}}
