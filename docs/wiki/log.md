@@ -1,3 +1,7 @@
+## 2026-10-12 — Source search input limits and chrome
+
+[Housing](systems/housing.md#search-input-limit-gutters-and-magnifier): real registry40-letter limit,16/20 gutters and source magnifier/placeholder. Both skins type45 ASCII/UTF8 keys→40 characters, observe19 brighter focus pixels, remount configured input, clear and conserve paid copies/layout. Reacquiring replaced projected images fixes observer lifetime; owned orphan server cleaned after restart.
+
 ## 2026-10-12 — Overlapping Divine Shield refraction rainbow
 
 [Continuation](investigations/avenging-wrath-material-time.md#published-assets-and-txac-continuation--2026-10-12): 119 BLP textures and16 models match published hashes; no AW KTX variants or normal renderer HTTP streaming. TXAC hypothesis rejected: shaderId4 is colour/UV, not Refraction. Actual `cooldown-assist3` provenance/triple/642→31884 replay exposes Divine Shield1127086 emitters5/6 drawing normal map1127156 as colour; real-asset RED/GREEN selection/admission tests (20 core,1 native), general non-multitexture0x100000 forward exclusion and same-pose Modern/Forever before/after preserve AW hold pools and eliminate the rectangle. Published four requested PNGs; Modern assistant tail remains an unrelated dead-target failure.
