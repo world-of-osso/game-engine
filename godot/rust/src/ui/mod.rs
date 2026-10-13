@@ -552,6 +552,19 @@ impl RegistryModel {
                 Some(*at / self.registry.ui_scale),
             ),
             UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::FrameAltClick {
+                id,
+                right,
+                shift,
+                at,
+            } => (
+                self.registry.click_frame(*id)?,
+                Click {
+                    right: *right,
+                    shift: *shift,
+                },
+                Some(*at / self.registry.ui_scale),
+            ),
             UiInput::AltClick { id, right, shift } => {
                 let click = Click {
                     right: *right,
