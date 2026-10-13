@@ -3,6 +3,88 @@ use game_engine_core::housing::{Category, Decor, HousingCatalog, Subcategory};
 use std::sync::Arc;
 
 #[test]
+fn housing_storage_filters_use_authentic_dye_slots_and_independent_alphabetical_results() {
+    use shared::protocol::{HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            stored: [1693, 374, 2330]
+                .into_iter()
+                .map(|decor_id| StoredDecor {
+                    decor_id,
+                    quantity: 1,
+                })
+                .collect(),
+            ..Default::default()
+        }),
+        error: None,
+    };
+    let original = authority.clone();
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(&model), vec![1693, 374, 2330]);
+    assert!(
+        model
+            .storage_filter_action("housing:storage:sort:alphabetical")
+            .unwrap()
+    );
+    assert_eq!(ids(&model), vec![2330, 1693, 374]);
+    model
+        .storage_filter_action("housing:storage:filter:dyeable")
+        .unwrap();
+    assert_eq!(ids(&model), vec![374]);
+    assert!(!model.dyeable_only);
+    model.set_storage_search("Tesla".into());
+    assert!(ids(&model).is_empty());
+    model
+        .storage_filter_action("housing:storage:filter:reset")
+        .unwrap();
+    assert_eq!(model.storage_search, "Tesla");
+    assert_eq!(ids(&model), vec![2330]);
+    model.set_storage_search(String::new());
+    assert_eq!(ids(&model), vec![2330, 1693, 374]); // Reset does not change the source sort selection.
+    model
+        .storage_filter_action("housing:storage:filter:dyeable")
+        .unwrap();
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Cleanup);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Basic);
+    assert_eq!(ids(&model), vec![374]);
+    assert!(
+        model
+            .storage_filter_action("housing:storage:sort:date-added")
+            .is_err()
+    );
+    assert!(
+        model
+            .storage_filter_action("housing:storage:filter:collected")
+            .is_err()
+    );
+    assert!(
+        !model
+            .storage_filter_action("housing:filter:dyeable")
+            .unwrap()
+    );
+    assert!(
+        model
+            .stored_entries(&HousingAuthority::default())
+            .is_empty()
+    );
+    assert_eq!(authority, original);
+}
+
+#[test]
 fn housing_navigation_requests_authored_neighborhoods_without_claiming_property() {
     let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
     assert_eq!(
@@ -40,6 +122,184 @@ fn housing_home_navigation_requests_house_identity_without_component_grants() {
             .settings_request(&HousingAuthority::default(), "housing:settings:open:41")
             .is_err()
     );
+}
+
+#[test]
+fn housing_storage_categories_use_real_ownership_and_keep_search_focus_independent() {
+    use shared::protocol::{HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            stored: vec![
+                StoredDecor {
+                    decor_id: 1693,
+                    quantity: 1,
+                },
+                StoredDecor {
+                    decor_id: 2330,
+                    quantity: 1,
+                },
+            ],
+            placed: vec![StoredDecor {
+                decor_id: 80,
+                quantity: 1,
+            }],
+            ..Default::default()
+        }),
+        error: None,
+    };
+    let categories: Vec<_> = model
+        .storage_categories(&authority)
+        .iter()
+        .map(|category| category.id)
+        .collect();
+    assert_eq!(categories, vec![18, 1, 2, 4]);
+    let children: Vec<_> = model
+        .storage_subcategories(&authority, 1)
+        .iter()
+        .map(|subcategory| subcategory.id)
+        .collect();
+    assert_eq!(children, vec![6, 7]); // Fireplace80 also belongs to Misc Furnishings7, even when only placed.
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    assert!(
+        model
+            .storage_focus_action("housing:storage:category:1", &authority)
+            .unwrap()
+    );
+    assert_eq!(ids(&model), vec![1693]);
+    model.set_storage_subcategory(Some(6), &authority).unwrap();
+    assert_eq!(model.storage_subcategory, Some(6));
+    assert!(model.set_storage_subcategory(Some(10), &authority).is_err());
+    model.set_storage_search("Tesla".into());
+    assert_eq!(model.storage_category, None);
+    assert_eq!(model.storage_subcategory, None);
+    assert_eq!(ids(&model), vec![2330]);
+    model.set_storage_category(Some(2), &authority).unwrap();
+    assert!(model.storage_search.is_empty());
+    assert_eq!(ids(&model), vec![2330]);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Cleanup);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Basic);
+    assert_eq!(model.storage_category, Some(2));
+    model.set_storage_category(Some(4), &authority).unwrap();
+    assert!(ids(&model).is_empty()); // Owned/placed fireplace is not stored.
+    assert!(model.set_storage_category(Some(17), &authority).is_err());
+    assert!(model.set_storage_category(Some(6), &authority).is_err());
+    assert_eq!(model.storage_category, Some(4));
+    model.set_storage_category(Some(18), &authority).unwrap();
+    assert_eq!(ids(&model), vec![1693, 2330]);
+    assert!(
+        model
+            .storage_focus_action("housing:storage:category:back", &authority)
+            .unwrap()
+    );
+    assert!(
+        !model
+            .storage_focus_action("housing:category:1", &authority)
+            .unwrap()
+    );
+    assert!(
+        model
+            .storage_focus_action("housing:storage:category:invalid", &authority)
+            .is_err()
+    );
+    assert_eq!(model.category, None);
+    assert!(model.search.is_empty());
+    assert!(
+        model
+            .stored_entries(&HousingAuthority::default())
+            .is_empty()
+    );
+}
+
+#[test]
+fn housing_owned_storage_search_uses_positive_confirmed_counts_and_keeps_catalog_search_separate() {
+    use shared::protocol::{HousingState, StoredDecor};
+    let mut catalog = HousingCatalog::default();
+    for (id, name, item_id, model_fdid, thumbnail_fdid) in [
+        (1693, "Small Val'sharah Bookcase", 245259, 1096761, 7421877),
+        (2330, "Gnomish Tesla Coil", 246487, 6699745, 7422633),
+        (80, "Ornate Stonework Fireplace", 235994, 6033663, 7415905),
+    ] {
+        catalog.decor.push(Decor {
+            id,
+            name: name.into(),
+            item_id,
+            model_type: 1,
+            model_fdid,
+            initial_rotation: [0.0; 3],
+            initial_scale: 1.0,
+            thumbnail_fdid,
+            order: 0,
+            subcategories: vec![],
+            sources: vec![],
+            dyeable: false,
+        });
+    }
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    model.set_search("Fireplace".into(), &HousingAuthority::default());
+    let unknown = HousingAuthority::default();
+    assert!(model.stored_entries(&unknown).is_empty());
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            stored: vec![
+                StoredDecor {
+                    decor_id: 1693,
+                    quantity: 1,
+                },
+                StoredDecor {
+                    decor_id: 2330,
+                    quantity: 2,
+                },
+                StoredDecor {
+                    decor_id: 80,
+                    quantity: 0,
+                },
+            ],
+            placed: vec![StoredDecor {
+                decor_id: 80,
+                quantity: 1,
+            }],
+            ..Default::default()
+        }),
+        error: None,
+    };
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(&model), vec![1693, 2330]);
+    model.storage_search = "  tEsLa  ".into();
+    assert_eq!(ids(&model), vec![2330]);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Cleanup);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Basic);
+    assert_eq!(model.storage_search, "  tEsLa  ");
+    assert_eq!(model.search, "Fireplace");
+    model.storage_search = "Fireplace".into();
+    assert!(ids(&model).is_empty());
+    model.storage_search.clear();
+    assert_eq!(ids(&model), vec![1693, 2330]);
+    assert_eq!(authority.quantity(2330), Some(2));
 }
 
 #[test]
