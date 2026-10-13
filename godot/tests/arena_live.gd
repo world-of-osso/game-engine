@@ -46,6 +46,14 @@ func live_run() -> void:
 					var model = node.get_node_or_null("GameObjectModel")
 					var collision = node.get_node_or_null("GameObjectModel/M2Collision") as StaticBody3D
 					result.objects.append({"entry": node.get_meta("game_object_entry"), "server_id": node.get_meta("game_object_server_id"), "position": str(node.global_position), "model_fdid": model.get_meta("model_file_data_id") if model else null, "collision_layer": collision.collision_layer if collision else null})
+			"audio":
+				result.played_kits = client.merchant_state().get("ui_sounds", [])
+				result.players = []
+				var sound_root := root.find_child("UiSoundKits", true, false)
+				if sound_root != null:
+					for node in sound_root.get_children():
+						if node is AudioStreamPlayer:
+							result.players.append({"playing": node.playing, "position": node.get_playback_position(), "gain": node.volume_linear, "length": node.stream.get_length()})
 			"benchmark_collision":
 				result.measurement = client.benchmark_arena_collision()
 			"capture":
