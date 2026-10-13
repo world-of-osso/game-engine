@@ -688,11 +688,20 @@ impl UiProjection {
         );
         // A scroll list is a ScrollBox, which clips its children
         // (`Blizzard_SharedXML/Shared/Scroll/ScrollBox.xml:20`): rows cut by its edges.
+        let clip_pane = matches!(
+            frame.name.as_deref(),
+            Some(
+                "EncounterJournalInstanceSelect"
+                    | "EncounterJournalInstanceFrame"
+                    | "EncounterJournalModelScene"
+            )
+        );
         node.set_clip_contents(
-            frame
-                .name
-                .as_ref()
-                .is_some_and(|name| registry.scroll_lists.get(name).is_some()),
+            clip_pane
+                || frame
+                    .name
+                    .as_ref()
+                    .is_some_and(|name| registry.scroll_lists.get(name).is_some()),
         );
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
         node.set_z_as_relative(false);

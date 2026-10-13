@@ -110,8 +110,8 @@ fn adventure_guide_fidelity_loot_has_two_dropdowns_and_source_list_bounds() {
         v.apply("journal:page:loot").unwrap();
         let r = render(&v, skin);
         assert!(r.get_by_name("JournalSpecFilter").is_none());
-        assert_eq!(rect(&r, "JournalClassFilter"), [444., 77., 160., 25.]);
-        assert_eq!(rect(&r, "JournalSlotFilter"), [614., 77., 90., 25.]);
+        assert_eq!(rect(&r, "JournalClassFilter"), [444., 77., 120., 25.]);
+        assert_eq!(rect(&r, "JournalSlotFilter"), [574., 77., 90., 25.]);
         assert_eq!(
             rect(&r, "EncounterJournalLootContainer"),
             [442., 106., 345., 382.]
