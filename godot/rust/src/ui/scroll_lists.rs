@@ -77,6 +77,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
     {
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
+    if list == game_engine_ui_model::follower_dungeons::FOLLOWER_LIST {
+        let pan = game_engine_ui_model::follower_dungeons::ROW_HEIGHT;
+        return (pan * 2, pan);
+    }
     if let Some(pan) = game_engine_ui_model::battleground::pvp_pan_extent(list) {
         return (pan * 2, pan);
     }

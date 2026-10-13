@@ -37,6 +37,7 @@ mod eula;
 #[path = "game/faction_reaction.rs"]
 mod faction_reaction;
 mod flight_map;
+mod follower_dungeons;
 mod frame_error;
 mod game_menu;
 mod game_objects;
@@ -48,6 +49,7 @@ mod housing;
 mod housing_decor;
 mod housing_editor;
 mod housing_mouse;
+mod housing_placed_list;
 mod housing_preview;
 mod housing_storage;
 mod hud_edit;
@@ -122,6 +124,8 @@ mod trading_post;
 mod trainer;
 mod trainer_preview;
 mod transmog;
+mod transport_gameplay;
+mod transport_motion;
 mod ui;
 mod ui_layout;
 mod ui_scale;
@@ -296,6 +300,7 @@ pub struct GameClient {
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
+    local_transport: Option<transport_motion::LocalTransport>,
     /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
     /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
@@ -323,6 +328,7 @@ pub struct GameClient {
     adventure_guide: adventure_guide::AdventureGuide,
     trading_post: trading_post::TradingPost,
     battleground: battleground::BattlegroundUi,
+    follower_dungeons: follower_dungeons::FollowerDungeonUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
     transmog: transmog::Transmog,
@@ -451,6 +457,7 @@ impl INode3D for GameClient {
             client_options,
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
+            local_transport: None,
             scripted_movement: Default::default(),
             map_waypoint: None,
             waypoint_path: Default::default(),
@@ -470,6 +477,7 @@ impl INode3D for GameClient {
             adventure_guide: adventure_guide::AdventureGuide::default(),
             trading_post: trading_post::TradingPost::default(),
             battleground: battleground::BattlegroundUi::default(),
+            follower_dungeons: follower_dungeons::FollowerDungeonUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
             transmog: transmog::Transmog::default(),
@@ -552,6 +560,7 @@ impl INode3D for GameClient {
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
             || self.battleground_pointer(&event)
+            || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
             || self.character_reputation_pointer(&event)
@@ -1527,6 +1536,7 @@ impl GameClient {
         self.adventure_guide.visit_uis(&mut visit)?;
         self.trading_post.visit_uis(&mut visit)?;
         self.battleground.visit_uis(&mut visit)?;
+        self.follower_dungeons.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.transmog.visit_uis(&mut visit)?;
@@ -2069,6 +2079,7 @@ impl GameClient {
                 |c, _| Ok(c.update_character_preview()?),
             ),
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
+            ("Transport motion", |c, d| Ok(c.update_transport_motion(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Pet bar", |c, d| c.update_pet_bar(d)),
             ("Ground spell reticle", |c, _| {
@@ -2083,6 +2094,7 @@ impl GameClient {
             ("Adventure Guide", |c, _| c.update_adventure_guide()),
             ("Trading Post", |c, _| c.update_trading_post()),
             ("Battleground", |c, _| c.update_battleground()),
+            ("Follower Dungeons", |c, _| c.update_follower_dungeons()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
             ("Transmog", |c, _| c.update_transmog()),
@@ -2123,6 +2135,7 @@ impl GameClient {
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
+                c.update_transport_motion(0.0)?;
                 Ok(())
             }),
             ("Player animation", |c, _| Ok(c.update_player_animation()?)),
@@ -2250,6 +2263,10 @@ impl GameClient {
                     ui.free();
                 }
                 self.battleground = Default::default();
+                if let Some(ui) = self.follower_dungeons.ui.take() {
+                    ui.free();
+                }
+                self.follower_dungeons = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2299,6 +2316,10 @@ impl GameClient {
             AccountEvent::MountJournal(update) => self.receive_mount_journal(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::FollowerDungeons(catalog) => {
+                self.follower_dungeons.view.receive_catalog(catalog)
+            }
+            AccountEvent::Lfg(update) => self.follower_dungeons.view.receive(update),
             AccountEvent::Pvp(update) => {
                 self.battleground.view.receive(update);
                 self.sync_spellbook()?;
