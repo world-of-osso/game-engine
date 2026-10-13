@@ -10,10 +10,11 @@ func capture() -> void:
 		quit(1)
 		return
 	for skin in ["modern", "forever"]:
-		for page in ["recipient", "duration"]:
+		var pages := ["recipient", "duration"] if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ["meter", "tracking", "transmog", "difficulty"]
+		for page in pages:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
-			var error = ui.call("show_customer_orders_preview", skin == "forever", page == "duration")
+			var error = ui.call("show_customer_orders_preview", skin == "forever", page == "duration") if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ui.call("show_gameplay_panels_preview", skin == "forever", page)
 			if error != "":
 				push_error(error)
 				quit(1)
@@ -26,11 +27,11 @@ func capture() -> void:
 				push_error("Capture must be 1920x1080")
 				quit(1)
 				return
-			if image.save_png(directory.path_join(skin + "-orders-" + page + ".png")) != OK:
+			if image.save_png(directory.path_join(skin + "-" + ("orders" if OS.get_environment("GAMEPLAY_GROUP") != "menus" else "menus") + "-" + page + ".png")) != OK:
 				push_error("Capture write failed")
 				quit(1)
 				return
 			ui.queue_free()
 			await process_frame
-	print("PASS: both-skin customer-order native captures")
+	print("PASS: both-skin gameplay-panel native captures")
 	quit(0)
