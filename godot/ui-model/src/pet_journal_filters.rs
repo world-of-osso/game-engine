@@ -257,6 +257,8 @@ fn source_rows(view: &PetJournalView) -> Vec<Row> {
         .species_filters
         .values()
         .map(|meta| meta.source)
+        // Retail enumerates BattlePetSources; -1 is a species' no-source sentinel, not a source option.
+        .filter(|source| *source >= 0)
         .collect();
     rows.extend(sources.into_iter().map(|source| {
         let label = [
