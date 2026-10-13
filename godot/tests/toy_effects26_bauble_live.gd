@@ -17,7 +17,7 @@ func prove_toy(sample: Array) -> void:
 	var position: Vector3 = client.unit_transform(int(state.local_player_id)).origin
 	var clicked := Time.get_ticks_msec()
 	await click("ToySpellButton1")
-	if not await wait_until(func(): return has_aura(BAUBLE_SPELL) and kit_model(BAUBLE_SPELL, BAUBLE_MODELS) == 1417024, "source Bauble rainbow attachment", 15000): return
+	if not await wait_until(func(): return has_aura(BAUBLE_SPELL) and kit_model(BAUBLE_SPELL, BAUBLE_MODELS) == 1417024 and remaining_cooldown(BAUBLE_ITEM) > 0.0, "source Bauble attachment and independent recovery receipt", 15000): return
 	if not native_display(-1): fail("Bauble replaced native player model"); return
 	var active := Time.get_ticks_msec()
 	var cooldown := remaining_cooldown(BAUBLE_ITEM)
