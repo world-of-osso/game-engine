@@ -33,15 +33,26 @@ impl GameClient {
         let Some(ui) = &self.housing.ui else {
             return Ok(());
         };
+        for prefix in ["HouseEditorStorageSearch", "HousingCatalogSearch"] {
+            self.sync_housing_clear_button(ui, prefix)?;
+        }
+        Ok(())
+    }
+
+    fn sync_housing_clear_button(
+        &self,
+        ui: &Gd<crate::ui::RegistryUi>,
+        prefix: &str,
+    ) -> Result<(), String> {
         let host = ui.bind();
-        let Some(mut button) = self.find_housing_search_clear_button()? else {
+        let Some(mut button) = self.find_housing_search_clear_button(prefix)? else {
             return Ok(());
         };
         let mut art = host
-            .frame_control("HouseEditorStorageSearchClearArt")
+            .frame_control(&format!("{prefix}ClearArt"))
             .ok_or("Housing search clear has no alpha container.")?;
         let mut icon = host
-            .frame_control("HouseEditorStorageSearchClearIcon")
+            .frame_control(&format!("{prefix}ClearIcon"))
             .ok_or("Housing search clear has no source atlas icon.")?;
         // ClearButtonMixin changes icon opacity, not an ADD hover overlay.
         let alpha = if button.is_hovered() { 1.0 } else { 0.5 };
@@ -55,14 +66,14 @@ impl GameClient {
         Ok(())
     }
 
-    fn find_housing_search_clear_button(&self) -> Result<Option<Gd<BaseButton>>, String> {
+    fn find_housing_search_clear_button(
+        &self,
+        prefix: &str,
+    ) -> Result<Option<Gd<BaseButton>>, String> {
         let Some(ui) = &self.housing.ui else {
             return Ok(None);
         };
-        let Some(control) = ui
-            .bind()
-            .frame_control("HouseEditorStorageSearchClearButton")
-        else {
+        let Some(control) = ui.bind().frame_control(&format!("{prefix}ClearButton")) else {
             return Ok(None);
         };
         control
@@ -72,9 +83,15 @@ impl GameClient {
     }
 
     pub(super) fn housing_search_clear_captured(&self) -> Result<bool, String> {
-        Ok(self
-            .find_housing_search_clear_button()?
-            .is_some_and(|button| clear_button_is_held(&button)))
+        for prefix in ["HouseEditorStorageSearch", "HousingCatalogSearch"] {
+            if self
+                .find_housing_search_clear_button(prefix)?
+                .is_some_and(|button| clear_button_is_held(&button))
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub(super) fn dispatch_housing_drawer_action(&mut self, action: &str) -> Result<bool, String> {
