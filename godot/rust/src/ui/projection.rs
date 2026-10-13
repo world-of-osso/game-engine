@@ -98,6 +98,7 @@ pub(super) fn stepper_art_is_disabled(frame: &Frame, registry: &FrameRegistry) -
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
+    HousingDecorDragStart(u64),
     FrameClick {
         id: u64,
         at: Vector2,
@@ -593,6 +594,15 @@ impl UiProjection {
                 connect_button(pending, frame.id, node);
                 // Retail entries register both LeftButtonUp and RightButtonUp.
                 connect_placed_list_context(pending, frame.id, node);
+            }
+            WidgetType::Button
+                if frame
+                    .onclick
+                    .as_deref()
+                    .is_some_and(|action| action.starts_with("housing:place:")) =>
+            {
+                connect_button(pending, frame.id, node);
+                connect_housing_storage_drag(pending, frame.id, node);
             }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame, node),
@@ -1243,6 +1253,29 @@ fn connect_placed_list_context(pending: &PendingInputs, id: u64, node: &mut Gd<C
         }
     });
     node.connect("gui_input", &callback);
+}
+
+/// Godot's native drag recognizer supplies OnDragStart; no invented Retail threshold.
+fn connect_housing_storage_drag(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let instance = node.instance_id();
+    let get = Callable::from_fn("housing-storage-drag-start", move |_| {
+        let Ok(control) = Gd::<Control>::try_from_instance_id(instance) else {
+            return Variant::nil();
+        };
+        let Ok(button) = control.try_cast::<godot::classes::BaseButton>() else {
+            return Variant::nil();
+        };
+        if button.is_disabled() {
+            return Variant::nil();
+        }
+        pending.push(UiInput::HousingDecorDragStart(id));
+        (id as i64).to_variant()
+    });
+    // World placement is resolved against authored ground in GameClient, not a UI drop target.
+    let can_drop = Callable::from_fn("housing-storage-ui-drop-disabled", |_| false);
+    let drop = Callable::from_fn("housing-storage-ui-drop-unused", |_| {});
+    node.set_drag_forwarding(&get, &can_drop, &drop);
 }
 
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
