@@ -25,7 +25,6 @@ pub enum WindowId {
     /// Retail `ProfessionsBookFrame` (K): the learned professions.
     ProfessionsBook,
     QuestGiver,
-    QuestLog,
     Spellbook,
     Talents,
     /// Retail `TradeFrame`, open while a trade is.
@@ -64,7 +63,6 @@ impl WindowId {
             | Self::Merchant
             | Self::ProfessionsBook
             | Self::QuestGiver
-            | Self::QuestLog
             | Self::Spellbook
             | Self::Trade
             | Self::Trainer => WindowClass::Panel,
@@ -99,7 +97,6 @@ impl WindowId {
             Self::Professions => "ProfessionsFrame",
             Self::ProfessionsBook => "ProfessionsBookFrame",
             Self::QuestGiver => "QuestFrame",
-            Self::QuestLog => "QuestLogFrame",
             Self::Spellbook => "SpellBookRoot",
             Self::Talents => "PlayerSpellsFrame",
             Self::Trade => "TradeFrame",

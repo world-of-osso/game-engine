@@ -15,9 +15,8 @@ use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_
 use game_engine_ui_model::quest_frame_component::{
     QuestFramePage, QuestFrameState, RewardView, quest_frame_screen,
 };
-use game_engine_ui_model::quest_log_frame_component::{
-    QuestLogFrameState, QuestLogGroup, quest_log_frame_screen,
-};
+use game_engine_ui_model::quest_log_frame_component::{QuestLogFrameState, QuestLogGroup};
+use game_engine_ui_model::world_map_frame_component::{WorldMapFrameState, world_map_frame_screen};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -134,12 +133,15 @@ fn modern_trees() -> String {
         );
     }
     out += &dump(
-        QuestLogFrameState {
-            visible: true,
-            ..Default::default()
-        },
-        quest_log_frame_screen,
-        "QuestLogFrame",
+        WorldMapFrameState::default().with_quest_panel(
+            QuestLogFrameState {
+                visible: true,
+                ..Default::default()
+            },
+            false,
+        ),
+        world_map_frame_screen,
+        "WorldMapFrame",
     );
     let mut view = build_view_model(&options_model());
     for logged_in in [false, true] {
@@ -191,16 +193,20 @@ fn assert_quest_chrome(skin: ActiveSkin) {
     set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
     let log = registry(
-        QuestLogFrameState {
-            groups: vec![QuestLogGroup {
-                sort_id: 12,
-                name: "Elwynn Forest".into(),
-                collapsed: false,
-                quests: vec![],
-            }],
-            ..Default::default()
-        },
-        quest_log_frame_screen,
+        WorldMapFrameState::default().with_quest_panel(
+            QuestLogFrameState {
+                visible: true,
+                groups: vec![QuestLogGroup {
+                    sort_id: 12,
+                    name: "Elwynn Forest".into(),
+                    collapsed: false,
+                    quests: vec![],
+                }],
+                ..Default::default()
+            },
+            false,
+        ),
+        world_map_frame_screen,
     );
     for (registry, name, atlas) in [
         (
@@ -208,13 +214,7 @@ fn assert_quest_chrome(skin: ActiveSkin) {
             "QuestFrameTopTileStreaks",
             "_UI-Frame-TopTileStreaks",
         ),
-        (
-            &log,
-            "QuestLogFrameTopTileStreaks",
-            "_UI-Frame-TopTileStreaks",
-        ),
         (&dialog, "QuestFrameParchment", "QuestBG-Parchment"),
-        (&log, "QuestLogDetailsBackground", "QuestBG-Parchment"),
         (&log, "QuestLogHeader12Background", "questlog_divider"),
     ] {
         assert_draws_member(registry, name, atlas, skin);
@@ -225,7 +225,16 @@ fn assert_quest_chrome(skin: ActiveSkin) {
 fn assert_close_texture(skin: ActiveSkin) -> u32 {
     set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
-    let log = registry(QuestLogFrameState::default(), quest_log_frame_screen);
+    let log = registry(
+        WorldMapFrameState::default().with_quest_panel(
+            QuestLogFrameState {
+                visible: true,
+                ..Default::default()
+            },
+            false,
+        ),
+        world_map_frame_screen,
+    );
     let fdid = assert_draws_member(
         &dialog,
         "QuestFrameCloseButtonNormal",
@@ -233,12 +242,7 @@ fn assert_close_texture(skin: ActiveSkin) -> u32 {
         skin,
     );
     assert_eq!(
-        assert_draws_member(
-            &log,
-            "QuestLogFrameCloseButtonNormal",
-            "RedButton-Exit",
-            skin
-        ),
+        assert_draws_member(&log, "WorldMapCloseButtonIcon", "RedButton-Exit", skin),
         fdid
     );
     fdid
