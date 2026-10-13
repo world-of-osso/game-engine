@@ -177,6 +177,16 @@ enum ScreenPostsetup {
     CastingBar,
 }
 
+fn search_for_clear_action(action: &str) -> Option<&'static str> {
+    match action {
+        game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR => {
+            Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
+        }
+        "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+        _ => None,
+    }
+}
+
 impl RegistryModel {
     /// A view of another Options page shows it from its top, as Retail's settings list
     /// scrolls to the beginning when it gets a category's elements
@@ -527,13 +537,7 @@ impl RegistryModel {
             return None;
         }
         let action = self.registry.click_frame(id)?;
-        let clear_search = match action.as_str() {
-            game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR => {
-                Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
-            }
-            "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
-            _ => None,
-        };
+        let clear_search = search_for_clear_action(&action);
         if let Some(name) = clear_search {
             let search = self.registry.get_by_name(name)?;
             self.edit_text(search, String::new());
@@ -2786,7 +2790,6 @@ impl RegistryUi {
     }
 
     fn release_search_clear_focus(&mut self, event: &UiInput) {
-        use game_engine_ui_model::bag_frame_component::{ACTION_SEARCH_CLEAR, SEARCH_BOX};
         let (UiInput::Click(id) | UiInput::FrameClick { id, .. }) = event else {
             return;
         };
@@ -2797,8 +2800,9 @@ impl RegistryUi {
             .registry
             .get(*id)
             .and_then(|frame| frame.onclick.as_deref());
-        if action == Some(ACTION_SEARCH_CLEAR) {
-            self.release_focus_named(SEARCH_BOX);
+        let search = action.and_then(search_for_clear_action);
+        if let Some(name) = search {
+            self.release_focus_named(name);
         }
     }
 
