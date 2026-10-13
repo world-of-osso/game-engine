@@ -4,12 +4,12 @@ M2 colours, opacity, texture weights and UV transforms must use their authored l
 
 ## What it must do
 
-- [ ] Local tracks sample the owning model's playing sequence and local time, including Stand, Hold and Decay.
-- [ ] Global-sequence tracks use timeline zero and the shared global clock, independently of local clip changes.
-- [ ] Models without skeletal playback retain their authored Stand-loop material animation.
-- [ ] Constant keys on different local sequences still update when the sequence changes.
-- [ ] A track with fewer timelines than the playing index uses timeline0; an existing empty timeline samples its authored default.
-- [ ] Native source-backed rendering shows Avenging Wrath's held feather sheets, not their initial zero-opacity Stand keys.
+- [x] Local tracks sample the owning model's playing sequence and local time, including Stand, Hold and Decay.
+- [x] Global-sequence tracks use timeline zero and the shared global clock, independently of local clip changes.
+- [x] Models without skeletal playback retain their authored Stand-loop material animation.
+- [x] Constant keys on different local sequences still update when the sequence changes.
+- [x] A track with fewer timelines than the playing index uses timeline0; an existing empty timeline samples its authored default.
+- [x] Native source-backed rendering shows Avenging Wrath's held feather sheets, not their initial zero-opacity Stand keys.
 
 ## How it works
 
@@ -24,7 +24,7 @@ M2 colours, opacity, texture weights and UV transforms must use their authored l
 
 ## Tests asserting this spec
 
-- `godot/core/tests/m2_material.rs` — authentic phase opacity, global UV independence, clip-dependent constant keys and texture resolution.
+- `godot/core/tests/m2_material.rs` — authentic phase opacity, global UV/RGB independence (including166338's authored negative green), clip-dependent constant keys and texture resolution.
 - `godot/tests/m2_real_pixels.gd`, `m2_wwv_oracle.gd` — independently sampled source records against native rendered pixels.
 
 ## Known gaps (current cycle)
