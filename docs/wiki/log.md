@@ -1,3 +1,10 @@
+## 2026-10-12 — Overlapping Divine Shield refraction rainbow
+
+[Continuation](investigations/avenging-wrath-material-time.md#published-assets-and-txac-continuation--2026-10-12): 119 BLP textures and16 models match published hashes; no AW KTX variants or normal renderer HTTP streaming. TXAC hypothesis rejected: shaderId4 is colour/UV, not Refraction. Actual `cooldown-assist3` provenance/triple/642→31884 replay exposes Divine Shield1127086 emitters5/6 drawing normal map1127156 as colour; real-asset RED/GREEN selection/admission tests (20 core,1 native), general non-multitexture0x100000 forward exclusion and same-pose Modern/Forever before/after preserve AW hold pools and eliminate the rectangle. Published four requested PNGs; Modern assistant tail remains an unrelated dead-target failure.
+
+## 2026-10-12 — Wings rainbow player-camera investigation
+
+[Material time](investigations/avenging-wrath-material-time.md#player-camera-rainbow-investigation--2026-10-12): published online protocol alignment resolved; actual glyph and full-budget Ret/Herald native purchases/casts captured rear45°/9yd in both skins. Named-source model/texture census and beam/dissolve references retained. No rainbow reproduced, no renderer fix claimed; user's platform/runtime visual identity remains unknown.
 ## 2026-10-12 — Native Trading Post live proof and preview asset closure
 
 [Trading Post](systems/trading-post.md): authentic Tawny gossip opens the full-screen vendor; other layers hide like Retail area `full` and are restored on Leave. Live RED showed an unreadable top Transmog row leaving the previous gryphon on screen; unavailable rows now show no model and failed previews clear. The authenticated local-CASC closure raises complete preview chains from 167 to 1287 of 1309 rows in a private, validated package. Modern/Forever browse and relog PASS with 26 inspected PNGs. Live purchase is blocked because supported activities have no reachable content; server tests prove purchase/collection/refund.
