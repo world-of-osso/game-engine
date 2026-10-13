@@ -59,6 +59,10 @@ func verify_xml_geometry(ui: Node) -> bool:
 		"GroupFinderFrameGroupButton1Ring": Rect2(98, 168, 95, 96),
 		"GroupFinderFrameGroupButton1Icon": Rect2(112.5, 183, 66, 66),
 		"LFDQueueFrameTypeDropdown": Rect2(455, 200, 200, 25),
+		"LFDQueueFrameRoleButtonLeader": Rect2(598, 130, 48, 48),
+		"LFDQueueFrameRoleButtonTankBackground": Rect2(358, 114, 80, 80),
+		"LFDQueueFrameRoleButtonHealerBackground": Rect2(431, 114, 80, 80),
+		"LFDQueueFrameRoleButtonDPSBackground": Rect2(502, 114, 80, 80),
 	}
 	for name in rects:
 		var node = ui.find_child(name, true, false)
@@ -67,6 +71,10 @@ func verify_xml_geometry(ui: Node) -> bool:
 		if node == null or not node.get_global_rect().is_equal_approx(expected):
 			push_error("XML geometry mismatch " + name + ": " + str(node.get_global_rect() if node else null) + " expected " + str(rects[name]))
 			return false
+	var leader = ui.find_child("LFDQueueFrameRoleButtonLeader", true, false)
+	if not leader.disabled or ui.find_child("LFDQueueFrameRoleButtonLeaderCheckBox", true, false) != null:
+		push_error("Solo leader must remain visible, disabled, without its checkbox")
+		return false
 	var highlight = ui.find_child("GroupFinderFrameGroupButton1Highlight", true, false)
 	if highlight == null or not is_equal_approx(highlight.modulate.a, 0.8):
 		push_error("GroupFinderGroupButtonTemplate highlight must retain source alpha .8")

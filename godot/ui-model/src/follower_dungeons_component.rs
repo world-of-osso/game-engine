@@ -272,7 +272,7 @@ fn queue_background() -> Element {
     art
 }
 fn roles(view: &View) -> Element {
-    [
+    let mut buttons: Element = [
         (
             "Tank",
             "tank",
@@ -299,7 +299,33 @@ fn roles(view: &View) -> Element {
     .flat_map(|(name, action, role, atlas, left)| {
         role_button(view, name, action, role, atlas, left)
     })
-    .collect()
+    .collect();
+    buttons.extend(leader_button(view));
+    buttons
+}
+/// Leader inherits the base template, not the three combat-role backgrounds.
+fn leader_button(view: &View) -> Element {
+    let name = "LFDQueueFrameRoleButtonLeader";
+    let disabled = !view.group_leader || view.pending || view.matched();
+    let atlas = if disabled {
+        "UI-LFG-RoleIcon-Leader-Disabled"
+    } else {
+        "UI-LFG-RoleIcon-Leader"
+    };
+    let mut art = named_atlas_texture(format!("{name}Icon"), atlas, (0.0, 0.0, 48.0, 48.0));
+    if !disabled {
+        art.extend(role_checkbox(name, view.volunteer_leader));
+    }
+    rsx! { button { name: "LFDQueueFrameRoleButtonLeader", width: 48.0, height: 48.0,
+    left: 274.0, top: 46.0, pos_type: "absolute", button_default_skin: false,
+    onclick: "follower:leader", disabled, {art} } }
+}
+fn role_checkbox(name: &str, checked: bool) -> Element {
+    let mut art = named_atlas_texture(format!("{name}CheckBox"), "checkbox-minimal", (-3.5, 30.5, 21.0, 20.3));
+    if checked {
+        art.extend(named_atlas_texture(format!("{name}Check"), "checkmark-minimal", (-3.5, 30.5, 21.0, 20.3)));
+    }
+    art
 }
 fn role_button(
     view: &View,
@@ -310,19 +336,12 @@ fn role_button(
     left: f32,
 ) -> Element {
     let name = format!("LFDQueueFrameRoleButton{key}");
-    let mut art = named_atlas_texture(format!("{name}Icon"), atlas, (0.0, 0.0, 48.0, 48.0));
-    art.extend(named_atlas_texture(
-        format!("{name}CheckBox"),
-        "checkbox-minimal",
-        (-3.5, 30.5, 21.0, 20.3),
-    ));
-    if view.role == role {
-        art.extend(named_atlas_texture(
-            format!("{name}Check"),
-            "checkmark-minimal",
-            (-3.5, 30.5, 21.0, 20.3),
-        ));
-    }
+    let background = format!("{atlas}-Background");
+    let mut art = rsx! { texture { name: {DynName(format!("{name}Background"))},
+    texture_atlas: background, width: 80.0, height: 80.0, left: -16.0, top: -16.0,
+    pos_type: "absolute", draw_layer: "BACKGROUND" } };
+    art.extend(named_atlas_texture(format!("{name}Icon"), atlas, (0.0, 0.0, 48.0, 48.0)));
+    art.extend(role_checkbox(&name, view.role == role));
     let disabled = view.pending || view.matched();
     let action = format!("follower:role:{action}");
     rsx! { button { name: {DynName(name)}, width: 48.0, height: 48.0, left, top: 46.0,
