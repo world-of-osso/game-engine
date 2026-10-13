@@ -1,16 +1,13 @@
-//! Character-select top navigation: gold-ruled tab row (MODE, SHOP, MENU, REALMS, CAMPSITES).
-//! Hovered, pressed and active tabs get a dark box with a gold border and a white label.
-
+//! CharacterSelectNavBar.xml; end-cap overrides in CharacterSelectNavBarMixin:SetButtonVisuals.
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::button::ButtonState;
 
+use super::char_select_component::CharSelectAction;
 use crate::ui::anchor::FrameName;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
-
-use super::char_select_component::CharSelectAction;
 
 pub const TOP_NAV: FrameName = FrameName("CharSelectTopNav");
 pub const MODE_TAB: FrameName = FrameName("CharSelectModeTab");
@@ -18,89 +15,80 @@ pub const SHOP_TAB: FrameName = FrameName("CharSelectShopTab");
 pub const MENU_TAB: FrameName = FrameName("CharSelectMenuTab");
 pub const REALMS_TAB: FrameName = FrameName("CharSelectRealmsTab");
 pub const CAMPSITES_TAB: FrameName = FrameName("CharSelectCampsitesTab");
-
-/// Frame whose visibility marks the CAMPSITES tab active.
 const CAMPSITE_PANEL: &str = "CampsitePanel";
-
-const NAV_WIDTH: f32 = 620.0;
-const NAV_TOP: f32 = 10.0;
-const RULE_HEIGHT: f32 = 1.0;
-const TAB_HEIGHT: f32 = 34.0;
-const TAB_GAP: f32 = 10.0;
-const TAB_ROW_TOP: f32 = 5.0;
-const NAV_HEIGHT: f32 = TAB_ROW_TOP * 2.0 + TAB_HEIGHT;
-const LABEL_FONT_SIZE: f32 = 17.0;
-
-const RULE_COLOR: &str = "1.0,0.82,0.0,0.75";
-const BOX_FILL: &str = "0.02,0.015,0.01,0.82";
-const BOX_BORDER: &str = "1px solid 1.0,0.82,0.0,0.9";
+const NAV_HEIGHT: f32 = 55.0;
+const TAB_HEIGHT: f32 = 51.0;
+// Lua NavBarButtonWidthBuffer=70: native text measurement plus 35 at each side.
+const TEXT_PADDING: f32 = 35.0;
+const LABEL_FONT_SIZE: f32 = 16.0;
 const LABEL_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const LABEL_GOLD_RGBA: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 const LABEL_ACTIVE_RGBA: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-
-/// Left-to-right tabs: frame, label, width, action (`None` renders inert).
-const TABS: [(FrameName, &str, f32, Option<CharSelectAction>); 5] = [
-    (MODE_TAB, "MODE", 84.0, None),
-    (SHOP_TAB, "SHOP", 80.0, None),
-    (MENU_TAB, "MENU", 82.0, Some(CharSelectAction::Menu)),
-    (REALMS_TAB, "REALMS", 104.0, Some(CharSelectAction::Back)),
+const TABS: [(FrameName, &str, Option<CharSelectAction>); 5] = [
+    (MODE_TAB, "MODE", None),
+    (SHOP_TAB, "SHOP", None),
+    (MENU_TAB, "MENU", Some(CharSelectAction::Menu)),
+    (REALMS_TAB, "REALMS", Some(CharSelectAction::Back)),
     (
         CAMPSITES_TAB,
         "CAMPSITES",
-        134.0,
         Some(CharSelectAction::CampsiteToggle),
     ),
 ];
-
 struct DynName(String);
-
 fn tab_part(tab: FrameName, part: &str) -> DynName {
     DynName(format!("{}{part}", tab.0))
 }
 
-fn tab(name: FrameName, text: &str, width: f32, action: Option<&CharSelectAction>) -> Element {
-    let onclick = action.map(ToString::to_string).unwrap_or_default();
+fn tab_art(name: FrameName) -> Element {
+    let end = if name == MODE_TAB {
+        "left"
+    } else if name == CAMPSITES_TAB {
+        "right"
+    } else {
+        "middle"
+    };
+    let normal_left = if name == MODE_TAB { -102.0 } else { 0.0 };
+    let normal_right = if name == CAMPSITES_TAB { -102.0 } else { 0.0 };
+    let highlight_left = if name == MODE_TAB { -45.0 } else { 0.0 };
+    let highlight_right = if name == CAMPSITES_TAB { -45.0 } else { 0.0 };
+    let hide_divider = name == CAMPSITES_TAB;
     rsx! {
-        button {
-            name,
-            width,
-            height: TAB_HEIGHT,
-            onclick,
-            button_default_skin: false,
-            r#frame {
-                name: tab_part(name, "Box"),
-                stretch: true,
-                background_color: BOX_FILL,
-                border: BOX_BORDER,
-                hidden: true,
+        texture {
+            name: tab_part(name, "Normal"), texture_atlas: format!("glues-characterselect-tophud-{end}-bg"),
+            pos_type: "absolute", left: normal_left, right: normal_right, top: 0.0, bottom: 0.0,
+        }
+        r#frame {
+            name: tab_part(name, "Box"), hidden: true,
+            pos_type: "absolute", left: highlight_left, right: highlight_right, top: 0.0, bottom: 0.0,
+            texture {
+                name: tab_part(name, "Selected"), texture_atlas: format!("glues-characterselect-tophud-selected-{end}"),
+                pos_type: "absolute", left: -2.0, right: 0.0, top: 0.0, bottom: 4.0,
             }
-            fontstring {
-                name: tab_part(name, "Label"),
-                width,
-                height: TAB_HEIGHT,
-                text,
-                font: GameFont::FrizQuadrata,
-                font_size: LABEL_FONT_SIZE,
-                font_color: LABEL_GOLD,
-                justify_h: JustifyH::Center,
-                pos_type: "absolute",
-                left: "0%",
-                top: "0%",
+            texture {
+                name: tab_part(name, "SelectedLine"), texture_atlas: format!("glues-characterselect-tophud-selected-line-{end}"),
+                pos_type: "absolute", left: -2.0, right: 0.0, top: "100%", margin_top: -5.0, height: 4.0,
             }
+        }
+        texture {
+            name: tab_part(name, "Divider"), texture_atlas: "glues-characterselect-tophud-bg-divider",
+            hidden: hide_divider, pos_type: "absolute", right: 0.0, top: "50%", translate_y: "-50%",
         }
     }
 }
 
-fn rule(name: FrameName, top: f32) -> Element {
+fn tab(name: FrameName, text: &str, action: Option<&CharSelectAction>) -> Element {
+    let onclick = action.map(ToString::to_string).unwrap_or_default();
     rsx! {
-        r#frame {
-            name,
-            width: NAV_WIDTH,
-            height: RULE_HEIGHT,
-            background_color: RULE_COLOR,
-            pos_type: "absolute",
-            left: "0%",
-            top,
+        button {
+            name, width: "auto", height: TAB_HEIGHT, onclick, button_default_skin: false,
+            layout: "flex-row", align: "center", padding_left: TEXT_PADDING, padding_right: TEXT_PADDING,
+            {tab_art(name)}
+            fontstring {
+                name: tab_part(name, "Label"), width: "auto", height: TAB_HEIGHT,
+                text, font: GameFont::FrizQuadrata, font_size: LABEL_FONT_SIZE,
+                font_color: LABEL_GOLD, justify_h: JustifyH::Center,
+            }
         }
     }
 }
@@ -108,45 +96,29 @@ fn rule(name: FrameName, top: f32) -> Element {
 pub fn char_select_top_nav() -> Element {
     let tabs: Element = TABS
         .iter()
-        .flat_map(|(name, text, width, action)| tab(*name, text, *width, action.as_ref()))
+        .flat_map(|(name, text, action)| tab(*name, text, action.as_ref()))
         .collect();
     rsx! {
         r#frame {
-            name: TOP_NAV,
-            width: NAV_WIDTH,
-            height: NAV_HEIGHT,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {NAV_TOP},
-            {rule(FrameName("CharSelectTopNavRuleTop"), 0.0)}
+            name: TOP_NAV, width: "100%", height: NAV_HEIGHT,
+            pos_type: "absolute", left: 0.0, top: 0.0,
             r#frame {
-                name: "CharSelectTopNavTabs",
-                width: NAV_WIDTH,
-                height: TAB_HEIGHT,
-                layout: "flex-row",
-                justify: "center",
-                gap: TAB_GAP,
-                pos_type: "absolute",
-                left: "0%",
-                top: TAB_ROW_TOP,
+                name: "CharSelectTopNavTabs", width: "auto", height: NAV_HEIGHT,
+                layout: "flex-row", align: "center", gap: 0.0, padding_left: 4.0, padding_right: 4.0,
+                pos_type: "absolute", left: "50%", top: 0.0, translate_x: "-50%",
                 {tabs}
             }
-            {rule(FrameName("CharSelectTopNavRuleBottom"), NAV_HEIGHT - RULE_HEIGHT)}
         }
     }
 }
 
-/// Box and label state of every tab from its live button state and the open campsite panel.
 pub fn sync_top_nav_tabs(registry: &mut FrameRegistry) {
     let campsites_open = registry
         .get_by_name(CAMPSITE_PANEL)
         .and_then(|id| registry.get(id))
         .is_some_and(|panel| !panel.hidden);
     for (name, ..) in &TABS {
-        let selected = *name == CAMPSITES_TAB && campsites_open;
-        sync_tab(registry, *name, selected);
+        sync_tab(registry, *name, *name == CAMPSITES_TAB && campsites_open);
     }
 }
 
