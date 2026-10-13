@@ -108,7 +108,7 @@ fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debi
         500,
         "no client debit"
     );
-    assert_eq!(view.click("perks:freeze").unwrap(), None);
+    assert_eq!(view.click("perks:purchase").unwrap(), None);
     let mut paid = snapshot();
     paid.tender = 400;
     paid.items[0].purchased = true;
@@ -132,7 +132,7 @@ fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debi
 
 #[test]
 fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_skins() {
-    // Twelve distinct local PerksVendorItem/ItemSparse identities; optional group fields omitted.
+    // Concrete authored identities, repeated with distinct vendor IDs to exceed a 573px page.
     let authored = [
         (4, 189869, 100, "Distinguished Warcloak"),
         (5, 189870, 75, "Arcanofire Wrap"),
@@ -156,9 +156,12 @@ fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_
         let mut data = snapshot();
         data.items = authored
             .iter()
-            .map(|(id, item, price, name)| {
+            .cycle()
+            .take(24)
+            .enumerate()
+            .map(|(index, (id, item, price, name))| {
                 let mut row = data.items[0].clone();
-                row.id = *id;
+                row.id = *id + (index / authored.len()) as u32 * 10000;
                 row.item_id = *item;
                 row.price = *price;
                 row.name = (*name).into();
@@ -212,6 +215,60 @@ fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_
     }
 }
 
+fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    use ui_toolkit::layout_values::Val;
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    let (Val::Px(x), Val::Px(y)) = (frame.position.left, frame.position.top) else {
+        panic!("{name}: absolute geometry required");
+    };
+    [x, y, frame.resolved_width(), frame.resolved_height()]
+}
+
+#[test]
+fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
+    // Blizzard_PerksProgram.xml: LEFT+46, vertical center+22; WoW Y is upwards.
+    // Elements.xml base extent 176x48; list stretches width to 527-24.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            skin,
+            View {
+                visible: true,
+                snapshot: Some(Arc::new(snapshot())),
+                selected: Some(4),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramProductsScrollBoxContainer"),
+            [46., 142.5, 527., 751.]
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramScrollBox"),
+            [0., 58., 503., 573.]
+        );
+        assert_eq!(rect(&registry, "PerksProgramProduct4"), [0., 0., 503., 48.]);
+        assert_eq!(rect(&registry, "PerksProgramIcon4"), [32., 8., 32., 32.]);
+        assert_eq!(
+            rect(&registry, "PerksProgramFilter"),
+            [55., 95.5, 122., 25.]
+        );
+        assert!(
+            registry.get_by_name("PerksProgramCategoryMenu").is_none(),
+            "closed dropdown is not a persistent category button column"
+        );
+        assert!(registry.get_by_name("PerksProgramCategoryAll").is_none());
+        for header in ["Name", "Time", "Price"] {
+            assert!(
+                registry
+                    .get_by_name(&format!("PerksProgram{header}SortButton"))
+                    .is_some()
+            );
+        }
+    }
+}
+
 #[test]
 fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refund() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -224,25 +281,15 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
                 ..Default::default()
             },
         );
-        assert_eq!(
-            text(&registry, "PerksProgramCurrencyAmount"),
-            "500 Trader's Tender"
-        );
+        assert_eq!(text(&registry, "PerksProgramCurrencyAmount"), "500");
         assert_eq!(text(&registry, "PerksProgramPrice4"), "100");
         assert_eq!(
             text(&registry, "PerksProgramFrozenLabel"),
             "Distinguished Warcloak"
         );
-        let id = registry.get_by_name("PerksProgramRefundButton").unwrap();
         assert!(
-            registry
-                .get(id)
-                .unwrap()
-                .onclick
-                .as_deref()
-                .unwrap_or_default()
-                .is_empty(),
-            "zero server refundable seconds cannot issue a refund"
+            registry.get_by_name("PerksProgramRefundButton").is_none(),
+            "Retail hides Refund without a server refund window"
         );
         assert!(registry.get_by_name("PerksProgramMainModelScene").is_some());
     }

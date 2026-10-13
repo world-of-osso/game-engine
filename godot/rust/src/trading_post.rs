@@ -7,9 +7,7 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::trading_post::{
-    Action, HEIGHT, MODEL, SEARCH, View, WIDTH, trading_post_screen,
-};
+use game_engine_ui_model::trading_post::{Action, HEIGHT, MODEL, View, WIDTH, trading_post_screen};
 use godot::classes::CanvasLayer;
 use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
@@ -157,11 +155,6 @@ impl GameClient {
         let Some(mut ui) = self.trading_post.ui.clone() else {
             return Ok(());
         };
-        let search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
-        if search != self.trading_post.view.search {
-            self.trading_post.view.search = search;
-            self.trading_post.view.reselect();
-        }
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -183,16 +176,6 @@ impl GameClient {
             Some(Action::Close) => {
                 self.close_trading_post_window()
                     .map_err(|error| error.to_string())?;
-            }
-            Some(Action::Log) => {
-                self.close_trading_post_window()
-                    .map_err(|error| error.to_string())?;
-                self.open_adventure_monthly()?;
-            }
-            Some(Action::Collections) => {
-                self.close_trading_post_window()
-                    .map_err(|error| error.to_string())?;
-                self.toggle_collections();
             }
             None => {}
         }

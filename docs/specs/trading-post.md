@@ -11,8 +11,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Vendor requests require an authentic capital NPC interaction and server-authoritative Tender balance. Purchases grant existing account collections atomically and persist across relog; one frozen vendor item survives rollover.
 - [x] Refund requests are server-authoritative, policy-duration bounded and reverse only grants introduced by that purchase. Default policy duration is zero because no sourced duration exists (lead decision October12); Retail refund UI remains disabled.
 - [x] Shared native full-screen vendor, PerksProgramFilter category dropdown, scrollable authored item list, transmog/mount/pet3D MainModelScene and Retail ToyOverlayFrame icon/details, purchase confirmation, freeze/drag-to-freeze/unfreeze and server-time-controlled refund. Both skins share layout/behaviour. Lead clarified October12: Retail source takes precedence over PLAN's shorthand 'category tabs'/'3D toys'.
-- [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance; vendor Log and Collections buttons close the vendor interaction before opening existing windows. No invented mail awards.
+- [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
+
+## Retail layout acceptance — October13
+
+- [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter 122×25 LEFT+9/BOTTOM to container TOP+22.
+- [ ] Native sort headers, action-bar icon mask, source-sized frozen art, shared large-button art and StaticPopup confirmation; no solid fill replacing authored art.
+- [ ] Before/after both-skin private UDP5791 PNG comparison against XML; native freeze/replace/drag-off, purchase/refund.
 
 ## How it works
 
@@ -34,7 +40,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - `godot/ui-model/tests/trading_post.rs`: both-skin Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state and second-page/search clipping.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
-- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5731 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
+- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
 
 ## Known gaps (current cycle)
 
