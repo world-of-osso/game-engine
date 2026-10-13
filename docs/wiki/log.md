@@ -6,6 +6,13 @@
 
 [Storage search](systems/housing.md#basic-owned-storage-search): independent case-insensitive stored-only input, hidden Cleanup/remount retention, unowned empty result and clear restoration. Actual native blank-thumbnail RED exposed unsupported RSX file_data_id; texture_fdid fixes real image resolution without re-extraction/cache mutation. Both-skin physical paid1693/2330 proof and six inspected filtered/empty/cleared PNGs; initial Forever image projection lag retained privately. Full drawer browsing/categories/paging/Market/Blueprint parity stays separate.
 
+## 2026-10-12 — Epic source rules and AV channel boundary
+
+[Epic continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12): AV1/Isle30,10–40/team, levels20–90,700/400reinforcements. AV15node/four-minute/tower75/captain100/general/mine45s pure proof;20-account channel source-entry/eight-second cancellableOpening/actual NPC death/return proof. Native/live and Isle runtime remain pending.
+
+## 2026-10-12 — Retire redundant client-publication gate
+
+[Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
 ## 2026-10-12 — Retail Cleanup mode both-skin native proof
 
 [Cleanup](systems/housing.md#cleanup-editor-input): source mode entry/storage hidden, visible-mesh hover highlight/name, exact-target single-click owned removal, visitor refusal, quantity conservation and real relog/re-place in both skins. Model21/registry11 and two focused server conservation/paid-variant tests pass; eight inspected PNGs. Highlight styling is native feedback, not certified Retail shader art. Evidence core9; independent gate lead-owned; broader housing remains open.
