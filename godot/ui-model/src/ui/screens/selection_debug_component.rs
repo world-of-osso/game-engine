@@ -16,9 +16,6 @@ const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
 const PANEL_BG: &str = "0.04,0.04,0.05,0.94";
 const PANEL_BORDER: &str = "0.92,0.76,0.34,0.18";
-const ROW_IDLE: &str = "0.08,0.08,0.10,0.94";
-const ROW_SELECTED: &str = "0.19,0.13,0.05,0.98";
-const ROW_ACCENT: &str = "0.98,0.81,0.32,0.22";
 const TEXT_GOLD: FontColor = FontColor::new(1.0, 0.84, 0.54, 1.0);
 const TEXT_SUBTITLE: FontColor = FontColor::new(0.87, 0.84, 0.76, 1.0);
 const TEXT_MUTED: FontColor = FontColor::new(0.64, 0.66, 0.70, 1.0);
@@ -196,36 +193,28 @@ fn list_panel_rows(rows: Element) -> Element {
 }
 
 fn selection_row(index: usize, entry: &SelectionDebugEntry, selected: bool) -> Element {
-    let background = if selected { ROW_SELECTED } else { ROW_IDLE };
     let hide_selected = !selected;
-    rsx! {
-        r#frame {
-            name: {row_name(index)},
-            width: 402.0,
-            height: 80.0,
-            onclick: SelectionDebugAction::SelectEntry(index),
-            background_color: {background},
-            {selection_row_selected_accent(index, hide_selected)}
-            {selection_row_label(index, &entry.label)}
-            {selection_row_subtitle(index, &entry.subtitle)}
-        }
-    }
+    let content = rsx! {
+        {selection_row_selected_accent(index, hide_selected)}
+        {selection_row_label(index, &entry.label)}
+        {selection_row_subtitle(index, &entry.subtitle)}
+    };
+    crate::selection_list::row(
+        row_name(index).0,
+        &SelectionDebugAction::SelectEntry(index).to_string(),
+        true,
+        (0.0, index as f32 * 92.0, 402.0, 80.0),
+        (&crate::selection_list::SEARCH, false),
+        content,
+    )
 }
 
 fn selection_row_selected_accent(index: usize, hide_selected: bool) -> Element {
-    rsx! {
-        r#frame {
-            name: {row_selected_name(index)},
-            width: 402.0,
-            height: 4.0,
-            hidden: hide_selected,
-            background_color: ROW_ACCENT,
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-        }
-    }
+    crate::selection_list::selection_background(
+        row_selected_name(index).0,
+        !hide_selected,
+        (0.0, 0.0, 402.0, 80.0),
+    )
 }
 
 fn selection_row_label(index: usize, label: &str) -> Element {

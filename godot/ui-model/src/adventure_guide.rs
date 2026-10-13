@@ -2,6 +2,7 @@
 use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, portrait_border};
+use crate::selection_list::MenuTick;
 use game_engine_core::adventure_guide::{
     Catalog, Instance, Item, ItemSet, Section, difficulty_matches,
 };
@@ -652,15 +653,20 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
             .iter()
             .enumerate()
             .flat_map(|(index, tier)| {
-                button(
+                crate::selection_list::menu_choice(
                     format!("EncounterJournalTier{}", tier.id),
                     &tier.name,
                     &format!("journal:tier:{}", tier.id),
+                    (MenuTick::Radio, view.tier == tier.id),
                     (0., index as f32 * 24., 240., 23.),
                 )
             })
             .collect();
-        controls.extend(rsx! { r#frame {name:"EncounterJournalTierMenu",left:15.0,top:89.0,width:240.0,height:312.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{options}} });
+        let background = crate::selection_list::menu_background(
+            "EncounterJournalTierMenuBackground".into(),
+            (240.0, 312.0),
+        );
+        controls.extend(rsx! { r#frame {name:"EncounterJournalTierMenu",left:15.0,top:89.0,width:240.0,height:312.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true,{background}{options}} });
     }
     controls
 }
@@ -693,17 +699,21 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) else {
         return vec![];
     };
-    let mut out = texture(
+    // Keep authored instance art in the details pane; flat boss rows use the
+    // window's dark panel instead of drawing gold text over the bright artwork.
+    let mut out = crate::bank_art::cropped(
         "EncounterJournalInstanceBackground".into(),
         instance.background,
-        (8., 62., 784., 424.),
-        WHITE,
+        "0.2372449,1,0,1",
+        (194., 62., 598., 424.),
     );
-    out.extend(button(
+    out.extend(crate::selection_list::text_row(
         "EncounterJournalInstanceOverview".into(),
         &instance.name,
         &format!("journal:instance:{}", instance.id),
+        (true, view.encounter.is_none()),
         (12., 64., 172., 28.),
+        &crate::selection_list::SEARCH,
     ));
     for (index, e) in view
         .catalog
@@ -715,11 +725,13 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         })
         .enumerate()
     {
-        out.extend(button(
+        out.extend(crate::selection_list::text_row(
             format!("JournalBoss{}", e.id),
             &e.name,
             &format!("journal:encounter:{}", e.id),
+            (true, view.encounter == Some(e.id)),
             (12., 100. + index as f32 * 27., 172., 25.),
+            &crate::selection_list::SEARCH,
         ));
     }
     if let Some((_, status)) = view.lockouts.iter().find(|(map, _)| *map == instance.map) {
@@ -817,20 +829,11 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
                             },
                             section.title
                         );
-                        content.extend(button(
-                            format!("JournalSection{}", section.id),
+                        content.extend(section_row(
+                            section,
                             &title,
-                            &format!("journal:section:{}", section.id),
                             (indent, y, 545. - indent, 24.),
                         ));
-                        if section.icon != 0 {
-                            content.extend(texture(
-                                format!("JournalSection{}Icon", section.id),
-                                section.icon,
-                                (indent + 2., y + 2., 20., 20.),
-                                WHITE,
-                            ));
-                        }
                         y += 26.;
                         if !view.collapsed.contains(&section.id) && !section.body.is_empty() {
                             let height =
@@ -857,6 +860,33 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     }
     out
 }
+fn section_row(section: &Section, title: &str, rect: (f32, f32, f32, f32)) -> Element {
+    let name = format!("JournalSection{}", section.id);
+    let inset = if section.icon == 0 { 8.0 } else { 26.0 };
+    let mut content = label(
+        format!("{name}Name"),
+        title,
+        (inset, 0.0, rect.2 - inset, rect.3),
+        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+    );
+    if section.icon != 0 {
+        content.extend(texture(
+            format!("{name}Icon"),
+            section.icon,
+            (2.0, 2.0, 20.0, 20.0),
+            WHITE,
+        ));
+    }
+    crate::selection_list::row(
+        name,
+        &format!("journal:section:{}", section.id),
+        true,
+        rect,
+        (&crate::selection_list::SEARCH, false),
+        content,
+    )
+}
+
 fn difficulty_button(view: &View) -> Element {
     let name = view
         .catalog
@@ -884,10 +914,11 @@ fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Ele
                 .get(id)
                 .map(String::as_str)
                 .unwrap_or("");
-            button(
+            crate::selection_list::menu_choice(
                 format!("JournalDifficulty{id}"),
                 title,
                 &format!("journal:difficulty:{id}"),
+                (MenuTick::Radio, view.difficulty == *id),
                 (0., index as f32 * 24., 164., 23.),
             )
         })
@@ -899,7 +930,11 @@ fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Ele
         entries.len() as f32 * 24.,
         "EncounterJournalDifficultyList",
     );
-    rsx! {r#frame {name:"EncounterJournalDifficultyMenu",left:602.0,top:147.0,width:174.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{list}}}
+    let background = crate::selection_list::menu_background(
+        "EncounterJournalDifficultyMenuBackground".into(),
+        (174.0, height),
+    );
+    rsx! {r#frame {name:"EncounterJournalDifficultyMenu",left:602.0,top:147.0,width:174.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,{background}{list}}}
 }
 fn loot_page(ctx: &SharedContext, view: &View) -> Element {
     let mut out = loot_filter_buttons(view);
@@ -1067,10 +1102,17 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         .iter()
         .enumerate()
         .flat_map(|(row, (id, title))| {
-            button(
+            let chosen = *id
+                == match menu {
+                    LootFilter::Class => view.class,
+                    LootFilter::Spec => view.spec,
+                    LootFilter::Slot => view.slot,
+                };
+            crate::selection_list::menu_choice(
                 format!("Journal{name}{id}"),
                 title,
                 &format!("journal:{key}:{id}"),
+                (MenuTick::Radio, chosen),
                 (0., row as f32 * 24., 174., 23.),
             )
         })
@@ -1084,7 +1126,11 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
     );
     let left = 202. + index as f32 * 190.;
     let top = if view.tab == Tab::ItemSets { 89. } else { 175. };
-    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",{content}}}
+    let background = crate::selection_list::menu_background(
+        "EncounterJournalFilterMenuBackground".into(),
+        (190.0, height),
+    );
+    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,{background}{content}}}
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
     let rows = view.item_sets();
@@ -1226,11 +1272,13 @@ fn search_results(ctx: &SharedContext, view: &View) -> Element {
         .iter()
         .enumerate()
         .map(|(index, (title, action))| {
-            button(
+            crate::selection_list::text_row(
                 format!("JournalSearchResult{index}"),
                 title,
                 action,
+                (true, false),
                 (0., index as f32 * 26., 546., 24.),
+                &crate::selection_list::SEARCH,
             )
         })
         .flatten()
