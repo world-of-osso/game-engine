@@ -50,6 +50,12 @@ Verified:2026-10-12. The existing central tooltip source now recognizes Catalog 
 
 Native missing-route RED became both-skin physical GREEN: paid Tesla name and total1/placed0/stored1, exact right anchor, leaving hides it, open handle shows House Chest/right anchor, replacing/unmounting the handle clears the stale tooltip and ownership/layout remains unchanged. Evidence `core9/{modern,forever}/owner/storage-tooltips-route-green/`; four inspected1280PNG and receipt anchors. Existing Catalog hover stays on the same source path, not a duplicate presentation or fallback. Central lifetime/owner clamping remains unchanged.
 
+## Category tooltip labels and offsets
+
+Verified:2026-10-12. Category/subcategory icons use their authenticated display-name rows, including source All. Catalog and storage rail names route through the same central tooltip source. BaseHousingCatalogCategoryTemplate overrides owner-right tooltip offsets tox=-12/y=-12 in WoW coordinates; `TooltipAnchor::OwnerOffset` carries the actual owner rectangle plus[-12,+12] UI offsets, translated before the ordinary screen clamp. Zero offsets reproduce ordinary owner placement, including comparison-side selection. No shifted fake owner bounds or Back tooltip is introduced.
+
+Pure RED/GREEN proves offset geometry, zero-offset identity and screen-edge clamp. Both skins physically hover actual owned All/Furnishings/Structural and expanded child-All, verify source names/right offsets, leave teardown and exact ownership/layout conservation. Evidence `core9/{modern,forever}/owner/category-tooltips-route-green/`; four inspected1280PNG title/offset captures and ledger `category-tooltips-proof-ledger.md`. Source BaseHousingActionButtonMixin uses enabledTooltip/highlight text; unreadable acquisition/variant/destroy policies remain separate.
+
 ## Owned-storage filters
 
 Verified:2026-10-12. Storage keeps separate `storage_dyeable_only`, `storage_alphabetical` and menu state. Authentic DecorDyeSlot membership filters confirmed positive stored stacks; selecting Alphabetical orders qualified names, with decor identity breaking ties. Reset clears Dyeable Only, not sort/search/category. Retail OnStorageTabSelected disables collection and first-acquisition choices. Acquisition timestamps and location/tag mappings remain unavailable; Date Added is visibly disabled, never synthesized from catalog order or decor ID. [Contract](../../specs/housing.md#owned-storage-filters).
