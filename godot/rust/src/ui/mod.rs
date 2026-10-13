@@ -31,6 +31,7 @@ mod launcher_preview;
 mod layout;
 mod mentor_host;
 mod menu_primitives_preview;
+mod follower_layout_preview;
 mod meter_preview;
 mod minimap_preview;
 mod mount_journal_host;
