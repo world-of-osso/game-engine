@@ -1,3 +1,7 @@
+## 2026-10-12 — Source search input limits and chrome
+
+[Housing](systems/housing.md#search-input-limit-gutters-and-magnifier): real registry40-letter limit,16/20 gutters and source magnifier/placeholder. Both skins type45 ASCII/UTF8 keys→40 characters, observe19 brighter focus pixels, remount configured input, clear and conserve paid copies/layout. Reacquiring replaced projected images fixes observer lifetime; owned orphan server cleaned after restart.
+
 ## 2026-10-12 — Default UTF-8 storage search threshold
 
 [Housing](systems/housing.md#default-search-threshold-and-utf-8): default Mainline three-character applied query distinct from retained raw input. Both-skin physical short `z`/`zz`/`éé` keeps Structural and actual paid Tesla; three-character no-match focuses All, shortening restores results, clear/remount and conservation pass. Pure emoji/subcategory/sort/Catalog independence proof; locale1 overrides remain unclaimed.
