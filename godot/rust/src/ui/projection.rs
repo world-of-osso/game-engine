@@ -1278,7 +1278,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
             }
-        } else {
+        } else if !is_housing_search_field(frame.name.as_deref()) {
             node.connect("text_submitted", &emit(pending, UiInput::Submit));
         }
         Callable::from_fn("registry-text-changed", move |args| {
@@ -1290,8 +1290,12 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     node.connect("text_changed", &text_changed);
     node.connect("focus_entered", &emit(pending, UiInput::Focus(id)));
     node.connect("focus_exited", &emit(pending, UiInput::Blur(id)));
-    let escape = release_focus_on_escape(node.clone());
-    node.connect("gui_input", &escape);
+    let keys = if is_housing_search_field(frame.name.as_deref()) {
+        release_housing_search_focus(node.clone())
+    } else {
+        release_focus_on_escape(node.clone())
+    };
+    node.connect("gui_input", &keys);
 }
 
 fn update_single_line_edit(
@@ -1357,6 +1361,30 @@ fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callabl
         };
         pending.push(UiInput::SearchPreviewStep(step));
         edit.accept_event();
+    })
+}
+
+fn is_housing_search_field(name: Option<&str>) -> bool {
+    matches!(
+        name,
+        Some("HouseEditorStorageSearchBox" | "HousingCatalogSearchBox")
+    )
+}
+
+fn release_housing_search_focus(mut edit: Gd<Control>) -> Callable {
+    Callable::from_fn("housing-search-focus-keys", move |args| {
+        let released = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+            .is_some_and(|key| {
+                use godot::global::Key;
+                key.is_pressed()
+                    && matches!(key.get_keycode(), Key::ENTER | Key::KP_ENTER | Key::ESCAPE)
+            });
+        if released {
+            edit.release_focus();
+            edit.accept_event();
+        }
     })
 }
 

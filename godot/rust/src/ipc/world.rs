@@ -305,7 +305,10 @@ impl crate::GameClient {
             return Err("emote is unavailable: not connected".into());
         }
         self.account
-            .send_emote(EmoteIntent { emote })
+            .send_emote(EmoteIntent {
+                emote,
+                target_entity: self.targeting_target(),
+            })
             .map(|()| format!("emote submitted {emote:?}"))
             .map_err(|_| "emote sender unavailable".into())
     }

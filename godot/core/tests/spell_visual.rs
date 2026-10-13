@@ -40,6 +40,37 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 }
 
 #[test]
+fn toyfx19_gladiator_banner_conditions_resolve_complete_back_models() {
+    // All source race/sex-conditioned visual variants use the faction banner
+    // model. Keep faction eligibility separate from visual variant selection.
+    for (spell, model) in [(176899, 1332368), (176900, 1332364)] {
+        for race in [
+            1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 37,
+            52, 70,
+        ] {
+            for gender in [0, 1] {
+                let caster = CasterContext {
+                    race,
+                    gender,
+                    ..warrior(None)
+                };
+                let visual = catalog()
+                    .visual_for_spell(spell, &caster)
+                    .unwrap_or_else(|| panic!("spell {spell}, race {race}, gender {gender}"));
+                let kits = catalog().kits(visual, VisualEvent::AuraStart);
+                assert!(!kits.is_empty(), "spell {spell}, visual {visual}");
+                let models: Vec<_> = kits.iter().flat_map(|kit| &kit.models).collect();
+                assert!(!models.is_empty(), "spell {spell}, visual {visual}");
+                for attachment in models {
+                    assert_eq!(attachment.model_fdid, model);
+                }
+                assert!(kits.iter().all(|kit| kit.end == VisualEvent::AuraEnd));
+            }
+        }
+    }
+}
+
+#[test]
 fn toyfx14_display_state_kits_resolve_authored_scenery_attachments() {
     for (display, kit_id, model, scale, alpha) in [
         (92605, 116424, 1398891, 0.5, 1.0),

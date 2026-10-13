@@ -12,7 +12,7 @@ AchievementWindow retains categories, achievement and criteria pages. The native
 
 Tracking uses a selected row's native Track/Stop tracking control; only unearned achievements can be watched (maximum ten). The native ObjectiveTracker inserts its Achievements module after quests, with server criterion counters and unevaluated labels. Account/realm/character-local preferences store IDs only; re-entry requests authoritative rows, and live updates refresh watched IDs even when AchievementFrame is closed. Newly earned rows stop tracking.
 
-Statistics uses the authentic flag1 catalog and raw, unclamped supported counters. Unsupported statistic types remain Unevaluated. Search queries the full faction/scope-eligible server catalog by title/description (including statistics), not client-loaded pages; results are term/scope correlated and ID-cursor paged. Native links in the earned chat line and toast open the viewer's own server state. Shift-click inserts ID/name markup at the existing chat caret; no invented GUID/comparison payload. Comparison has no server endpoint.
+Statistics uses the authentic flag1 catalog and raw, unclamped supported counters. Unsupported statistic types remain Unevaluated. Search queries the full faction/scope-eligible server catalog by title/description (including statistics), not client-loaded pages; results are term/scope correlated and ID-cursor paged. Native links in the earned chat line and toast open the viewer's own server state. Shift-click inserts ID/name markup at the existing chat caret; no invented GUID/comparison payload. Online comparison now queries authoritative target account/character state through the endpoint described below.
 
 Launcher and micro-menu share AchievementMicroButton dispatch. ToggleAchievements uses persisted bindings. CloseAllWindows owns Escape. The Godot branch previously had no achievement subscription/toast host; completed wire payloads now queue six-second native alerts.
 
@@ -46,7 +46,7 @@ Protocol `7c4c21a`, server `97d589f`, client implementation `2729912df`, branch 
 - Modern `modern-v6-*` and Forever `forever-v7-*` retain authentic50/60 criterion progress, tracker after close, server-triggered earned alert and popup navigation to earned own-state details. Explicit private admin set-level is setup, not gameplay-leveling proof. Modern session relog restored watch8; completion removes saved watches in both skins. Both preferences end with empty ID lists.
 - Evidence: [diagnostics](../../../data/diagnostics/achievements-ui-2026-10-11/), user PNGs `/syncthing/AgentShared/2026-10-11/achievements-ui/`. Full captures1280×720; small review crops/downsized copies (<1MiB, dimensions≤1280) were inspected. Earlier full-file tool reads were truncated and are not pixel-inspection evidence.
 
-Known data boundary: unsupported criterion/statistic types remain unevaluated. Comparison has no authoritative endpoint; InspectSnapshot carries equipment and talents only. Draft presentation is replaced by the art pass below.
+Historical boundary: unsupported criterion/statistic types remain unevaluated. The later criteria milestone adds an authoritative comparison endpoint; InspectSnapshot itself still carries equipment and talents only. Draft presentation is replaced by the art pass below.
 
 ## AchievementFrame art pass — 2026-10-11
 
@@ -70,13 +70,25 @@ Proof at integrated client `ee4bfaafa5dbd196f25701424147ebfd57292fef`: `merged-t
 
 22 inspected1280×720 PNGs: `/syncthing/AgentShared/2026-10-11/achievements-retail-ui/`. Forever changes art/tint only, with the same trees, tabs and layout. All owned clients/compositors/private server stopped; UDP5000 untouched, sibling patch blocks retained. No full suites/CI certification. Independent verifier could not authenticate (expired Claude OAuth); changed Rust manually inspected, readability binary unavailable.
 
+## Criteria gameplay and online comparison — verified 2026-10-12
+
+Private UDP5898 proof uses client fixture `3f51aeb44`, native extension `7df15684e`, server `d73da21f` and protocol `3688612`. Modern `fb_achcrit_modern7` / Critmodseven35 and Forever `fb_achcrit_forever6` / Critforsix34 each physically purchase authentic vendor32172 item40586, then vendor32216 items44225/44235 and use the latter from the backpack. Actual server authority earns Ring2084, Bear2076 and Mammoth2078; Bear changes0/1→1/1. Stable Keeper2141 changes2/10→3/10→4/10: the level80 Paladin's native Warhorse/Charger are the observed baseline, not fabricated progress.
+
+A real UDP peer `fb_achcrit_peer5` / Critpeer32 authenticates and enters the same map. Physical targeting and the Retail Compare Achievements menu request its separate account/character window. Both skins show the viewer's Ring Completed and peer Incomplete. Comparison cards use Mainline's496px own/120px friend geometry; Forever changes art only. Account queries never reuse viewer caches or mutate peer progress.
+
+Setup is limited to account/character creation and level80, gold500000000 and position. Only authentic vendor spawn poses are relocated; definitions, costs and effects remain sourced. Both client logs exit0: `/home/osso/.worktrees/logs/achievements-criteria-2026-10-12/live/{modern,forever}-baseline-proof-criteria6.log`. Sixteen1280×720 PNGs live in `/syncthing/AgentShared/2026-10-12/achievements/`; comparison and earned Mammoth pixels were inspected. All owned clients, peer and private server stopped; UDP5000 untouched.
+
+Retained harness failures establish three input/readiness boundaries: finish cold item-catalog loading before authentication; select visible bag controls rather than the hidden merchant copy with the same Retail names; close merchant before right-click item use. Ordered initial snapshots can delay real inventory/catalog replies, so fixture waits are bounded at60s. Duplicate item copies require proving consumption of one item, not disappearance of every copy.
+
+Current pinned structural census is4524 ordinary achievements (3230 account/1294 character),246 statistics. This is an all-faction eligibility union, not playable-content or complete ModifierTree certification. Remaining authentic producers and named source/data gaps stay open. Independent subscription verification remains blocked by expired Claude OAuth; no alternate paid backend used.
+
 ## Sources
 
 - Retail `Blizzard_ObjectiveTracker/Blizzard_ScenarioObjectiveTracker.lua:202,379–416`: dungeon/stage metadata and complete checks/incomplete nubs; `Blizzard_ObjectiveTrackerManager.lua:196`: Scenario precedes Quests.
 - Retail `Blizzard_AchievementUI/Mainline/Blizzard_AchievementUI.lua:112–167,438–472,800–853,1865–1885` — category list construction, Achievements/Guild/Statistics tab switching, Feats/filter presentation and All/Completed/Incomplete filters. Pinned `data/db2/12.1.0.69933/Achievement_Category.csv` supplies real category IDs/parents/order.
 - Retail `Blizzard_AchievementUI/Mainline/Blizzard_AchievementUI.lua:572,1814,1952`: categories, achievement metadata and criterion text/completion/counters.
 - Read-only server `docs/dungeon-achievements-client.md`, protocol `achievement_catalog_messages.rs`, pinned shared-protocol 172fd26.
-- Client `godot/ui-model/src/achievements.rs`, `achievement_art.rs`, `chat_draft.rs`, `dungeon_progress.rs`, `godot/rust/src/achievements.rs` and `chat.rs`.
+- Client `godot/ui-model/src/achievements.rs`, `achievement_comparison.rs`, `achievement_art.rs`, `chat_draft.rs`, `dungeon_progress.rs`, `godot/rust/src/achievements.rs`, `unit_menu.rs` and `chat.rs`; `godot/tests/achievement_criteria_live.gd` and `godot/network/examples/native_achievements_criteria_peer.rs` supply the private transport proof.
 - Retail `Blizzard_AchievementUI.xml:114–219,220–338,510–569,622–703,733–1020,1351–1404,1505–1740,1925–2040,2135–2302` — frame/row/category/tab/shield/Summary geometry. `Blizzard_AchievementUI.lua:663–741,1146–1175,2189–2251` — category collapse, plus/minus states and striped statistic art. `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml` — common search border, magnifier, clear button and text insets.
 - Retail `Blizzard_FrameXML/Mainline/AlertFrameSystems.xml:173–330`, `AlertFrameSystems.lua:348–419` — earned plate/icon/shield layout, click navigation and queued duration.
 - Retail `Blizzard_AchievementUI/Mainline/Blizzard_AchievementUI.xml:632,1091,1113,2002` — category-button and row sheet UVs; local community-listfile maps plural Shields to130666.

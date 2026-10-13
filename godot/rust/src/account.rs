@@ -6,6 +6,31 @@ use std::{
 };
 
 #[cfg(test)]
+mod creature_sound_tests {
+    use super::*;
+
+    #[test]
+    fn arena_cage_sound_delivery_reaches_native_playback() {
+        let mut account = Account::new(PathBuf::new());
+        account.session.screen = SessionScreen::InWorld;
+        let mut events = Vec::new();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(shared::protocol::CreatureTextSound {
+                    speaker: 232750,
+                    sound_kit: 269092,
+                }),
+                &mut events,
+            )
+            .unwrap();
+        assert!(
+            matches!(events.as_slice(), [AccountEvent::CreatureTextSound(sound)]
+            if sound.speaker == 232750 && sound.sound_kit == 269092)
+        );
+    }
+}
+
+#[cfg(test)]
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
 #[cfg(test)]
@@ -236,6 +261,7 @@ pub enum AccountEvent {
     XpGain(shared::protocol::LogXpGain),
     /// A player's social emote, played on its model.
     Emote(EmoteEvent),
+    CreatureTextSound(shared::protocol::CreatureTextSound),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
     /// `MINIMAP_PING`: another group member pinged the minimap.
@@ -1710,6 +1736,10 @@ impl Account {
         }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::CreatureTextSound>() {
+            output.push(AccountEvent::CreatureTextSound(decode(message)?));
             return Ok(());
         }
         if message.is::<EmoteEvent>() {

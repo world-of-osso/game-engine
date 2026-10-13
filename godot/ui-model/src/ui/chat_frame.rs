@@ -681,6 +681,7 @@ fn emote_command(command: &str) -> Option<EmoteKind> {
         "sit" => Some(EmoteKind::Sit),
         "sleep" => Some(EmoteKind::Sleep),
         "kneel" => Some(EmoteKind::Kneel),
+        "love" => Some(EmoteKind::Love),
         _ => None,
     }
 }

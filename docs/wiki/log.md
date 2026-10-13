@@ -1,3 +1,49 @@
+## 2026-10-13 — Unrated six-round Shuffle proof
+
+[Native arenas](systems/arenas.md#unrated-solo-shuffle--verified-2026-10-13): both skins complete six real first-kill rounds and all-six returns; source-role admission/spec lock, four-map rotations/gate resets, item cast-time panic and category-isolation RED/GREEN proof. Explicit unrated realm policy and delayed peer snapshot/wall-clock harness boundaries retained; rating/MMR, dampening and named source gaps unchanged.
+
+## 2026-10-13 — Arena announcer and shared reconnect proof
+
+[Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures completed, with the original null-snapshot readiness failure retained.
+## 2026-10-13 — Storage source vertical anchor implementation
+
+[Housing](systems/housing.md#basic-drawer-controls-and-preferences): F1 confirmed against LEFT/y150/clamped source. Registry source64.5 versus0 and native logical/nonclamped anchor RED; expanded panel now computes source top before native scaling. Both-skin native720→1080/source-scaled anchor/select/cancel/query+paidconservation GREEN; registry720/1080/651–800expanded+collapsed restores correctly. Currentregistry19/server28+3ignored/protocol4/check/fmt PASS; four inspected≤1280PNG public. Physical pixel coordinates are UI-scale-adjusted, not logical source values.
+
+## 2026-10-13 — Pending owned-placement storage implementation
+
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): StartPlacingNewDecor routes the same source selected-target event. Registry/native RED reproduced retained drawer with actual paid2330 pending placement; same presentation now hides it. Both-skin native actual paid2330 click→placing+hidden→Cancel/retainedTesla/exactconservation GREEN, plus selected/collapsed regression. Registry19/nativecheck0warnings/fmt pass; four inspected1280 new-placement PNGs public. No preview-mesh/mouse-up-commit claim.
+
+## 2026-10-13 — Basic selected-target storage implementation
+
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): Basic selection hides panel/handle without overwriting preferences. Registry/native prior-binary RED→both-skin actual paid actor select/cancel panel+collapsed-handle GREEN, unchanged query/size/paid state. Registry19/native/server checks0warnings/currentserver28+3ignored/fmt pass; exact private source flags refresh leaves canonical untouched. New-placement overlay remains separate.
+
+## 2026-10-13 — Retroactive grant source boundary
+
+[Housing](systems/housing.md#dye-authority-without-native-recoloring):59direct dyeable-decor reward quests have no source/runtime starter joins; scripted/item/automatic eligibility is not disproved. Retroactive reward fields Field_12_0_0_63534_002/Field_12_0_0_63967_005 remain literal unknowns; lead confirms no quantity/flags grant contract. No guessed grant implementation.
+
+## 2026-10-13 — Shared Catalog search template implementation
+
+[Housing](systems/housing.md#shared-catalog-search-template): shared source search construction/threshold and independent raw state; Catalog native clear/category backing-text/focus routes and shared clear-art/key handling implemented. Pure/registry green; prior-binary native cap RED→both-skin native cappedUTF8/threshold/category/clear/key/conservation PASS, shared-storage callback regression PASS. Post-master model30/registry18/server28+3ignored/protocol4 and warning-free checks pass; live binaries predate unrelated master changes. Inspected1280 PNGs public; canonical data untouched.
+
+## 2026-10-12 — Category focus callback boundaries
+
+[Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
+
+## 2026-10-12 — Source-private toy actor proof
+
+[Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12): real UDP owner/observer RED→GREEN with public control, both-skin owner Shirakess model/.6 scale/natural expiry, census337 unchanged and canonical flags import requirement.
+
+## 2026-10-12 — Linked cooking-fire native proof
+
+[Little Wickerman](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12): actual Modern/Forever journal use, authored.25 scale/nine emitters, real recipe output and visible Cozy Fire cancellation-refresh; representative proof does not certify all-seven pixels/native expiry. Requested PNGs and lead-only authenticated asset-import command recorded.
+## 2026-10-12 — Source search focus keys
+
+[Housing](systems/housing.md#search-focus-keys): Enter/Escape/keypad Enter release only storage search focus, consuming keys without form/chat/window/editor action. Both-skin native retained-query/Tesla, empty gray/clear-hidden, remount and exact conservation proof; shared edit-box behavior unchanged.
+
+## 2026-10-12 — Source search input limits and chrome
+
+[Housing](systems/housing.md#search-input-limit-gutters-and-magnifier): real registry40-letter limit,16/20 gutters and source magnifier/placeholder. Both skins type45 ASCII/UTF8 keys→40 characters, observe19 brighter focus pixels, remount configured input, clear and conserve paid copies/layout. Reacquiring replaced projected images fixes observer lifetime; owned orphan server cleaned after restart.
+
 ## 2026-10-12 — Overlapping Divine Shield refraction rainbow
 
 [Continuation](investigations/avenging-wrath-material-time.md#published-assets-and-txac-continuation--2026-10-12): 119 BLP textures and16 models match published hashes; no AW KTX variants or normal renderer HTTP streaming. TXAC hypothesis rejected: shaderId4 is colour/UV, not Refraction. Actual `cooldown-assist3` provenance/triple/642→31884 replay exposes Divine Shield1127086 emitters5/6 drawing normal map1127156 as colour; real-asset RED/GREEN selection/admission tests (20 core,1 native), general non-multitexture0x100000 forward exclusion and same-pose Modern/Forever before/after preserve AW hold pools and eliminate the rectangle. Published four requested PNGs; Modern assistant tail remains an unrelated dead-target failure.
@@ -3540,6 +3586,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
 
+- 2026-10-12: Recorded both-skin private criteria purchases/item learning, authoritative2→4 mount counts and isolated online comparison in [dungeon-achievements](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12);4524/246 structural census and outstanding producer/OAuth boundaries retained.
 - 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
 
 - 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
