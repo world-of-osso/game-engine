@@ -131,6 +131,15 @@ func run() -> void:
 	if alignment < 0.999 or not model.scale.is_equal_approx(Vector3.ONE):
 		stop("Boss must face preview camera without changing authored scale")
 		return
+	var model_png := OS.get_environment("ADVENTURE_GUIDE_MODEL_PNG")
+	if not model_png.is_empty():
+		await RenderingServer.frame_post_draw
+		var image := root.get_texture().get_image()
+		if image.get_width() > 1280:
+			image.resize(1280, int(image.get_height() * 1280.0 / image.get_width()))
+		if image.save_png(model_png) != OK:
+			stop("Cannot save requested model evidence")
+			return
 	await click("EncounterJournalTab1")
 	await click("EncounterJournalTierDropdown")
 	await click("EncounterJournalTier68")
