@@ -15,10 +15,13 @@ func run_fixture() -> void:
 	await click("CharCard_0")
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("CollectionsMicroButton") != null, "world", 180000): return
-	# The fresh Horde accounts use default settings. Select the production art layout
-	# explicitly rather than mutating their persisted settings or inventing a skin.
-	error = client.preview_world_skin(skin == "forever")
-	if error != "": fail(error); return
+	# Select through the actual Options UI; offline preview defaults omit live HUD rows.
+	await tap(KEY_ESCAPE)
+	await click("MenuBtnOptions")
+	await click("OptionsTabhud")
+	await click("Choiceui_layout%sHit" % ("2" if skin == "forever" else "0"))
+	await click("OptionsDoneButton")
+	if control("MenuBtnResume") != null: await click("MenuBtnResume")
 	var wanted_skin := "Modern" if skin == "modern" else "Forever"
 	if client.account_state().ui_skin != wanted_skin: fail("wrong native art skin"); return
 	if not await wait_until(func(): return native_display(-1), "native player model", 120000): return
