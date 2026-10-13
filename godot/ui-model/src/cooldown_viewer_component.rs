@@ -29,6 +29,7 @@ pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
         .flat_map(|(category, icons)| viewer(category, icons, state.enabled))
         .collect();
     rows.extend(crate::cooldown_settings_component::settings_panel(
+        ctx,
         &state.settings,
     ));
     rows
