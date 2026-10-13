@@ -3505,3 +3505,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
 
 - 2026-10-12: Source0.2s panel/0.15s handle OutExponential phases, transient timer/cold load, deterministic model and both-skin moving registry/native frame samples. Generic click settle invalidated initial witness; concurrent render observer proves ordered motion without product workaround.
+
+- 2026-10-12: Source ADD/0.5 drawer hover alignment, RSX fractional-alpha RED→string-parser GREEN, actual both-skin cursor activation/reset and923/1657 brighter handle pixels with conservation; four inspected PNGs. Raw Retail PlayerCondition has14 unreadable rows/IDs, so exact stock eligibility remains unresolved, not aliased.
+
+- 2026-10-12: Central source tooltips extended to owned-storage cards and House Chest handle, native missing-route RED→both-skin actual text/count/right-anchor/leave/unmount/conservation GREEN; four inspected PNGs. Existing Catalog presentation reused.

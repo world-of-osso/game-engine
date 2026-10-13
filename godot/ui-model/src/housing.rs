@@ -548,6 +548,18 @@ pub fn source_lines(decor: &Decor, names: &std::collections::HashMap<u32, String
 /// `NORMAL_FONT_COLOR`.
 const NORMAL_FONT_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 
+/// HouseEditorStorageButtonMixin: GlobalStrings54006 HOUSE_EDITOR_CATALOG_BUTTON_TOOLTIP.
+pub fn storage_handle_tooltip() -> crate::game_tooltip::GameTooltip {
+    crate::game_tooltip::GameTooltip::new(
+        crate::tooltip_presentation::TooltipPresentation {
+            title: "House Chest".into(),
+            title_color: crate::tooltip_presentation::TOOLTIP_WHITE,
+            ..crate::tooltip_presentation::TooltipPresentation::hidden()
+        },
+        None,
+    )
+}
+
 /// HousingCatalogDecorEntryMixin tooltip: the name (Common quality white), one
 /// `HOUSING_DECOR_CATEGORIES_TOOLTIP` line per subcategory (the subcategory alone when it
 /// already names its category) and, once anything is owned, `HOUSING_DECOR_OWNED_COUNT_FORMAT`.
