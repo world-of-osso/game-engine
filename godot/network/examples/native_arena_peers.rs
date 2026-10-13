@@ -4,6 +4,7 @@ use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage};
 use shared::protocol::*;
 use std::{
     fs,
+    net::SocketAddr,
     path::{Path, PathBuf},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -12,12 +13,75 @@ struct Peer {
     index: usize,
     mode: ArenaQueueMode,
     bridge: NetworkBridge,
+    address: SocketAddr,
+    reconnects: u32,
+    player_entity: Option<u64>,
+    terrain: Option<String>,
     entered: bool,
     map: Option<u32>,
     snapshot: Option<PvpSnapshot>,
     group: Option<GroupRosterSnapshot>,
 }
 impl Peer {
+    fn connect(index: usize, mode: ArenaQueueMode, address: SocketAddr) -> Result<Self, String> {
+        let client_id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| error.to_string())?
+            .as_nanos() as u64;
+        let bridge = BridgeConfig::new()
+            .receive::<LoginResponse>()
+            .receive::<EnterWorldResponse>()
+            .receive::<LoadTerrain>()
+            .receive::<NewWorld>()
+            .receive::<PvpStateUpdate>()
+            .receive::<GroupInvitePrompt>()
+            .receive::<GroupRosterSnapshot>()
+            .connect(address, client_id)?;
+        bridge.send::<_, AuthChannel>(LoginRequest {
+            token: None,
+            username: format!("fb_arena{index}"),
+            password: "fbtest".into(),
+        })?;
+        Ok(Self {
+            index,
+            mode,
+            bridge,
+            address,
+            reconnects: 0,
+            player_entity: None,
+            terrain: None,
+            entered: false,
+            map: None,
+            snapshot: None,
+            group: None,
+        })
+    }
+
+    fn reconnect(&mut self) -> Result<(), String> {
+        self.bridge.disconnect()?;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            if self
+                .bridge
+                .drain_events()?
+                .iter()
+                .any(|event| matches!(event, Event::Disconnected(_)))
+            {
+                break;
+            }
+            if Instant::now() >= deadline {
+                return Err(format!("fb_arena{} did not disconnect", self.index));
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        self.bridge.stop()?;
+        let reconnects = self.reconnects + 1;
+        let mut replacement = Self::connect(self.index, self.mode, self.address)?;
+        replacement.reconnects = reconnects;
+        *self = replacement;
+        Ok(())
+    }
+
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
         if message.is::<LoginResponse>() {
             let reply = message
@@ -38,7 +102,13 @@ impl Peer {
                 return Err(format!("world entry: {:?}", reply.error));
             }
             self.entered = true;
+            self.player_entity = reply.player_entity;
             self.bridge.send::<_, PvpChannel>(QueryPvpStatus)?;
+        } else if message.is::<LoadTerrain>() {
+            let terrain = message
+                .downcast::<LoadTerrain>()
+                .map_err(|_| "terrain type")?;
+            self.terrain = Some(terrain.map_name);
         } else if message.is::<NewWorld>() {
             let destination = message
                 .downcast::<NewWorld>()
@@ -71,11 +141,12 @@ impl Peer {
         }
         Ok(())
     }
-    fn action(&self, action: &str) -> Result<(), String> {
+    fn action(&mut self, action: &str) -> Result<(), String> {
         if !self.entered {
             return Err(format!("fb_arena{} has not entered", self.index));
         }
         match action {
+            "reconnect" => self.reconnect(),
             "group" if self.mode == ArenaQueueMode::Rated2v2 && self.index == 2 => {
                 self.bridge.send::<_, GroupChannel>(GroupInviteIntent {
                     name: "Arenathree".into(),
@@ -121,7 +192,7 @@ impl Peer {
         }
     }
     fn write_state(&self, directory: &Path) -> Result<(), String> {
-        let value = serde_json::json!({"entered": self.entered,"map":self.map,"snapshot":self.snapshot,"group":self.group});
+        let value = serde_json::json!({"entered": self.entered,"map":self.map,"terrain":self.terrain,"player_entity":self.player_entity,"reconnects":self.reconnects,"snapshot":self.snapshot,"group":self.group});
         fs::write(
             directory.join(format!("peer{}.json", self.index)),
             serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
@@ -144,35 +215,9 @@ fn run() -> Result<(), String> {
         Ok("rated2v2") => (ArenaQueueMode::Rated2v2, 2),
         _ => return Err("ARENA_MODE must explicitly select 2v2, 3v3 or rated2v2".into()),
     };
-    let mut peers = Vec::new();
-    let clock = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_nanos() as u64;
-    for index in 1..team_size * 2 {
-        let bridge = BridgeConfig::new()
-            .receive::<LoginResponse>()
-            .receive::<EnterWorldResponse>()
-            .receive::<NewWorld>()
-            .receive::<PvpStateUpdate>()
-            .receive::<GroupInvitePrompt>()
-            .receive::<GroupRosterSnapshot>()
-            .connect(address, clock + index as u64)?;
-        bridge.send::<_, AuthChannel>(LoginRequest {
-            token: None,
-            username: format!("fb_arena{index}"),
-            password: "fbtest".into(),
-        })?;
-        peers.push(Peer {
-            index,
-            mode,
-            bridge,
-            entered: false,
-            map: None,
-            snapshot: None,
-            group: None,
-        });
-    }
+    let mut peers = (1..team_size * 2)
+        .map(|index| Peer::connect(index, mode, address))
+        .collect::<Result<Vec<_>, _>>()?;
     let mut last = String::new();
     let deadline = Instant::now() + Duration::from_secs(3600);
     while Instant::now() < deadline {
@@ -196,9 +241,7 @@ fn run() -> Result<(), String> {
                 if action == "quit" {
                     return Ok(());
                 }
-                for peer in &peers {
-                    peer.action(action)?;
-                }
+                submit_action(&mut peers, action)?;
                 println!("submitted {last}");
             }
             Ok(_) => {}
@@ -209,6 +252,24 @@ fn run() -> Result<(), String> {
     }
     Err("Live peers exceeded one-hour integration deadline".into())
 }
+fn submit_action(peers: &mut [Peer], action: &str) -> Result<(), String> {
+    if let Some(selected) = action.strip_prefix("peer:") {
+        let (index, action) = selected
+            .split_once(':')
+            .ok_or("Expected peer:<index>:<action>")?;
+        let index = index.parse::<usize>().map_err(|error| error.to_string())?;
+        let peer = peers
+            .iter_mut()
+            .find(|peer| peer.index == index)
+            .ok_or_else(|| format!("No private peer {index}"))?;
+        return peer.action(action);
+    }
+    for peer in peers {
+        peer.action(action)?;
+    }
+    Ok(())
+}
+
 fn main() {
     if let Err(error) = run() {
         eprintln!("{error}");
