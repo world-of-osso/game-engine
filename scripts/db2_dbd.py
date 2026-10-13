@@ -66,7 +66,8 @@ def columns(fields):
 
 def number(raw, kind, width, element=0):
     bits = int((width or '32').lstrip('u'))
-    value = raw[element] if isinstance(raw, tuple) else (raw >> (bits * element)) & ((1 << bits) - 1)
+    value = raw[element] if isinstance(raw, tuple) else raw >> (bits * element)
+    value &= (1 << bits) - 1
     if kind == 'float':
         return format(struct.unpack('<f', struct.pack('<I', value))[0], '.9g')
     if width and not width.startswith('u') and value & (1 << (bits - 1)):

@@ -52,6 +52,32 @@ class InstallExportTest(unittest.TestCase):
                 self.assertEqual(list(csv.DictReader(stream)), [
                     {'ID': '1', 'PlayerConditionID': '8', 'ChrSpecializationID': '71'}])
 
+    def test_pallet_array_masks_each_narrow_value_before_signedness(self):
+        import struct
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'PlayerCondition.dbd').write_text(
+                'COLUMNS\nint ID\nint MinSkill\n\nLAYOUT ABCD1234\n'
+                '$noninline,id$ID<32>\nMinSkill<u16>[2]\n')
+            data = bytearray(fixture(0xABCD1234, [0]))
+            start = struct.unpack_from('<I', data, 212)[0]
+            palette = struct.pack('<2I', 131072, 1310882)
+            data[start:start] = palette
+            struct.pack_into('<I', data, 212, start + 8)
+            struct.pack_into('<I', data, 224, start + 12)
+            struct.pack_into('<I', data, 196, 8)
+            struct.pack_into('<HH5I', data, 248, 0, 32, 8, 4, 0, 0, 2)
+            source = root / 'input.db2'
+            source.write_bytes(data)
+            output = root / 'out.csv'
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/export_db2_csv.py'),
+                                     'PlayerCondition', str(source), str(output), '--definitions', str(root)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with output.open() as stream:
+                self.assertEqual(list(csv.DictReader(stream)), [
+                    {'ID': '1', 'MinSkill_0': '0', 'MinSkill_1': '162'}])
+
     def test_unknown_layout_fails_without_writing_export(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
