@@ -40,7 +40,7 @@ func first_set_row() -> String:
 			first = control.name
 	return first
 func set_filter_scroll_returns_to_beginning() -> bool:
-	await click("EncounterJournalTab2")
+	await click("EncounterJournalLootJournalTab")
 	await click("JournalClassFilter")
 	await click("JournalClass2")
 	var first := first_set_row()
@@ -147,7 +147,7 @@ func run() -> void:
 		if image.save_png(model_png) != OK:
 			stop("Cannot save requested model evidence")
 			return
-	await click("EncounterJournalTab0")
+	await click("EncounterJournalDungeonTab")
 	await click("EncounterJournalTierDropdown")
 	await click("EncounterJournalTier68")
 	var list := client.find_child("EncounterJournalContent", true, false) as Control
@@ -168,7 +168,7 @@ func run() -> void:
 	if client.adventure_guide_state().instance != 240:
 		stop("Scrolled dungeon did not select Wailing Caverns")
 		return
-	await click("EncounterJournalTab1")
+	await click("EncounterJournalRaidTab")
 	await click("JournalInstance741")
 	await click("JournalBoss1519")
 	var state = client.adventure_guide_state()
