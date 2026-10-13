@@ -58,7 +58,7 @@ impl GameClient {
             .send_challenge_request(shared::protocol::ChallengeRequest::Query)
             .map_err(|error| error.to_string())?;
         self.account
-            .send_trading_post(shared::protocol::TradingPostRequest::Query)
+            .send_trading_post(shared::protocol::TradingPostRequest::Balance)
             .map_err(|error| error.to_string())?;
         self.account
             .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
