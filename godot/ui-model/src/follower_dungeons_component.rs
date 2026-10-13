@@ -321,9 +321,17 @@ fn leader_button(view: &View) -> Element {
     onclick: "follower:leader", disabled, {art} } }
 }
 fn role_checkbox(name: &str, checked: bool) -> Element {
-    let mut art = named_atlas_texture(format!("{name}CheckBox"), "checkbox-minimal", (-3.5, 30.5, 21.0, 20.3));
+    let mut art = named_atlas_texture(
+        format!("{name}CheckBox"),
+        "checkbox-minimal",
+        (-3.5, 30.5, 21.0, 20.3),
+    );
     if checked {
-        art.extend(named_atlas_texture(format!("{name}Check"), "checkmark-minimal", (-3.5, 30.5, 21.0, 20.3)));
+        art.extend(named_atlas_texture(
+            format!("{name}Check"),
+            "checkmark-minimal",
+            (-3.5, 30.5, 21.0, 20.3),
+        ));
     }
     art
 }
@@ -340,7 +348,11 @@ fn role_button(
     let mut art = rsx! { texture { name: {DynName(format!("{name}Background"))},
     texture_atlas: background, width: 80.0, height: 80.0, left: -16.0, top: -16.0,
     pos_type: "absolute", draw_layer: "BACKGROUND" } };
-    art.extend(named_atlas_texture(format!("{name}Icon"), atlas, (0.0, 0.0, 48.0, 48.0)));
+    art.extend(named_atlas_texture(
+        format!("{name}Icon"),
+        atlas,
+        (0.0, 0.0, 48.0, 48.0),
+    ));
     art.extend(role_checkbox(&name, view.role == role));
     let disabled = view.pending || view.matched();
     let action = format!("follower:role:{action}");
