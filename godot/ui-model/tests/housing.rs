@@ -9,6 +9,44 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
+    use game_engine_ui_model::housing::HousingAuthority;
+    use game_engine_ui_model::housing_component::apply_housing_storage_postsetup;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.tab = DashboardTab::Catalog;
+        let view = HousingView {
+            model,
+            authority: HousingAuthority::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        apply_housing_storage_postsetup(&view, &mut registry);
+        let frame = registry
+            .get(registry.get_by_name("HousingCatalogSearchBox").unwrap())
+            .unwrap();
+        let Some(WidgetData::EditBox(data)) = &frame.widget_data else {
+            panic!("Catalog must be editable");
+        };
+        let mut edited = data.clone();
+        edited.insert_at_cursor(&"é".repeat(45));
+        assert_eq!(edited.text, "é".repeat(40));
+        assert_eq!(data.text_insets, [16.0, 20.0, 0.0, 0.0]);
+    }
+}
+
+#[test]
 fn housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use game_engine_ui_model::housing_component::apply_housing_storage_postsetup;

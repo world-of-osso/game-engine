@@ -557,6 +557,36 @@ fn housing_search_category_and_selection_follow_catalog_not_starting_quantity() 
 }
 
 #[test]
+fn housing_catalog_search_uses_utf8_threshold_and_source_focus_callbacks() {
+    let mut model = dashboard();
+    let authority = HousingAuthority::default();
+    model.set_storage_search("Storage independent".into());
+    model.set_category(Some(2), &authority);
+    for raw in ["z", "zz", "éé"] {
+        model.set_search(raw.into(), &authority);
+        assert_eq!(model.category, Some(2));
+        assert_eq!(model.matching(&authority).len(), 15);
+    }
+    model.set_search("Ornate".into(), &authority);
+    assert_eq!(model.category, None);
+    assert_eq!(model.matching(&authority).len(), 1);
+    model.set_category(Some(18), &authority);
+    assert_eq!(model.search, "Ornate"); // All is a no-op, not ClearSearchText.
+    model.set_category(Some(2), &authority);
+    assert_eq!(model.search, "");
+    assert_eq!(model.matching(&authority).len(), 15);
+    model.set_search("zz".into(), &authority);
+    model.set_category(Some(2), &authority);
+    assert_eq!(model.search, "zz"); // Already focused: source early return.
+    model.set_search("ééé".into(), &authority);
+    assert_eq!(model.category, None);
+    assert!(model.matching(&authority).is_empty());
+    model.set_search(String::new(), &authority);
+    assert_eq!(model.matching(&authority).len(), 16);
+    assert_eq!(model.storage_search, "Storage independent");
+}
+
+#[test]
 fn housing_all_category_is_the_unfiltered_retail_category() {
     let mut model = dashboard();
     let none = HousingAuthority::default();
