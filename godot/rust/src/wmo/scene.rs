@@ -920,6 +920,16 @@ mod tests {
         assert_batch_textures_decode(&batches, &resolver, &data_root);
     }
 
+    /// Cage of Carnage collision WMO 6371365: no MOMT and one "Collision" group with
+    /// no MOBA whose MPY2 faces are all collision-only; nothing draws or errors.
+    #[test]
+    fn cage_collision_only_wmo_has_no_draw_batches_or_material_errors() {
+        let (asset, _, _) = read_asset(6_371_365);
+        let (batches, errors) = prepare_wmo_batches(&asset, &[0]);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert!(batches.is_empty());
+    }
+
     /// Garrison farm: group 0 is EXTERIOR, group 1 only INTERIOR. Only the doodads
     /// group 0's MODR references (2-8 of the default set) cast shadows; group 1's
     /// default and interior-set doodads (0, 1, 9-13, 29-82) do not.
