@@ -28,12 +28,14 @@ impl TransportView {
             *self = Self::new(source)?;
             return Ok(());
         }
-        self.elapsed_ms = self.elapsed_ms.max(source.elapsed_ms as f64);
-        self.source = source.clone();
+        if source.elapsed_ms >= self.source.elapsed_ms {
+            self.source = source.clone();
+        }
         Ok(())
     }
     pub fn advance(&mut self, delta: f32) {
-        self.elapsed_ms += f64::from(delta) * 1000.0;
+        self.elapsed_ms =
+            (self.elapsed_ms + f64::from(delta) * 1000.0).min(self.source.elapsed_ms as f64);
     }
     pub fn pose(&self) -> TransportPose {
         self.route.pose_at(self.elapsed_ms as u64)
@@ -84,14 +86,20 @@ mod tests {
         }
     }
     #[test]
-    fn source_route_clock_advances_between_updates_and_does_not_rewind_on_late_receipts() {
-        let mut view = TransportView::new(&state(0)).unwrap();
+    fn source_route_clock_interpolates_received_progress_without_extrapolating_or_rewinding() {
+        let mut view = TransportView::new(&state(250)).unwrap();
+        view.observe(&state(750)).unwrap();
         view.advance(0.25);
-        assert!((view.pose().position[0] - 11.0).abs() < 0.0001);
-        view.observe(&state(100)).unwrap();
-        assert!((view.pose().position[0] - 11.0).abs() < 0.0001);
-        view.observe(&state(500)).unwrap();
         assert!((view.pose().position[0] - 12.0).abs() < 0.0001);
+        view.observe(&state(100)).unwrap();
+        assert!((view.pose().position[0] - 12.0).abs() < 0.0001);
+        view.advance(0.25);
+        assert!((view.pose().position[0] - 13.0).abs() < 0.0001);
+        view.advance(5.0);
+        assert!(
+            (view.pose().position[0] - 13.0).abs() < 0.0001,
+            "a stalled server clock must not let the rendered ship run ahead"
+        );
     }
     #[test]
     fn idle_and_predicted_walking_feet_follow_ship_translation_and_rotation() {
