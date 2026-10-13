@@ -545,9 +545,9 @@ fn housing_search_category_and_selection_follow_catalog_not_starting_quantity() 
     assert_eq!(model.matching(&none).len(), 1);
     assert_eq!(model.visible(&none)[0].name, "Ornate Stonework Fireplace");
     model.set_category(Some(2), &none);
-    assert!(model.visible(&none).is_empty());
-    assert!(model.selected(&none).is_none());
-    model.set_search(String::new(), &none);
+    assert_eq!(model.search, "");
+    assert_eq!(model.visible(&none).len(), 12);
+    assert_eq!(model.selected(&none).unwrap().id, 81);
     assert_eq!(model.matching(&none).len(), 15);
     assert!(!model.select(80, &none));
     assert!(model.select(83, &none));
