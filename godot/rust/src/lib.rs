@@ -880,6 +880,26 @@ impl GameClient {
         }
     }
 
+    /// Explicit arena proof measurement; never runs during normal gameplay.
+    #[func]
+    fn benchmark_arena_collision(&self) -> VarDictionary {
+        let mut error = VarDictionary::new();
+        let Some(transform) = self.world.local_player_transform() else {
+            error.set("error", "No local player for arena collision measurement");
+            return error;
+        };
+        let Some(space) = self
+            .base()
+            .get_world_3d()
+            .and_then(|world| world.get_direct_space_state())
+        else {
+            error.set("error", "No physics space for arena collision measurement");
+            return error;
+        };
+        let feet = glam::Vec3::from_array(transform.origin.to_array());
+        self.game_objects.benchmark_live_queries(&space, feet)
+    }
+
     /// Main-thread time of the last `process`, in milliseconds.
     #[func]
     fn process_ms(&self) -> f64 {

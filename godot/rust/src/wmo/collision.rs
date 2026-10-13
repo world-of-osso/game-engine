@@ -243,7 +243,7 @@ impl WmoCollisionBodies {
     }
 }
 
-/// Distance to the first WMO wall on the ray from `origin`, if within `length`.
+/// Distance to the first WMO or active replicated GO wall within `length`.
 pub(crate) fn wall_hit(
     space: &Gd<PhysicsDirectSpaceState3D>,
     origin: Vec3,
@@ -254,7 +254,7 @@ pub(crate) fn wall_hit(
     let to = from + Vector3::from_array(direction.to_array()) * length;
     let mut query = PhysicsRayQueryParameters3D::create(from, to)
         .expect("Godot could not allocate wall ray parameters");
-    query.set_collision_mask(WMO_LAYER);
+    query.set_collision_mask(WMO_LAYER | crate::game_objects::GAME_OBJECT_LAYER);
     let hit = space.clone().intersect_ray(&query);
     let position = hit.get("position")?.to::<Vector3>();
     Some(from.distance_to(position))
