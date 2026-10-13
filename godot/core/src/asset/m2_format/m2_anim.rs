@@ -252,6 +252,21 @@ pub fn parse_f32_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<f32
     })
 }
 
+/// In-file ribbon colour track.
+pub fn parse_vec3_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<[f32; 3]>, String> {
+    parse_anim_track(md20, block_offset, 12, &[], read_vec3)
+}
+
+/// In-file fixed16 ribbon opacity track.
+pub fn parse_i16_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<i16>, String> {
+    parse_anim_track(md20, block_offset, 2, &[], read_i16)
+}
+
+/// In-file ribbon texture-slot track.
+pub fn parse_u16_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<u16>, String> {
+    parse_anim_track(md20, block_offset, 2, &[], read_u16)
+}
+
 /// An in-file `M2Track<uint8>` at `block_offset` of the MD20 blob.
 pub fn parse_u8_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<u8>, String> {
     parse_anim_track(md20, block_offset, 1, &[], |data, offset| {
