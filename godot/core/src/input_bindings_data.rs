@@ -312,6 +312,12 @@ pub enum InputAction {
     ToggleBag2,
     ToggleBag3,
     ToggleBag4,
+    HousingBasicMode,
+    HousingExpertMode,
+    HousingCleanupMode,
+    HousingRotateLeft,
+    HousingRotateRight,
+    HousingRemoveDecor,
 }
 
 impl InputAction {
@@ -407,7 +413,18 @@ impl InputAction {
         Self::MultiActionBar4Button12,
     ];
 
-    pub const ALL: [Self; 120] = [
+    /// Retail Bindings_Standard.xml, HousingEditor/BasicAndExpert/Basic contexts.
+    /// Default key data is unavailable locally; these remain unbound, assignable.
+    pub const HOUSING_ACTIONS: [Self; 6] = [
+        Self::HousingBasicMode,
+        Self::HousingExpertMode,
+        Self::HousingCleanupMode,
+        Self::HousingRotateLeft,
+        Self::HousingRotateRight,
+        Self::HousingRemoveDecor,
+    ];
+
+    pub const ALL: [Self; 126] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -528,6 +545,12 @@ impl InputAction {
         Self::ToggleBag2,
         Self::ToggleBag3,
         Self::ToggleBag4,
+        Self::HousingBasicMode,
+        Self::HousingExpertMode,
+        Self::HousingCleanupMode,
+        Self::HousingRotateLeft,
+        Self::HousingRotateRight,
+        Self::HousingRemoveDecor,
     ];
 
     pub fn key(self) -> &'static str {
@@ -544,6 +567,11 @@ impl InputAction {
             .or_else(|| audio_action_from_key(key))
             .or_else(|| interface_action_from_key(key))
             .or_else(|| bag_action_from_key(key))
+            .or_else(|| {
+                Self::HOUSING_ACTIONS
+                    .into_iter()
+                    .find(|action| action.key() == key)
+            })
     }
 
     pub fn label(self) -> &'static str {
@@ -597,7 +625,23 @@ impl InputAction {
         if let Some(meta) = self.bag_meta() {
             return meta;
         }
+        if let Some(meta) = self.housing_meta() {
+            return meta;
+        }
         self.non_action_slot_meta()
+    }
+
+    fn housing_meta(self) -> Option<InputActionMeta> {
+        let (key, label) = match self {
+            Self::HousingBasicMode => ("HOUSING_TOGGLEBASICDECORMODE", "Decorate Mode"),
+            Self::HousingExpertMode => ("HOUSING_TOGGLEEXPERTDECORMODE", "Advanced Mode"),
+            Self::HousingCleanupMode => ("HOUSING_TOGGLECLEANUPMODE", "Cleanup Mode"),
+            Self::HousingRotateLeft => ("HOUSING_BASICDECOR_ROTATELEFT", "Rotate Decor Left"),
+            Self::HousingRotateRight => ("HOUSING_BASICDECOR_ROTATERIGHT", "Rotate Decor Right"),
+            Self::HousingRemoveDecor => ("HOUSING_REMOVEDECOR", "Remove Decor"),
+            _ => return None,
+        };
+        Some(input_action_meta(key, label, BindingSection::Housing, None))
     }
 
     fn interface_meta(self) -> Option<InputActionMeta> {
@@ -792,6 +836,12 @@ impl InputAction {
             | Self::ToggleFramerate
             | Self::MinimapZoomIn
             | Self::MinimapZoomOut => unreachable!("panel toggles handled by interface_meta"),
+            Self::HousingBasicMode
+            | Self::HousingExpertMode
+            | Self::HousingCleanupMode
+            | Self::HousingRotateLeft
+            | Self::HousingRotateRight
+            | Self::HousingRemoveDecor => unreachable!("housing actions handled by housing_meta"),
             Self::OpenAllBags
             | Self::ToggleBackpack
             | Self::ToggleBag1
@@ -1067,10 +1117,11 @@ pub enum BindingSection {
     Audio,
     Interface,
     Bags,
+    Housing,
 }
 
 impl BindingSection {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Movement,
         Self::Camera,
         Self::Targeting,
@@ -1082,6 +1133,7 @@ impl BindingSection {
         Self::Audio,
         Self::Interface,
         Self::Bags,
+        Self::Housing,
     ];
 
     pub fn key(self) -> &'static str {
@@ -1097,6 +1149,7 @@ impl BindingSection {
             Self::Audio => "audio",
             Self::Interface => "interface",
             Self::Bags => "bags",
+            Self::Housing => "housing",
         }
     }
 
@@ -1113,6 +1166,7 @@ impl BindingSection {
             "audio" => Self::Audio,
             "interface" => Self::Interface,
             "bags" => Self::Bags,
+            "housing" => Self::Housing,
             _ => return None,
         })
     }
@@ -1130,6 +1184,7 @@ impl BindingSection {
             Self::Audio => "Audio",
             Self::Interface => "Interface",
             Self::Bags => "Bags",
+            Self::Housing => "Housing",
         }
     }
 }
@@ -1558,6 +1613,7 @@ pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
         BindingSection::Audio => audio_section_actions(),
         BindingSection::Interface => interface_section_actions(),
         BindingSection::Bags => bag_section_actions(),
+        BindingSection::Housing => &InputAction::HOUSING_ACTIONS,
     }
 }
 
