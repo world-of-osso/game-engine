@@ -276,7 +276,7 @@ const GOLD: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 #[test]
-fn top_navigation_tabs_replace_tophud_art_with_retail_labels_and_actions() {
+fn top_navigation_uses_retail_geometry_labels_and_actions() {
     let mut model = CharacterSelectModel::new(1280.0, 720.0);
     model.sync();
     for art in [
@@ -313,12 +313,26 @@ fn top_navigation_tabs_replace_tophud_art_with_retail_labels_and_actions() {
             Some(CharSelectAction::CampsiteToggle),
         ]
     );
-    for rule in ["CharSelectTopNavRuleTop", "CharSelectTopNavRuleBottom"] {
-        assert_eq!(
-            frame(&model, rule)
+    // CharacterSelectNavBar.xml:4,77,88 and CharacterSelect.xml:472-473.
+    assert_eq!(
+        frame(&model, "CharSelectTopNav").height,
+        Dimension::Fixed(55.0)
+    );
+    assert_eq!(frame(&model, "CharSelectTopNav").margin.top, Val::Px(0.0));
+    assert_eq!(
+        frame(&model, "CharSelectTopNavTabs")
+            .flex_layout
+            .as_ref()
+            .unwrap()
+            .gap,
+        0.0
+    );
+    for tab in TOP_NAV_TABS {
+        assert_eq!(frame(&model, tab).height, Dimension::Fixed(51.0));
+        assert!(
+            frame(&model, &format!("{tab}Box"))
                 .background_color
-                .map(|c| c[..3].to_vec()),
-            Some(GOLD[..3].to_vec())
+                .is_none()
         );
     }
     assert_eq!(tab_looks(&model), vec![(false, GOLD); 5]);
@@ -346,12 +360,8 @@ fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
     );
     model.sync();
     let boxed = frame(&model, "CharSelectModeTabBox");
-    assert!(matches!(boxed.border, Some(ref b) if b.width == 1.0 && b.color[..3] == GOLD[..3]));
-    assert!(
-        boxed
-            .background_color
-            .is_some_and(|c| c[0] < 0.1 && c[3] < 1.0)
-    );
+    assert!(boxed.border.is_none());
+    assert!(boxed.background_color.is_none());
     assert_eq!(
         tab_looks(&model),
         vec![
