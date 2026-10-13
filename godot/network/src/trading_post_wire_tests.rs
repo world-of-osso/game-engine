@@ -47,6 +47,7 @@ fn trading_post_udp_bridge_round_trips_authoritative_balance_and_requests() {
         thresholds: vec![],
         source_gaps: vec!["Refund duration unsourced".into()],
         error: None,
+        catalog_complete: true,
     };
     let world = server.world_mut();
     world
@@ -61,6 +62,7 @@ fn trading_post_udp_bridge_round_trips_authoritative_balance_and_requests() {
         },
         TradingPostRequest::Purchase { vendor_item_id: 4 },
         TradingPostRequest::Refund { vendor_item_id: 4 },
+        TradingPostRequest::Balance,
     ];
     for request in &requests {
         bridge.send::<_, InstanceChannel>(request.clone()).unwrap();
