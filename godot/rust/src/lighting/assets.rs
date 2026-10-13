@@ -108,7 +108,7 @@ impl LightingCatalog {
         .map_err(|error| format!("{}: {error}", tables.display()))?;
         let (liquid_alphas, light_params_flags, params_skybox) =
             parse_light_params(&params.join("LightParams.csv"))?;
-        let skyboxes = parse_light_skyboxes(&params.join("LightSkybox.csv"), &params_skybox)?;
+        let skyboxes = read_light_skyboxes(&params.join("LightSkybox.csv"), &params_skybox)?;
         let stars_path =
             cache_stars(data_root).map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
         cache_planet_textures(data_root)?;
@@ -359,21 +359,35 @@ pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, St
 }
 
 /// LightSkybox `(SkyboxFileDataID, Flags)` of each LightParams in `params_skybox`.
-fn parse_light_skyboxes(
+fn read_light_skybox_rows(path: &Path) -> Result<HashMap<u32, (u32, u32)>, String> {
+    use game_engine_core::csv_util::{header_index, parse_csv_records};
+    let records = parse_csv_records(&read_text(path)?);
+    let header = records
+        .first()
+        .ok_or_else(|| format!("{} is empty", path.display()))?;
+    let id = header_index(header, "ID", path)?;
+    let fdid = header_index(header, "SkyboxFileDataID", path)?;
+    let flags = header_index(header, "Flags", path)?;
+    let mut rows = HashMap::new();
+    for row in records.iter().skip(1) {
+        let number = |column: usize| -> Result<u32, String> {
+            let value = row
+                .get(column)
+                .ok_or_else(|| format!("{}: missing {}", path.display(), header[column]))?;
+            value.parse().map_err(|error| {
+                format!("{}: {}={value:?}: {error}", path.display(), header[column])
+            })
+        };
+        rows.insert(number(id)?, (number(fdid)?, number(flags)?));
+    }
+    Ok(rows)
+}
+
+pub(super) fn read_light_skyboxes(
     path: &Path,
     params_skybox: &HashMap<u32, u32>,
 ) -> Result<HashMap<u32, (u32, u32)>, String> {
-    let text = read_text(path)?;
-    let mut lines = text.lines();
-    if lines.next() != Some("ID,Flags,SkyboxFileDataID,CelestialSkyboxFileDataID") {
-        return Err(format!("{} has an unexpected header", path.display()));
-    }
-    let mut rows = HashMap::new();
-    for line in lines.filter(|line| !line.is_empty()) {
-        let values: Result<Vec<u32>, _> = line.split(',').map(str::parse).collect();
-        let values = values.map_err(|error| format!("{}: {line:?}: {error}", path.display()))?;
-        rows.insert(values[0], (values[2], values[1]));
-    }
+    let rows = read_light_skybox_rows(path)?;
     params_skybox
         .iter()
         .map(|(&params, skybox)| {
