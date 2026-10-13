@@ -3,6 +3,66 @@ use game_engine_core::housing::{Category, Decor, HousingCatalog, Subcategory};
 use std::sync::Arc;
 
 #[test]
+fn housing_storage_transitions_use_source_order_durations_and_out_exponential_offsets() {
+    use crate::housing_storage::DrawerPart;
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    model.storage_panel.resize([725.0, 730.0]).unwrap();
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Panel, 0.0)
+    );
+    model.start_storage_transition(true);
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Panel, 0.0)
+    );
+    model.advance_storage_transition(0.1).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Panel);
+    assert!((left + 725.0 * 0.96875).abs() < 0.001);
+    model.advance_storage_transition(0.1).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Handle);
+    assert!((left + 64.0 * 0.67).abs() < 0.001);
+    model.advance_storage_transition(0.075).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Handle);
+    assert!((left + 64.0 * 0.67 / 32.0).abs() < 0.001);
+    model.advance_storage_transition(0.075).unwrap();
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Handle, 0.0)
+    );
+    assert!(model.storage_panel.collapsed);
+    model.start_storage_transition(false);
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Handle, 0.0)
+    );
+    model.advance_storage_transition(0.15).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Panel);
+    assert!((left + 725.0).abs() < 0.001);
+    model.advance_storage_transition(0.1).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Panel);
+    assert!((left + 725.0 / 32.0).abs() < 0.001);
+    model.advance_storage_transition(0.1).unwrap();
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Panel, 0.0)
+    );
+    assert!(!model.storage_panel.collapsed);
+    assert!(model.advance_storage_transition(f32::NAN).is_err());
+    assert!(model.advance_storage_transition(-0.1).is_err());
+    model.storage_panel.collapsed = true; // Cold mount has no transient timer.
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Handle, 0.0)
+    );
+}
+
+#[test]
 fn housing_storage_filters_use_authentic_dye_slots_and_independent_alphabetical_results() {
     use shared::protocol::{HousingState, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");

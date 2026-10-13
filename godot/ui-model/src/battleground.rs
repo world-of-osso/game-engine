@@ -319,12 +319,21 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
-        children.extend(panel_button(
+        children.extend(crate::selection_list::text_row(
             format!("PVPQueueFrameCategoryButton{}", index + 1),
             title,
             action,
-            true,
+            (
+                true,
+                view.category
+                    == [
+                        PvpCategory::QuickMatch,
+                        PvpCategory::Rated,
+                        PvpCategory::PremadeGroups,
+                    ][index],
+            ),
             (10.0, 66.0 + index as f32 * 80.0, 168.0, 50.0),
+            &crate::selection_list::PVP_CATEGORY,
         ));
     }
     if view.category != PvpCategory::QuickMatch {
@@ -401,12 +410,13 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
         .iter()
         .enumerate()
         .flat_map(|(index, template)| {
-            panel_button(
+            crate::selection_list::text_row(
                 format!("HonorFrameSpecificBattlegroundButton{}", template.id),
                 &template.name,
                 &format!("pvp:select:{}", template.id),
-                !view.pending,
+                (!view.pending, view.selected_battleground == template.id),
                 (0.0, index as f32 * SPECIFIC_ROW_H, 324.0, SPECIFIC_ROW_H),
+                &crate::selection_list::PVP_INSTANCE,
             )
         })
         .collect();

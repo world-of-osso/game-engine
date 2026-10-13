@@ -284,12 +284,14 @@ fn outfit_entry(book: &TransmogBook, row: &crate::transmog::OutfitRow, top: f32)
         (12.0, if viewed { WHITE } else { GOLD }, "LEFT"),
     ));
     let action = format!("transmog:outfit:{}", row.id);
-    let disabled = book.busy();
-    out.extend(
-        rsx! { button { name: {DynName(format!("{prefix}Button"))}, width: 208.0, height: 43.0,
-        left: 65.0, top: {top + 1.0}, pos_type: "absolute", button_default_skin: false, disabled,
-        button_atlas_highlight: "transmog-outfit-card", onclick: {action.as_str()}, {card} } },
-    );
+    out.extend(crate::selection_list::row(
+        format!("{prefix}Button"),
+        &action,
+        !book.busy(),
+        (65.0, top + 1.0, 208.0, 43.0),
+        (&crate::selection_list::TRANSMOG_OUTFIT, false),
+        card,
+    ));
     out
 }
 
