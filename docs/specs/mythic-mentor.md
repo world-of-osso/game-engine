@@ -8,7 +8,7 @@ Native independent Keys window, modelled on installed `BossHelper/UI/GroupFinder
 - [x] Reproduce list geometry:176-wide panel,22-unit header,8-unit padding,160×36 rows,4-unit gaps,26-unit dungeon icons, +level, class-coloured player name and leader crown. Authored dungeon time limit appears beside player name. Both-skin model tests and live1280×720 captures assert observable output.
 - [x] Replace server rows completely: self first, then party, including “No key”; solo remains; raid/empty hides. Bag/roster/leader updates must not retain old rows. Loading retains the initial snapshot; logout clears it.
 - [x] Title drag clamps to screen and saves per-character placement. Native drag/close/reopen proof records the saved position in both skins.
-- [x] Use local-CASC Retail art only; Forever changes the same chrome's art, not elements or behaviour. Azure icon4880614 is explicitly selected authentic `interface/lfgframe/ui-lfg-background-azurevaults.blp`, not a claimed C_ChallengeMode mapping; leader132062; no-key134400.
+- [x] Use local-CASC Retail art only; Forever changes the same chrome's art, not elements or behaviour. Dungeon icons join local MapChallengeMode.MapID to JournalInstance.MapID/ButtonSmallFileDataID: eight installed-addon maps plus Azure401; square authored LFG art, not stretched panoramas. Leader132062; no-key/unknown texture134400 per addon.
 - [ ] Current-season hosted-dungeon summaries use imported authored names/timers and real icon identities; no inferred seasonal/acquisition policy.
 - [ ] Dungeon-icon teleport buttons match installed `MythicTeleport.lua`, including known/unknown hover and cooldown countdown; casts use normal server authority. Azure401 has no addon teleport mapping. Unhosted destinations remain explicit gaps.
 
