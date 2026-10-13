@@ -668,6 +668,9 @@ impl crate::GameClient {
             self.halt_player_movement();
             return Ok(());
         }
+        if !self.transport_ready() {
+            return Ok(());
+        }
         self.adopt_server_speed();
         let viewport = self
             .base()
@@ -820,7 +823,10 @@ impl crate::GameClient {
     }
 
     pub(super) fn send_player_input(&mut self) -> Result<(), crate::frame_error::FrameError> {
-        if !self.gameplay_input_allowed() || self.world.local_player_controlled() {
+        if !self.gameplay_input_allowed()
+            || self.world.local_player_controlled()
+            || !self.transport_ready()
+        {
             return Ok(());
         }
         let (Some(yaw), Some(node), Some(epoch)) = (
@@ -832,15 +838,38 @@ impl crate::GameClient {
         };
         let position = node.get_position();
         let position = glam::Vec3::new(position.x, position.y, position.z);
-        let input = if self.game_menu_ui.is_some() || self.wild_pet_battle.view.state.is_some() {
+        let mut input = if self.game_menu_ui.is_some() || self.wild_pet_battle.view.state.is_some()
+        {
             self.player_movement.stop_input(yaw, position, epoch)
         } else {
             self.player_movement.network_input(yaw, position, epoch)
         };
-        match input {
-            Some(input) => Ok(self.account.send_player_input(input)?),
-            None => Ok(()),
+        let transport = self.transport_input_frame()?;
+        let pending_drop = self
+            .local_transport
+            .as_ref()
+            .is_some_and(|carrier| carrier.pending_disembark);
+        if input.is_none() && pending_drop {
+            input = Some(PlayerInput {
+                direction: [0.0; 3],
+                facing_yaw: yaw,
+                jumping: false,
+                running: self.player_movement.running,
+                swimming: self.player_movement.swimming,
+                flying: self.player_movement.flying,
+                position: position.to_array(),
+                epoch,
+                transport: None,
+            });
         }
+        if let Some(mut input) = input {
+            input.transport = transport;
+            self.account.send_player_input(input)?;
+            if let Some(carrier) = &mut self.local_transport {
+                carrier.pending_disembark = false;
+            }
+        }
+        Ok(())
     }
 
     /// The local player's replicated `MovementSpeed`, as the aura speed multiplier, and

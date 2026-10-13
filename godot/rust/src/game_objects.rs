@@ -77,6 +77,7 @@ pub(crate) struct GameObjects {
     data_root: PathBuf,
     displays: Option<Result<HashMap<u32, u32>, String>>,
     objects: HashMap<u64, ObjectNode>,
+    transports: HashMap<u64, crate::transport_motion::TransportView>,
     light: Option<TerrainLight>,
     particles: Option<ParticlePools>,
 }
@@ -164,6 +165,7 @@ impl GameObjects {
             data_root,
             displays: None,
             objects: HashMap::new(),
+            transports: HashMap::new(),
             light: None,
             particles: None,
         }
@@ -219,6 +221,29 @@ impl GameObjects {
     }
     pub fn position(&self, id: u64) -> Option<Vector3> {
         Some(self.objects.get(&id)?.node.get_global_position())
+    }
+    pub fn transport_pose(&self, id: u64) -> Option<shared::transport_route::TransportPose> {
+        Some(self.transports.get(&id)?.pose())
+    }
+    pub fn advance_transports(&mut self, delta: f32) {
+        for (id, view) in &mut self.transports {
+            view.advance(delta);
+            let pose = view.pose();
+            let object = self
+                .objects
+                .get_mut(id)
+                .expect("transport view has a rendered object");
+            object.node.set_position(Vector3::new(
+                pose.position[0],
+                pose.position[2],
+                -pose.position[1],
+            ));
+            object.node.set_rotation(Vector3::new(
+                0.0,
+                pose.orientation + std::f32::consts::FRAC_PI_2,
+                0.0,
+            ));
+        }
     }
     /// The top centre of the object's model bounds, where its soft target icon sits.
     pub fn icon_anchor(&self, id: u64) -> Option<Vector3> {
@@ -320,6 +345,15 @@ impl GameObjects {
         apply_object_collision(object, collision.0);
         if let Some(animation) = unit.get::<GameObjectAnimation>() {
             apply_object_animation(object, *animation)?;
+        }
+        if let Some(state) = unit.get::<shared::components::TransportState>() {
+            match self.transports.get_mut(&id) {
+                Some(view) => view.observe(state)?,
+                None => {
+                    self.transports
+                        .insert(id, crate::transport_motion::TransportView::new(state)?);
+                }
+            }
         }
         Ok(())
     }
@@ -465,6 +499,7 @@ impl GameObjects {
         self.light = light;
     }
     pub fn remove(&mut self, id: u64) {
+        self.transports.remove(&id);
         if let Some(object) = self.objects.remove(&id) {
             object.node.free();
         }
@@ -473,6 +508,7 @@ impl GameObjects {
         for (_, object) in self.objects.drain() {
             object.node.free();
         }
+        self.transports.clear();
         if let Some(pools) = &mut self.particles {
             pools.reset();
         }
@@ -482,6 +518,32 @@ impl GameObjects {
 
 /// Dedicated authored GO collision, using the same step/search/normal rules as M2 floors.
 pub(crate) fn floor_hit(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3) -> Option<f32> {
+    Some(
+        walkable_floor_hit(space, feet)?
+            .get("position")?
+            .to::<Vector3>()
+            .y,
+    )
+}
+
+pub(crate) fn floor_object(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3) -> Option<u64> {
+    let hit = walkable_floor_hit(space, feet)?;
+    let mut node = hit
+        .get("collider")?
+        .try_to::<Gd<godot::classes::Node>>()
+        .ok()?;
+    loop {
+        if node.has_meta("game_object_server_id") {
+            return Some(node.get_meta("game_object_server_id").to::<i64>() as u64);
+        }
+        node = node.get_parent()?;
+    }
+}
+
+fn walkable_floor_hit(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    feet: glam::Vec3,
+) -> Option<VarDictionary> {
     let from =
         Vector3::from_array((feet + glam::Vec3::Y * shared::ground::STEP_UP_HEIGHT).to_array());
     let to =
@@ -494,7 +556,7 @@ pub(crate) fn floor_hit(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3)
     if normal.y < shared::ground::min_walkable_normal_y() {
         return None;
     }
-    Some(hit.get("position")?.to::<Vector3>().y)
+    Some(hit)
 }
 
 fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
