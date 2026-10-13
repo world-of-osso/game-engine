@@ -41,6 +41,8 @@ func capture_case(output: String, case: String, forever: bool) -> bool:
 		return false
 	if not check_geometry(ui, case):
 		return false
+	if case == "settings" and not await hidden_apply_has_no_action(ui):
+		return false
 	var skin := "forever" if forever else "modern"
 	if image.save_png(output.path_join("%s-%s.png" % [case,skin])) != OK:
 		push_error("Cannot save capture")
@@ -124,6 +126,25 @@ func check_geometry(ui: Node, case: String) -> bool:
 			push_error("DefaultsButton XML Header TOPRIGHT(-36,-16) mismatch")
 			return false
 	print("GEOMETRY XML ",game.get_rect()," ",addons.get_rect()," ",search.get_rect()," Close=",close_offset," Apply=",apply.is_visible_in_tree())
+	return true
+
+func hidden_apply_has_no_action(ui: Node) -> bool:
+	var panel := ui.find_child("OptionsRoot",true,false) as Control
+	# Hit the authored Apply rectangle, not the registry's unconditional action lookup.
+	var point := panel.get_global_rect().position+Vector2(758,697)
+	for down in [true,false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = down
+		root.push_input(event,true)
+		await process_frame
+	ui.call("sync_input")
+	var action: String = ui.call("pop_action")
+	if not action.is_empty():
+		push_error("Hidden Apply rectangle emitted "+action)
+		return false
+	print("PASS hidden Apply has no native mouse action")
 	return true
 
 func click_action(ui: Node, name: String, expected: String) -> bool:
