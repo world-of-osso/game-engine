@@ -165,9 +165,7 @@ impl Peer {
             }
             _ if action.starts_with("unequip-offhand:") => {
                 self.bridge.send::<_, InventoryChannel>(SwapItem {
-                    from: ItemLocation::Equipment {
-                        slot: EquipmentSlot::OffHand,
-                    },
+                    from: ItemLocation::Equipment(EquipmentSlot::OffHand),
                     to: parse_bag_location(action, "unequip-offhand")?,
                 })
             }
