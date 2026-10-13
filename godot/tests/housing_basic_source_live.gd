@@ -92,6 +92,18 @@ func press_escape() -> void:
 	await frames(3)
 
 func source_instructions() -> bool:
+	var mouse: AtlasTexture = tile_atlas("HouseEditorPlaceInstructionControlIcon")
+	var key_art: AtlasTexture = tile_atlas("HouseEditorRotateLeftInstructionControlBackground")
+	if mouse==null or key_art==null or mouse.region!=Rect2(35,35,32,32) or key_art.region!=Rect2(103,1,32,32):
+		fail("Hotkey art lost authenticated native atlas members: "+str(mouse)+" / "+str(key_art))
+		return false
+	print("SOURCE_HOTKEY_MEMBERS mouse=",mouse.region," key=",key_art.region)
+	mouse.get_image().save_png(shots.path_join("source-leftclick-member.png"))
+	key_art.get_image().save_png(shots.path_join("source-key-member.png"))
+	var overlay: Control = housing_control("HouseEditorDecorMoveOverlay")
+	if overlay==null or overlay.get_global_rect()!=Rect2(Vector2.ZERO,Vector2(root.size)):
+		fail("Source DecorMoveOverlay did not cover the actual viewport")
+		return false
 	for name: String in ["RotateLeft","RotateRight","Remove","ToggleGrid"]:
 		if housing_text("HouseEditor"+name+"InstructionControlText")!="[UNBOUND]":
 			fail("Basic instruction invented default key: "+name)
