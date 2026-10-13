@@ -1631,7 +1631,10 @@ fn housing_expert_placed_list_uses_source_bounds_unknown_budget_and_real_scrolla
                     .unwrap(),
             )
             .unwrap();
-        assert_eq!(registry.click_frame(remove.id), None);
+        assert_eq!(
+            ui_toolkit::attrs::read_attribute(&registry, remove.id, "disabled"),
+            Some("true".into())
+        );
         view.model.close_placed_list();
         context.insert(view.clone());
         screen.sync(&context, &mut registry);
