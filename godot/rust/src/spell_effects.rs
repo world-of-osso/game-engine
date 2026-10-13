@@ -275,10 +275,9 @@ pub struct CastSeen {
 /// first cast froze the client through the whole cast (26-30 s on a loaded machine).
 fn load_catalog(data_root: &std::path::Path) -> BackgroundLoad<Result<SpellVisualCatalog, String>> {
     let db2 = data_root.join(DB2_DIR);
-    let cache = data_root
-        .join("cache")
-        .join(SpellVisualCatalog::cache_file_name());
+    let cache_root = data_root.join("cache");
     BackgroundLoad::start("spell-visuals", move || {
+        let cache = cache_root.join(SpellVisualCatalog::cache_file_name(&db2)?);
         SpellVisualCatalog::load(&db2, &cache).map_err(|error| format!("Spell visuals: {error}"))
     })
 }

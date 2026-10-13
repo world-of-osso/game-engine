@@ -9,7 +9,8 @@ use super::{build, cache, render, tabs};
 
 pub use super::tabs::{PrimaryStat, SpecTabInfo, SpellbookTabIndex, SpellbookTabKind};
 
-pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
+/// Directory selector; actual build identity lives in the export receipt.
+pub const SPELL_DB2_BUILD: &str = "active";
 
 /// Range in yards. Index 0 is the hostile range, index 1 the friendly range.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]

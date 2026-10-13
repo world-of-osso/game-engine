@@ -35,7 +35,7 @@ def layout_fields(definition, layout):
             raise ValueError(f'{definition}: unsupported DBD field {line}')
         tags, name, width, count = match.groups()
         kind = types[name]
-        fields.append((name + '_lang' if kind == 'locstring' else name,
+        fields.append((name + '_lang' if kind == 'locstring' and not name.endswith('_lang') else name,
                        kind, (tags or '').split(','), width, int(count or 1)))
     if not fields:
         raise ValueError(f'{definition}: empty layout {layout:08X}')
@@ -101,7 +101,12 @@ def sparse_rows(data, fields, reader):
     expected = len(columns(fields))
     if any(len(row) != expected for row in rows):
         raise ValueError(f'sparse schema column count differs from decoded row ({expected})')
-    return rows, header['record_count'] - len(records)
+    dropped = len(header.get('unreadable_record_ids', []))
+    for section in range(header['section_count']):
+        key, start, count, _, end, *_ = struct.unpack_from('<Q8I', data, 204 + section * 40)
+        if key and count and not any(data[start:end]):
+            dropped += count
+    return rows, dropped
 
 
 def export(data, definition, output, fixed_reader, sparse_reader=None):
