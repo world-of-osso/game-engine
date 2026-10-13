@@ -379,22 +379,60 @@ fn menu_tick(name: &str, kind: MenuElementKind) -> (f32, Element) {
 }
 
 pub fn menu_height_for_items(item_count: usize) -> f32 {
-    MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
+    menu_height(item_count, ROW_HEIGHT + DIVIDER_HEIGHT)
+}
+fn menu_height(item_count: usize, heading_height: f32) -> f32 {
+    MENU_INSET + heading_height + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
 }
 
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
-    let height = menu_height_for_items(props.items.len());
+    context_menu_with_kind(props, MenuElementKind::Button)
+}
+
+/// Uniform root elements, including LFDFrame.lua's selected radio.
+/// Empty title means no CreateTitle/CreateDivider, not a blank invented header.
+pub fn context_menu_with_kind(props: ContextMenu<'_>, kind: MenuElementKind) -> Element {
+    let heading_height = if props.title.is_empty() {
+        0.0
+    } else {
+        ROW_HEIGHT + DIVIDER_HEIGHT
+    };
+    let height = menu_height(props.items.len(), heading_height);
     let mut contents = crate::selection_list::menu_background(
         format!("{}Background", props.frame_name),
         (props.width, height),
     );
-    contents.extend(label(
+    contents.extend(context_menu_heading(props));
+    contents.extend(props.items.iter().enumerate().flat_map(|(index, item)| {
+        menu_element(
+            *item,
+            kind,
+            true,
+            (
+                MENU_INSET,
+                MENU_INSET + heading_height + index as f32 * ROW_HEIGHT,
+                props.width - 16.0,
+                ROW_HEIGHT,
+            ),
+        )
+    }));
+    rsx! { r#frame {
+        name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
+        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
+    } }
+}
+
+fn context_menu_heading(props: ContextMenu<'_>) -> Element {
+    if props.title.is_empty() {
+        return Vec::new();
+    }
+    let mut heading = label(
         props.title_name.into(),
         props.title,
         (MENU_INSET, MENU_INSET, props.width - 16.0, ROW_HEIGHT),
         (12.0, GOLD, "LEFT"),
-    ));
-    contents.extend(texture(
+    );
+    heading.extend(texture(
         props.divider_name.into(),
         MENU_DIVIDER,
         (
@@ -405,21 +443,5 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
         ),
         NORMAL,
     ));
-    contents.extend(props.items.iter().enumerate().flat_map(|(index, item)| {
-        menu_element(
-            *item,
-            MenuElementKind::Button,
-            true,
-            (
-                MENU_INSET,
-                MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
-                props.width - 16.0,
-                ROW_HEIGHT,
-            ),
-        )
-    }));
-    rsx! { r#frame {
-        name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
-        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
-    } }
+    heading
 }

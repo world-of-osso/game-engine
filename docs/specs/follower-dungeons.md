@@ -15,7 +15,7 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - `PVEFrame` retains XML563×428/TOPLEFT100,-84. All three tabs use the shared `PanelTabButtonTemplate` helper; Tab1 BOTTOMLEFT19,-30, Tab2/3 LEFT-to-RIGHT-16. Mythic+ remains unavailable in this follower slice.
 - Category buttons use `GroupFinderGroupButtonTemplate`203×60, source224×80 bluemenu backdrop,95×96 ring,66px inset-masked icon and GameFontNormalLarge. Current no-scenarios anchors come from `PVEFrame.lua`101px/30px spacing, not the scenarios-enabled XML70px/23px branch.
 - Source left inset, blue frame texture crops and the right inset remain native geometry. `UI-LFG-BACKGROUND-QUESTPAPER`337492 is512×256, BOTTOMLEFT6,26, clipped to the right inset; never stretched wall art337489.
-- The type chooser uses shared Retail WowStyle1 dropdown/menu primitives in both skins.
+- The type chooser uses shared Retail WowStyle1 dropdown/menu primitives in both skins. `LFDFrame.lua` creates a checked follower radio, without a menu title/divider; the one supported follower option must preserve that shape.
 
 ## Tests
 

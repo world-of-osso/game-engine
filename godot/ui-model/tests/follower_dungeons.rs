@@ -73,6 +73,39 @@ fn follower_group_finder_preserves_native_paper_and_disabled_category_art_in_bot
     }
 }
 
+#[test]
+fn follower_group_finder_type_menu_is_a_checked_radio_without_invented_heading() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            View {
+                visible: true,
+                type_open: true,
+                ..Default::default()
+            },
+            skin,
+        );
+        assert!(registry.get_by_name("LFDQueueFrameTypeTitle").is_none());
+        assert!(registry.get_by_name("LFDQueueFrameTypeDivider").is_none());
+        let menu = registry
+            .get(
+                registry
+                    .get_by_name("LFDQueueFrameTypeDropdownMenu")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(menu.height.value(), 43.0);
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameTypeFollowerTick")
+                .is_some()
+        );
+        assert_eq!(
+            button(&registry, "LFDQueueFrameTypeFollower").1.as_deref(),
+            Some("follower:type:follower")
+        );
+    }
+}
+
 fn button(registry: &FrameRegistry, name: &str) -> (ButtonState, Option<String>) {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))

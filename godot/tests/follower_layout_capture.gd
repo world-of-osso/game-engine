@@ -67,6 +67,18 @@ func verify_xml_geometry(ui: Node) -> bool:
 		if node == null or not node.get_global_rect().is_equal_approx(expected):
 			push_error("XML geometry mismatch " + name + ": " + str(node.get_global_rect() if node else null) + " expected " + str(rects[name]))
 			return false
+	var menu = ui.find_child("LFDQueueFrameTypeDropdownMenu", true, false)
+	if menu != null:
+		# LFDFrame.lua SetupMenu creates a selected radio, with no title/divider.
+		if not menu.get_global_rect().is_equal_approx(Rect2(455, 225, 200, 43)):
+			push_error("Follower type menu must use a single headerless Retail radio row")
+			return false
+		if ui.find_child("LFDQueueFrameTypeTitle", true, false) != null or ui.find_child("LFDQueueFrameTypeDivider", true, false) != null:
+			push_error("Follower type menu must not invent a header/divider")
+			return false
+		if ui.find_child("LFDQueueFrameTypeFollowerTick", true, false) == null:
+			push_error("Follower type must render its selected radio tick")
+			return false
 	var inset = ui.find_child("LFDParentFrameInset", true, false)
 	if not inset.clip_contents:
 		push_error("LFDParentFrameInset must clip native quest paper")
