@@ -22,6 +22,10 @@ For HD models (e.g. `humanmale_hd.m2`), the `.skel` file is a separate chunked b
 
 Legacy models embed bones and sequences directly in `MD21`.
 
+## Ribbon emitter scalars (2026-10-13)
+
+Retail `M2Ribbon` uses176-byte records and a32-bit bone index. Two texture/material reference arrays are followed by four20-byte tracks (colour, fixed16 alpha, height above, height below). Edge density/lifetime/emission-angle scalars follow at0x74/0x78/0x7c, with tile rows/columns at0x80/0x82; they are not at0x94/0x98, which overlap later tracks. Local WebWowViewerCpp `M2FileHeader.h::M2Ribbon` and `CRibbonEmitter` establish layout/meaning. Authenticated69933 model1417024 (`ribbontrail_rainbow.m2`, Prismatic Bauble) has one ribbon: bone1,50 edges/s,0.5-second lifetime, angle0,1×1 tiles. Wrong offsets returned near-zero density and NaN lifetime. Real-asset regression `core/tests/m2_ribbons.rs` reproduces that failure. Parser correction is not a native ribbon-rendering claim: the Godot effect builder still lacks a ribbon consumer. [Toy contract](../../specs/toy-box.md).
+
 ## Bones and Skeleton
 
 - Bone indices in M2 vertices are **global** skeleton indices — not local per-geoset indices.

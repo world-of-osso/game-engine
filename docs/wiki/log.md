@@ -1,3 +1,7 @@
+## 2026-10-13 — Real-source ribbon scalar parsing
+
+[Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): actual1417024 RED demonstrates incorrect track-overlap reads; source50 edges/s and0.5s lifetime fix. Native ribbon rendering remains open.
+
 ## 2026-10-13 — Native source area lifecycle
 
 [Area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13): typed source failure/detail and both-skin actual journal rejection, allowed use, aura exit and remaining cooldown proof.

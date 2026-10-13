@@ -1,5 +1,6 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Source Cage505683 live trapdoor hull/primary skin, already extracted from local CASC.
+models/1417024.m2
 models/6339134.m2
 models/6339702.skin
 # Paladin Avenging Wrath: authentic local-CASC wing/cast sheets and particle textures.

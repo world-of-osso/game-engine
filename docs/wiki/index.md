@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Source ribbon scalar parsing](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13) — actual rainbow1417024 density/lifetime RED, corrected Retail offsets; native ribbon rendering remains open.
+
 - [Native source Toy area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13) — actual both-skin journal rejection, permitted activation and exit removal with retained cooldown.
 
 - [War Banner faction/combat rendering](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13) — replicated team condition, both faction models in both skins, physical source combat removes native back attachments; no cloth certification.
