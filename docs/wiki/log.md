@@ -1,3 +1,7 @@
+## 2026-10-12 — Default UTF-8 storage search threshold
+
+[Housing](systems/housing.md#default-search-threshold-and-utf-8): default Mainline three-character applied query distinct from retained raw input. Both-skin physical short `z`/`zz`/`éé` keeps Structural and actual paid Tesla; three-character no-match focuses All, shortening restores results, clear/remount and conservation pass. Pure emoji/subcategory/sort/Catalog independence proof; locale1 overrides remain unclaimed.
+
 ## 2026-10-12 — Clear icon source hover/press and release capture
 
 [Housing](systems/housing.md#clear-icon-hoverpress-and-captured-release): source0.5/1 opacity and3/4 inset in both skins,34 brighter/24 shifted actual viewport pixels. Outside-release RED traced to editor world-region consumption before GUI; only clear-button captured left release now reaches GUI. Paid copies/layout and subsequent clear/remount unchanged; minimum-search-length/audio remain separate.
