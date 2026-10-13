@@ -105,6 +105,9 @@ func check_pet_loadout_models() -> bool:
 	if not await wait_frames(func(): return client.get_node_or_null("CollectionsJournalUI") != null, "Pet Journal"):
 		return false
 	var journal := client.get_node("CollectionsJournalUI")
+	if not await wait_frames(func(): return not journal.find_children("pet_select_owned_*", "Control", true, false).is_empty(), "owned journal rows after account update"):
+		print("PET_JOURNAL_CONTROLS ", journal.find_children("*", "Control", true, false).map(func(node): return node.name))
+		return false
 	var owned: Control
 	for candidate in journal.find_children("pet_select_owned_*", "Control", true, false):
 		if String(candidate.name).trim_prefix("pet_select_owned_").is_valid_int():
