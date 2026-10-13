@@ -16,7 +16,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Retail layout acceptance — October13
 
-- [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter 122×25 LEFT+9/BOTTOM to container TOP+22.
+- [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter LEFT+9/BOTTOM to container TOP+22. The 122×25 WowStyle2 template is overridden by PerksProgramProducts.lua to effective145×25 with fixed "Filter" text.
 - [x] Native price/name sort headers, action-bar icon mask, source-sized frozen/hold art, shared large-button state art and StaticPopup confirmation; no solid fill replacing authored art. No unsourced search control/API remains.
 - [ ] Time header: per-item remaining time has no sourced calendar binding; visible but disabled, not a fabricated duration.
 - [ ] Canonical art gaps: FDID4626072 action-bar icon mask and FDID4331660 Hold/List/Tooltip vertical edge atlas are absent; source button atlas FDID6794983 also absent. CASC extraction remains blocked. Missing art is explicit, with no unmasked or solid-fill substitute; native missing-art inventory is `data/diagnostics/trading-post-ui-2026-10-13/missing-art.json`.
@@ -24,7 +24,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Fidelity rework — October13
 
-Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay passes are not Retail-fidelity acceptance. Current-build `12.1.5.70391` art is staged privately for lead publication. Shared GameDialog item confirmation supplies source prompts, 128×21 dialog-box state art, item icon/name frame, source border and half-black full-screen cover; defaultbutton art is not used for Trading Post confirmation. Header labels/icons are LEFT-anchored with source normal/hover colors, Price is centered to Time, and freeze instructions/Leave arrow use the complete sourced text/markup dimensions. Projected and live fidelity gates remain open until D1–D6 re-verification.
+Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay passes are not Retail-fidelity acceptance. Current-build `12.1.5.70391` art is staged privately for lead publication. Shared GameDialog item confirmation supplies source prompts, 128×21 dialog-box state art, item icon/name frame, source border and half-black full-screen cover; defaultbutton art is not used for Trading Post confirmation. Header labels/icons are LEFT-anchored with source normal/hover colors, Price is centered to Time, and freeze instructions/Leave arrow use the complete sourced text/markup dimensions. Effective filtering uses Collected/Not Collected/Useable Only checkboxes, multiple Type checkboxes and Sort By/Ascending/radio submenus. The reset callback restores filter flags, not sort state; frozen selection remains independent of the filtered list. Usability comes from the server's supported class/race/level requirements, with unknown source facts excluded only when Useable Only is selected. Projected and live fidelity gates remain open until D1–D6 re-verification.
 
 ## Retail continuation — October13
 

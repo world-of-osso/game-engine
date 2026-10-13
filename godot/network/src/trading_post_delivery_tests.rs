@@ -37,6 +37,7 @@ fn trading_post_catalog_then_freeze_delta_survive_slow_server_frames() {
                 description: "Sourced catalog description. ".repeat(10),
                 icon_fdid: 5751509,
                 quality: 3,
+                usable: Some(true),
                 price: 250,
                 purchased: false,
                 collected: false,

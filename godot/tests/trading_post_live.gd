@@ -43,7 +43,7 @@ func run_fixture() -> void:
 		"layout":
 			await capture("vendor-all")
 			await click("PerksProgramFilter")
-			if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
+			if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
 			await capture("category-dropdown")
 			await choose_category(1)
 			await capture("vendor-transmog")
@@ -66,8 +66,8 @@ func layout_proof() -> void:
 	await click("PerksProgramNameSortButton")
 	if not await wait_until(func(): return client.trading_post_state().sort == "name", "name header"): return
 	await click("PerksProgramFilter")
-	if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
-	await capture("category-dropdown")
+	if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
+	await capture("filter-description")
 	if not await choose_category(2): return
 	if not await select_first_available(int(client.trading_post_state().tender)): return
 	await capture("vendor-mount")
@@ -126,8 +126,8 @@ func browse() -> void:
 	if not await wait_until(func(): return client.trading_post_state().preview_ready, "default selection preview", 120000): return
 	await capture("vendor-all")
 	await click("PerksProgramFilter")
-	if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
-	await capture("category-dropdown")
+	if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
+	await capture("filter-description")
 	for category in [[1, "transmog", "player"], [8, "transmog-set", "player"], [3, "pet", "creature"], [2, "mount", "creature"]]:
 		if not await choose_category(category[0]): return
 		var first: PackedStringArray = str(client.trading_post_state().rows[0]).split("|")
@@ -274,10 +274,18 @@ func open_vendor() -> bool:
 	return await wait_until(func(): return client.trading_post_state().open and int(client.trading_post_state().get("items", 0)) > 0, "authoritative Trading Post snapshot", 180000)
 
 func choose_category(id: int) -> bool:
-	if control("PerksProgramCategoryMenu") == null:
+	if control("PerksProgramFilterMenu") == null:
 		await click("PerksProgramFilter")
-	await click("PerksProgramCategory%d" % id)
-	return await wait_until(func(): return int(client.trading_post_state().category) == id, "category %d" % id)
+	await motion(control("PerksProgramFilterTypes").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control("PerksProgramTypeMenu") != null, "source Type submenu on hover"): return false
+	for row in client.trading_post_state().types:
+		var parts: PackedStringArray = str(row).split("|")
+		var checked := parts[1] == "1"
+		if checked != (int(parts[0]) == id):
+			await click("PerksProgramFilterType" + parts[0])
+	await capture("filter-type-%d" % id)
+	await click("PerksProgramFilter")
+	return await wait_until(func(): return int(client.trading_post_state().category) == id and control("PerksProgramFilterMenu") == null, "only source type %d checked" % id)
 
 # First listed row with a bound grant (and, given `budget`, a price within it).
 func select_first_available(budget: int = -1) -> bool:

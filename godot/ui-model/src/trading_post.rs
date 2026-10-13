@@ -1,19 +1,20 @@
 //! Retail Mainline Blizzard_PerksProgram: full-screen list, category filter and model.
 //! Forever changes atlas art only; ToyOverlayFrame uses the authored item icon/details.
+#[path = "trading_post_filter.rs"]
+mod filter_menu;
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
     quest_art::{DynName, named_atlas_texture},
     ui::{
         screens::menu_primitives::{
-            ContextMenu, ContextMenuItem, DropdownButton, DropdownState, DropdownStyle,
-            context_menu, dropdown_button_with_state,
+            DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
         },
         strata::FrameStrata,
     },
 };
 use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const MODEL: &str = "PerksProgramMainModelScene";
@@ -26,15 +27,54 @@ const LIST_HEIGHT: f32 = 573.;
 pub struct View {
     pub visible: bool,
     pub snapshot: Option<Arc<TradingPostSnapshot>>,
-    pub category: u32,
+    pub filters: Filters,
     pub selected: Option<u32>,
     pub dropdown: bool,
+    pub submenu: Option<FilterSubmenu>,
     pub sort: Sort,
     pub ascending: bool,
     pub pending: bool,
     pub confirm: Option<String>,
     pub error: String,
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Filters {
+    pub collected: bool,
+    pub uncollected: bool,
+    pub usable_only: bool,
+    pub excluded_types: BTreeSet<u32>,
+}
+impl Default for Filters {
+    fn default() -> Self {
+        Self {
+            collected: true,
+            uncollected: true,
+            usable_only: false,
+            excluded_types: BTreeSet::new(),
+        }
+    }
+}
+impl Filters {
+    fn includes(&self, row: &TradingPostItem) -> bool {
+        let ownership = if row.purchased {
+            self.collected
+        } else {
+            self.uncollected
+        };
+        ownership
+            && (!self.usable_only || row.usable == Some(true))
+            && !self.excluded_types.contains(&row.category_id)
+    }
+    fn is_default(&self) -> bool {
+        self.collected && self.uncollected && !self.usable_only && self.excluded_types.is_empty()
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FilterSubmenu {
+    Types,
+    Sort,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
     Request(TradingPostRequest),
@@ -60,7 +100,7 @@ impl View {
             .snapshot
             .iter()
             .flat_map(|snapshot| &snapshot.items)
-            .filter(|row| self.category == 0 || row.category_id == self.category)
+            .filter(|row| self.filters.includes(row))
             .collect();
         rows.sort_by(|a, b| {
             let order = match self.sort {
@@ -90,6 +130,13 @@ impl View {
             .find(|row| Some(row.id) == self.selected)
     }
     pub fn reselect(&mut self) {
+        let frozen = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.frozen_item_id);
+        if self.selected.is_some() && self.selected == frozen {
+            return;
+        }
         let rows = self.rows();
         if !rows.iter().any(|row| Some(row.id) == self.selected) {
             self.selected = rows.first().map(|row| row.id);
@@ -117,7 +164,29 @@ impl View {
         }
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
-            "perks:filter" => self.dropdown = !self.dropdown,
+            "perks:filter" => {
+                self.dropdown = !self.dropdown;
+                self.submenu = None;
+            }
+            "perks:submenu:types" => self.submenu = Some(FilterSubmenu::Types),
+            "perks:submenu:sort" => self.submenu = Some(FilterSubmenu::Sort),
+            "perks:filters:reset" => {
+                self.filters = Filters::default();
+                self.reselect();
+            }
+            "perks:filter:collected" => {
+                self.filters.collected = !self.filters.collected;
+                self.reselect();
+            }
+            "perks:filter:uncollected" => {
+                self.filters.uncollected = !self.filters.uncollected;
+                self.reselect();
+            }
+            "perks:filter:usable" => {
+                self.filters.usable_only = !self.filters.usable_only;
+                self.reselect();
+            }
+            "perks:sort:ascending" => self.ascending = !self.ascending,
             "perks:cancel" => self.confirm = None,
             "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
             "perks:refund" if self.can_refund() => self.confirm = Some("refund".into()),
@@ -164,9 +233,16 @@ impl View {
         self.sort = sort;
     }
     fn select_action(&mut self, action: &str) -> Result<(), String> {
-        if let Some(id) = action.strip_prefix("perks:category:") {
-            self.category = id.parse().map_err(|_| "Invalid Trading Post category")?;
-            self.dropdown = false;
+        if let Some(id) = action.strip_prefix("perks:type:") {
+            let id: u32 = id.parse().map_err(|_| "Invalid Trading Post type")?;
+            if !self.snapshot.as_ref().is_some_and(|snapshot| {
+                snapshot.categories.iter().any(|category| category.id == id)
+            }) {
+                return Err("Unknown Trading Post type".into());
+            }
+            if !self.filters.excluded_types.remove(&id) {
+                self.filters.excluded_types.insert(id);
+            }
             self.reselect();
             return Ok(());
         }
@@ -290,28 +366,27 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
     inner.extend(sort_headers(view));
     inner.extend(frozen_row(snapshot, view.selected));
     let mut out = rsx! {r#frame{name:"PerksProgramProductsScrollBoxContainer",left:CONTAINER_X,top:CONTAINER_Y,width:527.0,height:751.0,pos_type:"absolute",frame_level:1000.0,{inner}}};
-    let category = snapshot
-        .categories
-        .iter()
-        .find(|row| row.id == view.category)
-        .map_or("All", |row| row.name.as_str());
-    out.extend(retail_filter(category, view.dropdown));
+    out.extend(retail_filter(view));
     if view.dropdown {
-        out.extend(category_menu(snapshot));
+        out.extend(filter_menu::render(
+            view,
+            snapshot,
+            (FILTER_X, FILTER_Y + 25.),
+        ));
     }
     out
 }
 
 /// WowStyle2DropdownTemplate uses the shared primitive's input frame with Retail child art.
-fn retail_filter(category: &str, open: bool) -> Element {
+fn retail_filter(view: &View) -> Element {
     use ui_toolkit::widget_def::{Attr, AttrValue, WidgetChild};
     let mut out = dropdown_button_with_state(
         DropdownButton {
             frame_name: "PerksProgramFilter",
             label_name: "PerksProgramFilterText",
             arrow_name: "PerksProgramFilterArrow",
-            text: category,
-            width: 122.,
+            text: "Filter",
+            width: 145.,
             height: 25.,
             x: FILTER_X,
             y: -FILTER_Y,
@@ -322,7 +397,12 @@ fn retail_filter(category: &str, open: bool) -> Element {
         },
         DropdownState {
             style: DropdownStyle::WowStyle2,
-            open,
+            open: view.dropdown,
+            reset_action: if view.filters.is_default() {
+                None
+            } else {
+                Some("perks:filters:reset")
+            },
             ..DropdownState::default()
         },
     );
@@ -634,68 +714,6 @@ fn hold_art() -> Element {
         let coords=format!("{left},{right},{top},{bottom}");
         rsx! {texture{name:{DynName(format!("PerksProgramHold{part}"))},left:x,top:y,width,height,pos_type:"absolute",texture_fdid:fdid,tex_coords:coords.as_str()}}
     }).collect()
-}
-
-fn category_menu(snapshot: &TradingPostSnapshot) -> Element {
-    let names: Vec<_> = std::iter::once("PerksProgramCategoryAll".to_owned())
-        .chain(
-            snapshot
-                .categories
-                .iter()
-                .map(|c| format!("PerksProgramCategory{}", c.id)),
-        )
-        .collect();
-    let actions: Vec<_> = std::iter::once("perks:category:0".to_owned())
-        .chain(
-            snapshot
-                .categories
-                .iter()
-                .map(|c| format!("perks:category:{}", c.id)),
-        )
-        .collect();
-    let labels: Vec<_> = std::iter::once("All")
-        .chain(snapshot.categories.iter().map(|c| c.name.as_str()))
-        .collect();
-    let items: Vec<_> = names
-        .iter()
-        .zip(&actions)
-        .zip(labels)
-        .map(|((name, action), label)| ContextMenuItem {
-            name,
-            label,
-            action,
-        })
-        .collect();
-    let mut menu = context_menu(ContextMenu {
-        frame_name: "PerksProgramCategoryMenu",
-        title_name: "PerksProgramCategoryTitle",
-        divider_name: "PerksProgramCategoryDivider",
-        hidden: false,
-        title: "Filter",
-        width: 122.,
-        x: FILTER_X,
-        y: FILTER_Y + 25.,
-        items: &items,
-    });
-    // Blizzard_Menu/Menu.lua: FULLSCREEN_DIALOG, owner level +500 +menu level.
-    let ui_toolkit::widget_def::WidgetChild::Widget(frame) = &mut menu[0] else {
-        unreachable!("context-menu primitive frame");
-    };
-    for attr in &mut frame.attrs {
-        match attr.name {
-            "strata" => {
-                attr.value = ui_toolkit::widget_def::AttrValue::Dynamic(
-                    FrameStrata::FullscreenDialog.to_string(),
-                )
-            }
-            "frame_level" => {
-                attr.value =
-                    ui_toolkit::widget_def::AttrValue::Dynamic((1000 + 500 + 1).to_string())
-            }
-            _ => {}
-        }
-    }
-    menu
 }
 
 // PerksProgramFooterFrame: BOTTOMLEFT/BOTTOMRIGHT, height100; buttons BOTTOM+20.
