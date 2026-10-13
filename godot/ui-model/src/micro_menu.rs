@@ -163,13 +163,13 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         art: Some("GuildCommunities"),
         unavailable: None,
     },
-    // Not `C_LFGInfo.CanPlayerUseGroupFinder()`: no group finder service.
+    // Native LFD follower catalog/admission, with the existing PvP tab.
     MicroButton {
         name: "LFDMicroButton",
         title: "Group Finder",
         binding: None,
         art: Some("Groupfinder"),
-        unavailable: Some(SYSTEM_DISABLED),
+        unavailable: None,
     },
     // Retail CollectionsJournal; native Toy Box is the implemented journal tab.
     MicroButton {
