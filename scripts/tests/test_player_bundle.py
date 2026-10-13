@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import shutil
 import tempfile
 import subprocess
@@ -26,7 +27,9 @@ class PlayerBundleTest(unittest.TestCase):
                 path = data / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(name)
-            expected = {'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv',
+            index = {'version': 1, 'assets': [{'product': 'wow', 'build_key': 'dcfc90fffd79ba00406ae46f5f657592', 'path': 'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2'}]}
+            (data / 'cache/model-asset-index.json').write_text(json.dumps(index))
+            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv',
                         'local-listfile-cache.sqlite', 'forever-1.60.1.70205/models/a.m2',
                         'gametables/classes.txt',
                         'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
@@ -45,6 +48,7 @@ class PlayerBundleTest(unittest.TestCase):
             data = root / 'data'
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
+            (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
             (data / 'textures/12.blp').write_text('direct')
             canonical = root / 'canonical.blp'
             canonical.write_text('linked')
@@ -57,6 +61,24 @@ class PlayerBundleTest(unittest.TestCase):
                 self.assertEqual(shipped.stat().st_ino, source.stat().st_ino)
             shutil.rmtree(target)
             self.assertEqual(canonical.read_text(), 'linked')
+
+    def test_bundle_selects_current_receipt_and_excludes_old_namespace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            old = 'products/wow/' + '1' * 32 + '/textures/126862.blp'
+            new = 'products/wow/' + '2' * 32 + '/textures/126862.blp'
+            for name, raw in [(old, b'old'), (new, b'new')]:
+                path = data / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(raw)
+            (data / 'cache/model-asset-index.json').write_text(json.dumps({'version': 1, 'assets': [{'product': 'wow', 'build_key': '2' * 32, 'path': new}]}))
+            target = root / 'player'
+            bundle.copy_data(root, target)
+            self.assertEqual((target / 'data' / new).read_bytes(), b'new')
+            self.assertFalse((target / 'data' / old).exists())
 
     def test_project_keeps_resources_but_excludes_crates_and_tests(self):
         with tempfile.TemporaryDirectory() as directory:
