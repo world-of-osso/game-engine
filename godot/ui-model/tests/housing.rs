@@ -9,6 +9,68 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_storage_transition_frames_slide_in_source_order_in_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use ui_toolkit::layout_values::Val;
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.surface = HousingSurface::Editor;
+        model.storage_panel.resize([725.0, 730.0]).unwrap();
+        let mut view = HousingView {
+            model,
+            authority: HousingAuthority::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let render = |view: &HousingView| {
+            let mut context = SharedContext::new();
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            registry
+        };
+        let left = |registry: &FrameRegistry, name: &str| {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Val::Px(left) = frame.position.left else {
+                panic!("Source slide offset must be pixels")
+            };
+            left
+        };
+        view.model.start_storage_transition(true);
+        view.model.advance_storage_transition(0.1).unwrap();
+        let registry = render(&view);
+        assert!((left(&registry, "HouseEditorStorageFrame") + 725.0 * 0.96875).abs() < 0.001);
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageExpandButton")
+                .is_none()
+        );
+        view.model.advance_storage_transition(0.1).unwrap();
+        let registry = render(&view);
+        assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+        assert!((left(&registry, "HouseEditorStorageExpandButton") + 64.0 * 0.67).abs() < 0.001);
+        view.model.advance_storage_transition(0.15).unwrap();
+        assert_eq!(left(&render(&view), "HouseEditorStorageExpandButton"), 0.0);
+        view.model.start_storage_transition(false);
+        view.model.advance_storage_transition(0.15).unwrap();
+        let registry = render(&view);
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageExpandButton")
+                .is_none()
+        );
+        assert!((left(&registry, "HouseEditorStorageFrame") + 725.0).abs() < 0.001);
+        view.model.advance_storage_transition(0.2).unwrap();
+        assert_eq!(left(&render(&view), "HouseEditorStorageFrame"), 0.0);
+    }
+}
+
+#[test]
 fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equivalent() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HousingState, StoredDecor};
