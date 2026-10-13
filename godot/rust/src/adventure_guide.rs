@@ -410,6 +410,22 @@ impl GameClient {
                 "activity_source_error",
                 snapshot.source_error.as_deref().unwrap_or(""),
             );
+            let available: PackedStringArray = snapshot
+                .activities
+                .iter()
+                .filter_map(|row| match &row.progress {
+                    shared::protocol::PerksActivityProgress::Available {
+                        current,
+                        required,
+                        ..
+                    } => Some(GString::from(&format!(
+                        "{}|{}|{current}/{required}|{}",
+                        row.id, row.points, row.name
+                    ))),
+                    shared::protocol::PerksActivityProgress::Unavailable { .. } => None,
+                })
+                .collect();
+            state.set("available_activities", &available);
             state.set(
                 "tracked_activity_count",
                 snapshot.activities.iter().filter(|row| row.tracked).count() as i64,
