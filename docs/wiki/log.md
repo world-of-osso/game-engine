@@ -3492,3 +3492,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
 
 - 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
+
+- 2026-10-12: Source0.2s panel/0.15s handle OutExponential phases, transient timer/cold load, deterministic model and both-skin moving registry/native frame samples. Generic click settle invalidated initial witness; concurrent render observer proves ordered motion without product workaround.
