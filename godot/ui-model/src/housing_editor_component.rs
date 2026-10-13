@@ -31,6 +31,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
     );
     let stored = stored_entries(view, disabled);
     let categories = crate::housing_storage_component::categories(view);
+    let filters = crate::housing_storage_component::filters(view);
     let category_path = view.model.storage_category_path();
     let hide_search_hint = !view.model.storage_search.is_empty();
     let status = if can_edit {
@@ -51,7 +52,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
     rsx! { r#frame { name: "HouseEditorFrame", stretch: true,
         r#frame { name: "HouseEditorStorageFrame", width: 600.0, height: 651.0,
             pos_type: "absolute", left: 0.0, top: 0.0, mouse_enabled: true, strata: FrameStrata::Dialog,
-            {background} {header} {stored} {categories}
+            {background} {header} {stored} {categories} {filters}
             fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:500.0,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
             fontstring { name: "HouseEditorStorageTitle", text: status, width: 500.0, height: 32.0,
                 pos_type: "absolute", left: 85.0, top: 620.0, font_size: 14.0 }
@@ -84,7 +85,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
 fn stored_entries(view: &HousingView, disabled: bool) -> Element {
     let entries = view.model.stored_entries(&view.authority);
     if entries.is_empty() {
-        return rsx! {fontstring {name:"HouseEditorStorageEmpty",text:"No stored decor matches your search.",width:400.0,height:60.0,pos_type:"absolute",left:85.0,top:100.0,font_size:14.0}};
+        return rsx! {fontstring {name:"HouseEditorStorageEmpty",text:"No stored decor matches your search or filters.",width:400.0,height:60.0,pos_type:"absolute",left:85.0,top:100.0,font_size:14.0}};
     }
     entries
         .into_iter()
