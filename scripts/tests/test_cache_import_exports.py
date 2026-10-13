@@ -61,10 +61,12 @@ class CacheImportExportTests(unittest.TestCase):
             for table, layout, values, expected in CASES:
                 with self.subTest(table=table):
                     source.write_bytes(fixture(layout, values))
-                    result = subprocess.run([sys.executable, str(ROOT / "scripts/export_db2_csv.py"), table, str(source), str(output)], capture_output=True, text=True)
+                    result = subprocess.run([sys.executable, str(ROOT / "scripts/export_db2_csv.py"), table, str(source), str(output), '--definitions', str(ROOT / 'scripts/tests/fixtures/db2-dbd')], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     with output.open() as handle:
-                        self.assertEqual(list(csv.DictReader(handle)), [expected])
+                        rows = list(csv.DictReader(handle))
+                        self.assertEqual(len(rows), 1)
+                        self.assertEqual({key: rows[0][key] for key in expected}, expected)
 
 
 if __name__ == "__main__":

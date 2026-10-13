@@ -17,7 +17,7 @@ import struct
 SPEC = importlib.util.spec_from_file_location('journal_wdc5', Path(__file__).with_name('export_db2_csv.py'))
 WDC = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(WDC)
-BUILD = '12.1.0.69933'
+from db2_source import source_identity
 TABLES = {
     'JournalTier': (1349056, 0xF4AFE752),
     'JournalTierXInstance': (1285009, 0xBFCBF1F0),
@@ -201,6 +201,7 @@ def read_challenge_dungeons(world):
 
 
 def import_cache(db2, definitions, output, items, world):
+    build = source_identity(db2)['build']
     # Decode every input before replacing an existing cache.
     decoded = {table: read_table(table, db2 / f'{fdid}.db2', definitions / f'{table}.dbd') for table, (fdid, _) in TABLES.items()}
     challenges = read_challenge_dungeons(world)
@@ -214,7 +215,7 @@ def import_cache(db2, definitions, output, items, world):
             connection.execute(f'CREATE TABLE "{table}" ({", ".join(f"{name} {kind}" for name, kind in columns)})')
             connection.executemany(f'INSERT INTO "{table}" VALUES ({",".join("?" for _ in columns)})', rows)
             connection.execute(f'CREATE UNIQUE INDEX "{table}_id" ON "{table}" (ID)')
-            connection.execute('INSERT INTO source VALUES(?,?,?,?,?)', (BUILD, table, f'{TABLES[table][1]:08X}', len(rows), dropped))
+            connection.execute('INSERT INTO source VALUES(?,?,?,?,?)', (build, table, f'{struct.unpack_from("<I", (db2 / f"{TABLES[table][0]}.db2").read_bytes(), 156)[0]:08X}', len(rows), dropped))
             print(f'{table}: {len(rows)} readable, {dropped} encrypted/unreadable')
         import_items(connection, items)
         import_item_specializations(connection)

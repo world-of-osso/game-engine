@@ -278,7 +278,7 @@ def overlay_gear_tables(forever, retail):
 
 
 def read_npc_import_inputs(data, requested, tables):
-    with (data / "db2/12.1.0.69933/CreatureDisplayInfo.csv").open(newline="") as handle:
+    with (data / "db2/active/CreatureDisplayInfo.csv").open(newline="") as handle:
         retail_ids = {int(row["ID"]) for row in csv.DictReader(handle)}
     models = index_rows(tables, "CreatureModelData", "ID")
     needed = {int(row["FileDataID"]) for row in models.values()}

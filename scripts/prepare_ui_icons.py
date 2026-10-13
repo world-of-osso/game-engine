@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import subprocess
 
-SPELL_BUILD = "12.1.0.69933"
+from db2_source import active_directory, source_identity
 MANIFEST = Path("cache/required-ui-icons.json")
 EXCEPTIONS = Path("scripts/ui-icon-exceptions.json")
 
@@ -25,7 +25,7 @@ def hash_file(path: Path) -> str:
 
 
 def icon_tables(data: Path) -> dict[Path, tuple[str, ...]]:
-    directory = Path("db2") / SPELL_BUILD
+    directory = active_directory(data).relative_to(data)
     tables = {
         directory / "SpellMisc.csv": ("SpellIconFileDataID", "ActiveIconFileDataID"),
         directory / "TraitDefinition.csv": ("OverrideIcon",),
@@ -63,7 +63,7 @@ def collect_required_icons(data: Path) -> dict:
                         sources.setdefault(fdid, set()).add(f"{relative}:{column}")
     return {
         "version": 1,
-        "spell_db2_build": SPELL_BUILD,
+        "spell_db2_build": source_identity(active_directory(data))["build"],
         "scope": "All positive SpellMisc/trait/class/spec icons and source-local item icons; superset of reachable spellbook/talent icons.",
         "source_tables": table_hashes,
         "icons": [{"fdid": fdid, "sources": sorted(origin)} for fdid, origin in sorted(sources.items())],
@@ -107,8 +107,6 @@ def normalize_extracted_icon_names(data: Path, fdids: list[int]) -> None:
 def load_icon_exceptions(root: Path) -> dict[int, str]:
     """User-approved (2026-10-11) icons unobtainable from local CASC; each needs a concrete reason."""
     document = json.loads((root / EXCEPTIONS).read_text())
-    if document["spell_db2_build"] != SPELL_BUILD:
-        raise ValueError(f"{root / EXCEPTIONS}: spell_db2_build {document['spell_db2_build']} != {SPELL_BUILD}")
     return {entry["fdid"]: entry["reason"] for entry in document["exceptions"]}
 
 

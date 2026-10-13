@@ -10,11 +10,12 @@ pinned WoWDBDefs .dbd files; unreadable records are counted, never synthesized.
 import argparse
 import hashlib
 import json
+import struct
 from pathlib import Path
+from db2_source import source_identity
 
 from adventure_guide_import import TABLES, read_table
 
-BUILD = '12.1.0.69933'
 SOURCES = {
     'Covenant': (3384973, 0xB8563783),
     'Faction': (1361972, 0xE7553DC7),
@@ -72,9 +73,10 @@ def build_catalog(covenants, factions, currencies, rewards, conditions):
 def read_source(directory, definitions, name):
     fdid, layout = SOURCES[name]
     TABLES[name] = (fdid, layout)
-    path = directory / f'{fdid}.dat'
+    path = directory / f'{fdid}.db2'
     columns, rows, dropped = read_table(name, path, definitions / f'{name}.dbd')
     names = [column for column, _ in columns]
+    layout = struct.unpack_from('<I', path.read_bytes(), 156)[0]
     receipt = {'table': name, 'fdid': fdid, 'layout': f'{layout:08X}', 'records': len(rows),
                'unreadable': dropped, 'md5': hashlib.md5(path.read_bytes()).hexdigest()}
     return [dict(zip(names, row)) for row in rows], receipt
@@ -93,7 +95,7 @@ def main():
     catalog = build_catalog(tables['Covenant'], {row['ID']: row for row in tables['Faction']},
                             {row['ID']: row for row in tables['CurrencyTypes']}, tables['RenownRewards'],
                             {row['ID']: row for row in tables['PlayerCondition']})
-    args.output.write_text(json.dumps({'build': BUILD, 'sources': receipts, 'major_factions': catalog},
+    args.output.write_text(json.dumps({'build': source_identity(args.db2)['build'], 'sources': receipts, 'major_factions': catalog},
                                       indent=1, ensure_ascii=False) + '\n')
     print(json.dumps({'major_factions': len(catalog), 'rewards': sum(len(row['rewards']) for row in catalog)}))
 
