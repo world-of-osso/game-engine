@@ -69,7 +69,7 @@ impl GameClient {
             GameClient::transmog_set_tooltip,
             GameClient::transmog_source_tooltip,
             GameClient::transmog_illusion_tooltip,
-            GameClient::housing_catalog_tooltip,
+            GameClient::housing_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::talent_gate_tooltip,
@@ -97,23 +97,36 @@ impl GameClient {
         SOURCES.iter().find_map(|source| source(self, hit))
     }
 
-    /// `HousingCatalogEntry{decor}`: HousingCatalogDecorEntryMixin tooltip, `ANCHOR_RIGHT`.
-    fn housing_catalog_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+    /// Catalog/stored decor and the source open-storage handle use `ANCHOR_RIGHT`.
+    fn housing_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        enum Target {
+            Decor(u32),
+            Chest,
+        }
         let ui = hit.ui.bind();
-        let (owner, id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            name_of(frame)?
-                .strip_prefix("HousingCatalogEntry")?
-                .parse::<u32>()
-                .ok()
+        let (owner, target) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            if name == "HouseEditorStorageExpandButton" {
+                return Some(Target::Chest);
+            }
+            let id = name
+                .strip_prefix("HousingCatalogEntry")
+                .or_else(|| name.strip_prefix("HouseEditorStored"))?;
+            id.parse().ok().map(Target::Decor)
         })?;
         drop(ui);
-        let model = self.housing.model.as_ref()?;
-        let decor = model.catalog.decor.iter().find(|decor| decor.id == id)?;
-        let tooltip = game_engine_ui_model::housing::decor_entry_tooltip(
-            decor,
-            &model.catalog,
-            &self.housing.authority,
-        );
+        let tooltip = match target {
+            Target::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
+            Target::Decor(id) => {
+                let model = self.housing.model.as_ref()?;
+                let decor = model.catalog.decor.iter().find(|decor| decor.id == id)?;
+                game_engine_ui_model::housing::decor_entry_tooltip(
+                    decor,
+                    &model.catalog,
+                    &self.housing.authority,
+                )
+            }
+        };
         let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
