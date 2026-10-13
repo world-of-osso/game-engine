@@ -29,10 +29,42 @@ Verified: 2026-10-08. `/syncthing/World of Warcraft/` is absent on this host, bu
 
 `data/casc/root.bin`, `encoding.bin`, and the build-key directories under `data/casc/wow/` are resolution metadata (root/encoding/SQLite), not archive storage. They cannot supply file payloads alone. Do not mistake their presence for a usable install, or delete them to repair missing texture files.
 
+## Installed-build following (2026-10-13)
+
+Extraction reads the unique active product row in `.build.info`; `.product.db`
+and authored DB2 build pins do not select extraction builds. Retail DB2 CSVs
+remain 12.1.0.69933. New provenance records the installed build; existing
+published receipts retain their original build. See the
+[isolation contract](specs/product-isolated-model-assets.md#installed-build-extraction-decision-2026-10-13).
+
+Resolution tables/state live at
+`$ASSET_RESOLVER_CACHE_DIR/casc/<product>/<active-build-key>/schema-2/`.
+Default cache root: `~/.cache/asset-resolver`. A changed build automatically
+bootstraps a new directory; old `data/casc/root.bin`/`encoding.bin` and other
+build directories are never treated as active tables. Keep historical tables,
+which authenticated offline receipts may still reference.
+
+### Lead-only canonical regeneration
+
+Wait for Syncthing's `wow-install` folder to become idle/up-to-date. After landing
+both `casc-follow-install` branches, run once in canonical asset-resolver:
+
+```sh
+/home/osso/Projects/world-of-osso/game-engine/scripts/agent/agent-run casc_follow \
+  env WOW_INSTALL_PATH='/syncthing/World of Warcraft' WOW_PRODUCT=wow \
+  ASSET_RESOLVER_CACHE_DIR=/home/osso/Projects/world-of-osso/game-engine/data \
+  cargo run --locked --manifest-path /home/osso/Projects/world-of-osso/asset-resolver/Cargo.toml --bin casc_refresh
+```
+
+This writes `data/casc/wow/<active-build-key>/schema-2/{root.bin,encoding.bin,resolution.sqlite}`,
+not the legacy unqualified pair. Use the same `ASSET_RESOLVER_CACHE_DIR` for
+runtime/spot checks to reuse this one build. Agent proofs must use a private
+cache root/output directory; no agent regenerates canonical tables.
+
 ## Local Refresh
 
 When the cached `root.bin` and `encoding.bin` under
-`~/.cache/asset-resolver/casc/<product>/<build-key>/` drift out of sync with the
+`~/.cache/asset-resolver/casc/<product>/<build-key>/schema-2/` drift out of sync with the
 synced WoW install, local extraction starts failing with errors like:
 
 ```text
@@ -54,7 +86,7 @@ This binary:
 3. Reads `encoding.bin` from local CASC archives by the build config's encoding key
 4. Resolves the build config's root content key through that fresh encoding file
 5. Reads `root.bin` from local CASC archives by the resolved encoding key
-6. Writes both files back to `~/.cache/asset-resolver/casc/<product>/<build-key>/`
+6. Writes both files plus resolution SQLite to `~/.cache/asset-resolver/casc/<product>/<build-key>/schema-2/`
 
 ### Verify
 
@@ -85,7 +117,7 @@ cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid
 
 1. Opens local CASC at `/syncthing/World of Warcraft/Data`
 2. Loads `.idx` index files (2.1M entries across 197 archives)
-3. Loads cached `~/.cache/asset-resolver/casc/<product>/<build-key>/root.bin` + `encoding.bin`
+3. Loads active-build `~/.cache/asset-resolver/casc/<product>/<build-key>/schema-2/root.bin` + `encoding.bin`, rebuilding absent/stale tables from local archives
 4. Resolution chain: FDID → ContentKey (root) → EncodingKey (encoding) → archive location (.idx)
 5. Reads + BLTE-decompresses from local `.data` archives
 6. Files named by FDID: `{fdid}.m2`, `{fdid}.blp`, etc.
