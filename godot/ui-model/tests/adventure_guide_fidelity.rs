@@ -251,13 +251,30 @@ fn adventure_guide_fidelity_ability_header_uses_paper_regions_and_source_icon_in
         v.apply("journal:encounter:112").unwrap();
         v.apply("journal:page:abilities").unwrap();
         let section = v.sections().unwrap()[0].0.id;
-        let r = render(&v, skin);
+        let mut r = render(&v, skin);
         let name = format!("JournalSection{section}");
         assert_eq!(rect(&r, &format!("{name}ExpandedIcon")), [5., 6., 12., 12.]);
         assert_eq!(rect(&r, &format!("{name}Icon")), [22., 3., 18., 18.]);
         assert_eq!(rect(&r, &format!("{name}Name"))[0], 45.);
         assert!(r.get_by_name(&format!("{name}PaperLeft")).is_some());
         assert!(!text(&r, &format!("{name}Name")).starts_with('−'));
+        let id = r.get_by_name(&name).unwrap();
+        if let Some(WidgetData::Button(b)) = &mut r.get_mut(id).unwrap().widget_data {
+            b.state = ButtonState::Pushed;
+        }
+        game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut r);
+        let Some(WidgetData::Texture(paper)) = &frame(&r, &format!("{name}PaperLeft")).widget_data
+        else {
+            panic!("paper")
+        };
+        assert_eq!(
+            paper.tex_coords,
+            [0.640625, 0.765625, 0.21386719, 0.2421875]
+        );
+        v.apply(&format!("journal:section:{section}")).unwrap();
+        let r = render(&v, skin);
+        assert_eq!(text(&r, &format!("{name}ExpandedIcon")), "+");
+        assert!(r.get_by_name(&format!("{name}Body")).is_none());
     }
 }
 #[test]
