@@ -284,7 +284,7 @@ impl RegistryModel {
             .shared
             .get::<game_engine_ui_model::housing_component::HousingView>()
         {
-            game_engine_ui_model::housing_component::apply_housing_storage_postsetup(
+            game_engine_ui_model::housing_component::apply_housing_postsetup(
                 view,
                 &mut self.registry,
             );

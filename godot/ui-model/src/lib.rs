@@ -78,6 +78,7 @@ pub mod housing_finder_component;
 pub mod housing_mouse_component;
 pub mod housing_navigation_component;
 pub mod housing_placed_list;
+mod housing_placed_list_component;
 #[cfg(test)]
 mod housing_placed_list_tests;
 pub mod housing_settings;

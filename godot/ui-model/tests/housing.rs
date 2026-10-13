@@ -11,7 +11,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 #[test]
 fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
     use game_engine_ui_model::housing::HousingAuthority;
-    use game_engine_ui_model::housing_component::apply_housing_storage_postsetup;
+    use game_engine_ui_model::housing_component::apply_housing_postsetup;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -32,7 +32,7 @@ fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
         context.insert(view.clone());
         let mut registry = FrameRegistry::new(1280.0, 720.0);
         Screen::new(housing_screen).sync(&context, &mut registry);
-        apply_housing_storage_postsetup(&view, &mut registry);
+        apply_housing_postsetup(&view, &mut registry);
         let frame = registry
             .get(registry.get_by_name("HousingCatalogSearchBox").unwrap())
             .unwrap();
@@ -49,7 +49,7 @@ fn housing_catalog_input_postsetup_limits_unicode_in_both_skins() {
 #[test]
 fn housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
-    use game_engine_ui_model::housing_component::apply_housing_storage_postsetup;
+    use game_engine_ui_model::housing_component::apply_housing_postsetup;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -73,7 +73,7 @@ fn housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_bot
             context.insert(view.clone());
             let mut registry = FrameRegistry::new(1280.0, 720.0);
             Screen::new(housing_screen).sync(&context, &mut registry);
-            apply_housing_storage_postsetup(&view, &mut registry);
+            apply_housing_postsetup(&view, &mut registry);
             let search = registry
                 .get(registry.get_by_name("HouseEditorStorageSearchBox").unwrap())
                 .unwrap();
@@ -1489,6 +1489,163 @@ fn housing_storage_categories_show_owned_roots_then_back_all_and_source_filtered
         );
         assert!(registry.get_by_name("HouseEditorStored1693").is_some());
         assert!(registry.get_by_name("HouseEditorStored2330").is_some());
+    }
+}
+
+#[test]
+fn housing_expert_placed_list_uses_source_bounds_unknown_budget_and_real_scrollable_rows_both_skins()
+ {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_editor::EditorMode;
+    use game_engine_ui_model::housing_placed_list::LIST;
+    use shared::protocol::{DecorTransform, HouseLayout, HousingState, PlacedDecor, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = Arc::new(HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap());
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            placed: vec![StoredDecor {
+                decor_id: 1693,
+                quantity: 20,
+            }],
+            layout: Some(HouseLayout {
+                house_id: 1,
+                can_edit: true,
+                decor: (1..=20)
+                    .map(|instance_id| PlacedDecor {
+                        instance_id,
+                        decor_id: 1693,
+                        transform: DecorTransform {
+                            position: [-1000.0, -2.0, 996.0],
+                            yaw: 0.0,
+                            pitch: 0.0,
+                            roll: 0.0,
+                            scale: 1.0,
+                        },
+                        dyes: vec![],
+                    })
+                    .collect(),
+            }),
+            ..Default::default()
+        }),
+        error: None,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(catalog.clone());
+        model.surface = HousingSurface::Editor;
+        model.editor.set_mode(EditorMode::Expert);
+        let mut view = HousingView {
+            model,
+            authority: authority.clone(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: Default::default(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(housing_screen);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HouseEditorPlacedDecorListButton")
+                .is_some()
+        );
+        let budget = registry
+            .get(registry.get_by_name("HouseEditorDecorBudgetText").unwrap())
+            .unwrap();
+        assert!(
+            matches!(&budget.widget_data,Some(WidgetData::FontString(text)) if text.text=="— / —")
+        );
+        assert!(registry.get_by_name("HouseEditorPlacedDecorList").is_none());
+        view.model.toggle_placed_list().unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        let panel = registry
+            .get(registry.get_by_name("HouseEditorPlacedDecorList").unwrap())
+            .unwrap();
+        assert_eq!(
+            (panel.width, panel.height),
+            (Dimension::Fixed(400.0), Dimension::Fixed(400.0))
+        );
+        assert_eq!(
+            (panel.position.left, panel.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(830.0),
+                ui_toolkit::layout_values::Val::Px(150.0)
+            )
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorPlacedDecorEntry1")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorPlacedDecorEntry20")
+                .is_none()
+        );
+        assert!(
+            registry
+                .scroll_lists
+                .get(LIST)
+                .unwrap()
+                .geometry
+                .max_first_row()
+                > 0
+        );
+        assert!(registry.scroll_lists.scroll_by(LIST, 10000));
+        screen.sync(&context, &mut registry);
+        let row = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorPlacedDecorEntry20")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(row.height, Dimension::Fixed(20.0));
+        assert_eq!(
+            row.onclick.as_deref(),
+            Some("housing:placed-list:select:20")
+        );
+        view.model
+            .open_placed_list_menu(&view.authority, 20, [1000.0, 200.0])
+            .unwrap();
+        view.authority
+            .state
+            .as_mut()
+            .unwrap()
+            .layout
+            .as_mut()
+            .unwrap()
+            .can_edit = false;
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        let remove = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorPlacedDecorRemove")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(matches!(&remove.widget_data,Some(WidgetData::Button(button)) if !button.enabled));
+        assert_eq!(registry.click_frame(remove.id), None);
+        view.model.close_placed_list();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("HouseEditorPlacedDecorList").is_none());
+        view.model.editor.set_mode(EditorMode::Basic);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HouseEditorPlacedDecorListButton")
+                .is_none()
+        );
+        assert!(registry.get_by_name("HouseEditorDecorBudgetText").is_none());
     }
 }
 
