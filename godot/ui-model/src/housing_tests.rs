@@ -3,6 +3,148 @@ use game_engine_core::housing::{Category, Decor, HousingCatalog, Subcategory};
 use std::sync::Arc;
 
 #[test]
+fn housing_storage_transitions_use_source_order_durations_and_out_exponential_offsets() {
+    use crate::housing_storage::DrawerPart;
+    let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+    model.storage_panel.resize([725.0, 730.0]).unwrap();
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Panel, 0.0)
+    );
+    model.start_storage_transition(true);
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Panel, 0.0)
+    );
+    model.advance_storage_transition(0.1).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Panel);
+    assert!((left + 725.0 * 0.96875).abs() < 0.001);
+    model.advance_storage_transition(0.1).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Handle);
+    assert!((left + 64.0 * 0.67).abs() < 0.001);
+    model.advance_storage_transition(0.075).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Handle);
+    assert!((left + 64.0 * 0.67 / 32.0).abs() < 0.001);
+    model.advance_storage_transition(0.075).unwrap();
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Handle, 0.0)
+    );
+    assert!(model.storage_panel.collapsed);
+    model.start_storage_transition(false);
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Handle, 0.0)
+    );
+    model.advance_storage_transition(0.15).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Panel);
+    assert!((left + 725.0).abs() < 0.001);
+    model.advance_storage_transition(0.1).unwrap();
+    let (part, left) = model.storage_drawer_presentation();
+    assert_eq!(part, DrawerPart::Panel);
+    assert!((left + 725.0 / 32.0).abs() < 0.001);
+    model.advance_storage_transition(0.1).unwrap();
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Panel, 0.0)
+    );
+    assert!(!model.storage_panel.collapsed);
+    assert!(model.advance_storage_transition(f32::NAN).is_err());
+    assert!(model.advance_storage_transition(-0.1).is_err());
+    model.storage_panel.collapsed = true; // Cold mount has no transient timer.
+    assert_eq!(
+        model.storage_drawer_presentation(),
+        (DrawerPart::Handle, 0.0)
+    );
+}
+
+#[test]
+fn housing_storage_filters_use_authentic_dye_slots_and_independent_alphabetical_results() {
+    use shared::protocol::{HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    let authority = HousingAuthority {
+        state: Some(HousingState {
+            build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+            stored: [1693, 374, 2330]
+                .into_iter()
+                .map(|decor_id| StoredDecor {
+                    decor_id,
+                    quantity: 1,
+                })
+                .collect(),
+            ..Default::default()
+        }),
+        error: None,
+    };
+    let original = authority.clone();
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(&model), vec![1693, 374, 2330]);
+    assert!(
+        model
+            .storage_filter_action("housing:storage:sort:alphabetical")
+            .unwrap()
+    );
+    assert_eq!(ids(&model), vec![2330, 1693, 374]);
+    model
+        .storage_filter_action("housing:storage:filter:dyeable")
+        .unwrap();
+    assert_eq!(ids(&model), vec![374]);
+    assert!(!model.dyeable_only);
+    model.set_storage_search("Tesla".into());
+    assert!(ids(&model).is_empty());
+    model
+        .storage_filter_action("housing:storage:filter:reset")
+        .unwrap();
+    assert_eq!(model.storage_search, "Tesla");
+    assert_eq!(ids(&model), vec![2330]);
+    model.set_storage_search(String::new());
+    assert_eq!(ids(&model), vec![2330, 1693, 374]); // Reset does not change the source sort selection.
+    model
+        .storage_filter_action("housing:storage:filter:dyeable")
+        .unwrap();
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Cleanup);
+    model
+        .editor
+        .set_mode(crate::housing_editor::EditorMode::Basic);
+    assert_eq!(ids(&model), vec![374]);
+    assert!(
+        model
+            .storage_filter_action("housing:storage:sort:date-added")
+            .is_err()
+    );
+    assert!(
+        model
+            .storage_filter_action("housing:storage:filter:collected")
+            .is_err()
+    );
+    assert!(
+        !model
+            .storage_filter_action("housing:filter:dyeable")
+            .unwrap()
+    );
+    assert!(
+        model
+            .stored_entries(&HousingAuthority::default())
+            .is_empty()
+    );
+    assert_eq!(authority, original);
+}
+
+#[test]
 fn housing_navigation_requests_authored_neighborhoods_without_claiming_property() {
     let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
     assert_eq!(
