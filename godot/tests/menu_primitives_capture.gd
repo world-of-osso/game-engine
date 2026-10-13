@@ -38,6 +38,14 @@ func capture() -> void:
 			push_error("Rendering display required")
 			quit(1)
 			return
+		# GetAtlasInfo slices keep the 9px source metal edge at x=790+9;
+		# stretching the68px member moves it30px inward and covers the labels.
+		var border := image.get_pixel(799, 548)
+		var inside := image.get_pixel(805, 548)
+		if maxf(border.r, maxf(border.g, border.b)) < 0.24 or maxf(inside.r, maxf(inside.g, inside.b)) > 0.2:
+			push_error("Menu atlas edge must retain source pixels instead of stretching: " + skin)
+			quit(1)
+			return
 		var result := image.save_png(directory.path_join(skin + "-all.png"))
 		if result != OK:
 			push_error("Cannot save primitive capture: " + str(result))
