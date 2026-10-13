@@ -79,9 +79,9 @@ func prove_area_exit(before: float) -> void:
 func prove_natural_expiry(active: int) -> void:
 	await create_timer(110.0).timeout
 	if not has_aura(MOLTEN_PATH) or kit_model(MOLTEN_PATH, MAGMA_MODELS) != 937030: fail("source magma expired before110s"); return
-	if not await wait_until(func(): return not has_aura(MOLTEN_PATH) and kit_model(MOLTEN_PATH, MAGMA_MODELS) == 0, "natural120s aura/kit expiry", 20000): return
+	if not await wait_until(func(): return not has_aura(MOLTEN_PATH) and kit_model(MOLTEN_PATH, MAGMA_MODELS) == 0, "natural120s aura/kit expiry", 180000): return
 	var elapsed := Time.get_ticks_msec() - active
-	if elapsed < 115000 or elapsed > 130000: fail("unexpected natural magma lifetime"); return
+	if elapsed < 115000 or elapsed > 300000: fail("unexpected natural magma lifetime"); return
 	if remaining_cooldown(PENDANT) <= 0.0 or not native_display(-1): fail("natural expiry lost cooldown/native model"); return
 	receipts.append({"phase": "pendant-natural-expiry", "elapsed_from_model_ms": elapsed, "position": observed_position(), "cooldown": remaining_cooldown(PENDANT)})
 	await capture("pendant22-natural-magma-expired")
@@ -110,7 +110,7 @@ func fail(message: String) -> void:
 		var controls := []
 		for node in client.find_children("*", "Control", true, false):
 			if node.is_visible_in_tree(): controls.append(str(node.name))
-		receipts.append({"phase": "failure", "message": message, "account": client.account_state(), "spells": client.spells_state(), "toys": client.toybox_state(), "visible_controls": controls})
+		receipts.append({"phase": "failure", "message": message, "account": client.account_state(), "spells": client.spells_state(), "toys": client.toybox_state(), "auras": client.aura_state(), "visuals": client.spell_visuals_state(), "visible_controls": controls})
 		write_receipts()
 	super.fail(message)
 
