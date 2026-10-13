@@ -106,6 +106,9 @@ impl GameClient {
             .send_trading_post(shared::protocol::TradingPostRequest::Balance)
             .map_err(|error| error.to_string())?;
         self.account
+            .send_renown(shared::protocol::RenownRequest::Query)
+            .map_err(|error| error.to_string())?;
+        self.account
             .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
             .map_err(|error| error.to_string())
     }
@@ -204,6 +207,7 @@ impl GameClient {
         self.select_queued_journal_encounter()?;
         self.adventure_guide.view.activities = self.account.adventure_guide.clone();
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();
+        self.adventure_guide.view.renown = self.account.renown.clone();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
@@ -447,6 +451,16 @@ impl GameClient {
         state.set("owned_key_count", view.keys.len() as i64);
         state.set("item_set_count", view.item_sets().len() as i64);
         state.set("lockout_count", view.lockouts.len() as i64);
+        state.set(
+            "renown_faction_count",
+            view.renown.as_ref().map_or(-1, |r| r.factions.len() as i64),
+        );
+        state.set("journey_expansion", view.journeys.expansion);
+        state.set(
+            "journey",
+            view.journeys.selected.map(i64::from).unwrap_or(-1),
+        );
+        state.set("journey_level", view.journeys.level);
         state.set("activity_snapshot_received", view.activities.is_some());
         if let Some(snapshot) = &view.activities {
             state.set("activity_count", snapshot.activities.len() as i64);
