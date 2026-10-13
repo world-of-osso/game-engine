@@ -156,6 +156,12 @@ Authored GameObjects UI links with PlayerInteractionType72 open the600×400 bull
 
 Charter/create remains explicitly unavailable: pinned TC a352 HousingHandler/Packets handles decline-invites only; TDB1210 recheck found no fee/signature/name-length authority. Generated NeighborhoodNameMaxCharacters0 is not inferred as a policy.
 
+## Expert PlacedDecorList
+
+Source-only model layer implemented; native UI/wiring/proof pending. Dashboard stores separate list-open/local-position/context-target state so normal Expert selection reset cannot close the list. Rows resolve only confirmed layout instances through authenticated catalog names, sort case-insensitively and reject missing names. Selection/deselection and menu opening do not mutate authority; Remove Decor uses existing owner-only command. Reconciliation clears disappeared instance selections/context. Local position clamps the400×400 source panel without persistence/grants.
+
+Source list is Expert-only (Expert OnShow shows toggle; OnHide hides toggle/list). Budget source element is spent/max placement cost, not object count; lead-approved explicit “— / —” retains icon/anchors without inventing numeric limits. Source metadata for budgets/locks remains unavailable. [Contract](../../specs/housing.md#expert-placeddecorlist). Evidence/model RED under `/home/osso/.worktrees/housing-core14-evidence/placed-list-model-red.log`; no user-visible list completion claimed.
+
 ## Basic/expert editing and observers
 
 Only a confirmed owner inside the house edits. Place/store conserves owned quantity; preview/cancel does not debit. Saved visuals resolve the actual decor model/texture receipts. Basic ground placement/move/yaw/remove and both-skin reauthentication are proved on the genuinely purchased1693 bookcase/M2 1096761. Visitors see the same layout, cannot edit, and never receive owner private storage.

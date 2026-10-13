@@ -77,6 +77,9 @@ mod housing_editor_tests;
 pub mod housing_finder_component;
 pub mod housing_mouse_component;
 pub mod housing_navigation_component;
+pub mod housing_placed_list;
+#[cfg(test)]
+mod housing_placed_list_tests;
 pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
