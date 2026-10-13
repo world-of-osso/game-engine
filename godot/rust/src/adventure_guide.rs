@@ -17,12 +17,17 @@ pub(crate) struct AdventureGuide {
     pub view: View,
     ui: Option<Gd<RegistryUi>>,
     loaded: bool,
-    queued_encounter: Option<u32>,
+    queued_encounter: Option<(u32, Option<u32>)>,
     scene: Option<Scene>,
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
 }
 impl AdventureGuide {
+    pub(crate) fn queue_encounter_start(&mut self, start: &shared::protocol::EncounterStart) {
+        if self.view.visible {
+            self.queued_encounter = Some((start.encounter_id, Some(start.difficulty_id)));
+        }
+    }
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -33,6 +38,40 @@ impl AdventureGuide {
         Ok(())
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::AdventureGuide;
+    use shared::protocol::EncounterStart;
+
+    #[test]
+    fn encounter_start_tracks_visible_guide_without_opening_closed_guide() {
+        let mut guide = AdventureGuide::default();
+        let start = EncounterStart {
+            encounter_id: 1058,
+            difficulty_id: 24,
+            group_size: 5,
+        };
+        guide.queue_encounter_start(&start);
+        assert!(!guide.view.visible);
+        assert!(guide.queued_encounter.is_none());
+        guide.view.visible = true;
+        guide.view.loading = true;
+        guide.queue_encounter_start(&start);
+        assert!(
+            guide.view.loading,
+            "Loading must finish before consuming the link"
+        );
+        assert_eq!(guide.queued_encounter, Some((1058, Some(24))));
+        let next = EncounterStart {
+            encounter_id: 663,
+            difficulty_id: 9,
+            group_size: 40,
+        };
+        guide.queue_encounter_start(&next);
+        assert_eq!(guide.queued_encounter, Some((663, Some(9))));
+    }
+}
+
 impl GameClient {
     pub(super) fn toggle_adventure_guide(&mut self) -> Result<(), String> {
         if self.adventure_guide.view.visible {
@@ -45,10 +84,16 @@ impl GameClient {
                 .frames
                 .active
                 .as_ref()
-                .map(|start| start.encounter_id);
+                .map(|start| (start.encounter_id, Some(start.difficulty_id)));
             self.request_adventure_guide_state()?;
         }
         Ok(())
+    }
+    pub(super) fn open_adventure_monthly(&mut self) -> Result<(), String> {
+        self.adventure_guide.view.apply("journal:tab:monthly")?;
+        self.adventure_guide.view.loading = !self.adventure_guide.loaded;
+        self.adventure_guide.queued_encounter = None;
+        self.request_adventure_guide_state()
     }
     fn request_adventure_guide_state(&self) -> Result<(), String> {
         self.account
@@ -88,24 +133,25 @@ impl GameClient {
     ) -> Result<(), String> {
         self.adventure_guide.view.visible = true;
         self.adventure_guide.view.loading = !self.adventure_guide.loaded;
-        self.adventure_guide.queued_encounter = Some(dungeon_encounter);
+        let difficulty = self
+            .encounter
+            .frames
+            .active
+            .as_ref()
+            .filter(|start| start.encounter_id == dungeon_encounter)
+            .map(|start| start.difficulty_id);
+        self.adventure_guide.queued_encounter = Some((dungeon_encounter, difficulty));
         self.request_adventure_guide_state()?;
         Ok(())
     }
     fn select_queued_journal_encounter(&mut self) -> Result<(), String> {
-        let Some(dungeon_encounter) = self.adventure_guide.queued_encounter.take() else {
+        let Some((dungeon_encounter, difficulty)) = self.adventure_guide.queued_encounter.take()
+        else {
             return Ok(());
         };
-        let id = self
-            .adventure_guide
+        self.adventure_guide
             .view
-            .catalog
-            .encounters
-            .iter()
-            .find(|e| e.dungeon_encounter == dungeon_encounter)
-            .map(|e| e.id)
-            .ok_or_else(|| format!("No journal entry for encounter {dungeon_encounter}"))?;
-        self.adventure_guide.view.select_encounter(id)
+            .select_dungeon_encounter(dungeon_encounter, difficulty)
     }
     pub(super) fn close_adventure_guide(&mut self) -> bool {
         let shown = self.adventure_guide.view.visible;

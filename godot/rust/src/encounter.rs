@@ -141,6 +141,7 @@ impl GameClient {
         match &message {
             EncounterMessage::Start(start) => {
                 godot_print!("ENCOUNTER_START {}", start.encounter_id);
+                self.adventure_guide.queue_encounter_start(start);
                 self.encounter.warnings.clear();
                 self.encounter.timeline.clear();
             }
