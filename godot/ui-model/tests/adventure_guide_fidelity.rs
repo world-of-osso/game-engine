@@ -100,6 +100,13 @@ fn adventure_guide_fidelity_overview_has_lore_and_authored_header_without_role_r
         assert_eq!(rect(&r, "JournalEncounterLore")[1], 8.);
         assert_eq!(rect(&r, "JournalOverviewHeader")[2..], [327., 30.]);
         assert_eq!(text(&r, "JournalOverviewTitle"), "Overview");
+        v.role = 1;
+        v.apply("journal:encounter:849").unwrap();
+        let r = render(&v, skin);
+        assert!(rect(&r, "JournalSection10138")[1] < rect(&r, "JournalSection10136")[1]);
+        assert!(!v.collapsed.contains(&10138));
+        assert!(v.collapsed.contains(&10136) && v.collapsed.contains(&10137));
+        assert!(r.get_by_name("JournalSection7939Body").is_some());
     }
 }
 #[test]
@@ -217,6 +224,24 @@ fn adventure_guide_fidelity_search_has_source_limit_instructions_clear_and_inset
         );
         v.apply("journal:search-clear").unwrap();
         assert!(v.search.is_empty());
+        let mut r = render(&v, skin);
+        assert!(frame(&r, "EncounterJournalSearchBoxClearButton").hidden);
+        r.focused_frame = r.get_by_name("EncounterJournalSearchBox");
+        game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut r);
+        assert!(!frame(&r, "EncounterJournalSearchBoxClearButton").hidden);
+        let clear = r
+            .get_by_name("EncounterJournalSearchBoxClearButton")
+            .unwrap();
+        if let Some(WidgetData::Button(b)) = &mut r.get_mut(clear).unwrap().widget_data {
+            b.state = ButtonState::Pushed;
+            b.hovered = true;
+        }
+        game_engine_ui_model::adventure_guide_art::apply_postsetup(&v, &mut r);
+        assert_eq!(
+            rect(&r, "EncounterJournalSearchBoxClearIcon"),
+            [4., 4., 10., 10.]
+        );
+        assert_eq!(frame(&r, "EncounterJournalSearchBoxClearIcon").alpha, 1.);
     }
 }
 #[test]
