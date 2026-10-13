@@ -134,6 +134,7 @@ pub fn char_select_top_nav() -> Element {
 
 pub fn sync_top_nav_tabs(registry: &mut FrameRegistry) {
     crate::campsite_component::sync_campsite_art(registry);
+    super::char_select_delete_confirm_component::sync_glue_dialog_art(registry);
     let campsites_open = registry
         .get_by_name(CAMPSITE_PANEL)
         .and_then(|id| registry.get(id))

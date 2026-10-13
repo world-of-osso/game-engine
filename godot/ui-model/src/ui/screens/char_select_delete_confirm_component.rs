@@ -217,3 +217,23 @@ fn modal_button(name: FrameName, text: &str, action: Option<CharSelectAction>, x
         }
     }
 }
+
+pub(super) fn sync_glue_dialog_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    for name in [
+        "DeleteCharacterInputCenter",
+        "DeleteCharacterDialogBackground",
+    ] {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
+        {
+            if name == "DeleteCharacterInputCenter" {
+                // TooltipBackdropTemplateMixin: TOOLTIP_DEFAULT_BACKGROUND_COLOR.
+                texture.vertex_color = [0.09, 0.09, 0.188, 1.0];
+            }
+            texture.horiz_tile = true;
+            texture.vert_tile = true;
+        }
+    }
+}
