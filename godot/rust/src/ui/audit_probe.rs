@@ -51,6 +51,13 @@ impl UiAuditProbe {
         if let Err(error) = set_audit_data_and_skin(forever) {
             return error.as_str().into();
         }
+        let size = self
+            .base()
+            .get_viewport()
+            .expect("audit viewport")
+            .get_visible_rect()
+            .size;
+        let viewport = [size.x, size.y];
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("CollectionsAuditUI");
         self.base_mut().add_child(&ui);
@@ -58,7 +65,7 @@ impl UiAuditProbe {
             "mounts" => ui.bind_mut().show_mount_journal(
                 game_engine_ui_model::mount_journal::MountJournalView {
                     visible: true,
-                    viewport: [1920.0, 1080.0],
+                    viewport,
                     ..Default::default()
                 },
             ),
@@ -66,7 +73,7 @@ impl UiAuditProbe {
                 ui.bind_mut()
                     .show_pet_journal(game_engine_ui_model::pet_journal::PetJournalView {
                         visible: true,
-                        viewport: [1920.0, 1080.0],
+                        viewport,
                         ..Default::default()
                     })
             }
