@@ -29,7 +29,8 @@ impl Fixture {
                 .with_data_root(&self.0)
                 .with_shared_data_root(&self.0)
                 .with_cache_root(self.0.join("resolver-cache"))
-                .with_identity(identity.clone()),
+                .with_identity(identity.clone())
+                .with_runtime_mode(osso_asset_resolver::AssetRuntimeMode::ExtractedOnly),
         )
     }
     fn seed(&self, path: &std::path::Path, bytes: &[u8]) {

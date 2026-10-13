@@ -1,5 +1,5 @@
 extends SceneTree
-# Rendered regression: real private session, model -> Classic raids, wheel -> Molten Core.
+# Rendered regression: actual model facing, Classic dungeon wheel, then Molten Core.
 var client: Node
 var failed := false
 func _initialize() -> void:
@@ -40,7 +40,7 @@ func first_set_row() -> String:
 			first = control.name
 	return first
 func set_filter_scroll_returns_to_beginning() -> bool:
-	await click("EncounterJournalTab2")
+	await click("EncounterJournalLootJournalTab")
 	await click("JournalClassFilter")
 	await click("JournalClass2")
 	var first := first_set_row()
@@ -66,7 +66,8 @@ func wait_screen(screen: String) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if client.account_state().screen == screen: return true
-	stop("Screen not ready: " + screen)
+	var state: Dictionary = client.account_state()
+	stop("Screen not ready: %s; observed=%s status=%s assets_starting=%s connected=%s" % [screen, state.screen, state.status, state.assets_starting, state.connected])
 	return false
 func run() -> void:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
@@ -76,6 +77,12 @@ func run() -> void:
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	var startup_deadline := Time.get_ticks_msec() + 180000
+	while client.account_state().assets_starting and Time.get_ticks_msec() < startup_deadline:
+		await process_frame
+	if client.account_state().assets_starting:
+		stop("Native asset startup did not complete")
+		return
 	await settle()
 	var error: String = client.connect_account(server, account, OS.get_environment("ADVENTURE_GUIDE_PASSWORD"), false)
 	if not error.is_empty():
@@ -120,20 +127,48 @@ func run() -> void:
 	if client.adventure_guide_state().model_display != 36475:
 		stop("Ozruk model did not attach")
 		return
-	await click("EncounterJournalTab1")
+	var guide := client.get_node("AdventureGuideUI")
+	var model := guide.find_child("NpcVisualRoot", true, false) as Node3D
+	if model == null:
+		stop("Attached Ozruk preview missing")
+		return
+	var camera := model.get_parent().get_node("Camera") as Camera3D
+	var alignment := model.global_basis.x.normalized().dot(camera.global_basis.z.normalized())
+	print("ADVENTURE_GUIDE_MODEL_FACING alignment=%s scale=%s" % [alignment, model.scale])
+	if alignment < 0.999 or not model.scale.is_equal_approx(Vector3.ONE):
+		stop("Boss must face preview camera without changing authored scale")
+		return
+	var model_png := OS.get_environment("ADVENTURE_GUIDE_MODEL_PNG")
+	if not model_png.is_empty():
+		await RenderingServer.frame_post_draw
+		var image := root.get_texture().get_image()
+		if image.get_width() > 1280:
+			image.resize(1280, int(image.get_height() * 1280.0 / image.get_width()))
+		if image.save_png(model_png) != OK:
+			stop("Cannot save requested model evidence")
+			return
+	await click("EncounterJournalDungeonTab")
 	await click("EncounterJournalTierDropdown")
 	await click("EncounterJournalTier68")
 	var list := client.find_child("EncounterJournalContent", true, false) as Control
-	var molten_core := client.find_child("JournalInstance741", true, false) as Control
-	if list == null or molten_core == null:
-		stop("Classic raid controls missing")
+	var wailing := client.find_child("JournalInstance240", true, false) as Control
+	if list == null or wailing == null:
+		stop("Classic dungeon controls missing")
 		return
-	var before := molten_core.get_global_rect().position.y
+	var before := wailing.get_global_rect().position.y
+	if list.get_global_rect().has_point(wailing.get_global_rect().get_center()):
+		stop("Fixture requires a real second page before scrolling")
+		return
 	for tick in range(5): await pointer(list.get_global_rect().get_center(), MOUSE_BUTTON_WHEEL_DOWN)
-	var after := molten_core.get_global_rect().position.y
-	if not after < before or not list.get_global_rect().has_point(molten_core.get_global_rect().get_center()):
-		stop("Wheel did not reveal Molten Core: before=%s after=%s" % [before, after])
+	var after := wailing.get_global_rect().position.y
+	if not after < before or not list.get_global_rect().has_point(wailing.get_global_rect().get_center()):
+		stop("Wheel did not reveal Wailing Caverns: before=%s after=%s" % [before, after])
 		return
+	await click("JournalInstance240")
+	if client.adventure_guide_state().instance != 240:
+		stop("Scrolled dungeon did not select Wailing Caverns")
+		return
+	await click("EncounterJournalRaidTab")
 	await click("JournalInstance741")
 	await click("JournalBoss1519")
 	var state = client.adventure_guide_state()

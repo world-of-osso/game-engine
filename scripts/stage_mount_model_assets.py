@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Frozen Retail mount closure. Caller supplies an argv-based local extraction runner.
+"""Retail mount closure with installed-build extraction and authored DB2 metadata.
 
-No canonical mutation. Receipts authenticate against the installed 69933 content
-root; both previously extracted bytes and new payloads must pass content hashes.
+No canonical mutation. New receipts authenticate against the current local content
+root; historical receipts retain their original authenticated byte identity.
 """
 from collections import defaultdict
 import csv
@@ -19,8 +19,7 @@ from import_forever_skyborne import validate_magic
 from import_model_asset_chains import create_asset_receipt, write_asset_files
 from apply_mount_model_assets import index_hashes, sha
 
-BUILD_KEY = 'dcfc90fffd79ba00406ae46f5f657592'
-BUILD = '12.1.0.69933'
+METADATA_BUILD = '12.1.0.69933'
 SUPPORTED = {'m2', 'skin', 'skel', 'anim', 'bone', 'phys', 'blp'}
 
 
@@ -30,12 +29,14 @@ def read_rows(path):
 
 
 def authenticate_install(install):
-    info = next(row for row in casc.installed_products(install) if row['Product'] == 'wow')
-    if info['Build Key'] != BUILD_KEY or info['Version'] != BUILD:
-        raise ValueError(f'expected frozen {BUILD}/{BUILD_KEY}; got {info}')
-    config_path = install / 'Data/config' / BUILD_KEY[:2] / BUILD_KEY[2:4] / BUILD_KEY
+    rows = [row for row in casc.installed_products(install) if row['Product'] == 'wow']
+    if len(rows) != 1:
+        raise ValueError(f'expected one active Retail build; got {len(rows)}')
+    info = rows[0]
+    build_key, build = info['Build Key'], info['Version']
+    config_path = install / 'Data/config' / build_key[:2] / build_key[2:4] / build_key
     config_bytes = config_path.read_bytes()
-    if hashlib.md5(config_bytes).hexdigest() != BUILD_KEY:
+    if hashlib.md5(config_bytes).hexdigest() != build_key:
         raise ValueError('build config content hash differs')
     config = dict(line.split(' = ', 1) for line in config_bytes.decode().splitlines() if ' = ' in line)
     indices, _, _ = casc.load_indices(install)
@@ -45,7 +46,7 @@ def authenticate_install(install):
     root_record = casc.encoding_keys(encoding, {bytes.fromhex(root_ck)})[bytes.fromhex(root_ck)]
     root_ek = next(key for key in root_record[1] if key[:9] in indices)
     root = casc.read_metadata(install, indices, root_ek.hex(), root_ck)
-    identity = {'product': 'wow', 'build_key': BUILD_KEY, 'build': BUILD,
+    identity = {'product': 'wow', 'build_key': build_key, 'build': build,
                 'build_config_sha256': hashlib.sha256(config_bytes).hexdigest(),
                 'root_content_key': root_ck, 'encoding_content_key': encoding_ck,
                 'extraction_source': 'authenticated-local-CASC-content-root'}
@@ -155,19 +156,21 @@ def stage_closure(data, package, install, extract, seed, scope, fragment_name, p
                 candidates.extend(data / name for name in sorted(asset['locations']))
                 expected = roots.get(key[0])
                 for candidate in candidates:
-                    if not candidate.is_file() or expected is None:
+                    if not candidate.is_file():
                         continue
                     raw = candidate.read_bytes()
-                    if hashlib.md5(raw).digest() != expected:
+                    historical = receipt is not None and candidate == receipt_root / receipt['path']
+                    content_key = bytes.fromhex(receipt['content_key']) if historical else expected
+                    if content_key is None or hashlib.md5(raw).digest() != content_key:
                         continue
+                    if historical and hashlib.sha256(raw).hexdigest() != receipt['sha256']:
+                        raise ValueError(f'existing receipt hash disagrees: {key}')
                     if asset['type'] in SUPPORTED:
                         if asset['type'] != 'phys':
-                            validate_magic(raw, asset['type'], expected.hex())
+                            validate_magic(raw, asset['type'], content_key.hex())
                         directory = 'textures' if asset['type'] == 'blp' else 'models'
-                        record = create_asset_receipt(identity, key[0], key[1], f'{directory}/{key[0]}.{key[1]}', raw, expected.hex())
-                        if receipt:
-                            if receipt['build_key'] != BUILD_KEY or receipt['sha256'] != record['sha256']:
-                                raise ValueError(f'existing receipt disagrees: {key}')
+                        record = create_asset_receipt(identity, key[0], key[1], f'{directory}/{key[0]}.{key[1]}', raw, content_key.hex())
+                        if historical:
                             verified[key] = receipt
                         else:
                             write_asset_files(package, [(record, raw)])
@@ -183,10 +186,11 @@ def stage_closure(data, package, install, extract, seed, scope, fragment_name, p
             asset['present_files'] = [{'path': str(path), 'size': asset['size'], 'sha256': asset['sha256']}] if path else []
             asset['identity_status'] = 'authenticated_local_root' if path else 'missing'
             asset['source_product'] = 'wow' if path else None
-            asset['actual_build'] = BUILD_KEY if path else None
+            record = verified.get(key)
+            asset['actual_build'] = record['build_key'] if record else None
             return path
 
-    graph = AuthenticatedClosure(data, paths, 'wow', BUILD, runtime_paths=runtime_paths)
+    graph = AuthenticatedClosure(data, paths, 'wow', METADATA_BUILD, runtime_paths=runtime_paths)
     graph.seeds = {'scope': scope}
     summarize = seed(graph, Catalogs(graph))
     graph.run()
@@ -242,7 +246,7 @@ def stage_closure(data, package, install, extract, seed, scope, fragment_name, p
         for location in sorted(asset['locations']):
             if location == f'{"textures" if key[1] == "blp" else "models"}/{key[0]}.{key[1]}':
                 continue
-            alias = {**receipt, 'path': f'products/wow/{BUILD_KEY}/{location}'}
+            alias = {**receipt, 'path': f'products/wow/{receipt["build_key"]}/{location}'}
             target = next((root / alias['path'] for root in [data, *packages] if (root / alias['path']).exists()), None)
             if target:
                 if sha(target) != receipt['sha256']:

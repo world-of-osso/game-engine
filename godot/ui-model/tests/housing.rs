@@ -2077,3 +2077,160 @@ fn housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_b
         assert_eq!(button.onclick.as_deref(), Some("housing:home:1"));
     }
 }
+
+#[test]
+fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use shared::protocol::{HouseLayout, HousingState, StoredDecor};
+    use ui_toolkit::widgets::button::ButtonState;
+    use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = Arc::new(HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap());
+    let stored: Vec<_> = catalog
+        .decor
+        .iter()
+        .filter(|decor| decor.thumbnail_fdid > 0)
+        .take(6)
+        .enumerate()
+        .map(|(index, decor)| StoredDecor {
+            decor_id: decor.id,
+            quantity: index as u32 + 1,
+        })
+        .collect();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(catalog.clone());
+        model.surface = HousingSurface::Editor;
+        let authority = HousingAuthority {
+            state: Some(HousingState {
+                build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                stored: stored.clone(),
+                layout: Some(HouseLayout {
+                    house_id: 41,
+                    can_edit: true,
+                    decor: vec![],
+                }),
+                ..Default::default()
+            }),
+            error: None,
+        };
+        let view = HousingView {
+            model,
+            authority,
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: Default::default(),
+            vendor_names: Default::default(),
+        };
+        let entries = view.model.stored_entries(&view.authority);
+        assert_eq!(entries.len(), 6);
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        apply_housing_postsetup(&view, &mut registry);
+        for (index, (quantity, decor)) in entries.iter().enumerate() {
+            let prefix = format!("HouseEditorStored{}", decor.id);
+            let tile = registry
+                .get(registry.get_by_name(&prefix).unwrap())
+                .unwrap();
+            assert_eq!(
+                (tile.width, tile.height),
+                (Dimension::Fixed(97.0), Dimension::Fixed(97.0))
+            );
+            assert_eq!(
+                tile.position.left,
+                ui_toolkit::layout_values::Val::Px(85.0 + (index % 4) as f32 * 102.0)
+            );
+            assert_eq!(
+                tile.position.top,
+                ui_toolkit::layout_values::Val::Px(101.0 + (index / 4) as f32 * 107.0)
+            );
+            assert_eq!(
+                tile.onclick.as_deref(),
+                Some(format!("housing:place:{}", decor.id).as_str())
+            );
+            assert!(
+                registry
+                    .get_by_name(&format!("HouseEditorName{}", decor.id))
+                    .is_none(),
+                "source has no under-tile name/count label"
+            );
+            let icon = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("HouseEditorIcon{}", decor.id))
+                        .unwrap(),
+                )
+                .unwrap();
+            assert_eq!(
+                (icon.width, icon.height),
+                (Dimension::Fixed(87.0), Dimension::Fixed(87.0))
+            );
+            assert_eq!(
+                (icon.position.left, icon.position.top),
+                (
+                    ui_toolkit::layout_values::Val::Px(5.0),
+                    ui_toolkit::layout_values::Val::Px(5.0)
+                )
+            );
+            let count = registry
+                .get(registry.get_by_name(&format!("{prefix}Count")).unwrap())
+                .unwrap();
+            assert!(
+                matches!(&count.widget_data,Some(WidgetData::FontString(text)) if text.text==quantity.quantity.to_string() && text.font_size==16.0 && text.shadow_color==Some([0.0,0.0,0.0,1.0]) && text.shadow_offset==[1.0,-1.0])
+            );
+            assert_eq!(count.height, Dimension::Fixed(20.0));
+            assert_eq!(count.position.top, ui_toolkit::layout_values::Val::Px(70.0));
+            assert_eq!(
+                count.position.left,
+                ui_toolkit::layout_values::Val::Px(88.0 - count.width.value())
+            );
+            let original = view.authority.clone();
+            for (pressed, hovered, atlas, alpha) in [
+                (false, false, "house-chest-list-item-default", 0.0),
+                (false, true, "house-chest-list-item-default", 0.75),
+                (true, true, "house-chest-list-item-pressed", 0.75),
+                (false, false, "house-chest-list-item-default", 0.0),
+            ] {
+                let frame = registry
+                    .get_mut(registry.get_by_name(&prefix).unwrap())
+                    .unwrap();
+                let Some(WidgetData::Button(button)) = frame.widget_data.as_mut() else {
+                    panic!("storage tile must be native button")
+                };
+                button.state = if pressed {
+                    ButtonState::Pushed
+                } else {
+                    ButtonState::Normal
+                };
+                button.hovered = hovered;
+                apply_housing_postsetup(&view, &mut registry);
+                for suffix in ["Background", "HoverBackground"] {
+                    let frame = registry
+                        .get(registry.get_by_name(&format!("{prefix}{suffix}")).unwrap())
+                        .unwrap();
+                    assert!(
+                        matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.source==TextureSource::Atlas(atlas.into()))
+                    );
+                    assert!(
+                        matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.tex_coords==[0.0,1.0,0.0,1.0]),
+                        "member atlas state must not retain full-sheet UVs and crop twice"
+                    );
+                    if suffix == "HoverBackground" {
+                        assert_eq!(frame.alpha, alpha);
+                        assert!(
+                            matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.blend_mode==BlendMode::Additive)
+                        );
+                    }
+                }
+                assert_eq!(
+                    view.authority, original,
+                    "visual tile input cannot spend/grant decor"
+                );
+            }
+        }
+    }
+}

@@ -43,6 +43,7 @@ pub mod ui {
 pub mod adventure_activities;
 pub mod adventure_guide;
 pub mod adventure_guide_tooltip;
+pub mod adventure_journeys;
 pub mod assisted_highlight;
 pub mod battleground;
 pub mod challenge;
@@ -87,6 +88,7 @@ pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
 mod housing_storage_component;
+mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
 pub mod mount_journal;
