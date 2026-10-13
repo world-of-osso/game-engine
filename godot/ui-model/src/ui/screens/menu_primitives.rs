@@ -406,28 +406,36 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
 
 /// Compose menu_element rows without changing the shared frame/backdrop/layout.
 pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element {
-    let height = menu_height_for_items(props.items.len());
+    let has_title = !props.title.is_empty();
+    let header_height = if has_title {
+        ROW_HEIGHT + DIVIDER_HEIGHT
+    } else {
+        0.
+    };
+    let height = MENU_INSET + header_height + props.items.len() as f32 * ROW_HEIGHT + MENU_BOTTOM;
     let mut contents = crate::selection_list::menu_background(
         format!("{}Background", props.frame_name),
         (props.width, height),
     );
-    contents.extend(label(
-        props.title_name.into(),
-        props.title,
-        (MENU_INSET, MENU_INSET, props.width - 16.0, ROW_HEIGHT),
-        (12.0, GOLD, "LEFT"),
-    ));
-    contents.extend(texture(
-        props.divider_name.into(),
-        MENU_DIVIDER,
-        (
-            MENU_INSET,
-            MENU_INSET + ROW_HEIGHT,
-            props.width - 16.0,
-            DIVIDER_HEIGHT,
-        ),
-        NORMAL,
-    ));
+    if has_title {
+        contents.extend(label(
+            props.title_name.into(),
+            props.title,
+            (MENU_INSET, MENU_INSET, props.width - 16., ROW_HEIGHT),
+            (12., GOLD, "LEFT"),
+        ));
+        contents.extend(texture(
+            props.divider_name.into(),
+            MENU_DIVIDER,
+            (
+                MENU_INSET,
+                MENU_INSET + ROW_HEIGHT,
+                props.width - 16.,
+                DIVIDER_HEIGHT,
+            ),
+            NORMAL,
+        ));
+    }
     contents.extend(rows);
     rsx! { r#frame {
         name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,

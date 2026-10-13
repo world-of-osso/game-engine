@@ -193,6 +193,12 @@ fn adventure_guide_fidelity_tier_and_difficulty_show_open_arrow_state() {
             Some(TextureSource::Atlas("common-dropdown-a-button-open".into()))
         );
         assert!(r.get_by_name("EncounterJournalTierMenu").is_some());
+        assert_eq!(
+            rect(&r, "EncounterJournalTierMenu")[3],
+            23. + 20. * v.catalog.tiers.len() as f32
+        );
+        assert!(r.get_by_name("EncounterJournalTierMenuTitle").is_none());
+        assert!(r.get_by_name("EncounterJournalTierMenuDivider").is_none());
         v.apply("journal:encounter:112").unwrap();
         v.apply("journal:difficulty-menu").unwrap();
         let r = render(&v, skin);
