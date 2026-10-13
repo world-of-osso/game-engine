@@ -51,6 +51,9 @@ func run_test() -> void:
 			continue
 		last_command = int(command.id)
 		var result := await execute_command(command)
+		if str(command.get("op", "")) == "quit":
+			return
+		write_state("state.json")
 		var file := FileAccess.open(shots + "result.json", FileAccess.WRITE)
 		file.store_string(JSON.stringify({"id": last_command, "result": result}))
 		file.close()
@@ -105,6 +108,15 @@ func execute_command(command: Dictionary) -> String:
 			push_key(KEY_ESCAPE, false)
 			await wait_frames(5)
 			return "closed" if client.get_node_or_null("MythicMentorUI") == null else "still open"
+		"accept":
+			push_key(KEY_ENTER, true)
+			await process_frame
+			push_key(KEY_ENTER, false)
+			await wait_frames(5)
+			return "accepted"
+		"chat":
+			await send_chat_line(str(command.text))
+			return "submitted"
 		"drag":
 			var handle := control("MythicMentorUI", "MentorDragHandle")
 			if handle == null:
@@ -132,3 +144,24 @@ func execute_command(command: Dictionary) -> String:
 			quit(0)
 			return "quit"
 	return "unknown operation"
+
+func send_chat_line(text: String) -> void:
+	push_key(KEY_ENTER, true)
+	await process_frame
+	push_key(KEY_ENTER, false)
+	await wait_frames(3)
+	for letter in text:
+		var event := InputEventKey.new()
+		event.keycode = KEY_SLASH if letter == "/" else OS.find_keycode_from_string(letter.to_upper())
+		event.physical_keycode = event.keycode
+		event.unicode = letter.unicode_at(0)
+		event.pressed = true
+		root.push_input(event, true)
+		await process_frame
+		event.pressed = false
+		root.push_input(event, true)
+		await process_frame
+	push_key(KEY_ENTER, true)
+	await process_frame
+	push_key(KEY_ENTER, false)
+	await wait_frames(5)
