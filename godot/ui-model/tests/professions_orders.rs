@@ -183,15 +183,15 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
             );
         }
         assert!(frame(&r, "CraftingOrderMenuBackground").visible);
-        // CustomerOrders.xml: form TOPLEFT(5,-60), width815; recipient TOPRIGHT(-10,-11).
+        // Form.xml TOPRIGHT(-10,-11); Form.lua:530 sets recipient width136.
         let recipient = frame(&r, "CraftingOrderRecipientDropdown");
         assert_eq!(
             (recipient.width.value(), recipient.height.value()),
-            (120.0, 25.0)
+            (136.0, 25.0)
         );
         assert_eq!(
             recipient.position.left,
-            ui_toolkit::layout_values::Val::Px(690.0)
+            ui_toolkit::layout_values::Val::Px(674.0)
         );
         assert_eq!(
             recipient.position.top,
@@ -205,6 +205,8 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
             frame(&r, "CraftingOrderDuration").position.top,
             ui_toolkit::layout_values::Val::Px(352.5)
         );
+        assert_eq!(frame(&r, "CraftingOrderDuration").width.value(), 143.0);
+        assert_eq!(text(&r, "CraftingOrdersBrowseTabText"), "Browse Orders");
         assert_eq!(frame(&r, "CraftingOrdersBrowseTab").height.value(), 32.0);
         assert_eq!(
             frame(&r, "CraftingOrdersBrowseTab").position.top,
@@ -225,6 +227,70 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
                     .onclick
                     .as_deref(),
                 Some(format!("profession:order:duration:{hours}").as_str())
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn orders_customer_labels_align_with_source_payment_and_recipient_fields() {
+    use ui_toolkit::layout_values::Val;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.orders.customer = true;
+        v.orders.creating = true;
+        v.orders.kind = CraftingOrderKind::Personal;
+        v.orders.recipe = Some(2153);
+        v.orders.snapshot.as_mut().unwrap().recipes = vec![CraftingOrderRecipeSnapshot {
+            spell_id: 2153,
+            skill_line: 2532,
+            item_id: 2303,
+            count: 1,
+            name: "Handstitched Leather Pants".into(),
+            reagents: vec![],
+        }];
+        let r = render(v, skin);
+        assert_eq!(text(&r, "CraftingOrderRecipientLabel"), "Order To:");
+        for name in [
+            "CraftingOrderCommissionLabel",
+            "CraftingOrderDurationLabel",
+            "CraftingOrderRecipientLabel",
+        ] {
+            let Some(WidgetData::FontString(label)) = &frame(&r, name).widget_data else {
+                panic!("Expected label {name}");
+            };
+            assert_eq!(
+                label.justify_h,
+                ui_toolkit::widgets::font_string::JustifyH::Right,
+                "{name}"
+            );
+        }
+        assert_eq!(
+            frame(&r, "CraftingOrderRecipientLabel").position.left,
+            Val::Px(543.0)
+        );
+        assert_eq!(
+            frame(&r, "CraftingOrderRecipientLabel").position.top,
+            Val::Px(97.0)
+        );
+        assert_eq!(frame(&r, "CraftingOrderGold").position.top, Val::Px(316.0));
+        let portrait = frame(&r, "ProfessionsCustomerOrdersPortrait");
+        assert_eq!(
+            (portrait.width.value(), portrait.height.value()),
+            (62.0, 62.0)
+        );
+        let back = frame(&r, "CraftingOrderFormBack");
+        assert_eq!(back.onclick.as_deref(), Some("profession:order:browse"));
+        let Some(WidgetData::Button(button)) = &back.widget_data else {
+            panic!("Retail UIPanelButton");
+        };
+        if skin == ActiveSkin::Modern {
+            assert_eq!(
+                button.normal_texture,
+                Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                    130828
+                ))
             );
         }
     }
