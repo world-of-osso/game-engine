@@ -40,6 +40,14 @@ func run_test() -> void:
 	if not await click_exposed_control(housing_control("HouseEditorStorageExpandButton")): return
 	if not await wait_housing(func(): return storage_search_text()=="tEs" and housing_control("HouseEditorStored2330") != null, "reexpanded query/Tesla retained"): return
 	if not drawer_conserved(before): return
+	if not await click_exposed_control(housing_control("HouseEditorStored2330")): return
+	if not await wait_housing(func(): return int(client.housing_state().get("placing",0))==2330 and drawer_absent(), "new selected paid Tesla hides drawer"): return
+	if not await record_editor("basic-new-placement-storage-hidden"): return
+	if not await click_exposed_control(housing_control("HouseEditorCancel")): return
+	if not await wait_housing(func(): return int(client.housing_state().get("placing",0))==0 and storage_search_text()=="tEs" and housing_control("HouseEditorStored2330") != null, "cancel new placement restores paid Tesla"): return
+	if not drawer_conserved(before): return
+	if not await record_editor("basic-new-placement-cancel-restored"): return
+	print("PASS: private5870 Basic new-placement storage visibility ",housing_skin)
 	print("PASS: private5870 Basic selection storage visibility ",housing_skin)
 	client.free()
 	quit(0)

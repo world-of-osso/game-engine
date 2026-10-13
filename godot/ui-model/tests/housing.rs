@@ -1581,6 +1581,32 @@ fn housing_basic_selection_hides_both_drawer_parts_and_cancel_restores_preferenc
             assert_eq!(view.model.storage_search, "tEs");
             assert!(view.model.storage_alphabetical);
             assert_eq!(view.authority, authority);
+            let source = view
+                .model
+                .catalog
+                .decor
+                .iter()
+                .find(|decor| decor.id == 2330)
+                .unwrap();
+            view.model
+                .editor
+                .begin_place(&view.authority, source)
+                .unwrap();
+            context.insert(view.clone());
+            screen.sync(&context, &mut registry);
+            assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+            assert!(
+                registry
+                    .get_by_name("HouseEditorStorageExpandButton")
+                    .is_none()
+            );
+            view.model.editor.cancel();
+            context.insert(view.clone());
+            screen.sync(&context, &mut registry);
+            assert!(registry.get_by_name(shown).is_some());
+            assert_eq!(view.model.storage_panel, saved_panel);
+            assert_eq!(view.model.storage_search, "tEs");
+            assert_eq!(view.authority, authority);
         }
     }
 }

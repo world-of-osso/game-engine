@@ -62,7 +62,7 @@ Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544
 
 ## Basic selected-target storage visibility
 
-Selecting existing placed decor in Basic mode hides both storage panel and expand handle. Cancelling/unselecting restores the saved collapsed/size preference, retained query/category/filters and actual owned results; selection alone never changes storage/layout. Source: HouseEditorBasicDecorMode.OnTargetSelected/OnTargetUnselected invokes HouseEditor.HideHouseStorage (both parts)/ShowHouseStorage (UpdateCollapseState). This acceptance covers selected placed decor; new-placement drag/overlay behavior remains a separate boundary.
+Selecting existing placed decor or starting placement of actually owned stored decor in Basic mode hides both storage panel and expand handle. Cancelling/unselecting restores the saved collapsed/size preference, retained query/category/filters and actual owned results; selection alone never changes storage/layout. Source: HouseEditorBasicDecorMode.OnTargetSelected/OnTargetUnselected invokes HouseEditor.HideHouseStorage (both parts)/ShowHouseStorage (UpdateCollapseState). CatalogEntry.StartPlacingNewDecor explicitly routes the same selected-target-changed handler. Cancel new placement restores storage without spending a copy. Drag/overlay/mouse-up commit semantics remain separate acceptance boundaries.
 
 ## Storage drawer controls
 
