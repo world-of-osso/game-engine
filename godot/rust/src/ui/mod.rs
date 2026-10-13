@@ -1789,6 +1789,23 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_trading_post(
+        &mut self,
+        state: game_engine_ui_model::trading_post::View,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let registry = parent.registry();
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::trading_post::trading_post_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
     pub fn show_adventure_guide(
         &mut self,
         state: game_engine_ui_model::adventure_guide::View,

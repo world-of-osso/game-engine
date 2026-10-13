@@ -89,7 +89,7 @@ pub(crate) fn particle_material(
         emitter.blend_type,
     )?));
     bind_textures(&mut material, emitter, texture_dir)?;
-    bind_uniforms(&mut material, emitter);
+    bind_uniforms(&mut material, emitter)?;
     Ok(material)
 }
 
@@ -118,12 +118,18 @@ fn bind_textures(
     }
 }
 
-fn bind_uniforms(material: &mut Gd<ShaderMaterial>, emitter: &ParticleEmitter) {
+fn bind_uniforms(
+    material: &mut Gd<ShaderMaterial>,
+    emitter: &ParticleEmitter,
+) -> Result<(), String> {
     let (gx_blend, _) = blend_state(emitter.blend_type);
     let pixel_shader = match m2_particles::pixel_shader(emitter) {
         PixelShader::Mod => 0,
         PixelShader::TwoColorThreeAlpha => 1,
         PixelShader::ThreeColorThreeAlpha => 2,
+        PixelShader::Refraction => {
+            return Err("Refraction particles require a refraction pass".into());
+        }
     };
     let cell = Vector2::new(
         1.0 / f32::from(emitter.tile_cols.max(1)),
@@ -141,6 +147,7 @@ fn bind_uniforms(material: &mut Gd<ShaderMaterial>, emitter: &ParticleEmitter) {
         "alpha_test",
         &m2_particles::alpha_test(emitter.blend_type).to_variant(),
     );
+    Ok(())
 }
 
 pub(crate) fn clear_quad_mesh() {
@@ -306,10 +313,14 @@ pub(crate) struct ModelParticles {
 impl ModelParticles {
     /// `None` when the model has no emitter the simulation can draw.
     pub fn from_model(fdid: u32, model: &m2::Model) -> Option<Rc<Self>> {
-        let emitters: Vec<_> = model
+        // Refraction parameters are not colours: WebWowViewerCpp discards
+        // Refraction in its forward shader until a refraction pass exists.
+        let forward_emitters = model
             .particle_emitters
             .iter()
             .enumerate()
+            .filter(|(_, emitter)| m2_particles::pixel_shader(emitter) != PixelShader::Refraction);
+        let emitters: Vec<_> = forward_emitters
             .filter(|(_, emitter)| m2_particles::shape(emitter).is_some())
             .map(|(index, emitter)| (index, emitter.clone()))
             .collect();
@@ -734,5 +745,25 @@ impl WowParticleProbe {
         );
         pool.end_frame();
         pool.node().clone().upcast::<Node3D>().to_variant()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn divine_shield_refraction_emitters_do_not_create_forward_particles() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let bytes = std::fs::read(data.join("1127086.m2")).unwrap();
+        let skin = std::fs::read(data.join("112708600.skin")).unwrap();
+        let mut model = m2::parse_model(&bytes, &skin).unwrap();
+        let particles = ModelParticles::from_model(1127086, &model).unwrap();
+        assert_eq!(
+            particles.authored_indices().collect::<Vec<_>>(),
+            [0, 1, 2, 3, 4, 7, 8, 9]
+        );
+        model.particle_emitters = model.particle_emitters[5..=6].to_vec();
+        assert!(ModelParticles::from_model(1127086, &model).is_none());
     }
 }
