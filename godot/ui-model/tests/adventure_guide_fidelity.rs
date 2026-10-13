@@ -204,6 +204,9 @@ fn adventure_guide_fidelity_search_has_source_limit_instructions_clear_and_inset
         let mut v = view();
         let r = render(&v, skin);
         assert_eq!(text(&r, "EncounterJournalSearchBoxInstructions"), "Search");
+        assert!(
+            matches!(&frame(&r,"EncounterJournalSearchBoxInstructions").widget_data,Some(WidgetData::FontString(font)) if font.justify_h==ui_toolkit::widgets::font_string::JustifyH::Left)
+        );
         assert_eq!(
             rect(&r, "EncounterJournalSearchIcon"),
             [581., 38., 10., 10.]
@@ -310,6 +313,14 @@ fn adventure_guide_fidelity_background_geometry_is_relative_to_its_pane() {
         assert_eq!(
             rect(&r, "EncounterJournalModelPaper"),
             [0., -1., 393., 424.]
+        );
+        assert_eq!(
+            frame(&r, "EncounterJournalInstanceBackground").draw_layer,
+            ui_toolkit::strata::DrawLayer::Background
+        );
+        assert_eq!(
+            frame(&r, "EncounterJournalModelPaper").draw_layer,
+            ui_toolkit::strata::DrawLayer::Overlay
         );
     }
 }
