@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import sys
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 SPEC = importlib.util.spec_from_file_location('pet_scene_export', Path(__file__).parents[1] / 'export_pet_model_scenes.py')
 EXPORT = importlib.util.module_from_spec(SPEC)
@@ -19,7 +21,7 @@ class PetModelSceneExportTest(unittest.TestCase):
         }
 
     def test_source_camera_and_actor_scale_are_exported_without_mesh_fit_defaults(self):
-        scenes = EXPORT.build_scenes(self.sources())
+        scenes = EXPORT.build_scenes(self.sources(), {6})
         self.assertEqual(scenes, [{'id': 6, 'target': [0., 0., 0.], 'yaw': 2.6179938316, 'pitch': 0., 'roll': 0.,
             'zoom_distance': 14., 'actor_position': [0., 0., 0.], 'actor_orientation': [0., 0., 0.],
             'origin_flags': 9, 'normalized_scale': 1., 'scale': 7.}])
@@ -28,7 +30,7 @@ class PetModelSceneExportTest(unittest.TestCase):
         tables = self.sources()
         tables['UiModelSceneActorDisplay'] = []
         with self.assertRaisesRegex(ValueError, 'scene 6.*245'):
-            EXPORT.build_scenes(tables)
+            EXPORT.build_scenes(tables, {6})
 
 if __name__ == '__main__':
     unittest.main()

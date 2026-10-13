@@ -7,6 +7,7 @@ synthetic framing values. BattlePetSpecies CardUIModelSceneID/LoadoutUIModelScen
 select the exported scene. XML continues to define viewport dimensions.
 """
 import argparse
+import csv
 from collections import defaultdict
 import hashlib
 import json
@@ -55,12 +56,15 @@ def export_scene(scene, cameras, actors, displays):
             'scale': displays[display_id]['Scale']}
 
 
-def build_scenes(tables):
+def build_scenes(tables, scene_ids):
     cameras = group_by_scene(tables['UiModelSceneCamera'])
     actors = group_by_scene(tables['UiModelSceneActor'])
     displays = {row['ID']: row for row in tables['UiModelSceneActorDisplay']}
-    scenes = [row for row in tables['UiModelScene'] if row['UiSystemType'] in (1, 4)]
-    return [export_scene(scene, cameras, actors, displays) for scene in scenes]
+    scenes = {row['ID']: row for row in tables['UiModelScene']}
+    missing = scene_ids - scenes.keys()
+    if missing:
+        raise ValueError(f'BattlePetSpecies references missing scenes {sorted(missing)}')
+    return [export_scene(scenes[scene_id], cameras, actors, displays) for scene_id in sorted(scene_ids)]
 
 
 def read_sources(directory, definitions):
@@ -86,13 +90,18 @@ def main():
     parser.add_argument('--db2', type=Path, required=True)
     parser.add_argument('--definitions', type=Path, required=True)
     parser.add_argument('--build', required=True)
+    parser.add_argument('--species', type=Path, required=True, help='authored BattlePetSpecies.csv used by runtime')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     tables, receipts = read_sources(args.db2, args.definitions)
-    scenes = build_scenes(tables)
+    with args.species.open(newline='') as handle:
+        scene_ids = {int(row[field]) for row in csv.DictReader(handle)
+                     for field in ['CardUIModelSceneID', 'LoadoutUIModelSceneID']}
+    scenes = build_scenes(tables, scene_ids)
     args.output.write_text(json.dumps(scenes, indent=2) + '\n')
     args.output.with_suffix('.provenance.json').write_text(json.dumps(
-        {'build': args.build, 'tables': receipts, 'scenes': len(scenes)}, indent=2) + '\n')
+        {'build': args.build, 'tables': receipts, 'scenes': len(scenes),
+         'species_sha256': hashlib.sha256(args.species.read_bytes()).hexdigest()}, indent=2) + '\n')
     print(f'Exported {len(scenes)} authored pet model scenes to {args.output}')
 
 
