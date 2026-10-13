@@ -32,14 +32,15 @@ varying vec4 tint;
 void vertex() { tint = COLOR; }
 void fragment() {
     vec2 uv = region.xy + fract(UV * repeats) * region.zw;
-    vec2 half_pixel = TEXTURE_PIXEL_SIZE * 0.5;
-    uv = clamp(uv, region.xy + half_pixel, region.xy + region.zw - half_pixel);
+    vec2 inset = min(TEXTURE_PIXEL_SIZE * 0.5, region.zw * 0.5);
+    uv = clamp(uv, region.xy + inset, region.xy + region.zw - inset);
     COLOR = texture(TEXTURE, uv) * tint;
 }
 "#;
 
-/// Crop-aware repetition: TextureRect's TILE would repeat an entire atlas sheet.
-fn apply_atlas_tiling(
+/// Sample authored atlas UVs directly: Godot rounds subpixel AtlasTexture sizes to
+/// zero and then substitutes the full sheet size; TILE would also repeat the sheet.
+fn apply_atlas_sampling(
     rect: &mut Gd<TextureRect>,
     image: &Gd<Texture2D>,
     crop: [f32; 4],
@@ -835,8 +836,9 @@ impl UiProjection {
         let art = self.source(source, registry);
         if let Art::Ready((image, region)) = &art {
             let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, *region);
-            if part.tiling.iter().any(|tile| *tile) {
-                apply_atlas_tiling(&mut rect, image, crop, part);
+            let subpixel_crop = crop[2] < 1.0 || crop[3] < 1.0;
+            if subpixel_crop || part.tiling.iter().any(|tile| *tile) {
+                apply_atlas_sampling(&mut rect, image, crop, part);
             } else {
                 rect.set_texture(&assets::sub_texture(image, crop));
             }

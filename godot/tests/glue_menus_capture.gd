@@ -42,9 +42,46 @@ func capture_cases() -> void:
             if stage.begins_with("final") and not await verify_geometry_and_click(ui, case):
                 quit(1)
                 return
+            if case == "campsite" and not await verify_shadow_crop(ui):
+                quit(1)
+                return
             ui.queue_free()
             await process_frame
     quit(0)
+
+# Retail shadow strips sample only the final atlas column, which is grayscale.
+# Isolate the actual production TextureRect to detect unrelated colored atlas art.
+func verify_shadow_crop(ui: Node) -> bool:
+    var frame := ui.find_child("CampsiteShadowSmallTop", true, false)
+    var textures := frame.find_children("*", "TextureRect", true, false)
+    if textures.is_empty():
+        push_error("Missing native collection shadow strip")
+        return false
+    var strip := textures[0].duplicate() as TextureRect
+    root.add_child(strip)
+    strip.position = Vector2(30, 30)
+    strip.size = Vector2(659, 13)
+    strip.show()
+    ui.hide()
+    RenderingServer.set_default_clear_color(Color(0.4, 0.4, 0.4))
+    for tick in range(3):
+        await process_frame
+        await RenderingServer.frame_post_draw
+    var image := root.get_texture().get_image()
+    var colored_pixels := 0
+    for y in range(31, 42):
+        for x in range(31, 688, 2):
+            var pixel := image.get_pixel(x, y)
+            if absf(pixel.r - pixel.g) > 0.04 or absf(pixel.g - pixel.b) > 0.04:
+                colored_pixels += 1
+    strip.queue_free()
+    ui.show()
+    RenderingServer.set_default_clear_color(ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color"))
+    if colored_pixels != 0:
+        push_error("Subpixel shadow crop leaked colored atlas art: " + str(colored_pixels))
+        return false
+    print("PASS: native subpixel collection shadow crop has no atlas bleed")
+    return true
 
 func verify_geometry_and_click(ui: Node, case: String) -> bool:
     var frame_name: String
