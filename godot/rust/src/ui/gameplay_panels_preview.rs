@@ -89,19 +89,31 @@ fn raid_state() -> Result<game_engine_ui_model::raid_info::RaidInfoState, String
     let catalog = RaidCatalog::load(&game_engine_ui_model::paths::resolve_data_path(
         "db2/12.1.0.69933",
     ))?;
-    let locks: Vec<_> = [409, 469, 533, 249, 532, 565, 544, 580]
-        .into_iter()
-        .enumerate()
-        .map(|(index, map_id)| shared::protocol::InstanceLockInfo {
+    // MapDifficulty.csv: Vanilla40=9, ten-player=3, twenty-five-player=4.
+    let locks: Vec<_> = [
+        (409, 9),
+        (469, 9),
+        (533, 3),
+        (249, 3),
+        (532, 3),
+        (565, 4),
+        (544, 4),
+        (580, 4),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(
+        |(index, (map_id, difficulty_id))| shared::protocol::InstanceLockInfo {
             map_id,
-            difficulty_id: 9,
+            difficulty_id,
             instance_id: index as u32 + 1,
             time_remaining_secs: 4000,
             completed_mask: 0,
             locked: true,
             extended: false,
-        })
-        .collect();
+        },
+    )
+    .collect();
     Ok(RaidInfoState {
         visible: true,
         rows: catalog.rows(&locks, 0)?,
