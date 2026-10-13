@@ -187,10 +187,12 @@ fn dropdown_arrow(props: DropdownButton<'_>, state: DropdownState<'_>) -> Elemen
 }
 
 fn dropdown_text(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
-    let color = if state.enabled {
-        props.text_color
-    } else {
+    let color = if !state.enabled {
         DISABLED
+    } else if state.style == DropdownStyle::WowStyle1 {
+        NORMAL
+    } else {
+        GOLD
     };
     let (rect, justify) = match state.style {
         DropdownStyle::WowStyle1 => ((8.0, 8.0, props.width - 34.0, 10.0), "LEFT"),
