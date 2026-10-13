@@ -1,3 +1,7 @@
+## 2026-10-13 — Group Finder Retail layout repair
+
+[Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): shared PanelTab/WowStyle1 controls, XML blue-menu category art/insets and native512×256 clipped quest paper replace generic tabs/stretched wall. Native geometry and covered-description pixel RED→GREEN; both-skin1920×1080 before/after closed/open PNGs inspected against XML. Targeted UI5/native-mask5, library build/check and fmt pass at5b6f57417. Source UI extracts remain private; full follower gameplay still open.
+
 ## 2026-10-13 — CASC installed-build following
 
 [Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
