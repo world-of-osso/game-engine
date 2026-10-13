@@ -157,6 +157,7 @@ fn pet_search_preserves_query_and_exposes_retail_clear_action_in_both_skins() {
         set_thread_skin(skin);
         let mut view = view();
         view.set_search("squirrel".into());
+        view.filters.open = true;
         let mut context = SharedContext::new();
         context.insert(view);
         let mut registry = FrameRegistry::new(1280.0, 720.0);
@@ -174,6 +175,14 @@ fn pet_search_preserves_query_and_exposes_retail_clear_action_in_both_skins() {
             .unwrap();
         assert!(!clear.hidden);
         assert_eq!(clear.onclick.as_deref(), Some("pet:search-clear"));
+        let divider = registry
+            .get(registry.get_by_name("PetJournalFilter2").unwrap())
+            .unwrap();
+        assert_eq!(divider.height.value(), 13.0);
+        let title = registry
+            .get(registry.get_by_name("PetJournalFilter3").unwrap())
+            .unwrap();
+        assert_eq!(title.position.top, ui_toolkit::layout_values::Val::Px(61.0));
         for suffix in ["Left", "Middle", "Right", "Icon"] {
             assert!(
                 registry
