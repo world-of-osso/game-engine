@@ -24,7 +24,13 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	await wait_frames(30)
+	# Initial snapshots are asynchronous; world geometry readiness is not channel readiness.
+	var keys_deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < keys_deadline:
+		var pending = JSON.parse_string(client.party_keystone_state())
+		if pending is Dictionary and not pending.members.is_empty():
+			break
+		await process_frame
 	var initial = JSON.parse_string(client.party_keystone_state())
 	if not initial is Dictionary or initial.members.size() != 1:
 		fail("Initial solo keystone snapshot lost during loading: " + client.party_keystone_state())
