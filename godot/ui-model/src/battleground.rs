@@ -668,7 +668,7 @@ fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
     if bg.map_id == 2656 {
         return deephaul_hud(bg);
     }
-    if matches!(bg.map_id, 30 | 1803) {
+    if matches!(bg.map_id, 30 | 628 | 1803) {
         // Reinforcements/resource race: no unrelated team-flag cells.
         return vec![];
     }
