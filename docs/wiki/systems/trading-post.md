@@ -20,7 +20,7 @@ Native Retail Mainline `Blizzard_PerksProgram` vendor and Traveler's Log Tender.
 
 Engine `b39e7c703`, server `4cc6b821`, protocol `1f245e3`; private 127.0.0.1:5731 with an owned world copy, fresh redb and `fb_tradingpost`. `godot/tests/trading_post_live.gd` uses native input only. Modern browse, Forever browse and Forever relog PASS: Log Tender line (0/500, balance 0), Tawny gossip → vendor, HUD 17 layers hidden and restored on Leave, dropdown, player transmog/set and creature pet/mount previews, rotation pixel change, ToyOverlay, unavailable row, drag-to-freeze (vendor item 456) surviving relog, and unaffordable purchase without confirmation. The 26 inspected PNGs are in `/syncthing/AgentShared/2026-10-12/trading-post/`.
 
-Not proven live: purchase/collection/refund. None of the 22 server-supported activities has reachable private-world content, so a fresh account has no Tender. Server behavioural tests cover those paths.
+Purchase/collection/refund PASS in both skins (engine `657438c14`, server `c0b7a24a`, protocol `adf7926`). No reachable private-world activity grants Tender, so setup uses the server's admin-socket test tools: `game-server-admin trading-post-grant-tender fb_tradingpost <n>` and `trading-post-refund-window 3600`. Phase `purchase` buys an affordable available transmog, mount, pet and toy, and checks each collection count +1, `Purchased` and Refund enabled. Phase `refund` relogs, sees all four owned, refunds each, and checks Tender restored, the collection entry revoked and Refund disabled.
 
 ## Canonical-write boundary
 
