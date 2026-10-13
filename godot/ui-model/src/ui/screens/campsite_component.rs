@@ -78,6 +78,11 @@ pub fn campsite_panel(state: &CampsiteState) -> Element {
     let hide = !state.panel_visible;
     let page = visible_page(state);
     let pages = campsite_page_count(state.scenes.len());
+    let page_text = format!("Page {}/{}", page + 1, pages);
+    let page_text_width =
+        ui_toolkit::text_measure::measure_text(&page_text, GameFont::FrizQuadrata, 12.0)
+            .expect("PagingControls PageText font")
+            .0;
     let cards: Element = state
         .scenes
         .iter()
@@ -99,17 +104,17 @@ pub fn campsite_panel(state: &CampsiteState) -> Element {
             name: "CampsitePanel", width: CAMPSITE_PANEL_WIDTH, height: PANEL_HEIGHT, hidden: hide,
             strata: FrameStrata::Dialog, pos_type: "absolute", left: "50%", top: "50%",
             translate_x: "-50%", translate_y: "-50%", margin_top: CAMPSITE_PANEL_TOP_OFFSET,
-            {crate::quest_art::portrait_border("Campsite", (CAMPSITE_PANEL_WIDTH,PANEL_HEIGHT), "Campsites", &CharSelectAction::CampsiteToggle.to_string())}
+            {crate::quest_art::window_chrome("Campsite", (CAMPSITE_PANEL_WIDTH,PANEL_HEIGHT), "Campsites", &CharSelectAction::CampsiteToggle.to_string())}
             r#frame { name: "CampsiteIconsFrame", width: 693.0, height: 482.0, pos_type: "absolute", left: 4.0, top: 60.0,
                 texture { name: "CampsiteBackgroundTile", texture_atlas: "collections-background-tile", width: 685.0, height: 474.0,
                     pos_type: "absolute", left: 4.0, top: 4.0, }
                 {collection_inset()}
                 {collection_shadows()}
                 r#frame { name: "CampsiteGrid", width: 668.0, height: 419.0, pos_type: "absolute", left: 13.0, top: 38.0, {cards} }
-                r#frame { name: "CampsitePaging", width: 140.0, height: 32.0, pos_type: "absolute", left: "50%", top: 398.0, translate_x: "-50%",
-                    fontstring { name: "CampsitePageText", width: 76.0, height: 32.0, text: format!("Page {}/{}",page+1,pages), font_size: 12.0, }
-                    {page_button("CampsitePrevPage", if page>0 {130869} else {130867}, page.saturating_sub(1), 76.0)}
-                    {page_button("CampsiteNextPage", if page+1<pages {130866} else {130864}, (page+1).min(pages-1), 108.0)}
+                r#frame { name: "CampsitePaging", width: {page_text_width + 74.0}, height: 32.0, pos_type: "absolute", left: "50%", top: 436.0, translate_x: "-50%",
+                    fontstring { name: "CampsitePageText", width: page_text_width, height: 32.0, text: &page_text, font_size: 12.0, }
+                    {page_button("CampsitePrevPage", if page>0 {130869} else {130867}, page.saturating_sub(1), page_text_width+5.0)}
+                    {page_button("CampsiteNextPage", if page+1<pages {130866} else {130864}, (page+1).min(pages-1), page_text_width+42.0)}
                 }
             }
         }
