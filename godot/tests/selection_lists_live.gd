@@ -144,7 +144,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return client.adventure_guide_state().loaded, "guide catalog"): return
 	await pointer("EncounterJournalTierDropdown")
 	await pointer("EncounterJournalTier68")
-	await pointer("EncounterJournalTab1")
+	await pointer("EncounterJournalRaidTab")
 	await pointer("JournalInstance741")
 	await pointer("JournalBoss1519")
 	if stage == "after":

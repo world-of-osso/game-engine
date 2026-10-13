@@ -19,6 +19,7 @@ pub const SCROLL_LISTS: [&str; 4] = [
 ];
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tab {
+    Journeys,
     #[default]
     Dungeons,
     Raids,
@@ -70,6 +71,8 @@ pub struct View {
     pub activities: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<Arc<shared::protocol::TradingPostSnapshot>>,
     pub activity_filters: crate::adventure_activities::ActivityFilters,
+    pub renown: Option<Arc<shared::protocol::RenownSnapshot>>,
+    pub journeys: crate::adventure_journeys::Journeys,
 }
 impl Default for View {
     fn default() -> Self {
@@ -101,6 +104,8 @@ impl Default for View {
             activities: None,
             trading_post: None,
             activity_filters: Default::default(),
+            renown: None,
+            journeys: Default::default(),
         }
     }
 }
@@ -420,6 +425,7 @@ impl View {
             }
             "tab" => {
                 self.tab = match value {
+                    Some("journeys") => Tab::Journeys,
                     Some("dungeons") => Tab::Dungeons,
                     Some("raids") => Tab::Raids,
                     Some("sets") => Tab::ItemSets,
@@ -544,6 +550,12 @@ impl View {
                     self.collapsed.insert(id);
                 }
             }
+            key if key.starts_with("journey") => crate::adventure_journeys::apply(
+                &mut self.journeys,
+                self.renown.as_deref(),
+                key,
+                value,
+            )?,
             _ => return Err(format!("Unknown journal action {action}")),
         }
         Ok(())
@@ -582,22 +594,24 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     ));
     let search = view.search.as_str();
     body.extend(rsx!{editbox {name:"EncounterJournalSearchBox",text:search,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:80,text_insets:"4,4,0,0",pos_type:"absolute"}});
-    for (index, (title, action)) in [
-        ("Dungeons", "dungeons"),
-        ("Raids", "raids"),
-        ("Item Sets", "sets"),
-        ("Tutorials", "tutorials"),
-        ("Traveler's Log", "monthly"),
-        ("Suggested", "suggested"),
+    // Blizzard_EncounterJournal.xml bottom tabs, in Retail order and frame names.
+    for (index, (name, title, action)) in [
+        ("Journeys", "Journeys", "journeys"),
+        ("MonthlyActivities", "Traveler's Log", "monthly"),
+        ("Suggest", "Suggested", "suggested"),
+        ("Dungeon", "Dungeons", "dungeons"),
+        ("Raid", "Raids", "raids"),
+        ("LootJournal", "Item Sets", "sets"),
+        ("Tutorials", "Tutorials", "tutorials"),
     ]
     .into_iter()
     .enumerate()
     {
         body.extend(button(
-            format!("EncounterJournalTab{index}"),
+            format!("EncounterJournal{name}Tab"),
             title,
             &format!("journal:tab:{action}"),
-            (12. + index as f32 * 130., 496., 127., 24.),
+            (12. + index as f32 * 111., 496., 108., 24.),
         ));
     }
     body.extend(if view.loading {
@@ -608,6 +622,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         )
     } else {
         match view.tab {
+            Tab::Journeys => {
+                crate::adventure_journeys::journeys(ctx, &view.journeys, view.renown.as_deref())
+            }
             Tab::Tutorials => tutorials(view),
             Tab::ItemSets => sets(ctx, view),
             Tab::Monthly => crate::adventure_activities::monthly(
@@ -1224,12 +1241,14 @@ fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
         "loottab-set-background",
         (0., 0., 744., 41.),
     );
-    let quality = set
+    let mut items: Vec<_> = set
         .items
         .iter()
         .filter_map(|id| view.catalog.items.get(id))
-        .next()
-        .map_or(1, |item| item.quality as u8);
+        .collect();
+    items.sort_by_key(|item| (slot_order(item.slot), item.id));
+    // Retail ConfigureItemButton recolors the name per button, so the last sorted member wins.
+    let quality = items.last().map_or(1, |item| item.quality as u8);
     children.extend(label(
         format!("JournalSet{}", set.id),
         &set.name,
@@ -1245,12 +1264,6 @@ fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
         &level_text,
         (39., 24., 318., 16.),
     ));
-    let mut items: Vec<_> = set
-        .items
-        .iter()
-        .filter_map(|id| view.catalog.items.get(id))
-        .collect();
-    items.sort_by_key(|item| (slot_order(item.slot), item.id));
     children.extend(items.iter().enumerate().flat_map(|(index, item)| {
         let prefix = format!("JournalSet{}Item{}", set.id, item.id);
         let mut icon = texture(format!("{prefix}Icon"), item.icon, (2.,2.,28.,28.), WHITE);
