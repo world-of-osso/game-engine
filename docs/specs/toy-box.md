@@ -32,6 +32,8 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 - Authored BC5 BLP textures used by toy models reach GPU upload with the same source red/green channels as CPU decoding, blue0 and alpha255. Ocean Simulator texture2022306 must not fail in the generic BLP parser before format dispatch; no replacement texture or invented color channel.
 - Authored zero-scale spell billboard bones remain collapsed without an invalid matrix-to-quaternion conversion. Later nonzero animation samples resume camera-facing presentation; no minimum scale or replacement pose is invented (Ethereal Portal75136, model165651).
 
+- War Banner300104/300144 resolves source PlayerCondition36349/36348 from replicated `CurrentPvpFaction` (2 Alliance,1 Horde), never from race or reaction template. Unknown/opposing faction selects no visual. Source back models2925498/2925497 use existing AuraStart/AuraEnd kit lifetimes; authoritative combat removal ends the attachment without replacing the native player model. Ordinary race/sex/spec/aura conditions remain unchanged.
+
 ## Reference and explicit boundaries
 
 Local source: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_Collections/Mainline/Blizzard_Collections.xml`, `Blizzard_Collections.lua`, `Blizzard_ToyBox.xml`, `Blizzard_ToyBox.lua`, `Blizzard_CollectionTemplates.xml`.
