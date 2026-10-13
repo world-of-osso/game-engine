@@ -196,6 +196,31 @@ mod tests {
     }
 
     #[test]
+    fn model_asset_index_reload_follows_replaced_installed_build_receipt() {
+        let data =
+            std::env::temp_dir().join(format!("db2-follow-model-reload-{}", std::process::id()));
+        let cache = data.join("cache");
+        std::fs::create_dir_all(&cache).unwrap();
+        let path = cache.join("model-asset-index.json");
+        for (build, key, bytes) in [
+            ("12.1.0.69933", "1".repeat(32), b"old".as_slice()),
+            ("12.1.5.70391", "2".repeat(32), b"new".as_slice()),
+        ] {
+            let row = receipt("wow", build, &key);
+            let asset_path = data.join(row["path"].as_str().unwrap());
+            std::fs::create_dir_all(asset_path.parent().unwrap()).unwrap();
+            std::fs::write(&asset_path, bytes).unwrap();
+            std::fs::write(&path, json!({"version": 1, "assets": [row]}).to_string()).unwrap();
+            let index = ModelAssetIndex::load(&data).unwrap();
+            let loaded = index.receipt(AssetProduct::Retail, 1100087, "m2").unwrap();
+            assert_eq!(loaded.build, build);
+            assert_eq!(loaded.build_key, key);
+            assert_eq!(std::fs::read(data.join(&loaded.path)).unwrap(), bytes);
+        }
+        std::fs::remove_dir_all(data).unwrap();
+    }
+
+    #[test]
     fn model_asset_index_selects_each_products_actual_build() {
         let retail = receipt("wow", "12.1.5.70340", "eba6b26286c312f520205084f491166b");
         let mut historical = receipt("wow", "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592");
