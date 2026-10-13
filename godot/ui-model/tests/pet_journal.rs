@@ -93,6 +93,98 @@ fn uncollected_species_cannot_summon_and_search_filters_names() {
 }
 
 #[test]
+fn pet_filters_toggle_ownership_families_and_reset_without_changing_authority() {
+    let mut view = view();
+    assert!(view.apply_filter("pet:collected"));
+    assert_eq!(
+        view.rows().iter().map(|row| row.key).collect::<Vec<_>>(),
+        vec![PetRowKey::Species(40)]
+    );
+    assert!(view.apply_filter("pet:families:none"));
+    assert!(view.rows().is_empty());
+    assert!(view.apply_filter("pet:families:all"));
+    assert_eq!(view.rows().len(), 1);
+    assert!(view.apply_filter("pet:family:7"));
+    assert!(view.rows().is_empty());
+    assert!(view.apply_filter("pet:reset"));
+    assert_eq!(view.rows().len(), 2);
+    assert_eq!(view.journal.pets.len(), 1);
+}
+
+#[test]
+fn pet_filters_use_species_source_combat_flags_and_owned_sort_values() {
+    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    let mut view = view();
+    view.species_filters.insert(
+        39,
+        PetSpeciesFilter {
+            flags: 2,
+            source: 3,
+        },
+    );
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 0x80,
+            source: 2,
+        },
+    );
+    assert!(view.apply_filter("pet:non-combat"));
+    assert_eq!(view.rows().len(), 1);
+    assert!(view.apply_filter("pet:source:3"));
+    assert!(view.rows().is_empty());
+    assert!(view.apply_filter("pet:sources:all"));
+    assert_eq!(view.rows().len(), 1);
+    view.apply_filter("pet:reset");
+    view.journal
+        .add_with_breed(40, 15, PetQuality::Rare, 3)
+        .unwrap();
+    view.apply_filter("pet:sort:level");
+    assert_eq!(view.rows()[0].species, 40);
+    view.apply_filter("pet:sort:rarity");
+    assert_eq!(view.rows()[0].quality, Some(PetQuality::Rare));
+    view.apply_filter("pet:sort:type");
+    assert_eq!(view.rows()[0].species, 40);
+}
+
+#[test]
+fn pet_search_preserves_query_and_exposes_retail_clear_action_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = view();
+        view.set_search("squirrel".into());
+        let mut context = SharedContext::new();
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(pet_journal_screen).sync(&context, &mut registry);
+        let search = registry
+            .get(registry.get_by_name("PetJournalSearchBox").unwrap())
+            .unwrap();
+        let Some(WidgetData::EditBox(edit)) = &search.widget_data else {
+            panic!("search editbox")
+        };
+        assert_eq!(edit.text, "squirrel");
+        assert_eq!(search.width.value(), 145.0);
+        let clear = registry
+            .get(registry.get_by_name("PetJournalSearchClear").unwrap())
+            .unwrap();
+        assert!(!clear.hidden);
+        assert_eq!(clear.onclick.as_deref(), Some("pet:search-clear"));
+        for suffix in ["Left", "Middle", "Right", "Icon"] {
+            assert!(
+                registry
+                    .get_by_name(&format!("PetJournalSearch{suffix}"))
+                    .is_some()
+            );
+        }
+    }
+}
+
+#[test]
 fn unreadable_species_stays_in_catalog_but_not_blank_list_selection() {
     let mut view = view();
     view.journal = PetJournal::default();
