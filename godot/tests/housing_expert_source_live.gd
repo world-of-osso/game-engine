@@ -4,7 +4,7 @@ extends "res://tests/housing_basic_bindings_live.gd"
 const EXPERT_BINDINGS: Array = [
 	["HOUSING_EXPERTDECORTRANSLATESUBMODE", KEY_F8],
 	["HOUSING_EXPERTDECORROTATESUBMODE", KEY_F9],
-	["HOUSING_EXPERTDECORSCALESUBMODE", KEY_F10],
+	["HOUSING_EXPERTDECORSCALESUBMODE", KEY_F12],
 	["HOUSING_EXPERTDECORINCREMENT_UP", KEY_F7],
 	["HOUSING_EXPERTDECORINCREMENT_SCALEUP", KEY_F5],
 	["HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT", KEY_F6],
@@ -90,7 +90,7 @@ func stage_assigned_precision() -> bool:
 			return false
 		await source_key(KEY_F11)
 	if not await record_editor("expert-source-rotate"): return false
-	await source_key(KEY_F10)
+	await source_key(KEY_F12)
 	print("EXPERT_SCALE_DISPATCH state=",client.housing_state()," thumb=",housing_control("HouseEditorScaleThumb")," label=",housing_text("HouseEditorScaleUpInstructionText"))
 	if not await record_editor("expert-source-scale-dispatch"): return false
 	if not await wait_housing(func(): return housing_control("HouseEditorScaleThumb")!=null,"assigned Scale submode"): return false
