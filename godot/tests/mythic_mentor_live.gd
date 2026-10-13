@@ -58,7 +58,7 @@ func run_test() -> void:
 	fail("Mentor fixture command deadline")
 
 func write_state(filename: String) -> void:
-	write_json_atomic(filename, {"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect(), "tooltip": client.tooltip_state()})
+	write_json_atomic(filename, {"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect(), "tooltip": client.tooltip_state(), "spells": client.spells_state()})
 
 func write_json_atomic(filename: String, data: Dictionary) -> void:
 	var destination := shots + filename
