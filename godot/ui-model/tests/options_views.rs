@@ -318,10 +318,7 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
                 label(&registry, "ToggleLabellayout_show_micro_menu"),
                 "Show Micro Menu"
             );
-            let action = click(
-                &mut registry,
-                &format!("ToggleSwitchlayout_show_micro_menu{side}Hit"),
-            );
+            let action = click(&mut registry, "ToggleSwitchlayout_show_micro_menu");
             let parsed = parse_layout_action(&action).expect("layout toggle action");
             apply_layout_action(parsed, &mut layout);
         }

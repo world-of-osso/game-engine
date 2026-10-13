@@ -405,6 +405,8 @@ fn tab_button(category: OptionsCategory, selected: bool) -> Element {
     rsx! { button { name: {&name}, width: TAB_ROW_W, height: TAB_ROW_H, onclick: action, button_default_skin: false,
         texture { name: DynName(format!("{}Selected",name.0)), texture_atlas: "Options_List_Active", hidden: hide,
             width: background.width, height: background.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
+        texture { name: DynName(format!("{}Hover",name.0)), texture_atlas: "Options_List_Hover", hidden: true,
+            width: background.width, height: background.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
         fontstring { name: DynName(format!("{}Label",name.0)), text: category.title(), font_size: 12.0,
             font_color: {if selected { FontColor::new(1.0,1.0,1.0,1.0) } else { FontColor::new(1.0,0.82,0.0,1.0) }},
             width: 139.0, height: TAB_ROW_H, justify_h: JustifyH::Left,
@@ -667,6 +669,28 @@ fn small_button(name: &str, text: &str, action: &str, width: f32) -> Element {
 
 pub fn sync_options_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
+    let categories: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let name = frame.name.as_deref()?;
+            if !name.starts_with("OptionsTab") {
+                return None;
+            }
+            let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
+                return None;
+            };
+            Some((name.to_owned(), button.hovered))
+        })
+        .collect();
+    for (name, hovered) in categories {
+        let selected = registry
+            .get_by_name(&format!("{name}Selected"))
+            .and_then(|id| registry.get(id))
+            .is_some_and(|frame| !frame.hidden);
+        if let Some(id) = registry.get_by_name(&format!("{name}Hover")) {
+            registry.set_hidden(id, !hovered || selected);
+        }
+    }
     let bindings: Vec<_> = registry
         .frames_iter()
         .filter_map(|frame| {
