@@ -249,6 +249,33 @@ impl View {
             })
             .collect()
     }
+    pub fn select_dungeon_encounter(
+        &mut self,
+        dungeon_encounter: u32,
+        difficulty: Option<u32>,
+    ) -> Result<(), String> {
+        let encounter = self
+            .catalog
+            .encounters
+            .iter()
+            .find(|encounter| encounter.dungeon_encounter == dungeon_encounter)
+            .ok_or_else(|| format!("No journal entry for encounter {dungeon_encounter}"))?;
+        let id = encounter.id;
+        if let Some(difficulty) = difficulty
+            && !self
+                .available_difficulties(encounter.instance, Some(id))
+                .contains(&difficulty)
+        {
+            return Err(format!(
+                "Journal difficulty {difficulty} unavailable for encounter {dungeon_encounter}"
+            ));
+        }
+        self.select_encounter(id)?;
+        if let Some(difficulty) = difficulty {
+            self.difficulty = difficulty;
+        }
+        Ok(())
+    }
     pub fn select_encounter(&mut self, id: u32) -> Result<(), String> {
         let e = self
             .catalog
