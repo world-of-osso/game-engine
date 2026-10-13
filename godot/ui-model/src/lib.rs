@@ -354,6 +354,7 @@ pub mod item_tooltip;
 // Native GameTooltip content and placement (docs/specs/unit-tooltip.md).
 pub mod game_tooltip;
 pub mod merchant;
+pub mod trading_post;
 #[path = "game/merchant_data.rs"]
 pub mod merchant_data;
 pub mod paths;

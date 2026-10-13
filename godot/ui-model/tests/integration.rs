@@ -53,6 +53,7 @@ mod login;
 mod loot_frame;
 mod main_action_bar;
 mod merchant;
+mod trading_post;
 mod merchant_junk;
 mod merchant_repair;
 mod micro_menu;
