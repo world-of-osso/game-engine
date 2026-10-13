@@ -2,8 +2,8 @@
 use crate::bank_art::{WHITE, label, texture};
 use crate::follower_dungeons::View;
 use crate::menu_primitives::{
-    ContextMenu, ContextMenuItem, DropdownButton, DropdownState, context_menu,
-    dropdown_button_with_state,
+    ContextMenu, ContextMenuItem, DropdownButton, DropdownState, MenuElementKind,
+    context_menu_with_kind, dropdown_button_with_state,
 };
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{
@@ -364,21 +364,24 @@ fn type_dropdown(open: bool) -> Element {
     )
 }
 fn type_menu() -> Element {
-    context_menu(ContextMenu {
-        frame_name: "LFDQueueFrameTypeDropdownMenu",
-        title_name: "LFDQueueFrameTypeTitle",
-        divider_name: "LFDQueueFrameTypeDivider",
-        title: "Type",
-        hidden: false,
-        width: 200.0,
-        x: 131.0,
-        y: 141.0,
-        items: &[ContextMenuItem {
-            name: "LFDQueueFrameTypeFollower",
-            label: "Follower Dungeons",
-            action: "follower:type:follower",
-        }],
-    })
+    context_menu_with_kind(
+        ContextMenu {
+            frame_name: "LFDQueueFrameTypeDropdownMenu",
+            title_name: "LFDQueueFrameTypeTitle",
+            divider_name: "LFDQueueFrameTypeDivider",
+            title: "",
+            hidden: false,
+            width: 200.0,
+            x: 131.0,
+            y: 141.0,
+            items: &[ContextMenuItem {
+                name: "LFDQueueFrameTypeFollower",
+                label: "Follower Dungeons",
+                action: "follower:type:follower",
+            }],
+        },
+        MenuElementKind::Radio { checked: true },
+    )
 }
 fn description(view: &View) -> String {
     if let Some(error) = view.state.as_ref().and_then(|state| state.error.as_ref()) {
