@@ -72,6 +72,8 @@ func run_test() -> void:
 			return
 		print("FIXTURE PORTAL_DONE disabled meshes=present pools=absent emitters=absent")
 	else:
+		# Portal emitter5 uses refraction/displacement, not forward colour.
+		const FORWARD_EMITTERS := 5
 		var drawn := []
 		var state: Dictionary = {}
 		deadline = Time.get_ticks_msec() + 20000
@@ -80,14 +82,17 @@ func run_test() -> void:
 			state = client.account_state().world_objects
 			var particles: Dictionary = state.get("particles", {})
 			drawn.clear()
-			for index in 6:
+			for index in FORWARD_EMITTERS:
 				var pool := client.find_child("Particles197007_%d" % index, true, false) as MultiMeshInstance3D
 				drawn.append(-1 if pool == null else pool.multimesh.visible_instance_count)
-			if camera.is_position_in_frustum(portal.global_position) and portal.visible and particles.get("pools", 0) >= 6 and particles.get("emitters", 0) >= 6 and particles.get("updated_emitters", 0) >= 6 and drawn.all(func(count): return count > 0):
+			if camera.is_position_in_frustum(portal.global_position) and portal.visible and particles.get("pools", 0) >= FORWARD_EMITTERS and particles.get("emitters", 0) >= FORWARD_EMITTERS and particles.get("updated_emitters", 0) >= FORWARD_EMITTERS and drawn.all(func(count): return count > 0):
 				break
 		var particles: Dictionary = state.get("particles", {})
-		if drawn.size() != 6 or drawn.any(func(count): return count <= 0) or not camera.is_position_in_frustum(portal.global_position) or not portal.visible or particles.get("pools", 0) < 6 or particles.get("emitters", 0) < 6 or particles.get("updated_emitters", 0) < 6:
-			fail("Enabled portal did not draw all six authored emitters: drawn=%s camera=%s portal=%s state=%s" % [drawn, camera.global_position, portal.global_position, state])
+		if drawn.size() != FORWARD_EMITTERS or drawn.any(func(count): return count <= 0) or not camera.is_position_in_frustum(portal.global_position) or not portal.visible or particles.get("pools", 0) < FORWARD_EMITTERS or particles.get("emitters", 0) < FORWARD_EMITTERS or particles.get("updated_emitters", 0) < FORWARD_EMITTERS:
+			fail("Enabled portal did not draw all five forward emitters: drawn=%s camera=%s portal=%s state=%s" % [drawn, camera.global_position, portal.global_position, state])
+			return
+		if client.find_child("Particles197007_5", true, false) != null:
+			fail("Refraction emitter5 leaked into the portal forward pass")
 			return
 		print("FIXTURE PORTAL_DONE enabled meshes=present pools=%s emitters=%s drawn=%s" % [state.particles.pools, state.particles.emitters, drawn])
 	client.free()
