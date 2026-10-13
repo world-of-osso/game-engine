@@ -1,6 +1,9 @@
 ## 2026-10-13 — Basic editor source continuation
 
 [Housing](systems/housing.md#basic-source-controls-and-release-input--functional2026-10-13): source controls/layout, unbound assignable Retail actions, native owner-routed click/drag release, saved/preview rotation, user unbind and visitor/refusal/relog pass in both skins. Installed70340 hotkey atlas-member re-export remains a named visual gap owned by db2-follow-install; frozen69933 payloads/captures/test were removed under lead decision. Full housing remains open.
+## 2026-10-13 — CASC installed-build following
+
+[Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
 
 ## 2026-10-13 — Source storage tiles
 
