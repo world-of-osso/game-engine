@@ -31,6 +31,7 @@ pub(crate) struct TradingPost {
     dragged: Option<(u32, Vector2, bool)>,
     /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
     hidden_layers: Vec<Gd<CanvasLayer>>,
+    preview_failed: bool,
 }
 
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
@@ -107,8 +108,24 @@ impl GameClient {
         if self.trading_post.view.visible {
             self.hide_ui_parent();
             self.sync_trading_ui()?;
-            if let Err(error) = self.sync_trading_model() {
-                self.trading_post.view.error = error;
+            match self.sync_trading_model() {
+                // A failed preview must not leave the previous selection's model on screen.
+                Err(error) => {
+                    self.clear_trading_model();
+                    self.trading_post.view.error = error;
+                    self.trading_post.preview_failed = true;
+                }
+                Ok(()) if self.trading_post.preview_failed => {
+                    self.trading_post.preview_failed = false;
+                    self.trading_post.view.error = self
+                        .trading_post
+                        .view
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.error.clone())
+                        .unwrap_or_default();
+                }
+                Ok(()) => {}
             }
         }
         Ok(())
@@ -211,7 +228,8 @@ impl GameClient {
         let Some(row) = self.trading_post.view.selected_item() else {
             return Ok(None);
         };
-        if row.category_id == 5 {
+        // Unavailable rows show their source gap in the details text instead of a model.
+        if row.category_id == 5 || row.grant_unavailable.is_some() {
             return Ok(None);
         }
         if row.creature_display_id != 0 {
@@ -462,6 +480,27 @@ impl GameClient {
         state.set("selected", view.selected.map_or(-1, i64::from));
         state.set("category", i64::from(view.category));
         state.set("preview_ready", self.trading_post.shown.is_some());
+        state.set(
+            "preview_kind",
+            match &self.trading_post.shown {
+                Some(UnitAppearance::Player(..)) => "player",
+                Some(UnitAppearance::Creature { .. }) => "creature",
+                None => "none",
+            },
+        );
+        let rows: PackedStringArray = view
+            .rows()
+            .iter()
+            .take(12)
+            .map(|row| {
+                GString::from(&format!(
+                    "{}|{}",
+                    row.id,
+                    u8::from(row.grant_unavailable.is_none())
+                ))
+            })
+            .collect();
+        state.set("rows", &rows);
         state.set("pending", view.pending);
         state.set(
             "hidden_layers",
