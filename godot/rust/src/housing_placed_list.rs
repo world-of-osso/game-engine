@@ -119,8 +119,29 @@ impl GameClient {
     }
 
     fn hover_housing_placed_row(&mut self, point: Vector2) {
-        let hovered = self
-            .housing
+        let hovered = if self.editor_ui_contains(point) {
+            self.pick_housing_placed_row(point)
+        } else {
+            self.base()
+                .get_viewport()
+                .and_then(|viewport| viewport.get_camera_3d())
+                .and_then(|camera| crate::unit_pick::pick_unit(&camera, point))
+                .filter(|instance| self.housing.decor.contains(*instance))
+        };
+        if let Some(model) = self.housing.model.as_mut() {
+            model.editor.hovered =
+                hovered.filter(|instance| Some(*instance) != model.editor.selected);
+        }
+    }
+
+    fn pick_housing_placed_row(&self, point: Vector2) -> Option<u64> {
+        if !self
+            .housing_control_rect(game_engine_ui_model::housing_placed_list::LIST)
+            .is_some_and(|rect| rect.contains_point(point))
+        {
+            return None;
+        }
+        self.housing
             .authority
             .state
             .as_ref()
@@ -131,11 +152,7 @@ impl GameClient {
                         .is_some_and(|rect| rect.contains_point(point))
                 })
             })
-            .map(|placed| placed.instance_id);
-        if let Some(model) = self.housing.model.as_mut() {
-            model.editor.hovered =
-                hovered.filter(|instance| Some(*instance) != model.editor.selected);
-        }
+            .map(|placed| placed.instance_id)
     }
 
     fn drag_housing_placed_list(&mut self, point: Vector2) -> Result<bool, String> {
