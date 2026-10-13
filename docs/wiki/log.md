@@ -1,3 +1,7 @@
+## 2026-10-13 — War Banner team condition and native combat removal
+
+[War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+
 ## 2026-10-12 — Source-private toy actor proof
 
 [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12): real UDP owner/observer RED→GREEN with public control, both-skin owner Shirakess model/.6 scale/natural expiry, census337 unchanged and canonical flags import requirement.
