@@ -4737,3 +4737,5 @@ textures/7323575.blp
 cache/adventure_guide.sqlite
 # Mainline RaidBossEmote warning kit12197 (SoundKitEntry15068).
 sounds/ui/567394.ogg
+models/6371365.wmo
+models/6371389.wmo
