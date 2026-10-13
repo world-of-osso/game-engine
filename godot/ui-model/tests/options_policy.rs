@@ -6,6 +6,36 @@ use game_engine_ui_model::game_menu_component::GameMenuView;
 use game_engine_ui_model::options_menu_component::OptionsCategory;
 use game_engine_ui_model::options_menu_data::*;
 
+#[test]
+fn settings_navigation_opens_existing_pages_and_clears_search() {
+    use game_engine_ui_model::options_menu_data::apply_settings_navigation;
+    let mut state = model();
+    for (action, category, addons) in [
+        ("menu_addons", OptionsCategory::SocialAddons, true),
+        ("menu_macros", OptionsCategory::Macros, false),
+        ("menu_support", OptionsCategory::Support, false),
+        ("options_tab:addons", OptionsCategory::SocialAddons, true),
+        ("options_tab:game", OptionsCategory::Graphics, false),
+    ] {
+        state.search = "music".into();
+        assert!(apply_settings_navigation(&mut state, action));
+        assert_eq!(state.category, category);
+        assert_eq!(state.addons_tab, addons);
+        assert!(state.search.is_empty());
+    }
+    assert!(apply_settings_navigation(
+        &mut state,
+        "options_search:mUsIc"
+    ));
+    assert_eq!(state.search, "mUsIc");
+    assert!(apply_settings_navigation(
+        &mut state,
+        "options_search_clear"
+    ));
+    assert!(state.search.is_empty());
+    assert!(!apply_settings_navigation(&mut state, "menu_shop"));
+}
+
 fn model() -> OptionsModel {
     let graphics = graphics_draft_from_file(&GraphicsOptionsFile::default());
     let sound = sound_draft_from_file(&SoundOptionsFile::default());
@@ -15,6 +45,8 @@ fn model() -> OptionsModel {
         logged_in: true,
         view: GameMenuView::Options,
         category: OptionsCategory::Graphics,
+        search: String::new(),
+        addons_tab: false,
         modal_position: [42.0, 24.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
@@ -386,4 +418,24 @@ fn options_extra_action_bars_accept_retail_visibility_toggles() {
     assert_eq!(m.category.title(), "Action Bars");
     reset_category_defaults(&mut m);
     assert_eq!(m.draft_hud.extra_action_bars, Default::default());
+}
+
+#[test]
+fn thickness_radio_choices_set_presets_without_toggling_the_current_choice() {
+    use game_engine_ui_model::nameplate_style_data::NameplateBarThickness;
+    let mut options = model();
+    for (key, thickness) in [
+        ("nameplate_health_thickness:1", NameplateBarThickness::Thick),
+        ("nameplate_health_thickness:0", NameplateBarThickness::Thin),
+    ] {
+        assert!(apply_toggle(key, &mut options));
+        assert_eq!(options.draft_hud.nameplate_style.health_preset(), thickness);
+        assert!(apply_toggle(key, &mut options));
+        assert_eq!(options.draft_hud.nameplate_style.health_preset(), thickness);
+    }
+    assert!(apply_toggle("nameplate_spellbar_thickness:1", &mut options));
+    assert_eq!(
+        options.draft_hud.nameplate_style.cast_preset(),
+        NameplateBarThickness::Thick
+    );
 }

@@ -127,11 +127,47 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 120);
+    assert_eq!(InputAction::ALL.len(), 140);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 12, 12, 1, 15, 6]
+        [8, 6, 14, 22, 12, 12, 12, 12, 1, 15, 6, 20]
     );
+    let housing = actions_for_section(BindingSection::Housing);
+    assert_eq!(
+        housing
+            .iter()
+            .map(|action| action.key())
+            .collect::<Vec<_>>(),
+        [
+            "HOUSING_TOGGLEBASICDECORMODE",
+            "HOUSING_TOGGLEEXPERTDECORMODE",
+            "HOUSING_TOGGLECLEANUPMODE",
+            "HOUSING_BASICDECOR_ROTATELEFT",
+            "HOUSING_BASICDECOR_ROTATERIGHT",
+            "HOUSING_REMOVEDECOR",
+            "HOUSING_EXPERTDECORTRANSLATESUBMODE",
+            "HOUSING_EXPERTDECORROTATESUBMODE",
+            "HOUSING_EXPERTDECORSCALESUBMODE",
+            "HOUSING_EXPERTDECORINCREMENT_LEFT",
+            "HOUSING_EXPERTDECORINCREMENT_RIGHT",
+            "HOUSING_EXPERTDECORINCREMENT_FORWARD",
+            "HOUSING_EXPERTDECORINCREMENT_BACK",
+            "HOUSING_EXPERTDECORINCREMENT_UP",
+            "HOUSING_EXPERTDECORINCREMENT_DOWN",
+            "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
+            "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
+            "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
+            "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
+            "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
+        ]
+    );
+    for action in housing {
+        assert_eq!(
+            bindings.binding(*action),
+            None,
+            "Housing defaults require source data"
+        );
+    }
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
         assert!(seen.insert(action));
