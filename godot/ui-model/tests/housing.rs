@@ -50,11 +50,45 @@ fn housing_storage_search_clear_has_source_geometry_and_nonempty_visibility_in_b
             clear.onclick.as_deref(),
             Some("housing:storage:search:clear")
         );
+        let art = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSearchClearArt")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(art.alpha, 0.5);
+        let icon = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSearchClearIcon")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(icon.width, Dimension::Fixed(10.0));
+        assert_eq!(icon.height, Dimension::Fixed(10.0));
+        assert_eq!(
+            (icon.position.left, icon.position.top),
+            (Val::Px(3.0), Val::Px(3.0))
+        );
         view.model.set_storage_search(String::new());
-        context.insert(view);
+        context.insert(view.clone());
         screen.sync(&context, &mut registry);
         assert!(
             !registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchClearButton")
+                        .unwrap()
+                )
+                .unwrap()
+                .visible
+        );
+        view.model.storage_search_focused = true;
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
                 .get(
                     registry
                         .get_by_name("HouseEditorStorageSearchClearButton")

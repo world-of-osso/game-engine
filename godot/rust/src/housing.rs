@@ -260,13 +260,16 @@ impl GameClient {
                 model.set_search(search, &self.housing.authority);
             }
         }
-        if let Some(model) = &mut self.housing.model
-            && model.surface == HousingSurface::Editor
-            && host.frame_control(STORAGE_SEARCH_FIELD).is_some()
-        {
-            let search = host.frame_text(STORAGE_SEARCH_FIELD.into()).to_string();
-            if model.storage_search != search {
-                model.set_storage_search(search);
+        if let Some(model) = &mut self.housing.model {
+            let search_control = host.frame_control(STORAGE_SEARCH_FIELD);
+            model.storage_search_focused = search_control
+                .as_ref()
+                .is_some_and(|control| control.has_focus());
+            if model.surface == HousingSurface::Editor && search_control.is_some() {
+                let search = host.frame_text(STORAGE_SEARCH_FIELD.into()).to_string();
+                if model.storage_search != search {
+                    model.set_storage_search(search);
+                }
             }
         }
         drop(host);
@@ -329,7 +332,11 @@ impl GameClient {
         if model.storage_filter_action(action)? {
             return Ok(true);
         }
-        if !model.storage_focus_action(action, &self.housing.authority)? {
+        let clearing_search = action == "housing:storage:search:clear";
+        if clearing_search {
+            model.set_storage_search(String::new());
+            model.storage_search_focused = false;
+        } else if !model.storage_focus_action(action, &self.housing.authority)? {
             return Ok(false);
         }
         let clear_search = model.storage_search.is_empty();
@@ -337,6 +344,11 @@ impl GameClient {
             let mut host = ui.bind_mut();
             if host.frame_control(STORAGE_SEARCH_FIELD).is_some() {
                 host.clear_editbox_named(STORAGE_SEARCH_FIELD)?;
+                if clearing_search
+                    && let Some(mut control) = host.frame_control(STORAGE_SEARCH_FIELD)
+                {
+                    control.release_focus();
+                }
             }
         }
         Ok(true)

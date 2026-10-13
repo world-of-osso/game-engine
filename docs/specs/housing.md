@@ -74,6 +74,12 @@ Owned storage has independent Dyeable Only and alphabetical ordering controls. D
 
 Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Both-skin physical acceptance exercises alphabetical actual tiles, paid nondyeable stacks excluded, hidden/remounted filter retention, reset/search composition, conservation and normal paid-copy replacement. Dropdowns outside the drawer must remain UI input, never world-edit clicks. Cross-process saved filter/CVar persistence remains separate.
 
+## Owned storage search clear control
+
+Owned-storage search includes the inherited Retail17×17 clear button at right−3, with10×10 `common-search-clearbutton` art inset3 and normal alpha0.5. Nonempty or focused search shows it; empty/unfocused hides it. Clicking empties both native registry edit text and storage search, releases input focus and immediately refreshes results. Catalog search, storage category/filter/sort and authoritative ownership/layout remain unchanged. Hover/pressed icon fidelity and minimum-character search semantics remain separate acceptance boundaries.
+
+Source: HousingCatalogSearchBoxMixin OnLoad, SearchBoxTemplate XML and InputBoxTemplates.lua SearchBoxTemplateClearButton_OnClick/ClearText/OnTextChanged.
+
 ## Owned storage search
 
 Basic editor storage exposes Retail's header SearchBox and shows only authenticated positive stored stacks whose qualified decor names match the case-insensitive search. Placed-only/unowned/unconfirmed entries are not storage results. Preserve storage search separately from Dashboard Catalog search and while Cleanup/Expert hides the drawer; remount the retained input without sampling an absent field as empty. Clear input restores stored results. Search never changes ownership, quantities, selected transforms or pending server authority. Both skins share input/filter behavior. Paging/collection filters, drawer collapse/resize, Market/Blueprints, dyed variant controls and maximum-storage authority remain separate capabilities; this search slice must not claim full storage parity.
