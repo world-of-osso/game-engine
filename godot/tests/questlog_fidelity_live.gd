@@ -97,7 +97,7 @@ func check_pet_loadout_models() -> bool:
 	await click(item_control.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	await frames(5)
 	await click_control(backpack)
-	var collections := client.find_child("CollectionsMicroButton", true, false) as Control
+	var collections := client.get_node("MicroMenuUI").find_child("CollectionsMicroButton", true, false) as Control
 	print("PET_SETUP_DIMENSIONS window=", root.size, " image=", root.get_texture().get_image().get_size(),
 		" backpack=", backpack.get_global_rect(), " collections=", collections.get_global_rect())
 	await click_control(collections)
