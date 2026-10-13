@@ -24,7 +24,7 @@ func run_test() -> void:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var menu := client.get_node_or_null("GameMenuUI")
-		var done = menu.find_child("OptionsDoneButton", true, false) if menu != null else null
+		var done = menu.find_child("OptionsCloseButton", true, false) if menu != null else null
 		if done is Control and done.is_visible_in_tree():
 			await exercise_options(client, canonical_path, legacy_path, legacy_bytes)
 			return
@@ -101,7 +101,7 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 	await process_frame
 	push_key(KEY_ESCAPE, false)
 	await process_frame
-	if binding_value(client) != previous_binding or not option_control(client, "OptionsDoneButton"):
+	if binding_value(client) != previous_binding or not option_control(client, "OptionsCloseButton"):
 		fail("Escape did not cancel capture while preserving Options")
 		return
 	await click_option(client, "KeybindingButtonmove_forward")
@@ -113,8 +113,8 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 		fail("Captured key did not replace binding")
 		return
 	await click_option(client, "KeybindingButtonmove_forward")
-	await click_option(client, "OptionsDoneButton")
-	if not option_control(client, "OptionsDoneButton") or not binding_value(client).contains("Mouse"):
+	await click_option(client, "OptionsCloseButton")
+	if not option_control(client, "OptionsCloseButton") or not binding_value(client).contains("Mouse"):
 		fail("Captured mouse click fell through to Done or failed binding")
 		return
 	push_key(KEY_ESCAPE, true)
@@ -126,10 +126,10 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 		return
 	await click_menu_action(client, "MenuBtnAddons")
 	await process_frame
-	if option_control(client, "OptionsDoneButton") == null:
+	if option_control(client, "OptionsCloseButton") == null:
 		fail("AddOns did not route to authored Options panel")
 		return
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	if not await wait_menu_closed(client, null):
 		return
 	if not FileAccess.file_exists(path):

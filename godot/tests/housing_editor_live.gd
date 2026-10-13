@@ -196,7 +196,7 @@ func editor_configure_bindings(clear: bool) -> bool:
 				return false
 			await click_control(control,MOUSE_BUTTON_LEFT)
 			await editor_key(binding[1])
-	await click_control(housing_named_control("GameMenuUI","OptionsDoneButton"),MOUSE_BUTTON_LEFT)
+	await click_control(housing_named_control("GameMenuUI","OptionsCloseButton"),MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.get_node_or_null("GameMenuUI")==null,"editor fixture Options Done"): return false
 	await click_control(housing_named_control("MicroMenuUI","HousingMicroButton"),MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HousingDecorateButton")!=null and not client.housing_state().get("pending",true),"editor fixture confirmed visited layout"): return false

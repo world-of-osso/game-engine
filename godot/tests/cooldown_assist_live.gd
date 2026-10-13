@@ -354,7 +354,7 @@ func configure_options() -> void:
 	await click("CooldownSettingsSelect68661")
 	await capture("settings-tracked-bars")
 	await click("CooldownSettingsClose")
-	await click("OptionsDoneButton")
+	await click("OptionsCloseButton")
 	await process_frame
 	# Done returns to the menu; Escape closes its remaining owner.
 	if control("MenuBtnResume") != null:

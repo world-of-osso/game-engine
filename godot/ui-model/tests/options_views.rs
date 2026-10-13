@@ -29,6 +29,7 @@ fn model() -> GameMenuViewModel {
             category: OptionsCategory::Sound,
             search: String::new(),
             addons_tab: false,
+            pending_changes: false,
             position: [0.0, 0.0],
             graphics: GraphicsOptionsView {
                 particle_density: 75.0,
@@ -663,6 +664,49 @@ fn settings_search_shared_controls_are_not_duplicated_across_categories() {
         count, 1,
         "one shared setting appears once in search results"
     );
+}
+
+#[test]
+fn settings_footer_has_retail_close_and_hides_apply_without_pending_settings() {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut menu = GameMenuModel::from_view(1920.0, 1080.0, model());
+        menu.sync();
+        let close = menu
+            .registry
+            .get_by_name("OptionsCloseButton")
+            .expect("Retail CloseButton");
+        let frame = menu.registry.get(close).unwrap();
+        assert_eq!(
+            (frame.width, frame.height),
+            (Dimension::Fixed(96.0), Dimension::Fixed(22.0))
+        );
+        assert_eq!(label(&menu.registry, "OptionsCloseButton"), "Close");
+        assert_eq!(
+            menu.registry.click_frame(close).as_deref(),
+            Some("options_close")
+        );
+        let apply = menu
+            .registry
+            .get_by_name("OptionsApplyButton")
+            .expect("Retail ApplyButton");
+        assert!(menu.registry.get(apply).unwrap().hidden);
+        assert_eq!(menu.registry.click_frame(apply), None);
+        let defaults = menu
+            .registry
+            .get_by_name("OptionsDefaultsButton")
+            .expect("Retail list header DefaultsButton");
+        let parent = menu.registry.get(defaults).unwrap().parent_id.unwrap();
+        assert_eq!(
+            menu.registry.get(parent).unwrap().name.as_deref(),
+            Some("OptionsDefaultsMount")
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
