@@ -253,7 +253,11 @@ fn retail_damage_meter_radio_menu_preserves_choices_without_text_bullets() {
             "Current Segment"
         );
         assert!(frame(&registry, "DamageMeterSessionMenuOption1Tick").visible);
-        assert!(!frame(&registry, "DamageMeterSessionMenuOption2Tick").visible);
+        assert!(
+            registry
+                .get_by_name("DamageMeterSessionMenuOption2Tick")
+                .is_none()
+        );
     }
 }
 
@@ -950,7 +954,11 @@ fn the_type_menu_lists_every_type_in_both_skins() {
     assert_eq!(options(&modern), expected);
     // The selected type is the marked one.
     assert!(frame(&modern, "DamageMeterTypeMenuOption3Tick").visible);
-    assert!(!frame(&modern, "DamageMeterTypeMenuOption1Tick").visible);
+    assert!(
+        modern
+            .get_by_name("DamageMeterTypeMenuOption1Tick")
+            .is_none()
+    );
     assert!(modern.get_by_name("DamageMeterSessionMenu").is_none());
     // The menu is drawn over the row it covers: a higher strata.
     let strata = |name: &str| format!("{:?}", frame(&modern, name).strata);

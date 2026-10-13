@@ -73,7 +73,12 @@ fn minimap_tracking_each_town_role_tracks_only_its_matching_unit() {
 
 #[test]
 fn minimap_tracking_menu_and_service_art_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
         let mut tracking = TrackingState {
             open: true,
             ..Default::default()
