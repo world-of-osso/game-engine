@@ -124,13 +124,11 @@ impl Peer {
                     .downcast::<InventoryDelta>()
                     .map_err(|_| "inventory delta type")?,
             );
-        } else if message.is::<InventoryError>() {
+        } else {
             let error = message
                 .downcast::<InventoryError>()
-                .map_err(|_| "inventory error type")?;
+                .map_err(|_| "unexpected inventory receipt type")?;
             return Err(format!("{} inventory refusal: {error:?}", self.username));
-        } else {
-            return Err("unexpected inventory receipt".into());
         }
         Ok(())
     }
@@ -142,6 +140,10 @@ impl Peer {
         if !self.entered {
             return Err(format!("{} has not entered", self.username));
         }
+        self.send_action(action)
+    }
+
+    fn send_action(&self, action: &str) -> Result<(), String> {
         match action {
             "queue" => self.bridge.send::<_, PvpChannel>(QueueForBattleground {
                 battleground_id: self.battleground_id,
@@ -156,6 +158,12 @@ impl Peer {
             "leave" => self.bridge.send::<_, PvpChannel>(LeaveBattleground {
                 match_id: self.battleground()?.match_id,
             }),
+            _ => self.send_gameplay_action(action),
+        }
+    }
+
+    fn send_gameplay_action(&self, action: &str) -> Result<(), String> {
+        match action {
             "attack-stop" => self.bridge.send::<_, CombatChannel>(AttackStop),
             _ if action.starts_with("attack:") => self.attack_source(action),
             _ if action.starts_with("equip:") => {
