@@ -408,11 +408,12 @@ fn enemies_nearest_first(
     replica: &Replica,
     player: u64,
     templates: &HashMap<u32, FactionTemplateEntry>,
+    battleground: Option<&shared::protocol::BattlegroundSnapshot>,
     shown_distance: impl Fn(u64) -> Option<f32>,
 ) -> Vec<u64> {
     let mut enemies: Vec<(u64, f32)> = replica
         .units()
-        .filter(|unit| player_can_attack(replica, player, unit.server_id, templates))
+        .filter(|unit| player_can_attack(replica, player, unit.server_id, templates, battleground))
         .filter_map(|unit| Some((unit.server_id, shown_distance(unit.server_id)?)))
         .collect();
     enemies.sort_by(|a, b| a.1.total_cmp(&b.1));
@@ -669,11 +670,16 @@ impl GameClient {
             self.targeting.free_frame_ui();
             return Ok(());
         }
-        if self
-            .targeting
-            .target
-            .is_some_and(|id| !self.replica.unit(id).is_some_and(is_unit))
-        {
+        if self.targeting.target.is_some_and(|id| {
+            let arena_roster_unit = self
+                .battleground
+                .view
+                .battleground()
+                .filter(|bg| bg.accepted)
+                .and_then(|bg| bg.arena.as_ref())
+                .is_some_and(|arena| arena.units.iter().any(|unit| unit.entity == id));
+            !arena_roster_unit && !self.replica.unit(id).is_some_and(is_unit)
+        }) {
             self.targeting.target = None;
         }
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
@@ -758,11 +764,17 @@ impl GameClient {
             }
         };
         let world = &self.world;
-        enemies_nearest_first(&self.replica, player, templates, |id| {
-            let node = world.unit_node(id)?;
-            node.is_visible_in_tree()
-                .then(|| node.get_global_position().distance_squared_to(origin))
-        })
+        enemies_nearest_first(
+            &self.replica,
+            player,
+            templates,
+            self.battleground.view.battleground(),
+            |id| {
+                let node = world.unit_node(id)?;
+                node.is_visible_in_tree()
+                    .then(|| node.get_global_position().distance_squared_to(origin))
+            },
+        )
     }
 
     fn send_target(&mut self) -> Result<(), SessionError> {
