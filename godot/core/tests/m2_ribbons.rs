@@ -3,14 +3,18 @@
 use game_engine_core::asset::m2_format::m2_ribbon::parse_ribbon_emitters;
 use std::path::Path;
 
-#[test]
-fn toyfx26_rainbow_ribbon_has_source_fifty_edges_and_half_second_lifetime() {
+fn source_ribbon() -> game_engine_core::asset::m2_format::m2_ribbon::M2RibbonEmitter {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models/1417024.m2");
     let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     let size = u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
     let ribbons = parse_ribbon_emitters(&bytes[8..8 + size]).unwrap();
     assert_eq!(ribbons.len(), 1);
-    let ribbon = &ribbons[0];
+    ribbons.into_iter().next().unwrap()
+}
+
+#[test]
+fn toyfx26_rainbow_ribbon_has_source_fifty_edges_and_half_second_lifetime() {
+    let ribbon = source_ribbon();
     assert_eq!(ribbon.bone_index, 1);
     assert_eq!(ribbon.position, [0.0, 0.0, 0.0]);
     assert_eq!(ribbon.edges_per_second, 50.0);
@@ -24,4 +28,62 @@ fn toyfx26_rainbow_ribbon_has_source_fifty_edges_and_half_second_lifetime() {
     assert_eq!(ribbon.height_below.sequences[0].1, [0.5555556]);
     assert_eq!(ribbon.texture_slot.sequences[0].1, [0]);
     assert!(ribbon.visibility.sequences.is_empty());
+}
+
+#[test]
+fn toyfx26_ribbon_world_edges_preserve_source_width_and_expire_after_half_second() {
+    use game_engine_core::{
+        m2::AnimTime,
+        m2_ribbons::{self, RibbonFrame, RibbonTrail},
+    };
+    use glam::Vec3;
+    let source = source_ribbon();
+    let time = AnimTime {
+        sequence: 0,
+        time_ms: 0,
+        global_ms: 0.0,
+        global_sequences: &[],
+    };
+    let values = m2_ribbons::sample(&source, &time);
+    assert_eq!(values.color, [1.0; 4]);
+    assert!(
+        values.enabled,
+        "source unauthored visibility defaults to enabled"
+    );
+    let frame = |x| RibbonFrame {
+        position: Vec3::new(x, 0.0, 0.0),
+        direction: Vec3::X,
+        vertical: Vec3::Y,
+    };
+    let mut trail = RibbonTrail::new(&source).unwrap();
+    trail.advance(0.0, frame(0.0), values, true).unwrap();
+    trail.advance(0.5, frame(3.5), values, true).unwrap();
+    let vertices = trail.triangles(1.0);
+    assert!(!vertices.is_empty());
+    let minimum_x = vertices
+        .iter()
+        .map(|v| v.position[0])
+        .fold(f32::INFINITY, f32::min);
+    let maximum_x = vertices
+        .iter()
+        .map(|v| v.position[0])
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!((minimum_x - 0.0).abs() < 0.0001);
+    assert!((maximum_x - 3.5).abs() < 0.0001);
+    assert!(
+        vertices
+            .iter()
+            .all(|v| (v.position[1].abs() - 0.5555556).abs() < 0.0001)
+    );
+    assert!(vertices.iter().all(|v| v.color == [1.0; 4]));
+    trail.advance(0.01, frame(3.57), values, false).unwrap();
+    assert!(
+        trail.triangles(1.0).iter().all(|v| v.position[0] > 0.01),
+        "old world edge expires; remaining edges do not move with their owner"
+    );
+    trail.advance(0.51, frame(100.0), values, false).unwrap();
+    assert!(
+        trail.triangles(1.0).is_empty(),
+        "stopped emission leaves no edge beyond source lifetime"
+    );
 }

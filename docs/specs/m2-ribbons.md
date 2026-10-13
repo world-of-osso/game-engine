@@ -5,7 +5,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 ## What it must do
 
 ### Source inputs
-- [ ] Preserve bone-relative position, texture/material references, colour/opacity, width-above/below, texture slot and visibility tracks, density, lifetime and emission-angle semantics. Invalid records fail explicitly.
+- [ ] Preserve bone-relative position, texture/material references, colour/opacity, width-above/below, texture slot and visibility tracks, density, lifetime and source gravity displacement semantics. Invalid records fail explicitly.
 - [ ] Sample animation/global-sequence tracks and source-defined unauthored defaults: white/opaque, height1, enabled1, slot0. Missing source assets are errors, not substituted textures or models.
 
 ### Presentation and lifecycle
