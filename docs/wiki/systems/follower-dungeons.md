@@ -12,7 +12,7 @@ Retail Mainline's `LFDMicroButton` opens the native follower-mode `PVEFrame`/`LF
 
 ## Proof boundary
 
-Targeted RED reproduces missing catalog response, default-bridge UDP catalog delivery and unhandled native account catalog; both-skin registry tests reproduce missing controls/selection/match handling. GREEN/live proof is not yet recorded here. Earlier CLI/first-boss evidence does not establish this new UI or complete dungeon navigation.
+Targeted RED reproduces missing catalog response, default-bridge UDP catalog delivery and unhandled native account catalog; both-skin registry tests reproduce missing controls/selection/match handling. Engine0746dbca5 passes six targeted registry/UDP/account tests and the helper's library checks; server2d62a2dc passes the new catalog loopback and existing companion/LFG tests (22 plus the Mythic Mentor companion test with its required read-only database environment). All three format checks pass. New both-skin live UI proof remains pending. Earlier CLI/first-boss evidence does not establish this new UI or complete dungeon navigation.
 
 ## Sources
 

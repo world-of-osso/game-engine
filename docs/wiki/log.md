@@ -1,6 +1,6 @@
 ## 2026-10-13 — Native follower Group Finder implementation
 
-[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED recorded; GREEN and new both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
+[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
 
 ## 2026-10-13 — Pending owned-placement storage implementation
 
