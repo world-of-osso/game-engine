@@ -1,310 +1,239 @@
-//! Campsite selector UI for the char select screen.
-//! Grid panel with scene preview cards, opened from the top navigation CAMPSITES tab.
-//!
-//! Retail's GlueWarbandSceneJournal keeps a fixed-size frame and pages its card grid
-//! (`PagedNaturalSizeGridContentFrameTemplate` + `PagingControlsHorizontalTemplate`:
-//! page text, prev, next) instead of growing past the screen; this panel mirrors that.
-
-use ui_toolkit::rsx;
-use ui_toolkit::widget_def::Element;
-
-use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
-
+//! GlueCollections.xml703x595; GlueWarbandSceneCollection.xml journal anchors;
+//! SharedCollectionTemplates.xml215x173 cards; slice margins from local FDID5319042.
 use super::char_select_component::{CampsitePreview, CampsiteState, CharSelectAction};
+use crate::quest_art::DynName;
+use crate::ui::{
+    strata::FrameStrata,
+    widgets::font_string::{FontColor, GameFont},
+};
+use ui_toolkit::{rsx, widget_def::Element};
 
-const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
-const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
-
-const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
+pub const CAMPSITE_PANEL_WIDTH: f32 = 703.0;
+pub const CAMPSITE_PANEL_TOP_OFFSET: f32 = -94.0;
+const PANEL_HEIGHT: f32 = 595.0;
 const CARD_WIDTH: f32 = 215.0;
 const CARD_HEIGHT: f32 = 173.0;
-const CARD_PREVIEW_WIDTH: f32 = 206.0;
-const CARD_PREVIEW_HEIGHT: f32 = 165.0;
-const CARD_LABEL_WIDTH: f32 = 192.0;
-const CARD_LABEL_HEIGHT: f32 = 34.0;
-const CARD_LABEL_TEXT_WIDTH: f32 = 176.0;
-const CARD_LABEL_TEXT_HEIGHT: f32 = 28.0;
-const PANEL_GAP: f32 = 10.0;
-const PANEL_PADDING: f32 = 15.0;
-const PANEL_WIDTH: f32 = 470.0;
-pub const CAMPSITE_PANEL_WIDTH: f32 = PANEL_WIDTH;
-pub const CAMPSITE_PANEL_TOP_OFFSET: f32 = 58.0;
-/// Two rows of two cards: the panel ends well above the bottom of a 720px window.
-pub const CAMPSITES_PER_PAGE: usize = 4;
-const PAGE_ROWS: usize = CAMPSITES_PER_PAGE / 2;
-const PAGING_HEIGHT: f32 = 32.0;
-const PAGE_BUTTON_SIZE: f32 = 32.0;
-const PAGE_TEXT_WIDTH: f32 = 100.0;
-const PAGING_SPACING: f32 = 5.0;
-// interface/buttons/ui-spellbookicon-{prev,next}page-{up,disabled}.blp
-const TEX_PREV_PAGE_UP: &str = "data/textures/130869.blp";
-const TEX_PREV_PAGE_DISABLED: &str = "data/textures/130867.blp";
-const TEX_NEXT_PAGE_UP: &str = "data/textures/130866.blp";
-const TEX_NEXT_PAGE_DISABLED: &str = "data/textures/130864.blp";
+// Icons frame:4,60 ->697,542; Icons inset13,38 and12,25 =668x419.
+// Three215px entries with11px x-padding, two173px rows with34px y-padding.
+pub const CAMPSITES_PER_PAGE: usize = 6;
+const GRID_COLUMNS: usize = 3;
 
-struct DynName(String);
-
-fn dyn_name(s: String) -> DynName {
-    DynName(s)
-}
-
-fn card_backdrop(id: u32, preview_image: Option<CampsitePreview>) -> Element {
-    if let Some(preview) = preview_image {
-        let [left, right, top, bottom] = preview.tex_coords;
-        let tex_coords = format!("{left},{right},{top},{bottom}");
-        rsx! {
-            texture {
-                name: dyn_name(format!("CampsiteCard_{id}")),
-                width: CARD_PREVIEW_WIDTH,
-                height: CARD_PREVIEW_HEIGHT,
-                texture_fdid: {preview.fdid},
-                tex_coords: {tex_coords.as_str()},
-                pos_type: "absolute",
-                left: "50%",
-                translate_x: "-50%",
-                top: 4.0,
-            }
-        }
-    } else {
-        rsx! {
-            texture {
-                name: dyn_name(format!("CampsiteCard_{id}")),
-                width: CARD_PREVIEW_WIDTH,
-                height: 80.0,
-                texture_atlas: CARD_BACKDROP_ATLAS,
-                pos_type: "absolute",
-                left: "50%",
-                translate_x: "-50%",
-                top: "50%",
-                translate_y: "-50%",
-            }
-        }
-    }
-}
-
-fn card_label_bar(id: u32) -> Element {
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("CampsiteLabelBar_{id}")),
-            width: CARD_LABEL_WIDTH,
-            height: CARD_LABEL_HEIGHT,
-            background_color: "0.05,0.04,0.03,0.88",
-            border: "1px solid 0.36,0.28,0.08,0.75",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: 4.0,
-        }
-    }
-}
-
-fn card_label(id: u32, name: &str, is_selected: bool) -> Element {
-    let color = if is_selected {
-        COLOR_GOLD
-    } else {
-        COLOR_SUBTITLE
-    };
-    rsx! {
-        fontstring {
-            name: dyn_name(format!("CampsiteLabel_{id}")),
-            width: CARD_LABEL_TEXT_WIDTH,
-            height: CARD_LABEL_TEXT_HEIGHT,
-            text: name,
-            font: GameFont::FrizQuadrata,
-            font_size: 14.0,
-            font_color: color,
-            justify_h: JustifyH::Center,
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: 6.0,
-        }
-    }
-}
-
-fn campsite_card(
+fn card(
     id: u32,
     name: &str,
-    preview_image: Option<CampsitePreview>,
-    is_selected: bool,
+    preview: Option<CampsitePreview>,
+    selected: bool,
+    index: usize,
 ) -> Element {
-    let border = if is_selected {
-        "2px solid 0.95,0.78,0.14,0.95"
-    } else {
-        "1px solid 0.30,0.24,0.09,0.70"
-    };
-    let background = if is_selected {
-        "0.13,0.10,0.03,0.96"
-    } else {
-        "0.03,0.03,0.02,0.94"
-    };
+    let art = preview
+        .map(|image| {
+            let [l, r, t, b] = image.tex_coords;
+            rsx! { texture { name: DynName(format!("CampsiteCard_{id}")), texture_fdid: image.fdid,
+            tex_coords: format!("{l},{r},{t},{b}"), width: CARD_WIDTH, height: CARD_HEIGHT,
+            pos_type: "absolute", left: 1.0, top: 0.0, } }
+        })
+        .unwrap_or_default();
+    let hide_selected = !selected;
+    let label_bar = ui_toolkit::atlas::get_region("campcollection-bg-text")
+        .expect("WarbandSceneTemplate name background");
     rsx! {
-        r#frame {
-            name: dyn_name(format!("CampsiteScene_{id}")),
-            width: CARD_WIDTH,
-            height: CARD_HEIGHT,
-            background_color: background,
-            border,
-            onclick: CharSelectAction::SelectCampsite(id),
-            {card_backdrop(id, preview_image)}
-            {card_label_bar(id)}
-            {card_label(id, name, is_selected)}
+        button {
+            name: DynName(format!("CampsiteScene_{id}")), width: CARD_WIDTH, height: CARD_HEIGHT,
+            button_default_skin: false, onclick: CharSelectAction::SelectCampsite(id),
+            pos_type: "absolute", left: {(index % GRID_COLUMNS) as f32 * (CARD_WIDTH+11.0)},
+            top: {(index / GRID_COLUMNS) as f32 * (CARD_HEIGHT+34.0)},
+            {art}
+            texture { name: DynName(format!("CampsiteLabelBar_{id}")), texture_atlas: "campcollection-bg-text",
+                width: label_bar.width, height: label_bar.height, pos_type: "absolute",
+                left: "50%", translate_x: "-50%", bottom: 4.0, margin_left: 1.0, }
+            r#frame { name: DynName(format!("CampsiteBorder_{id}")), width: 224.0, height: 183.0,
+                pos_type: "absolute", left: -4.0, top: -5.0,
+                {crate::game_menu_main::sliced_atlas(&format!("CampsiteBorderArt_{id}"), "campcollection-frame", [224.0,183.0], [12.0;4])}
+            }
+            r#frame { name: DynName(format!("CampsiteSelected_{id}")), width: 224.0, height: 183.0,
+                hidden: hide_selected, pos_type: "absolute", left: -4.0, top: -5.0,
+                {crate::game_menu_main::sliced_atlas(&format!("CampsiteSelectedArt_{id}"), "campcollection-frame-selected", [224.0,183.0], [18.0;4])}
+            }
+            r#frame { name: DynName(format!("CampsiteHover_{id}")), width: 224.0, height: 183.0,
+                hidden: true, pos_type: "absolute", left: -4.0, top: -5.0,
+                {crate::game_menu_main::sliced_atlas(&format!("CampsiteHoverArt_{id}"), "campcollection-frame-hover", [224.0,183.0], [17.0;4])}
+            }
+            fontstring { name: DynName(format!("CampsiteLabel_{id}")), width: 200.0, height: 32.0,
+                text: name, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: FontColor::new(1.0,1.0,1.0,1.0),
+                pos_type: "absolute", left: "50%", translate_x: "-50%", bottom: 4.5, margin_left: 1.0, frame_level: 100.0, }
         }
     }
 }
-
-pub fn campsite_panel(state: &CampsiteState) -> Element {
-    campsite_panel_at_top(state, CAMPSITE_PANEL_TOP_OFFSET, PANEL_WIDTH)
+pub fn campsite_page_count(count: usize) -> usize {
+    count.div_ceil(CAMPSITES_PER_PAGE).max(1)
 }
-
-pub fn campsite_page_count(scene_count: usize) -> usize {
-    scene_count.div_ceil(CAMPSITES_PER_PAGE).max(1)
-}
-
-/// The requested page, clamped to the pages the current scene list has.
 fn visible_page(state: &CampsiteState) -> usize {
     state.page.min(campsite_page_count(state.scenes.len()) - 1)
 }
+pub fn campsite_panel_height(_: usize) -> f32 {
+    PANEL_HEIGHT
+}
 
-fn build_campsite_cards(state: &CampsiteState) -> Element {
-    state
+pub fn campsite_panel(state: &CampsiteState) -> Element {
+    let hide = !state.panel_visible;
+    let page = visible_page(state);
+    let pages = campsite_page_count(state.scenes.len());
+    let page_text = format!("Page {}/{}", page + 1, pages);
+    let page_text_width =
+        ui_toolkit::text_measure::measure_text(&page_text, GameFont::FrizQuadrata, 12.0)
+            .expect("PagingControls PageText font")
+            .0;
+    let cards: Element = state
         .scenes
         .iter()
-        .skip(visible_page(state) * CAMPSITES_PER_PAGE)
+        .skip(page * CAMPSITES_PER_PAGE)
         .take(CAMPSITES_PER_PAGE)
-        .flat_map(|e| {
-            campsite_card(
+        .enumerate()
+        .flat_map(|(index, e)| {
+            card(
                 e.id,
                 &e.name,
                 e.preview_image,
                 state.selected_id == Some(e.id),
+                index,
             )
         })
-        .collect()
-}
-
-/// A disabled button (retail `SetEnabled(false)`) shows its disabled art and targets the
-/// current page, so a click is a no-op.
-fn page_button(name: &str, texture: &str, target: usize, left: f32) -> Element {
+        .collect();
     rsx! {
         r#frame {
-            name: dyn_name(name.to_owned()),
-            width: PAGE_BUTTON_SIZE,
-            height: PAGE_BUTTON_SIZE,
-            onclick: CharSelectAction::CampsitePage(target),
-            pos_type: "absolute",
-            left,
-            top: 0.0,
-            texture {
-                name: dyn_name(format!("{name}Icon")),
-                width: PAGE_BUTTON_SIZE,
-                height: PAGE_BUTTON_SIZE,
-                texture_file: texture,
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
+            name: "CampsitePanel", width: CAMPSITE_PANEL_WIDTH, height: PANEL_HEIGHT, hidden: hide,
+            strata: FrameStrata::Dialog, pos_type: "absolute", left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-50%", margin_top: CAMPSITE_PANEL_TOP_OFFSET,
+            {crate::quest_art::window_chrome("Campsite", (CAMPSITE_PANEL_WIDTH,PANEL_HEIGHT), "Campsites", &CharSelectAction::CampsiteToggle.to_string())}
+            r#frame { name: "CampsiteIconsFrame", width: 693.0, height: 482.0, pos_type: "absolute", left: 4.0, top: 60.0,
+                texture { name: "CampsiteBackgroundTile", texture_atlas: "collections-background-tile", width: 685.0, height: 474.0,
+                    pos_type: "absolute", left: 4.0, top: 4.0, }
+                {collection_inset()}
+                {collection_shadows()}
+                r#frame { name: "CampsiteGrid", width: 668.0, height: 419.0, pos_type: "absolute", left: 13.0, top: 38.0, {cards} }
+                r#frame { name: "CampsitePaging", width: {page_text_width + 74.0}, height: 32.0, pos_type: "absolute", left: "50%", top: 436.0, translate_x: "-50%",
+                    fontstring { name: "CampsitePageText", width: page_text_width, height: 32.0, text: {&page_text}, font_size: 12.0, }
+                    {page_button("CampsitePrevPage", if page>0 {130869} else {130867}, page.saturating_sub(1), page_text_width+5.0)}
+                    {page_button("CampsiteNextPage", if page+1<pages {130866} else {130864}, (page+1).min(pages-1), page_text_width+42.0)}
+                }
             }
         }
     }
 }
+fn page_button(name: &str, fdid: u32, page: usize, x: f32) -> Element {
+    let disabled = matches!(fdid, 130867 | 130864);
+    rsx! { button { name: DynName(name.into()), width: 32.0, height: 32.0, button_default_skin: false, disabled,
+        onclick: CharSelectAction::CampsitePage(page), pos_type: "absolute", left: x, top: 0.0,
 
-/// Retail horizontal paging controls: "Page N/M", then prev and next, centred under the
-/// grid. Kept outside the grid so card rebuilds cannot reorder it above the cards.
-fn paging_controls(state: &CampsiteState) -> Element {
-    let page = visible_page(state);
-    let pages = campsite_page_count(state.scenes.len());
-    let row_width = PANEL_WIDTH - PANEL_PADDING * 2.0;
-    let group_width = PAGE_TEXT_WIDTH + (PAGING_SPACING + PAGE_BUTTON_SIZE) * 2.0;
-    let text_left = (row_width - group_width) / 2.0;
-    let prev_left = text_left + PAGE_TEXT_WIDTH + PAGING_SPACING;
-    let next_left = prev_left + PAGE_BUTTON_SIZE + PAGING_SPACING;
-    let (prev_texture, prev_target) = if page > 0 {
-        (TEX_PREV_PAGE_UP, page - 1)
-    } else {
-        (TEX_PREV_PAGE_DISABLED, page)
-    };
-    let (next_texture, next_target) = if page + 1 < pages {
-        (TEX_NEXT_PAGE_UP, page + 1)
-    } else {
-        (TEX_NEXT_PAGE_DISABLED, page)
-    };
-    let text = format!("Page {}/{}", page + 1, pages);
-    rsx! {
-        r#frame {
-            name: "CampsitePaging",
-            width: row_width,
-            height: PAGING_HEIGHT,
-            pos_type: "absolute",
-            left: PANEL_PADDING,
-            bottom: PANEL_PADDING,
-            fontstring {
-                name: "CampsitePageText",
-                width: PAGE_TEXT_WIDTH,
-                height: PAGING_HEIGHT,
-                text,
-                font: GameFont::FrizQuadrata,
-                font_size: 13.0,
-                font_color: COLOR_SUBTITLE,
-                justify_h: JustifyH::Right,
-                pos_type: "absolute",
-                left: text_left,
-                top: 0.0,
-            }
-            {page_button("CampsitePrevPage", prev_texture, prev_target, prev_left)}
-            {page_button("CampsiteNextPage", next_texture, next_target, next_left)}
+    } }
+}
+
+pub fn sync_campsite_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    let cards: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let id = frame.name.as_deref()?.strip_prefix("CampsiteScene_")?;
+            let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
+                return None;
+            };
+            Some((id.to_string(), button.hovered))
+        })
+        .collect();
+    for (id, hovered) in cards {
+        if let Some(frame) = registry.get_by_name(&format!("CampsiteHover_{id}")) {
+            registry.set_hidden(frame, !hovered);
         }
+    }
+    for (name, up, down, disabled) in [
+        ("CampsitePrevPage", 130869, 130868, 130867),
+        ("CampsiteNextPage", 130866, 130865, 130864),
+    ] {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Button(button)) = frame.widget_data.as_mut()
+        {
+            button.normal_texture =
+                Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(up));
+            button.pushed_texture = Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                down,
+            ));
+            button.disabled_texture = Some(
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(disabled),
+            );
+            button.highlight_texture = Some(
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(130757),
+            );
+        }
+    }
+    if let Some(id) = registry.get_by_name("CampsiteBackgroundTile")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
+    {
+        texture.horiz_tile = true;
+        texture.vert_tile = true;
     }
 }
 
-fn campsite_panel_at_top(state: &CampsiteState, top: f32, width: f32) -> Element {
-    let hide = !state.panel_visible;
-    let cards = build_campsite_cards(state);
-    let paging = paging_controls(state);
-    let height = campsite_panel_height(state.scenes.len());
-    let on_page =
-        (state.scenes.len() - visible_page(state) * CAMPSITES_PER_PAGE).min(CAMPSITES_PER_PAGE);
-    // The grid is exactly as tall as this page's rows: wrapped flex lines would otherwise
-    // spread across leftover height and slide under the paging controls.
-    let grid_height = card_rows_height(on_page.div_ceil(2).max(1)) + PANEL_PADDING * 2.0;
-    rsx! {
-        r#frame {
-            name: "CampsitePanel",
-            width,
-            height,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            background_color: "0.04,0.03,0.02,0.98",
-            border: "1px solid 0.62,0.46,0.10,0.75",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top,
-            r#frame {
-                name: "CampsiteGrid",
-                width,
-                height: grid_height,
-                layout: "flex-row-wrap",
-                justify: "center",
-                gap: PANEL_GAP,
-                padding: PANEL_PADDING,
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-                {cards}
-            }
-            {paging}
+fn collection_shadows() -> Element {
+    // CollectionsBackgroundTemplate: four flipped corners and four single-edge strips.
+    let mut art = Vec::new();
+    for (layer, atlas) in [
+        ("Large", "collections-background-shadow-large"),
+        ("Small", "collections-background-shadow-small"),
+    ] {
+        let region = ui_toolkit::atlas::get_region(atlas).expect("Collections shadow atlas");
+        let (w, h) = (region.width, region.height);
+        for (part, x, y, width, height, coords) in [
+            ("TL", 4.0, 4.0, w, h, "0,1,0,1"),
+            ("TR", 689.0 - w, 4.0, w, h, "1,0,0,1"),
+            ("BL", 4.0, 478.0 - h, w, h, "0,1,1,0"),
+            ("BR", 689.0 - w, 478.0 - h, w, h, "1,0,1,0"),
+            ("Top", 4.0 + w, 4.0, 685.0 - 2.0 * w, h, "0.9999,1,0,1"),
+            (
+                "Bottom",
+                4.0 + w,
+                478.0 - h,
+                685.0 - 2.0 * w,
+                h,
+                "0.9999,1,1,0",
+            ),
+            ("Left", 4.0, 4.0 + h, w, 474.0 - 2.0 * h, "0,1,0.9999,1"),
+            (
+                "Right",
+                689.0 - w,
+                4.0 + h,
+                w,
+                474.0 - 2.0 * h,
+                "1,0,0.9999,1",
+            ),
+        ] {
+            art.extend(rsx! { texture { name: DynName(format!("CampsiteShadow{layer}{part}")), texture_atlas: atlas,
+                width, height, tex_coords: coords, pos_type: "absolute", left: x, top: y, } });
         }
     }
+    art
 }
 
-fn card_rows_height(rows: usize) -> f32 {
-    let rows = rows as f32;
-    rows * CARD_HEIGHT + (rows - 1.0) * PANEL_GAP
-}
-
-/// Fixed page height (at most `PAGE_ROWS` card rows) plus the paging row.
-pub fn campsite_panel_height(scene_count: usize) -> f32 {
-    let rows = scene_count.div_ceil(2).clamp(1, PAGE_ROWS);
-    card_rows_height(rows) + PANEL_GAP + PAGING_HEIGHT + PANEL_PADDING * 2.0
+fn collection_inset() -> Element {
+    // InsetFrameTemplate:6px corners/3px edges; bottom corners extend1below parent.
+    [
+        ("TL", "UI-Frame-InnerTopLeft", (0.0, 0.0, 6.0, 6.0)),
+        ("TR", "UI-Frame-InnerTopRight", (687.0, 0.0, 6.0, 6.0)),
+        ("BL", "UI-Frame-InnerBotLeftCorner", (0.0, 477.0, 6.0, 6.0)),
+        ("BR", "UI-Frame-InnerBotRight", (687.0, 477.0, 6.0, 6.0)),
+        ("Top", "_UI-Frame-InnerTopTile", (6.0, 0.0, 681.0, 3.0)),
+        ("Bottom", "_UI-Frame-InnerBotTile", (6.0, 480.0, 681.0, 3.0)),
+        ("Left", "!UI-Frame-InnerLeftTile", (0.0, 6.0, 3.0, 471.0)),
+        (
+            "Right",
+            "!UI-Frame-InnerRightTile",
+            (690.0, 6.0, 3.0, 471.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(part, atlas, rect)| {
+        crate::quest_art::named_atlas_texture(format!("CampsiteInset{part}"), atlas, rect)
+    })
+    .collect()
 }
