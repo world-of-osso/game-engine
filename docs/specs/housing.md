@@ -32,6 +32,12 @@ Named gap: installed70340 hotkey atlas bytes are repacked relative to current at
 
 Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Save/reload preserves exact Retail names; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels only active selection/placement; otherwise it leaves normal menu handling intact. An open native Options menu owns pointer/key capture ahead of housing world editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
 
+## Expert editor actions — continuation
+
+Retail Expert submode switching, six translation increments, rotate-left/right, scale-up/down and next rotation axis use their `HOUSING_EXPERTDECOR*` action identities in native Housing bindings. No unsourced default keys: arrows/PageUp/PageDown/Q/E/1–3/X cannot substitute for actual assignments. Increment bindings follow native down/up held lifecycle; leaving the mode or cancelling clears holds. Transform staging/cancel/explicit commit and visitor authority remain unchanged.
+
+Current inventory registration is separate from native dispatch/instruction acceptance. Installed-build GlobalStrings localization is a dependency; raw source action identities stay literal until that data is available. Do not claim registered actions are implemented or invent labels/rates/snap geometry. Hotkey visual acceptance remains the db2-follow-install gap above.
+
 ## Authoritative storage boundary
 
 Opening the dashboard requests server state without entering a neighborhood or granting property. Registered HousingReply traffic must reach the native account dispatcher and preserve ownership, stored quantities and refusals. Before a matching-build authoritative snapshot, quantity is unknown; after one, an absent stored entry is a known zero. Unavailable/wrong-build replies cannot become fabricated empty ownership. Leaving InWorld clears account housing state.
