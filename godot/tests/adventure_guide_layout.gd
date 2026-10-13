@@ -154,6 +154,7 @@ func run() -> void:
 	if client.adventure_guide_state().model_display != 36475:
 		stop("Ozruk did not attach")
 		return
+	if not await painted_model(): return
 	if not await capture_layout("model"): return
 	print("GUIDE_LAYOUT_PASS skin=%s" % client.account_state().ui_skin)
 	quit(0)
@@ -171,6 +172,30 @@ func geometry(name: String, expected: Rect2) -> bool:
 		stop("Geometry %s actual=%s expected=%s scale=%s" % [name,actual,wanted,scale])
 		return false
 	print("GUIDE_LAYOUT_GEOMETRY %s rect=%s scale=%s" % [name,actual,scale])
+	return true
+func painted_model() -> bool:
+	var view := client.find_child("CharacterModelView",true,false) as TextureRect
+	if view==null or view.texture==null:
+		stop("Model viewport missing")
+		return false
+	await RenderingServer.frame_post_draw
+	var shown := root.get_texture().get_image()
+	var rect := view.get_global_rect()
+	view.visible=false
+	await RenderingServer.frame_post_draw
+	var hidden := root.get_texture().get_image()
+	view.visible=true
+	await RenderingServer.frame_post_draw
+	var changed := 0
+	for y in range(int(rect.position.y),int(rect.end.y),4):
+		for x in range(int(rect.position.x),int(rect.end.x),4):
+			var a := shown.get_pixel(x,y)
+			var b := hidden.get_pixel(x,y)
+			if absf(a.r-b.r)+absf(a.g-b.g)+absf(a.b-b.b)>0.06: changed+=1
+	if changed<100:
+		stop("Model must be painted above backdrop, changed samples=%s" % changed)
+		return false
+	print("GUIDE_LAYOUT_MODEL_PAINTED changed_samples=%s PASS" % changed)
 	return true
 func clipped_pane(name: String, child_name: String) -> bool:
 	var pane := client.find_child(name,true,false) as Control
