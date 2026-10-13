@@ -197,22 +197,34 @@ mod tests {
 
     #[test]
     fn model_asset_index_selects_each_products_actual_build() {
-        let retail = receipt("wow", "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592");
+        let retail = receipt("wow", "12.1.5.70340", "eba6b26286c312f520205084f491166b");
+        let mut historical = receipt("wow", "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592");
+        historical["fdid"] = json!(120191);
+        historical["kind"] = json!("blp");
+        historical["path"] =
+            json!("products/wow/dcfc90fffd79ba00406ae46f5f657592/textures/120191.blp");
         let forever = receipt(
             "wow_classic_beta",
             "1.60.1.70291",
             "e8dd824cf6c3d96cd01f804ca2ea5a63",
         );
-        let json = json!({"version": 1, "assets": [retail, forever]}).to_string();
+        let json = json!({"version": 1, "assets": [retail, forever, historical]}).to_string();
         let index = ModelAssetIndex::from_json(&json).unwrap();
         for (product, build) in [
-            (AssetProduct::Retail, "12.1.0.69933"),
+            (AssetProduct::Retail, "12.1.5.70340"),
             (AssetProduct::Forever, "1.60.1.70291"),
         ] {
             let asset = index.receipt(product, 1100087, "m2").unwrap();
             assert_eq!(asset.product, product);
             assert_eq!(asset.build, build);
         }
+        assert_eq!(
+            index
+                .receipt(AssetProduct::Retail, 120191, "blp")
+                .unwrap()
+                .build,
+            "12.1.0.69933"
+        );
         assert!(index.receipt(AssetProduct::Forever, 1100258, "m2").is_err());
     }
 
