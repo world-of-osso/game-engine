@@ -321,3 +321,41 @@ fn raid_entry_terrain_refresh_cannot_replace_the_world_selected_by_new_world() {
     assert!(super::validate_terrain_refresh(Some("moltencore"), "moltencore").is_ok());
     assert!(super::validate_terrain_refresh(None, "azeroth").is_ok());
 }
+
+#[test]
+fn follower_group_finder_account_dispatches_catalog_and_authoritative_state() {
+    let mut account = account();
+    let mut output = Vec::new();
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(shared::protocol::FollowerDungeons {
+                entries: vec![shared::protocol::FollowerDungeonEntry {
+                    id: 2436,
+                    name: "Ruby Life Pools".into(),
+                    map_id: 2521,
+                }],
+            }),
+            &mut output,
+        )
+        .unwrap();
+    assert_eq!(
+        output.len(),
+        1,
+        "catalog must reach the native Group Finder"
+    );
+    output.clear();
+    let update = shared::protocol::LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: None,
+    };
+    account
+        .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut output)
+        .unwrap();
+    assert_eq!(account.lfg, Some(update));
+    assert_eq!(
+        output.len(),
+        1,
+        "LFG state must reach both the native window and IPC status"
+    );
+}

@@ -359,3 +359,13 @@ fn an_open_game_menu_pushes_its_button_and_disables_the_rest_without_tooltips() 
         ["Game Menu"]
     );
 }
+
+#[test]
+fn follower_group_finder_micro_button_is_enabled_with_native_action() {
+    data_root();
+    let registry = build(MicroMenuView::default());
+    let (state, _, action) = button_state(&registry, "LFDMicroButton");
+    assert_ne!(state, ButtonState::Disabled);
+    assert_eq!(action.as_deref(), Some("micro:LFDMicroButton"));
+    assert_eq!(unavailable_message("micro:LFDMicroButton"), None);
+}
