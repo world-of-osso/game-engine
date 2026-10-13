@@ -1,3 +1,7 @@
+## 2026-10-13 — Arena announcer and shared reconnect proof
+
+[Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures remain active.
+
 ## 2026-10-12 — Cage collision-only WMOs and arena source gaps
 
 [WMO format](formats/wmo-format.md#batch-and-material-records): Cage of Carnage's only logged material errors came from collision WMOs 6371365/6133755 (no MOMT, no MOBA). The client ignored their MPY2 per-face materials, so it built a material-0 batch. MPY2 is now parsed, and its collision-only faces are not drawn. [Native arenas](systems/arenas.md): Rogue Stealth children and the Cage starting-area warning/teleport chain are source-backed; 254013 and 96538 remain named TC gaps.
