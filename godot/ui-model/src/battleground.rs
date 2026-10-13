@@ -812,6 +812,10 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         ));
     }
     children.extend(score_rows(context, view, bg, row_top));
+    // Scoreboard.xml: Content(30,35), ScrollCategories TOP3+50, ScrollBox256,
+    // TabGroup TOP(-50), first tab TOPLEFT(+0,+46); AnchorTabs uses +3 horizontal spacing.
+    let mut tab_left = 40.0;
+    let content_top = if height == 620.0 { 90.0 } else { 35.0 };
     for (i, (title, action)) in [
         ("All", "pvp:all"),
         ("Alliance", "pvp:alliance"),
@@ -827,13 +831,25 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         } else {
             title
         };
-        children.extend(panel_button(
-            format!("PVPScoreboardTab{}", i + 1),
+        let width = crate::merchant_frame_component::tab_width(title);
+        let selected = view.filter
+            == match i {
+                1 => Some(BgTeam::A),
+                2 => Some(BgTeam::B),
+                _ => None,
+            };
+        children.extend(crate::merchant_frame_component::tab(
+            &format!("PVPScoreboardTab{}", i + 1),
             title,
+            (
+                tab_left,
+                content_top + 3.0 + 50.0 + 256.0 + 50.0 - 46.0,
+                width,
+            ),
+            selected,
             action,
-            true,
-            (30.0 + i as f32 * 110.0, height - 62.0, 105.0, 22.0),
         ));
+        tab_left += width + 3.0;
     }
     children.extend(panel_button(
         "PVPMatchLeaveButton".into(),
