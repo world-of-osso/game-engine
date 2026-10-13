@@ -15,9 +15,13 @@ use shared::protocol::ActionRef;
 const COUNTDOWN_MIN_SECS: f32 = 2.0;
 /// Duration of the pushed texture after a key press.
 const PUSH_SECS: f32 = 0.15;
+/// Retail SharedXML/TimeUtil.lua SecondsToTimeAbbrev switches hours at1.5h.
+const HOUR_ABBREVIATION_THRESHOLD_SECS: f32 = 1.5 * 3600.0;
 
-pub(super) fn cooldown_text(remaining: f32) -> String {
-    if remaining >= 60.0 {
+pub(crate) fn cooldown_text(remaining: f32) -> String {
+    if remaining >= HOUR_ABBREVIATION_THRESHOLD_SECS {
+        format!("{}h", (remaining / 3600.0).ceil())
+    } else if remaining >= 60.0 {
         format!("{}m", (remaining / 60.0).ceil())
     } else {
         format!("{}", remaining.ceil())
