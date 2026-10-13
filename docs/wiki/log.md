@@ -24,6 +24,10 @@
 ## 2026-10-13 — Storage source vertical anchor implementation
 
 [Housing](systems/housing.md#basic-drawer-controls-and-preferences): F1 confirmed against LEFT/y150/clamped source. Registry source64.5 versus0 and native logical/nonclamped anchor RED; expanded panel now computes source top before native scaling. Both-skin native720→1080/source-scaled anchor/select/cancel/query+paidconservation GREEN; registry720/1080/651–800expanded+collapsed restores correctly. Currentregistry19/server28+3ignored/protocol4/check/fmt PASS; four inspected≤1280PNG public. Physical pixel coordinates are UI-scale-adjusted, not logical source values.
+## 2026-10-13 — Authored Mentor summaries, shared teleport clocks and foreground correction
+
+[Mythic Mentor](systems/mythic-mentor.md#authored-summaries-and-teleports--2026-10-13): cached ready-query reply, nine authentic square icons/all current-reference summaries, real shared1407/8h clock and both-skin normal cast-denial/control proof. Tooltip canvas occlusion reproduced/fixed; both-skin post-fix unlearned foreground passes. Install auto-update blocks final active post-fix pixels; exact revision/proof bounds retained.
+
 ## 2026-10-13 — Mythic Mentor expanded private proof
 
 [Mythic Mentor](systems/mythic-mentor.md#expanded-private-proof--2026-10-13): fresh5751 both-skin real rendered8/11 rows, leader transfer, raid hide/party restore, drag/save/close/Escape and leave pruning; Forever no-key→bag grant. Atomic fixture records and explicit asynchronous readiness; source catalog/teleport expansion remains open.
