@@ -1,6 +1,6 @@
 ## 2026-10-13 — Basic selected-target storage implementation
 
-[Housing](systems/housing.md#basic-selected-target-storage-visibility): Basic selection hides panel/handle without overwriting preferences. Registry/native prior-binary RED; native green acceptance pending. Cancel/unselect restores saved part/query; new-placement overlay remains separate.
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): Basic selection hides panel/handle without overwriting preferences. Registry/native prior-binary RED→both-skin actual paid actor select/cancel panel+collapsed-handle GREEN, unchanged query/size/paid state. Registry19/native/server checks0warnings/currentserver28+3ignored/fmt pass; exact private source flags refresh leaves canonical untouched. New-placement overlay remains separate.
 
 ## 2026-10-13 — Retroactive grant source boundary
 
