@@ -2,6 +2,10 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## Prismatic Bauble rendering boundary (2026-10-13)
+
+Source1417024 is a rainbow ribbon model, not a visible-effect proof merely because its node loads. Real-source scalar parsing fixes its density/lifetime; native ribbon consumption remains absent. Modern stationary aura/kit/removal/recovery is bounded state proof, while Forever delivery/lifecycle probes failed. [Exact source and per-boundary evidence](../../../../game-server/docs/toy-effects14-coverage.md#prismatic-bauble--source-admission-native-gaps-open-2026-10-13); [format](../formats/m2-format.md#ribbon-emitter-scalars-2026-10-13).
+
 ## Native source area lifecycle (2026-10-13)
 
 Typed `IncorrectArea` and the server group detail use the existing native cast-error path. Both skins prove actual Eagger Basket learning/journal activation: Northshire refuses without cooldown, Goldshire applies, area exit removes the aura while cooldown continues. [Source and exact server coverage](../../../../game-server/docs/toy-effects14-coverage.md#source-requiredareasid-lifecycle-2026-10-13) owns provenance; no map fallback or new toy-effect admission.
