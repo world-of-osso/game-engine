@@ -27,7 +27,7 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 
 ## Godot client
 
-`godot/rust/src/quests.rs` reconciles the native quest giver frame, quest log and markers through the shared `quest_runtime`, `quest_view` and `quest_actions` models. Right-click sends normal interaction requests; greeting, detail, progress and reward pages follow server replies. L opens the log; abandon uses the confirmation popup. Tracker titles and POI buttons open the selected quest in the log. Source implementation is not Skyborne native quest acceptance.
+`godot/rust/src/quests.rs` reconciles the native quest giver frame, quest log and markers through the shared `quest_runtime`, `quest_view` and `quest_actions` models. Right-click sends normal interaction requests; greeting, detail, progress and reward pages follow server replies. L opens WorldMapFrame's330px QuestMapFrame dock; standalone QuestLogFrame rendering/runtime paths are removed. Details replace the list and Back restores it. Tracker titles and POI buttons open selected dock details; a maximized owner returns to minimized mode when L opens its log. Abandon uses the shared confirmation popup. Source implementation is not Skyborne native quest acceptance.
 
 - `godot/rust/src/objective_tracker.rs` feeds the shared `objective_tracker_component` through `ObjectiveTrackerState::from_watched`, using `Account.quest_log` entries in `Account.quest_watched` order.
 - The two minimize buttons toggle `collapsed` and `quests_collapsed` locally.
@@ -36,6 +36,12 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 - Tracker placement and polygons: [[minimap]].
 - Legibility: title `OBJECTIVE_TRACKER_COLOR.Header` = `OBJECTIVE_TRACKER_BLOCK_HEADER_COLOR` (GlobalColor 241, 0xBF9C00 = 0.75, 0.61, 0) and lines `Normal` 0.8 grey, both `ObjectiveTrackerLineFont` FRIZQT 12 with a black (1, −1) shadow (`Blizzard_ObjectiveTrackerFonts.xml:202-209`). Native labels drew no FontString shadow until the projection mapped `shadow_color`/`shadow_offset` to Godot's `font_shadow_color`/`shadow_offset_*` (y flipped), so the dark-gold title vanished on bright grass. Hover highlight (`HeaderHighlight`/`NormalHighlight`) is not implemented in either client.
 
+
+## Native quest dock — 2026-10-13
+
+[Dock fixture](../../../godot/tests/questlog_fidelity_live.gd) on privateUDP5801 proves L/list/details/Back, server Track/Untrack, non-shareable rejection as a system notice, tracker POI, maximize→L restore, and confirmed server Abandon in both asserted skins. The source1035×534 map owner,330×506 dock at(702,25),308×477 list viewport and298×430 detail viewport are asserted from rendered control geometry. Both-skin foreground-confirmation/list/details PNGs are under `/syncthing/AgentShared/2026-10-13/ui-questlog-collections/after/{modern,forever}-quest-live/`; durable `live-questdock-dialog-input-*.log` preserves the actual state/input proof.
+
+The native move exposed shared popup canvas ordering: StaticPopupUI's default layer1 put its Dialog frames below WorldMapUI layer5, despite their local registry strata. The [popup host](../../../godot/rust/src/party_frames.rs) now uses native Dialog layer10 and raises on show (`StaticPopup.lua:582,880`). Its full-screen wrapper is pointer-transparent; only actual dialogs block input. Native RED proved obscured Yes and unchanged server log; GREEN clicks visible foreground Yes and observes removal. Relog detail-cache gaps and full Retail Share-button eligibility remain outside this bounded migration proof.
 
 ## Native objective progress notices
 

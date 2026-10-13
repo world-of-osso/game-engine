@@ -1,3 +1,7 @@
+## 2026-10-13 — WorldMap quest dock and dialog ordering
+
+[Quest dock](systems/quest-ui.md#native-quest-dock--2026-10-13): both-skin native L/list/details/Back/server track/non-shareable notice/POI/maximize/confirmed Abandon GREEN. StaticPopup canvas Dialog ordering/raise and pointer-transparent full-screen wrapper correct the actual map-over-confirmation failure. Real rendered source geometry asserted; relog detail cache and full Share-button eligibility remain gaps.
+
 ## 2026-10-13 — Collections binding and pet loadout previews
 
 [Battle-pet journal](systems/battle-pets.md#journal-loadout-previews--2026-10-13): assignable Shift-P, card+three detached loadout models, authoritative move/empty teardown and close/reopen proved through real owned-pet native input in both skins. Hidden bag-tree input corrected in the fixture, not product visibility. Filters and owned-health/ability journal payloads remain open.
