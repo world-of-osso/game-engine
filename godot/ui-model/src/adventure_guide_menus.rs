@@ -2,10 +2,11 @@
 use crate::{
     adventure_guide::{LootFilter, View, loot_filter_entries},
     auction_mail::text,
-    menu_primitives::{ContextMenuItem, MenuElementKind, menu_element},
-    quest_art::DynName,
+    menu_primitives::{
+        ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
+    },
 };
-use ui_toolkit::{rsx, widget_def::Element};
+use ui_toolkit::widget_def::Element;
 // MenuTemplates: 8px inset,20px rows,15px bottom padding.
 const INSET: f32 = 8.;
 const ROW: f32 = 20.;
@@ -15,27 +16,44 @@ fn radio(name: String, label: String, action: String, checked: bool) -> Entry {
 }
 fn menu(name: &str, entries: &[Entry], left: f32, top: f32) -> Element {
     let width = menu_width(entries);
-    let height = INSET + ROW * entries.len() as f32 + 15.;
-    let mut children =
-        crate::selection_list::menu_background(format!("{name}Background"), (width, height));
-    children.extend(
-        entries
-            .iter()
-            .enumerate()
-            .flat_map(|(i, (name, label, action, kind))| {
-                menu_element(
-                    ContextMenuItem {
-                        name,
-                        label,
-                        action,
-                    },
-                    *kind,
-                    true,
-                    (INSET, INSET + i as f32 * ROW, width - 16., ROW),
-                )
-            }),
-    );
-    rsx! {r#frame {name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",strata:"DIALOG",frame_level:60.0,mouse_enabled:true,{children}}}
+    let items: Vec<_> = entries
+        .iter()
+        .map(|(name, label, action, _)| ContextMenuItem {
+            name,
+            label,
+            action,
+        })
+        .collect();
+    let rows = entries
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (name, label, action, kind))| {
+            menu_element(
+                ContextMenuItem {
+                    name,
+                    label,
+                    action,
+                },
+                *kind,
+                true,
+                (INSET, INSET + i as f32 * ROW, width - 16., ROW),
+            )
+        })
+        .collect();
+    context_menu_with_rows(
+        ContextMenu {
+            frame_name: name,
+            title_name: &format!("{name}Title"),
+            divider_name: &format!("{name}Divider"),
+            hidden: false,
+            title: "",
+            width,
+            x: left,
+            y: top,
+            items: &items,
+        },
+        rows,
+    )
 }
 pub fn tier_menu(view: &View) -> Element {
     let entries: Vec<_> = view
