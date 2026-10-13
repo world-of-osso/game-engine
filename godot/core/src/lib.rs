@@ -52,6 +52,7 @@ pub mod creature_display_data;
 mod creature_display_data_tests;
 #[path = "game/creature_health_scaling_data.rs"]
 pub mod creature_health_scaling_data;
+pub mod creature_text_sounds;
 #[path = "csv_util.rs"]
 pub mod csv_util;
 #[path = "rendering/character/customization_cache.rs"]
