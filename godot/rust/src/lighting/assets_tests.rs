@@ -5,6 +5,26 @@ use std::{
 
 use super::assets::LightingCatalog;
 
+#[test]
+fn db2_follow_install_light_skybox_named_columns_accept_current_export() {
+    let path = std::env::temp_dir().join(format!("db2-follow-skybox-{}.csv", std::process::id()));
+    fs::write(&path, "ID,Name,Flags,SkyboxFileDataID,CelestialSkyboxFileDataID\n683,\"sky, authored\",3,7345733,0\n").unwrap();
+    let parameters = std::collections::HashMap::from([(12, 683)]);
+    let skyboxes = super::assets::read_light_skyboxes(&path, &parameters).unwrap();
+    assert_eq!(skyboxes[&12], (7345733, 3));
+    fs::write(
+        &path,
+        "ID,Name,Flags,SkyboxFileDataID\n683,sky,invalid,7345733\n",
+    )
+    .unwrap();
+    assert!(
+        super::assets::read_light_skyboxes(&path, &parameters)
+            .unwrap_err()
+            .contains("invalid")
+    );
+    fs::remove_file(path).unwrap();
+}
+
 struct LightingFixture(PathBuf);
 
 impl LightingFixture {
