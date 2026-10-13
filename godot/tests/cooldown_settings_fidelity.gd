@@ -44,7 +44,11 @@ func verify_settings() -> void:
 	for skin in ["modern", "forever"]:
 		fixture = ClassDB.instantiate("CooldownSettingsFixture")
 		root.add_child(fixture)
-		assert(fixture.call("initialize", skin == "forever", true) == "")
+		var initialize_error = fixture.call("initialize", skin == "forever", true)
+		if initialize_error != "":
+			push_error(initialize_error)
+			quit(1)
+			return
 		await settle()
 		assert(fixture.call("selected", 27, 71))
 		capture(skin, "open")
@@ -62,7 +66,11 @@ func verify_settings() -> void:
 		await process_frame
 		fixture = ClassDB.instantiate("CooldownSettingsFixture")
 		root.add_child(fixture)
-		assert(fixture.call("initialize", skin == "forever", false) == "")
+		initialize_error = fixture.call("initialize", skin == "forever", false)
+		if initialize_error != "":
+			push_error(initialize_error)
+			quit(1)
+			return
 		await settle()
 		assert(not fixture.call("selected", 27, 71), "File restoration preserves hidden entry")
 		order = fixture.call("order")
