@@ -1,3 +1,7 @@
+## 2026-10-12 — Clear icon source hover/press and release capture
+
+[Housing](systems/housing.md#clear-icon-hoverpress-and-captured-release): source0.5/1 opacity and3/4 inset in both skins,34 brighter/24 shifted actual viewport pixels. Outside-release RED traced to editor world-region consumption before GUI; only clear-button captured left release now reaches GUI. Paid copies/layout and subsequent clear/remount unchanged; minimum-search-length/audio remain separate.
+
 ## 2026-10-12 — Owned-storage search clear lifecycle
 
 [Housing](systems/housing.md#search-clear-lifecycle): inherited Retail17×17 clear control, focused-empty/nonempty visibility, backing-text clear/focus release and normal source art. Both skins physically clear unmatched query, restore actual paid Tesla pixels, remount without stale search and conserve stored/placed/layout. Hover/pressed art, minimum-character semantics and missing acquisition/assembly policy remain separate.
