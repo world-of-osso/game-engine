@@ -3,6 +3,51 @@ use crate::housing::{ALL_CATEGORY, FEATURED_CATEGORY, HousingAuthority, HousingD
 use game_engine_core::housing::{Category, Decor, Subcategory};
 use std::collections::BTreeSet;
 
+const PANEL_SLIDE_SECONDS: f64 = 0.2;
+const HANDLE_SLIDE_SECONDS: f64 = 0.15;
+const HANDLE_SLIDE_DISTANCE: f32 = 64.0 * 0.67;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DrawerPart {
+    Panel,
+    Handle,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct StorageTransition {
+    elapsed: f64,
+}
+
+/// Blizzard_SharedXML/EasingUtil.lua OutExponential; endpoints are exact.
+fn out_exponential(elapsed: f64, duration: f64) -> f32 {
+    let progress = (elapsed / duration).clamp(0.0, 1.0);
+    if progress == 1.0 {
+        return 1.0;
+    }
+    (1.0 - 2.0_f64.powf(-10.0 * progress)) as f32
+}
+
+fn transition_presentation(collapsed: bool, elapsed: f64, width: f32) -> (DrawerPart, f32) {
+    if collapsed {
+        if elapsed < PANEL_SLIDE_SECONDS {
+            return (
+                DrawerPart::Panel,
+                -width * out_exponential(elapsed, PANEL_SLIDE_SECONDS),
+            );
+        }
+        let offset = 1.0 - out_exponential(elapsed - PANEL_SLIDE_SECONDS, HANDLE_SLIDE_SECONDS);
+        return (DrawerPart::Handle, -HANDLE_SLIDE_DISTANCE * offset);
+    }
+    if elapsed < HANDLE_SLIDE_SECONDS {
+        return (
+            DrawerPart::Handle,
+            -HANDLE_SLIDE_DISTANCE * out_exponential(elapsed, HANDLE_SLIDE_SECONDS),
+        );
+    }
+    let offset = 1.0 - out_exponential(elapsed - HANDLE_SLIDE_SECONDS, PANEL_SLIDE_SECONDS);
+    (DrawerPart::Panel, -width * offset)
+}
+
 fn parse_focus_id(value: &str, clear: &str) -> Result<Option<u32>, String> {
     if value == clear {
         return Ok(None);
@@ -14,6 +59,41 @@ fn parse_focus_id(value: &str, clear: &str) -> Result<Option<u32>, String> {
 }
 
 impl HousingDashboard {
+    pub fn start_storage_transition(&mut self, collapsed: bool) {
+        self.storage_panel.collapsed = collapsed;
+        self.storage_transition = Some(StorageTransition { elapsed: 0.0 });
+    }
+
+    pub fn advance_storage_transition(&mut self, delta: f32) -> Result<(), String> {
+        if !delta.is_finite() || delta < 0.0 {
+            return Err("Storage transition time must be finite and nonnegative.".into());
+        }
+        let Some(transition) = &mut self.storage_transition else {
+            return Ok(());
+        };
+        transition.elapsed += f64::from(delta);
+        if transition.elapsed >= PANEL_SLIDE_SECONDS + HANDLE_SLIDE_SECONDS {
+            self.storage_transition = None;
+        }
+        Ok(())
+    }
+
+    pub fn storage_drawer_presentation(&self) -> (DrawerPart, f32) {
+        if let Some(transition) = &self.storage_transition {
+            return transition_presentation(
+                self.storage_panel.collapsed,
+                transition.elapsed,
+                self.storage_panel.size[0],
+            );
+        }
+        let part = if self.storage_panel.collapsed {
+            DrawerPart::Handle
+        } else {
+            DrawerPart::Panel
+        };
+        (part, 0.0)
+    }
+
     /// Storage disables collection filters; missing acquisition dates cannot define a sort.
     pub fn storage_filter_action(&mut self, action: &str) -> Result<bool, String> {
         match action {
