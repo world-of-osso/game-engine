@@ -67,6 +67,10 @@ func verify_xml_geometry(ui: Node) -> bool:
 		if node == null or not node.get_global_rect().is_equal_approx(expected):
 			push_error("XML geometry mismatch " + name + ": " + str(node.get_global_rect() if node else null) + " expected " + str(rects[name]))
 			return false
+	var highlight = ui.find_child("GroupFinderFrameGroupButton1Highlight", true, false)
+	if highlight == null or not is_equal_approx(highlight.modulate.a, 0.8):
+		push_error("GroupFinderGroupButtonTemplate highlight must retain source alpha .8")
+		return false
 	var menu = ui.find_child("LFDQueueFrameTypeDropdownMenu", true, false)
 	if menu != null:
 		# LFDFrame.lua SetupMenu creates a selected radio, with no title/divider.

@@ -121,9 +121,9 @@ fn category_surfaces(name: &str, icon: u32, enabled: bool) -> Element {
 }
 fn category_highlight(name: &str) -> Element {
     rsx! { texture { name: {DynName(format!("{name}Highlight"))},
-    width: 224.0, height: 80.0, left: -10.5, top: -10.0, pos_type: "absolute",
+    width: 224.0, height: 80.0, left: {-10.5}, top: -10.0, pos_type: "absolute",
     texture_fdid: 593_918, tex_coords: "0.00390625,0.87890625,0.75195313,0.83007813",
-    draw_layer: "HIGHLIGHT", blend_mode: "ADD", alpha: 0.8 } }
+    draw_layer: "HIGHLIGHT", blend_mode: "ADD", alpha: "0.8" } }
 }
 /// PVEFrame.xml BlueBg, corners, lines and filigree. UVs are source TexCoords.
 fn left_panel() -> Element {
