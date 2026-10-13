@@ -98,13 +98,16 @@ func resize_drawer(target: Vector2, initial: Vector2, scale: float) -> bool:
 		fail("Missing source bottom-right resize input")
 		return false
 	var start: Vector2 = handle.get_global_rect().get_center()
+	print("DRAWER_RESIZE_BEFORE initial=", initial, " target=",target," scale=",scale," frame=",housing_control("HouseEditorStorageFrame").get_global_rect()," handle=",handle.get_global_rect())
 	await hover_point(start)
 	await drawer_mouse_button(start, true)
-	push_mouse_motion(start + (target - initial) * scale)
+	drawer_mouse_motion(start + (target - initial) * scale)
 	await frames(20)
 	# Release outside the original handle. Capture must survive reflow.
 	await drawer_mouse_button(start + (target - initial) * scale, false)
 	await frames(20)
+	print("DRAWER_RESIZE_AFTER frame=",housing_control("HouseEditorStorageFrame").get_global_rect()," handle=",housing_control("HouseEditorStorageResizeButton").get_global_rect())
+	if not await record_drawer("storage-drawer-resize-diagnostic"): return false
 	return true
 
 func drawer_mouse_button(point: Vector2, pressed: bool) -> void:
@@ -114,8 +117,14 @@ func drawer_mouse_button(point: Vector2, pressed: bool) -> void:
 	event.button_index = MOUSE_BUTTON_LEFT
 	event.pressed = pressed
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
-	root.push_input(event, true)
+	Input.parse_input_event(event)
 	await frames(3)
+
+func drawer_mouse_motion(point: Vector2) -> void:
+	var event := InputEventMouseMotion.new()
+	event.position = point
+	event.global_position = point
+	Input.parse_input_event(event)
 
 func wait_drawer_size(expected: Vector2, scale: float) -> bool:
 	return await wait_housing(func():
