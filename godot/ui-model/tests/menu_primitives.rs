@@ -62,6 +62,49 @@ fn mount(skin: ActiveSkin) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn world_map_breadcrumb_home_uses_measured_navbar_template_width() {
+    use game_engine_ui_model::world_map_frame_component::{
+        MapBreadcrumb, WorldMapFrameState, world_map_frame_screen,
+    };
+    let _ = mount(ActiveSkin::Modern);
+    let state = WorldMapFrameState {
+        visible: true,
+        viewport: [1280.0, 720.0],
+        breadcrumbs: vec![
+            MapBreadcrumb {
+                map_id: 947,
+                name: "World".into(),
+            },
+            MapBreadcrumb {
+                map_id: 0,
+                name: "Eastern Kingdoms".into(),
+            },
+            MapBreadcrumb {
+                map_id: 37,
+                name: "Elwynn Forest".into(),
+            },
+        ],
+        ..Default::default()
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    let mut reg = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(world_map_frame_screen).sync(&shared, &mut reg);
+    let text_width = ui_toolkit::text_measure::measure_text(
+        "World",
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .unwrap()
+    .0;
+    assert_eq!(
+        frame(&reg, "WorldMapNav0").width.value(),
+        (text_width + 50.0).min(128.0)
+    );
+    assert_eq!(frame(&reg, "WorldMapNav1").height.value(), 30.0);
+}
+
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a ui_toolkit::frame::Frame {
     registry
         .get(registry.get_by_name(name).expect(name))
@@ -83,9 +126,14 @@ fn retail_dropdown_xml_geometry_and_actions_are_skin_invariant() {
         else {
             panic!("Retail text holder");
         };
+        let region = ui_toolkit::atlas::resolve_region("common-dropdown-textholder", skin).unwrap();
+        let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+            panic!("DB2 source");
+        };
+        assert_eq!(background.source, TextureSource::FileDataId(fdid));
         assert_eq!(
-            background.source,
-            TextureSource::Atlas("common-dropdown-textholder".into())
+            background.tex_coords,
+            [region.left, region.right, region.top, region.bottom]
         );
         assert_eq!(
             (
@@ -119,4 +167,163 @@ fn retail_context_menu_keeps_item_callbacks_and_twenty_pixel_entries() {
         };
         assert_eq!(art.source, TextureSource::FileDataId(136810));
     }
+}
+
+#[test]
+fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
+    use game_engine_ui_model::menu_primitives::{
+        DropdownState, DropdownStyle, MenuElementKind, dropdown_button_with_state, menu_element,
+    };
+    fn fixture(_: &SharedContext) -> Element {
+        let mut out = dropdown_button_with_state(
+            DropdownButton {
+                frame_name: "Filter",
+                label_name: "FilterText",
+                arrow_name: "FilterArrow",
+                text: "Filter",
+                width: 135.0,
+                height: 18.0,
+                x: 0.0,
+                y: 0.0,
+                background_color: "",
+                text_color: "1,0.82,0,1",
+                arrow_color: "",
+                onclick: Some("filter"),
+            },
+            DropdownState {
+                style: DropdownStyle::Filter,
+                open: true,
+                enabled: true,
+                reset_action: Some("reset"),
+            },
+        );
+        out.extend(menu_element(
+            ContextMenuItem {
+                name: "Radio",
+                label: "Heroic",
+                action: "heroic",
+            },
+            MenuElementKind::Radio { checked: true },
+            true,
+            (0.0, 40.0, 150.0, 20.0),
+        ));
+        out.extend(menu_element(
+            ContextMenuItem {
+                name: "Check",
+                label: "Show collected",
+                action: "collected",
+            },
+            MenuElementKind::Checkbox { checked: true },
+            true,
+            (0.0, 60.0, 150.0, 20.0),
+        ));
+        rsx! {r#frame {name:"Root",width:640.0,height:480.0,{out}}}
+    }
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = mount(skin);
+        let mut reg = FrameRegistry::new(640.0, 480.0);
+        Screen::new(fixture).sync(&SharedContext::new(), &mut reg);
+        assert_eq!(
+            frame(&reg, "FilterResetButton").onclick.as_deref(),
+            Some("reset")
+        );
+        assert_eq!(
+            (
+                frame(&reg, "FilterResetButton").width.value(),
+                frame(&reg, "FilterResetButton").height.value()
+            ),
+            (23.0, 23.0)
+        );
+        assert!(!frame(&reg, "FilterResetButton").hidden);
+        assert_eq!(
+            frame(&reg, "FilterResetButton").position.top,
+            ui_toolkit::layout_values::Val::Px(-11.5)
+        );
+        let Some(WidgetData::Button(button)) = &frame(&reg, "FilterBackground").widget_data else {
+            panic!("filter art")
+        };
+        assert_eq!(
+            button.normal_texture,
+            Some(TextureSource::Atlas("common-dropdown-b-button-open".into()))
+        );
+        assert_eq!(frame(&reg, "RadioBox").width.value(), 18.0);
+        assert_eq!(frame(&reg, "CheckBox").width.value(), 12.0);
+        let id = reg.get_by_name("Filter").unwrap();
+        let Some(WidgetData::Button(button)) = &mut reg.get_mut(id).unwrap().widget_data else {
+            panic!("filter")
+        };
+        button.hovered = true;
+        button.state = ui_toolkit::widgets::button::ButtonState::Pushed;
+        game_engine_ui_model::menu_template_art::sync_template_art(&mut reg);
+        let Some(WidgetData::Button(button)) = &frame(&reg, "FilterBackground").widget_data else {
+            panic!("art")
+        };
+        assert!(button.hovered);
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Pushed
+        );
+    }
+}
+
+#[test]
+fn navbar_overflow_preserves_rightmost_breadcrumb_and_hidden_callbacks() {
+    use game_engine_ui_model::navigation_bar::{NavBar, NavButton, layout, nav_bar};
+    assert_eq!(layout(200.0, &[34.0, 100.0, 60.0]).first_shown, 2);
+    assert_eq!(layout(200.0, &[34.0, 100.0, 60.0]).positions[2], 26.0);
+    fn fixture(_: &SharedContext) -> Element {
+        nav_bar(NavBar {
+            name: "Nav",
+            rect: (0.0, 0.0, 200.0, 34.0),
+            buttons: &[
+                NavButton {
+                    name: "Home",
+                    text: "World",
+                    action: "world",
+                    text_width: 34.0,
+                },
+                NavButton {
+                    name: "Continent",
+                    text: "Eastern Kingdoms",
+                    action: "continent",
+                    text_width: 100.0,
+                },
+                NavButton {
+                    name: "Zone",
+                    text: "Elwynn",
+                    action: "zone",
+                    text_width: 60.0,
+                },
+            ],
+            overflow_action: "overflow",
+            overflow_open: true,
+        })
+    }
+    let _ = mount(ActiveSkin::Modern);
+    let mut reg = FrameRegistry::new(640.0, 480.0);
+    Screen::new(fixture).sync(&SharedContext::new(), &mut reg);
+    game_engine_ui_model::menu_template_art::sync_template_art(&mut reg);
+    assert_eq!(
+        frame(&reg, "NavOverflowButton").onclick.as_deref(),
+        Some("overflow")
+    );
+    assert_eq!(frame(&reg, "Home").onclick.as_deref(), Some("world"));
+    assert_eq!(
+        frame(&reg, "Continent").onclick.as_deref(),
+        Some("continent")
+    );
+    assert_eq!(frame(&reg, "Zone").onclick.as_deref(), Some(""));
+    assert!(!frame(&reg, "Zone").mouse_enabled);
+    let id = reg.get_by_name("NavOverflowButton").unwrap();
+    let Some(WidgetData::Button(button)) = &mut reg.get_mut(id).unwrap().widget_data else {
+        panic!("overflow")
+    };
+    button.state = ui_toolkit::widgets::button::ButtonState::Pushed;
+    game_engine_ui_model::menu_template_art::sync_template_art(&mut reg);
+    assert!(frame(&reg, "NavOverflowButtonNormalArt").hidden);
+    assert!(!frame(&reg, "NavOverflowButtonPushedArt").hidden);
+    let Some(WidgetData::Texture(background)) = &frame(&reg, "NavBackground").widget_data else {
+        panic!("nav")
+    };
+    assert!(background.horiz_tile);
 }
