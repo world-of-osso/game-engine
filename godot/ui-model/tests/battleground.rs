@@ -234,7 +234,7 @@ fn kotmogu_both_skin_orb_hud_source_columns_queue_and_results() {
 }
 
 #[test]
-fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results() {
+fn silvershard_both_skin_visible_queue_retains_cart_hud_source_column_and_results() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -253,11 +253,8 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
         let mut view = PvpView::default();
         view.visible = true;
         view.action("pvp:select:708");
-        assert_ne!(
-            view.selected_battleground, 708,
-            "unpublished client assets keep Silvershard hidden"
-        );
-        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1014)));
+        assert_eq!(view.selected_battleground, 708);
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(708)));
         receive(&mut view, state.clone());
         view.scoreboard = true;
         let mut context = SharedContext::new();
@@ -269,7 +266,7 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
         assert!(
             registry
                 .get_by_name("HonorFrameSpecificBattlegroundButton708")
-                .is_none()
+                .is_some()
         );
         assert_text(
             &registry,
@@ -282,6 +279,74 @@ fn silvershard_both_skin_hidden_queue_retains_cart_hud_source_column_and_results
         assert_text(&registry, "PVPMatchCategory7", "Carts Controlled");
         assert_text(&registry, "PVPMatchPlayer81Stat428", "3");
         assert!(registry.get_by_name("WorldStateFlags").is_none());
+        view.action("pvp:score-close");
+        let bg = state.battleground.as_mut().unwrap();
+        bg.phase = BgPhase::Ended;
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        receive(&mut view, state);
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn alterac_both_skin_source_queue_reinforcement_hud_columns_and_results() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let template = shared::battleground::alterac_valley();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot(BgPhase::InProgress, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.battleground_id = template.id;
+        bg.map_id = template.map_id;
+        bg.name = template.name.clone();
+        bg.score_a = 700;
+        bg.score_b = 625;
+        bg.world_states = vec![(3127, 700), (3128, 625), (3136, 700), (1368, 1)];
+        bg.players[0].objective_scores = vec![(63, 2), (65, 1), (61, 1), (64, 0), (82, 0)];
+        let mut view = PvpView {
+            visible: true,
+            ..Default::default()
+        };
+        view.action("pvp:select:1");
+        assert_eq!(view.action("pvp:queue"), Some(PvpAction::Queue(1)));
+        receive(&mut view, state.clone());
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HonorFrameSpecificBattlegroundButton1")
+                .is_some()
+        );
+        assert_text(
+            &registry,
+            "WorldStateScore",
+            "Alliance 700 / 700    Horde 625 / 700",
+        );
+        assert!(registry.get_by_name("WorldStateFlags").is_none());
+        for (index, title) in [
+            "Graveyards Assaulted",
+            "Graveyards Defended",
+            "Towers Assaulted",
+            "Towers Defended",
+            "Secondary Objectives",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert_text(&registry, &format!("PVPMatchCategory{}", index + 7), title);
+        }
+        assert_text(&registry, "PVPMatchPlayer81Stat61", "1");
         view.action("pvp:score-close");
         let bg = state.battleground.as_mut().unwrap();
         bg.phase = BgPhase::Ended;
