@@ -36,3 +36,12 @@ func prove_toy(sample: Array) -> void:
 	receipts.append({"phase": "tome-natural-expiry", "from_model_ms": Time.get_ticks_msec() - active, "cooldown": after})
 	await capture("tome24-natural-expiry")
 	print("PASS toy-effects14 actual Tome source attachment/natural expiry/recovery ", skin)
+
+func fail(message: String) -> void:
+	if client != null:
+		var controls := []
+		for node in client.find_children("*", "Control", true, false):
+			if node.is_visible_in_tree(): controls.append(str(node.name))
+		receipts.append({"phase": "failure", "message": message, "account": client.account_state(), "spells": client.spells_state(), "toys": client.toybox_state(), "bags": client.merchant_state().bags, "auras": client.aura_state(), "visuals": client.spell_visuals_state(), "visible_controls": controls})
+		write_receipts()
+	super.fail(message)
