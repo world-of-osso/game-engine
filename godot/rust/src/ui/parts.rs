@@ -424,7 +424,12 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     } else {
         frame.width.value() / 2.0
     };
-    let rect = [center_x - w / 2.0, height / 2.0 - h / 2.0, w, h];
+    // HouseEditorStorageButtonTemplate anchors both the icon and ADD overlay at x=-4.
+    let offset_x = match source {
+        TextureSource::Atlas(name) if name == "house-chest-open-drawer-button" => -4.0,
+        _ => 0.0,
+    };
+    let rect = [center_x - w / 2.0 + offset_x, height / 2.0 - h / 2.0, w, h];
     let mut part = textured(
         rect,
         source.clone(),
@@ -437,7 +442,8 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     part.additive = matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
         "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
         | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
-        | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"));
+        | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
+        | "house-chest-open-drawer-button" | "house-chest-close-drawer-button"));
     parts.push(part);
 }
 
