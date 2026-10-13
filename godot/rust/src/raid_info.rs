@@ -46,7 +46,8 @@ impl GameClient {
         let Some(ui) = self.raid_info.ui.as_mut() else {
             return false;
         };
-        match ui.bind_mut().scroll_list_input(event) {
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
             Ok(true) => {
                 self.mark_viewport_input_handled();
                 true
