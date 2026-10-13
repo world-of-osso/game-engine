@@ -63,16 +63,16 @@ impl GameClient {
             ));
             self.housing.model = Some(model);
         }
+        Ok(())
+    }
+
+    fn mount_housing_dashboard(&mut self) -> Result<(), String> {
         let panel = game_engine_core::ui_layout_data::load_housing_storage_panel(
             &self.account.hud_layout_path()?,
         )?;
         if let Some(model) = &mut self.housing.model {
             model.storage_panel = panel;
         }
-        Ok(())
-    }
-
-    fn mount_housing_dashboard(&mut self) -> Result<(), String> {
         let view = self.housing_view()?;
         self.cache_housing_textures(&view);
         let mut ui = RegistryUi::new_alloc();

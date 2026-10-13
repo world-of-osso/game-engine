@@ -62,7 +62,10 @@ impl GameClient {
         if !button.is_pressed() {
             return self.finish_housing_storage_resize();
         }
-        let point = button.get_position();
+        self.press_housing_storage_resize(button.get_position())
+    }
+
+    fn press_housing_storage_resize(&mut self, point: Vector2) -> Result<bool, String> {
         if !self
             .housing_control_rect("HouseEditorStorageResizeButton")
             .is_some_and(|rect| rect.contains_point(point))
@@ -76,12 +79,6 @@ impl GameClient {
             .ok_or("Housing storage model is unavailable.")?
             .storage_panel
             .size;
-        godot_print!(
-            "DRAWER_NATIVE_PRESS point={:?} scale={} size={:?}",
-            point,
-            self.effective_ui_scale(),
-            size
-        );
         self.housing.storage_resize = Some(StorageResize {
             press: point / self.effective_ui_scale(),
             size,
@@ -94,12 +91,6 @@ impl GameClient {
             return Ok(false);
         };
         let delta = point / self.effective_ui_scale() - resize.press;
-        godot_print!(
-            "DRAWER_NATIVE_DRAG point={:?} delta={:?} origin={:?}",
-            point,
-            delta,
-            resize.size
-        );
         let model = self
             .housing
             .model
@@ -121,7 +112,6 @@ impl GameClient {
             .as_ref()
             .ok_or("Housing storage model is unavailable.")?
             .storage_panel;
-        godot_print!("DRAWER_NATIVE_RELEASE before={:?}", panel.size);
         panel.finish_resize();
         game_engine_core::ui_layout_data::save_housing_storage_panel(
             &self.account.hud_layout_path()?,
