@@ -54,6 +54,24 @@ After landing the server importer, run it with the audit evidence and pinned bui
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
 
+## Owned storage filters
+
+Owned storage has independent Dyeable Only and alphabetical ordering controls. Dyeable requires authentic DecorDyeSlot membership, not an item/source guess. Reset clears filtering without changing search, category or selected sort. Browsing cannot mutate confirmed quantities or layout. Collection and first-acquisition filters are absent (`SetCollectionFiltersAvailable(false)`). Date Added remains unavailable without authenticated acquisition timestamps; indoor/outdoor and tag mappings are not invented. Catalog filters and storage filters never share state.
+
+Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Both-skin physical acceptance exercises alphabetical actual tiles, paid nondyeable stacks excluded, hidden/remounted filter retention, reset/search composition, conservation and normal paid-copy replacement. Dropdowns outside the drawer must remain UI input, never world-edit clicks. Cross-process saved filter/CVar persistence remains separate.
+
+## Owned storage search
+
+Basic editor storage exposes Retail's header SearchBox and shows only authenticated positive stored stacks whose qualified decor names match the case-insensitive search. Placed-only/unowned/unconfirmed entries are not storage results. Preserve storage search separately from Dashboard Catalog search and while Cleanup/Expert hides the drawer; remount the retained input without sampling an absent field as empty. Clear input restores stored results. Search never changes ownership, quantities, selected transforms or pending server authority. Both skins share input/filter behavior. Paging/collection filters, drawer collapse/resize, Market/Blueprints, dyed variant controls and maximum-storage authority remain separate capabilities; this search slice must not claim full storage parity.
+
+Source: `Blizzard_HouseEditorStorageFrame.lua` CreateCatalogSearcher/SetStoredOnly(true)/OnSearchTextUpdated/OnShow and XML SearchBox TOPLEFT20,-20/TOPRIGHT-160,-20/height30 in600×651 drawer.
+
+## Owned storage categories
+
+Storage category focus is separate from Dashboard Catalog focus. Show All and source categories/subcategories with confirmed owned entries (stored plus placed), never Featured/Rooms/unowned categories merely because they exist in DB2. Result tiles remain stored-only. Category selection clears storage text search; new nonempty search clears category/subcategory focus to All. Back restores top-level categories; All subcategories clears only subcategory focus. Hidden Cleanup/Expert retains Basic storage focus. Do not infer indoor/outdoor legality from category membership.
+
+Use the source75px category rail,64px roots and54px subcategories. A category with more than one authored child shows Back/All; specific child buttons appear only when more than one owned child is showable, exactly as DisplaySubcategoriesUnderCategory. Header shows source category or `%s | %s` path. Source: Retail StorageFrame Initialize/OnStorageTabSelected/OnSearchTextUpdated/OnCategoryFocusChanged and HousingCatalogCategories Lua/XML filter/populate/focus/order/Back/All rules. Animated selection art remains separate native presentation coverage.
+
 ## Cleanup mode
 
 Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered placed decor, show its name at the pointer, and left-click the actual picked target to remove it into owned storage. Do not require a prior Basic selection or a second click. Empty ground clicks do nothing. A visitor may inspect the hover name but receives a read-only refusal; never change quantities/layout optimistically. Pending requests cannot submit twice. Mode exit/removal/close clears hover and restores saved materials. Existing owner-only RemoveDecor authority preserves paid dye variants and exact stored/placed quantities across relog. Both skins share the same controls/behavior; native highlight styling is presentation, not authenticated Retail shader/art parity.

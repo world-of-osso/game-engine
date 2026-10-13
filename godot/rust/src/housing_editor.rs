@@ -144,6 +144,8 @@ impl GameClient {
         self.housing.ui.as_ref().is_some_and(|ui| {
             [
                 "HouseEditorStorageFrame",
+                "HouseEditorStorageFilterMenu",
+                "HouseEditorStorageSortMenu",
                 "HouseEditorModeBar",
                 "HouseEditorExpertSubmodeBar",
                 "HouseEditorRotateControl",
