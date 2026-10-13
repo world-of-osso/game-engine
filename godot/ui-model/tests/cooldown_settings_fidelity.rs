@@ -50,6 +50,30 @@ fn retail_cooldown_settings_shell_and_side_tabs_use_source_rects_in_both_skins()
                 (Val::Px(399.0), Val::Px(28.0 + index as f32 * 58.0))
             );
         }
+        let layout = registry
+            .get(
+                registry
+                    .get_by_name("CooldownSettingsLayoutDropdown")
+                    .expect("Retail layout dropdown"),
+            )
+            .unwrap();
+        assert_eq!((layout.width.value(), layout.height.value()), (120.0, 25.0));
+        assert_eq!(
+            (layout.position.left, layout.position.top),
+            (Val::Px(5.0), Val::Px(581.0))
+        );
+        let undo = registry
+            .get(
+                registry
+                    .get_by_name("CooldownSettingsUndo")
+                    .expect("Retail UndoButton"),
+            )
+            .unwrap();
+        assert_eq!((undo.width.value(), undo.height.value()), (164.0, 22.0));
+        assert_eq!(
+            (undo.position.left, undo.position.top),
+            (Val::Px(232.0), Val::Px(583.0))
+        );
         assert!(registry.get_by_name("CooldownSettingsPrevious").is_none());
         assert!(registry.get_by_name("CooldownSettingsNext").is_none());
     }
