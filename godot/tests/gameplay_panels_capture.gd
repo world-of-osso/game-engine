@@ -21,9 +21,22 @@ func capture() -> void:
 				push_error(error)
 				quit(1)
 				return
-			for frame in range(120):
+			for frame in range(240):
+				if ui.has_node("CustomerOrdersPreviewPortrait"):
+					var portrait = ui.get_node("CustomerOrdersPreviewPortrait")
+					var portrait_error = portrait.call("tick")
+					if portrait_error != "":
+						push_error(portrait_error)
+						quit(1)
+						return
 				await process_frame
 				await RenderingServer.frame_post_draw
+			if ui.has_node("CustomerOrdersPreviewPortrait"):
+				var portrait_state = ui.get_node("CustomerOrdersPreviewPortrait").call("portrait_state")
+				if not portrait_state.get("model_shown", false):
+					push_error("Customer-orders portrait model did not load: " + str(portrait_state))
+					quit(1)
+					return
 			var image := root.get_texture().get_image()
 			if image.get_size() != Vector2i(1920, 1080):
 				push_error("Capture must be 1920x1080")

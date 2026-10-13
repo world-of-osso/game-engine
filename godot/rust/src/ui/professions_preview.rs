@@ -34,6 +34,9 @@ impl RegistryUi {
             self.set_ui_scale(1.0)?;
             self.show_professions(customer_orders_view(duration))
         });
+        if result.is_ok() {
+            crate::unit_portraits::attach_customer_orders_preview(self.to_gd());
+        }
         GString::from(result.err().unwrap_or_default().as_str())
     }
 
