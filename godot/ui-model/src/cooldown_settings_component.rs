@@ -115,7 +115,7 @@ fn category_scroll(ctx: &SharedContext, state: &CooldownSettingsView) -> Element
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
-    rsx! {r#frame {name:SCROLL,width:352.0,height:508.0,pos_type:"absolute",left:17.0,top:72.0,mouse_enabled:true,scroll_list:config,
+    rsx! {r#frame {name:{DynName(SCROLL.into())},width:352.0,height:508.0,pos_type:"absolute",left:17.0,top:72.0,mouse_enabled:true,scroll_list:config,
     r#frame {name:"CooldownSettingsContent",width:344.0,height:content_height,pos_type:"absolute",left:0.0,top:{-(offset as f32)},{rows}}
     {bar.element()}}}
 }
