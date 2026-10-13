@@ -102,6 +102,7 @@ impl GameClient {
         if let Some(mode) = mode {
             model.editor.set_mode(mode);
             self.housing.mouse_pointer = None;
+            self.housing.storage_resize = None;
             self.housing.decor.highlight(None);
             self.housing.expert_held = [false; 8];
             self.housing.decor.clear_preview();
@@ -146,6 +147,8 @@ impl GameClient {
                 "HouseEditorStorageFrame",
                 "HouseEditorStorageFilterMenu",
                 "HouseEditorStorageSortMenu",
+                "HouseEditorStorageCollapseButton",
+                "HouseEditorStorageExpandButton",
                 "HouseEditorModeBar",
                 "HouseEditorExpertSubmodeBar",
                 "HouseEditorRotateControl",
@@ -178,6 +181,9 @@ impl GameClient {
             .is_none_or(|model| model.surface != HousingSurface::Editor)
         {
             return Ok(false);
+        }
+        if self.housing_storage_pointer(event)? {
+            return Ok(true);
         }
         if self.housing_expert_key(event)? || self.housing_expert_mouse(event)? {
             return Ok(true);
