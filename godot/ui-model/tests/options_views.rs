@@ -701,10 +701,12 @@ fn settings_footer_has_retail_close_and_hides_apply_without_pending_settings() {
             .get_by_name("OptionsDefaultsButton")
             .expect("Retail list header DefaultsButton");
         let parent = menu.registry.get(defaults).unwrap().parent_id.unwrap();
+        let mount = menu.registry.get(parent).unwrap();
         assert_eq!(
-            menu.registry.get(parent).unwrap().name.as_deref(),
-            Some("OptionsDefaultsMount")
+            mount.position.left,
+            ui_toolkit::layout_values::Val::Px(533.0)
         );
+        assert_eq!(mount.position.top, ui_toolkit::layout_values::Val::Px(16.0));
     }
     set_thread_skin(ActiveSkin::Modern);
 }

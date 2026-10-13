@@ -4,7 +4,7 @@ extends "res://tests/startup_game_menu.gd"
 # standalone game menu directly on its Options panel. Under an isolated XDG_CONFIG_HOME:
 #   GODOT_OPTIONS_PHASE=change — real clicks on the Advanced tab and the FPS overlay
 #                                toggle show the overlay and persist `show_fps_overlay:
-#                                true`; Done closes the menu.
+#                                true`; Close closes the menu.
 #   GODOT_OPTIONS_PHASE=reload — a new process starts with the overlay shown and the
 #                                toggle on.
 # GODOT_OPTIONS_SCREENSHOT saves the startup panel.
@@ -64,7 +64,7 @@ func run_test() -> void:
 		return
 	if not await wait_menu_closed(client, null):
 		return
-	print("PASS: optionsmenu opened Options, toggle persisted, Done closed")
+	print("PASS: optionsmenu opened Options, toggle persisted, Close closed")
 	quit(0)
 
 func option_control(client: Node, name: String) -> Control:
