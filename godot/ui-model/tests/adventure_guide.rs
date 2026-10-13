@@ -232,6 +232,42 @@ fn item_sets_render_retail_rows_and_filter_paladin_specialization() {
 }
 
 #[test]
+fn set_name_takes_quality_of_last_sorted_member_like_retail_configure_order() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = journal();
+    view.visible = true;
+    view.apply("journal:tab:sets").unwrap();
+    view.apply("journal:class:3").unwrap();
+    view.apply("journal:spec:253").unwrap();
+    view.search = "The Defiler's Determination".into();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    context.insert(view);
+    let mut registry = FrameRegistry::new(1280., 720.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    screen.sync(&context, &mut registry);
+    let name = registry
+        .get(
+            registry
+                .get_by_name("JournalSet483")
+                .expect("Defiler's Determination row"),
+        )
+        .unwrap();
+    // Epic Pauldrons20158 is listed first; rare Greaves20154 is configured last.
+    match &name.widget_data {
+        Some(WidgetData::FontString(font)) => assert_eq!(
+            font.color,
+            [0.0, 0.44, 0.87, 1.0],
+            "Retail recolors the set name per configured button; the last sorted member wins"
+        ),
+        other => panic!("Expected set name, got {other:?}"),
+    }
+}
+
+#[test]
 fn set_tooltip_uses_authentic_members_thresholds_and_inactive_legacy_flag() {
     use game_engine_ui_model::{
         adventure_guide_tooltip::set_lines,
