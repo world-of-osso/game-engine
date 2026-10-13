@@ -58,6 +58,9 @@ impl GameClient {
             .send_challenge_request(shared::protocol::ChallengeRequest::Query)
             .map_err(|error| error.to_string())?;
         self.account
+            .send_trading_post(shared::protocol::TradingPostRequest::Query)
+            .map_err(|error| error.to_string())?;
+        self.account
             .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
             .map_err(|error| error.to_string())
     }
@@ -154,6 +157,7 @@ impl GameClient {
         }
         self.select_queued_journal_encounter()?;
         self.adventure_guide.view.activities = self.account.adventure_guide.clone();
+        self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
