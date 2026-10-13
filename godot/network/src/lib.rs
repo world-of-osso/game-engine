@@ -257,6 +257,7 @@ impl NetworkBridge {
             .receive_mail()
             // Player trade: one message type, so channel order is kept.
             .receive::<protocol::TradeStateUpdate>()
+            .receive::<protocol::FollowerDungeons>()
             .receive::<protocol::LfgStateUpdate>()
             // Owner-only death state, corpse and graveyard coordinates.
             .receive::<protocol::DeathStateUpdate>()

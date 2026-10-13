@@ -37,6 +37,7 @@ mod eula;
 #[path = "game/faction_reaction.rs"]
 mod faction_reaction;
 mod flight_map;
+mod follower_dungeons;
 mod frame_error;
 mod game_menu;
 mod game_objects;
@@ -323,6 +324,7 @@ pub struct GameClient {
     adventure_guide: adventure_guide::AdventureGuide,
     trading_post: trading_post::TradingPost,
     battleground: battleground::BattlegroundUi,
+    follower_dungeons: follower_dungeons::FollowerDungeonUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
     transmog: transmog::Transmog,
@@ -470,6 +472,7 @@ impl INode3D for GameClient {
             adventure_guide: adventure_guide::AdventureGuide::default(),
             trading_post: trading_post::TradingPost::default(),
             battleground: battleground::BattlegroundUi::default(),
+            follower_dungeons: follower_dungeons::FollowerDungeonUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
             transmog: transmog::Transmog::default(),
@@ -552,6 +555,7 @@ impl INode3D for GameClient {
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
             || self.battleground_pointer(&event)
+            || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
             || self.character_reputation_pointer(&event)
@@ -1527,6 +1531,7 @@ impl GameClient {
         self.adventure_guide.visit_uis(&mut visit)?;
         self.trading_post.visit_uis(&mut visit)?;
         self.battleground.visit_uis(&mut visit)?;
+        self.follower_dungeons.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.transmog.visit_uis(&mut visit)?;
@@ -2083,6 +2088,7 @@ impl GameClient {
             ("Adventure Guide", |c, _| c.update_adventure_guide()),
             ("Trading Post", |c, _| c.update_trading_post()),
             ("Battleground", |c, _| c.update_battleground()),
+            ("Follower Dungeons", |c, _| c.update_follower_dungeons()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
             ("Transmog", |c, _| c.update_transmog()),
@@ -2250,6 +2256,10 @@ impl GameClient {
                     ui.free();
                 }
                 self.battleground = Default::default();
+                if let Some(ui) = self.follower_dungeons.ui.take() {
+                    ui.free();
+                }
+                self.follower_dungeons = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2299,6 +2309,10 @@ impl GameClient {
             AccountEvent::MountJournal(update) => self.receive_mount_journal(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::FollowerDungeons(catalog) => {
+                self.follower_dungeons.view.receive_catalog(catalog)
+            }
+            AccountEvent::Lfg(update) => self.follower_dungeons.view.receive(update),
             AccountEvent::Pvp(update) => {
                 self.battleground.view.receive(update);
                 self.sync_spellbook()?;
