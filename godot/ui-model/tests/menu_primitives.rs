@@ -105,6 +105,17 @@ fn unit_difficulty_submenu_uses_retail_backdrop_and_keeps_authoritative_radios()
             .unwrap();
         assert!(menu.background_color.is_none());
         assert_eq!(menu.height.value(), 103.0);
+        let title_width = ui_toolkit::text_measure::measure_text(
+            "Dungeon Difficulty",
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            12.0,
+        )
+        .unwrap()
+        .0;
+        assert!(
+            menu.width.value() >= title_width + 16.0,
+            "Retail menu must fit title without ellipsis"
+        );
         let row = reg
             .get(reg.get_by_name("UnitFrameDifficultyMenu2").unwrap())
             .unwrap();

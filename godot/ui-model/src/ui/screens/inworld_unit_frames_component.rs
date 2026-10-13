@@ -2,6 +2,7 @@ use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::faction_reaction::Reaction;
 use crate::hud_layout::{HudAnchor, hud_layout};
@@ -942,6 +943,29 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
         &DIFFICULTY_MENU_ROWS
     };
     let (x, y) = state.map_or((0.0, 0.0), |menu| (menu.x, menu.y));
+    // MenuDescription computes extent from text; preserve title and radio insets, not a fixed120px crop.
+    let measure = |text: &str| {
+        ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, 12.0)
+            .expect("menu font loaded")
+            .0
+    };
+    let title_width = measure(title) + 16.0;
+    let row_width = state.map_or(0.0, |menu| {
+        menu.entries
+            .iter()
+            .map(|entry| measure(&entry.label) + 36.0)
+            .fold(0.0, f32::max)
+    });
+    let legacy_width = if raid {
+        measure("Legacy Raid Size") + 16.0
+    } else {
+        0.0
+    };
+    let width = DIFFICULTY_MENU_W
+        .max(title_width)
+        .max(row_width)
+        .max(legacy_width)
+        .ceil();
     let height = difficulty_menu_height(ids.len()) + if raid { 20.0 } else { 0.0 };
     let rows: Element = ids
         .iter()
@@ -960,13 +984,11 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
                     checked: false,
                     enabled: false,
                 });
-            difficulty_row(index, &entry, raid, prefix)
+            difficulty_row(index, &entry, raid, prefix, width)
         })
         .collect();
-    let backdrop = crate::selection_list::menu_background(
-        format!("{prefix}Background"),
-        (DIFFICULTY_MENU_W, height),
-    );
+    let backdrop =
+        crate::selection_list::menu_background(format!("{prefix}Background"), (width, height));
     let heading = crate::menu_primitives::menu_element(
         ContextMenuItem {
             name: &format!("{prefix}Title"),
@@ -975,12 +997,12 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
         },
         crate::menu_primitives::MenuElementKind::Title,
         true,
-        (8.0, 8.0, DIFFICULTY_MENU_W - 16.0, 20.0),
+        (8.0, 8.0, width - 16.0, 20.0),
     );
     rsx! {
         r#frame {
             name: {dyn_name(prefix.into())},
-            width: {DIFFICULTY_MENU_W},
+            width,
             height: {height},
             hidden: hidden,
             strata: FrameStrata::Dialog,
@@ -991,12 +1013,18 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
             {backdrop}
             {heading}
             {rows}
-            {if raid { crate::menu_primitives::menu_element(ContextMenuItem { name: "UnitFrameRaidDifficultyLegacyTitle", label: "Legacy Raid Size", action: "" }, crate::menu_primitives::MenuElementKind::Title, true, (8.0, 88.0, DIFFICULTY_MENU_W - 16.0, 20.0)) } else { Vec::new() }}
+            {if raid { crate::menu_primitives::menu_element(ContextMenuItem { name: "UnitFrameRaidDifficultyLegacyTitle", label: "Legacy Raid Size", action: "" }, crate::menu_primitives::MenuElementKind::Title, true, (8.0, 88.0, width - 16.0, 20.0)) } else { Vec::new() }}
         }
     }
 }
 
-fn difficulty_row(index: usize, entry: &DifficultyMenuEntry, raid: bool, prefix: &str) -> Element {
+fn difficulty_row(
+    index: usize,
+    entry: &DifficultyMenuEntry,
+    raid: bool,
+    prefix: &str,
+    width: f32,
+) -> Element {
     let row_name = format!("{prefix}{}", entry.difficulty_id);
     let top = DIFFICULTY_MENU_TOP
         + index as f32 * DIFFICULTY_ROW_H
@@ -1017,7 +1045,7 @@ fn difficulty_row(index: usize, entry: &DifficultyMenuEntry, raid: bool, prefix:
             checked: entry.checked,
         },
         entry.enabled,
-        (8.0, top, DIFFICULTY_MENU_W - 16.0, DIFFICULTY_ROW_H),
+        (8.0, top, width - 16.0, DIFFICULTY_ROW_H),
     )
 }
 
