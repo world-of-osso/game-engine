@@ -29,6 +29,7 @@ pub struct CooldownSettingsView {
     pub menu: Option<u32>,
     pub menu_position: [f32; 2],
     pub dragging: Option<u32>,
+    pub can_undo: bool,
 }
 
 pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Element {
@@ -38,7 +39,7 @@ pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Elem
     let mut children = window_chrome(
         "CooldownViewerSettings",
         (399.0, 609.0),
-        "Cooldown Manager",
+        "Cooldown Settings",
         "cooldown_close",
     );
     children.extend(crate::quest_art::window_portrait_texture(
@@ -49,10 +50,43 @@ pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Elem
     children.extend(edit_box(SEARCH, (72.0, 30.0, 184.0, 30.0)));
     children.extend(category_scroll(ctx, state));
     children.extend(item_menu(state));
+    children.extend(settings_footer(state));
     rsx! { r#frame {name:"CooldownViewerSettings", width:399.0,height:609.0,
         strata:crate::ui::strata::FrameStrata::Dialog,mouse_enabled:true,
         pos_type:"absolute",left:16.0,top:116.0,{children}}
     }
+}
+
+fn settings_footer(state: &CooldownSettingsView) -> Element {
+    use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
+    let mut children = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "CooldownSettingsLayoutDropdown",
+            label_name: "CooldownSettingsLayoutText",
+            arrow_name: "CooldownSettingsLayoutArrow",
+            text: "Default",
+            width: 120.0,
+            height: 25.0,
+            x: 5.0,
+            y: -581.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: None,
+        },
+        DropdownState {
+            enabled: false,
+            ..Default::default()
+        },
+    );
+    children.extend(crate::quest_art::panel_button(
+        "CooldownSettingsUndo".into(),
+        "Revert",
+        "cooldown_undo",
+        state.can_undo,
+        (232.0, 583.0, 164.0, 22.0),
+    ));
+    children
 }
 
 fn centered_art(name: String, atlas: &str, center: [f32; 2]) -> Element {
@@ -122,7 +156,11 @@ fn category_scroll(ctx: &SharedContext, state: &CooldownSettingsView) -> Element
 
 fn category_contents(state: &CooldownSettingsView) -> (Element, f32) {
     let categories = if state.category < 2 {
-        [(0, "Essential"), (1, "Utility"), (4, "Not Displayed")]
+        [
+            (0, "Essential Cooldowns"),
+            (1, "Utility Cooldowns"),
+            (4, "Not Displayed"),
+        ]
     } else {
         [
             (2, "Tracked Buffs"),
@@ -253,21 +291,41 @@ fn item_menu(state: &CooldownSettingsView) -> Element {
     };
     let name = "CooldownSettingsVisibility";
     let action = format!("cooldown_select:{id}");
-    let label = if entry.selected { "Hide" } else { "Show" };
+    // GetCategoryAssignmentText uses these GlobalStrings, not a generic checkbox caption.
+    let label = if entry.selected {
+        "Remove from Bar".to_string()
+    } else {
+        let category = [
+            "Essential Cooldowns",
+            "Utility Cooldowns",
+            "Tracked Buffs",
+            "Tracked Bars",
+        ][entry.category as usize];
+        format!("Assign to {category}")
+    };
+    let width = ui_toolkit::text_measure::measure_text(
+        &label,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .expect("menu font metrics")
+    .0
+    .ceil()
+        + 32.0;
     let mut children = crate::selection_list::menu_background(
         "CooldownSettingsMenuBackground".into(),
-        (160.0, 43.0),
+        (width, 43.0),
     );
     children.extend(menu_element(
         ContextMenuItem {
             name,
-            label,
+            label: &label,
             action: &action,
         },
         MenuElementKind::Button,
         true,
-        (8.0, 8.0, 144.0, 20.0),
+        (8.0, 8.0, width - 16.0, 20.0),
     ));
-    rsx! {r#frame {name:"CooldownSettingsMenu",width:160.0,height:43.0,frame_level:600,
+    rsx! {r#frame {name:"CooldownSettingsMenu",width,height:43.0,frame_level:600,
     pos_type:"absolute",left:{state.menu_position[0]},top:{state.menu_position[1]},mouse_enabled:true,{children}}}
 }
