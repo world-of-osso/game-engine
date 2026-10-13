@@ -281,6 +281,48 @@ fn retail_context_menu_keeps_item_callbacks_and_twenty_pixel_entries() {
 }
 
 #[test]
+fn filter_can_preserve_collection_xml_fixed_width_in_both_skins() {
+    use game_engine_ui_model::menu_primitives::{
+        DropdownState, DropdownStyle, dropdown_button_with_state,
+    };
+    fn fixture(_: &SharedContext) -> Element {
+        dropdown_button_with_state(
+            DropdownButton {
+                frame_name: "FixedFilter",
+                label_name: "FixedFilterText",
+                arrow_name: "FixedFilterArrow",
+                text: "Filter",
+                width: 90.0,
+                height: 22.0,
+                x: 0.0,
+                y: 0.0,
+                background_color: "",
+                text_color: "",
+                arrow_color: "",
+                onclick: Some("filter"),
+            },
+            DropdownState {
+                style: DropdownStyle::Filter,
+                resize_to_text: false,
+                ..Default::default()
+            },
+        )
+    }
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = mount(skin);
+        let mut reg = FrameRegistry::new(640.0, 480.0);
+        Screen::new(fixture).sync(&SharedContext::new(), &mut reg);
+        assert_eq!(frame(&reg, "FixedFilter").width.value(), 90.0);
+        assert_eq!(frame(&reg, "FixedFilterText").width.value(), 90.0);
+        assert_eq!(frame(&reg, "FixedFilterBackground").width.value(), 98.0);
+        assert_eq!(
+            frame(&reg, "FixedFilter").onclick.as_deref(),
+            Some("filter")
+        );
+    }
+}
+
+#[test]
 fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
     use game_engine_ui_model::menu_primitives::{
         DropdownState, DropdownStyle, MenuElementKind, dropdown_button_with_state, menu_element,
@@ -306,6 +348,7 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
                 open: true,
                 enabled: true,
                 reset_action: Some("reset"),
+                ..Default::default()
             },
         );
         out.extend(menu_element(
