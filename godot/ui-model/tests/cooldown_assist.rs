@@ -124,7 +124,7 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
         .get_by_name("CooldownSettingsVisibilityText")
         .unwrap();
     assert!(
-        matches!(&registry.get(caption).unwrap().widget_data, Some(WidgetData::FontString(label)) if label.text == "Hide")
+        matches!(&registry.get(caption).unwrap().widget_data, Some(WidgetData::FontString(label)) if label.text == "Remove from Bar")
     );
     view.settings.entries[0].selected = false;
     shared.insert(view);
@@ -133,7 +133,7 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
         .get_by_name("CooldownSettingsVisibilityText")
         .unwrap();
     assert!(
-        matches!(&registry.get(caption).unwrap().widget_data, Some(WidgetData::FontString(label)) if label.text == "Show")
+        matches!(&registry.get(caption).unwrap().widget_data, Some(WidgetData::FontString(label)) if label.text == "Assign to Essential Cooldowns")
     );
 }
 
