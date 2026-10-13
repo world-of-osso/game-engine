@@ -339,6 +339,10 @@ fn navbar_overflow_preserves_rightmost_breadcrumb_and_hidden_callbacks() {
         frame(&reg, "NavOverflowButton").onclick.as_deref(),
         Some("overflow")
     );
+    assert_eq!(
+        frame(&reg, "NavOverflowMenu").position.top,
+        ui_toolkit::layout_values::Val::Px(32.0)
+    );
     assert_eq!(frame(&reg, "Home").onclick.as_deref(), Some("world"));
     assert_eq!(
         frame(&reg, "Continent").onclick.as_deref(),
