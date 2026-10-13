@@ -32,6 +32,12 @@ func _run() -> void:
 			for frame in range(120):
 				await process_frame
 				await RenderingServer.frame_post_draw
+			if journal != "questlog":
+				var panel := node.find_child("CollectionsJournal", true, false) as Control
+				if panel == null or not panel.get_global_rect().size.is_equal_approx(Vector2(703, 606)) or not root.get_visible_rect().encloses(panel.get_global_rect()):
+					push_error("Collections shell must be fully visible at XML pixel size: " + str(panel.get_global_rect() if panel != null else null))
+					quit(1)
+					return
 			var image := root.get_texture().get_image()
 			var skin := "forever" if forever else "modern"
 			var path := directory.path_join(skin + "-" + journal + ".png")
