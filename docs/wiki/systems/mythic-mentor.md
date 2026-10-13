@@ -20,6 +20,20 @@ Modern and Forever receive authentic +8/+11 Azure37:30, transfer leadership both
 
 Initial prototype native runs failed snapshot-readiness assertions, including one60s wait; final native-first sessions succeeded and temporary server instrumentation confirmed changed-snapshot sends. Those early runs do not establish a transport root cause or a production fix. Catalog/teleport expansion is tracked by the contract, not claimed complete by this panel proof.
 
+## Authored summaries and teleports — 2026-10-13
+
+Server display summaries load imported MapChallengeMode names/timers separately from full playable run qualification. A real bag key for Kings' Rest249, Temple250, Ruby399, Blinding584, Voidscar585, Nalorakk586, Murder587 or Altar588 is no longer misreported as “No key”; Azure401 remains supported. Native icons use MapChallengeMode.MapID→JournalInstance.MapID/ButtonSmallFileDataID from local build12.1.0.69933; nine square128×128 LFG images were extracted locally and published by the lead, not fabricated from panoramas.
+
+The existing native post-InWorld ChallengeRequest::Query now publishes the recipient's complete party list even if the one-second change cache matches. This is the explicit ready-reader handshake, not retries. HostClient regression primes/discards the bootstrap, freezes periodic refresh and observes the identical query reply. Initial native send/receipt timeouts do not establish a lower-level transport root cause; final plain fresh-account sessions pass.
+
+All eight installed-addon teleport IDs have local DB2 RecoveryTime0, CategoryRecoveryTime28800000ms and shared category1407. PlayerSpells retains that server-reported category clock; both-party icon countdowns use it even when another teleport started the clock. Shared countdown formatting shows8h, sourced from Retail TimeUtil's hour abbreviation. Native hover uses actual spell catalog text and addon's “Spell not learned.” presentation; mapped icon hover darkens50%, without a swipe.
+
+Plain engine2a16e922f/server06fbe740/protocol29c40b8 runs in `live/hour-{modern,forever}/` prove Ruby+8/28:00 + Kings+11/33:00, unknown-spell click denial, learned-current-teleport denial for missing SpellTargetPosition without movement/cooldown spending, and actual sourced Scarlet131229 cast/success/position driving both icons' real8h category clock. No snapshot injection or fabricated current destination. Earlier `live/{modern5,forever}/` retains both-skin crown/raid/party/drag/save/Escape/no-key/bag-grant proof. Slow post-travel probes initially expired, then recorded correct pruning; they are not permanent-state-loss proof.
+
+Native pixel inspection found tooltip canvas8 below Mentor dialog10, obscuring otherwise correct text. Engine37979322b sets tooltip canvas30 above dialog/launcher10/20 and below cursor100. `live/layer-{modern,forever}/*foreground-unlearned.png` shows complete post-fix overlapping tooltip text in both skins. Source install auto-patched to12.1.5.70340 at11:08 on2026-10-13 and no longer contains pinned builddcfc90fffd79ba00406ae46f5f657592; subsequent client startup fails. Final post-layer **active** cooldown pixels therefore remain blocked, not claimed from the earlier layer8 captures. `layer-modern/*foreground-cooldown.png` has only the base8h description and is not active-clock evidence.
+
+All eight current teleport destinations are absent from local TDB; full playable Mythic+ runs remain Azure401-only and no realm active season is inferred. Counts of promoted creatures alone do not assert complete dungeon mechanics. Exact revision/command/pixel bounds and lead-only data publication are in `/home/osso/.worktrees/handoff-mythic-mentor.md`.
+
 ## Sources
 
 - Installed `BossHelper/UI/{GroupFinderPanel,KeystoneWidget,MythicTeleport}.lua` — list geometry, ordering, no-key, crown and teleport behaviour.

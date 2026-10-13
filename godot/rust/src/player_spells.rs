@@ -116,6 +116,7 @@ pub(crate) struct PlayerSpells {
     spec: Option<u32>,
     slots: [Option<ActionRef>; ACTION_SLOT_COUNT],
     cooldowns: HashMap<u32, CooldownTimer>,
+    category_cooldowns: HashMap<u32, CooldownTimer>,
     gcd: Option<CooldownTimer>,
     /// By `ChargeCategory`.
     charges: HashMap<u32, ChargeTimer>,
@@ -129,10 +130,19 @@ impl Default for PlayerSpells {
             spec: None,
             slots: [None; ACTION_SLOT_COUNT],
             cooldowns: HashMap::new(),
+            category_cooldowns: HashMap::new(),
             gcd: None,
             charges: HashMap::new(),
             costs: HashMap::new(),
         }
+    }
+}
+
+fn update_cooldown_clock(clocks: &mut HashMap<u32, CooldownTimer>, id: u32, timer: CooldownTimer) {
+    if timer.remaining > 0.0 {
+        clocks.insert(id, timer);
+    } else {
+        clocks.remove(&id);
     }
 }
 
@@ -214,10 +224,11 @@ impl PlayerSpells {
         let running = timer.remaining > 0.0;
         if update.is_gcd {
             self.gcd = running.then_some(timer);
-        } else if running {
-            self.cooldowns.insert(update.spell_id, timer);
         } else {
-            self.cooldowns.remove(&update.spell_id);
+            update_cooldown_clock(&mut self.cooldowns, update.spell_id, timer);
+            if update.category != 0 {
+                update_cooldown_clock(&mut self.category_cooldowns, update.category, timer);
+            }
         }
     }
 
@@ -244,6 +255,7 @@ impl PlayerSpells {
             charges.tick(dt);
         }
         self.cooldowns.retain(|_, timer| timer.tick(dt));
+        self.category_cooldowns.retain(|_, timer| timer.tick(dt));
         if let Some(gcd) = &mut self.gcd
             && !gcd.tick(dt)
         {
@@ -262,6 +274,11 @@ impl PlayerSpells {
             (Some(own), _) => Some(own),
             (None, gcd) => gcd,
         }
+    }
+
+    /// Server-reported shared category clock, e.g. dungeon teleports' category1407.
+    pub fn category_cooldown(&self, category: u32) -> Option<CooldownTimer> {
+        self.category_cooldowns.get(&category).copied()
     }
 
     pub fn gcd(&self) -> Option<CooldownTimer> {
