@@ -225,31 +225,16 @@ fn assert_quest_chrome(skin: ActiveSkin) {
     }
 }
 
-/// Both quest windows' close buttons draw `RedButton-Exit` under `skin`; returns its file.
+/// QuestFrame uses skin-resolved `RedButton-Exit`; WorldMap retains its own chrome.
 fn assert_close_texture(skin: ActiveSkin) -> u32 {
     set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
-    let log = registry(
-        WorldMapFrameState::default().with_quest_panel(
-            QuestLogFrameState {
-                visible: true,
-                ..Default::default()
-            },
-            false,
-        ),
-        world_map_frame_screen,
-    );
-    let fdid = assert_draws_member(
+    assert_draws_member(
         &dialog,
         "QuestFrameCloseButtonNormal",
         "RedButton-Exit",
         skin,
-    );
-    assert_eq!(
-        assert_draws_member(&log, "WorldMapCloseButtonIcon", "RedButton-Exit", skin),
-        fdid
-    );
-    fdid
+    )
 }
 
 #[test]
