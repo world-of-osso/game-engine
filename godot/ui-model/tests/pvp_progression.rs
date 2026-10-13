@@ -248,10 +248,17 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
         let Some(WidgetData::FontString(text)) = policy.widget_data.as_ref() else {
             panic!("Policy gap text")
         };
-        assert!(text.text.contains("unavailable"));
+        assert!(
+            text.text
+                .contains("2v2 • Full max-level group; leader queues")
+        );
+        let join = registry
+            .get(registry.get_by_name("ConquestFrameJoinButton").unwrap())
+            .unwrap();
+        assert_eq!(join.onclick.as_deref(), Some("pvp:rated:queue"));
         assert!(
             registry.get_by_name("HonorFrameQueueButton").is_none(),
-            "rated tab cannot join an unplayed simulated arena"
+            "rated tab uses its own authoritative queue action"
         );
     }
 }
