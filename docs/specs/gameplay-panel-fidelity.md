@@ -4,7 +4,7 @@ Retail XML/Lua under `Blizzard_*/retail/AddOns` defines controls, sizes, anchors
 
 ## Acceptance
 
-- [ ] Customer orders: Browse Orders/My Orders PanelTabButtonTemplate and recipient/duration WowStyle1DropdownTemplate use authored anchors, pending state and existing actions. Personal orders show Order To; payment labels stay inside the right pane and share input centerlines. Back uses UIPanelButtonTemplate sheet art; the portrait shows the interacting NPC. Form.lua overrides recipient/duration widths to136/143px. [Crafting contract](crafting-ui.md).
+- [x] Customer orders: Browse Orders/My Orders PanelTabButtonTemplate and recipient/duration WowStyle1DropdownTemplate use authored anchors, pending state and existing actions. Personal orders show Order To; payment labels stay inside the right pane and share input centerlines. Back uses UIPanelButtonTemplate sheet art; the portrait shows the interacting NPC. Form.lua overrides recipient/duration widths to136/143px. [Crafting contract](crafting-ui.md).
 - [ ] Gameplay menus: damage-meter radio menus, minimap tracking checkboxes, transmog source/completion filters and unit difficulty submenus use Retail menu backdrop/elements, source20px rows and measured title/label extents. [Shared menu contract](menu-primitives.md).
 - [ ] Talent loadout dropdown/menu/dialog, actual talent choice entries, cooldown settings and Edit Mode LayoutDropdown use their named Retail templates without replacing supported behavior.
 - [ ] Guild rank controls, scoreboard tabs, rated/casual arena rows and pet selection buttons match their Retail controls.
