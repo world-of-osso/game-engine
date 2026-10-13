@@ -8,8 +8,7 @@ use crate::ui::screens::options_menu_component::{
 };
 use crate::ui::strata::FrameStrata;
 
-#[path = "game_menu_main.rs"]
-mod main;
+use crate::game_menu_main as main;
 use main::main_menu_view;
 pub use main::{
     ACTION_ADDONS, ACTION_EXIT, ACTION_LOGOUT, ACTION_OPTIONS, ACTION_RESUME, ACTION_SUPPORT,
