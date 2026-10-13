@@ -8,7 +8,7 @@ Shared dropdown/menu art lives in `godot/ui-model/src/ui/screens/menu_primitives
 
 Atlas names resolve under active skin; source file regions remain source files in both skins. Forever no longer changes world-map breadcrumb anchors. NavBar receives measured text widths, counts full widths from the end with a20px buffer, overlaps the home/overflow button by15/18px, and places hidden ancestor actions in the overflow menu. WorldMapDisplay owns overflow visibility and clears it on navigation.
 
-RegistryUi synchronizes child normal/pressed regions and dropdown atlas states after screen sync and pointer input. `menu_template_art` sets authored ADD/tile flags unavailable as RSX attributes. The real world-map consumer and standalone shared-menu capture use the same code paths.
+RegistryUi synchronizes child normal/pressed regions and dropdown atlas states after screen sync and pointer input. `menu_template_art` sets authored ADD/tile flags unavailable as RSX attributes and applies Retail `C_Texture.GetAtlasInfo` slices: backdrop16/13/16/19, text holder16/0/19/0, Filter8/0/18/0, Style2 12/0/12/0. Whole-member stretching shifts the backdrop metal edge into labels; the native fixture checks source edge pixels. The real world-map consumer and standalone shared-menu capture use the same code paths.
 
 ## Source-decimal gotcha
 
@@ -25,6 +25,7 @@ Targeted integration module `tests/menu_primitives.rs` asserts source geometry, 
 - Retail `Blizzard_Menu/{MenuVariants.lua,Mainline/MenuVariants.lua}` — menu entry height, ticks, divider/highlight/submenu source art.
 - Retail `Blizzard_FrameXML/Mainline/NavigationBar.{xml,lua}` — home, breadcrumb, overflow art/sizing and collapse decisions.
 - `UiTextureAtlas*.csv`, local `community-listfile.csv` — authored crops and source FDIDs.
+- `/home/osso/Projects/wow/wow-ui-sim/data/atlas.rs:16139,16156-16158` — Retail atlas slice metadata exported from the client.
 
 ## See Also
 

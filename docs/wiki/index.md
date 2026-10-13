@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
+
 - [Native follower dungeon Group Finder](systems/follower-dungeons.md) — source role/type/checkbox list, authoritative catalog and both-skin private native admission/five roles/14m follow; combat, camera/geometry/gear and whole-dungeon acceptance remain open.
 
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
