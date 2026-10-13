@@ -318,6 +318,20 @@ pub enum InputAction {
     HousingRotateLeft,
     HousingRotateRight,
     HousingRemoveDecor,
+    HousingExpertTranslate,
+    HousingExpertRotate,
+    HousingExpertScale,
+    HousingExpertLeft,
+    HousingExpertRight,
+    HousingExpertForward,
+    HousingExpertBack,
+    HousingExpertUp,
+    HousingExpertDown,
+    HousingExpertScaleUp,
+    HousingExpertScaleDown,
+    HousingExpertRotateLeft,
+    HousingExpertRotateRight,
+    HousingExpertNextAxis,
 }
 
 impl InputAction {
@@ -415,16 +429,30 @@ impl InputAction {
 
     /// Retail Bindings_Standard.xml, HousingEditor/BasicAndExpert/Basic contexts.
     /// Default key data is unavailable locally; these remain unbound, assignable.
-    pub const HOUSING_ACTIONS: [Self; 6] = [
+    pub const HOUSING_ACTIONS: [Self; 20] = [
         Self::HousingBasicMode,
         Self::HousingExpertMode,
         Self::HousingCleanupMode,
         Self::HousingRotateLeft,
         Self::HousingRotateRight,
         Self::HousingRemoveDecor,
+        Self::HousingExpertTranslate,
+        Self::HousingExpertRotate,
+        Self::HousingExpertScale,
+        Self::HousingExpertLeft,
+        Self::HousingExpertRight,
+        Self::HousingExpertForward,
+        Self::HousingExpertBack,
+        Self::HousingExpertUp,
+        Self::HousingExpertDown,
+        Self::HousingExpertScaleUp,
+        Self::HousingExpertScaleDown,
+        Self::HousingExpertRotateLeft,
+        Self::HousingExpertRotateRight,
+        Self::HousingExpertNextAxis,
     ];
 
-    pub const ALL: [Self; 126] = [
+    pub const ALL: [Self; 140] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -551,6 +579,20 @@ impl InputAction {
         Self::HousingRotateLeft,
         Self::HousingRotateRight,
         Self::HousingRemoveDecor,
+        Self::HousingExpertTranslate,
+        Self::HousingExpertRotate,
+        Self::HousingExpertScale,
+        Self::HousingExpertLeft,
+        Self::HousingExpertRight,
+        Self::HousingExpertForward,
+        Self::HousingExpertBack,
+        Self::HousingExpertUp,
+        Self::HousingExpertDown,
+        Self::HousingExpertScaleUp,
+        Self::HousingExpertScaleDown,
+        Self::HousingExpertRotateLeft,
+        Self::HousingExpertRotateRight,
+        Self::HousingExpertNextAxis,
     ];
 
     pub fn key(self) -> &'static str {
@@ -639,9 +681,31 @@ impl InputAction {
             Self::HousingRotateLeft => ("HOUSING_BASICDECOR_ROTATELEFT", "Rotate Decor Left"),
             Self::HousingRotateRight => ("HOUSING_BASICDECOR_ROTATERIGHT", "Rotate Decor Right"),
             Self::HousingRemoveDecor => ("HOUSING_REMOVEDECOR", "Remove Decor"),
-            _ => return None,
+            _ => return self.housing_expert_meta(),
         };
         Some(input_action_meta(key, label, BindingSection::Housing, None))
+    }
+
+    fn housing_expert_meta(self) -> Option<InputActionMeta> {
+        let key = match self {
+            Self::HousingExpertTranslate => "HOUSING_EXPERTDECORTRANSLATESUBMODE",
+            Self::HousingExpertRotate => "HOUSING_EXPERTDECORROTATESUBMODE",
+            Self::HousingExpertScale => "HOUSING_EXPERTDECORSCALESUBMODE",
+            Self::HousingExpertLeft => "HOUSING_EXPERTDECORINCREMENT_LEFT",
+            Self::HousingExpertRight => "HOUSING_EXPERTDECORINCREMENT_RIGHT",
+            Self::HousingExpertForward => "HOUSING_EXPERTDECORINCREMENT_FORWARD",
+            Self::HousingExpertBack => "HOUSING_EXPERTDECORINCREMENT_BACK",
+            Self::HousingExpertUp => "HOUSING_EXPERTDECORINCREMENT_UP",
+            Self::HousingExpertDown => "HOUSING_EXPERTDECORINCREMENT_DOWN",
+            Self::HousingExpertScaleUp => "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
+            Self::HousingExpertScaleDown => "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
+            Self::HousingExpertRotateLeft => "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
+            Self::HousingExpertRotateRight => "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
+            Self::HousingExpertNextAxis => "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
+            _ => return None,
+        };
+        // Action identity stays literal until installed GlobalStrings supplies localized labels.
+        Some(input_action_meta(key, key, BindingSection::Housing, None))
     }
 
     fn interface_meta(self) -> Option<InputActionMeta> {
@@ -841,7 +905,23 @@ impl InputAction {
             | Self::HousingCleanupMode
             | Self::HousingRotateLeft
             | Self::HousingRotateRight
-            | Self::HousingRemoveDecor => unreachable!("housing actions handled by housing_meta"),
+            | Self::HousingRemoveDecor
+            | Self::HousingExpertTranslate
+            | Self::HousingExpertRotate
+            | Self::HousingExpertScale
+            | Self::HousingExpertLeft
+            | Self::HousingExpertRight
+            | Self::HousingExpertForward
+            | Self::HousingExpertBack
+            | Self::HousingExpertUp
+            | Self::HousingExpertDown
+            | Self::HousingExpertScaleUp
+            | Self::HousingExpertScaleDown
+            | Self::HousingExpertRotateLeft
+            | Self::HousingExpertRotateRight
+            | Self::HousingExpertNextAxis => {
+                unreachable!("housing actions handled by housing_meta")
+            }
             Self::OpenAllBags
             | Self::ToggleBackpack
             | Self::ToggleBag1
