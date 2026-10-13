@@ -80,6 +80,12 @@ The inherited search input limits text to40 Unicode letters, not40 bytes. Native
 
 Source: HousingCatalogSearchBoxTemplate letters40; inherited SearchBoxTemplate and InputBoxInstructionsTemplate XML; InputBoxTemplates.lua SearchBoxTemplate OnLoad/OnTextChanged/focus callbacks. Source audio and locale selection remain separate.
 
+## Owned storage search focus keys
+
+Focused Enter, keypad Enter and Escape release only search focus and consume the key. They preserve raw/applied query, result and drawer; never submit chat/form, close housing or commit/cancel decor. Nonempty blur retains its bright magnifier/clear control; empty blur restores gray magnifier and hides clear. Other edit boxes keep existing bindings.
+
+Source: inherited SearchBoxTemplate OnEnterPressed/OnEscapePressed `EditBox_ClearFocus`.
+
 ## Owned storage search clear control
 
 Owned-storage search includes the inherited Retail17×17 clear button at right−3, with10×10 `common-search-clearbutton` art inset3 and normal alpha0.5. Nonempty or focused search shows it; empty/unfocused hides it. Clicking empties both native registry edit text and storage search, releases input focus and immediately refreshes results. Catalog search, storage category/filter/sort and authoritative ownership/layout remain unchanged. The clear icon switches alpha0.5→1 on hover and moves its inset3,3→4,4 while pressed, restoring on release; the hit rectangle never moves. The current English/default search applies only after three UTF-8 characters, not bytes. Short raw input remains visible/clearable but uses an empty query and retains category/subcategory focus. A qualifying query clears focus to All; shortening it does not restore old focus. Retail koKR/zhCN/zhTW one-character locale overrides are documented but native locale selection and source click audio remain separate acceptance boundaries.
