@@ -48,7 +48,8 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 
 ## Tests asserting this spec
 
-- `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test.
+- `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test; real1127086 refraction selection and AW colour/UV preservation.
+- `godot/rust/src/particles.rs::tests` — real1127086 admits exactly0..4,7..9 and a refraction-only model creates no forward particles. Matched both-skin process/pixel proof: [rainbow investigation](../wiki/investigations/avenging-wrath-material-time.md#actual-source-capture-and-root-cause).
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint, fade, and half legacy fog for Alpha (toward the fog colour) and Add (toward black). RED/GREEN `data/diagnostics/worldvis-2026-10-01/particle-fog-{red,green}.log`.
 - `godot/tests/world_particle_fog_flow.gd` — real client, Northshire: every doodad pool carries the terrain's fog uniforms (`pfog.log`, 207 pools).
 - `godot/tests/world_unit_particles_flow.gd` — real client, Stormwind (-8708, 845): 9 creatures (Ethereals 123799/123791 and others) place 114 emitters in 46 pools, 529 particles drawn facing them (`unitp-sw.log`, `unitp-sw/*.png`).
