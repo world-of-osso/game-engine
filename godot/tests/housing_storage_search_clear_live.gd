@@ -83,7 +83,7 @@ func prove_clear_affordance(clear: Control, icon: Control, scale: float) -> bool
 	await frames(4)
 	var released_inset: Vector2 = (icon.global_position-clear.global_position)/scale
 	if released_inset.distance_to(Vector2(3.0,3.0))>0.2 or absf(art.modulate.a-0.5)>0.01 or storage_search_text()!="__housing_no_match__":
-		fail("Source clear release outside must restore3,3/alpha0.5 without clicking")
+		fail("Source clear release outside must restore3,3/alpha0.5 without clicking: inset="+str(released_inset)+" alpha="+str(art.modulate.a)+" query="+storage_search_text())
 		return false
 	return true
 
