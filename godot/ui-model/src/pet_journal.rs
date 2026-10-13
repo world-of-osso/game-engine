@@ -314,47 +314,12 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     out
 }
 fn search_box(view: &PetJournalView) -> Element {
-    use crate::quest_art::named_atlas_texture;
-    let art: Element = [
-        ("Left", "common-search-border-left", (14.0, 69.0, 8.0, 20.0)),
-        (
-            "Middle",
-            "common-search-border-middle",
-            (22.0, 69.0, 134.0, 20.0),
-        ),
-        (
-            "Right",
-            "common-search-border-right",
-            (156.0, 69.0, 8.0, 20.0),
-        ),
-        (
-            "Icon",
-            "common-search-magnifyingglass",
-            (20.0, 75.0, 10.0, 10.0),
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(suffix, atlas, rect)| {
-        named_atlas_texture(format!("PetJournalSearch{suffix}"), atlas, rect)
-    })
-    .collect();
-    let clear = named_atlas_texture(
-        "PetJournalSearchClearIcon".into(),
-        "common-search-clearbutton",
-        (3.0, 3.0, 10.0, 10.0),
-    );
-    let search = view.search.as_str();
-    rsx! { {art}
-        editbox { name: "PetJournalSearchBox", text: search, width: 145.0, height: 20.0,
-            left: 19.0, top: 69.0, pos_type: "absolute", font_size: 12.0,
-            font_color: WHITE, text_insets: "16,20,0,0", max_letters: 40 }
-        fontstring { name: "PetJournalSearchHint", text: "Search", hidden: {!search.is_empty()},
-            mouse_enabled: false, width: 100.0, height: 20.0, left: 35.0, top: 69.0,
-            pos_type: "absolute", font_size: 12.0, font_color: "0.5,0.5,0.5,1", justify_h: "LEFT" }
-        button { name: "PetJournalSearchClear", width: 17.0, height: 17.0,
-            left: 144.0, top: 70.5, pos_type: "absolute", hidden: {search.is_empty()},
-            button_default_skin: false, onclick: "pet:search-clear", {clear} }
-    }
+    crate::search_box_template::search_box(
+        "PetJournal",
+        &view.search,
+        "pet:search-clear",
+        (19.0, 69.0, 145.0, 20.0),
+    )
 }
 fn pet_list(ctx: &SharedContext, view: &PetJournalView) -> Element {
     let rows = view.rows();

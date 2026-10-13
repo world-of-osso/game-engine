@@ -166,6 +166,7 @@ impl MountJournalView {
                 self.filters_open = !self.filters_open;
                 self.submenu = None;
             }
+            "mount:search-clear" => self.search.clear(),
             "mount:collected" => self.collected = !self.collected,
             "mount:uncollected" => self.uncollected = !self.uncollected,
             "mount:unusable" => self.unusable = !self.unusable,
@@ -216,7 +217,7 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     if !view.visible {
         return Vec::new();
     }
-    let mut body = search_box();
+    let mut body = search_box(view);
     body.extend(label(
         "MountJournalCount".into(),
         &format!(
@@ -236,11 +237,13 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     body.extend(context_menu(view));
     crate::collections_component::collections_shell(view.viewport, 0, body)
 }
-fn search_box() -> Element {
-    rsx! { editbox { name: "MountJournalSearchBox", width: 145.0, height: 20.0,
-        left: 19.0, top: 69.0, pos_type: "absolute", font_size: 12.0,
-        font_color: WHITE, text_insets: "4,4,0,0", max_letters: 40 }
-    }
+fn search_box(view: &MountJournalView) -> Element {
+    crate::search_box_template::search_box(
+        "MountJournal",
+        &view.search,
+        "mount:search-clear",
+        (19.0, 69.0, 145.0, 20.0),
+    )
 }
 fn mount_list(ctx: &SharedContext, view: &MountJournalView) -> Element {
     let rows = view.rows();
