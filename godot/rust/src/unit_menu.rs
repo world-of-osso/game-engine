@@ -23,6 +23,8 @@ use crate::replicated::UnitFields;
 
 /// `UnitPopupRaidTarget<n>ButtonMixin:OnClick` → `SetRaidTargetIcon(unit, n)`.
 const ACTION_UNIT_MENU_RAID_TARGET_PREFIX: &str = "unit_menu_raid_target:";
+/// Retail UnitPopupAchievementButtonMixin opens SetAchievementComparison(unit).
+const ACTION_COMPARE_ACHIEVEMENTS: &str = "unit_menu_compare_achievements";
 const ACTION_DISMISS_PET: &str = "unit_menu_dismiss_pet";
 const ACTION_RIDE_VEHICLE: &str = "unit_menu_ride_vehicle";
 const ACTION_DISMISS_HUNTER_PET: &str = "unit_menu_dismiss_hunter_pet";
@@ -93,6 +95,11 @@ pub(crate) fn player_items(
         }
     }
     if !unit.eq_ignore_ascii_case(local) {
+        items.push(UnitMenuItem {
+            name: "UnitFrameContextMenuCompareAchievements".into(),
+            label: "Compare Achievements".into(),
+            action: ACTION_COMPARE_ACHIEVEMENTS.into(),
+        });
         items.push(UnitMenuItem {
             name: "UnitFrameContextMenuTrade".into(),
             label: "Trade".into(),
@@ -615,6 +622,19 @@ impl GameClient {
         }
         let menu = std::mem::take(&mut self.unit_menu);
         if !menu.state.visible {
+            return Ok(());
+        }
+        if action == ACTION_COMPARE_ACHIEVEMENTS {
+            let target = menu
+                .unit
+                .ok_or_else(|| SessionError("No comparison target selected".into()))?;
+            let requests = self
+                .account
+                .achievements
+                .action(&format!("achievement:compare:{target}"));
+            for request in requests {
+                self.account.send_achievement_request(request)?;
+            }
             return Ok(());
         }
         if let Some(unit) = menu.unit {
