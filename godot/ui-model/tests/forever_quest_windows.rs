@@ -303,7 +303,7 @@ fn quest_chrome_preserves_modern_and_resolves_forever() {
     if std::env::var_os("PRINT_MODERN_TREES").is_some() {
         println!("<<<MODERN_TREES\n{trees}MODERN_TREES>>>");
     }
-    assert_eq!(trees.as_bytes(), fixture::MODERN_TREES.as_bytes());
+    assert!(trees == fixture::MODERN_TREES, "Modern frame trees changed");
     // Forever draws its own close-button art, not Modern's.
     assert_ne!(
         assert_close_texture(ActiveSkin::Modern),
