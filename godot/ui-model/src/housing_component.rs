@@ -326,7 +326,7 @@ fn subcategories(model: &HousingDashboard, category_id: u32) -> Element {
 }
 
 /// BaseHousingCatalogCategoryMixin state art: `{key}_active` focused, else `_inactive`.
-fn category_button(
+pub(crate) fn category_button(
     name: String,
     icon: Option<&str>,
     active: bool,
