@@ -63,16 +63,16 @@ def table_fdids(listfile, tables):
     return result
 
 
-def validate_definitions(checkout):
+def validate_definitions(checkout, commit):
     revision = subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = subprocess.check_output(['git', '-C', str(checkout), 'status', '--porcelain', '--untracked-files=no'], text=True)
-    if revision != DBD_COMMIT or dirty:
-        raise ValueError(f'WoWDBDefs must be clean at {DBD_COMMIT}; got {revision}')
+    if revision != commit or dirty:
+        raise ValueError(f'WoWDBDefs must be clean at {commit}; got {revision}')
     return checkout / 'definitions'
 
 
 def export_tables(args):
-    definitions = validate_definitions(args.definitions)
+    definitions = validate_definitions(args.definitions, args.schema_commit)
     identity, roots = authenticate_install(args.install)
     output = args.output.resolve()
     for canonical in (args.engine / 'data', args.server / 'data'):
@@ -85,7 +85,7 @@ def export_tables(args):
     tables = table_fdids(args.engine / 'data/community-listfile.csv', consumed_tables(args.engine, args.server, definitions))
     sys.path.insert(0, str(args.server / 'scripts'))
     import db2_casc
-    receipt = {'identity': identity, 'schema_commit': DBD_COMMIT, 'tables': {}, 'unavailable': {}}
+    receipt = {'identity': identity, 'schema_commit': args.schema_commit, 'tables': {}, 'unavailable': {}}
     pending = []
     for fdid in tables.values():
         expected = roots.get(fdid)
@@ -132,6 +132,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('engine', 'server', 'definitions', 'output', 'resolver', 'resolver-cache'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--schema-commit', default=DBD_COMMIT, help='exact clean WoWDBDefs commit; recorded in receipts')
     parser.add_argument('--install', type=Path, default=Path('/syncthing/World of Warcraft'))
     export_tables(parser.parse_args())
 
