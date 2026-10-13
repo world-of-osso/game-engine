@@ -9,6 +9,98 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_storage_search_clear_has_source_geometry_and_nonempty_visibility_in_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use ui_toolkit::layout_values::Val;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.surface = HousingSurface::Editor;
+        model.set_storage_search("Tesla".into());
+        let mut view = HousingView {
+            model,
+            authority: HousingAuthority::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(housing_screen);
+        screen.sync(&context, &mut registry);
+        let clear = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSearchClearButton")
+                    .expect("Retail storage search clear control missing"),
+            )
+            .unwrap();
+        assert!(clear.visible);
+        assert_eq!(clear.width, Dimension::Fixed(17.0));
+        assert_eq!(clear.height, Dimension::Fixed(17.0));
+        assert_eq!(clear.position.left, Val::Px(420.0));
+        assert_eq!(clear.position.top, Val::Px(26.5));
+        assert_eq!(
+            clear.onclick.as_deref(),
+            Some("housing:storage:search:clear")
+        );
+        let art = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSearchClearArt")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(art.alpha, 0.5);
+        let icon = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSearchClearIcon")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(icon.width, Dimension::Fixed(10.0));
+        assert_eq!(icon.height, Dimension::Fixed(10.0));
+        assert_eq!(
+            (icon.position.left, icon.position.top),
+            (Val::Px(3.0), Val::Px(3.0))
+        );
+        view.model.set_storage_search(String::new());
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(
+            !registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchClearButton")
+                        .unwrap()
+                )
+                .unwrap()
+                .visible
+        );
+        view.model.storage_search_focused = true;
+        context.insert(view);
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchClearButton")
+                        .unwrap()
+                )
+                .unwrap()
+                .visible
+        );
+    }
+}
+
+#[test]
 fn housing_storage_transition_frames_slide_in_source_order_in_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use ui_toolkit::layout_values::Val;
