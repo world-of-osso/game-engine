@@ -84,6 +84,36 @@ fn collections_portrait_shell_uses_source_background_in_both_skins() {
 }
 
 #[test]
+fn toybox_allpoints_and_background_match_retail_anchors() {
+    // ToyBox.xml:25,47; SharedCollectionTemplates.xml:56-67.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        for (name, size, at) in [
+            ("ToyBox", [703.0, 606.0], [0.0, 0.0]),
+            ("ToyBoxIconsFrame", [693.0, 541.0], [4.0, 60.0]),
+            ("ToyBoxBackground", [685.0, 533.0], [4.0, 4.0]),
+        ] {
+            let frame = visible_frame(&registry, name);
+            assert_eq!(frame.width, Dimension::Fixed(size[0]));
+            assert_eq!(frame.height, Dimension::Fixed(size[1]));
+            assert_eq!(
+                frame.position.left,
+                ui_toolkit::layout_values::Val::Px(at[0])
+            );
+            assert_eq!(
+                frame.position.top,
+                ui_toolkit::layout_values::Val::Px(at[1])
+            );
+        }
+        let background = visible_frame(&registry, "ToyBoxBackground");
+        let Some(WidgetData::Texture(texture)) = &background.widget_data else {
+            panic!("background texture");
+        };
+        assert!(texture.horiz_tile && texture.vert_tile);
+    }
+}
+
+#[test]
 fn names_are_visible_for_collected_and_uncollected_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = journal(skin);
