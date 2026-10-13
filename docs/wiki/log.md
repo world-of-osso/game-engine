@@ -1,3 +1,7 @@
+## 2026-10-12 — Category focus callback boundaries
+
+[Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
+
 ## 2026-10-12 — Source search focus keys
 
 [Housing](systems/housing.md#search-focus-keys): Enter/Escape/keypad Enter release only storage search focus, consuming keys without form/chat/window/editor action. Both-skin native retained-query/Tesla, empty gray/clear-hidden, remount and exact conservation proof; shared edit-box behavior unchanged.
