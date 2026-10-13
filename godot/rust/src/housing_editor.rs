@@ -39,6 +39,7 @@ impl GameClient {
     pub(super) fn dispatch_housing_editor_action(&mut self, action: &str) -> Result<bool, String> {
         if action == "housing:info" {
             self.housing.decor.clear_preview();
+            self.housing.decor.highlight(None);
             if let Some(model) = &mut self.housing.model {
                 model.surface = HousingSurface::Dashboard;
                 model.editor = Default::default();
@@ -55,7 +56,12 @@ impl GameClient {
                 || action.starts_with("housing:rotate:")
                 || matches!(
                     action,
-                    "housing:remove" | "housing:editor" | "housing:cancel"
+                    "housing:remove"
+                        | "housing:editor"
+                        | "housing:cancel"
+                        | "housing:cleanup"
+                        | "housing:basic"
+                        | "housing:expert"
                 ));
         }
         if action == "housing:editor" {
@@ -90,10 +96,13 @@ impl GameClient {
         let mode = match action {
             "housing:expert" => Some(EditorMode::Expert),
             "housing:basic" => Some(EditorMode::Basic),
+            "housing:cleanup" => Some(EditorMode::Cleanup),
             _ => None,
         };
         if let Some(mode) = mode {
             model.editor.set_mode(mode);
+            self.housing.mouse_pointer = None;
+            self.housing.decor.highlight(None);
             self.housing.expert_held = [false; 8];
             self.housing.decor.clear_preview();
             self.housing.decor.restore_saved();
@@ -119,6 +128,7 @@ impl GameClient {
             "housing:remove" => model.editor.remove(&self.housing.authority)?,
             "housing:cancel" => {
                 model.editor.cancel();
+                self.housing.decor.highlight(None);
                 self.housing.expert_held = [false; 8];
                 self.housing.decor.clear_preview();
                 self.housing.decor.restore_saved();
@@ -134,6 +144,8 @@ impl GameClient {
         self.housing.ui.as_ref().is_some_and(|ui| {
             [
                 "HouseEditorStorageFrame",
+                "HouseEditorStorageFilterMenu",
+                "HouseEditorStorageSortMenu",
                 "HouseEditorModeBar",
                 "HouseEditorExpertSubmodeBar",
                 "HouseEditorRotateControl",
@@ -172,6 +184,7 @@ impl GameClient {
         }
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
             let point = motion.get_position();
+            self.update_cleanup_hover(point)?;
             if self.editor_ui_contains(point) {
                 return Ok(false);
             }
@@ -220,6 +233,7 @@ impl GameClient {
                 .pointer_click(&self.housing.authority, picked, ground)?
         {
             self.housing.decor.clear_preview();
+            self.housing.decor.highlight(None);
             self.request_housing(command)?;
         } else if let Some(instance) = picked {
             let decor_id = self
@@ -245,6 +259,35 @@ impl GameClient {
             model.editor.scale_allowed = source.model_type == 1;
         }
         Ok(true)
+    }
+
+    fn update_cleanup_hover(&mut self, point: Vector2) -> Result<(), String> {
+        use game_engine_ui_model::housing_editor::EditorMode;
+        let Some(model) = &self.housing.model else {
+            return Ok(());
+        };
+        if model.editor.mode != EditorMode::Cleanup {
+            return Ok(());
+        }
+        let picked = if self.editor_ui_contains(point) || model.pending {
+            None
+        } else {
+            let camera = self
+                .base()
+                .get_viewport()
+                .and_then(|viewport| viewport.get_camera_3d())
+                .ok_or("Cleanup camera is unavailable.")?;
+            crate::unit_pick::pick_unit(&camera, point)
+                .filter(|id| self.housing.decor.contains(*id))
+        };
+        let point = point / self.effective_ui_scale();
+        if let Some(model) = &mut self.housing.model {
+            model
+                .editor
+                .hover(&self.housing.authority, picked, [point.x, point.y])?;
+        }
+        self.housing.decor.highlight(picked);
+        Ok(())
     }
 
     fn update_decor_preview(&mut self, point: Vector2) -> Result<(), String> {

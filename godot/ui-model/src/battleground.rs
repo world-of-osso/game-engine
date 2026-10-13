@@ -241,9 +241,9 @@ fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
         .into_iter()
         .filter(|template| shared::battleground::has_implemented_objectives(template.map_id))
-        // Remove this publication gate only after the lead confirms a client
-        // bundle ships the source cart/switch appearance rows and model chains.
-        .filter(|template| template.map_id != 727)
+        // Seething source starts are ship-relative; retire only after authored
+        // transport spawns, transforms and attachment/collision are implemented.
+        .filter(|template| template.map_id != 1803)
         .collect()
 }
 
@@ -483,9 +483,14 @@ fn flag_text(flag: FlagState) -> String {
 fn score_text(bg: &BattlegroundSnapshot) -> String {
     let template =
         shared::battleground::template_by_id(bg.battleground_id).expect("source match template");
+    let limit = if template.objective == shared::battleground::BgObjective::Reinforcements {
+        template.starting_reinforcements
+    } else {
+        template.win_score
+    };
     format!(
         "Alliance {} / {}    Horde {} / {}",
-        bg.score_a, template.win_score, bg.score_b, template.win_score
+        bg.score_a, limit, bg.score_b, limit
     )
 }
 fn world_state(bg: &BattlegroundSnapshot, id: u32) -> Option<i32> {
@@ -559,28 +564,67 @@ fn kotmogu_hud(bg: &BattlegroundSnapshot) -> Element {
     hud_cells(cells)
 }
 
-fn silvershard_hud(bg: &BattlegroundSnapshot) -> Element {
-    let cells = shared::battleground::SILVERSHARD_CARTS
-        .iter()
+fn cart_cells(
+    bg: &BattlegroundSnapshot,
+    definitions: impl Iterator<Item = (&'static str, [u32; 2])>,
+) -> Vec<(String, String)> {
+    definitions
         .enumerate()
-        .map(|(index, cart)| {
-            let owner = if world_state(bg, cart.world_states[0]) == Some(1) {
-                "Alliance"
-            } else if world_state(bg, cart.world_states[1]) == Some(1) {
-                "Horde"
-            } else {
-                "Neutral"
+        .map(|(index, (name, states))| {
+            let owner = match (world_state(bg, states[0]), world_state(bg, states[1])) {
+                (Some(1), Some(1)) => "—",
+                (Some(1), _) => "Alliance",
+                (_, Some(1)) => "Horde",
+                (Some(0), Some(0)) => "Neutral",
+                _ => "—",
             };
-            (
-                format!("WorldStateCart{index}"),
-                format!("{}\n{owner}", cart.name),
-            )
+            (format!("WorldStateCart{index}"), format!("{name}\n{owner}"))
         })
-        .collect();
+        .collect()
+}
+
+fn silvershard_hud(bg: &BattlegroundSnapshot) -> Element {
+    hud_cells(cart_cells(
+        bg,
+        shared::battleground::SILVERSHARD_CARTS
+            .iter()
+            .map(|cart| (cart.name, cart.world_states)),
+    ))
+}
+
+fn deephaul_hud(bg: &BattlegroundSnapshot) -> Element {
+    let mut cells = cart_cells(
+        bg,
+        shared::battleground::DEEPHAUL_CARTS
+            .iter()
+            .map(|cart| (cart.name, cart.world_states)),
+    );
+    let crystal = if world_state(bg, 1545) == Some(2) {
+        "Alliance"
+    } else if world_state(bg, 1546) == Some(2) {
+        "Horde"
+    } else {
+        match world_state(bg, 25412) {
+            Some(3) => "Unclaimed",
+            Some(0) => "Inactive",
+            _ => "—",
+        }
+    };
+    cells.push((
+        "WorldStateCrystal".into(),
+        format!("Deephaul Crystal\n{crystal}"),
+    ));
     hud_cells(cells)
 }
 
 fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
+    if bg.map_id == 2656 {
+        return deephaul_hud(bg);
+    }
+    if matches!(bg.map_id, 30 | 1803) {
+        // Reinforcements/resource race: no unrelated team-flag cells.
+        return vec![];
+    }
     if bg.map_id == 727 {
         return silvershard_hud(bg);
     }

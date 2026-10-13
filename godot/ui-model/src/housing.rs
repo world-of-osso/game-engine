@@ -77,6 +77,7 @@ impl CollectionFilter {
 }
 
 pub const SEARCH_FIELD: &str = "HousingCatalogSearchBox";
+pub const STORAGE_SEARCH_FIELD: &str = "HouseEditorStorageSearchBox";
 pub const VISIBLE_ENTRIES: usize = 12;
 pub const COLUMNS: usize = 3;
 /// HousingCatalogConstantsDocumentation.lua HOUSING_CATALOG_ALL_CATEGORY_ID.
@@ -168,6 +169,13 @@ pub struct HousingDashboard {
     pub pending: bool,
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
+    pub storage_search: String,
+    pub storage_category: Option<u32>,
+    pub storage_subcategory: Option<u32>,
+    pub storage_filters_open: bool,
+    pub storage_sort_open: bool,
+    pub storage_dyeable_only: bool,
+    pub storage_alphabetical: bool,
     pub category: Option<u32>,
     pub subcategory: Option<u32>,
     pub offset: usize,
@@ -193,6 +201,13 @@ impl HousingDashboard {
             pending: false,
             catalog,
             search: String::new(),
+            storage_search: String::new(),
+            storage_category: None,
+            storage_subcategory: None,
+            storage_filters_open: false,
+            storage_sort_open: false,
+            storage_dyeable_only: false,
+            storage_alphabetical: false,
             category: None,
             subcategory: None,
             offset: 0,
@@ -205,6 +220,37 @@ impl HousingDashboard {
             bulletin_board: None,
             settings: None,
         }
+    }
+
+    /// HouseEditorStorageFrame uses SetStoredOnly(true), independent of the dashboard search.
+    pub fn stored_entries<'a>(
+        &'a self,
+        authority: &'a HousingAuthority,
+    ) -> Vec<(&'a shared::protocol::StoredDecor, &'a Decor)> {
+        let Some(state) = &authority.state else {
+            return Vec::new();
+        };
+        let search = self.storage_search.trim().to_lowercase();
+        let mut entries: Vec<_> = state
+            .stored
+            .iter()
+            .filter(|stored| stored.quantity > 0)
+            .filter_map(|stored| {
+                let decor = self
+                    .catalog
+                    .decor
+                    .iter()
+                    .find(|decor| decor.id == stored.decor_id)?;
+                let matches = decor.name.to_lowercase().contains(&search)
+                    && self.storage_decor_matches(decor)
+                    && (!self.storage_dyeable_only || decor.dyeable);
+                matches.then_some((stored, decor))
+            })
+            .collect();
+        if self.storage_alphabetical {
+            entries.sort_by_cached_key(|(_, decor)| (decor.name.to_lowercase(), decor.id));
+        }
+        entries
     }
 
     pub fn select_finder_plot(

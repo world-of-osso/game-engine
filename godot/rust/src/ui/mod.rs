@@ -2072,6 +2072,27 @@ impl RegistryUi {
     }
 
     /// The projected control of frame `name`.
+    /// Clear the registry's editable text, then mirror it through the normal projection.
+    pub(crate) fn clear_editbox_named(&mut self, name: &str) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Native UI model is unavailable.")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Editbox {name} is not mounted."))?;
+        let editable = model
+            .registry
+            .get(id)
+            .is_some_and(|frame| matches!(frame.widget_data, Some(WidgetData::EditBox(_))));
+        if !editable {
+            return Err(format!("Frame {name} is not an editbox."));
+        }
+        model.edit_text(id, String::new());
+        self.sync_model()
+    }
+
     pub fn frame_control(&self, name: &str) -> Option<Gd<Control>> {
         let id = self.model.as_ref()?.registry.get_by_name(name)?;
         self.projection.as_ref()?.node(id)
