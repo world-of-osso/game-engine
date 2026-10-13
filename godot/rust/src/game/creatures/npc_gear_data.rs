@@ -4,6 +4,7 @@
 //! display authors (`NPCModelItemSlotDisplayInfo` of its `CreatureDisplayInfoExtra`).
 //! Engine-free: the Bevy and Godot clients both read it.
 
+use game_engine_core::csv_util::read_numeric_rows as read_rows;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -318,44 +319,6 @@ impl NpcGearData {
             })
             .collect()
     }
-}
-
-/// Call `row` with the integer values of `columns` for each record of the numeric CSV
-/// export at `path`. A quoted field is an error: these tables hold numbers only.
-fn read_rows<const N: usize>(
-    path: &Path,
-    columns: [&str; N],
-    mut row: impl FnMut([i64; N]),
-) -> Result<(), String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|error| format!("read {}: {error}", path.display()))?;
-    let mut lines = text.lines();
-    let header: Vec<&str> = lines
-        .next()
-        .ok_or_else(|| format!("{} has no header", path.display()))?
-        .split(',')
-        .collect();
-    let mut indexes = [0; N];
-    for (index, column) in indexes.iter_mut().zip(columns) {
-        *index = header
-            .iter()
-            .position(|name| *name == column)
-            .ok_or_else(|| format!("{} has no column {column}", path.display()))?;
-    }
-    for line in lines.filter(|line| !line.is_empty()) {
-        let fields: Vec<&str> = line.split(',').collect();
-        let mut values = [0; N];
-        for (value, index) in values.iter_mut().zip(indexes) {
-            let field = fields
-                .get(index)
-                .ok_or_else(|| format!("{}: short row {line:?}", path.display()))?;
-            *value = field
-                .parse()
-                .map_err(|error| format!("{}: bad value {field:?}: {error}", path.display()))?;
-        }
-        row(values);
-    }
-    Ok(())
 }
 
 #[cfg(test)]
