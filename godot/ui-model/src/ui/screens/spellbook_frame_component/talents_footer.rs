@@ -73,8 +73,11 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
     if view.editor.loadout_menu {
         children.extend(loadouts::loadout_menu(view, y, scale));
     }
-    children.extend(loadouts::loadout_dialog(view, scale));
     children
+}
+
+pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
+    loadouts::loadout_dialog(view, viewport)
 }
 
 fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
