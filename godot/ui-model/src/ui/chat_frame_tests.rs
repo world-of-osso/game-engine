@@ -115,6 +115,10 @@ fn emote_who_invite_help_and_unknown_commands() {
         ChatCommand::Emote(EmoteKind::Kneel)
     );
     assert_eq!(
+        parse_chat_input("/love", None),
+        ChatCommand::Emote(EmoteKind::Love)
+    );
+    assert_eq!(
         parse_chat_input("/who Elwynn", None),
         ChatCommand::Who("Elwynn".to_string())
     );

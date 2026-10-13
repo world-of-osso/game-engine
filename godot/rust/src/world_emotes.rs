@@ -34,7 +34,9 @@ pub(crate) fn emote_clip(
     Ok(Some(match emote {
         EmoteKind::Wave => EmoteClip::Once(emote_anim(EMOTE_ONESHOT_WAVE)?),
         EmoteKind::Dance => EmoteClip::Held(emote_anim(EMOTE_STATE_DANCE)?),
-        EmoteKind::Sit | EmoteKind::Sleep | EmoteKind::Kneel => return Ok(None),
+        EmoteKind::Sit | EmoteKind::Sleep | EmoteKind::Kneel | EmoteKind::Love => {
+            return Ok(None);
+        }
     }))
 }
 
@@ -77,6 +79,8 @@ mod tests {
         assert_eq!(clip(EmoteKind::Sit), None);
         assert_eq!(clip(EmoteKind::Sleep), None);
         assert_eq!(clip(EmoteKind::Kneel), None);
+        // Local69933 EmotesText225 has EmoteID0; never replace the current pose.
+        assert_eq!(clip(EmoteKind::Love), None);
     }
 
     #[test]

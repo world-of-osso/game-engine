@@ -33,9 +33,9 @@ fn entry(
 
 fn human_standings() -> Vec<ReputationEntrySnapshot> {
     vec![
-        entry(47, "Ironforge", "Friendly", 21_000),
-        entry(76, "Orgrimmar", "Hated", 0),
-        entry(72, "Stormwind", "Friendly", 24_000),
+        entry(47, "Ironforge", "Friendly", 3_000),
+        entry(76, "Orgrimmar", "Hated", -42_000),
+        entry(72, "Stormwind", "Friendly", 5_000),
     ]
 }
 
@@ -211,7 +211,7 @@ fn character_reputation_overflow_registers_a_scrollable_list_and_clickable_facti
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let standings: Vec<_> = (0..40)
-            .map(|i| entry(100 + i, &format!("Faction {i}"), "Friendly", 24_000))
+            .map(|i| entry(100 + i, &format!("Faction {i}"), "Friendly", 5_000))
             .collect();
         let mut registry = build(view(CharacterTab::Reputation, &standings));
         let list = "ReputationScrollBox";
@@ -325,9 +325,9 @@ fn character_reputation_local_db2_descriptions_and_war_eligibility_follow_the_pl
     )
     .unwrap();
     let mut rows = reputation_rows(&[
-        entry(72, "Stormwind", "Friendly", 24_000),
-        entry(21, "Booty Bay", "Neutral", 18_000),
-        entry(9_999_999, "Unknown faction", "Neutral", 18_000),
+        entry(72, "Stormwind", "Friendly", 5_000),
+        entry(21, "Booty Bay", "Neutral", 0),
+        entry(9_999_999, "Unknown faction", "Neutral", 0),
     ]);
     game_engine_ui_model::character_frame::enrich_reputation_rows(&mut rows, 1, 2).unwrap();
     assert!(rows[0].description.contains("Anduin Wrynn"));
@@ -350,9 +350,9 @@ fn character_reputation_local_db2_descriptions_and_war_eligibility_follow_the_pl
 #[test]
 fn capped_and_hated_standings_use_retail_bar_values() {
     let rows = reputation_rows(&[
-        entry(72, "Stormwind", "Exalted", 83_999),
-        entry(76, "Orgrimmar", "Hated", 3_000),
-        entry(47, "Ironforge", "Honored", 36_000),
+        entry(72, "Stormwind", "Exalted", 42_000),
+        entry(76, "Orgrimmar", "Hated", -24_000),
+        entry(47, "Ironforge", "Honored", 15_000),
     ]);
     // MAX_REPUTATION_REACTION shows a full bar; others the progress through the standing.
     assert_eq!(

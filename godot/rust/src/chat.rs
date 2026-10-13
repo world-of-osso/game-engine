@@ -594,7 +594,10 @@ impl crate::GameClient {
 
     /// The emote's chat line, then the stand state a /sit, /sleep or /kneel asks for.
     fn send_emote(&self, emote: EmoteKind) -> Result<(), crate::frame_error::SessionError> {
-        self.account.send_emote(EmoteIntent { emote })?;
+        self.account.send_emote(EmoteIntent {
+            emote,
+            target_entity: self.targeting_target(),
+        })?;
         match crate::world::stand::emote_stand_state(emote) {
             Some(state) => self.account.send_stand_state(state),
             None => Ok(()),
