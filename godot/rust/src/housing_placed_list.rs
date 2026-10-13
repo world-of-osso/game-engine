@@ -50,37 +50,24 @@ impl GameClient {
         Ok(true)
     }
 
-    pub(super) fn sync_housing_placed_list_input(&mut self) -> Result<(), String> {
-        let Some(mut ui) = self.housing.ui.clone() else {
-            return Ok(());
-        };
-        while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
-            let Some(value) = action.strip_prefix("housing:placed-list:select:") else {
-                continue;
-            };
-            if !right {
-                continue;
-            }
-            let instance = value
-                .parse()
-                .map_err(|_| "Invalid placed-decor context identity.")?;
-            let point = self
-                .base()
-                .get_viewport()
-                .ok_or("Housing viewport unavailable.")?
-                .get_mouse_position()
-                / self.effective_ui_scale();
-            let model = self
-                .housing
-                .model
-                .as_mut()
-                .ok_or("Housing model unavailable.")?;
-            model.open_placed_list_menu(&self.housing.authority, instance, point.to_array())?;
-        }
-        if let Some(model) = self.housing.model.as_mut() {
-            model.reconcile_placed_list(&self.housing.authority);
-        }
-        Ok(())
+    pub(super) fn open_housing_placed_list_context(&mut self, action: &str) -> Result<(), String> {
+        let instance = action
+            .strip_prefix("housing:placed-list:select:")
+            .ok_or("Expected a placed-decor row action.")?
+            .parse()
+            .map_err(|_| "Invalid placed-decor context identity.")?;
+        let point = self
+            .base()
+            .get_viewport()
+            .ok_or("Housing viewport unavailable.")?
+            .get_mouse_position()
+            / self.effective_ui_scale();
+        let model = self
+            .housing
+            .model
+            .as_mut()
+            .ok_or("Housing model unavailable.")?;
+        model.open_placed_list_menu(&self.housing.authority, instance, point.to_array())
     }
 
     pub(super) fn housing_placed_list_pointer(
