@@ -389,7 +389,6 @@ impl WorldModels {
                 if let Err(error) = warm.gear() {
                     godot_error!("{error}");
                 }
-                warm.outfit.resolve_outfit(1, 1, 0);
             },
             Priority::Now,
         );
