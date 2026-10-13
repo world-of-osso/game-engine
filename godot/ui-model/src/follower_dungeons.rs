@@ -1,6 +1,8 @@
 //! Retail Mainline PVEFrame / LFDQueueFrame follower mode.
 //! Source: Blizzard_GroupFinder/Mainline/{PVEFrame,LFDFrame,LFGFrame}.xml/.lua.
 pub use crate::follower_dungeons_component::{FOLLOWER_LIST, ROW_HEIGHT};
+use shared::protocol::{FollowerDungeons, GroupRoleSnapshot, LfgStateUpdate, QueueForLfg};
+use ui_toolkit::{screen::SharedContext, widget_def::Element};
 
 /// PVEFrame.lua GroupFinderFrameButton_SetEnabled: disabled category icon/ring gray.
 pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
@@ -43,8 +45,6 @@ fn apply_follower_background_layers(registry: &mut ui_toolkit::registry::FrameRe
         }
     }
 }
-use shared::protocol::{FollowerDungeons, GroupRoleSnapshot, LfgStateUpdate, QueueForLfg};
-use ui_toolkit::{screen::SharedContext, widget_def::Element};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
