@@ -1,3 +1,7 @@
+## 2026-10-13 — Native source area lifecycle
+
+[Area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13): typed source failure/detail and both-skin actual journal rejection, allowed use, aura exit and remaining cooldown proof.
+
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.

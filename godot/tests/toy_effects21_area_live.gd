@@ -26,6 +26,11 @@ func prove_toy(sample: Array) -> void:
 	receipts.append({"phase": "allowed-area", "remaining": before, "toys": client.toybox_state(), "auras": client.aura_state()})
 	await click("CollectionsMicroButton")
 	await capture("area21-goldshire-permitted")
+	# TDB1210 creature305516/41478, actual ADT777997 Kharanos Area131.
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-5437.77", "-437.216", "398.038"]): return
+	await create_timer(1.0).timeout
+	if not has_aura(spell): fail("moving to another permitted member removed the aura"); return
+	receipts.append({"phase": "second-permitted-area", "remaining": remaining_cooldown(item), "auras": client.aura_state()})
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-8949.95", "-132.493", "83.5312"]): return
 	if not await wait_until(func(): return not has_aura(spell), "area exit interrupted aura"): return
 	var after := remaining_cooldown(item)

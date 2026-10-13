@@ -81,6 +81,27 @@ pub fn cast_failed_text(
     text.to_string()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toy_area_failure_preserves_group_detail_and_source_error_name() {
+        assert_eq!(
+            cast_failed_text(
+                CastFailReason::IncorrectArea,
+                Some("Requires area group1103"),
+                None
+            ),
+            "Requires area group1103"
+        );
+        assert_eq!(
+            cast_failed_text(CastFailReason::IncorrectArea, None, None),
+            "SPELL_FAILED_INCORRECT_AREA"
+        );
+    }
+}
+
 /// ERR_OUT_OF_{POWER} ("Not enough mana"); generic when the power type is unknown.
 fn not_enough_power_text(power: Option<PowerType>) -> String {
     match power.and_then(power_display_name) {
