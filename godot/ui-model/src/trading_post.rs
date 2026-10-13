@@ -6,7 +6,8 @@ use crate::{
     quest_art::{DynName, named_atlas_texture, panel_button},
     ui::{
         screens::menu_primitives::{
-            ContextMenu, ContextMenuItem, DropdownButton, context_menu, dropdown_button,
+            ContextMenu, ContextMenuItem, DropdownButton, DropdownState, DropdownStyle,
+            context_menu, dropdown_button_with_state,
         },
         strata::FrameStrata,
     },
@@ -304,20 +305,26 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
 /// WowStyle2DropdownTemplate uses the shared primitive's input frame with Retail child art.
 fn retail_filter(category: &str) -> Element {
     use ui_toolkit::widget_def::{Attr, AttrValue, WidgetChild};
-    let mut out = dropdown_button(DropdownButton {
-        frame_name: "PerksProgramFilter",
-        label_name: "PerksProgramFilterText",
-        arrow_name: "PerksProgramFilterArrow",
-        text: category,
-        width: 122.,
-        height: 25.,
-        x: FILTER_X,
-        y: -FILTER_Y,
-        background_color: "0,0,0,0",
-        text_color: "1,0.82,0,1",
-        arrow_color: WHITE,
-        onclick: Some("perks:filter"),
-    });
+    let mut out = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "PerksProgramFilter",
+            label_name: "PerksProgramFilterText",
+            arrow_name: "PerksProgramFilterArrow",
+            text: category,
+            width: 122.,
+            height: 25.,
+            x: FILTER_X,
+            y: -FILTER_Y,
+            background_color: "0,0,0,0",
+            text_color: "1,0.82,0,1",
+            arrow_color: WHITE,
+            onclick: Some("perks:filter"),
+        },
+        DropdownState {
+            style: DropdownStyle::WowStyle2,
+            ..DropdownState::default()
+        },
+    );
     let WidgetChild::Widget(frame) = &mut out[0] else {
         unreachable!("dropdown primitive frame");
     };
@@ -326,22 +333,6 @@ fn retail_filter(category: &str) -> Element {
         name_owned: None,
         value: AttrValue::Dynamic("1000".into()),
     });
-    frame.children = named_atlas_texture(
-        "PerksProgramFilterBackground".into(),
-        "common-dropdown-c-button",
-        (-7., -7., 136., 39.),
-    );
-    frame.children.extend(label(
-        "PerksProgramFilterText".into(),
-        category,
-        (13., 2.5, 96., 20.),
-        (12., "1,0.82,0,1", "CENTER"),
-    ));
-    frame.children.extend(named_atlas_texture(
-        "PerksProgramFilterArrow".into(),
-        "common-dropdown-c-button-hover-arrow",
-        ((122. - 12.) / 2., 25., 12., 5.),
-    ));
     out
 }
 
