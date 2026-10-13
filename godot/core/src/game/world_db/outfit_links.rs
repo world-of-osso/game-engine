@@ -137,6 +137,9 @@ fn import_rows(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
 
 fn outfit_source_paths(data_dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut paths = super::required_outfit_csv_paths(data_dir).to_vec();
+    for path in &paths {
+        super::csv_mtime(path)?;
+    }
     let dir = data_dir.join("db2/1.60.1.70205");
     if !dir.join("ItemDisplayInfo.csv").exists() {
         return Ok(paths);
