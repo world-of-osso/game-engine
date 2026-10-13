@@ -258,6 +258,20 @@ fn mount_journal_search_source_type_and_collected_filters_reselect() {
     assert_eq!(view.rows().len(), 1);
 }
 #[test]
+fn mount_filters_reset_and_source_bulk_controls_reselect_real_rows() {
+    let mut view = view();
+    assert!(view.apply_filter("mount:sources:none"));
+    assert!(view.rows().is_empty());
+    assert_eq!(view.selected, None);
+    assert!(view.apply_filter("mount:sources:all"));
+    assert_eq!(view.rows().len(), 2);
+    assert!(view.apply_filter("mount:unusable"));
+    assert!(view.rows().iter().all(|mount| mount.usable));
+    assert!(view.apply_filter("mount:reset"));
+    assert_eq!(view.rows().len(), 2);
+}
+
+#[test]
 fn mount_journal_hidden_until_collected_and_server_only_rows_do_not_leak_into_list() {
     let mut view = view();
     view.catalog.get_mut(&6).unwrap().flags = 0x40;

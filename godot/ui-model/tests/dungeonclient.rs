@@ -108,6 +108,12 @@ fn achievements_retail_completed_filters_and_feats_are_not_scope_filters() {
     let choice = menu
         .get(menu.get_by_name("AchievementFiltercompleted").unwrap())
         .unwrap();
+    assert_eq!(choice.height.value(), 20.0);
+    assert!(menu.get_by_name("AchievementFiltercompletedBox").is_some());
+    assert!(
+        menu.get_by_name("AchievementFilterMenuBackground")
+            .is_some()
+    );
     window.action(
         choice
             .onclick
