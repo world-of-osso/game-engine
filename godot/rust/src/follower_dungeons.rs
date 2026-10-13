@@ -32,7 +32,8 @@ impl GameClient {
         let Some(ui) = self.follower_dungeons.ui.as_mut() else {
             return false;
         };
-        match ui.bind_mut().scroll_list_input(event) {
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
             Ok(false) => false,
             Ok(true) => {
                 self.mark_viewport_input_handled();
@@ -95,7 +96,7 @@ impl GameClient {
             self.follower_dungeons.view.receive(LfgStateUpdate {
                 snapshot: None,
                 message: None,
-                error: Some(error.clone()),
+                error: Some(error.to_string()),
             });
             return Err(error.into());
         }
