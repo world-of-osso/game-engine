@@ -127,26 +127,12 @@ fn apply_texture_flags(registry: &mut FrameRegistry) {
 /// Slice margins exported from Retail C_Texture.GetAtlasInfo (wow-ui-sim/data/atlas.rs).
 /// These are source texture pixels, not guessed frame borders.
 fn apply_atlas_slices(registry: &mut FrameRegistry) {
+    let text_holder = ui_toolkit::atlas::get_region("common-dropdown-textholder")
+        .expect("Retail text holder atlas");
     let regions: Vec<_> = registry
         .frames_iter()
         .filter_map(|frame| {
-            let source = match &frame.widget_data {
-                Some(WidgetData::Texture(texture)) => {
-                    if texture.source == TextureSource::Atlas("common-dropdown-bg".into()) {
-                        Some((texture.source.clone(), [16.0, 13.0, 16.0, 19.0]))
-                    } else if is_text_holder(texture) {
-                        Some((
-                            TextureSource::Atlas("common-dropdown-textholder".into()),
-                            [16.0, 0.0, 19.0, 0.0],
-                        ))
-                    } else {
-                        None
-                    }
-                }
-                Some(WidgetData::Button(button)) => sliced_dropdown_source(button),
-                _ => None,
-            }?;
-            Some((frame.id, source))
+            sliced_region_source(frame, &text_holder).map(|source| (frame.id, source))
         })
         .collect();
     for (id, (source, edges)) in regions {
@@ -162,9 +148,32 @@ fn apply_atlas_slices(registry: &mut FrameRegistry) {
     }
 }
 
-fn is_text_holder(texture: &ui_toolkit::widgets::texture::TextureData) -> bool {
-    let region = ui_toolkit::atlas::get_region("common-dropdown-textholder")
-        .expect("Retail text holder atlas");
+fn sliced_region_source(
+    frame: &Frame,
+    text_holder: &ui_toolkit::atlas::AtlasRegion,
+) -> Option<(TextureSource, [f32; 4])> {
+    match &frame.widget_data {
+        Some(WidgetData::Texture(texture)) => {
+            if texture.source == TextureSource::Atlas("common-dropdown-bg".into()) {
+                Some((texture.source.clone(), [16.0, 13.0, 16.0, 19.0]))
+            } else if is_text_holder(texture, text_holder) {
+                Some((
+                    TextureSource::Atlas("common-dropdown-textholder".into()),
+                    [16.0, 0.0, 19.0, 0.0],
+                ))
+            } else {
+                None
+            }
+        }
+        Some(WidgetData::Button(button)) => sliced_dropdown_source(button),
+        _ => None,
+    }
+}
+
+fn is_text_holder(
+    texture: &ui_toolkit::widgets::texture::TextureData,
+    region: &ui_toolkit::atlas::AtlasRegion,
+) -> bool {
     let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
         return false;
     };
@@ -197,44 +206,47 @@ fn sliced_dropdown_source(button: &ButtonData) -> Option<(TextureSource, [f32; 4
 fn apply_dropdown_text_displacement(registry: &mut FrameRegistry) {
     let updates: Vec<_> = registry
         .frames_iter()
-        .filter_map(|frame| {
-            let Some(WidgetData::FontString(_)) = &frame.widget_data else {
-                return None;
-            };
-            let owner = registry.get(frame.parent_id?)?;
-            let Some(WidgetData::Button(button)) = &owner.widget_data else {
-                return None;
-            };
-            let atlas = owner.children.iter().find_map(|id| {
-                let child = registry.get(*id)?;
-                let Some(WidgetData::Button(art)) = &child.widget_data else {
-                    return None;
-                };
-                let Some(TextureSource::Atlas(atlas)) = &art.normal_texture else {
-                    return None;
-                };
-                (atlas.starts_with("common-dropdown-b-button")
-                    || atlas.starts_with("common-dropdown-c-button"))
-                .then_some(atlas)
-            })?;
-            let filter = atlas.starts_with("common-dropdown-b-button");
-            let pressed = button.state == ButtonState::Pushed;
-            let left = if filter { 0.0 } else { 13.0 };
-            let top = if filter {
-                0.0
-            } else {
-                (owner.height.value() - 20.0) / 2.0
-            };
-            Some((
-                frame.id,
-                left + if pressed { 2.0 } else { 0.0 },
-                top + if pressed { 1.0 } else { 0.0 },
-            ))
-        })
+        .filter_map(|frame| displaced_dropdown_label(registry, frame))
         .collect();
     for (id, left, top) in updates {
         let frame = registry.get_mut(id).expect("dropdown label");
         frame.position.left = ui_toolkit::layout_values::Val::Px(left);
         frame.position.top = ui_toolkit::layout_values::Val::Px(top);
     }
+}
+
+fn displaced_dropdown_label(registry: &FrameRegistry, frame: &Frame) -> Option<(u64, f32, f32)> {
+    let Some(WidgetData::FontString(_)) = &frame.widget_data else {
+        return None;
+    };
+    let owner = registry.get(frame.parent_id?)?;
+    let Some(WidgetData::Button(button)) = &owner.widget_data else {
+        return None;
+    };
+    let atlas = find_filter_background(registry, owner)?;
+    let filter = atlas.starts_with("common-dropdown-b-button");
+    let pressed = button.state == ButtonState::Pushed;
+    let left = if filter { 0.0 } else { 13.0 };
+    let top = if filter {
+        0.0
+    } else {
+        (owner.height.value() - 20.0) / 2.0
+    };
+    let displacement = if pressed { [2.0, 1.0] } else { [0.0, 0.0] };
+    Some((frame.id, left + displacement[0], top + displacement[1]))
+}
+
+fn find_filter_background<'a>(registry: &'a FrameRegistry, owner: &Frame) -> Option<&'a str> {
+    owner.children.iter().find_map(|id| {
+        let child = registry.get(*id)?;
+        let Some(WidgetData::Button(art)) = &child.widget_data else {
+            return None;
+        };
+        let Some(TextureSource::Atlas(atlas)) = &art.normal_texture else {
+            return None;
+        };
+        let filter_atlas = atlas.starts_with("common-dropdown-b-button")
+            || atlas.starts_with("common-dropdown-c-button");
+        filter_atlas.then_some(atlas.as_str())
+    })
 }
