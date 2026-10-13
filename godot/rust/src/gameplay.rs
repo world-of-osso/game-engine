@@ -612,6 +612,7 @@ impl PlayerMovement {
         self.reported_motion = moving;
         self.reported_speed = self.unmodified_speed();
         Some(PlayerInput {
+            transport: None,
             direction,
             facing_yaw: yaw,
             running: self.running,

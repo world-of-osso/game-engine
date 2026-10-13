@@ -1112,6 +1112,7 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     await_connected(&mut server, &mut host);
 
     let input = PlayerInput {
+        transport: None,
         direction: [0.6, 0.0, 0.8],
         facing_yaw: 1.25,
         jumping: false,
