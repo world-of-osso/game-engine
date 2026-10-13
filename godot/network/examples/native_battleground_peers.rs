@@ -405,7 +405,10 @@ fn run() -> Result<(), String> {
         }
     }
     let mut last = String::new();
-    let deadline = Instant::now() + Duration::from_secs(1800);
+    // Full source-timed matches include admission, terrain travel, objective clocks,
+    // and saved return; the observed 12 gathers in 15 minutes need a longer fixture.
+    // This is only the peer process lifetime, not a protocol/gameplay timeout.
+    let deadline = Instant::now() + Duration::from_secs(3600);
     while Instant::now() < deadline {
         for peer in &mut peers {
             peer.receive_events()?;
