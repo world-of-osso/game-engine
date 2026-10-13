@@ -160,6 +160,14 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             rect(&instance, "EncounterJournalInstanceTitle"),
             [437., 112., 320., 35.]
         );
+        assert_eq!(
+            rect(&instance, "EncounterJournalLore"),
+            [437., 389., 315., 95.]
+        );
+        assert!(
+            instance.scroll_lists.get("EncounterJournalLore").is_some(),
+            "Native ScrollBox clipping is registered"
+        );
         view.apply("journal:encounter:112").unwrap();
         view.apply("journal:page:model").unwrap();
         let model = render(&view, skin);
@@ -177,6 +185,46 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             );
         }
     }
+}
+
+#[test]
+fn adventure_guide_instance_navigation_does_not_reuse_grid_pixel_offset_for_details() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());
+    let previous = View {
+        visible: true,
+        catalog,
+        tier: 68,
+        ..Default::default()
+    };
+    let mut registry = render(&previous, ActiveSkin::Modern);
+    registry
+        .scroll_lists
+        .scroll_to("EncounterJournalContent", 150);
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("EncounterJournalContent")
+            .unwrap()
+            .first_row,
+        150
+    );
+    let mut next = previous.clone();
+    next.apply("journal:instance:240").unwrap();
+    game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+        &previous,
+        &next,
+        &mut registry,
+    );
+    assert_eq!(
+        registry
+            .scroll_lists
+            .get("EncounterJournalContent")
+            .unwrap()
+            .first_row,
+        0
+    );
 }
 
 #[test]

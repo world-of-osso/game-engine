@@ -11,9 +11,10 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "EncounterJournalSearchBox";
 pub const LIST: &str = "EncounterJournalContent";
-pub const SCROLL_LISTS: [&str; 5] = [
+pub const SCROLL_LISTS: [&str; 6] = [
     LIST,
     "EncounterJournalBosses",
+    "EncounterJournalLore",
     "EncounterJournalSearchList",
     "EncounterJournalFilterList",
     "EncounterJournalDifficultyList",
@@ -790,6 +791,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     ));
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
         out.extend(crate::adventure_guide_art::instance_lore(instance));
+        out.extend(instance_lore_scroll(ctx, instance));
         out.extend(difficulty_button(view));
         let keys = [view.owned_key_text(), view.challenge_text()]
             .into_iter()
@@ -846,6 +848,33 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     if view.difficulty_open {
         out.extend(difficulty_menu(ctx, view, instance));
     }
+    out
+}
+
+fn instance_lore_scroll(ctx: &SharedContext, instance: &Instance) -> Element {
+    let list = "EncounterJournalLore";
+    let content_height = paragraph_height(&instance.description, 45.).max(95.);
+    // XML bar is29px high, less than the shared38px arrow inset: it has no drag track.
+    let geometry = pixel_geometry(95., content_height, 38.);
+    let offset = geometry.clamp(ctx.scroll_first_row(list));
+    let config = scroll_list_attr(&geometry);
+    let child_top = -(offset as f32);
+    let text = paper_text(
+        "EncounterJournalInstanceLore",
+        &instance.description,
+        (0., child_top, 315., content_height),
+    );
+    let mut out = rsx! {r#frame {name:"EncounterJournalLore",left:437.0,top:389.0,width:315.0,height:95.0,pos_type:"absolute",mouse_enabled:true,scroll_list:config,{text}}};
+    let bar = MinimalScrollBar {
+        list,
+        left: 761.,
+        top: 422.,
+        height: 29.,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideBar,
+    };
+    out.extend(bar.element());
     out
 }
 
@@ -1213,7 +1242,7 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         "EncounterJournalFilterMenuBackground".into(),
         (190.0, height),
     );
-    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,{background}{content}}}
+    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:530.0,mouse_enabled:true,{background}{content}}}
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
     let rows = view.item_sets();

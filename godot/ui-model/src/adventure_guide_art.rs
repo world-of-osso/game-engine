@@ -14,6 +14,28 @@ pub const GOLD: &str = "1.0,0.82,0.0,1.0";
 pub const HEADER: &str = "0.902,0.788,0.671,1.0";
 pub const SHEET: u32 = 522972;
 /// XML Normal/Pushed/Highlight textures, driven by real registry input state.
+/// Reset details (EncounterJournal_ClearDetails) and new lore text (ScrollingFontMixin:SetText).
+/// The boss list retains its position as Retail's BossesScrollBox data provider does.
+pub fn reset_changed_scrolls(
+    previous: &View,
+    next: &View,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    let lists: &[&str] = if previous.instance != next.instance {
+        &[crate::adventure_guide::LIST, "EncounterJournalLore"]
+    } else if previous.encounter != next.encounter
+        || previous.page != next.page
+        || previous.tab != next.tab
+    {
+        &[crate::adventure_guide::LIST]
+    } else {
+        &[]
+    };
+    for list in lists {
+        registry.scroll_lists.scroll_to(list, 0);
+    }
+}
+
 pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_button_art(view, registry);
     apply_text_layout(registry);
@@ -517,12 +539,7 @@ pub fn instance_lore(instance: &Instance) -> Element {
         (437., 112., 320., 35.),
         (24., GOLD, "CENTER"),
     ));
-    out.extend(label(
-        "EncounterJournalInstanceLore".into(),
-        &instance.description,
-        (437., 389., 315., 95.),
-        (12., INK, "LEFT"),
-    ));
+
     out
 }
 
