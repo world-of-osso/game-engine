@@ -19,6 +19,8 @@ mod forevergaps_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+#[cfg(test)]
+mod housing_placed_list_input_tests;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
 #[cfg(test)]
@@ -284,7 +286,7 @@ impl RegistryModel {
             .shared
             .get::<game_engine_ui_model::housing_component::HousingView>()
         {
-            game_engine_ui_model::housing_component::apply_housing_storage_postsetup(
+            game_engine_ui_model::housing_component::apply_housing_postsetup(
                 view,
                 &mut self.registry,
             );
@@ -550,6 +552,19 @@ impl RegistryModel {
                 Some(*at / self.registry.ui_scale),
             ),
             UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::FrameAltClick {
+                id,
+                right,
+                shift,
+                at,
+            } => (
+                self.registry.click_frame(*id)?,
+                Click {
+                    right: *right,
+                    shift: *shift,
+                },
+                Some(*at / self.registry.ui_scale),
+            ),
             UiInput::AltClick { id, right, shift } => {
                 let click = Click {
                     right: *right,
