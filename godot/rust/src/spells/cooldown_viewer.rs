@@ -15,6 +15,8 @@ use shared::components::Player;
 
 use crate::frame_error::report_once;
 use crate::{GameClient, ui::RegistryUi};
+#[path = "cooldown_settings_fixture.rs"]
+mod settings_fixture;
 
 pub(super) struct ViewerData {
     pub(super) catalog: CooldownAssistCatalog,
