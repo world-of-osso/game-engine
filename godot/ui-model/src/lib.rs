@@ -92,6 +92,8 @@ mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
 pub mod mount_journal;
+pub mod navigation_bar;
+pub mod menu_template_art;
 mod mount_source;
 pub mod mythic_mentor;
 pub mod pet_journal;
