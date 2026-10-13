@@ -4,10 +4,10 @@ Native menus implement Retail `Blizzard_GameMenu/Shared/GameMenuFrame.lua:139-21
 
 ## What it must do
 
-- [ ] Game Menu preserves Retail order and section spacing for Options, AddOns, Edit Mode, Support, Macros, Log Out, Exit Game, Return to Game.
+- [x] Game Menu preserves Retail order and section spacing for Options, AddOns, Edit Mode, Support, Macros, Log Out, Exit Game, Return to Game.
 - [ ] Edit Mode opens the existing HUD editor in a character session. AddOns, Support and Macros open existing settings pages, not invented screens.
-- [ ] Settings exposes Game/AddOns category sets through shared Retail tabs; search filters category and setting text case-insensitively, groups matching rows by category, and shows an honest empty result.
-- [ ] Header geometry follows SettingsPanel.xml: GameTab TOPLEFT(32,27), height37; AddOnsTab follows GameTab +5; SearchBox350x22 at Container TOPRIGHT +(4,20). Both skins retain these anchors.
+- [x] Settings exposes Game/AddOns category sets through shared Retail tabs; search filters category and setting text case-insensitively, groups matching rows by category, and shows an honest empty result.
+- [x] Header geometry follows SettingsPanel.xml: GameTab TOPLEFT(32,27), height37; AddOnsTab follows GameTab +5; SearchBox350x22 at Container TOPRIGHT +(4,20). Both skins retain these anchors.
 
 ## How it works
 
@@ -26,6 +26,8 @@ Native menus implement Retail `Blizzard_GameMenu/Shared/GameMenuFrame.lua:139-21
 - `godot/ui-model/tests/game_menu.rs`
 - `godot/ui-model/tests/options_views.rs`
 - `godot/ui-model/tests/options_policy.rs`
+- `godot/tests/ui_menus_followup.gd`: both-skin native1920x1080 sizes, source-relative anchors and physical clicks.
+- `godot/rust/src/ui/scroll_lists_tests.rs`: actual wheel/end-clamp/partial-row geometry, including first/last binding-button visibility.
 
 ## Known gaps (current cycle)
 

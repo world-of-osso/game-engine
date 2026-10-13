@@ -1,6 +1,6 @@
 ## 2026-10-13 — Game Menu controls and Settings header follow-up
 
-[Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native both-skin receipt pending; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
+[Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Inherited Graphics fixture state correction pending; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
 
 ## 2026-10-13 — Glue/menu template fidelity
 
