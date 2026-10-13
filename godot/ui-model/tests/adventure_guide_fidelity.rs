@@ -117,6 +117,10 @@ fn adventure_guide_fidelity_loot_has_two_dropdowns_and_source_list_bounds() {
         v.apply("journal:page:loot").unwrap();
         let r = render(&v, skin);
         assert!(r.get_by_name("JournalSpecFilter").is_none());
+        assert!(
+            r.get_by_name("EncounterJournalEncounterTitle")
+                .is_none_or(|id| r.get(id).unwrap().hidden)
+        );
         assert_eq!(rect(&r, "JournalClassFilter"), [444., 77., 120., 25.]);
         assert_eq!(rect(&r, "JournalSlotFilter"), [574., 77., 90., 25.]);
         assert_eq!(
@@ -210,6 +214,9 @@ fn adventure_guide_fidelity_search_has_source_limit_instructions_clear_and_inset
         assert_eq!(
             rect(&r, "EncounterJournalSearchIcon"),
             [581., 38., 10., 10.]
+        );
+        assert!(
+            matches!(&frame(&r,"EncounterJournalSearchBoxInstructions").widget_data,Some(WidgetData::FontString(font)) if font.color==[0.35,0.35,0.35,1.])
         );
         let Some(WidgetData::EditBox(mut edit)) =
             frame(&r, "EncounterJournalSearchBox").widget_data.clone()
