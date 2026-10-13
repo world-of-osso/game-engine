@@ -40,6 +40,8 @@ pub(crate) fn options_model(
         logged_in: true,
         view: GameMenuView::Options,
         category,
+        search: String::new(),
+        addons_tab: false,
         modal_position: [0.0, 0.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
