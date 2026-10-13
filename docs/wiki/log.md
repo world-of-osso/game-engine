@@ -3483,3 +3483,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
 
 - 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
+
+- 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
