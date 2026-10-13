@@ -39,6 +39,12 @@ Current server census174a2e84/shared2a48bdc:2889 working-boundary/4756 partial/1
 
 Demon Hunter startup reproduced a metadata-loss bug, not a missing legacy replacement: pinned12.1.0.69933 item133320 binds appearance29124 with display0. The item-appearance importer discarded0, then the renderer attempted to resolve nonexistent display0 after that producer was fixed. a1c9a71f6 native RED → ee373d6a2 retained row → actual display0 RED →22137903a occupied slot/no-drawn-equipment. Six targeted core controls and one shared renderer integration control pass, including visible item38 and missing/invalid metadata rejection. This does not certify all invisible-gear mechanisms or transmog rules. Rebuilt9563568be DH proof renders the actual actor, completes162243 and produces250/253 damage with25 Fury in both skins. Evoker completes431443→361500 Fire1139/1141+431583 Arcane285/285 with431442 granted. Setup range/death/receipt failures are excluded. All26 requested PNGs are present; own private servers/clients stopped and slot cache/products links restored.
 
+## Native process continuation — 2026-10-13
+
+Enginee48b2904b/server34381431/shared29c40b8 matched private5841 only. Native specialization UI selected Marksmanship254 and showed Active; client requests produced Trueshot CastSuccess/aura/expiry, Penetrating Shots application, Aimed Shot1270 damage, and seven Rapid Fire137–141 damage/3-Focus pairs. Exact scope and data/build receipts are in the [server ledger](../../../../game-server/docs/class-completeness6.md#native-process-continuation--2026-10-13).
+
+No new qualifying PNG: Ironforge capture is geometry-occluded, actual skin identity not independently confirmed, and broader NPC asset receipts remain partial. This proves private process delivery/consumption, not quantified crit/recovery, full talents or both-skin rendered parity. Own client/cage/server stopped; endpoint token and slot cache/products links restored. Canonical DB/shared realm unchanged.
+
 ## Sources
 
 - `/home/osso/.worktrees/handoff-spell-dummy-scripts.md` and `handoff-spell-dummy2.md` through `handoff-spell-dummy8.md` — tested script contracts and exclusions.
