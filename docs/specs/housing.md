@@ -54,6 +54,12 @@ After landing the server importer, run it with the audit evidence and pinned bui
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
 
+## Storage drawer controls
+
+Basic Decor exposes the source collapse handle and replaces the drawer with its open handle when collapsed. Collapsing never resets search/category/filters or changes authority. Cleanup and Expert hide both handles independently of the saved collapsed preference. Account-local `ui_layout.ron` preserves collapsed/width/height while retaining other layouts and window positions; a fresh process restores it.
+
+The source XML initial size is600×651; resize clamps width415–827 and height651–800. Bottom-right pointer capture continues outside the handle until release. Release snaps options width to the nearest102px multiple except at the clamp boundaries; options width excludes source85px left/5px right/23px ScrollBox gutter. Result tiles reflow to the new column count. No room/storage quantity/cap policy is inferred from panel dimensions. Source: HouseEditorStorageFrame Lua OnLoad/OnResizeStopped/SetCollapsed, XML and SharedUIPanelTemplates PanelResizeButtonMixin. Native/source-animation appearance and physical gates are separate from pure size/persistence proof.
+
 ## Owned storage filters
 
 Owned storage has independent Dyeable Only and alphabetical ordering controls. Dyeable requires authentic DecorDyeSlot membership, not an item/source guess. Reset clears filtering without changing search, category or selected sort. Browsing cannot mutate confirmed quantities or layout. Collection and first-acquisition filters are absent (`SetCollectionFiltersAvailable(false)`). Date Added remains unavailable without authenticated acquisition timestamps; indoor/outdoor and tag mappings are not invented. Catalog filters and storage filters never share state.
