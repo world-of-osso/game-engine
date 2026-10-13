@@ -1,5 +1,5 @@
 extends SceneTree
-# Rendered regression: real private session, model -> Classic raids, wheel -> Molten Core.
+# Rendered regression: actual model facing, Classic dungeon wheel, then Molten Core.
 var client: Node
 var failed := false
 func _initialize() -> void:
@@ -147,20 +147,28 @@ func run() -> void:
 		if image.save_png(model_png) != OK:
 			stop("Cannot save requested model evidence")
 			return
-	await click("EncounterJournalTab1")
+	await click("EncounterJournalTab0")
 	await click("EncounterJournalTierDropdown")
 	await click("EncounterJournalTier68")
 	var list := client.find_child("EncounterJournalContent", true, false) as Control
-	var molten_core := client.find_child("JournalInstance741", true, false) as Control
-	if list == null or molten_core == null:
-		stop("Classic raid controls missing")
+	var wailing := client.find_child("JournalInstance240", true, false) as Control
+	if list == null or wailing == null:
+		stop("Classic dungeon controls missing")
 		return
-	var before := molten_core.get_global_rect().position.y
+	var before := wailing.get_global_rect().position.y
+	if list.get_global_rect().has_point(wailing.get_global_rect().get_center()):
+		stop("Fixture requires a real second page before scrolling")
+		return
 	for tick in range(5): await pointer(list.get_global_rect().get_center(), MOUSE_BUTTON_WHEEL_DOWN)
-	var after := molten_core.get_global_rect().position.y
-	if not after < before or not list.get_global_rect().has_point(molten_core.get_global_rect().get_center()):
-		stop("Wheel did not reveal Molten Core: before=%s after=%s" % [before, after])
+	var after := wailing.get_global_rect().position.y
+	if not after < before or not list.get_global_rect().has_point(wailing.get_global_rect().get_center()):
+		stop("Wheel did not reveal Wailing Caverns: before=%s after=%s" % [before, after])
 		return
+	await click("JournalInstance240")
+	if client.adventure_guide_state().instance != 240:
+		stop("Scrolled dungeon did not select Wailing Caverns")
+		return
+	await click("EncounterJournalTab1")
 	await click("JournalInstance741")
 	await click("JournalBoss1519")
 	var state = client.adventure_guide_state()
