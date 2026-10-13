@@ -92,7 +92,13 @@ impl GameClient {
             self.close_trading_post();
             return Ok(());
         }
-        if let Some(snapshot) = &self.account.trading_post {
+        // The vendor waits for a whole catalog; a Log balance alone has no rows.
+        if let Some(snapshot) = self
+            .account
+            .trading_post
+            .as_ref()
+            .filter(|snapshot| snapshot.catalog_complete)
+        {
             let current = self.trading_post.view.snapshot.as_ref();
             if !current.is_some_and(|current| std::sync::Arc::ptr_eq(current, snapshot)) {
                 self.trading_post.view.receive(snapshot.clone());
@@ -516,6 +522,7 @@ impl GameClient {
             state.set("items", snapshot.items.len() as i64);
             if let Some(row) = view.selected_item() {
                 state.set("selected_name", row.name.as_str());
+                state.set("item_id", i64::from(row.item_id));
                 state.set("price", i64::from(row.price));
                 state.set("purchased", row.purchased);
                 state.set("collected", row.collected);

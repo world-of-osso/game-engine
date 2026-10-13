@@ -201,6 +201,10 @@ impl GameClient {
             return Ok(false);
         };
         let point = button.get_position();
+        let released_left = button.get_button_index() == MouseButton::LEFT && !button.is_pressed();
+        if released_left && self.housing_search_clear_captured()? {
+            return Ok(false);
+        }
         if self.editor_ui_contains(point) {
             return Ok(false);
         }

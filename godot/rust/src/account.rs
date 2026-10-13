@@ -1773,7 +1773,10 @@ impl Account {
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
         if message.is::<shared::protocol::TradingPostSnapshot>() {
-            self.trading_post = Some(std::sync::Arc::new(decode(message)?));
+            let update = decode(message)?;
+            self.trading_post = Some(std::sync::Arc::new(
+                shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
+            ));
             return Ok(());
         }
         if message.is::<shared::protocol::AdventureGuideSnapshot>() {
