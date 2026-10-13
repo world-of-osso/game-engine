@@ -4,6 +4,7 @@
 Run inside agent-run. This command does not apply data or import world.db.
 """
 import argparse
+from contextlib import closing
 import csv
 import hashlib
 import json
@@ -26,12 +27,13 @@ def run(argv, log):
 
 
 def link_file(source, destination):
+    source = source.resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.is_symlink():
         destination.unlink()
     elif destination.exists():
         raise ValueError(f'refuse overwriting private non-link {destination}')
-    destination.symlink_to(source.resolve(), target_is_directory=source.is_dir())
+    destination.symlink_to(source, target_is_directory=source.is_dir())
 
 
 def prepare_cache_root(args, receipt):
@@ -46,7 +48,7 @@ def prepare_cache_root(args, receipt):
             link_file(snapshot / source.name, root / source.name)
     # Published Forever inputs retain their original product/build identity.
     for name in ('1.60.1.70205', '1.60.1.69913'):
-        source = args.engine / 'data/db2' / name
+        source = args.canonical_engine / 'data/db2' / name
         if source.exists():
             destination = root / 'db2' / name
             destination.mkdir(parents=True, exist_ok=True)
@@ -62,9 +64,7 @@ def prepare_cache_root(args, receipt):
 
 
 def regenerate_caches(args, receipt, root):
-    run([sys.executable, args.engine / 'scripts/depot-build.py', '--root', args.engine,
-         '--fixture', 'db2_cache_import'], args.output / 'cache-build.log')
-    run([args.engine / 'target/debug/examples/db2_cache_import', root], args.output / 'cache-import.log')
+    run([args.cache_importer, root], args.output / 'cache-import.log')
     raw = args.output / 'raw' / receipt['identity']['build_key']
     definitions = args.definitions / 'definitions'
     items = args.output / 'db2' / receipt['identity']['build']
@@ -72,24 +72,28 @@ def regenerate_caches(args, receipt, root):
          '--definitions', definitions, '--output', root / 'cache/adventure_guide.sqlite',
          '--items', items, '--world', args.world], args.output / 'adventure-cache.log')
     run([sys.executable, args.engine / 'scripts/trading_post_import.py', '--db2', raw,
-         '--definitions', definitions, '--output-sql', args.output / 'trading-post.sql',
-         '--report', args.output / 'trading-post.json'], args.output / 'trading-post.log')
+         '--definitions', definitions, '--output-sql', items / 'trading-post.sql',
+         '--report', items / 'trading-post.json'], args.output / 'trading-post.log')
+    run([sys.executable, args.server / 'scripts/adventure_guide_catalog.py',
+         '--decoder', args.engine / 'scripts/adventure_guide_import.py', '--db2', raw,
+         '--definitions', definitions, '--world', args.world,
+         '--output-sql', items / 'adventure-guide.sql', '--report', items / 'adventure-guide.json'],
+         args.output / 'server-adventure-guide.log')
     run([sys.executable, args.engine / 'scripts/export_renown_catalog.py', '--db2', raw,
-         '--definitions', definitions, '--output', args.output / 'renown-catalog.json'], args.output / 'renown.log')
+         '--definitions', definitions, '--output', items / 'renown.json'], args.output / 'renown.log')
 
 
 def prepare_housing_cache(args, receipt, root):
     source = args.engine / 'data/cache/housing.sqlite'
     if not source.exists():
         return
-    old = sqlite3.connect(f'file:{source}?mode=ro', uri=True)
-    tables = [row[0] for row in old.execute('SELECT DISTINCT table_name FROM housing_catalog_source')]
-    schema = '\n'.join(row[0] + ';' for row in old.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name LIKE 'housing_catalog_%'"))
-    old.close()
+    with closing(sqlite3.connect(f'file:{source}?mode=ro', uri=True)) as old:
+        tables = [row[0] for row in old.execute('SELECT DISTINCT table_name FROM housing_catalog_source')]
+        schema = '\n'.join(row[0] + ';' for row in old.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name LIKE 'housing_catalog_%'"))
     path = root / 'cache/housing.sqlite'
-    if path.exists():
-        path.unlink()
-    connection = sqlite3.connect(path)
+    staging = path.with_suffix('.sqlite.building')
+    staging.unlink(missing_ok=True)
+    connection = sqlite3.connect(staging)
     connection.executescript(schema)
     identity = receipt['identity']
     report_sha = hashlib.sha256(json.dumps(receipt, sort_keys=True).encode()).hexdigest()
@@ -111,6 +115,7 @@ def prepare_housing_cache(args, receipt, root):
                                     for row in csv.DictReader(stream)))
     connection.commit()
     connection.close()
+    staging.replace(path)
 
 
 def prepare_manifest(args, receipt, root):
@@ -126,7 +131,7 @@ def prepare_manifest(args, receipt, root):
                         'before': apply_db2_install.fingerprint(destination),
                         'after': apply_db2_install.fingerprint(source)})
     for source in sorted(snapshot.iterdir()):
-        if source.suffix not in ('.csv', '.json'):
+        if source.suffix not in ('.csv', '.json', '.sql'):
             continue
         for repository in (args.canonical_engine, args.canonical_server):
             add(source, repository / 'data/db2' / build / source.name)
@@ -150,7 +155,7 @@ def prepare_manifest(args, receipt, root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('engine', 'server', 'definitions', 'output', 'resolver', 'resolver-cache',
-                 'baseline', 'world', 'canonical-engine', 'canonical-server'):
+                 'baseline', 'world', 'canonical-engine', 'canonical-server', 'cache-importer'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--schema-commit', default=refresh_db2_install.DBD_COMMIT)
     parser.add_argument('--install', type=Path, default=Path('/syncthing/World of Warcraft'))

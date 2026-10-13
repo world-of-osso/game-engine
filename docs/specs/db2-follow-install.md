@@ -14,6 +14,10 @@
 
 `export_db2_csv.py TABLE INPUT OUTPUT --definitions PINNED_DEFINITIONS` selects the payload layout. Sparse tables use `--server-scripts GAME_SERVER/scripts`, the existing server WDC5 reader. Definition acquisition and source receipts belong to the refresh command.
 
+## Private refresh
+
+Build `db2_cache_import` through `scripts/depot-build.py --root CHECKOUT --fixture db2_cache_import` before invoking `scripts/refresh_db2_data.py`. Supply the built executable as `--cache-importer`, plus the private output, exact definitions checkout, resolver/cache, baseline, read-only world, and canonical repository paths. The refresh reads canonical Forever inputs but never writes them; failed housing regeneration leaves the previous catalog intact. Prepared server SQL is reviewable output only, never automatically imported into TDB.
+
 ## Tests
 
 `scripts/tests/test_db2_install_export.py`: reordered new-layout fields and signed arrays; unknown layout refuses output.

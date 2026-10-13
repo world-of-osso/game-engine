@@ -39,7 +39,7 @@ def consumed_tables(engine, server, definitions):
                 if path.stem in names:
                     consumed.add(path.stem)
     # Both existing snapshots and code consumers, including SQL/JSON-only catalogs.
-    for root in (engine / 'scripts', engine / 'godot', engine / 'tools', server / 'scripts', server / 'src'):
+    for root in (engine / 'scripts', engine / 'godot', engine / 'tools', server / 'scripts', server / 'src', server / 'crates'):
         for path in root.rglob('*'):
             if path.suffix not in ('.py', '.rs', '.sql') or 'fixtures' in path.parts or 'target' in path.parts:
                 continue
