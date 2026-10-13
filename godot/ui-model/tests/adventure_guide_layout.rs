@@ -37,6 +37,17 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
     ]
 }
 
+fn assert_gold(registry: &FrameRegistry, name: &str) {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    assert!(
+        matches!(&frame.widget_data,Some(WidgetData::FontString(font)) if font.color==[1.,0.82,0.,1.]),
+        "QuestTitleFontBlackShadow/QuestFont_Super_Huge {name}: {:?}",
+        frame.widget_data
+    );
+}
+
 fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
     set_thread_skin(skin);
     let mut ctx = SharedContext::new();
@@ -44,6 +55,7 @@ fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
     ctx.insert(view.clone());
     let mut registry = FrameRegistry::new(1280., 720.);
     Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
     registry
 }
 
@@ -75,6 +87,7 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             [18., 112., 748., 367.]
         );
         let first = view.instances()[0].id;
+        assert_gold(&grid, &format!("JournalInstance{first}Title"));
         // EncounterInstanceButtonTemplate174×96; Lua grid TopPad5,Spacing15,4 columns.
         assert_eq!(
             rect(&grid, &format!("JournalInstance{first}")),
@@ -87,6 +100,7 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
         );
         view.apply("journal:instance:67").unwrap();
         let mut instance = render(&view, skin);
+        assert_gold(&instance, "EncounterJournalInstanceTitle");
         // JournalEncounterCreature.FileDataID, not an inferred display/icon replacement.
         let portrait = instance
             .get(instance.get_by_name("JournalBoss112Portrait").unwrap())
@@ -106,7 +120,7 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             button.state = ButtonState::Pushed;
             button.hovered = true;
         }
-        game_engine_ui_model::adventure_guide_art::apply_button_art(&view, &mut instance);
+        game_engine_ui_model::adventure_guide_art::apply_postsetup(&view, &mut instance);
         let pressed = instance
             .get(instance.get_by_name("JournalBoss112ButtonArt").unwrap())
             .unwrap();
@@ -149,6 +163,7 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
         view.apply("journal:encounter:112").unwrap();
         view.apply("journal:page:model").unwrap();
         let model = render(&view, skin);
+        assert_gold(&model, "EncounterJournalModelTitle");
         // ModelFrame390×423 BOTTOMRIGHT(-3,+1) relative to Info.
         assert_eq!(
             rect(&model, "EncounterJournalModelScene"),

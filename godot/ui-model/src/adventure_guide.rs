@@ -730,8 +730,8 @@ fn instance_card(index: usize, instance: &Instance, view: &View) -> Element {
     art.extend(label(
         format!("JournalInstance{}Title", instance.id),
         &instance.name,
-        (12., 15., 150., 40.),
-        (18., crate::adventure_guide_art::INK, "CENTER"),
+        (12., 15., 150., 60.),
+        (18., crate::adventure_guide_art::GOLD, "CENTER"),
     ));
     if let Some((key, _)) = view.owned_keys(instance.map).first() {
         art.extend(text(
@@ -899,9 +899,9 @@ fn append_sections(content: &mut Element, y: &mut f32, view: &View) {
         content.extend(section_row(
             section,
             &title,
-            (indent, *y, 320. - indent, 29.),
+            (indent, *y, 320. - indent, 24.),
         ));
-        *y += 31.;
+        *y += 26.;
         if !collapsed && !section.body.is_empty() {
             let width = 310. - indent;
             let height = paragraph_height(&section.body, width / 7.);
@@ -1013,22 +1013,32 @@ fn loot_page(ctx: &SharedContext, view: &View) -> Element {
         .iter()
         .enumerate()
         .flat_map(|(index, item)| {
-            let y = index as f32 * 44.;
+            let y = index as f32 * 45.;
             let mut row = texture(
                 format!("JournalLoot{}Icon", item.id),
                 item.icon,
-                (2., y + 2., 36., 36.),
+                (2., y + 2., 42., 42.),
                 WHITE,
             );
-            row.extend(text(
-                &format!("JournalLoot{}Name", item.id),
-                &item.name,
-                (46., y + 2., 275., 22.),
+            row.extend(crate::adventure_guide_art::art(
+                format!("JournalLoot{}Border", item.id),
+                crate::adventure_guide_art::Art::LootFrame,
+                (0., y, 321., 45.),
             ));
-            row.extend(text(
+            row.extend(label(
+                format!("JournalLoot{}Name", item.id),
+                &item.name,
+                (51., y + 9., 250., 12.),
+                (
+                    14.,
+                    crate::merchant_data::quality_color(item.quality as u8),
+                    "LEFT",
+                ),
+            ));
+            row.extend(paper_text(
                 &format!("JournalLoot{}Slot", item.id),
                 &format!("Item level {} · {}", item.level, slot_name(item.slot)),
-                (46., y + 24., 275., 16.),
+                (51., y + 27., 250., 12.),
             ));
             row
         })
@@ -1037,7 +1047,7 @@ fn loot_page(ctx: &SharedContext, view: &View) -> Element {
         ctx,
         content,
         (437., 139., 350., 349.),
-        (items.len() as f32 * 44.).max(349.),
+        (items.len() as f32 * 45.).max(349.),
     ));
     if let Some(menu) = view.filter_menu {
         out.extend(loot_filter_menu(ctx, view, menu));
