@@ -72,7 +72,7 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
                 snapshot
                     .brackets
                     .iter()
-                    .find(|stats| Some(stats.bracket) == bracket)
+                    .find(|stats| Some(&stats.bracket) == bracket.as_ref())
             })
             .and_then(|stats| stats.rating);
         elements.extend(activity_button(ActivityButton {
@@ -81,7 +81,7 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
             detail,
             action,
             enabled: available && !view.pending,
-            selected: bracket == Some(view.rated_bracket),
+            selected: bracket.as_ref() == Some(&view.rated_bracket),
             rect: (238.0, 115.0 + index as f32 * 56.0, 56.0),
             rated: true,
             rating,
