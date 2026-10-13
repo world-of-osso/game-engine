@@ -51,7 +51,7 @@ impl GameClient {
     }
 
     pub(super) fn sync_housing_placed_list_input(&mut self) -> Result<(), String> {
-        let Some(ui) = self.housing.ui.clone() else {
+        let Some(mut ui) = self.housing.ui.clone() else {
             return Ok(());
         };
         while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
