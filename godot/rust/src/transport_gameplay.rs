@@ -85,7 +85,16 @@ impl GameClient {
             .ok_or("transport passenger physics space unavailable")?;
         let at = player.get_position();
         let feet = glam::Vec3::new(at.x, at.y, at.z);
-        if crate::game_objects::floor_object(&space, feet) != Some(carrier.ship) {
+        let floor = crate::game_objects::floor_object(&space, feet);
+        if floor != Some(carrier.ship) {
+            godot_print!(
+                "TRANSPORT_DETACH ship={} epoch={} feet={:?} pose={:?} floor={:?}",
+                carrier.ship,
+                carrier.epoch,
+                feet,
+                ship,
+                floor
+            );
             carrier.attached = false;
             carrier.pending_disembark = true;
             return Ok(None);
