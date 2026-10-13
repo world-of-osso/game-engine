@@ -101,8 +101,9 @@ impl RegistryUi {
             let dropdown = self
                 .frame_viewport_rect(&format!("Choice{}", menu.key))
                 .ok_or("Open Options dropdown has no native rectangle")?;
-            let contains =
-                |[x, y, w, h]| Rect2::new(Vector2::new(x, y), Vector2::new(w, h)).has_point(point);
+            let contains = |[x, y, w, h]: [f32; 4]| {
+                Rect2::new(Vector2::new(x, y), Vector2::new(w, h)).contains_point(point)
+            };
             if !contains(popup) && !contains(dropdown) {
                 state.close();
                 self.update_options_dropdown(state)?;
