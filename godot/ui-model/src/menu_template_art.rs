@@ -35,6 +35,7 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
     }
     apply_texture_flags(registry);
     apply_atlas_slices(registry);
+    apply_dropdown_text_displacement(registry);
 }
 
 fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<RegionUpdate> {
@@ -191,4 +192,49 @@ fn sliced_dropdown_source(button: &ButtonData) -> Option<(TextureSource, [f32; 4
     }
     .expect("dropdown template defines every state atlas");
     Some((source.clone(), edges))
+}
+
+fn apply_dropdown_text_displacement(registry: &mut FrameRegistry) {
+    let updates: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let Some(WidgetData::FontString(_)) = &frame.widget_data else {
+                return None;
+            };
+            let owner = registry.get(frame.parent_id?)?;
+            let Some(WidgetData::Button(button)) = &owner.widget_data else {
+                return None;
+            };
+            let atlas = owner.children.iter().find_map(|id| {
+                let child = registry.get(*id)?;
+                let Some(WidgetData::Button(art)) = &child.widget_data else {
+                    return None;
+                };
+                let Some(TextureSource::Atlas(atlas)) = &art.normal_texture else {
+                    return None;
+                };
+                (atlas.starts_with("common-dropdown-b-button")
+                    || atlas.starts_with("common-dropdown-c-button"))
+                .then_some(atlas)
+            })?;
+            let filter = atlas.starts_with("common-dropdown-b-button");
+            let pressed = button.state == ButtonState::Pushed;
+            let left = if filter { 0.0 } else { 13.0 };
+            let top = if filter {
+                0.0
+            } else {
+                (owner.height.value() - 20.0) / 2.0
+            };
+            Some((
+                frame.id,
+                left + if pressed { 2.0 } else { 0.0 },
+                top + if pressed { 1.0 } else { 0.0 },
+            ))
+        })
+        .collect();
+    for (id, left, top) in updates {
+        let frame = registry.get_mut(id).expect("dropdown label");
+        frame.position.left = ui_toolkit::layout_values::Val::Px(left);
+        frame.position.top = ui_toolkit::layout_values::Val::Px(top);
+    }
 }
