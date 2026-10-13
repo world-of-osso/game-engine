@@ -467,11 +467,7 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
         &recipe.name,
         (95.0, 89.0, 415.0, 44.0),
     ));
-    out.extend(text(
-        "CraftingOrderRecipientLabel",
-        "Order To:",
-        (535.0, 77.0, 105.0, 20.0),
-    ));
+
     let type_text = match view.orders.kind {
         CraftingOrderKind::Public => "Public",
         CraftingOrderKind::Guild => "Guild",
@@ -506,19 +502,20 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
     out.extend(text(
         "CraftingOrderNoteLabel",
         "Note to Crafter:",
-        (545.0, 210.0, 200.0, 20.0),
+        (553.0, 156.5, 200.0, 20.0),
     ));
-    out.extend(edit_box(NOTE, (545.0, 240.0, 240.0, 120.0)));
+    // Form.xml: Payment(510,155), Note TOPLEFT(17,0), TitleBox LEFT16, input LEFT+10/BOTTOM+3.
+    out.extend(edit_box(NOTE, (553.0, 181.0, 242.0, 113.0)));
     out.extend(text(
         "CraftingOrderCommissionLabel",
         "Commission:",
-        (540.0, 399.0, 100.0, 22.0),
+        (510.0, 305.0, 110.0, 40.0),
     ));
-    out.extend(money_input(ORDER_MONEY, (628.0, 401.0)));
+    out.extend(money_input(ORDER_MONEY, (630.0, 308.5)));
     out.extend(text(
         "CraftingOrderDurationLabel",
         "Duration:",
-        (540.0, 439.0, 95.0, 22.0),
+        (510.0, 345.0, 110.0, 40.0),
     ));
     // Payment LEFT at ReagentContainer RIGHT+5; Duration LEFT at label RIGHT+10.
     // Form(5,60)+Reagents(10,95)+Payment(490+5,0)+Duration(110+10,190+20-12.5).
