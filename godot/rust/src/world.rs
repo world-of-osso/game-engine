@@ -1669,6 +1669,15 @@ impl WorldUnits {
         self.units.get(&self.local_player_id?)?.motion.adopted_epoch
     }
 
+    /// The newest server-replicated movement epoch, before motion adoption.
+    pub fn local_player_server_epoch(&self) -> Option<u32> {
+        self.units
+            .get(&self.local_player_id?)?
+            .motion
+            .control
+            .map(|control| control.epoch)
+    }
+
     /// The newest server-replicated position of the local player.
     pub fn local_player_server_position(&self) -> Option<Vector3> {
         let target = self
