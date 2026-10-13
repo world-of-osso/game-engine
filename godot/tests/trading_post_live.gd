@@ -80,6 +80,8 @@ func layout_proof() -> void:
 	await capture("unfrozen")
 	var tender := int(client.trading_post_state().tender)
 	var price := int(client.trading_post_state().price)
+	var footer := control("PerksProgramFooterFrame")
+	print("TP_LAYOUT_FOOTER ", footer.get_global_rect() if footer != null else "no projected control", " button=", control("PerksProgramPurchaseButton").get_global_rect(), " model=", control("PerksProgramMainModelScene").get_global_rect(), " enabled=", control_enabled("PerksProgramPurchaseButton"))
 	await click("PerksProgramPurchaseButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "source popup"): return
 	await capture("purchase-confirm")
