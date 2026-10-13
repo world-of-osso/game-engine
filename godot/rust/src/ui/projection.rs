@@ -1278,7 +1278,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
             }
-        } else if frame.name.as_deref() != Some("HouseEditorStorageSearchBox") {
+        } else if !is_housing_search_field(frame.name.as_deref()) {
             node.connect("text_submitted", &emit(pending, UiInput::Submit));
         }
         Callable::from_fn("registry-text-changed", move |args| {
@@ -1290,8 +1290,8 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     node.connect("text_changed", &text_changed);
     node.connect("focus_entered", &emit(pending, UiInput::Focus(id)));
     node.connect("focus_exited", &emit(pending, UiInput::Blur(id)));
-    let keys = if frame.name.as_deref() == Some("HouseEditorStorageSearchBox") {
-        release_storage_search_focus(node.clone())
+    let keys = if is_housing_search_field(frame.name.as_deref()) {
+        release_housing_search_focus(node.clone())
     } else {
         release_focus_on_escape(node.clone())
     };
@@ -1364,7 +1364,14 @@ fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callabl
     })
 }
 
-fn release_storage_search_focus(mut edit: Gd<Control>) -> Callable {
+fn is_housing_search_field(name: Option<&str>) -> bool {
+    matches!(
+        name,
+        Some("HouseEditorStorageSearchBox" | "HousingCatalogSearchBox")
+    )
+}
+
+fn release_housing_search_focus(mut edit: Gd<Control>) -> Callable {
     Callable::from_fn("housing-search-focus-keys", move |args| {
         let released = args
             .first()
