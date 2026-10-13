@@ -52,6 +52,16 @@ pub fn layout(width: f32, text_widths: &[f32]) -> NavLayout {
             }
         })
         .collect();
+    let first_shown = first_visible_breadcrumb(width, &widths);
+    let positions = breadcrumb_positions(&widths, first_shown);
+    NavLayout {
+        widths,
+        first_shown,
+        positions,
+    }
+}
+
+fn first_visible_breadcrumb(width: f32, widths: &[f32]) -> usize {
     let max_width = width - WIDTH_BUFFER;
     let mut total = 0.0;
     let mut first_shown = widths.len();
@@ -67,6 +77,10 @@ pub fn layout(width: f32, text_widths: &[f32]) -> NavLayout {
             first_shown = (first_shown + 1).min(widths.len());
         }
     }
+    first_shown
+}
+
+fn breadcrumb_positions(widths: &[f32], first_shown: usize) -> Vec<f32> {
     let start = if first_shown > 0 {
         OVERFLOW_WIDTH + OVERFLOW_OFFSET
     } else {
@@ -84,11 +98,7 @@ pub fn layout(width: f32, text_widths: &[f32]) -> NavLayout {
             left
         })
         .collect();
-    NavLayout {
-        widths,
-        first_shown,
-        positions,
-    }
+    positions
 }
 
 pub fn nav_bar(props: NavBar<'_>) -> Element {
@@ -105,26 +115,7 @@ pub fn nav_bar(props: NavBar<'_>) -> Element {
         [0.0, 1.0, 0.1875, 0.25390625],
         (0.0, 0.0, width, height),
     );
-    contents.extend(
-        props
-            .buttons
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| *i >= layout.first_shown)
-            .flat_map(|(i, button)| {
-                nav_button(
-                    *button,
-                    i == 0,
-                    i + 1 == props.buttons.len(),
-                    (
-                        layout.positions[i],
-                        (height - BUTTON_HEIGHT) / 2.0,
-                        layout.widths[i],
-                        BUTTON_HEIGHT,
-                    ),
-                )
-            }),
-    );
+    contents.extend(visible_breadcrumbs(&props, &layout, height));
     if layout.first_shown > 0 {
         contents.extend(overflow_button(&props, height));
     }
@@ -139,6 +130,28 @@ pub fn nav_bar(props: NavBar<'_>) -> Element {
         contents.extend(overflow_menu(&props, &layout));
     }
     rsx! { r#frame { name: {DynName(props.name.into())}, left:x, top:y, width, height, pos_type:"absolute", {contents} } }
+}
+
+fn visible_breadcrumbs(props: &NavBar<'_>, layout: &NavLayout, height: f32) -> Element {
+    props
+        .buttons
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i >= layout.first_shown)
+        .flat_map(|(i, button)| {
+            nav_button(
+                *button,
+                i == 0,
+                i + 1 == props.buttons.len(),
+                (
+                    layout.positions[i],
+                    (height - BUTTON_HEIGHT) / 2.0,
+                    layout.widths[i],
+                    BUTTON_HEIGHT,
+                ),
+            )
+        })
+        .collect()
 }
 
 fn nav_button(
