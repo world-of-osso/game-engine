@@ -1,3 +1,7 @@
+## 2026-10-12 — Wings rainbow player-camera investigation
+
+[Material time](investigations/avenging-wrath-material-time.md#player-camera-rainbow-investigation--2026-10-12): published online protocol alignment resolved; actual glyph and full-budget Ret/Herald native purchases/casts captured rear45°/9yd in both skins. Named-source model/texture census and beam/dissolve references retained. No rainbow reproduced, no renderer fix claimed; user's platform/runtime visual identity remains unknown.
+
 ## 2026-10-12 — Shared subtle selection rows
 
 [Selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12): migrate default-button lists to a shared hit target drawing each list's own Retail template hover/selected art, preserve specialized rows and real actions, add native keyboard focus/activation/scroll reveal. Modern/Forever private pointer/keyboard/scroll runs pass; thirty before/after PNGs inspected. Targeted model/render tests and check/format pass; absent arena/rated/LFG lists and representative-only native coverage remain explicit.
