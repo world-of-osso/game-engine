@@ -75,6 +75,23 @@ fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
 }
 
 #[test]
+fn toyfx23_fountain_resolves_source_ground_model_scale_and_aura_end() {
+    let visual = catalog().visual_for_spell(91743, &warrior(None)).unwrap();
+    assert_eq!(visual, 19687);
+    let kits = catalog().kits(visual, VisualEvent::AuraStart);
+    assert_eq!(kits.len(), 1);
+    assert_eq!(kits[0].end, VisualEvent::AuraEnd);
+    assert_eq!(kits[0].models.len(), 1);
+    let model = &kits[0].models[0];
+    assert_eq!(model.model_fdid, 253570);
+    assert_eq!(model.attachment, Some(19));
+    assert_eq!(model.scale, 0.5);
+    assert_eq!(model.alpha, 1.0);
+    assert_eq!(model.offset, [0.0, 0.0, 0.0]);
+    assert!(catalog().kits(visual, VisualEvent::Cast).is_empty());
+}
+
+#[test]
 fn toyfx22_pendant_resolves_source_ground_model_sound_and_aura_end_lifetime() {
     let caster = warrior(None);
     let visual = catalog().visual_for_spell(171352, &caster).unwrap();
