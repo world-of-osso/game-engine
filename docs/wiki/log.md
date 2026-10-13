@@ -1,3 +1,7 @@
+## 2026-10-13 — Battleground cast and travel boundaries
+
+[Battlegrounds](systems/battlegrounds.md#cast-and-travel-proof-boundaries--verified-2026-10-13): distinguish authored carry, natural-drop receipts and near-teleport score diagnostics; retain native partial captures rather than victory. Record epoch-stop and idle-owner UDP RED/GREEN, measured transport/apply timing and open travel rollback. Update the stale transport-blocked index entry; publication remains lead-owned.
+
 ## 2026-10-13 — CASC installed-build following
 
 [Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
