@@ -43,14 +43,14 @@ func run_fixture() -> void:
 func browse() -> void:
 	var state: Dictionary = client.trading_post_state()
 	if int(state.items) == 0: fail("Vendor has no sourced items"); return
-	if not await wait_until(func(): return client.trading_post_state().preview_ready, "default transmog character preview", 120000): return
-	await capture("vendor-transmog")
+	if not await wait_until(func(): return client.trading_post_state().preview_ready, "default selection preview", 120000): return
+	await capture("vendor-all")
 	await click("PerksProgramFilter")
 	if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
 	await capture("category-dropdown")
-	for category in [[2, "mount"], [3, "pet"]]:
+	for category in [[1, "transmog"], [8, "transmog-set"], [3, "pet"], [2, "mount"]]:
 		if not await choose_category(category[0]): return
-		if not await wait_until(func(): return client.trading_post_state().preview_ready, category[1] + " creature preview", 120000): return
+		if not await wait_until(func(): return client.trading_post_state().preview_ready, category[1] + " preview", 120000): return
 		await capture("vendor-" + category[1])
 	if not await rotate_model(): return
 	if not await choose_category(5): return
@@ -161,6 +161,9 @@ func ipc(arguments: Array) -> String:
 	return result.text
 
 func finish(label: String) -> void:
+	if int(client.trading_post_state().hidden_layers) == 0: fail("HUD stayed visible under the full-screen vendor"); return
+	await click("PerksProgramLeaveButton")
+	if not await wait_until(func(): return not client.trading_post_state().open and control("MinimapLauncherButton") != null, "Leave restores the HUD"): return
 	print("TRADING_POST_LIVE PASS skin=", skin, " phase=", label, " state=", client.trading_post_state())
 	client.free()
 	quit(0)
