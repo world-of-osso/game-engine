@@ -148,7 +148,7 @@ fn portal_emitters_are_spheres_with_their_authored_pixel_shaders() {
             .all(|e| m2_particles::shape(e) == Some(ParticleShape::Sphere))
     );
     let shaders: Vec<PixelShader> = emitters.iter().map(m2_particles::pixel_shader).collect();
-    use PixelShader::{Mod, ThreeColorThreeAlpha};
+    use PixelShader::{Mod, Refraction, ThreeColorThreeAlpha};
     assert_eq!(
         shaders,
         [
@@ -157,7 +157,7 @@ fn portal_emitters_are_spheres_with_their_authored_pixel_shaders() {
             Mod,
             ThreeColorThreeAlpha,
             ThreeColorThreeAlpha,
-            Mod
+            Refraction
         ]
     );
 }
