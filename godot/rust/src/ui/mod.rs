@@ -2652,11 +2652,17 @@ impl RegistryUi {
         let CharacterSelectModel {
             screen,
             shared,
-            registry,
+            mut registry,
         } = {
             let _span = crate::profile::span(|| "ui.character_select.new".to_owned());
             CharacterSelectModel::new(size.x, size.y)
         };
+        if let Err(error) = register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        ) {
+            return error.as_str().into();
+        }
         let mut model = RegistryModel {
             screen,
             shared,

@@ -134,7 +134,7 @@ fn delete_confirm_editbox(state: &DeleteConfirmUiState) -> Element {
         editbox {
             name: DELETE_CONFIRM_INPUT, width: 150.0, height: 32.0, text: state.typed_text.clone(),
             font: GameFont::FrizQuadrata, font_size: 15.0, font_color: COLOR_GOLD,
-            max_letters: 6, text_insets: "12,5,0,5", pos_type: "absolute",
+            max_letters: 6, text_insets: "12,5,0,5", background_color: "0,0,0,0", pos_type: "absolute",
             left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
             {tooltip_input_border()}
             fontstring { name: "DeleteCharacterDialogHelper", width: 150.0, height: "auto", text: "Type DELETE to confirm",

@@ -103,6 +103,8 @@ pub fn campsite_panel(state: &CampsiteState) -> Element {
             r#frame { name: "CampsiteIconsFrame", width: 693.0, height: 482.0, pos_type: "absolute", left: 4.0, top: 60.0,
                 texture { name: "CampsiteBackgroundTile", texture_atlas: "collections-background-tile", width: 685.0, height: 474.0,
                     pos_type: "absolute", left: 4.0, top: 4.0, }
+                {collection_inset()}
+                {collection_shadows()}
                 r#frame { name: "CampsiteGrid", width: 668.0, height: 419.0, pos_type: "absolute", left: 13.0, top: 38.0, {cards} }
                 r#frame { name: "CampsitePaging", width: 140.0, height: 32.0, pos_type: "absolute", left: "50%", top: 398.0, translate_x: "-50%",
                     fontstring { name: "CampsitePageText", width: 76.0, height: 32.0, text: format!("Page {}/{}",page+1,pages), font_size: 12.0, }
@@ -144,4 +146,67 @@ pub fn sync_campsite_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
         texture.horiz_tile = true;
         texture.vert_tile = true;
     }
+}
+
+fn collection_shadows() -> Element {
+    // CollectionsBackgroundTemplate: four flipped corners and four single-edge strips.
+    let mut art = Vec::new();
+    for (layer, atlas) in [
+        ("Large", "collections-background-shadow-large"),
+        ("Small", "collections-background-shadow-small"),
+    ] {
+        let region = ui_toolkit::atlas::get_region(atlas).expect("Collections shadow atlas");
+        let (w, h) = (region.width, region.height);
+        for (part, x, y, width, height, coords) in [
+            ("TL", 4.0, 4.0, w, h, "0,1,0,1"),
+            ("TR", 689.0 - w, 4.0, w, h, "1,0,0,1"),
+            ("BL", 4.0, 478.0 - h, w, h, "0,1,1,0"),
+            ("BR", 689.0 - w, 478.0 - h, w, h, "1,0,1,0"),
+            ("Top", 4.0 + w, 4.0, 685.0 - 2.0 * w, h, "0.9999,1,0,1"),
+            (
+                "Bottom",
+                4.0 + w,
+                478.0 - h,
+                685.0 - 2.0 * w,
+                h,
+                "0.9999,1,1,0",
+            ),
+            ("Left", 4.0, 4.0 + h, w, 474.0 - 2.0 * h, "0,1,0.9999,1"),
+            (
+                "Right",
+                689.0 - w,
+                4.0 + h,
+                w,
+                474.0 - 2.0 * h,
+                "1,0,0.9999,1",
+            ),
+        ] {
+            art.extend(rsx! { texture { name: DynName(format!("CampsiteShadow{layer}{part}")), texture_atlas: atlas,
+                width, height, tex_coords: coords, pos_type: "absolute", left: x, top: y, } });
+        }
+    }
+    art
+}
+
+fn collection_inset() -> Element {
+    // InsetFrameTemplate:6px corners/3px edges; bottom corners extend1below parent.
+    [
+        ("TL", "UI-Frame-InnerTopLeft", (0.0, 0.0, 6.0, 6.0)),
+        ("TR", "UI-Frame-InnerTopRight", (687.0, 0.0, 6.0, 6.0)),
+        ("BL", "UI-Frame-InnerBotLeftCorner", (0.0, 477.0, 6.0, 6.0)),
+        ("BR", "UI-Frame-InnerBotRight", (687.0, 477.0, 6.0, 6.0)),
+        ("Top", "_UI-Frame-InnerTopTile", (6.0, 0.0, 681.0, 3.0)),
+        ("Bottom", "_UI-Frame-InnerBotTile", (6.0, 480.0, 681.0, 3.0)),
+        ("Left", "!UI-Frame-InnerLeftTile", (0.0, 6.0, 3.0, 471.0)),
+        (
+            "Right",
+            "!UI-Frame-InnerRightTile",
+            (690.0, 6.0, 3.0, 471.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(part, atlas, rect)| {
+        crate::quest_art::named_atlas_texture(format!("CampsiteInset{part}"), atlas, rect)
+    })
+    .collect()
 }
