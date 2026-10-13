@@ -173,7 +173,7 @@ fn ssao_graphics_row_discloses_restart_and_emits_toggle_action() {
     );
     let on = native
         .registry
-        .get_by_name("ToggleSwitchssao_enabledRightHit")
+        .get_by_name("ToggleSwitchssao_enabled")
         .unwrap();
     assert_eq!(
         native.registry.click_frame(on).as_deref(),
@@ -192,14 +192,11 @@ fn native_game_menu_model_projects_authored_options_and_reactive_slider_values()
         Some(WidgetData::Slider(_))
     ));
     assert_eq!(label(&native.registry, "SliderValuemaster_volume"), "0.80");
-    assert!(
-        native
-            .registry
-            .get(native.registry.get_by_name("OptionsTabPanel").unwrap())
-            .unwrap()
-            .nine_slice
-            .is_some()
-    );
+    let category = native
+        .registry
+        .get(native.registry.get_by_name("OptionsTabsound").unwrap())
+        .unwrap();
+    assert_eq!(category.width, ui_toolkit::frame::Dimension::Fixed(175.0));
     view.options.sound.master_volume = 0.25;
     native.shared.insert(view);
     native.sync();
@@ -491,31 +488,61 @@ fn nameplates_page_offers_show_health_value_off_by_default() {
         label(&registry, "ToggleLabelnameplate_show_health_value"),
         "Show Health Value"
     );
-    assert!(
-        registry
-            .get_by_name("ToggleSwitchnameplate_show_health_valueLeftHit")
-            .is_none()
-    );
     assert_eq!(
-        click(
-            &mut registry,
-            "ToggleSwitchnameplate_show_health_valueRightHit"
-        ),
+        click(&mut registry, "ToggleSwitchnameplate_show_health_value"),
         "options_toggle:nameplate_show_health_value"
     );
+    let checked = registry
+        .get_by_name("ToggleSwitchnameplate_show_health_valueChecked")
+        .unwrap();
+    assert!(registry.get(checked).unwrap().hidden);
     view.options.hud.nameplate_style.show_health_value = true;
     shared.insert(view);
     screen.sync(&shared, &mut registry);
-    assert!(
-        registry
-            .get_by_name("ToggleSwitchnameplate_show_health_valueRightHit")
-            .is_none()
-    );
+    let checked = registry
+        .get_by_name("ToggleSwitchnameplate_show_health_valueChecked")
+        .unwrap();
+    assert!(!registry.get(checked).unwrap().hidden);
     assert_eq!(
-        click(
-            &mut registry,
-            "ToggleSwitchnameplate_show_health_valueLeftHit"
-        ),
+        click(&mut registry, "ToggleSwitchnameplate_show_health_value"),
         "options_toggle:nameplate_show_health_value"
     );
+}
+
+#[test]
+fn settings_panel_and_category_rows_match_retail_xml() {
+    let mut menu = GameMenuModel::from_view(1280.0, 720.0, model());
+    menu.sync();
+    let root = menu
+        .registry
+        .get(menu.registry.get_by_name("OptionsRoot").unwrap())
+        .unwrap();
+    assert_eq!(
+        (root.width, root.height),
+        (
+            ui_toolkit::frame::Dimension::Fixed(920.0),
+            ui_toolkit::frame::Dimension::Fixed(724.0)
+        )
+    );
+    for category in OptionsCategory::ALL {
+        let row = menu
+            .registry
+            .get(
+                menu.registry
+                    .get_by_name(&format!("OptionsTab{}", category.key()))
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (row.width, row.height),
+            (
+                ui_toolkit::frame::Dimension::Fixed(175.0),
+                ui_toolkit::frame::Dimension::Fixed(20.0)
+            )
+        );
+        assert_eq!(
+            row.onclick.as_deref(),
+            Some(format!("options_category:{}", category.key()).as_str())
+        );
+    }
 }
