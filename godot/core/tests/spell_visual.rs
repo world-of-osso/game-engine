@@ -75,6 +75,28 @@ fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
 }
 
 #[test]
+fn toyfx26_bauble_resolves_source_cast_and_pitched_aura_models() {
+    let visual = catalog().visual_for_spell(223143, &warrior(None)).unwrap();
+    assert_eq!(visual, 59841);
+    let cast = catalog().kits(visual, VisualEvent::Cast);
+    assert_eq!(cast.len(), 1);
+    assert_eq!(cast[0].models.len(), 1);
+    assert_eq!(cast[0].models[0].model_fdid, 982939);
+    assert_eq!(cast[0].models[0].attachment, Some(34));
+    let aura = catalog().kits(visual, VisualEvent::AuraStart);
+    assert_eq!(aura.len(), 1);
+    assert_eq!(aura[0].end, VisualEvent::AuraEnd);
+    assert_eq!(aura[0].models.len(), 1);
+    let model = &aura[0].models[0];
+    assert_eq!(model.model_fdid, 1417024);
+    assert_eq!(model.attachment, Some(34));
+    assert_eq!(model.offset, [0.0; 3]);
+    assert!((model.pitch - std::f32::consts::FRAC_PI_2).abs() < 0.0001);
+    assert_eq!(model.scale, 1.0);
+    assert_eq!(model.alpha, 1.0);
+}
+
+#[test]
 fn toyfx24_tome_resolves_source_attachment_offsets_and_aura_end() {
     let visual = catalog().visual_for_spell(187146, &warrior(None)).unwrap();
     let kits = catalog().kits(visual, VisualEvent::AuraStart);
