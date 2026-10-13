@@ -41,6 +41,28 @@ pub(super) fn settings_header(model: &OptionsViewModel) -> Element {
 }
 
 fn search_box(text: &str) -> Element {
+    let border: Element = [
+        (
+            "Left",
+            "common-search-border-left",
+            (547.0, 35.0, 8.0, 20.0),
+        ),
+        (
+            "Middle",
+            "common-search-border-middle",
+            (555.0, 35.0, 339.0, 20.0),
+        ),
+        (
+            "Right",
+            "common-search-border-right",
+            (894.0, 35.0, 8.0, 20.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(part, atlas, rect)| {
+        named_atlas_texture(format!("OptionsSearchBorder{part}"), atlas, rect)
+    })
+    .collect();
     let clear_hidden = text.is_empty();
     let hint_hidden = !text.is_empty();
     let icon = named_atlas_texture(
@@ -54,8 +76,9 @@ fn search_box(text: &str) -> Element {
         (3.0, 3.0, 10.0, 10.0),
     );
     rsx! {
+        {border}
         editbox {name:"OptionsSearchBox",text,width:350.0,height:22.0,pos_type:"absolute",left:552.0,top:34.0,
-            text_insets:"16,0,20,0",max_letters:64,auto_focus:false,font_size:12.0}
+            text_insets:"16,20,0,0",max_letters:64,auto_focus:false,font_size:12.0}
         fontstring {name:"OptionsSearchHint",text:"Search",hidden:hint_hidden,mouse_enabled:false,
             width:314.0,height:22.0,left:568.0,top:34.0,pos_type:"absolute",font_size:12.0,color:"0.35,0.35,0.35,1",justify_h:"LEFT"}
         {icon}
