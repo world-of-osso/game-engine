@@ -1,6 +1,9 @@
 ## 2026-10-13 — Retail Adventure Guide frame layout
 
 [Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
+## 2026-10-13 — CASC installed-build following
+
+[Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
 
 ## 2026-10-13 — Source storage tiles
 
@@ -3629,3 +3632,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Central source tooltips extended to owned-storage cards and House Chest handle, native missing-route RED→both-skin actual text/count/right-anchor/leave/unmount/conservation GREEN; four inspected PNGs. Existing Catalog presentation reused.
 
 - 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
+
+- 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).

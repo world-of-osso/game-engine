@@ -1,27 +1,35 @@
 //! ClassTalentsFrame.xml: LoadSystem LEFT48, SearchBox LEFT20, Reset/Undo shared anchor.
 use super::*;
 use crate::talents::search::{MAX_PREVIEW_ENTRIES, MIN_SEARCH_CHARACTERS, NOT_ON_ACTION_BAR};
-use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
+use crate::ui::screens::menu_primitives::{
+    DropdownButton, DropdownState, dropdown_button_with_state,
+};
 #[path = "talents_loadouts.rs"]
 mod loadouts;
 
 pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
     let y = BOOK_H - FOOTER_HEIGHT / 2.0 - 15.0;
-    let mut children = dropdown_button(DropdownButton {
-        frame_name: "TalentLoadoutDropDown",
-        label_name: "TalentLoadoutName",
-        arrow_name: "TalentLoadoutArrow",
-        text: view.editor.loadout_caption(),
-        width: 200.0 * scale,
-        height: 30.0 * scale,
-        x: 48.0 * scale,
-        // menu_primitives takes y-up offsets; talent canvas is y-down.
-        y: -y * scale,
-        background_color: "0.04,0.04,0.04,1.0",
-        text_color: TAB_TEXT,
-        arrow_color: TAB_TEXT,
-        onclick: Some("talent:loadouts"),
-    });
+    let mut children = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "TalentLoadoutDropDown",
+            label_name: "TalentLoadoutName",
+            arrow_name: "TalentLoadoutArrow",
+            text: view.editor.loadout_caption(),
+            width: 200.0 * scale,
+            height: 30.0 * scale,
+            x: 48.0 * scale,
+            // menu_primitives takes y-up offsets; talent canvas is y-down.
+            y: -y * scale,
+            background_color: "0.04,0.04,0.04,1.0",
+            text_color: TAB_TEXT,
+            arrow_color: TAB_TEXT,
+            onclick: Some("talent:loadouts"),
+        },
+        DropdownState {
+            open: view.editor.loadout_menu,
+            ..Default::default()
+        },
+    );
     children.extend(search_box(view, y, scale));
     if view.editor.reset_menu {
         children.extend(menu(
