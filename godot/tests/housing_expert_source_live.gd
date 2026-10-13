@@ -49,7 +49,7 @@ func run_test() -> void:
 	if not await select_saved_decor(): return
 	if not await stage_assigned_precision(): return
 	var expected: Dictionary = client.housing_state().draft.duplicate(true)
-	await click(ground_point(8.0),MOUSE_BUTTON_LEFT)
+	if not await commit_expert_by_world_click(): return
 	if not await wait_housing(func(): return not client.housing_state().pending and saved_matches(expected),"sourced world click commits staged transform",120000): return
 	if not await record_editor("expert-source-committed"): return
 	if not await connect_housing_account(): return
@@ -147,6 +147,21 @@ func hold_assigned(code: Key) -> bool:
 		fail("Expert increment continued after physical key release")
 		return false
 	return true
+
+func commit_expert_by_world_click() -> bool:
+	var origin: Vector2 = ground_point(8.0)
+	print("EXPERT_COMMIT_ORIGINAL point=",origin," picked=",UnitPicker.pick(camera(),origin))
+	for offset in [Vector2(-160,80),Vector2(160,80),Vector2(0,120)]:
+		var point: Vector2 = origin+offset
+		if UnitPicker.pick(camera(),point)!=null: continue
+		push_mouse_motion(point)
+		await frames(3)
+		print("EXPERT_COMMIT_CLEAR_RAY point=",point," picked=",UnitPicker.pick(camera(),point))
+		await click(point,MOUSE_BUTTON_LEFT)
+		print("EXPERT_COMMIT_DISPATCH selected=",client.housing_state().get("selected",0)," pending=",client.housing_state().pending," draft=",client.housing_state().get("draft",{}))
+		return true
+	fail("No empty native world ray found for sourced Expert click commit")
+	return false
 
 func saved_matches(expected: Dictionary) -> bool:
 	var state: Dictionary = client.housing_state()

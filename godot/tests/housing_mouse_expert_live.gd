@@ -44,7 +44,7 @@ func run_test() -> void:
 	if not await mouse_stage_all_axes(): return
 	var node: Node3D = placed_node()
 	var expected: Dictionary = {"position": [node.position.x, node.position.y, node.position.z], "pitch": node.rotation.x, "yaw": node.rotation.y, "roll": node.rotation.z, "scale": node.scale.x}
-	await click(ground_point(8.0), MOUSE_BUTTON_LEFT)
+	if not await commit_expert_by_world_click(): return
 	if not await wait_housing(func(): return matches_precision(expected) and not client.housing_state().pending, "mouse transform atomic commit"): return
 	if stored_bookcases() != 0 or client.housing_state().decor.size() != 1:
 		fail("Mouse editing changed the quantity of the paid decor")
