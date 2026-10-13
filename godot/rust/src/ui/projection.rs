@@ -512,19 +512,25 @@ impl UiProjection {
                 .as_deref()
                 .unwrap_or(&format!("Frame{}", frame.id)),
         );
-        node.set_mouse_filter(
-            if frame.mouse_enabled
-                || frame.onclick.is_some()
-                || matches!(
-                    frame.widget_type,
-                    WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
-                )
-            {
-                godot::classes::control::MouseFilter::STOP
-            } else {
-                godot::classes::control::MouseFilter::IGNORE
-            },
-        );
+        // Shared dropdown chrome carries ButtonData for pressed/hover art only; its
+        // owner, not this actionless child surface, receives pointer events.
+        let passive_dropdown_art = frame.onclick.is_none()
+            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
+                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
+                    if atlas.starts_with("common-dropdown-")));
+        node.set_mouse_filter(if passive_dropdown_art {
+            godot::classes::control::MouseFilter::IGNORE
+        } else if frame.mouse_enabled
+            || frame.onclick.is_some()
+            || matches!(
+                frame.widget_type,
+                WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
+            )
+        {
+            godot::classes::control::MouseFilter::STOP
+        } else {
+            godot::classes::control::MouseFilter::IGNORE
+        });
         let mut parts = Control::new_alloc();
         parts.set_name(PARTS_NODE);
         parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
