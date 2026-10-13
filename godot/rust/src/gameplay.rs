@@ -793,6 +793,7 @@ impl crate::GameClient {
         let ground = crate::ground::TerrainGround {
             terrain: &self.terrain,
             walls: &walls,
+            game_object_floor: &|feet| crate::game_objects::floor_hit(&space, feet),
         };
         let mut contacts = |from, to, step_delta| flight_tree_contact(&space, from, to, step_delta);
         let next = self.player_movement.predict(
@@ -921,6 +922,7 @@ fn follow_waypoint(
     let ground = crate::ground::TerrainGround {
         terrain,
         walls: &walls,
+        game_object_floor: &|feet| crate::game_objects::floor_hit(&space, feet),
     };
     Ok(path.follow(
         waypoint,
@@ -1146,6 +1148,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let yaw = std::f32::consts::FRAC_PI_2;
         let mut movement = PlayerMovement::default();
@@ -1173,6 +1176,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let yaw = std::f32::consts::FRAC_PI_2;
         let mut movement = PlayerMovement::default();
@@ -1349,6 +1353,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let bed = seabed(&terrain);
         let top = swim_top(WATER);
@@ -1470,6 +1475,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let bed = seabed(&terrain);
         let mut movement = PlayerMovement::default();
@@ -1514,6 +1520,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let top = swim_top(WATER);
         let mut movement = PlayerMovement::default();
@@ -1574,6 +1581,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let top = swim_top(WATER);
         let mut movement = PlayerMovement::default();
@@ -1621,6 +1629,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let top = swim_top(WATER);
         let start = Vec3::new(SHORE.x, top - 1.0, DEEP_Z);
@@ -1686,6 +1695,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let bed = seabed(&terrain);
         let pitch = 0.5_f32;
@@ -1772,6 +1782,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -1814,6 +1825,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -1875,6 +1887,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -1936,6 +1949,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -1979,6 +1993,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -2005,6 +2020,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let start = SHORE + Vec3::Y * 50.0;
         let wall_x = start.x + 0.25;
@@ -2060,6 +2076,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -2117,6 +2134,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -2144,6 +2162,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         movement.set_can_fly(true);
@@ -2190,6 +2209,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();

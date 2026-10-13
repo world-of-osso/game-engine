@@ -52,6 +52,7 @@ Retail lights every WMO the same way; the source here is WebWowViewerCpp's Retai
 
 - **MOBA (SMOBatch, 24 bytes):** flag 0x2 at byte 0x16 means the material id is the u16 at 0x0A. Otherwise it is the u8 at 0x17. Retail district WMOs set the flag on every batch.
 - **MOMT (SMOMaterial, 64 bytes):** flags, shader, blendMode, texture_1, sidnColor, frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2, runTimeData[4].
+- **MOPY / MPY2 (per face):** MOPY is u8 flags + u8 material, 0xFF collision-only. Newer groups use MPY2 instead: u16 flags + u16 material, 0xFFFF collision-only. A group without MOBA draws only faces with a material. Cage of Carnage collision WMOs 6371365/6133755 have no MOMT, no MOBA and only collision-only MPY2 faces, so they draw nothing.
 
 See [[stormwind-hilly-plaza]].
 
