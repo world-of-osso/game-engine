@@ -285,6 +285,25 @@ fn orders_customer_labels_align_with_source_payment_and_recipient_fields() {
             Val::Px(97.0)
         );
         assert_eq!(frame(&r, "CraftingOrderGold").position.top, Val::Px(316.0));
+        for (label_name, input_name) in [
+            ("CraftingOrderCommissionLabel", "CraftingOrderGold"),
+            ("CraftingOrderDurationLabel", "CraftingOrderDuration"),
+            ("CraftingOrderRecipientLabel", "CraftingOrderRecipient"),
+        ] {
+            let label = frame(&r, label_name);
+            let input = frame(&r, input_name);
+            let Val::Px(label_top) = label.position.top else {
+                panic!("pixel label");
+            };
+            let Val::Px(input_top) = input.position.top else {
+                panic!("pixel input");
+            };
+            assert_eq!(
+                label_top + label.height.value() / 2.0,
+                input_top + input.height.value() / 2.0,
+                "{label_name} centerline"
+            );
+        }
         let portrait = frame(&r, "ProfessionsCustomerOrdersPortrait");
         assert_eq!(
             (portrait.width.value(), portrait.height.value()),
