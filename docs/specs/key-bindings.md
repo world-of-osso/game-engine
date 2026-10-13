@@ -22,6 +22,7 @@ Sources:
 - [x] Pet bar: Ctrl-1..Ctrl-0 for `BONUSACTIONBUTTON1-10` (DefaultBindings.wtf:53-62, `BINDING_HEADER_ACTIONBAR`), listed in the Action Bar section; they press pet bar buttons only while it is shown, and Ctrl-N never presses `ACTIONBUTTONn` (Ctrl shadowing). Hotkeys show `c-1`..`c-0` (`CTRL_KEY_TEXT_ABBR`).
 - [x] Frames:
   - C character, P spellbook, L quest log, M world map;
+  - Shift-P `TOGGLECOLLECTIONS` toggles the Collections owner, including its active journal tab (`Bindings_Standard.xml:1326-1330`). Assignable in Interface; the micro-menu tooltip uses the live binding.
   - Ctrl-R `TOGGLEFPS`;
   - Escape game menu and Enter, `/` and R chat. These five keys are fixed, not rebindable.
 - [x] Bags (:1203-1223):
@@ -52,7 +53,7 @@ These defaults are in the table, or Retail has them, but the Godot client has no
 - `TOGGLETALENTS` N, `TOGGLEACHIEVEMENT` Y, `TOGGLESTATISTICS` Shift-Y, `TOGGLEPROFESSIONBOOK` K.
 - `TOGGLESOCIAL` O, `TOGGLEGUILDTAB` J, `TOGGLEENCOUNTERJOURNAL` Shift-J.
 - `TOGGLEGROUPFINDER` I, `TOGGLEDUNGEONSANDRAIDS` Ctrl-I.
-- `TOGGLECOLLECTIONS` Shift-P, `TOGGLEPETBOOK` Shift-I.
+- `TOGGLEPETBOOK` Shift-I.
 - `TOGGLECHARACTER2` U (reputation), `TOGGLECHARACTER4` (pet tab).
 - `TOGGLEBATTLEFIELDMINIMAP` Shift-M, `TOGGLECHANNELPULLOUT` Shift-O, `TOGGLEWORLDSTATESCORES` Shift-Space, `TOGGLEGEARSETS` Shift-G.
 

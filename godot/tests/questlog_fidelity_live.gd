@@ -97,12 +97,8 @@ func check_pet_loadout_models() -> bool:
 	await click(item_control.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	await frames(5)
 	await click_control(backpack)
-	var collections := client.get_node("MicroMenuUI").find_child("CollectionsMicroButton", true, false) as Control
-	print("PET_SETUP_DIMENSIONS window=", root.size, " image=", root.get_texture().get_image().get_size(),
-		" backpack=", backpack.get_global_rect(), " collections=", collections.get_global_rect())
-	await click_control(collections)
+	await tap_collections()
 	await frames(3)
-	print("PET_SETUP_CHILDREN ", client.get_children().map(func(node): return node.name))
 	if not await wait_frames(func(): return client.find_child("CollectionsJournalTab2", true, false) != null, "collections shell"):
 		return false
 	await click_control(client.find_child("CollectionsJournalTab2", true, false) as Control)
@@ -131,6 +127,17 @@ func check_pet_loadout_models() -> bool:
 		return false
 	print("PASS PET_LOADOUT_MODEL skin=", OS.get_environment("QF_SKIN"), " real item4401/owned/equip/meshes=", meshes)
 	return true
+
+func tap_collections() -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = KEY_P
+		event.physical_keycode = KEY_P
+		event.shift_pressed = true
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await frames(2)
 
 func model_meshes(frame_name: String) -> int:
 	var journal := client.get_node_or_null("CollectionsJournalUI")

@@ -2,6 +2,7 @@
 use crate::character_frame::preview::{Scene, bind_sheet_light};
 use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::mount_journal::{MODEL, MountJournalView, SEARCH, mount_journal_screen};
 use godot::prelude::*;
@@ -75,10 +76,25 @@ impl GameClient {
         );
         self.mount_journal.view.receive(update);
     }
+    fn collections_toggle_pressed(&self) -> bool {
+        let Some(viewport) = self.base().get_viewport() else {
+            return false;
+        };
+        let keyboard = !viewport
+            .gui_get_focus_owner()
+            .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
+        let input = self.physical_input.gameplay_state(keyboard);
+        self.client_options
+            .bindings
+            .is_just_pressed(InputAction::ToggleCollections, &input)
+    }
     pub(super) fn update_mount_journal(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_mount_journal();
             return Ok(());
+        }
+        if self.collections_toggle_pressed() {
+            self.toggle_collections();
         }
         if !self.mount_journal.view.visible {
             return Ok(());

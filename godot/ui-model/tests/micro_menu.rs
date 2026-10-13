@@ -319,6 +319,31 @@ fn the_character_button_holds_the_player_portrait_slot_under_its_mask() {
 }
 
 #[test]
+fn collections_tooltip_uses_the_assignable_live_binding() {
+    use game_engine_core::input_bindings_data::{BindingKey, InputBinding, InputBindingsData};
+    let action = MICRO_BUTTONS[index("CollectionsMicroButton")]
+        .binding
+        .expect("Collections binding");
+    let mut bindings = InputBindingsData::default();
+    for (binding, label) in [
+        (InputBinding::ShiftKeyboard(BindingKey::KeyP), "Shift-P"),
+        (InputBinding::Keyboard(BindingKey::F7), "F7"),
+    ] {
+        bindings.assign(action, binding);
+        let key = bindings.binding(action).unwrap().display();
+        assert_eq!(
+            tooltip_rows(
+                &MicroMenuView::default(),
+                "CollectionsMicroButton",
+                Some(&key)
+            )
+            .unwrap(),
+            [format!("Warband Collections ({label})")]
+        );
+    }
+}
+
+#[test]
 fn tooltips_name_the_button_and_its_binding() {
     let view = MicroMenuView::default();
     assert_eq!(
