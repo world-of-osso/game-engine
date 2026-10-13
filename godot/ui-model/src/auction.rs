@@ -484,9 +484,9 @@ pub fn auction_gossip_screen(
             name,
             &option.text,
             &action,
-            true,
-            false,
+            (true, false),
             (20.0, top, 280.0, 26.0),
+            &crate::selection_list::QUEST_TITLE,
         ));
     }
     let height = 140.0 + view.options.len() as f32 * 30.0;

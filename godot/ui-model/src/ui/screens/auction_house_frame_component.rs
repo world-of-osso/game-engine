@@ -598,6 +598,7 @@ fn list_row(
         action,
         true,
         rect,
+        (&crate::selection_list::AUCTION_ROW, false),
         cells,
     ));
     out

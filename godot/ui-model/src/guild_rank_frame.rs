@@ -165,9 +165,9 @@ fn roster(session: &GuildRanksSession) -> Element {
                 format!("GuildMember{index}"),
                 &format!("{} — {rank}", member.character_name),
                 &format!("guild:member:{}", member.character_name),
-                true,
-                session.member_menu.as_deref() == Some(member.character_name.as_str()),
+                (true, false),
                 (20.0, 72.0 + (index - offset) as f32 * 30.0, 340.0, 26.0),
+                &crate::selection_list::GUILD_MEMBER,
             ));
         }
     } else if !session.info_open {
@@ -438,9 +438,9 @@ fn rank_list(session: &GuildRanksSession) -> Element {
                 format!("GuildRankRow{index}"),
                 &rank.name,
                 &format!("guild:rank:{index}"),
-                true,
-                selected,
+                (true, selected),
                 (20.0, 78.0 + index as f32 * 30.0, 200.0, 26.0),
+                &crate::selection_list::SEARCH,
             ));
         }
     }

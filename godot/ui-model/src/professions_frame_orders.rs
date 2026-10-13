@@ -191,6 +191,7 @@ fn order_row(
         &action,
         true,
         (0.0, top, width, 20.0),
+        (&crate::selection_list::AUCTION_ROW, false),
         children,
     )
 }
@@ -572,6 +573,7 @@ fn recipe_list(ctx: &SharedContext, view: &ProfessionView, customer: bool) -> El
                 &action,
                 true,
                 (0.0, index as f32 * 22.0, 236.0, 20.0),
+                (&crate::selection_list::AUCTION_ROW, false),
                 children,
             )
         })
@@ -600,39 +602,57 @@ fn form_menu(view: &ProfessionView) -> Element {
     let Some(menu) = view.orders.menu else {
         return vec![];
     };
+    // Blizzard_ProfessionsCustomerOrdersForm.lua:529-596: both dropdowns are WowStyle1
+    // radio menus over the current order type and listing duration.
+    let orders = &view.orders;
     let (left, top, choices) = match menu {
         OrderMenu::Recipient => (
             660.0,
             97.0,
-            vec![
-                ("Public", "Public", "recipient:public"),
-                ("Guild", "Guild", "recipient:guild"),
-                ("Personal", "Personal", "recipient:personal"),
+            [
+                (
+                    "Public",
+                    "Public",
+                    "recipient:public",
+                    orders.kind == CraftingOrderKind::Public,
+                ),
+                (
+                    "Guild",
+                    "Guild",
+                    "recipient:guild",
+                    orders.kind == CraftingOrderKind::Guild,
+                ),
+                (
+                    "Personal",
+                    "Personal",
+                    "recipient:personal",
+                    orders.kind == CraftingOrderKind::Personal,
+                ),
             ],
         ),
         OrderMenu::Duration => (
             650.0,
             465.0,
-            vec![
-                ("12", "12 Hours", "duration:12"),
-                ("24", "24 Hours", "duration:24"),
-                ("48", "48 Hours", "duration:48"),
+            [
+                ("12", "12 Hours", "duration:12", orders.duration_hours == 12),
+                ("24", "24 Hours", "duration:24", orders.duration_hours == 24),
+                ("48", "48 Hours", "duration:48", orders.duration_hours == 48),
             ],
         ),
     };
-    let children: Element = choices
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, (key, caption, action))| {
-            panel_button(
+    let mut children =
+        crate::selection_list::menu_background("CraftingOrderMenuBackground".into(), (145.0, 72.0));
+    children.extend(choices.into_iter().enumerate().flat_map(
+        |(index, (key, caption, action, chosen))| {
+            crate::selection_list::menu_choice(
                 format!("CraftingOrderMenu{key}"),
                 caption,
                 &format!("profession:order:{action}"),
-                true,
+                (crate::selection_list::MenuTick::Radio, chosen),
                 (0.0, index as f32 * 24.0, 145.0, 24.0),
             )
-        })
-        .collect();
+        },
+    ));
     rsx! { r#frame { name: "CraftingOrderMenu", left, top, width: 145.0, height: 72.0,
         pos_type: "absolute", mouse_enabled: true, frame_level: 500, {children}
     } }

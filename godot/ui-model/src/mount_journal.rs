@@ -299,6 +299,7 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
         &action,
         true,
         (0.0, top, 250.0, ROW_HEIGHT),
+        (&crate::selection_list::MOUNT, false),
         children,
     )
 }
@@ -422,20 +423,35 @@ fn filter_menu(view: &MountJournalView) -> Element {
         .iter()
         .enumerate()
         .flat_map(|(index, (action, title, checked))| {
-            let top = 5.0 + index as f32 * 22.0;
-            crate::selection_list::text_row(
-                format!("MountJournalFilter{index}"),
-                title,
-                action,
-                true,
-                *checked,
-                (5.0, top, 190.0, 22.0),
-            )
+            let name = format!("MountJournalFilter{index}");
+            let rect = (5.0, 5.0 + index as f32 * 22.0, 190.0, 22.0);
+            // MountJournal filter menu: CreateCheckbox entries and submenu buttons.
+            match title.strip_suffix(" >") {
+                Some(submenu) => crate::selection_list::text_row(
+                    name,
+                    submenu,
+                    action,
+                    (true, false),
+                    rect,
+                    &crate::selection_list::MENU,
+                ),
+                None => crate::selection_list::menu_choice(
+                    name,
+                    title,
+                    action,
+                    (crate::selection_list::MenuTick::Checkbox, *checked),
+                    rect,
+                ),
+            }
         })
         .collect();
     let height = 10.0 + entries.len() as f32 * 22.0;
+    let background = crate::selection_list::menu_background(
+        "MountJournalFilterMenuBackground".into(),
+        (200.0, height),
+    );
     rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 75.0,top: 91.0,pos_type: "absolute",
-    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
+    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,{background}{children} } }
 }
 fn context_menu(view: &MountJournalView) -> Element {
     let Some((id, [left, top])) = view.context else {

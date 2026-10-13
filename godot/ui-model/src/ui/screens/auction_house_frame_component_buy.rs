@@ -229,7 +229,8 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
                 top: 0.0,
             }
     };
-    crate::selection_list::row(name, &action, true, (x, y, 132.0, 21.0), content)
+    let template = (&crate::selection_list::AUCTION_CATEGORY, false);
+    crate::selection_list::row(name, &action, true, (x, y, 132.0, 21.0), template, content)
 }
 
 // Mainline/Blizzard_AuctionHouseCategoriesList.lua:5-65: secondary navigation

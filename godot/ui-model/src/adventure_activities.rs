@@ -329,9 +329,9 @@ fn activity_row(row: &ActivityRow<'_>) -> Element {
         format!("JournalActivity{id}"),
         &activity.name,
         &format!("journal:activity:{id}"),
-        true,
-        row.details.is_some(),
+        (true, row.details.is_some()),
         (inset, row.top, 416. - inset, 32.),
+        &crate::selection_list::SEARCH,
     );
     out.extend(text(
         &format!("JournalActivity{id}Progress"),

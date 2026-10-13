@@ -111,7 +111,7 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
     };
     assert_eq!(label.text, "Mortal Strike");
     let selected = registry
-        .get_by_name("CooldownSettingsSelect27Selected")
+        .get_by_name("CooldownSettingsSelect27RowSelected")
         .unwrap();
     assert!(registry.get(selected).unwrap().visible);
     let select_id = registry.get_by_name("CooldownSettingsSelect27").unwrap();
@@ -123,7 +123,7 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
     shared.insert(view);
     screen.sync(&shared, &mut registry);
     let selected = registry
-        .get_by_name("CooldownSettingsSelect27Selected")
+        .get_by_name("CooldownSettingsSelect27RowSelected")
         .unwrap();
     assert!(!registry.get(selected).unwrap().visible);
 }

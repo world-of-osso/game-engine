@@ -262,6 +262,7 @@ fn service_row(
         &action,
         true,
         (0.0, index as f32 * ROW_HEIGHT, 298.0, ROW_HEIGHT),
+        (&crate::selection_list::AUTHORED, false),
         children,
     )
 }

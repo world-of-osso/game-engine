@@ -107,9 +107,9 @@ fn setting_row(index: usize, entry: &CooldownSettingEntry) -> Element {
         format!("CooldownSettingsSelect{}", entry.id),
         label,
         &format!("cooldown_select:{}", entry.id),
-        true,
-        entry.selected,
+        (true, entry.selected),
         (16.0, y, 454.0, 30.0),
+        &crate::selection_list::SEARCH,
     );
     let up = panel_button(
         format!("CooldownSettingsUp{}", entry.id),

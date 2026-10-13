@@ -30,9 +30,9 @@ fn neighborhood_choices(view: &HousingView) -> Element {
                 format!("HouseFinderNeighborhood{id}"),
                 text,
                 &format!("housing:neighborhood:{id}"),
-                !view.model.pending,
-                view.model.neighborhood == id,
+                (!view.model.pending, false),
                 (20.0, top, 217.0, 63.0),
+                &crate::selection_list::NEIGHBORHOOD,
             )
         })
         .collect();

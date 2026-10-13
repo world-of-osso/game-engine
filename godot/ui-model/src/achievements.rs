@@ -1172,6 +1172,7 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
         &action,
         true,
         (241.0, y, 483.0, 48.0),
+        (&crate::selection_list::AUTHORED, false),
         content,
     )
 }
@@ -1322,6 +1323,7 @@ fn achievement_rows(ctx: &SharedContext, window: &AchievementWindow) -> Element 
             &format!("achievement:row:{}", entry.achievement_id),
             true,
             (0.0, y, 500.0, height),
+            (&crate::selection_list::AUTHORED, false),
             children,
         ));
         y += height + 1.0;

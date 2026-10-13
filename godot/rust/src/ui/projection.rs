@@ -345,7 +345,7 @@ impl UiProjection {
                 .cloned()
                 .unwrap_or_else(|| self.root.clone());
             if !self.nodes.contains_key(&frame.id) {
-                let node = self.create_node(frame)?;
+                let node = self.create_node(frame, registry)?;
                 parent
                     .clone()
                     .upcast::<godot::classes::Node>()
@@ -466,7 +466,7 @@ impl UiProjection {
         result
     }
 
-    fn create_node(&self, frame: &Frame) -> Result<Gd<Control>, String> {
+    fn create_node(&self, frame: &Frame, registry: &FrameRegistry) -> Result<Gd<Control>, String> {
         let unresolved_panel = frame.panel_style.is_some() && frame.nine_slice.is_none();
         if frame.backdrop.is_some() || unresolved_panel {
             return Err(format!(
@@ -525,7 +525,7 @@ impl UiProjection {
         // Parts draw behind the frame's own control content (label/edit text) and children.
         parts.set_draw_behind_parent(true);
         node.add_child(&parts);
-        if game_engine_ui_model::selection_list::is_selection_row(frame) {
+        if game_engine_ui_model::selection_list::is_selection_row(registry, frame) {
             node.set_focus_mode(godot::classes::control::FocusMode::ALL);
             node.connect(
                 "focus_entered",
@@ -666,7 +666,10 @@ impl UiProjection {
         };
         node.set_position(whole);
         node.set_size(Vector2::new(rect.width, rect.height));
-        node.set_visible(frame.visible);
+        node.set_visible(
+            frame.visible
+                && game_engine_ui_model::selection_list::highlight_layer_shown(registry, frame),
+        );
         // A scroll list is a ScrollBox, which clips its children
         // (`Blizzard_SharedXML/Shared/Scroll/ScrollBox.xml:20`): rows cut by its edges.
         node.set_clip_contents(
