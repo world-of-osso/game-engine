@@ -41,6 +41,31 @@ fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
 }
 
 #[test]
+fn encounter_link_replaces_search_and_open_navigation_menus() {
+    let mut view = journal();
+    view.visible = true;
+    view.tab = Tab::Monthly;
+    view.search = "Lucifron".into();
+    view.tier_open = true;
+    view.difficulty_open = true;
+    view.filter_menu = Some(game_engine_ui_model::adventure_guide::LootFilter::Class);
+    view.collapsed.insert(2405);
+    view.select_encounter(112).unwrap();
+    assert_eq!(view.encounter, Some(112));
+    assert_eq!(view.instance, Some(67));
+    assert_eq!(view.tab, Tab::Dungeons);
+    assert!(view.visible);
+    assert!(
+        view.search.is_empty(),
+        "Old search must not cover linked Ozruk"
+    );
+    assert!(!view.tier_open);
+    assert!(!view.difficulty_open);
+    assert!(view.filter_menu.is_none());
+    assert!(view.collapsed.is_empty());
+}
+
+#[test]
 fn owned_keystones_browse_authentic_dungeons_without_active_run() {
     use shared::protocol::KeystoneInfo;
     let mut view = journal();

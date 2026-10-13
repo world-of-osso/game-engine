@@ -274,6 +274,10 @@ impl View {
         }
         self.page = Page::Overview;
         self.visible = true;
+        self.search.clear();
+        self.tier_open = false;
+        self.difficulty_open = false;
+        self.filter_menu = None;
         self.collapsed.clear();
         Ok(())
     }
