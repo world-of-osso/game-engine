@@ -394,5 +394,5 @@ fn extract_renderable_whole_group_indices(raw: &RawGroupData) -> Vec<u32> {
 fn triangle_is_renderable(raw: &RawGroupData, triangle_index: usize) -> bool {
     raw.triangle_materials
         .get(triangle_index)
-        .is_none_or(|triangle| triangle.material_id != 0xFF)
+        .is_none_or(|triangle| triangle.material_id.is_some())
 }
