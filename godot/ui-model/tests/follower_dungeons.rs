@@ -34,15 +34,46 @@ fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
 #[test]
 fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgrounds() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(View { visible: true, ..Default::default() }, skin);
-        let leader = registry.get(registry.get_by_name("LFDQueueFrameRoleButtonLeader").expect("solo leader remains visible")).unwrap();
+        let registry = render(
+            View {
+                visible: true,
+                ..Default::default()
+            },
+            skin,
+        );
+        let leader = registry
+            .get(
+                registry
+                    .get_by_name("LFDQueueFrameRoleButtonLeader")
+                    .expect("solo leader remains visible"),
+            )
+            .unwrap();
         assert_eq!((leader.width.value(), leader.height.value()), (48.0, 48.0));
-        assert_eq!(button(&registry, "LFDQueueFrameRoleButtonLeader").0, ButtonState::Disabled);
-        assert!(registry.get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox").is_none());
+        assert_eq!(
+            button(&registry, "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Disabled
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox")
+                .is_none()
+        );
         for role in ["Tank", "Healer", "DPS"] {
-            let background = registry.get(registry.get_by_name(&format!("LFDQueueFrameRoleButton{role}Background")).expect("inherited role background")).unwrap();
-            assert_eq!((background.width.value(), background.height.value()), (80.0, 80.0));
-            assert_eq!(background.draw_layer, ui_toolkit::strata::DrawLayer::Background);
+            let background = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("LFDQueueFrameRoleButton{role}Background"))
+                        .expect("inherited role background"),
+                )
+                .unwrap();
+            assert_eq!(
+                (background.width.value(), background.height.value()),
+                (80.0, 80.0)
+            );
+            assert_eq!(
+                background.draw_layer,
+                ui_toolkit::strata::DrawLayer::Background
+            );
         }
     }
 }
@@ -50,21 +81,38 @@ fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgro
 #[test]
 fn follower_group_finder_leader_selection_tracks_leadership_without_changing_combat_role() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let mut view = View { visible: true, ..Default::default() };
+        let mut view = View {
+            visible: true,
+            ..Default::default()
+        };
         view.action("follower:leader");
         assert!(!view.volunteer_leader);
         view.group_leader = true;
         let registry = render(view.clone(), skin);
-        assert_eq!(button(&registry, "LFDQueueFrameRoleButtonLeader").0, ButtonState::Normal);
-        assert!(registry.get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox").is_some());
+        assert_eq!(
+            button(&registry, "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Normal
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox")
+                .is_some()
+        );
         view.action("follower:leader");
         assert!(view.volunteer_leader);
         assert_eq!(view.role, GroupRoleSnapshot::Damage);
-        assert!(render(view.clone(), skin).get_by_name("LFDQueueFrameRoleButtonLeaderCheck").is_some());
+        assert!(
+            render(view.clone(), skin)
+                .get_by_name("LFDQueueFrameRoleButtonLeaderCheck")
+                .is_some()
+        );
         view.pending = true;
         view.action("follower:leader");
         assert!(view.volunteer_leader);
-        assert_eq!(button(&render(view, skin), "LFDQueueFrameRoleButtonLeader").0, ButtonState::Disabled);
+        assert_eq!(
+            button(&render(view, skin), "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Disabled
+        );
     }
 }
 
