@@ -87,14 +87,6 @@ impl GameClient {
         let feet = glam::Vec3::new(at.x, at.y, at.z);
         let floor = crate::game_objects::floor_object(&space, feet);
         if floor != Some(carrier.ship) {
-            godot_print!(
-                "TRANSPORT_DETACH ship={} epoch={} feet={:?} pose={:?} floor={:?}",
-                carrier.ship,
-                carrier.epoch,
-                feet,
-                ship,
-                floor
-            );
             carrier.attached = false;
             carrier.pending_disembark = true;
             return Ok(None);

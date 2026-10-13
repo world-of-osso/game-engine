@@ -243,6 +243,12 @@ impl GameObjects {
                 pose.orientation + std::f32::consts::FRAC_PI_2,
                 0.0,
             ));
+            // Node3D transform notifications are deferred. Input queries this deck in
+            // this same frame, so publish its actual child-body transform now.
+            let mut body = object
+                .node
+                .get_node_as::<StaticBody3D>("GameObjectModel/M2Collision");
+            body.force_update_transform();
         }
     }
     /// The top centre of the object's model bounds, where its soft target icon sits.
