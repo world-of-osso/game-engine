@@ -396,7 +396,7 @@ impl GameClient {
             .scene
             .as_mut()
             .ok_or("Pet model scene missing")?
-            .replace_pet_model(model, authored);
+            .replace_pet_model(model, authored)?;
         preview.shown_model = Some(key);
         Ok(())
     }

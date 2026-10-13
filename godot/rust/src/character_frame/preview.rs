@@ -5,7 +5,7 @@ use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::sub_viewport::UpdateMode;
 use godot::classes::texture_rect::{ExpandMode, StretchMode};
 use godot::classes::{
-    Camera3D, CanvasItemMaterial, Control, DirectionalLight3D, MeshInstance3D, Node3D,
+    Camera3D, CanvasItemMaterial, Control, DirectionalLight3D, MeshInstance3D, Node, Node3D,
     ShaderMaterial, SubViewport, TextureRect,
 };
 use godot::prelude::*;
@@ -240,8 +240,14 @@ impl Scene {
         &mut self,
         mut model: Gd<Node3D>,
         authored: &game_engine_core::pet_model_scene::PetModelScene,
-    ) {
-        let bounds = mesh_bounds(&model);
+    ) -> Result<(), String> {
+        let bounds = match pet_actor_bounds(&model) {
+            Ok(bounds) => bounds,
+            Err(error) => {
+                model.free();
+                return Err(error);
+            }
+        };
         let size = glam::Vec3::new(bounds.size.x, bounds.size.y, bounds.size.z);
         let center = bounds.center();
         let center = glam::Vec3::new(center.x, center.y, center.z);
@@ -263,6 +269,7 @@ impl Scene {
             )
             .up(Vector3::new(up.x, up.y, up.z))
             .done();
+        Ok(())
     }
 
     /// A weapon's largest two extents belong in the portrait plane, not along its depth.
@@ -321,6 +328,35 @@ impl Scene {
         let eye = center + Vector3::new(distance, 0.0, 0.0);
         self.camera.look_at_from_position(eye, center);
     }
+}
+
+/// Detached creatures wrap meshes beneath NpcVisualRoot -> NpcModel, including display transforms.
+fn pet_actor_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
+    let mut stack = vec![(model.clone().upcast::<Node>(), Transform3D::IDENTITY)];
+    let mut bounds: Option<Aabb> = None;
+    while let Some((node, parent_transform)) = stack.pop() {
+        let transform = if let Ok(spatial) = node.clone().try_cast::<Node3D>() {
+            if !spatial.is_visible() {
+                continue;
+            }
+            parent_transform * spatial.get_transform()
+        } else {
+            parent_transform
+        };
+        if let Ok(mesh) = node.clone().try_cast::<MeshInstance3D>() {
+            let next = transform * mesh.get_aabb();
+            bounds = Some(match bounds {
+                Some(bounds) => bounds.merge(next),
+                None => next,
+            });
+        }
+        stack.extend(
+            node.get_children()
+                .iter_shared()
+                .map(|child| (child, transform)),
+        );
+    }
+    bounds.ok_or_else(|| "Pet actor contains no visible mesh bounds".into())
 }
 
 fn portrait_item_basis(size: Vector3) -> Basis {
