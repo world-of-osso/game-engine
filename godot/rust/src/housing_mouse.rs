@@ -88,7 +88,7 @@ impl GameClient {
         }
         model.editor.begin_mouse_drag(&self.housing.authority)?;
         self.housing.mouse_pointer = Some(pointer);
-        self.housing.expert_held = [false; 8];
+        self.housing.expert_input.clear();
         Ok(true)
     }
 
