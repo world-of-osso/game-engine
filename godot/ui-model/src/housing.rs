@@ -169,6 +169,7 @@ pub struct HousingDashboard {
     pub pending: bool,
     pub catalog: Arc<HousingCatalog>,
     pub search: String,
+    pub search_focused: bool,
     pub storage_search: String,
     pub storage_search_focused: bool,
     pub storage_category: Option<u32>,
@@ -204,6 +205,7 @@ impl HousingDashboard {
             pending: false,
             catalog,
             search: String::new(),
+            search_focused: false,
             storage_search: String::new(),
             storage_search_focused: false,
             storage_category: None,
@@ -393,7 +395,7 @@ impl HousingDashboard {
     /// Retail catalog searcher results: search, category, subcategory, Dyeable Only and
     /// collection filters, in catalog order.
     pub fn matching(&self, authority: &HousingAuthority) -> Vec<&Decor> {
-        let search = self.search.to_lowercase();
+        let search = housing_search_query(&self.search).to_lowercase();
         self.catalog
             .decor
             .iter()
@@ -452,19 +454,43 @@ impl HousingDashboard {
     }
 
     pub fn set_search(&mut self, search: String, authority: &HousingAuthority) {
+        let changed = housing_search_query(&self.search) != housing_search_query(&search);
         self.search = search;
+        if !changed {
+            return;
+        }
+        if !housing_search_query(&self.search).is_empty() {
+            self.category = None;
+            self.subcategory = None;
+        }
         self.reset_results(authority);
     }
 
     pub fn set_category(&mut self, id: Option<u32>, authority: &HousingAuthority) {
-        self.category = id.filter(|id| *id != ALL_CATEGORY);
+        let id = id.filter(|id| *id != ALL_CATEGORY);
+        if self.category == id && self.subcategory.is_none() {
+            return;
+        }
+        self.category = id;
         self.subcategory = None;
+        self.clear_search_for_category();
         self.reset_results(authority);
     }
 
     pub fn set_subcategory(&mut self, id: Option<u32>, authority: &HousingAuthority) {
+        if self.subcategory == id {
+            return;
+        }
         self.subcategory = id;
+        self.clear_search_for_category();
         self.reset_results(authority);
+    }
+
+    fn clear_search_for_category(&mut self) {
+        if self.category.is_some() {
+            self.search.clear();
+            self.search_focused = false;
+        }
     }
 
     pub fn set_collection(&mut self, filter: CollectionFilter, authority: &HousingAuthority) {
@@ -498,6 +524,15 @@ impl HousingDashboard {
             .offset
             .saturating_add_signed(rows as isize * COLUMNS as isize)
             .min(last_row);
+    }
+}
+
+/// Default MIN_CHARACTER_SEARCH; localized one-character overrides remain separate.
+pub(crate) fn housing_search_query(raw: &str) -> &str {
+    if raw.chars().take(3).count() < 3 {
+        ""
+    } else {
+        raw
     }
 }
 
