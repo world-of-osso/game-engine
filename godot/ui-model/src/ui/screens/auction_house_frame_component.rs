@@ -584,7 +584,6 @@ fn list_row(
     action: &str,
     cells: Element,
 ) -> Element {
-    let (x, y, w, h) = rect;
     // Stripe and selection are siblings drawn before the row: children of the row share
     // the cells' frame level and a later-added selection would cover the text.
     let mut out = Vec::new();
@@ -594,19 +593,14 @@ fn list_row(
     if selected {
         out.extend(crop_texture(format!("{name}Selected"), ROW_SELECT, rect));
     }
-    out.extend(rsx! {
-        button {
-            name: {DynName(name.to_string())},
-            width: w,
-            height: h,
-            onclick: action,
-            button_default_skin: false,
-            pos_type: "absolute",
-            left: x,
-            top: y,
-            {cells}
-        }
-    });
+    out.extend(crate::selection_list::row(
+        name.to_string(),
+        action,
+        true,
+        rect,
+        (&crate::selection_list::AUCTION_ROW, false),
+        cells,
+    ));
     out
 }
 
