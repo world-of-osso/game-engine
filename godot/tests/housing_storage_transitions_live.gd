@@ -46,23 +46,25 @@ func run_test() -> void:
 func sample_transition(phase: String, button: String, final_control: String) -> bool:
 	var samples: Array[Dictionary] = []
 	var started: int = Time.get_ticks_usec()
-	if not await click_exposed_control(housing_control(button)): return false
-	var deadline: int = Time.get_ticks_msec() + 2000
-	while Time.get_ticks_msec() < deadline:
-		await process_frame
+	var observer: Callable = func():
 		var frame: Control = housing_control("HouseEditorStorageFrame")
 		var handle: Control = housing_control("HouseEditorStorageExpandButton")
-		if frame != null and handle != null:
-			fail("Slide phases exposed both source frames simultaneously")
-			return false
 		var active: Control = frame if frame != null else handle
 		if active != null:
 			var part: String = "panel" if frame != null else "handle"
-			samples.append({"us":Time.get_ticks_usec()-started,"part":part,"x":active.global_position.x})
+			samples.append({"us":Time.get_ticks_usec()-started,"part":part,"x":active.global_position.x,"both":frame != null and handle != null})
+	# Observe concurrently: the generic pointer helper deliberately settles several frames.
+	RenderingServer.frame_post_draw.connect(observer)
+	if not await click_exposed_control(housing_control(button)):
+		RenderingServer.frame_post_draw.disconnect(observer)
+		return false
+	var deadline: int = Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
 		var final: Control = housing_control(final_control)
 		if final != null and absf(final.global_position.x) < 0.01:
 			break
-	if not prove_transition_samples(phase, samples): return false
+	RenderingServer.frame_post_draw.disconnect(observer)
 	transition_receipts.append({"phase":phase,"samples":samples,"housing":client.housing_state()})
 	var file: FileAccess = FileAccess.open(shots.path_join("transition-receipts.json"),FileAccess.WRITE)
 	if file == null:
@@ -70,7 +72,8 @@ func sample_transition(phase: String, button: String, final_control: String) -> 
 		return false
 	file.store_string(JSON.stringify(transition_receipts,"\t"))
 	file.close()
-	return true
+	print("STORAGE_SLIDE_RAW phase=",phase," first=",samples.slice(0,5)," last=",samples.slice(maxi(0,samples.size()-5))," count=",samples.size())
+	return prove_transition_samples(phase, samples)
 
 func prove_transition_samples(phase: String, samples: Array[Dictionary]) -> bool:
 	var first: String = "panel" if phase == "collapse" else "handle"
@@ -81,6 +84,9 @@ func prove_transition_samples(phase: String, samples: Array[Dictionary]) -> bool
 	var previous_first: float = 0.0
 	var previous_second: float = -10000.0
 	for sample in samples:
+		if sample.get("both", false):
+			fail("Slide phases exposed both source frames simultaneously")
+			return false
 		var x: float = float(sample.x)
 		if sample.part == first:
 			if reached_second or x > previous_first + 0.1:
