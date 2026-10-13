@@ -41,6 +41,8 @@ mod rosterfix_preview;
 #[cfg(test)]
 mod rosterfix_tests;
 mod scroll_lists;
+#[cfg(test)]
+mod selection_list_tests;
 mod sidebarbinds_preview;
 mod spellbook_preview;
 mod toy_cooldown;
@@ -663,9 +665,44 @@ impl RegistryModel {
 
     fn focus_frame(&mut self, id: u64) {
         self.registry.focused_frame = Some(id);
+        self.set_button(id, |button| button.highlight_locked = true);
+        self.reveal_selection_row(id);
+    }
+
+    fn reveal_selection_row(&mut self, id: u64) {
+        if let Some((name, offset)) = self.selection_scroll_target(id) {
+            self.registry.scroll_lists.scroll_to(&name, offset);
+        }
+    }
+
+    fn selection_scroll_target(&self, id: u64) -> Option<(String, usize)> {
+        let frame = self.registry.get(id)?;
+        if !game_engine_ui_model::selection_list::is_selection_row(&self.registry, frame) {
+            return None;
+        }
+        let row = frame.layout_rect.as_ref()?;
+        let mut parent = frame.parent_id;
+        while let Some(id) = parent {
+            let frame = self.registry.get(id)?;
+            if let Some(name) = frame.name.as_deref()
+                && let Some(list) = self.registry.scroll_lists.get(name)
+                && let Some(bounds) = frame.layout_rect.as_ref()
+            {
+                let delta = if row.y < bounds.y {
+                    row.y - bounds.y
+                } else {
+                    (row.y + row.height - bounds.y - bounds.height).max(0.0)
+                };
+                let offset = (list.first_row as f32 + delta).max(0.0) as usize;
+                return Some((name.to_owned(), offset));
+            }
+            parent = frame.parent_id;
+        }
+        None
     }
 
     fn blur_frame(&mut self, id: u64) {
+        self.set_button(id, |button| button.highlight_locked = false);
         if self.registry.focused_frame == Some(id) {
             self.registry.focused_frame = None;
         }

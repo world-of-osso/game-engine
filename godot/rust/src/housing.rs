@@ -72,6 +72,7 @@ impl GameClient {
         )?;
         if let Some(model) = &mut self.housing.model {
             model.storage_panel = panel;
+            model.storage_transition = None;
         }
         let view = self.housing_view()?;
         self.cache_housing_textures(&view);
@@ -153,6 +154,7 @@ impl GameClient {
         self.housing.mouse_pointer = None;
         self.housing.storage_resize = None;
         if let Some(model) = &mut self.housing.model {
+            model.storage_transition = None;
             model.surface = HousingSurface::Dashboard;
             model.editor = Default::default();
             model.settings = None;
@@ -235,6 +237,10 @@ impl GameClient {
         }
         self.sync_housing_layout()?;
         self.advance_housing_precision()?;
+        let delta = self.base().get_process_delta_time() as f32;
+        if let Some(model) = &mut self.housing.model {
+            model.advance_storage_transition(delta)?;
+        }
         let Some(ui) = &mut self.housing.ui else {
             return Ok(());
         };
