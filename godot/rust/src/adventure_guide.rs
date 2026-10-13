@@ -410,7 +410,8 @@ impl GameClient {
             return Ok(());
         };
         self.adventure_guide.pending = None;
-        let model = loaded?;
+        let mut model = loaded?;
+        model.set_rotation(Vector3::ZERO);
         bind_sheet_light(&model);
         self.adventure_guide
             .scene
