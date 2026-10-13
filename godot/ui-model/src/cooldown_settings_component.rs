@@ -101,17 +101,15 @@ fn settings_rows(state: &CooldownSettingsView) -> Element {
 }
 
 fn setting_row(index: usize, entry: &CooldownSettingEntry) -> Element {
-    let label = format!(
-        "{} {}",
-        if entry.selected { "[x]" } else { "[ ]" },
-        entry.label
-    );
+    let label = &entry.label;
     let y = 84.0 + index as f32 * 34.0;
-    let select = panel_button(
+    let select = crate::selection_list::text_row(
         format!("CooldownSettingsSelect{}", entry.id),
-        &label,
-        format!("cooldown_select:{}", entry.id),
-        [16.0, y, 454.0, 30.0],
+        label,
+        &format!("cooldown_select:{}", entry.id),
+        (true, entry.selected),
+        (16.0, y, 454.0, 30.0),
+        &crate::selection_list::SEARCH,
     );
     let up = panel_button(
         format!("CooldownSettingsUp{}", entry.id),

@@ -6,6 +6,17 @@
 
 [Little Wickerman](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12): actual Modern/Forever journal use, authored.25 scale/nine emitters, real recipe output and visible Cozy Fire cancellation-refresh; representative proof does not certify all-seven pixels/native expiry. Requested PNGs and lead-only authenticated asset-import command recorded.
 
+## 2026-10-12 — Shared subtle selection rows
+
+[Selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12): migrate default-button lists to a shared hit target drawing each list's own Retail template hover/selected art, preserve specialized rows and real actions, add native keyboard focus/activation/scroll reveal. Modern/Forever private pointer/keyboard/scroll runs pass; thirty before/after PNGs inspected. Targeted model/render tests and check/format pass; absent arena/rated/LFG lists and representative-only native coverage remain explicit.
+
+## 2026-10-12 — Avenging Wrath bounded material finish proof
+
+[Material time](investigations/avenging-wrath-material-time.md#native-finish-proof--2026-10-12):10 authentic tests, Hold6,654/6,654 native pixels, preserved global gold/purple/negative green; eight inspected same-camera frontal Modern+Forever PNGs on master/corrected branches. Classic442416 is an explicit shared-model witness, not glyph availability. Published online registry mismatch remains; rainbow model/batch is unidentified. Positioner59/crossfade/aliases/curve2–3 stay named gaps.
+
+## 2026-10-12 — Avenging Wrath local material playback
+
+[Material time](investigations/avenging-wrath-material-time.md): source2368645 local alpha and native Hold158 rendering prove material tracks incorrectly looped Stand on application age. Local sampling now receives owning-model playback; globals retain their shared clock. Seven actual private source casts cover both skins; published candidate assets/cache/shaders match local hashes. Hold GREEN and the original rainbow reproduction remain open at this commit; Positioner59 enum semantics remain unsourced.
 ## 2026-10-12 — Owned storage category rail and registry-text root fix
 
 [Owned categories](systems/housing.md#owned-category-rail): actual stored/placed ownership, independent Back/All/category focus, source64/54px controls and multi-membership joins. Both-skin physical search→category RED exposed renderer-only text clearing; editing backing RegistryModel before projection fixes stale sampling. Current both-skin paid browsing/conservation PASS; UI23/registry12/check clean. Six inspected public PNGs; selected-art animation/paging/filter/collapse/resize authority remain separate.
@@ -3500,3 +3511,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
 
 - 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
+
+- 2026-10-12: Source0.2s panel/0.15s handle OutExponential phases, transient timer/cold load, deterministic model and both-skin moving registry/native frame samples. Generic click settle invalidated initial witness; concurrent render observer proves ordered motion without product workaround.
