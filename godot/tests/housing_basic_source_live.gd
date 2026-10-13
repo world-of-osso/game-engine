@@ -87,7 +87,9 @@ func source_mode_states() -> bool:
 	await tile_mouse_button(button.get_global_rect().get_center(),true)
 	if not await wait_housing(func(): return tile_atlas(icon_name).region!=normal,"source mode held-pressed atlas"): return false
 	if not await record_editor("basic-mode-pressed"): return false
+	await held_motion(Vector2(700,400),Vector2(700,400)-button.get_global_rect().get_center())
 	await tile_mouse_button(Vector2(700,400),false)
+	print("MODE_RELEASE_BOUNDARY draw=",button.get_draw_mode()," hover=",root.gui_get_hovered_control()," storage=",housing_control("HouseEditorStored2330")," expert=",housing_control("HouseEditorExpertSubmodeBar")," region=",tile_atlas(icon_name).region," expected=",normal)
 	if not await wait_housing(func(): return housing_control("HouseEditorStored2330")!=null and tile_atlas(icon_name).region==normal,"release outside restores source mode without switching"): return false
 	var snap: BaseButton = housing_control("HouseEditorSnapButton") as BaseButton
 	push_mouse_motion(snap.get_global_rect().get_center())
