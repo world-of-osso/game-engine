@@ -279,13 +279,27 @@ fn graphics_settings_remain_reachable_after_scrolling() {
             options_view(view, *offset, None)
         });
         screen.sync(&shared, &mut registry);
-        // Retail's529px viewport can mount Bloom Intensity at the initial edge;
-        // Particle Density still provides a concrete row that needs scrolling.
-        assert!(registry.get_by_name("SliderRowparticle_density").is_none());
+        // Retail's529px viewport mounts partially clipped rows at the edge.
+        // Prove actual overflow rather than treating row retention as visibility.
+        let list = registry
+            .scroll_lists
+            .get(game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL)
+            .unwrap();
+        let maximum = list.geometry.row_count - list.geometry.visible_rows;
+        assert!(maximum > 0, "Graphics must have a second scroll position");
+        assert_eq!(list.first_row, 0);
 
         // Scroll to the bottom; the production list clamps this pixel offset.
         shared.insert((view.options, usize::MAX));
         screen.sync(&shared, &mut registry);
+        assert_eq!(
+            registry
+                .scroll_lists
+                .get(game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL)
+                .unwrap()
+                .first_row,
+            maximum
+        );
         assert!(registry.get_by_name("SliderRowbloom_intensity").is_some());
         let particles = registry.get_by_name("SliderLabelparticle_density").unwrap();
         assert!(matches!(
