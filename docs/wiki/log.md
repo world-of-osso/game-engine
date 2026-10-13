@@ -2,6 +2,13 @@
 
 [Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
 
+## 2026-10-12 — Source-private toy actor proof
+
+[Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12): real UDP owner/observer RED→GREEN with public control, both-skin owner Shirakess model/.6 scale/natural expiry, census337 unchanged and canonical flags import requirement.
+
+## 2026-10-12 — Linked cooking-fire native proof
+
+[Little Wickerman](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12): actual Modern/Forever journal use, authored.25 scale/nine emitters, real recipe output and visible Cozy Fire cancellation-refresh; representative proof does not certify all-seven pixels/native expiry. Requested PNGs and lead-only authenticated asset-import command recorded.
 ## 2026-10-12 — Source search focus keys
 
 [Housing](systems/housing.md#search-focus-keys): Enter/Escape/keypad Enter release only storage search focus, consuming keys without form/chat/window/editor action. Both-skin native retained-query/Tesla, empty gray/clear-hidden, remount and exact conservation proof; shared edit-box behavior unchanged.
