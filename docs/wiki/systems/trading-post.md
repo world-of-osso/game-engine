@@ -22,6 +22,12 @@ Engine `b39e7c703`, server `4cc6b821`, protocol `1f245e3`; private 127.0.0.1:573
 
 Purchase/collection/refund PASS in both skins (engine `657438c14`, server `c0b7a24a`, protocol `adf7926`). No reachable private-world activity grants Tender, so setup uses the server's admin-socket test tools: `game-server-admin trading-post-grant-tender fb_tradingpost <n>` and `trading-post-refund-window 3600`. Phase `purchase` buys an affordable available transmog, mount, pet and toy, and checks each collection count +1, `Purchased` and Refund enabled. Phase `refund` relogs, sees all four owned, refunds each, and checks Tender restored, the collection entry revoked and Refund disabled.
 
+## Retail layout proof — 2026-10-13
+
+Private UDP5791 `fb_tpui_mod`/`fb_tpui_for`, 1920×1080 cage output using the ahportrait compositor shim. Both `layout-proof` runs pass sort/filter, native freeze/replace/drag-off, popup cancel, authoritative purchase/refund and HUD restoration. Captures in `/syncthing/AgentShared/2026-10-13/trading-post-layout/` were inspected beside PerksProgram XML (container527×751, row48, Filter122×25, footer100/button180×46). Original before images are1280×720; after originals are1920×1080.
+
+Two native boundaries required fixes: decorative WowStyle2 child Buttons explicitly disable mouse input but projection forced STOP by widget type; projection now respects `mouse_enabled`. Confirmation already supplies authored background art; its duplicate `static_popup` decoration was rejected by native projection and prevented the dialog mounting. Removing the duplicate permits native confirmation. Source action-bar mask4626072 remains unavailable, without an unmasked substitute. [Spec](../../specs/trading-post.md) tracks remaining source gaps and cart/outfit/history continuation.
+
 ## Canonical-write boundary
 
 Runtime cache misses write to the source data path (`<checkout>/data/textures`), not `ASSET_RESOLVER_SHARED_DATA_DIR`. With the normal [shared slot links](../../headless-live-run.md) they reach canonical data. This task forbade canonical writes, so its slot replaced the asset directories with per-entry symlink unions that also overlay the unpublished package.

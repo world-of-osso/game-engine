@@ -1824,16 +1824,7 @@ impl Account {
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
         if message.is::<shared::protocol::TradingPostSnapshot>() {
-            let update: shared::protocol::TradingPostSnapshot = decode(message)?;
-            eprintln!(
-                "TP_SNAPSHOT_RECEIVE complete={} rows={} frozen={:?} previous={}",
-                update.catalog_complete,
-                update.items.len(),
-                update.frozen_item_id,
-                self.trading_post
-                    .as_ref()
-                    .is_some_and(|snapshot| snapshot.catalog_complete)
-            );
+            let update = decode(message)?;
             self.trading_post = Some(std::sync::Arc::new(
                 shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
             ));

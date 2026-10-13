@@ -750,7 +750,7 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
 fn perks_button(name: &str, text: &str, action: &str, enabled: bool, x: f32) -> Element {
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    rsx! {button{name:{DynName(name.into())},left:x,top:{100.0-20.0-46.0},width:180.0,height:46.0,pos_type:"absolute",text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
+    rsx! {button{name:{DynName(name.into())},left:x,top:{100.0-20.0-46.0},width:180.0,height:46.0,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
 }
 
 const TENDER_ICON: u32 = 4696085; // verified CurrencyTypes 2032 iconFileDataID

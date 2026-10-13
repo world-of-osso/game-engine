@@ -170,11 +170,6 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
-            eprintln!(
-                "TP_NATIVE_ACTION {action} pending={} can_purchase={}",
-                self.trading_post.view.pending,
-                self.trading_post.view.can_purchase()
-            );
             let action = self.trading_post.view.click(&action)?;
             self.apply_trading_action(action)?;
         }
