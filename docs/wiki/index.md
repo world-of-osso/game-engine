@@ -8,7 +8,7 @@
 - [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 - [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold34.3%→100% native pixels, authentic global RGB, both-skin same-camera frontal witnesses, source/published asset equality and explicit unreproduced rainbow/positioner gaps.
 
-- [Native player housing](systems/housing.md) — Persisted drawer collapse/resize, owned-storage Dyeable/alphabetical filters, categories/search/thumbnail recovery and Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
+- [Native player housing](systems/housing.md) — Persisted drawer collapse/resize, source UTF8 search threshold and clear/focus/hover/pressed/captured-release lifecycle, owned-storage Dyeable/alphabetical filters, categories/search/thumbnail recovery and Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
 - [Class completeness continuation](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12) — private both-skin class receipts, authored zero-display equipment RED/GREEN and explicit full-goal gates.
 - [Cooking focus and replicated-object fire](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12) — real both-skin journal/recipe/emitter proof; linked-trap and per-variant pixel boundaries explicit.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
@@ -108,6 +108,8 @@ Last updated: 2026-10-11.
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
+
+- [Trading Post](systems/trading-post.md) — native Mainline PerksProgram vendor, source category dropdown, creature/player previews over an authenticated asset closure, HUD hiding, freeze, and Traveler's Log Tender; both-skin live proof and purchase-proof boundary.
 
 - [Native Adventure Guide](systems/adventure-guide.md) — authored Journal/sets, owned keys, monthly account contributions and conservative suggestions; both-skin pages and explicit source/proof boundaries.
 
