@@ -165,94 +165,52 @@ pub(super) fn maximize_button(layout: &WorldMapLayout, maximized: bool) -> Eleme
     }
 }
 
-/// Retail `NavBar`: one button per map from World to the displayed map.
+/// Retail NavBarTemplate shared with Adventure Guide. Forever changes art, not anchors.
 pub(super) fn nav_bar(
     crumbs: &[MapBreadcrumb],
     layout: &WorldMapLayout,
     maximized: bool,
+    overflow_open: bool,
 ) -> Element {
+    use crate::navigation_bar::{NavBar, NavButton};
+    use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
     let left = CANVAS_LEFT
         + if maximized {
             NAV_LEFT_MAXIMIZED
         } else {
             NAV_LEFT_WINDOWED
         };
-    let right_offset = match thread_skin() {
-        ActiveSkin::Forever => 50.0,
-        ActiveSkin::Modern => 4.0,
-    };
-    let width = layout.spacer_right() - right_offset - left;
-    let nav_h = SPACER_H - NAV_BOTTOM - NAV_TOP;
-    let mut bar = solid(
-        "WorldMapNavBar",
-        "0.14,0.11,0.07,1.0",
-        [left, NAV_TOP, width, nav_h],
-    );
-    bar.extend(solid(
-        "WorldMapNavBarEdge",
-        "0.45,0.36,0.2,1.0",
-        [left, NAV_TOP + nav_h - 1.0, width, 1.0],
-    ));
-    let mut x = left + 6.0;
-    let y = NAV_TOP + (nav_h - CRUMB_H) / 2.0;
-    for (index, crumb) in crumbs.iter().enumerate() {
-        let current = index + 1 == crumbs.len();
-        let crumb_w = text_width(&crumb.name) + 2.0 * CRUMB_PAD;
-        bar.extend(breadcrumb(index, crumb, current, [x, y, crumb_w, CRUMB_H]));
-        x += crumb_w + CRUMB_GAP;
-    }
-    bar
-}
-
-/// FRIZQT at `CRUMB_FONT` averages about 0.62 em per glyph.
-fn text_width(text: &str) -> f32 {
-    text.chars().count() as f32 * CRUMB_FONT * 0.62
-}
-
-fn breadcrumb(index: usize, crumb: &MapBreadcrumb, current: bool, rect: [f32; 4]) -> Element {
-    let [x, y, width, height] = rect;
-    let name = DynName(format!("WorldMapNav{index}"));
-    let action = format!("{ACTION_WORLD_MAP_NAV_PREFIX}{}", crumb.map_id);
-    let (fill, color) = if current {
-        ("0.32,0.25,0.15,1.0", WHITE)
-    } else {
-        ("0.22,0.17,0.1,1.0", GOLD)
-    };
-    let children = breadcrumb_contents(index, crumb, [width, height], color);
-    rsx! {
-        r#frame {
-            name: {name},
-            width,
-            height,
-            background_color: fill,
-            onclick: {action.as_str()},
-            pos_type: "absolute",
-            left: x,
-            top: y,
-            {children}
-        }
-    }
-}
-
-fn breadcrumb_contents(
-    index: usize,
-    crumb: &MapBreadcrumb,
-    [width, height]: [f32; 2],
-    color: &str,
-) -> Element {
-    let text = label(
-        format!("WorldMapNav{index}Text"),
-        &crumb.name,
-        [0.0, 0.0, width, height],
-        CRUMB_FONT,
-        color,
-    );
-    let rim = solid(
-        &format!("WorldMapNav{index}Rim"),
-        "0.55,0.43,0.24,1.0",
-        [0.0, height - 1.0, width, 1.0],
-    );
-    let mut children = rim;
-    children.extend(text);
-    children
+    let names: Vec<_> = crumbs
+        .iter()
+        .enumerate()
+        .map(|(index, _)| format!("WorldMapNav{index}"))
+        .collect();
+    let actions: Vec<_> = crumbs
+        .iter()
+        .map(|crumb| format!("{ACTION_WORLD_MAP_NAV_PREFIX}{}", crumb.map_id))
+        .collect();
+    let buttons: Vec<_> = crumbs
+        .iter()
+        .enumerate()
+        .map(|(index, crumb)| NavButton {
+            name: &names[index],
+            text: &crumb.name,
+            action: &actions[index],
+            text_width: measure_text(&crumb.name, GameFont::FrizQuadrata, 12.0)
+                .expect("NavBar font loaded")
+                .0,
+        })
+        .collect();
+    crate::navigation_bar::nav_bar(NavBar {
+        name: "WorldMapNavBar",
+        rect: (
+            left,
+            NAV_TOP,
+            layout.spacer_right() - 4.0 - left,
+            SPACER_H - NAV_BOTTOM - NAV_TOP,
+        ),
+        buttons: &buttons,
+        overflow_action: ACTION_WORLD_MAP_NAV_OVERFLOW,
+        overflow_open,
+    })
 }

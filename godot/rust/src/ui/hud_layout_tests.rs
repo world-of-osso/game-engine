@@ -52,6 +52,7 @@ use crate::ui::layout::compute_layout_with_intrinsics;
 const VIEWPORT: (f32, f32) = (2732.0, 1536.0);
 
 fn model<T: 'static>(state: T, build: fn(&SharedContext) -> Element) -> RegistryModel {
+    set_data_root();
     let mut shared = SharedContext::new();
     shared.insert(state);
     RegistryModel {

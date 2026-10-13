@@ -18,6 +18,45 @@ impl RegistryUi {
         self.show_rosterfix_skin(ActiveSkin::Forever)
     }
 
+    #[func]
+    fn show_glue_menus_preview(&mut self, case: GString, forever: bool) -> GString {
+        use game_engine_ui_model::char_select_component::{
+            CampsiteEntry, CampsiteState, DeleteConfirmUiState,
+        };
+        let error = self.show_rosterfix_skin(if forever {
+            ActiveSkin::Forever
+        } else {
+            ActiveSkin::Modern
+        });
+        if !error.is_empty() {
+            return error;
+        }
+        let result = match case.to_string().as_str() {
+            "nav" => Ok(()),
+            "delete" => self.set_state(DeleteConfirmUiState {
+                visible: true,
+                character_name: "Skywinddru".into(),
+                typed_text: "DELETE".into(),
+                countdown_text: "Ready. Press Delete Forever to remove this character.".into(),
+                confirm_enabled: true,
+            }),
+            "campsite" => self.set_state(CampsiteState {
+                scenes: (1..=8)
+                    .map(|id| CampsiteEntry {
+                        id,
+                        name: format!("Camp {id}"),
+                        preview_image: None,
+                    })
+                    .collect(),
+                panel_visible: true,
+                selected_id: Some(1),
+                page: 0,
+            }),
+            other => Err(format!("Unknown glue-menu preview {other}")),
+        };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
     fn show_rosterfix_skin(&mut self, skin: ActiveSkin) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);

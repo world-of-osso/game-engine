@@ -386,7 +386,7 @@ pub fn menu_choice(
 /// alpha 0.925, behind the menu's entries.
 pub fn menu_background(name: String, (width, height): (f32, f32)) -> Element {
     rsx! { texture { name: {DynName(name)}, width: {width + 20.0}, height: {height + 6.0},
-    left: -10.0, top: -3.0, pos_type: "absolute", alpha: 0.925,
+    left: -10.0, top: -3.0, pos_type: "absolute", alpha: "0.925",
     texture_atlas: "common-dropdown-bg" } }
 }
 

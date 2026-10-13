@@ -71,6 +71,7 @@ pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
 pub mod housing;
+pub mod housing_basic_component;
 pub mod housing_bulletin_component;
 pub mod housing_component;
 pub mod housing_editor;
@@ -91,9 +92,11 @@ mod housing_storage_component;
 mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
+pub mod menu_template_art;
 pub mod mount_journal;
 mod mount_source;
 pub mod mythic_mentor;
+pub mod navigation_bar;
 pub mod pet_journal;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]
@@ -234,6 +237,8 @@ pub use game_engine_core::status_text_data;
 pub mod game_menu_component;
 #[path = "ui/screens/game_menu_main.rs"]
 pub mod game_menu_main;
+#[path = "ui/screens/options_dropdown.rs"]
+pub mod options_dropdown;
 #[path = "ui/screens/options_menu_active_sections.rs"]
 pub mod options_menu_active_sections;
 #[path = "ui/screens/options_menu_component.rs"]
@@ -615,6 +620,7 @@ impl GameMenuModel {
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
         let (width, height) = (self.registry.screen_width, self.registry.screen_height);
+        game_menu_main::sync_menu_button_art(&mut self.registry);
         if let Some(id) = self.registry.get_by_name(GAME_MENU_ROOT.0)
             && let Some(root) = self.registry.get_mut(id)
         {
