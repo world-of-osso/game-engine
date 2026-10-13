@@ -4,12 +4,11 @@ use crate::{
     auction_mail::text,
     menu_primitives::{
         ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
+        menu_row_rect_with_header,
     },
 };
 use ui_toolkit::widget_def::Element;
-// MenuTemplates: 8px inset,20px rows,15px bottom padding.
-const INSET: f32 = 8.;
-const ROW: f32 = 20.;
+
 type Entry = (String, String, String, MenuElementKind);
 fn radio(name: String, label: String, action: String, checked: bool) -> Entry {
     (name, label, action, MenuElementKind::Radio { checked })
@@ -36,7 +35,7 @@ fn menu(name: &str, entries: &[Entry], left: f32, top: f32) -> Element {
                 },
                 *kind,
                 true,
-                (INSET, INSET + i as f32 * ROW, width - 16., ROW),
+                menu_row_rect_with_header(width, i, false),
             )
         })
         .collect();
