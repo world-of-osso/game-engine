@@ -17,6 +17,24 @@ fn model(fdid: u32) -> m2::Model {
     m2::parse_model(&read(format!("{fdid}.m2")), &read(format!("{fdid}00.skin"))).unwrap()
 }
 
+/// TXAC follows the material entries, then one u16 per particle. WebWowViewerCpp
+/// selects Refraction for nonzero TXAC on a multitexture three-colour emitter.
+#[test]
+fn avenging_wrath_txac_selects_refraction_after_material_entries() {
+    for (fdid, noise_index) in [(2368644, 1), (2368645, 6)] {
+        let emitters = model(fdid).particle_emitters;
+        assert_eq!(
+            m2_particles::pixel_shader(&emitters[0]),
+            PixelShader::ThreeColorThreeAlpha
+        );
+        assert_ne!(
+            m2_particles::pixel_shader(&emitters[noise_index]),
+            PixelShader::ThreeColorThreeAlpha,
+            "{fdid} refraction parameters must not be drawn as colour"
+        );
+    }
+}
+
 fn portal() -> Vec<ParticleEmitter> {
     model(197007).particle_emitters
 }
