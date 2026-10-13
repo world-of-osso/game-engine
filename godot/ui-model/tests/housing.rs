@@ -2180,7 +2180,7 @@ fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both
                 .get(registry.get_by_name(&format!("{prefix}Count")).unwrap())
                 .unwrap();
             assert!(
-                matches!(&count.widget_data,Some(WidgetData::FontString(text)) if text.text==quantity.quantity.to_string())
+                matches!(&count.widget_data,Some(WidgetData::FontString(text)) if text.text==quantity.quantity.to_string() && text.font_size==16.0 && text.shadow_color==Some([0.0,0.0,0.0,1.0]) && text.shadow_offset==[1.0,-1.0])
             );
             assert_eq!(count.height, Dimension::Fixed(20.0));
             assert_eq!(count.position.top, ui_toolkit::layout_values::Val::Px(70.0));
@@ -2214,6 +2214,10 @@ fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both
                         .unwrap();
                     assert!(
                         matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.source==TextureSource::Atlas(atlas.into()))
+                    );
+                    assert!(
+                        matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.tex_coords==[0.0,1.0,0.0,1.0]),
+                        "member atlas state must not retain full-sheet UVs and crop twice"
                     );
                     if suffix == "HoverBackground" {
                         assert_eq!(frame.alpha, alpha);
