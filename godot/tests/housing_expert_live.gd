@@ -51,7 +51,7 @@ func run_test() -> void:
 	if not await stage_precision(): return
 	var node: Node3D = placed_node()
 	var expected: Dictionary = {"position": [node.position.x, node.position.y, node.position.z], "pitch": node.rotation.x, "yaw": node.rotation.y, "roll": node.rotation.z, "scale": node.scale.x}
-	await click(ground_point(8.0), MOUSE_BUTTON_LEFT)
+	if not await commit_expert_by_world_click(): return
 	if not await wait_housing(func(): return matches_precision(expected) and not client.housing_state().pending, "authoritative expert commit"): return
 	if housing_control("TranslateSubmodeButton") == null:
 		fail("Expert commit must retain its controls")
