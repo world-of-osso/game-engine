@@ -176,9 +176,9 @@ impl GameClient {
             .entries
             .iter()
             .find_map(|entry| {
-                let (rect, visible) = ui
-                    .bind()
-                    .frame_rect(&format!("CooldownSettingsItem{}", entry.id))?;
+                let name = format!("CooldownSettingsItem{}", entry.id);
+                let visible = ui.bind().frame_control(&name)?.is_visible_in_tree();
+                let (rect, _) = ui.bind().frame_rect(&name)?;
                 (visible
                     && point.x >= rect[0]
                     && point.y >= rect[1]
