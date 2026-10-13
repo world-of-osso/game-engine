@@ -135,6 +135,20 @@ impl GameClient {
             model.editor.set_submode(submode);
             return Ok(true);
         }
+        let placement_rotation = match action {
+            "housing:rotate:left" => Some(-BASIC_ROTATION_STEP),
+            "housing:rotate:right" => Some(BASIC_ROTATION_STEP),
+            _ => None,
+        };
+        if model.editor.placing.is_some()
+            && let Some(radians) = placement_rotation
+        {
+            model
+                .editor
+                .rotate_placement(&self.housing.authority, radians)?;
+            self.update_decor_preview(Vector2::from_array(self.physical_input.pointer()))?;
+            return Ok(true);
+        }
         let command = match action {
             "housing:rotate:left" => model
                 .editor

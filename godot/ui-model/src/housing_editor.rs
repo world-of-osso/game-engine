@@ -387,6 +387,24 @@ impl EditorInteraction {
             position,
         })
     }
+    /// New owned decor has no persisted instance yet; rotation belongs to its preview.
+    pub fn rotate_placement(
+        &mut self,
+        authority: &HousingAuthority,
+        radians: f32,
+    ) -> Result<(), String> {
+        editable_layout(authority)?;
+        if self.placing.is_none() {
+            return Err("Select owned decor before rotating its placement preview.".into());
+        }
+        let yaw = self.yaw + radians;
+        if !yaw.is_finite() {
+            return Err("Decor rotation must be finite.".into());
+        }
+        self.yaw = yaw;
+        Ok(())
+    }
+
     pub fn rotate(
         &mut self,
         authority: &HousingAuthority,

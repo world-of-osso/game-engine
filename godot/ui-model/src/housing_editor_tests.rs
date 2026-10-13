@@ -335,6 +335,26 @@ fn housing_basic_catalog_click_ignores_initial_release_then_commits_overlay_rele
 }
 
 #[test]
+fn housing_basic_owned_preview_rotation_stays_local_until_real_placement_commit() {
+    let auth = authority(true);
+    let saved = auth.state.clone();
+    let mut editor = EditorInteraction::default();
+    editor.begin_place(&auth, &bookcase(1693)).unwrap();
+    editor.rotate_placement(&auth, 0.25).unwrap();
+    assert_eq!(
+        editor.placement_transform([4.0, 2.0, 8.0]).unwrap().yaw,
+        0.25
+    );
+    assert_eq!(auth.state, saved);
+    assert!(editor.rotate_placement(&auth, f32::INFINITY).is_err());
+    assert!(editor.rotate_placement(&authority(false), 0.25).is_err());
+    assert!(
+        matches!(editor.commit_at(&auth,[4.0,2.0,8.0]).unwrap(),HousingCommand::PlaceDecor {decor_id:1693,transform,..} if transform.yaw==0.25)
+    );
+    assert!(editor.rotate_placement(&auth, 0.25).is_err());
+}
+
+#[test]
 fn housing_basic_owned_catalog_drag_commits_first_release_and_cancellation_clears_capture() {
     let auth = authority(true);
     let saved = auth.state.clone();
