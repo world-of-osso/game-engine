@@ -61,6 +61,18 @@ fn portrait_background() -> Element {
 
 /// RSX does not expose Retail Texture's horizTile/vertTile attributes.
 pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    // These source tabs remain unavailable; keep their disabled label state while
+    // the shared PanelTab renderer owns all art and geometry.
+    for index in 4..=6 {
+        if let Some(id) = registry.get_by_name(&format!("CollectionsJournalTab{index}Text")) {
+            let frame = registry.get_mut(id).expect("collections tab label");
+            let Some(ui_toolkit::frame::WidgetData::FontString(label)) = &mut frame.widget_data
+            else {
+                panic!("collections tab label must be text");
+            };
+            label.color = [0.5, 0.5, 0.5, 1.0];
+        }
+    }
     for (name, horizontal, vertical) in [
         ("CollectionsJournalBg", true, true),
         ("CollectionsJournalTopTileStreaks", true, false),
@@ -177,48 +189,17 @@ fn tabs(selected: usize) -> Element {
 }
 
 fn journal_tab(index: usize, active: usize, title: &str, left: f32, width: f32) -> Element {
-    let selected = index == active;
-    let name = format!("CollectionsJournalTab{}", index + 1);
-    let prefix = if selected {
-        "uiframe-activetab"
-    } else {
-        "uiframe-tab"
-    };
-    let height = if selected { 42.0 } else { 36.0 };
-    let offset = if selected { -1.0 } else { -3.0 };
-    let right = width + if selected { 8.0 } else { 7.0 } - 37.0;
-    let mut art = named_atlas_texture(
-        format!("{name}Left"),
-        &format!("{prefix}-left"),
-        (offset, 0.0, 35.0, height),
-    );
-    art.extend(named_atlas_texture(
-        format!("{name}Middle"),
-        &format!("_{prefix}-center"),
-        (offset + 35.0, 0.0, right - offset - 35.0, height),
-    ));
-    art.extend(named_atlas_texture(
-        format!("{name}Right"),
-        &format!("{prefix}-right"),
-        (right, 0.0, 37.0, height),
-    ));
-    let enabled = matches!(index, 0 | 1 | 2);
-    let color = if selected {
-        "1.0,1.0,1.0,1.0"
-    } else if enabled {
-        "1.0,0.82,0.0,1.0"
-    } else {
-        "0.5,0.5,0.5,1.0"
-    };
     let action = match index {
         0 => "collections:mounts",
         1 => "collections:pets",
-        _ => "collections:toys",
+        2 => "collections:toys",
+        _ => "",
     };
-    rsx! { button { name: {DynName(name.clone())}, width, height: 32.0, pos_type: "absolute", left, top: 604.0,
-        button_default_skin: false, disabled: {!enabled}, onclick: action, {art}
-        fontstring { name: {DynName(format!("{name}Text"))}, text: title, width, height: 32.0,
-            pos_type: "absolute", left: 0.0, top: {if selected { 3.0 } else { -2.0 }},
-            font_size: 10.0, font_color: color, justify_h: "CENTER" }
-    } }
+    crate::merchant_frame_component::tab(
+        &format!("CollectionsJournalTab{}", index + 1),
+        title,
+        (left, SIZE[1] - 2.0, width),
+        index == active,
+        action,
+    )
 }
