@@ -19,6 +19,8 @@ mod forevergaps_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+#[cfg(test)]
+mod housing_placed_list_input_tests;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
 #[cfg(test)]
