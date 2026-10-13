@@ -282,6 +282,9 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if self.shared.get::<GameMenuViewModel>().is_some() {
+            game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
+        }
         if self
             .shared
             .get::<game_engine_ui_model::mythic_mentor::MentorView>()

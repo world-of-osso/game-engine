@@ -26,6 +26,10 @@ func capture_cases() -> void:
             for frame in range(120):
                 await process_frame
                 await RenderingServer.frame_post_draw
+            if case == "nav":
+                for name in ["CharSelectTopNav", "CharSelectTopNavTabs", "CharSelectModeTab", "CharSelectMenuTab", "CharSelectCampsitesTab", "CharSelectModeTabNormal"]:
+                    var control := ui.find_child(name, true, false) as Control
+                    print("GEOMETRY: ", name, " ", control.get_global_rect() if control else "missing")
             var image := root.get_texture().get_image()
             var name := "%s-%s-%s.png" % [stage, case.replace(":", "-"), "forever" if forever else "modern"]
             if image.save_png(output.path_join(name)) != OK:

@@ -615,6 +615,7 @@ impl GameMenuModel {
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
         let (width, height) = (self.registry.screen_width, self.registry.screen_height);
+        game_menu_main::sync_menu_button_art(&mut self.registry);
         if let Some(id) = self.registry.get_by_name(GAME_MENU_ROOT.0)
             && let Some(root) = self.registry.get_mut(id)
         {
