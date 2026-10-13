@@ -100,7 +100,9 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
             .is_none()
     );
     let list_height = rect(&model, SPECIFIC_LIST).unwrap().height;
-    let content_height = rect(&model, "HonorFrameSpecificScrollChild").unwrap().height;
+    let content_height = rect(&model, "HonorFrameSpecificScrollChild")
+        .unwrap()
+        .height;
     let max_offset = (content_height - list_height).max(0.0);
     let step = game_engine_ui_model::battleground::pvp_pan_extent(SPECIFIC_LIST).unwrap();
     let remaining_steps = ((max_offset - 200.0) / step as f32).ceil() as usize;
