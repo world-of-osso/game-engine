@@ -46,6 +46,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
                 honor_level: None,
             }],
             honor_reward: None,
+            arena: None,
         }),
     }
 }
