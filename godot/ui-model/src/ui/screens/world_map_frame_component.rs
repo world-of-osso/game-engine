@@ -581,10 +581,15 @@ fn quest_panel(panel: &QuestMapPanel, layout: &WorldMapLayout, ctx: &SharedConte
 fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) -> Element {
     let left = panel_x + QUESTS_W - DETAILS_W;
     let top = PANEL_TOP + 1.0;
+    let background = ui_toolkit::atlas::resolve_region(
+        "QuestDetailsBackgrounds",
+        ui_toolkit::atlas::thread_skin(),
+    )
+    .expect("quest details background atlas");
     let mut elements = named_atlas_texture(
         "QuestMapDetailsBackground".into(),
         "QuestDetailsBackgrounds",
-        (left, top, DETAILS_W, DETAILS_H),
+        (left, top, DETAILS_W, background.height),
     );
     let top_region = ui_toolkit::atlas::resolve_region(
         "questlog-reward-top-frame",
@@ -670,6 +675,18 @@ fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) ->
 /// additive blend of the hovered map's highlight (`HighlightFileDataID` art is
 /// black where it adds nothing).
 pub fn apply_world_map_postsetup(state: &WorldMapFrameState, registry: &mut FrameRegistry) {
+    let selected: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| frame.name.as_ref())
+        .filter(|name| name.starts_with("QuestLogTitle") && name.ends_with("Selected"))
+        .cloned()
+        .collect();
+    for name in selected {
+        edit_texture(registry, &name, |texture| {
+            texture.blend_mode = BlendMode::Additive;
+            texture.vertex_color[3] = 0.4;
+        });
+    }
     if let Some(player) = &state.player {
         edit_texture(registry, WORLD_MAP_PLAYER_ARROW, |texture| {
             texture.rotation = player.rotation;

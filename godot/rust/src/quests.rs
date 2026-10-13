@@ -632,13 +632,12 @@ impl GameClient {
         (frame, log)
     }
 
-    /// The quest log for the world map's docked quest panel. The panel opens a
-    /// quest's details on click instead of marking a selected row.
+    /// The docked quest panel highlights C_SuperTrack's quest (QuestMapFrame.lua:2066).
     pub(crate) fn quest_map_log(&mut self) -> QuestLogFrameState {
         let mut log = self.quest_window_states().1;
         log.visible = true;
         for row in log.groups.iter_mut().flat_map(|group| &mut group.quests) {
-            row.selected = false;
+            row.selected = self.quests.ui.super_tracked == Some(row.quest_id);
         }
         log
     }

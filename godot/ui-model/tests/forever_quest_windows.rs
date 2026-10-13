@@ -215,7 +215,11 @@ fn assert_quest_chrome(skin: ActiveSkin) {
             "_UI-Frame-TopTileStreaks",
         ),
         (&dialog, "QuestFrameParchment", "QuestBG-Parchment"),
-        (&log, "QuestLogHeader12Background", "questlog_divider"),
+        (
+            &log,
+            "QuestLogHeader12Background",
+            "common-button-list-collapseExpand",
+        ),
     ] {
         assert_draws_member(registry, name, atlas, skin);
     }

@@ -169,7 +169,10 @@ pub fn quest_list(state: &QuestLogFrameState, pane: QuestPane) -> Element {
 
 /// Zone header on the `questlog_divider` plate with a +/- collapse marker.
 fn group_header(group: &QuestLogGroup, pane: QuestPane, y: f32) -> Element {
-    let list_x = pane.x;
+    let left = pane.x;
+    let top = y;
+    let list_x = 0.0;
+    let y = 0.0;
     let name = format!("QuestLogHeader{}", group.sort_id);
     let action = format!("{HEADER_PREFIX}{}", group.sort_id);
     let marker_atlas = if group.collapsed {
@@ -200,24 +203,25 @@ fn group_header(group: &QuestLogGroup, pane: QuestPane, y: f32) -> Element {
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "LEFT",
-            onclick: {action.as_str()},
             pos_type: "absolute",
             left: {list_x + 8.0},
             top: y,
         }
     });
-    elements
+    rsx! { button { name: {DynName(name)}, width: 289.0, height: HEADER_H,
+    left, top, pos_type: "absolute", button_default_skin: false,
+    onclick: {action.as_str()}, {elements} } }
 }
 
 /// A quest title in its `QuestDifficultyColors` colour (QuestMapFrame.lua:1750-1751);
 /// Forever prefixes `[level] ` (Camelot/QuestMapFrameOverrides.lua:13-16, used at
 /// Forever Mainline/QuestMapFrame.lua:1631).
 fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
-    let QuestPane {
-        x: list_x,
-        width: list_w,
-        ..
-    } = pane;
+    let left = pane.x;
+    let top = y;
+    let list_x = 0.0;
+    let list_w = 290.0;
+    let y = 0.0;
     let name = format!("QuestLogTitle{}", row.quest_id);
     let action = format!("{SELECT_PREFIX}{}", row.quest_id);
     let icon = if row.complete {
@@ -253,7 +257,6 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
             font_size: ROW_FONT,
             font_color: color,
             justify_h: "LEFT",
-            onclick: {action.as_str()},
             pos_type: "absolute",
             left: {list_x + 31.0},
             top: {y + 8.0},
@@ -266,7 +269,9 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
             (list_x + 277.0, y + 7.0, 14.0, 14.0),
         ));
     }
-    elements
+    rsx! { button { name: {DynName(name)}, width: 290.0, height: ROW_H,
+    left, top, pos_type: "absolute", button_default_skin: false,
+    onclick: {action.as_str()}, {elements} } }
 }
 
 /// The quest's title, objectives, description and rewards, top-down in `pane`.
