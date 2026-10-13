@@ -18,7 +18,7 @@ Dialog element30482 has32px margins; campsite normal29533 has12px, hover29531 ha
 
 ## Popup ownership and native input boundary
 
-Options stores one ephemeral `OptionsDropdownState` in its screen's SharedContext. The chosen popup is detached from the ScrollBox's declarative subtree and attached to OptionsRoot, with its anchor measured below the clicked control. Shared `menu_primitives` owns dropdown surfaces, backdrop, radio rows and geometry. Selection retains `options_toggle:key:value`; Escape consumes the popup dismissal, outside clicks dismiss without preventing normal routing.
+Options stores one ephemeral `OptionsDropdownState` in its screen's SharedContext. The chosen popup is detached from the ScrollBox's declarative subtree and attached to OptionsRoot, with its anchor measured below the clicked control. Shared `menu_primitives` owns dropdown surfaces, backdrop, radio rows and geometry; `menu_row_rect` computes the same source inset/pitch for ordinary and custom radio entries. Selection retains `options_toggle:key:value`; Escape consumes the popup dismissal, outside clicks dismiss without preventing normal routing.
 
 Native RED found a separate root cause: WowStyle2's decorative Background is a child Button carrying art state, with no action, and intercepted its owner's clicks. Native projection now ignores pointer input for actionless `common-dropdown-*` art surfaces. The actual dropdown receives input; art still follows its owner. Capturing and inspecting the hovered control distinguished this from an Options reducer failure.
 
@@ -26,7 +26,7 @@ Native RED found a separate root cause: WowStyle2's decorative Background is a c
 
 Retail CollectionsBackgroundTemplate samples the final atlas column/row with `0.9999..1` UVs. Native AtlasTexture rounded the 0.0013px/0.0145px strip widths to zero and reported the full512px sheet width instead. That leaked unrelated atlas art as gold bars behind collection content. Projection now samples these exact fractional UVs directly using the existing atlas shader; its half-pixel inset cannot exceed half the authored crop. No source coordinates or template geometry changed.
 
-Native RED isolates the actual production small-shadow TextureRect on a gray background and detects120 colored samples from the grayscale strip. The same fixture gates both skins after the fix. Selected card gold borders remain intentional and distinct from this bleed.
+Native RED isolates the actual production small-shadow TextureRect on a gray background and detects120 colored samples from the grayscale strip. The same fixture passes both skins after the fix (zero colored samples). Selected card gold borders remain intentional and distinct from this bleed.
 
 ## Proof and limits
 
