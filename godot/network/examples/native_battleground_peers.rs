@@ -18,9 +18,19 @@ struct Peer {
     map: Option<u32>,
     snapshot: Option<PvpSnapshot>,
     replica: Replica,
+    inventory: Option<InventorySnapshot>,
+    equipment: Option<EquipmentSnapshot>,
+    inventory_delta: Option<InventoryDelta>,
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
+        let inventory_receipt = message.is::<InventorySnapshot>()
+            || message.is::<EquipmentSnapshot>()
+            || message.is::<InventoryDelta>()
+            || message.is::<InventoryError>();
+        if inventory_receipt {
+            return self.receive_inventory(message);
+        }
         if message.is::<AttackStart>() {
             let receipt = message
                 .downcast::<AttackStart>()
@@ -95,10 +105,45 @@ impl Peer {
         Ok(())
     }
 
+    fn receive_inventory(&mut self, message: ProtocolMessage) -> Result<(), String> {
+        if message.is::<InventorySnapshot>() {
+            self.inventory = Some(
+                message
+                    .downcast::<InventorySnapshot>()
+                    .map_err(|_| "inventory snapshot type")?,
+            );
+        } else if message.is::<EquipmentSnapshot>() {
+            self.equipment = Some(
+                message
+                    .downcast::<EquipmentSnapshot>()
+                    .map_err(|_| "equipment snapshot type")?,
+            );
+        } else if message.is::<InventoryDelta>() {
+            self.inventory_delta = Some(
+                message
+                    .downcast::<InventoryDelta>()
+                    .map_err(|_| "inventory delta type")?,
+            );
+        } else {
+            let error = message
+                .downcast::<InventoryError>()
+                .map_err(|_| "unexpected inventory receipt type")?;
+            return Err(format!("{} inventory refusal: {error:?}", self.username));
+        }
+        Ok(())
+    }
+
     fn action(&self, action: &str) -> Result<(), String> {
+        let Some(action) = select_peer_action(self.index, action)? else {
+            return Ok(());
+        };
         if !self.entered {
             return Err(format!("{} has not entered", self.username));
         }
+        self.send_action(action)
+    }
+
+    fn send_action(&self, action: &str) -> Result<(), String> {
         match action {
             "queue" => self.bridge.send::<_, PvpChannel>(QueueForBattleground {
                 battleground_id: self.battleground_id,
@@ -113,8 +158,28 @@ impl Peer {
             "leave" => self.bridge.send::<_, PvpChannel>(LeaveBattleground {
                 match_id: self.battleground()?.match_id,
             }),
+            _ => self.send_gameplay_action(action),
+        }
+    }
+
+    fn send_gameplay_action(&self, action: &str) -> Result<(), String> {
+        match action {
             "attack-stop" => self.bridge.send::<_, CombatChannel>(AttackStop),
             _ if action.starts_with("attack:") => self.attack_source(action),
+            _ if action.starts_with("equip:") => {
+                self.bridge.send::<_, InventoryChannel>(EquipItem {
+                    from: parse_bag_location(action, "equip")?,
+                })
+            }
+            _ if action.starts_with("unequip-offhand:") => {
+                self.bridge.send::<_, InventoryChannel>(SwapItem {
+                    from: ItemLocation::Equipment(EquipmentSlot::OffHand),
+                    to: parse_bag_location(action, "unequip-offhand")?,
+                })
+            }
+            _ if action.starts_with("cast:") => self
+                .bridge
+                .send::<_, CombatChannel>(parse_spell_cast(action)?),
             _ => Err(format!("Unknown command {action}")),
         }
     }
@@ -173,9 +238,27 @@ impl Peer {
             .collect()
     }
 
+    fn observed_players(&self) -> Vec<serde_json::Value> {
+        self.replica
+            .units()
+            .filter_map(|unit| {
+                let player = unit.get::<shared::components::Player>()?;
+                let position = unit.get::<shared::components::Position>()?;
+                let health = unit.get::<shared::components::Health>()?;
+                Some(
+                    serde_json::json!({"server_id":unit.server_id,"name":player.name,
+                "position":[position.x,position.y,position.z],
+                "health":{"current":health.current,"max":health.max}}),
+                )
+            })
+            .collect()
+    }
+
     fn write_state(&self, directory: &Path) -> Result<(), String> {
         let value = serde_json::json!({"entered": self.entered,"map":self.map,
-            "snapshot":self.snapshot,"npcs":self.observed_npcs()});
+            "snapshot":self.snapshot,"npcs":self.observed_npcs(),
+            "players":self.observed_players(),"inventory":self.inventory,
+            "equipment":self.equipment,"inventory_delta":self.inventory_delta});
         fs::write(
             directory.join(format!("peer{}.json", self.index)),
             serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
@@ -217,6 +300,10 @@ fn run() -> Result<(), String> {
             .receive::<AttackStart>()
             .receive::<AttackStopped>()
             .receive::<CastFailed>()
+            .receive::<InventorySnapshot>()
+            .receive::<EquipmentSnapshot>()
+            .receive::<InventoryDelta>()
+            .receive::<InventoryError>()
             .connect(address, clock + index as u64)?;
         let username = format!("{prefix}{index}");
         bridge.send::<_, AuthChannel>(LoginRequest {
@@ -233,6 +320,9 @@ fn run() -> Result<(), String> {
             map: None,
             snapshot: None,
             replica: Replica::default(),
+            inventory: None,
+            equipment: None,
+            inventory_delta: None,
         });
         // Each real account completes entry before another worker starts. Large
         // rosters must not starve earlier handshakes during parallel app setup.
@@ -275,6 +365,60 @@ fn run() -> Result<(), String> {
     }
     Err("Live peers exceeded 30-minute deadline".into())
 }
+fn select_peer_action(index: usize, action: &str) -> Result<Option<&str>, String> {
+    let Some(scoped) = action.strip_prefix("peer:") else {
+        return Ok(Some(action));
+    };
+    let (requested, action) = scoped
+        .split_once(':')
+        .ok_or("expected peer:<index>:<action>")?;
+    let requested: usize = requested
+        .parse()
+        .map_err(|_| "peer index must be an integer")?;
+    if requested == 0 || action.is_empty() {
+        return Err("peer index must be nonzero and action nonempty".into());
+    }
+    Ok((requested == index).then_some(action))
+}
+
+fn parse_bag_location(action: &str, verb: &str) -> Result<ItemLocation, String> {
+    let fields: Vec<_> = action.split(':').collect();
+    let [actual, bag, slot] = fields.as_slice() else {
+        return Err(format!("expected {verb}:<bag>:<slot>"));
+    };
+    if *actual != verb {
+        return Err(format!("expected {verb}"));
+    }
+    let bag: u8 = bag.parse().map_err(|_| "bag must be an integer")?;
+    let slot: u8 = slot.parse().map_err(|_| "slot must be an integer")?;
+    if bag >= BAG_COUNT {
+        return Err("bag must be in the owner inventory".into());
+    }
+    Ok(ItemLocation::Bag { bag, slot })
+}
+
+fn parse_spell_cast(action: &str) -> Result<SpellCastIntent, String> {
+    let fields: Vec<_> = action.split(':').collect();
+    let ["cast", spell, target] = fields.as_slice() else {
+        return Err("expected cast:<spell-id>:<target-entity>".into());
+    };
+    let spell_id: u32 = spell.parse().map_err(|_| "spell ID must be an integer")?;
+    let target: u64 = target
+        .parse()
+        .map_err(|_| "target entity must be an integer")?;
+    if spell_id == 0 || target == 0 {
+        return Err("spell ID and target entity must be nonzero".into());
+    }
+    Ok(SpellCastIntent {
+        spell_id: Some(spell_id),
+        spell: String::new(),
+        target_entity: Some(target),
+        destination: None,
+        target_item_guid: None,
+        witness: None,
+    })
+}
+
 fn parse_source_attack(action: &str) -> Result<(u32, BgTeam), String> {
     let fields: Vec<_> = action.split(':').collect();
     let ["attack", entry, team] = fields.as_slice() else {
@@ -297,6 +441,50 @@ fn parse_source_attack(action: &str) -> Result<(u32, BgTeam), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scoped_command_selects_exact_real_peer_without_changing_the_request() {
+        assert_eq!(
+            select_peer_action(2, "peer:2:attack:11947:A"),
+            Ok(Some("attack:11947:A"))
+        );
+        assert_eq!(select_peer_action(3, "peer:2:attack:11947:A"), Ok(None));
+        assert_eq!(select_peer_action(3, "queue"), Ok(Some("queue")));
+        for input in ["peer:0:queue", "peer:bad:queue", "peer:2:", "peer:2"] {
+            assert!(select_peer_action(2, input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn equipment_command_retains_owned_bag_location() {
+        assert_eq!(
+            parse_bag_location("equip:0:9", "equip"),
+            Ok(ItemLocation::Bag { bag: 0, slot: 9 })
+        );
+        assert_eq!(
+            parse_bag_location("unequip-offhand:0:15", "unequip-offhand"),
+            Ok(ItemLocation::Bag { bag: 0, slot: 15 })
+        );
+        for input in ["equip:6:0", "equip:0:256", "equip:0", "equip:0:0:all"] {
+            assert!(parse_bag_location(input, "equip").is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn cast_command_retains_spell_and_live_entity_without_synthetic_damage() {
+        let cast = parse_spell_cast("cast:2061:4294739375").unwrap();
+        assert_eq!(cast.spell_id, Some(2061));
+        assert_eq!(cast.target_entity, Some(4294739375));
+        assert!(cast.destination.is_none());
+        for input in [
+            "cast:0:42",
+            "cast:2061:0",
+            "cast:2061:bad",
+            "cast:2061:42:all",
+        ] {
+            assert!(parse_spell_cast(input).is_err(), "{input}");
+        }
+    }
 
     #[test]
     fn source_attack_command_retains_npc_identity_and_authoritative_team() {

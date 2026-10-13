@@ -9,6 +9,58 @@ use rusqlite::{Connection, OpenFlags, params};
 pub const RETAIL_BUILD: &str = "12.1.0.69933";
 pub const RETAIL_BUILD_KEY: &str = "dcfc90fffd79ba00406ae46f5f657592";
 
+/// HouseEditorStorageFrame XML and ScrollBox anchors, in UI units.
+pub const STORAGE_PANEL_MIN: [f32; 2] = [415.0, 651.0];
+pub const STORAGE_PANEL_MAX: [f32; 2] = [827.0, 800.0];
+pub const STORAGE_OPTIONS_INSET: f32 = 85.0 + 5.0 + 23.0;
+pub const STORAGE_COLUMN_PITCH: f32 = 102.0;
+
+/// Account CVar-equivalent preferences; unrelated to decor or property authority.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct StoragePanelSettings {
+    pub size: [f32; 2],
+    pub collapsed: bool,
+}
+
+impl Default for StoragePanelSettings {
+    fn default() -> Self {
+        Self {
+            size: [600.0, 651.0],
+            collapsed: false,
+        }
+    }
+}
+
+impl StoragePanelSettings {
+    pub fn resize(&mut self, size: [f32; 2]) -> Result<(), String> {
+        if size.iter().any(|value| !value.is_finite()) {
+            return Err("Storage panel dimensions must be finite.".into());
+        }
+        self.size = [
+            size[0].clamp(STORAGE_PANEL_MIN[0], STORAGE_PANEL_MAX[0]),
+            size[1].clamp(STORAGE_PANEL_MIN[1], STORAGE_PANEL_MAX[1]),
+        ];
+        Ok(())
+    }
+
+    /// OnResizeStopped snaps only widths strictly between the clamp boundaries.
+    pub fn finish_resize(&mut self) {
+        let width = self.size[0];
+        if width > STORAGE_PANEL_MIN[0] && width < STORAGE_PANEL_MAX[0] {
+            let options_width = width - STORAGE_OPTIONS_INSET;
+            let columns = (options_width / STORAGE_COLUMN_PITCH).round();
+            self.size[0] = (STORAGE_OPTIONS_INSET + columns * STORAGE_COLUMN_PITCH)
+                .clamp(STORAGE_PANEL_MIN[0], STORAGE_PANEL_MAX[0]);
+        }
+    }
+
+    pub fn columns(&self) -> usize {
+        let options_width = self.size[0] - STORAGE_OPTIONS_INSET;
+        ((options_width + 5.0) / STORAGE_COLUMN_PITCH).floor() as usize
+    }
+}
+
 type Fields = BTreeMap<String, String>;
 
 #[derive(Clone, Debug, PartialEq)]
