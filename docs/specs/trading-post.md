@@ -19,7 +19,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter 122×25 LEFT+9/BOTTOM to container TOP+22.
 - [x] Native price/name sort headers, action-bar icon mask, source-sized frozen/hold art, shared large-button state art and StaticPopup confirmation; no solid fill replacing authored art. No unsourced search control/API remains.
 - [ ] Time header: per-item remaining time has no sourced calendar binding; visible but disabled, not a fabricated duration.
-- [ ] Source action-bar mask pixels: canonical FDID4626072 absent while CASC auto-patch blocks extraction. Missing art is explicit; no unmasked substitute.
+- [ ] Canonical art gaps: FDID4626072 action-bar icon mask and FDID4331660 Hold/List/Tooltip vertical edge atlas are absent; source button atlas FDID6794983 also absent. CASC extraction remains blocked. Missing art is explicit, with no unmasked or solid-fill substitute; native missing-art inventory is `data/diagnostics/trading-post-ui-2026-10-13/missing-art.json`.
 - [x] Before/after both-skin private UDP5791 PNG comparison against XML; 1920×1080 after captures and native freeze/replace/drag-off, purchase/refund, popup cancellation and Leave. Proof: `modern-after9.log`, `forever-after1.log` under engine `data/diagnostics/trading-post-ui-2026-10-13/`; PNGs under `/syncthing/AgentShared/2026-10-13/trading-post-layout/`. Refund proof uses explicit private policy3600s; production default stays zero.
 
 ## Retail continuation — October13

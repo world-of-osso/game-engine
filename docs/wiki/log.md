@@ -1,3 +1,7 @@
+## 2026-10-13 — Retail Trading Post layout
+
+[Trading Post](systems/trading-post.md#retail-layout-proof--2026-10-13): shared WowStyle2/menu primitives, XML list/frozen/details/footer art and native freeze/replace/drag-off; Modern and Forever1920×1080 transaction/cancel/Leave proof inspected. Decorative-button input and duplicate popup-decoration roots fixed. Canonical art gaps and cart/outfit/history remain explicit.
+
 ## 2026-10-13 — CASC installed-build following
 
 [Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.

@@ -295,7 +295,7 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         .iter()
         .find(|row| row.id == view.category)
         .map_or("All", |row| row.name.as_str());
-    out.extend(retail_filter(category));
+    out.extend(retail_filter(category, view.dropdown));
     if view.dropdown {
         out.extend(category_menu(snapshot));
     }
@@ -303,7 +303,7 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
 }
 
 /// WowStyle2DropdownTemplate uses the shared primitive's input frame with Retail child art.
-fn retail_filter(category: &str) -> Element {
+fn retail_filter(category: &str, open: bool) -> Element {
     use ui_toolkit::widget_def::{Attr, AttrValue, WidgetChild};
     let mut out = dropdown_button_with_state(
         DropdownButton {
@@ -322,6 +322,7 @@ fn retail_filter(category: &str) -> Element {
         },
         DropdownState {
             style: DropdownStyle::WowStyle2,
+            open,
             ..DropdownState::default()
         },
     );
