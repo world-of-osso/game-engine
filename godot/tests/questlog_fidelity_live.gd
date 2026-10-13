@@ -77,6 +77,65 @@ func check_quest_log_fidelity() -> bool:
 	print("PASS QUEST_LOG_FIDELITY skin=", OS.get_environment("QF_SKIN"), " L/list/details/Back/track/share-denial/POI/maximize/abandon")
 	return true
 
+# Optional independent slice: real item4401 learning, owned selection/equip, slot model.
+func check_pet_loadout_models() -> bool:
+	if not admin(["grant-item", character_name(), "4401", "1"]):
+		return false
+	var backpack := client.find_child("MainMenuBarBackpackButton", true, false) as Control
+	await click_control(backpack)
+	if not await wait_frames(func(): return client.find_child("ContainerFrame0", true, false) != null, "backpack"):
+		return false
+	var slot_name := ""
+	for item in client.merchant_state().bags:
+		if item.item_id == 4401:
+			slot_name = "ContainerFrame%dSlot%d" % [item.bag, item.slot]
+	if slot_name.is_empty():
+		fail("Mechanical Squirrel Box missing from real bags")
+		return false
+	# Actual item use is a right-click, not a staged journal snapshot.
+	var item_control := client.find_child(slot_name, true, false) as Control
+	await click(item_control.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
+	await frames(5)
+	await click_control(backpack)
+	await click_control(client.find_child("CollectionsMicroButton", true, false) as Control)
+	if not await wait_frames(func(): return client.find_child("CollectionsJournalTab2", true, false) != null, "collections shell"):
+		return false
+	await click_control(client.find_child("CollectionsJournalTab2", true, false) as Control)
+	if not await wait_frames(func(): return client.get_node_or_null("CollectionsJournalUI") != null, "Pet Journal"):
+		return false
+	var journal := client.get_node("CollectionsJournalUI")
+	var owned: Control
+	for candidate in journal.find_children("pet_select_owned_*", "Control", true, false):
+		if String(candidate.name).trim_prefix("pet_select_owned_").is_valid_int():
+			owned = candidate
+			break
+	if owned == null:
+		fail("Real item learning produced no owned journal row")
+		return false
+	await click_control(owned)
+	if not await wait_frames(func(): return model_meshes("PetJournalPetCardModelScene") > 0, "authentic pet card model prerequisite", 60000):
+		return false
+	await click_control(journal.find_child("PetJournalBattleSlot0", true, false) as Control)
+	if not await wait_frames(func(): return journal.frame_text("PetJournalBattleSlot0Name") == "Mechanical Squirrel", "server loadout equip"):
+		return false
+	await frames(10)
+	await capture("fidelity-pet-loadout-model.png")
+	var meshes := model_meshes("PetJournalBattleSlot0ModelScene")
+	if meshes == 0:
+		fail("Owned loadout has no model mesh despite populated card; slot=" + str(meshes))
+		return false
+	print("PASS PET_LOADOUT_MODEL skin=", OS.get_environment("QF_SKIN"), " real item4401/owned/equip/meshes=", meshes)
+	return true
+
+func model_meshes(frame_name: String) -> int:
+	var journal := client.get_node_or_null("CollectionsJournalUI")
+	if journal == null:
+		return 0
+	var host := journal.find_child(frame_name, true, false)
+	if host == null:
+		return 0
+	return host.find_children("*", "MeshInstance3D", true, false).size()
+
 func quest_geometry(details: bool) -> bool:
 	var window := quest_control("WorldMapUI", "WorldMapBorderFrame")
 	var dock := quest_control("WorldMapUI", "QuestMapFrame")
