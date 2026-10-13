@@ -2471,6 +2471,16 @@ impl GameClient {
                     .replica
                     .changed::<shared::components::UnitAuras>(components)
                 {
+                    if unit.has::<shared::components::Player>() {
+                        let observed = unit.get::<shared::components::UnitAuras>().map(|auras| {
+                            auras
+                                .auras
+                                .iter()
+                                .map(|aura| (aura.spell_id, aura.duration_ms, aura.remaining_ms))
+                                .collect::<Vec<_>>()
+                        });
+                        godot_print!("TOY26_RAW_AURA_RECEIVED unit={server_id} views={observed:?}");
+                    }
                     self.auras.aura_set_changed(server_id, true);
                 }
             } else if let Some(info) = unit.get::<shared::protocol::GameObjectInfo>() {
