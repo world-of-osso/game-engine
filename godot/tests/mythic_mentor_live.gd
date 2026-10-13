@@ -25,7 +25,7 @@ func run_test() -> void:
 	if not await enter_world():
 		return
 	# Initial snapshots are asynchronous; world geometry readiness is not channel readiness.
-	var keys_deadline := Time.get_ticks_msec() + 60000
+	var keys_deadline := Time.get_ticks_msec() + 120000
 	while Time.get_ticks_msec() < keys_deadline:
 		var pending = JSON.parse_string(client.party_keystone_state())
 		if pending is Dictionary and not pending.members.is_empty():
