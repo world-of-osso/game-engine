@@ -36,8 +36,10 @@ func check_quest_log_fidelity() -> bool:
 	if not await wait_quest(func(s): return Array(s.watched).has(QUEST), "server track"):
 		return false
 	await click_control(quest_control("WorldMapUI", "QuestMapFrameShareButton"))
-	if not await capture_error("You are not in a party.", "fidelity-share-rejection.png"):
+	# QuestPushResult is a system/chat notice, not a UIErrorsFrame line.
+	if not await wait_quest(func(s): return Array(s.system_lines).has("You are not in a party."), "authoritative solo share rejection"):
 		return false
+	await capture("fidelity-share-rejection.png")
 
 	await click_control(quest_control("WorldMapUI", "QuestMapFrameBackButton"))
 	if not await wait_frames(func(): return not client.world_map_state().get("quest_details", true), "Back returns list"):
