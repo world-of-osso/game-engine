@@ -112,7 +112,7 @@ pub fn campsite_panel(state: &CampsiteState) -> Element {
                 {collection_shadows()}
                 r#frame { name: "CampsiteGrid", width: 668.0, height: 419.0, pos_type: "absolute", left: 13.0, top: 38.0, {cards} }
                 r#frame { name: "CampsitePaging", width: {page_text_width + 74.0}, height: 32.0, pos_type: "absolute", left: "50%", top: 436.0, translate_x: "-50%",
-                    fontstring { name: "CampsitePageText", width: page_text_width, height: 32.0, text: &page_text, font_size: 12.0, }
+                    fontstring { name: "CampsitePageText", width: page_text_width, height: 32.0, text: {&page_text}, font_size: 12.0, }
                     {page_button("CampsitePrevPage", if page>0 {130869} else {130867}, page.saturating_sub(1), page_text_width+5.0)}
                     {page_button("CampsiteNextPage", if page+1<pages {130866} else {130864}, (page+1).min(pages-1), page_text_width+42.0)}
                 }
