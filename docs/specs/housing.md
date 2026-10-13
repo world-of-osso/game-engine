@@ -4,7 +4,7 @@ Retail Mainline defines controls/layout/behavior; Forever only changes art. No c
 
 ## Static catalog boundary
 
-The client reads `data/cache/housing.sqlite` produced by game-server `scripts/import_housing.py`. Require Retail 12.1.0.69933 / dcfc90fffd79ba00406ae46f5f657592; read-only loading must reject other builds or malformed records. Preserve authored names, item/model/thumbnail IDs and category joins. Record missing/encrypted data separately. Missing cache must report an error, not fabricate entries.
+The client reads `data/cache/housing.sqlite` produced by game-server `scripts/import_housing.py`. Canonical DB2/assets must follow the installed Retail build (12.1.5.70340 as of2026-10-13), not a frozen resolver pin. Read-only loading must reject malformed/unqualified records. Preserve authored names, item/model/thumbnail IDs and category joins; unavailable data stays explicit. Missing cache must report an error, not fabricate entries. Existing69933-qualified housing-cache code/data migration remains open; it is not proof that canonical build-following is complete.
 
 ## Required feature goal (completion remains open)
 
@@ -25,6 +25,8 @@ Source: `HousingCatalogDecorEntryMixin:TypeSpecificOnInteract` sets `commitNewDe
 Basic uses source64px mode controls at bottom center and Snap/Free Place submode buttons above Basic (disabled while semantics remain unavailable). Customize stays disabled, not replaced by a fake editing action. Replace invented bottom Rotate/Remove/Cancel/Done text buttons with right-centered45px instruction rows, source16px labels, source mouse icon/key background,10px label/control spacing and30px right inset. Selected or placing state shows Place/Rotate Left/Rotate Right/Remove/Toggle Grid/Cancel; otherwise Select Decor. Toggle Grid remains visibly disabled. Mode controls retain source default/active/pressed atlas members and additive0.5 hover, tiled bar/bookends/divider and the source800×260 half-alpha radial gradient. Instruction labels use Friz16/black shadow1,−1; key controls use source ArialNarrow16 and measured text width+26. Missing bindings show `[UNBOUND]`, never fabricated keys.
 
 Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates.lua/xml` and `Blizzard_HouseEditorModeButtons.xml`. Native visual/physical acceptance remains a separate gate.
+
+Named gap: installed70340 hotkey atlas bytes are repacked relative to current atlas-member metadata. Hotkey visual acceptance is withheld; `db2-follow-install` (agent_5615) owns70340 `UiTextureAtlasMember` re-export. F3 functional placement, user bindings/unbind, preview rotation and visitor/refusal/relog are landable without that visual gate. Do not publish/use69933 hotkey payloads, pin the resolver or guess replacement UV coordinates.
 
 ## Housing editor bindings
 
