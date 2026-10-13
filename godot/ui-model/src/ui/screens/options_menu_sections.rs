@@ -5,7 +5,7 @@ use ui_toolkit::widget_def::Element;
 
 use super::options_menu_component::OptionsPage;
 
-const OPTIONS_CONTENT_W: f32 = 716.0;
+const OPTIONS_CONTENT_W: f32 = 665.0;
 // Native FrizQuadrata 13px glyphs occupy 19px per line, not the CPU measure's 16px.
 const INFO_LINE_HEIGHT: f32 = 20.0;
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";

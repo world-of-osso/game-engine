@@ -72,6 +72,11 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Local retail12.1.5.70077 FDID5319042; WoWDBDefs d6f50d4f351193e84226aa62a36faa0f58528afa.
+    # definitions/UiTextureAtlasElementSliceData.dbd sha256 d274387e9021972eb5235f64e89ab1248c15718a3947aa0961c3763e4ef5a6a7.
+    "UiTextureAtlasElementSliceData": (0x32F4C664, [
+        ("ID", "id"), ("UiTextureAtlasElementID", 1), ("Left", 2), ("Top", 3),
+        ("Right", 4), ("Bottom", 5), ("SliceMode", ("u8", 6))]),
     # Retail 12.1.0.69933, FDID1360265, WoWDBDefs layout3414CBD7.
     "BattlemasterList": (
         0x3414CBD7,
