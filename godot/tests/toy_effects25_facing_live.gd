@@ -46,6 +46,9 @@ func prove_toy(sample: Array) -> void:
 	print("FACING25 root proof", spell, " ", skin)
 
 func select_authored_hostile() -> bool:
+	# TDB1210 source20279834/42937;20yd north, inside normal interest range.
+	if not await move_private(Vector3(-8919.74, 73.4971, 335.934)): return false
+	if not await wait_until(func(): return not client.find_children("Blackrock Invader", "Node3D", true, false).is_empty(), "source42937 interest readiness", 30000): return false
 	var source: Node3D
 	for node in client.find_children("Blackrock Invader", "Node3D", true, false):
 		if node.get_node_or_null("NpcVisualRoot") != null:
