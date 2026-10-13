@@ -103,7 +103,8 @@ const INTERACTION_FLAGS: u64 = NpcFlags::GOSSIP
     | NpcFlags::STABLEMASTER
     | NpcFlags::GUILD_BANKER
     | NpcFlags::MAILBOX
-    | NpcFlags::TRANSMOGRIFIER;
+    | NpcFlags::TRANSMOGRIFIER
+    | NpcFlags::TRADING_POST;
 
 fn interaction_precedes_attack(flags: NpcFlags, reaction: Reaction) -> bool {
     reaction != Reaction::Hostile && flags.contains(INTERACTION_FLAGS)
@@ -148,10 +149,22 @@ impl GameClient {
 
     pub(super) fn receive_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         if let NpcMessage::Closed(npc) = &message {
+            if self
+                .trading_post
+                .view
+                .snapshot
+                .as_ref()
+                .is_some_and(|snapshot| snapshot.npc_net_id == Some(*npc))
+            {
+                self.close_trading_post();
+            }
             self.auction_interaction_closed(*npc);
             self.mailbox.close_for(*npc);
         }
         if let NpcMessage::Opened(opened) = &message {
+            if opened.kind == InteractionKind::Role(NpcRole::TradingPost) {
+                return self.open_trading_post();
+            }
             if opened.kind == InteractionKind::Role(NpcRole::Mailbox) {
                 self.open_mailbox(opened.npc);
                 return Ok(());
