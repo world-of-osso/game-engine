@@ -23,11 +23,11 @@ func run_test() -> void:
 	print("BOUND_DIAGNOSTIC_BEFORE ",client.housing_state())
 	if not await record_editor("bound-diagnostic-before"): return
 	await source_key(KEY_F5)
-	await frames(20)
+	if not await wait_housing(func(): return not client.housing_state().get("pending",true),"diagnostic F5 authoritative ACK",120000): return
 	print("BOUND_DIAGNOSTIC_F5 ",client.housing_state())
 	if not await record_editor("bound-diagnostic-F5"): return
 	await source_key(KEY_F6)
-	await frames(20)
+	if not await wait_housing(func(): return not client.housing_state().get("pending",true),"diagnostic F6 authoritative ACK",120000): return
 	print("BOUND_DIAGNOSTIC_F6 ",client.housing_state())
 	if not await record_editor("bound-diagnostic-F6"): return
 	await press_escape()
