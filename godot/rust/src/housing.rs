@@ -333,6 +333,7 @@ impl GameClient {
         if model.storage_filter_action(action)? {
             return Ok(true);
         }
+        let focus_before = (model.storage_category, model.storage_subcategory);
         let clearing_search = action == "housing:storage:search:clear";
         if clearing_search {
             model.set_storage_search(String::new());
@@ -340,14 +341,13 @@ impl GameClient {
         } else if !model.storage_focus_action(action, &self.housing.authority)? {
             return Ok(false);
         }
-        let clear_search = model.storage_search.is_empty();
+        let focus_changed = focus_before != (model.storage_category, model.storage_subcategory);
+        let clear_search = clearing_search || (focus_changed && model.storage_category.is_some());
         if clear_search && let Some(ui) = &mut self.housing.ui {
             let mut host = ui.bind_mut();
             if host.frame_control(STORAGE_SEARCH_FIELD).is_some() {
                 host.clear_editbox_named(STORAGE_SEARCH_FIELD)?;
-                if clearing_search
-                    && let Some(mut control) = host.frame_control(STORAGE_SEARCH_FIELD)
-                {
+                if let Some(mut control) = host.frame_control(STORAGE_SEARCH_FIELD) {
                     control.release_focus();
                 }
             }

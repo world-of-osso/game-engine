@@ -80,6 +80,12 @@ The inherited search input limits text to40 Unicode letters, not40 bytes. Native
 
 Source: HousingCatalogSearchBoxTemplate letters40; inherited SearchBoxTemplate and InputBoxInstructionsTemplate XML; InputBoxTemplates.lua SearchBoxTemplate OnLoad/OnTextChanged/focus callbacks. Source audio and locale selection remain separate.
 
+## Owned storage category focus callbacks
+
+Reselecting the same category/subcategory is a no-op, preserving raw short query and focus state. All/Back preserves search. Changed specific category/subcategory clears backing/native search text and releases input focus, restoring gray magnifier/hidden clear. Validate owned category membership before accepting a selection; browsing never changes server quantities/layout or Catalog state.
+
+Source: HousingCatalogCategoriesMixin SetFocus callback only on ID change; HouseEditorStorageFrameMixin OnCategoryFocusChanged/ClearSearchText and SearchBoxTemplate_ClearText.
+
 ## Owned storage search focus keys
 
 Focused Enter, keypad Enter and Escape release only search focus and consume the key. They preserve raw/applied query, result and drawer; never submit chat/form, close housing or commit/cancel decor. Nonempty blur retains its bright magnifier/clear control; empty blur restores gray magnifier and hides clear. Other edit boxes keep existing bindings.
