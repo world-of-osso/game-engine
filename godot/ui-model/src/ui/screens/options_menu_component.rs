@@ -342,7 +342,13 @@ pub fn keybinding_button_name(action: InputAction) -> String {
 
 /// The Options panel, its content scrolled down `offset` pixels (the
 /// [`OPTIONS_CONTENT_SCROLL`] position).
-pub fn options_view(model: &OptionsViewModel, offset: usize) -> Element {
+pub fn options_view(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
+    let mut body = build_body(model, offset, open);
+    let popups = crate::options_dropdown::detach_popup(&mut body);
     rsx! {
         r#frame {
             name: OPTIONS_ROOT,
@@ -368,7 +374,8 @@ pub fn options_view(model: &OptionsViewModel, offset: usize) -> Element {
             }
             {settings_chrome()}
             {title()}
-            {build_body(model, offset)}
+            {body}
+            {popups}
             {build_footer()}
         }
     }
@@ -380,11 +387,15 @@ fn title() -> Element {
     rsx! { fontstring { name: OPTIONS_TITLE_LABEL, text: "Options", font_size: 12.0,
     width: 800.0, height: 20.0, pos_type: "absolute", left: 60.0, top: 5.0, } }
 }
-fn build_body(model: &OptionsViewModel, offset: usize) -> Element {
+fn build_body(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
     rsx! { r#frame { name: "OptionsBody", width: 880.0, height: 602.0, pos_type: "absolute", left: 18.0, top: 76.0,
         {build_tabs(model)}
         r#frame { name: "OptionsContentMount", width: OPTIONS_CONTENT_W, height: OPTIONS_CONTENT_H,
-            pos_type: "absolute", left: 215.0, top: 0.0, {build_content(model,offset)} }
+            pos_type: "absolute", left: 215.0, top: 0.0, {build_content(model,offset,open)} }
     } }
 }
 fn build_tabs(model: &OptionsViewModel) -> Element {
@@ -518,7 +529,11 @@ fn settings_chrome() -> Element {
 
 /// The content area is as tall as the category list, as Retail's settings container is
 /// anchored to it (`Blizzard_SettingsPanel.xml:59-74`); a taller page scrolls.
-fn build_content(model: &OptionsViewModel, offset: usize) -> Element {
+fn build_content(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
     rsx! {
         r#frame {
             name: OPTIONS_CONTENT_PANEL,
@@ -527,7 +542,7 @@ fn build_content(model: &OptionsViewModel, offset: usize) -> Element {
             layout: "flex-column",
             pos_type: "relative",
             {content_header(model.category)}
-            {content_body(model, offset)}
+            {content_body(model, offset, open)}
         }
     }
 }
@@ -553,28 +568,35 @@ fn content_header(category: OptionsCategory) -> Element {
 
 /// Pixels the Options content scrolls per stepper click on `model`'s page.
 pub fn options_pan_extent(model: &OptionsViewModel) -> usize {
-    category_body(model).pan_extent()
+    category_body(model, None).pan_extent()
 }
 
 /// Pixels the Options content scrolls per wheel notch on `model`'s page.
 pub fn options_wheel_extent(model: &OptionsViewModel) -> usize {
-    category_body(model).wheel_extent()
+    category_body(model, None).wheel_extent()
 }
 
-fn category_body(model: &OptionsViewModel) -> OptionsPage {
+fn category_body(
+    model: &OptionsViewModel,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> OptionsPage {
     match model.category {
         OptionsCategory::Graphics => options_menu_active_sections::graphics_body(&model.graphics),
         OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
-        OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
-        OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud, &model.layout),
+        OptionsCategory::Interface => {
+            options_menu_active_sections::interface_body(&model.hud, open)
+        }
+        OptionsCategory::Hud => {
+            options_menu_active_sections::hud_body(&model.hud, &model.layout, open)
+        }
         OptionsCategory::ActionBars => {
             options_menu_active_sections::action_bars_body(&model.hud, model.layout.skin)
         }
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {
-            options_menu_active_sections::accessibility_body(&model.graphics, &model.hud)
+            options_menu_active_sections::accessibility_body(&model.graphics, &model.hud, open)
         }
         OptionsCategory::Keybindings => {
             options_menu_active_sections::keybindings_body(&model.bindings)
@@ -586,7 +608,11 @@ fn category_body(model: &OptionsViewModel) -> OptionsPage {
     }
 }
 
-fn content_body(model: &OptionsViewModel, offset: usize) -> Element {
+fn content_body(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
     let area = scroll::ScrollArea {
         row_width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0,
         width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X,
@@ -600,7 +626,7 @@ fn content_body(model: &OptionsViewModel, offset: usize) -> Element {
             pos_type: "relative",
             margin_left: {OPTIONS_CONTENT_INSET_X},
             margin_top: {OPTIONS_CONTENT_INSET_TOP},
-            {scroll::scroll_area(category_body(model), &area, offset)}
+            {scroll::scroll_area(category_body(model,open), &area, offset)}
         }
     }
 }
