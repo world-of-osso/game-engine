@@ -97,6 +97,7 @@ func at_source_site(point: Vector3) -> bool:
 func ready_at_source_site(point: Vector3, area: int) -> bool:
 	if not at_source_site(point): return false
 	var state = client.account_state()
+	if state.area_id == null: return false
 	if state.screen != "InWorld" or int(state.area_id) != area: return false
 	return control("CollectionsMicroButton") != null and native_display(-1)
 
