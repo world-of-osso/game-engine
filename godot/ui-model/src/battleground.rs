@@ -4,7 +4,11 @@ use crate::bank_art::{WHITE, label};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait};
 use shared::battleground::{BgOutcome, BgPhase, BgTeam, FlagState};
-use shared::protocol::{BattlegroundSnapshot, PvpSnapshot, PvpStateUpdate};
+use shared::protocol::{
+    ArenaQueueMode, BattlegroundSnapshot, PvpBracketSnapshot, PvpSnapshot, PvpStateUpdate,
+};
+#[path = "arena_ui.rs"]
+mod arena_ui;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,6 +17,9 @@ pub enum PvpAction {
     WarMode(bool),
     SelectTalent { slot: u8, talent_id: u32 },
     Queue(u32),
+    Arena(ArenaQueueMode),
+    Rated(PvpBracketSnapshot),
+    Target(u64),
     Dequeue,
     Respond { match_id: u64, accepted: bool },
     Leave(u64),
@@ -36,6 +43,8 @@ pub struct PvpView {
     pub results_dismissed: bool,
     pub talent_slot: Option<u8>,
     pub category: PvpCategory,
+    pub selected_arena: Option<ArenaQueueMode>,
+    pub rated_bracket: PvpBracketSnapshot,
     pub selected_battleground: u32,
 }
 impl Default for PvpView {
@@ -51,6 +60,8 @@ impl Default for PvpView {
             results_dismissed: false,
             talent_slot: None,
             category: PvpCategory::QuickMatch,
+            selected_arena: None,
+            rated_bracket: PvpBracketSnapshot::Arena2v2,
             selected_battleground: 1014,
         }
     }
@@ -99,6 +110,7 @@ impl PvpView {
         {
             if !self.pending && specific_choices().iter().any(|template| template.id == id) {
                 self.selected_battleground = id;
+                self.selected_arena = None;
             }
             return None;
         }
@@ -164,7 +176,37 @@ impl PvpView {
             }
             return None;
         }
+        if let Some(entity) = action
+            .strip_prefix("pvp:target:")
+            .and_then(|id| id.parse::<u64>().ok())
+        {
+            let bg = self.battleground()?;
+            let unit = bg
+                .arena
+                .as_ref()?
+                .units
+                .iter()
+                .find(|unit| unit.entity == entity && unit.team != bg.team)?;
+            return Some(PvpAction::Target(unit.entity));
+        }
         if self.pending {
+            return None;
+        }
+        if action == "pvp:rated:2v2" || action == "pvp:rated:3v3" {
+            self.rated_bracket = if action == "pvp:rated:2v2" {
+                PvpBracketSnapshot::Arena2v2
+            } else {
+                PvpBracketSnapshot::Arena3v3
+            };
+            return None;
+        }
+        if action.starts_with("pvp:activity:") {
+            self.selected_arena = match action {
+                "pvp:activity:warsong" => None,
+                "pvp:activity:2v2" => Some(ArenaQueueMode::Skirmish2v2),
+                "pvp:activity:3v3" => Some(ArenaQueueMode::Skirmish3v3),
+                _ => return None,
+            };
             return None;
         }
         if let Some(id) = action
@@ -194,6 +236,15 @@ impl PvpView {
         }
         let request = match action {
             "pvp:query" => PvpAction::Query,
+            "pvp:rated:queue"
+                if self.battleground().is_none()
+                    && self
+                        .snapshot
+                        .as_ref()
+                        .is_none_or(|snapshot| snapshot.queue.is_none()) =>
+            {
+                PvpAction::Rated(self.rated_bracket.clone())
+            }
             "pvp:warmode" => {
                 let mode = self.snapshot.as_ref()?.war_mode.as_ref()?;
                 let permitted = if mode.desired {
@@ -210,7 +261,10 @@ impl PvpView {
                 if self.battleground().is_none()
                     && self.snapshot.as_ref().is_none_or(|s| s.queue.is_none()) =>
             {
-                PvpAction::Queue(self.selected_battleground)
+                match self.selected_arena {
+                    Some(mode) => PvpAction::Arena(mode),
+                    None => PvpAction::Queue(self.selected_battleground),
+                }
             }
             "pvp:dequeue" if self.snapshot.as_ref().is_some_and(|s| s.queue.is_some()) => {
                 PvpAction::Dequeue
@@ -295,7 +349,7 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     }
     children.extend(text(
         "HonorFrameTitle",
-        "Battlegrounds",
+        "Quick Match",
         (194.0, 52.0, 300.0, 22.0),
     ));
     children.extend(specific_list(context, view));
@@ -347,12 +401,12 @@ pub fn pvp_pan_extent(list: &str) -> Option<usize> {
 
 fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     let templates = specific_choices();
-    let height = (templates.len() as f32 * SPECIFIC_ROW_H).max(160.0);
+    let height = ((templates.len() + 2) as f32 * SPECIFIC_ROW_H).max(160.0);
     let geometry = pixel_geometry(160.0, height, 160.0);
     let offset = geometry.clamp(context.scroll_first_row(SPECIFIC_LIST));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
-    let children: Element = templates
+    let mut children: Element = templates
         .iter()
         .enumerate()
         .flat_map(|(index, template)| {
@@ -366,6 +420,10 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
             )
         })
         .collect();
+    children.extend(arena_ui::queue_choices(
+        view,
+        templates.len() as f32 * SPECIFIC_ROW_H,
+    ));
     let bar = MinimalScrollBar {
         list: SPECIFIC_LIST,
         left: 324.0,
@@ -387,7 +445,14 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     {bar.element()} } };
     elements.extend(text(
         "HonorFrameDescription",
-        &format!("Selected: {}", selected.name),
+        &view.selected_arena.map_or_else(
+            || format!("Selected: {}", selected.name),
+            |mode| match mode {
+                ArenaQueueMode::Skirmish2v2 => "Selected: Arena Skirmish 2v2".into(),
+                ArenaQueueMode::Skirmish3v3 => "Selected: Arena Skirmish 3v3".into(),
+                _ => unreachable!("Quick Match only selects skirmishes"),
+            },
+        ),
         (194.0, 275.0, 340.0, 22.0),
     ));
     elements
@@ -401,25 +466,7 @@ fn category_panel(view: &PvpView) -> Element {
             (194.0, 52.0, 340.0, 100.0),
         );
     }
-    let mut children = text("ConquestFrameTitle", "Rated", (194.0, 52.0, 340.0, 22.0));
-    if let Some(wallet) = &view.snapshot {
-        children.extend(text(
-            "ConquestFrameBalance",
-            &format!("Conquest: {}", wallet.conquest),
-            (194.0, 90.0, 340.0, 22.0),
-        ));
-    }
-    children.extend(text(
-        "ConquestFramePolicy",
-        "Season progress and rating policy unavailable",
-        (194.0, 128.0, 340.0, 44.0),
-    ));
-    children.extend(text(
-        "ConquestFrameBrackets",
-        "2v2\n3v3\nRated Battlegrounds\nPlayed-match rating service unavailable",
-        (194.0, 190.0, 340.0, 120.0),
-    ));
-    children
+    arena_ui::rated_panel(view)
 }
 fn invite(view: &PvpView) -> Element {
     if !view.invitation() {
@@ -677,6 +724,9 @@ fn hud(view: &PvpView) -> Element {
     let Some(bg) = view.battleground().filter(|b| b.accepted) else {
         return vec![];
     };
+    if bg.arena.is_some() {
+        return arena_ui::arena_hud(view, bg);
+    }
     let mut children = label(
         "WorldStateScore".into(),
         &score_text(bg),
@@ -735,12 +785,14 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         }
     }
     let stats = shared::battleground::pvp_stat_columns(bg.map_id);
+    let arena_titles = arena_stat_titles(bg);
     let titles = BASE_TITLES
         .iter()
         .copied()
-        .chain(stats.iter().map(|stat| stat.title));
+        .chain(stats.iter().map(|stat| stat.title))
+        .chain(arena_titles.iter().copied());
     for (i, title) in titles.enumerate() {
-        let (x, width) = column(i, stats.len());
+        let (x, width) = column(i, stats.len() + arena_titles.len());
         children.extend(text(
             &format!("PVPMatchCategory{i}"),
             title,
@@ -756,6 +808,13 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     .iter()
     .enumerate()
     {
+        let title = if bg.arena.is_some() && i == 1 {
+            "Gold"
+        } else if bg.arena.is_some() && i == 2 {
+            "Green"
+        } else {
+            title
+        };
         children.extend(panel_button(
             format!("PVPScoreboardTab{}", i + 1),
             title,
@@ -766,7 +825,11 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     }
     children.extend(panel_button(
         "PVPMatchLeaveButton".into(),
-        "Leave Battleground",
+        if bg.arena.is_some() {
+            "Leave Arena"
+        } else {
+            "Leave Battleground"
+        },
         "pvp:leave",
         !view.pending,
         (804.0, height - 62.0, 190.0, 22.0),
@@ -785,6 +848,17 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         ),
         children,
     )
+}
+fn arena_stat_titles(bg: &BattlegroundSnapshot) -> &'static [&'static str] {
+    if bg
+        .arena
+        .as_ref()
+        .is_some_and(|arena| !arena.rating_changes.is_empty())
+    {
+        &["Rating", "MMR"]
+    } else {
+        &[]
+    }
 }
 const BASE_TITLES: [&str; 7] = ["Name", "KB", "HK", "Deaths", "Honor", "Damage", "Healing"];
 const BASE_COLUMNS: [(f32, f32); 7] = [
@@ -823,21 +897,34 @@ fn score_rows(
     let stats = shared::battleground::pvp_stat_columns(bg.map_id);
     let mut content = Vec::new();
     for (index, player) in players.iter().enumerate() {
+        let rating = bg.arena.as_ref().and_then(|arena| {
+            arena
+                .rating_changes
+                .iter()
+                .find(|change| change.character_id == player.character_id)
+        });
         // Combat counters remain uninstrumented. Dashes mean unknown, not measured zero.
+        let combat_value = |value: u64| {
+            if bg.arena.is_some() {
+                value.to_string()
+            } else {
+                "—".into()
+            }
+        };
         let base = [
             (String::new(), player.name.clone()),
-            ("KB".into(), "—".into()),
+            ("KB".into(), combat_value(u64::from(player.killing_blows))),
             (
                 "HK".into(),
                 player.honorable_kills.map_or("—".into(), |n| n.to_string()),
             ),
-            ("Deaths".into(), "—".into()),
+            ("Deaths".into(), combat_value(u64::from(player.deaths))),
             (
                 "Honor".into(),
                 player.honor_level.map_or("—".into(), |n| n.to_string()),
             ),
-            ("Damage".into(), "—".into()),
-            ("Healing".into(), "—".into()),
+            ("Damage".into(), combat_value(player.damage_done)),
+            ("Healing".into(), combat_value(player.healing_done)),
         ];
         let objectives = stats.iter().map(|stat| {
             (
@@ -845,8 +932,26 @@ fn score_rows(
                 objective_value(player, stat.stat),
             )
         });
-        for (i, (suffix, value)) in base.into_iter().chain(objectives).enumerate() {
-            let (x, width) = column(i, stats.len());
+        let ratings = rating.into_iter().flat_map(|change| {
+            [
+                (
+                    "Rating".into(),
+                    format!(
+                        "{} ({:+})",
+                        change.rating_after,
+                        i64::from(change.rating_after) - i64::from(change.rating_before)
+                    ),
+                ),
+                ("MMR".into(), change.mmr_after.to_string()),
+            ]
+        });
+        for (i, (suffix, value)) in base
+            .into_iter()
+            .chain(objectives)
+            .chain(ratings)
+            .enumerate()
+        {
+            let (x, width) = column(i, stats.len() + arena_stat_titles(bg).len());
             content.extend(text(
                 &format!("PVPMatchPlayer{}{suffix}", player.character_id),
                 &value,

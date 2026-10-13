@@ -378,8 +378,9 @@ pub struct RawGroupData {
 }
 
 pub struct WmoTriangleMaterial {
-    pub flags: u8,
-    pub material_id: u8,
+    pub flags: u16,
+    /// `None` for a collision-only face (MOPY 0xFF, MPY2 0xFFFF).
+    pub material_id: Option<u16>,
 }
 
 pub struct WmoLiquid {
