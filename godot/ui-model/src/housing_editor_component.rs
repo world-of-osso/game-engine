@@ -55,35 +55,6 @@ pub fn editor_screen(view: &HousingView) -> Element {
     } }
 }
 
-pub(crate) fn stored_entries(view: &HousingView, disabled: bool) -> Element {
-    let entries = view.model.stored_entries(&view.authority);
-    if entries.is_empty() {
-        return rsx! {fontstring {name:"HouseEditorStorageEmpty",text:"No stored decor matches your search or filters.",width:400.0,height:60.0,pos_type:"absolute",left:85.0,top:100.0,font_size:14.0}};
-    }
-    let columns = view.model.storage_panel.columns();
-    entries
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, (stored, decor))| {
-            let left = 85.0 + (index % columns) as f32 * 102.0;
-            let top = 100.0 + (index / columns) as f32 * 135.0;
-            let text = format!("{}\n{} stored", decor.name, stored.quantity);
-            let action = format!("housing:place:{}", decor.id);
-            let fdid = decor.thumbnail_fdid;
-            rsx! { button { name: {DynName(format!("HouseEditorStored{}",decor.id))},
-                width: 97.0, height: 125.0, pos_type: "absolute", left, top,
-                onclick: action, disabled, button_default_skin: false,
-                texture { name: {DynName(format!("HouseEditorIcon{}",decor.id))},
-                    texture_fdid: fdid, width: 97.0, height: 97.0,
-                    pos_type: "absolute", left: 0.0, top: 0.0 }
-                fontstring { name: {DynName(format!("HouseEditorName{}",decor.id))},
-                    text, width: 97.0, height: 36.0, font_size: 11.0,
-                    pos_type: "absolute", left: 0.0, top: 95.0, justify_h: "CENTER" }
-            } }
-        })
-        .collect()
-}
-
 /// Expert XML: 64px mode/submode buttons, submode bar18 above the mode button;
 /// OnShow hides the storage drawer. Unselected/selected instructions share the right.
 fn expert_screen(view: &HousingView) -> Element {

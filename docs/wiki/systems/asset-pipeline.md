@@ -12,7 +12,32 @@ FDID (integer)
   → .data.XXX:    seek, read BLTE blob, decompress
 ```
 
-Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/` (~250MB total). The Godot client uses that default too: its resolvers set no cache root (`assets::creature::local_resolver`), so every run shares one resolution cache whatever its `XDG_DATA_HOME`. Measured 2026-09-30 (`godot/tests/startup_login.gd`, load about 20): two runs with different `XDG_DATA_HOME` each loaded the 1,931,507-entry cache in 4.1 and 6.5 s, with no rebuild. With `ASSET_RESOLVER_CACHE_DIR` pointed at an empty directory, the rebuild took 48.1 s. The login reply was handled at 1.2 s, while the build was still running; character select showed at 63.1 s. While CASC starts, the client keeps polling its session and holds back the screen and unit events until startup finishes. They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
+Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/schema-2/` (~250MB total). The Godot client uses that default too: its resolvers set no cache root (`assets::creature::local_resolver`), so every run shares one resolution cache whatever its `XDG_DATA_HOME`. Measured 2026-09-30 (`godot/tests/startup_login.gd`, load about 20): two runs with different `XDG_DATA_HOME` each loaded the 1,931,507-entry cache in 4.1 and 6.5 s, with no rebuild. With `ASSET_RESOLVER_CACHE_DIR` pointed at an empty directory, the rebuild took 48.1 s. The login reply was handled at 1.2 s, while the build was still running; character select showed at 63.1 s. While CASC starts, the client keeps polling its session and holds back the screen and unit events until startup finishes. They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
+
+## Installed-build following — verified 2026-10-13
+
+Retail patched from12.1.0.69933/dcfc90ff to12.1.5.70340/eba6b262; runtime
+requested the former receipt key and keyring lookup failed after its row vanished.
+Local extraction now selects the product's unique active `.build.info` row,
+including when the row changes within one process. Resolution state/tables are
+build-qualified, so historical or unqualified tables cannot masquerade as current.
+Published historical files remain read-only hits; misses return a path under the
+installed build. New offline receipts use installed identity, while DB2 closure
+metadata stays12.1.0.69933. Extracted-only/frozen authenticated publication is
+unchanged. [Contract](../../specs/product-isolated-model-assets.md#installed-build-extraction-decision-2026-10-13)
+and [lead-only regeneration](../../casc-extraction.md#lead-only-canonical-regeneration).
+
+Proof: real fixture IDX/archive changes active row in-process, extracts changed
+FDID120191 bytes, creates two separate resolution caches and preserves historical
+published bytes/unqualified decoy. Real install, Syncthing idle/needBytes0/errors0:
+FDIDs120191,1100087,6653697,7508739 pass root MD5 and have SHA256 receipts;
+1927944-entry private resolution cache. Native private UDP5781 fb_casc_follow /
+Cascfollow enters rendered Elwynn world with the active resolver initialized.
+SoundKit1237434 has unknown encrypted chunks; its zero-filled diagnostic output
+is explicitly nonauthentic, not accepted asset proof. Evidence:
+`/home/osso/.worktrees/casc-follow-proof/` (SHA receipts, logs, scene, screenshot).
+Canonical assets/tables/install were not mutated; canonical regeneration remains
+lead-owned. This is extraction/startup proof, not a DB2 re-export or full closure.
 
 ## Local Extraction
 

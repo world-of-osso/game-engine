@@ -3,6 +3,7 @@
 
 mod adventure_activities;
 mod adventure_guide;
+mod adventure_journeys;
 mod ahportrait;
 mod atlas_skins;
 mod auction_dialogs;
