@@ -269,7 +269,7 @@ impl GameClient {
             ACTION_QUEST_LOG => self.toggle_quest_log(),
             ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
             "micro:GuildMicroButton" => self.toggle_guild_ranks()?,
-            "micro:LFDMicroButton" => self.toggle_pvp()?,
+            "micro:LFDMicroButton" => self.toggle_follower_group_finder()?,
             "micro:CollectionsMicroButton" => self.toggle_collections(),
             "micro:HousingMicroButton" => self.toggle_housing()?,
             "micro:EJMicroButton" => self.toggle_adventure_guide()?,
