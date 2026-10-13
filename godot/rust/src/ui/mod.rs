@@ -2477,6 +2477,18 @@ impl RegistryUi {
                     .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
             }
         }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
+            && let Some(previous) = model
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+                previous,
+                next,
+                &mut model.registry,
+            );
+        }
         model.shared.insert(state);
         self.sync_model()
     }
