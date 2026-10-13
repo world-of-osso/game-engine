@@ -9,6 +9,115 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use shared::protocol::{HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(
+            HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap(),
+        ));
+        model.surface = HousingSurface::Editor;
+        let mut view = HousingView {
+            model,
+            authority: HousingAuthority {
+                state: Some(HousingState {
+                    build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                    stored: vec![StoredDecor {
+                        decor_id: 1693,
+                        quantity: 1,
+                    }],
+                    ..Default::default()
+                }),
+                error: None,
+            },
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(housing_screen);
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("HouseEditorStorageFilters").is_some());
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageFilterMenu")
+                .is_none()
+        );
+        view.model
+            .storage_filter_action("housing:storage:filters")
+            .unwrap();
+        view.model
+            .storage_filter_action("housing:storage:sort")
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        let date = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageSortDateAdded")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(&date.widget_data, Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageFilterCollection")
+                .is_none()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageFilterFirstAcquisition")
+                .is_none()
+        );
+        view.model
+            .storage_filter_action("housing:storage:sort:alphabetical")
+            .unwrap();
+        view.model
+            .storage_filter_action("housing:storage:filter:dyeable")
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageDyeableTick")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageSortAlphabeticalTick")
+                .is_some()
+        );
+        assert!(registry.get_by_name("HouseEditorStored1693").is_none());
+        assert!(registry.get_by_name("HouseEditorStorageEmpty").is_some());
+        view.model
+            .storage_filter_action("housing:storage:filter:reset")
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageDyeableTick")
+                .is_none()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageSortAlphabeticalTick")
+                .is_some()
+        );
+        assert!(registry.get_by_name("HouseEditorStored1693").is_some());
+        assert!(!view.model.filters_open);
+    }
+}
+
+#[test]
 fn housing_house_settings_both_skins_stage_without_changing_confirmed_authority() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HouseAccess, HousingHouse, HousingState};

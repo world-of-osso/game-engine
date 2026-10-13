@@ -172,6 +172,10 @@ pub struct HousingDashboard {
     pub storage_search: String,
     pub storage_category: Option<u32>,
     pub storage_subcategory: Option<u32>,
+    pub storage_filters_open: bool,
+    pub storage_sort_open: bool,
+    pub storage_dyeable_only: bool,
+    pub storage_alphabetical: bool,
     pub category: Option<u32>,
     pub subcategory: Option<u32>,
     pub offset: usize,
@@ -200,6 +204,10 @@ impl HousingDashboard {
             storage_search: String::new(),
             storage_category: None,
             storage_subcategory: None,
+            storage_filters_open: false,
+            storage_sort_open: false,
+            storage_dyeable_only: false,
+            storage_alphabetical: false,
             category: None,
             subcategory: None,
             offset: 0,
@@ -223,7 +231,7 @@ impl HousingDashboard {
             return Vec::new();
         };
         let search = self.storage_search.trim().to_lowercase();
-        state
+        let mut entries: Vec<_> = state
             .stored
             .iter()
             .filter(|stored| stored.quantity > 0)
@@ -234,10 +242,15 @@ impl HousingDashboard {
                     .iter()
                     .find(|decor| decor.id == stored.decor_id)?;
                 let matches = decor.name.to_lowercase().contains(&search)
-                    && self.storage_decor_matches(decor);
+                    && self.storage_decor_matches(decor)
+                    && (!self.storage_dyeable_only || decor.dyeable);
                 matches.then_some((stored, decor))
             })
-            .collect()
+            .collect();
+        if self.storage_alphabetical {
+            entries.sort_by_cached_key(|(_, decor)| (decor.name.to_lowercase(), decor.id));
+        }
+        entries
     }
 
     pub fn select_finder_plot(

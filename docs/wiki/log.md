@@ -3488,3 +3488,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: [Toy Box](systems/toy-box.md#source-warning-sign-batches-2026-10-12): front-facing actual-use sign captures/natural expiry in both skins; carving/148628/shared-visibility remains explicitly uncertified.
 
 - 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
+
+- 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.

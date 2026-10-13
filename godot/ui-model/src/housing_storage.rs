@@ -14,6 +14,27 @@ fn parse_focus_id(value: &str, clear: &str) -> Result<Option<u32>, String> {
 }
 
 impl HousingDashboard {
+    /// Storage disables collection filters; missing acquisition dates cannot define a sort.
+    pub fn storage_filter_action(&mut self, action: &str) -> Result<bool, String> {
+        match action {
+            "housing:storage:filters" => self.storage_filters_open = !self.storage_filters_open,
+            "housing:storage:sort" => self.storage_sort_open = !self.storage_sort_open,
+            "housing:storage:sort:alphabetical" => self.storage_alphabetical = true,
+            "housing:storage:filter:dyeable" => {
+                self.storage_dyeable_only = !self.storage_dyeable_only
+            }
+            "housing:storage:filter:reset" => self.storage_dyeable_only = false,
+            action if action.starts_with("housing:storage:sort:") => {
+                return Err("Storage acquisition dates have not been authenticated.".into());
+            }
+            action if action.starts_with("housing:storage:filter:") => {
+                return Err("Unsupported owned-storage filter.".into());
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
     pub fn storage_focus_action(
         &mut self,
         action: &str,

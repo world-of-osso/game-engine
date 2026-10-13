@@ -308,6 +308,9 @@ impl GameClient {
             .model
             .as_mut()
             .ok_or("Housing UI has no storage model.")?;
+        if model.storage_filter_action(action)? {
+            return Ok(true);
+        }
         if !model.storage_focus_action(action, &self.housing.authority)? {
             return Ok(false);
         }
