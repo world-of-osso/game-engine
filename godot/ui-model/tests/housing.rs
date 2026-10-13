@@ -9,6 +9,75 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_storage_input_postsetup_limits_unicode_and_tints_source_magnifier_both_skins() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_component::apply_housing_storage_postsetup;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.surface = HousingSurface::Editor;
+        let mut view = HousingView {
+            model,
+            authority: HousingAuthority::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        for (focused, raw, channel) in [(false, "", 0.6), (true, "", 1.0), (false, "Tesla", 1.0)] {
+            view.model.storage_search_focused = focused;
+            view.model.set_storage_search(raw.into());
+            let mut context = SharedContext::new();
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            apply_housing_storage_postsetup(&view, &mut registry);
+            let search = registry
+                .get(registry.get_by_name("HouseEditorStorageSearchBox").unwrap())
+                .unwrap();
+            let Some(WidgetData::EditBox(data)) = &search.widget_data else {
+                panic!("Search must be editable");
+            };
+            assert_eq!(data.text_insets, [16.0, 20.0, 0.0, 0.0]);
+            if raw.is_empty() {
+                let mut edited = data.clone();
+                edited.insert_at_cursor(&"é".repeat(45));
+                assert_eq!(edited.text, "é".repeat(40));
+                assert_eq!(edited.text.len(), 80);
+                edited.insert_at_cursor("x");
+                assert_eq!(edited.text.chars().count(), 40);
+            }
+            let glyph = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchGlyph")
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::Texture(texture)) = &glyph.widget_data else {
+                panic!("Source magnifier must be textured");
+            };
+            assert_eq!(texture.vertex_color, [channel, channel, channel, 1.0]);
+            let hint = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchHint")
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::FontString(text)) = &hint.widget_data else {
+                panic!("Source hint must be text");
+            };
+            assert_eq!(text.color, [0.35, 0.35, 0.35, 1.0]);
+        }
+    }
+}
+
+#[test]
 fn housing_storage_search_clear_has_source_geometry_and_nonempty_visibility_in_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use ui_toolkit::layout_values::Val;
