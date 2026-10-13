@@ -9,6 +9,116 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equivalent() {
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use shared::protocol::{HousingState, StoredDecor};
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+        let stored = catalog
+            .decor
+            .iter()
+            .take(7)
+            .map(|decor| StoredDecor {
+                decor_id: decor.id,
+                quantity: 1,
+            })
+            .collect();
+        let first = catalog.decor[0].id;
+        let fifth = catalog.decor[4].id;
+        let mut model = HousingDashboard::new(Arc::new(catalog));
+        model.surface = HousingSurface::Editor;
+        let mut view = HousingView {
+            model,
+            authority: HousingAuthority {
+                state: Some(HousingState {
+                    build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                    stored,
+                    ..Default::default()
+                }),
+                error: None,
+            },
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: BTreeSet::new(),
+            vendor_names: Default::default(),
+        };
+        let render = |view: &HousingView| {
+            let mut context = SharedContext::new();
+            context.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&context, &mut registry);
+            registry
+        };
+        let registry = render(&view);
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageCollapseButton")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageResizeButton")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageExpandButton")
+                .is_none()
+        );
+        let top = |registry: &FrameRegistry, id: u32| {
+            registry
+                .get(
+                    registry
+                        .get_by_name(&format!("HouseEditorStored{id}"))
+                        .unwrap(),
+                )
+                .unwrap()
+                .position
+                .top
+        };
+        assert_ne!(top(&registry, fifth), top(&registry, first));
+        view.model.storage_panel.resize([700.0, 730.0]).unwrap();
+        view.model.storage_panel.finish_resize();
+        let registry = render(&view);
+        assert_eq!(top(&registry, fifth), top(&registry, first));
+        let frame = registry
+            .get(registry.get_by_name("HouseEditorStorageFrame").unwrap())
+            .unwrap();
+        assert_eq!(frame.width, Dimension::Fixed(725.0));
+        assert_eq!(frame.height, Dimension::Fixed(730.0));
+        view.model.storage_search = "Tesla".into();
+        view.model.storage_dyeable_only = true;
+        view.model.storage_panel.collapsed = true;
+        let registry = render(&view);
+        assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+        assert!(
+            registry
+                .get_by_name("HouseEditorStorageExpandButton")
+                .is_some()
+        );
+        view.model
+            .editor
+            .set_mode(game_engine_ui_model::housing_editor::EditorMode::Cleanup);
+        assert!(
+            render(&view)
+                .get_by_name("HouseEditorStorageExpandButton")
+                .is_none()
+        );
+        view.model
+            .editor
+            .set_mode(game_engine_ui_model::housing_editor::EditorMode::Basic);
+        view.model.storage_panel.collapsed = false;
+        let registry = render(&view);
+        assert!(registry.get_by_name("HouseEditorStorageFrame").is_some());
+        assert_eq!(view.model.storage_search, "Tesla");
+        assert!(view.model.storage_dyeable_only);
+    }
+}
+
+#[test]
 fn housing_storage_filters_render_independent_choices_and_reset_in_both_skins() {
     use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
     use shared::protocol::{HousingState, StoredDecor};

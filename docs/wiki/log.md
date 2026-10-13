@@ -3491,3 +3491,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-12: Recorded both-skin private criteria purchases/item learning, authoritative2→4 mount counts and isolated online comparison in [dungeon-achievements](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12);4524/246 structural census and outstanding producer/OAuth boundaries retained.
 - 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
+
+- 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
