@@ -67,13 +67,17 @@ func learn_toy(item: int) -> void:
 	if learned_toy(item): return
 	await click("MainMenuBarBackpackButton")
 	if not await wait_until(func(): return control("ContainerFrame0") != null, "backpack"): return
-	var name := ""
-	for bag_item in client.merchant_state().bags:
-		if int(bag_item.item_id) == item: name = "ContainerFrame%dSlot%d" % [bag_item.bag, bag_item.slot]
-	if name == "": fail("toy absent from private bags " + str(item)); return
+	# Bag snapshots replicate after the backpack frame exists; wait for the granted item.
+	if not await wait_until(func(): return bag_slot_name(item) != "", "toy in private bags " + str(item), 30000): return
+	var name := bag_slot_name(item)
 	await click(name, MOUSE_BUTTON_RIGHT)
 	if not await wait_until(func(): return learned_toy(item), "learning " + str(item)): return
 	await tap(KEY_ESCAPE)
+
+func bag_slot_name(item: int) -> String:
+	for bag_item in client.merchant_state().bags:
+		if int(bag_item.item_id) == item: return "ContainerFrame%dSlot%d" % [bag_item.bag, bag_item.slot]
+	return ""
 
 func object_node(entry: int) -> Node3D:
 	for node in client.find_children("*", "Node3D", true, false):
