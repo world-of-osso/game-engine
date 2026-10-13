@@ -2287,6 +2287,8 @@ fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
             };
             assert_eq!(font.text, text);
             assert_eq!(font.font_size, 16.0);
+            assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+            assert_eq!(font.shadow_offset, [1.0, -1.0]);
             if name != "Place" {
                 let frame = registry
                     .get(
