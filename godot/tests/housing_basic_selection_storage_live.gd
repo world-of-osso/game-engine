@@ -44,5 +44,10 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func ready_dashboard() -> bool:
+	if not await click_exposed_control(housing_named_control("MicroMenuUI", "HousingMicroButton")): return false
+	# A cold native item catalog can occupy almost the inherited15-second observer budget.
+	return await wait_housing(func(): return housing_control("HousingDashboardHouseFinderButton") != null and client.housing_state().get("confirmed", false) and not client.housing_state().get("pending", true), "confirmed Basic-selection dashboard", 120000)
+
 func drawer_absent() -> bool:
 	return housing_control("HouseEditorStorageFrame")==null and housing_control("HouseEditorStorageExpandButton")==null and housing_control("HouseEditorStorageSearchBox")==null
