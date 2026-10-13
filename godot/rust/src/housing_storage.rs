@@ -2,7 +2,7 @@
 use crate::GameClient;
 use game_engine_ui_model::housing::HousingSurface;
 use game_engine_ui_model::housing_editor::EditorMode;
-use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
+use godot::classes::{BaseButton, InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
 
@@ -12,6 +12,14 @@ pub(super) struct StorageResize {
     size: [f32; 2],
 }
 
+fn clear_button_is_held(button: &Gd<BaseButton>) -> bool {
+    use godot::classes::base_button::DrawMode;
+    matches!(
+        button.get_draw_mode(),
+        DrawMode::PRESSED | DrawMode::HOVER_PRESSED
+    )
+}
+
 impl GameClient {
     pub(super) fn configure_housing_storage_cursor(&mut self) {
         if let Some(ui) = &self.housing.ui
@@ -19,6 +27,54 @@ impl GameClient {
         {
             control.set_default_cursor_shape(godot::classes::control::CursorShape::FDIAGSIZE);
         }
+    }
+
+    pub(super) fn sync_housing_search_clear_visuals(&self) -> Result<(), String> {
+        let Some(ui) = &self.housing.ui else {
+            return Ok(());
+        };
+        let host = ui.bind();
+        let Some(mut button) = self.find_housing_search_clear_button()? else {
+            return Ok(());
+        };
+        let mut art = host
+            .frame_control("HouseEditorStorageSearchClearArt")
+            .ok_or("Housing search clear has no alpha container.")?;
+        let mut icon = host
+            .frame_control("HouseEditorStorageSearchClearIcon")
+            .ok_or("Housing search clear has no source atlas icon.")?;
+        // ClearButtonMixin changes icon opacity, not an ADD hover overlay.
+        let alpha = if button.is_hovered() { 1.0 } else { 0.5 };
+        art.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, alpha));
+        // The source17px hit rectangle survives scaling; only its10px icon shifts.
+        let scale = button.get_size().x / 17.0;
+        button.set_keep_pressed_outside(true);
+        let pressed = clear_button_is_held(&button);
+        let inset = if pressed { 4.0 } else { 3.0 };
+        icon.set_position(Vector2::ONE * (inset * scale));
+        Ok(())
+    }
+
+    fn find_housing_search_clear_button(&self) -> Result<Option<Gd<BaseButton>>, String> {
+        let Some(ui) = &self.housing.ui else {
+            return Ok(None);
+        };
+        let Some(control) = ui
+            .bind()
+            .frame_control("HouseEditorStorageSearchClearButton")
+        else {
+            return Ok(None);
+        };
+        control
+            .try_cast::<BaseButton>()
+            .map(Some)
+            .map_err(|_| "Housing search clear must be a native button.".into())
+    }
+
+    pub(super) fn housing_search_clear_captured(&self) -> Result<bool, String> {
+        Ok(self
+            .find_housing_search_clear_button()?
+            .is_some_and(|button| clear_button_is_held(&button)))
     }
 
     pub(super) fn dispatch_housing_drawer_action(&mut self, action: &str) -> Result<bool, String> {

@@ -1,6 +1,17 @@
 ## 2026-10-12 — Native Trading Post live proof and preview asset closure
 
 [Trading Post](systems/trading-post.md): authentic Tawny gossip opens the full-screen vendor; other layers hide like Retail area `full` and are restored on Leave. Live RED showed an unreadable top Transmog row leaving the previous gryphon on screen; unavailable rows now show no model and failed previews clear. The authenticated local-CASC closure raises complete preview chains from 167 to 1287 of 1309 rows in a private, validated package. Modern/Forever browse and relog PASS with 26 inspected PNGs. Live purchase is blocked because supported activities have no reachable content; server tests prove purchase/collection/refund.
+## 2026-10-12 — Default UTF-8 storage search threshold
+
+[Housing](systems/housing.md#default-search-threshold-and-utf-8): default Mainline three-character applied query distinct from retained raw input. Both-skin physical short `z`/`zz`/`éé` keeps Structural and actual paid Tesla; three-character no-match focuses All, shortening restores results, clear/remount and conservation pass. Pure emoji/subcategory/sort/Catalog independence proof; locale1 overrides remain unclaimed.
+
+## 2026-10-12 — Clear icon source hover/press and release capture
+
+[Housing](systems/housing.md#clear-icon-hoverpress-and-captured-release): source0.5/1 opacity and3/4 inset in both skins,34 brighter/24 shifted actual viewport pixels. Outside-release RED traced to editor world-region consumption before GUI; only clear-button captured left release now reaches GUI. Paid copies/layout and subsequent clear/remount unchanged; minimum-search-length/audio remain separate.
+
+## 2026-10-12 — Owned-storage search clear lifecycle
+
+[Housing](systems/housing.md#search-clear-lifecycle): inherited Retail17×17 clear control, focused-empty/nonempty visibility, backing-text clear/focus release and normal source art. Both skins physically clear unmatched query, restore actual paid Tesla pixels, remount without stale search and conserve stored/placed/layout. Hover/pressed art, minimum-character semantics and missing acquisition/assembly policy remain separate.
 
 ## 2026-10-12 — Cage collision-only WMOs and arena source gaps
 
