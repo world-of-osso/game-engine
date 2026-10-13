@@ -527,10 +527,15 @@ impl RegistryModel {
             return None;
         }
         let action = self.registry.click_frame(id)?;
-        if action == game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR {
-            let search = self
-                .registry
-                .get_by_name(game_engine_ui_model::bag_frame_component::SEARCH_BOX)?;
+        let clear_search = match action.as_str() {
+            game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR => {
+                Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
+            }
+            "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+            _ => None,
+        };
+        if let Some(name) = clear_search {
+            let search = self.registry.get_by_name(name)?;
             self.edit_text(search, String::new());
             self.blur_frame(search);
             return None;

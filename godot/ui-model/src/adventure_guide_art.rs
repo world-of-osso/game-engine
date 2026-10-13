@@ -225,17 +225,17 @@ pub fn highlight(name: String, kind: Art, rect: (f32, f32, f32, f32)) -> Element
 pub fn search_box(value: &str) -> Element {
     let mut parts = Vec::new();
     for (part, atlas, rect) in [
-        ("Left", "common-search-border-left", (580., 32., 8., 20.)),
+        ("Left", "common-search-border-left", (575., 32., 8., 20.)),
         (
             "Middle",
             "common-search-border-middle",
-            (588., 32., 194., 20.),
+            (583., 32., 199., 20.),
         ),
         ("Right", "common-search-border-right", (782., 32., 8., 20.)),
         (
             "Icon",
             "common-search-magnifyingglass",
-            (586., 38., 10., 10.),
+            (581., 38., 10., 10.),
         ),
     ] {
         parts.extend(named_atlas_texture(
@@ -244,7 +244,19 @@ pub fn search_box(value: &str) -> Element {
             rect,
         ));
     }
-    parts.extend(rsx! {editbox {name:"EncounterJournalSearchBox",text:value,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:80,text_insets:"18,16,0,0",pos_type:"absolute"}});
+    parts.extend(rsx! {editbox {name:"EncounterJournalSearchBox",text:value,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:40,text_insets:"16,20,0,0",pos_type:"absolute"}});
+    if value.is_empty() {
+        parts.extend(label(
+            "EncounterJournalSearchBoxInstructions".into(),
+            crate::auction_mail::text("SEARCH"),
+            (596., 32., 174., 20.),
+            (12., "0.5,0.5,0.5,1", "LEFT"),
+        ));
+    } else {
+        parts.extend(rsx! {button {name:"EncounterJournalSearchBoxClearButton",left:770.0,top:33.5,width:17.0,height:17.0,
+            pos_type:"absolute",button_default_skin:false,onclick:"journal:search-clear",
+            texture {name:"EncounterJournalSearchBoxClearIcon",left:3.0,top:3.0,width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"common-search-clearbutton",alpha:0.5}}});
+    }
     parts
 }
 
@@ -297,45 +309,42 @@ pub fn portrait(view: &View) -> Element {
     window_portrait_texture(&window_portrait_slot("EncounterJournalPortrait"), fdid)
 }
 
-/// NavBar500×34 TOPLEFT61,-22, NavBarTemplate tiled CS_HelpTextures background.
+/// Retail NavBarTemplate owns sizing, arrow placement and real interaction regions.
 pub fn navigation(view: &View) -> Element {
-    let mut children = cropped(
-        "EncounterJournalNavBackground".into(),
-        516764,
-        "0,1,0.1875,0.25390625",
-        (0., 0., 500., 34.),
-    );
-    let home_width = (navigation_text_width("Home") + 50.).min(128.);
-    children.extend(nav_link(
-        "EncounterJournalBack",
-        "Home",
-        "journal:back",
-        (0., 2., home_width, 30.),
-        true,
-    ));
-    if let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) {
-        let instance_left = home_width - 15.;
-        let instance_width = navigation_text_width(&instance.name) + 53.;
-        children.extend(nav_link(
-            "EncounterJournalNavInstance",
-            &instance.name,
-            &format!("journal:instance:{}", instance.id),
-            (instance_left, 2., instance_width, 30.),
-            false,
-        ));
-        if let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) {
-            let left = instance_left + instance_width;
-            let width = (navigation_text_width(&encounter.name) + 53.).min(500. - left);
-            children.extend(nav_link(
-                "EncounterJournalNavEncounter",
-                &encounter.name,
-                &format!("journal:encounter:{}", encounter.id),
-                (left, 2., width, 30.),
-                false,
-            ));
-        }
+    use crate::navigation_bar::{NavBar, NavButton, nav_bar};
+    let instance = view.instance.and_then(|id| view.catalog.instance(id));
+    let encounter = view.encounter.and_then(|id| view.catalog.encounter(id));
+    let instance_action = instance.map(|i| format!("journal:instance:{}", i.id));
+    let encounter_action = encounter.map(|e| format!("journal:encounter:{}", e.id));
+    let mut buttons = vec![NavButton {
+        name: "EncounterJournalBack",
+        text: crate::auction_mail::text("HOME"),
+        action: "journal:back",
+        text_width: navigation_text_width(crate::auction_mail::text("HOME")),
+    }];
+    if let Some(instance) = instance {
+        buttons.push(NavButton {
+            name: "EncounterJournalNavInstance",
+            text: &instance.name,
+            action: instance_action.as_deref().unwrap(),
+            text_width: navigation_text_width(&instance.name),
+        });
     }
-    rsx! {r#frame {name:"EncounterJournalNavBar",left:61.0,top:22.0,width:500.0,height:34.0,pos_type:"absolute",{children}}}
+    if let Some(encounter) = encounter {
+        buttons.push(NavButton {
+            name: "EncounterJournalNavEncounter",
+            text: &encounter.name,
+            action: encounter_action.as_deref().unwrap(),
+            text_width: navigation_text_width(&encounter.name),
+        });
+    }
+    nav_bar(NavBar {
+        name: "EncounterJournalNavBar",
+        rect: (61., 22., 500., 34.),
+        buttons: &buttons,
+        overflow_action: "journal:nav-overflow",
+        overflow_open: view.nav_overflow_open,
+    })
 }
 fn navigation_text_width(value: &str) -> f32 {
     ui_toolkit::text_measure::measure_text(
@@ -346,111 +355,50 @@ fn navigation_text_width(value: &str) -> f32 {
     .expect("Retail navigation font is loaded")
     .0
 }
-fn nav_link(
-    name: &str,
-    title: &str,
-    action: &str,
-    rect: (f32, f32, f32, f32),
-    home: bool,
-) -> Element {
-    let (left, top, width, height) = rect;
-    let mut art = if home {
-        cropped(
-            format!("{name}Background"),
-            516763,
-            "0.453125,0.703125,0.0078125,0.2421875",
-            (0., 0., width, height),
-        )
-    } else {
-        cropped(
-            format!("{name}Background"),
-            516764,
-            "0,1,0.0625,0.12109375",
-            (0., 0., width, height),
-        )
-    };
-    art.extend(cropped(
-        format!("{name}Arrow"),
-        516763,
-        "0.88867188,0.92968750,0.296875,0.53125",
-        (width - 21., 0., 21., 30.),
-    ));
-    art.extend(label(
-        format!("{name}Text"),
-        title,
-        (10., 0., width - 32., height),
-        (12., "1,0.82,0,1", "LEFT"),
-    ));
-    rsx! {button {name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",onclick:action,button_default_skin:false,{art}}}
-}
 
-/// PanelTabButtonTemplate32px high; Lua AnchorTabs applies +3px after sizing.
+/// Shared PanelTabButtonTemplate; source names/order and Lua +3px spacing.
 pub fn bottom_tabs(view: &View) -> Element {
+    use crate::auction_mail::text as global_string;
     let mut left = 11.;
     [
-        ("Journeys", "Journeys", "journeys", Tab::Journeys),
+        ("Journeys", "JOURNEYS_LABEL", "journeys", Tab::Journeys),
         (
             "MonthlyActivities",
-            "Traveler's Log",
+            "MONTHLY_ACTIVITIES_TAB",
             "monthly",
             Tab::Monthly,
         ),
-        ("Suggest", "Suggested", "suggested", Tab::Suggested),
-        ("Dungeon", "Dungeons", "dungeons", Tab::Dungeons),
-        ("Raid", "Raids", "raids", Tab::Raids),
-        ("LootJournal", "Item Sets", "sets", Tab::ItemSets),
-        ("Tutorials", "Tutorials", "tutorials", Tab::Tutorials),
+        (
+            "Suggest",
+            "AJ_SUGGESTED_CONTENT_TAB",
+            "suggested",
+            Tab::Suggested,
+        ),
+        ("Dungeon", "DUNGEONS", "dungeons", Tab::Dungeons),
+        ("Raid", "RAIDS", "raids", Tab::Raids),
+        (
+            "LootJournal",
+            "LOOT_JOURNAL_ITEM_SETS",
+            "sets",
+            Tab::ItemSets,
+        ),
+        ("Tutorials", "EJ_TUTORIALS", "tutorials", Tab::Tutorials),
     ]
     .into_iter()
     .flat_map(|(key, title, action, tab)| {
+        let title = global_string(title);
         let width = crate::merchant_frame_component::tab_width(title);
-        let out = bottom_tab(key, title, action, view.tab == tab, left, width);
+        let out = crate::merchant_frame_component::tab(
+            &format!("EncounterJournal{key}Tab"),
+            title,
+            (left, 494., width),
+            view.tab == tab,
+            &format!("journal:tab:{action}"),
+        );
         left += width + 3.;
         out
     })
     .collect()
-}
-fn bottom_tab(
-    key: &str,
-    title: &str,
-    action: &str,
-    active: bool,
-    left: f32,
-    width: f32,
-) -> Element {
-    let name = format!("EncounterJournal{key}Tab");
-    let prefix = if active {
-        "uiframe-activetab"
-    } else {
-        "uiframe-tab"
-    };
-    let height = if active { 42. } else { 36. };
-    let offset = if active { -1. } else { -3. };
-    let right = width + if active { 8. } else { 7. } - 37.;
-    let mut parts = named_atlas_texture(
-        format!("{name}Left"),
-        &format!("{prefix}-left"),
-        (offset, 0., 35., height),
-    );
-    parts.extend(named_atlas_texture(
-        format!("{name}Middle"),
-        &format!("_{prefix}-center"),
-        (offset + 35., 0., right - offset - 35., height),
-    ));
-    parts.extend(named_atlas_texture(
-        format!("{name}Right"),
-        &format!("{prefix}-right"),
-        (right, 0., 37., height),
-    ));
-    let color = if active { WHITE } else { "1,0.82,0,1" };
-    parts.extend(label(
-        format!("{name}Text"),
-        title,
-        (0., 9., width, 10.),
-        (10., color, "CENTER"),
-    ));
-    let action = format!("journal:tab:{action}");
-    rsx! {button {name:{DynName(name)},left,top:494.0,width,height:32.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
 }
 
 pub fn side_tabs(page: Page) -> Element {
@@ -543,26 +491,35 @@ pub fn instance_lore(instance: &Instance) -> Element {
     out
 }
 
-/// WowStyle1DropdownTemplate at the dimensions set by EncounterJournal_OnLoad.
-pub fn dropdown(name: &str, title: &str, action: &str, rect: (f32, f32, f32, f32)) -> Element {
-    let (left, top, width, height) = rect;
-    let mut parts = named_atlas_texture(
-        format!("{name}Background"),
-        "common-dropdown-textholder",
-        (-8., -7., width + 16., 41.),
-    );
-    parts.extend(named_atlas_texture(
-        format!("{name}Arrow"),
-        "common-dropdown-a-button",
-        (width - 26., 2., 27., 27.),
-    ));
-    parts.extend(label(
-        format!("{name}Text"),
-        title,
-        (8., 8., width - 36., 10.),
-        (12., WHITE, "LEFT"),
-    ));
-    rsx! {button {name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",onclick:action,button_default_skin:false,{parts}}}
+/// Shared WowStyle1DropdownTemplate, including open/pressed/disabled regions.
+pub fn dropdown(
+    name: &str,
+    title: &str,
+    action: &str,
+    rect: (f32, f32, f32, f32),
+    open: bool,
+) -> Element {
+    use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
+    dropdown_button_with_state(
+        DropdownButton {
+            frame_name: name,
+            label_name: &format!("{name}Text"),
+            arrow_name: &format!("{name}Arrow"),
+            text: title,
+            width: rect.2,
+            height: rect.3,
+            x: rect.0,
+            y: -rect.1,
+            background_color: "",
+            text_color: WHITE,
+            arrow_color: "",
+            onclick: Some(action),
+        },
+        DropdownState {
+            open,
+            ..Default::default()
+        },
+    )
 }
 
 pub fn model_art(instance: &Instance, name: &str) -> Element {
