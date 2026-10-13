@@ -1,3 +1,7 @@
+## 2026-10-13 — Basic editor source continuation
+
+[Housing](systems/housing.md#basic-source-controls-and-release-input--active2026-10-13): source mode/instruction controls, assignable Retail actions without invented defaults, native owner-routed drag/release lifecycle and both-skin paid-copy click/drag/relog proof. Source queue, hotkey font/shadow and owned-preview rotation REDs recorded; final integrated art/state/preview/visitor gate remains open.
+
 ## 2026-10-13 — Source storage tiles
 
 [Housing](systems/housing.md#source-stored-entry-tiles):97px state-atlas tiles/87px inset icons/anchored16px counts/102×107 sequence pitch replace invented125px cards. Source member-local crop reset fixes rejected blank-border native captures. Both skins physically prove visible normal/hover/held/release/cancel and paid1693/2330 conservation; six-record second grid row is CPU proof, owned drag remains next.
