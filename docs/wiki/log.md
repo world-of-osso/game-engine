@@ -1,6 +1,10 @@
+## 2026-10-13 — Unrated six-round Shuffle proof
+
+[Native arenas](systems/arenas.md#unrated-solo-shuffle--verified-2026-10-13): both skins complete six real first-kill rounds and all-six returns; source-role admission/spec lock, four-map rotations/gate resets, item cast-time panic and category-isolation RED/GREEN proof. Explicit unrated realm policy and delayed peer snapshot/wall-clock harness boundaries retained; rating/MMR, dampening and named source gaps unchanged.
+
 ## 2026-10-13 — Arena announcer and shared reconnect proof
 
-[Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures remain active.
+[Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures completed, with the original null-snapshot readiness failure retained.
 ## 2026-10-12 — Category focus callback boundaries
 
 [Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
