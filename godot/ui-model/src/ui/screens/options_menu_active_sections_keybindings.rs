@@ -14,149 +14,17 @@ pub(super) fn keybindings_body(bindings: &KeybindingsView) -> OptionsPage {
 }
 
 fn keybinding_section_tabs(active: BindingSection) -> Element {
-    let buttons: Element = BindingSection::ALL
-        .iter()
-        .flat_map(|section| keybinding_section_button(*section, *section == active))
-        .collect();
-    rsx! {
-        r#frame {
-            name: "KeybindingSectionTabs",
-            width: {OPTIONS_ROW_W},
-            height: KEYBINDING_TAB_H,
-            layout: "flex-row",
-            justify: "start",
-            align: "center",
-            gap: KEYBINDING_TAB_GAP,
-            r#frame {
-                name: "KeybindingSectionTabsLeadSpacer",
-                width: KEYBINDING_TAB_LEAD_X,
-                height: KEYBINDING_TAB_H,
-            }
-            {buttons}
-        }
-    }
-}
-
-fn keybinding_section_button(section: BindingSection, active: bool) -> Element {
-    let label = section.title().to_string();
-    let action = keybinding_section_action(section);
-    let names = keybinding_section_tab_names(section);
-    let visuals = keybinding_section_tab_visuals(active);
-    let width = keybinding_section_tab_width(&label);
-    let frame_name = names.frame.clone();
-    rsx! {
-        r#frame {
-            name: {frame_name},
-            width: {width},
-            height: KEYBINDING_TAB_H,
-            {keybinding_section_tab_button(&names, &visuals, &action)}
-            {keybinding_section_tab_label(&names, &visuals, &label, width)}
-        }
-    }
-}
-
-struct KeybindingSectionTabNames {
-    frame: DynName,
-    button: DynName,
-    label: DynName,
-}
-
-fn keybinding_section_tab_names(section: BindingSection) -> KeybindingSectionTabNames {
-    KeybindingSectionTabNames {
-        frame: DynName(format!("KeybindingSection{}", section.key())),
-        button: DynName(format!("KeybindingSection{}Button", section.key())),
-        label: DynName(format!("KeybindingSection{}Label", section.key())),
-    }
-}
-
-struct KeybindingSectionTabVisuals {
-    text_y: f32,
-    atlas_up: &'static str,
-    atlas_pressed: &'static str,
-    atlas_highlight: &'static str,
-    text_color: &'static str,
-}
-
-fn keybinding_section_tab_visuals(active: bool) -> KeybindingSectionTabVisuals {
-    KeybindingSectionTabVisuals {
-        text_y: if active {
-            KEYBINDING_TAB_LABEL_Y_ACTIVE
-        } else {
-            KEYBINDING_TAB_LABEL_Y_IDLE
-        },
-        atlas_up: if active {
-            "defaultbutton-nineslice-pressed"
-        } else {
-            "defaultbutton-nineslice-up"
-        },
-        atlas_pressed: "defaultbutton-nineslice-pressed",
-        atlas_highlight: if active {
-            "defaultbutton-nineslice-pressed"
-        } else {
-            "defaultbutton-nineslice-highlight"
-        },
-        text_color: if active {
-            KEYBINDING_TAB_TEXT_ACTIVE
-        } else {
-            KEYBINDING_TAB_TEXT_IDLE
-        },
-    }
-}
-
-fn keybinding_section_tab_width(label: &str) -> f32 {
-    let (text_width, _) =
-        measure_text(label, GameFont::FrizQuadrata, KEYBINDING_TAB_FONT_SIZE).unwrap_or((0.0, 0.0));
-    (text_width + KEYBINDING_TAB_SIDE_PADDING).ceil().max(10.0)
-}
-
-fn keybinding_section_tab_button(
-    names: &KeybindingSectionTabNames,
-    visuals: &KeybindingSectionTabVisuals,
-    action: &str,
-) -> Element {
-    let button_name = names.button.clone();
-    rsx! {
-        button {
-            name: {button_name},
-            stretch: true,
-            text: "",
-            font_size: KEYBINDING_TAB_FONT_SIZE,
-            onclick: {action},
-            button_atlas_up: visuals.atlas_up,
-            button_atlas_pressed: visuals.atlas_pressed,
-            button_atlas_highlight: visuals.atlas_highlight,
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
-        }
-    }
-}
-
-fn keybinding_section_tab_label(
-    names: &KeybindingSectionTabNames,
-    visuals: &KeybindingSectionTabVisuals,
-    label: &str,
-    width: f32,
-) -> Element {
-    let label_name = names.label.clone();
-    rsx! {
-        fontstring {
-            name: {label_name},
-            width: {width},
-            height: KEYBINDING_TAB_H,
-            text: {label},
-            font: "FrizQuadrata",
-            font_size: KEYBINDING_TAB_FONT_SIZE,
-            font_color: visuals.text_color,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: "50%",
-            margin_top: {-(visuals.text_y)},
-            translate_y: "-50%",
-        }
-    }
+    let buttons: Element = BindingSection::ALL.iter().flat_map(|section| {
+        let hide = *section != active;
+        rsx! { button { name: DynName(format!("KeybindingSection{}Button", section.key())), width: 175.0, height: 20.0,
+            onclick: keybinding_section_action(*section), button_default_skin: false,
+            texture { name: DynName(format!("KeybindingSection{}Selected",section.key())), texture_atlas: "Options_List_Active", width: 175.0, height: 20.0, hidden: hide, }
+            fontstring { name: DynName(format!("KeybindingSection{}Label",section.key())), text: section.title(), width: 139.0, height: 20.0,
+                font_size: 12.0, pos_type: "absolute", left: 36.0, top: -1.0, frame_level: 100.0, }
+        } }
+    }).collect();
+    rsx! { r#frame { name: "KeybindingSectionTabs", width: 175.0, height: {BindingSection::ALL.len() as f32 * 20.0},
+    layout: "flex-column", gap: 0.0, {buttons} } }
 }
 
 fn keybinding_output(bindings: &KeybindingsView) -> Element {
@@ -172,7 +40,7 @@ fn keybinding_output(bindings: &KeybindingsView) -> Element {
             height: BINDING_OUTPUT_H,
             text: {text},
             font: "FrizQuadrata",
-            font_size: 13.0,
+            font_size: 10.0,
             font_color: color,
             justify_h: "CENTER",
         }
@@ -204,15 +72,11 @@ fn keybinding_button(row: &KeybindingRowView) -> Element {
     let button_name = DynName(keybinding_button_name(row.action));
     let text_name = DynName(format!("KeybindingButtonText{}", row.action.key()));
     let action = keybinding_rebind_action(row.action);
+    let hide_capture = !row.capturing;
     let (text, color) = match (&row.binding_text, row.capturing) {
         (_, true) => ("Press a key\u{2026}", BINDING_TEXT_COLOR),
         (Some(text), false) => (text.as_str(), BINDING_TEXT_COLOR),
         (None, false) => ("Not Bound", BINDING_NOT_BOUND_COLOR),
-    };
-    let atlas_up = if row.capturing {
-        "defaultbutton-nineslice-pressed"
-    } else {
-        "defaultbutton-nineslice-up"
     };
     rsx! {
         r#frame {
@@ -227,12 +91,15 @@ fn keybinding_button(row: &KeybindingRowView) -> Element {
                 name: {button_name},
                 stretch: true,
                 text: "",
-                font_size: 13.0,
+                font_size: 10.0,
                 onclick: {&action},
-                button_atlas_up: atlas_up,
-                button_atlas_pressed: "defaultbutton-nineslice-pressed",
-                button_atlas_highlight: "defaultbutton-nineslice-highlight",
-                button_atlas_disabled: "defaultbutton-nineslice-disabled",
+                button_default_skin: false,
+                {silver_button_art(row.action.key(), 383587, false)}
+                {silver_button_art(&format!("{}Pressed",row.action.key()), 383585, true)}
+                texture { name: DynName(format!("KeybindingCapture{}",row.action.key())), texture_fdid: 921208,
+                    width: 160.0, height: 20.0, hidden: hide_capture, pos_type: "absolute", left: 0.0, top: 4.0, }
+                texture { name: DynName(format!("KeybindingHover{}",row.action.key())), texture_fdid: 383586,
+                    width: 160.0, height: 22.0, hidden: true, tex_coords: "0,1,0.03,0.7175", pos_type: "absolute", left: 0.0, top: 0.0, }
             }
             fontstring {
                 name: {text_name},
@@ -240,8 +107,9 @@ fn keybinding_button(row: &KeybindingRowView) -> Element {
                 height: BINDING_BUTTON_H,
                 text: {text},
                 font: "FrizQuadrata",
-                font_size: 13.0,
+                font_size: 10.0,
                 font_color: color,
+                frame_level: 100.0,
                 justify_h: "CENTER",
                 pos_type: "absolute",
                 left: "50%",
@@ -251,4 +119,18 @@ fn keybinding_button(row: &KeybindingRowView) -> Element {
             }
         }
     }
+}
+
+fn silver_button_art(name: &str, fdid: u32, hidden: bool) -> Element {
+    // UIMenuButtonStretchTemplate XML:12x6 corners; source cropped80x26 in128x32.
+    let sx = [0.0, 0.09375, 0.53125, 0.625];
+    let sy = [0.0, 0.1875, 0.625, 0.8125];
+    let dx = [0.0, 12.0, BINDING_BUTTON_W - 12.0, BINDING_BUTTON_W];
+    let dy = [0.0, 6.0, BINDING_BUTTON_H - 6.0, BINDING_BUTTON_H];
+    let art: Element=(0..3).flat_map(|y| (0..3).flat_map(move |x| {
+        rsx! { texture { name: DynName(format!("KeybindingSilver{name}{y}{x}")), texture_fdid: fdid,
+            width: {dx[x+1]-dx[x]}, height: {dy[y+1]-dy[y]}, pos_type: "absolute", left: dx[x], top: dy[y],
+            tex_coords: format!("{},{},{},{}",sx[x],sx[x+1],sy[y],sy[y+1]), } }
+    })).collect();
+    rsx! { r#frame { name: DynName(format!("KeybindingSilver{name}")), stretch: true, hidden, {art} } }
 }
