@@ -5,6 +5,9 @@
 ## 2026-10-13 — Group Finder Retail layout repair
 
 [Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): shared PanelTab/WowStyle1 controls, XML blue-menu category art/insets and native512×256 clipped quest paper replace generic tabs/stretched wall. Native geometry and covered-description pixel RED→GREEN; both-skin1920×1080 before/after closed/open PNGs inspected against XML. Targeted UI5/native-mask5, library build/check and fmt pass at5b6f57417. Source UI extracts remain private; full follower gameplay still open.
+## 2026-10-13 — Basic editor source continuation
+
+[Housing](systems/housing.md#basic-source-controls-and-release-input--functional2026-10-13): source controls/layout, unbound assignable Retail actions, native owner-routed click/drag release, saved/preview rotation, user unbind and visitor/refusal/relog pass in both skins. Installed70340 hotkey atlas-member re-export remains a named visual gap owned by db2-follow-install; frozen69933 payloads/captures/test were removed under lead decision. Full housing remains open.
 ## 2026-10-13 — Glue/menu template fidelity
 
 [Glue/menu fidelity](investigations/glue-menu-fidelity.md): five native Retail-template frames retain selection/category/paging/delete actions in both skins. Exact pinned DB2 slice margins replace stretched borders; shared Options radio popups retain one-open/select/Escape/outside behavior. Native RED distinguishes actionless dropdown Background interception and subpixel shadow crops expanding to full atlas art. Offline source geometry/input/pixel fixtures gate these boundaries; authenticated deletion and server-side campsite persistence are not claimed.
