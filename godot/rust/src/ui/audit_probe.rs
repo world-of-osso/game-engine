@@ -46,6 +46,35 @@ impl INode for UiAuditProbe {
 #[godot_api]
 impl UiAuditProbe {
     #[func]
+    fn mount_collections(&mut self, forever: bool, journal: GString) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CollectionsAuditUI");
+        self.base_mut().add_child(&ui);
+        let result = match journal.to_string().as_str() {
+            "mounts" => ui.bind_mut().show_mount_journal(
+                game_engine_ui_model::mount_journal::MountJournalView {
+                    visible: true,
+                    viewport: [1920.0, 1080.0],
+                    ..Default::default()
+                },
+            ),
+            "pets" => {
+                ui.bind_mut()
+                    .show_pet_journal(game_engine_ui_model::pet_journal::PetJournalView {
+                        visible: true,
+                        viewport: [1920.0, 1080.0],
+                        ..Default::default()
+                    })
+            }
+            other => return format!("Unknown audit journal {other}").as_str().into(),
+        };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
     fn mount_mail(&mut self, forever: bool) -> GString {
         use game_engine_ui_model::mail::NativeMailView;
         use game_engine_ui_model::mail_frame_component::{MailFrameState, MailFrameTab};
