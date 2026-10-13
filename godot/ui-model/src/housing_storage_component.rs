@@ -14,7 +14,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
             (-4.0, 0.0, 64.0, 72.0),
         );
         let top = ((view.viewport[1] - 72.0) / 2.0 - 150.0).max(0.0);
-        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,button_atlas_highlight:"house-chest-open-drawer-button",button_highlight_alpha:0.5,{icon}}};
+        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,button_atlas_highlight:"house-chest-open-drawer-button",button_highlight_alpha:"0.5",{icon}}};
     }
     let background = named_atlas_texture(
         "HouseEditorStorageBackground".into(),
@@ -54,7 +54,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
         fontstring {name:"HouseEditorStorageTitle",text:status,width:content_width,height:32.0,pos_type:"absolute",left:85.0,top:footer_top,font_size:14.0}
         editbox {name:"HouseEditorStorageSearchBox",text:{view.model.storage_search.as_str()},width:search_width,height:30.0,pos_type:"absolute",left:20.0,top:20.0,font_size:12.0}
         fontstring {name:"HouseEditorStorageSearchHint",text:"Search",hidden:hide_hint,mouse_enabled:false,width:search_width,height:30.0,pos_type:"absolute",left:30.0,top:20.0,font_size:12.0,font_color:"0.5,0.5,0.5,1.0",justify_h:"LEFT"}
-        button {name:"HouseEditorStorageCollapseButton",width:32.0,height:74.0,pos_type:"absolute",left:collapse_left,top:collapse_top,onclick:"housing:storage:collapse",button_default_skin:false,button_atlas_highlight:"house-chest-close-drawer-button",button_highlight_alpha:0.5,{collapse}}
+        button {name:"HouseEditorStorageCollapseButton",width:32.0,height:74.0,pos_type:"absolute",left:collapse_left,top:collapse_top,onclick:"housing:storage:collapse",button_default_skin:false,button_atlas_highlight:"house-chest-close-drawer-button",button_highlight_alpha:"0.5",{collapse}}
         button {name:"HouseEditorStorageResizeButton",width:20.0,height:20.0,pos_type:"absolute",left:resize_left,top:resize_top,button_default_skin:false}
     }}
 }
