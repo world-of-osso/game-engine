@@ -2299,6 +2299,10 @@ fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
                     panic!("Binding label required")
                 };
                 assert_eq!(
+                    font.font,
+                    ui_toolkit::widgets::font_string::GameFont::ArialNarrow
+                );
+                assert_eq!(
                     font.text,
                     if name == "Cancel" {
                         "Escape"
