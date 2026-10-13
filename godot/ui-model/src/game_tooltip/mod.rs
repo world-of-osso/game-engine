@@ -96,6 +96,12 @@ pub enum TooltipAnchor {
     CursorRight,
     /// `SetOwner(owner, side)`; `rect` is the owner's `[x, y, w, h]` in UI units, y down.
     Owner { rect: [f32; 4], side: OwnerSide },
+    /// `SetOwner` with explicit pixel offsets; offset coordinates are UI units, y down.
+    OwnerOffset {
+        rect: [f32; 4],
+        side: OwnerSide,
+        offset: [f32; 2],
+    },
 }
 
 /// A tooltip's content before placement.
@@ -121,6 +127,13 @@ impl GameTooltip {
     pub fn owned(self, rect: [f32; 4], side: OwnerSide) -> Self {
         Self {
             anchor: TooltipAnchor::Owner { rect, side },
+            ..self
+        }
+    }
+
+    pub fn owned_offset(self, rect: [f32; 4], side: OwnerSide, offset: [f32; 2]) -> Self {
+        Self {
+            anchor: TooltipAnchor::OwnerOffset { rect, side, offset },
             ..self
         }
     }
@@ -323,6 +336,10 @@ fn anchor_origin(anchor: TooltipAnchor, screen: TooltipScreen, [w, h]: [f32; 2])
         TooltipAnchor::Cursor => [screen.cursor[0], screen.cursor[1] - CURSOR_OFFSET_Y],
         TooltipAnchor::CursorRight => [screen.cursor[0], screen.cursor[1] - h],
         TooltipAnchor::Owner { rect, side } => owner_origin(rect, side, sw, [w, h]),
+        TooltipAnchor::OwnerOffset { rect, side, offset } => {
+            let [x, y] = owner_origin(rect, side, sw, [w, h]);
+            [x + offset[0], y + offset[1]]
+        }
     }
 }
 
@@ -370,7 +387,7 @@ pub fn place_comparisons(
     let main_w = tooltip_size(main)[0];
     let (left, right_dist) = (main.x, screen.size[0] - (main.x + main_w));
     let side = match anchor {
-        TooltipAnchor::Owner { side, .. } => Some(side),
+        TooltipAnchor::Owner { side, .. } | TooltipAnchor::OwnerOffset { side, .. } => Some(side),
         _ => None,
     };
     let on_left = match side {
@@ -433,6 +450,8 @@ mod tests {
     };
 
     fn five_lines() -> GameTooltip {
+        // Font assets must be initialized before both placement and expected measurements.
+        set_test_data_root();
         GameTooltip::new(
             TooltipPresentation {
                 lines: vec![TooltipLineState::new("line"); 5],
@@ -488,6 +507,27 @@ mod tests {
     }
 
     #[test]
+    fn housing_category_owner_offsets_keep_real_owner_geometry_and_clamp_after_translation() {
+        let rect = [100.0, 200.0, 64.0, 64.0];
+        let tooltip = five_lines().owned_offset(rect, OwnerSide::Right, [-12.0, 12.0]);
+        let height = tooltip_size(&tooltip.content)[1];
+        let placed = place(tooltip, SCREEN);
+        assert_eq!(placed.x, 152.0);
+        assert_eq!(placed.y + height, 212.0);
+        let zero = place(
+            five_lines().owned_offset(rect, OwnerSide::Right, [0.0, 0.0]),
+            SCREEN,
+        );
+        let original = place(five_lines().owned(rect, OwnerSide::Right), SCREEN);
+        assert_eq!(zero, original);
+        let edge = place(
+            five_lines().owned_offset([0.0, 0.0, 5.0, 5.0], OwnerSide::Right, [-12.0, 12.0]),
+            SCREEN,
+        );
+        assert_eq!((edge.x, edge.y), (0.0, 0.0));
+    }
+
+    #[test]
     fn the_default_anchor_is_bottom_right_and_cursor_follows_the_pointer() {
         let tooltip = five_lines();
         let height = tooltip_size(&tooltip.content)[1];
@@ -530,7 +570,13 @@ mod tests {
             ..SCREEN
         };
         let placed = place(tooltip.clone(), bottom_right);
-        assert!(inside(&placed));
+        assert!(
+            inside(&placed),
+            "right edge actual={:?} expected_width={} height={}",
+            placed,
+            w(),
+            height
+        );
         assert_eq!(placed.x + w(), 1920.0);
         assert_eq!(placed.y + height, 1078.0);
         // Top right: a tooltip taller than the space above the cursor drops to the top edge.
@@ -539,7 +585,13 @@ mod tests {
             ..SCREEN
         };
         let placed = place(tooltip, top_right);
-        assert!(inside(&placed));
+        assert!(
+            inside(&placed),
+            "top edge actual={:?} expected_width={} height={}",
+            placed,
+            w(),
+            height
+        );
         assert_eq!((placed.x + w(), placed.y), (1920.0, 0.0));
     }
 
