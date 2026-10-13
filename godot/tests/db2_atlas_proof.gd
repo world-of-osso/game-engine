@@ -12,7 +12,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	evidence = OS.get_environment("DB2_PROOF_OUTPUT")
 	skin = OS.get_environment("DB2_PROOF_SKIN")
 	var account := OS.get_environment("DB2_PROOF_ACCOUNT")
