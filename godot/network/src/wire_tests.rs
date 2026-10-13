@@ -1294,6 +1294,45 @@ fn native_bridge_receives_remote_player_motion_changes() {
     host.stop();
 }
 
+#[test]
+fn toyfx20_native_bridge_receives_current_pvp_faction_and_team_only_changes() {
+    use shared::components::CurrentPvpFaction;
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8194);
+    await_connected(&mut server, &mut host);
+    let entity = server
+        .world_mut()
+        .spawn((
+            CurrentPvpFaction(2),
+            Position {
+                x: 1.0,
+                y: 2.0,
+                z: 3.0,
+            },
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "racial Alliance", |unit| {
+        unit.get::<CurrentPvpFaction>() == Some(&CurrentPvpFaction(2))
+    });
+    for faction in [1, 2, 0] {
+        server
+            .world_mut()
+            .entity_mut(entity)
+            .insert(CurrentPvpFaction(faction));
+        await_unit(
+            &mut server,
+            &mut host,
+            id,
+            "PvP faction-only change",
+            |unit| unit.get::<CurrentPvpFaction>() == Some(&CurrentPvpFaction(faction)),
+        );
+        assert_eq!(position_x(host.unit(id).unwrap()), Some(1.0));
+    }
+    host.stop();
+}
+
 /// The nameplate rule inputs reach the host with the unit: FactionTemplate, UnitFlags
 /// and the combat flag, including a combat drop that changes nothing else.
 #[test]
