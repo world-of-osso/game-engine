@@ -41,7 +41,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
         "house-chest-close-drawer-button",
         (0.0, 0.0, 32.0, 74.0),
     );
-    let stored = crate::housing_editor_component::stored_entries(view, disabled);
+    let stored = crate::housing_storage_tiles::stored_entries(view, disabled);
     let categories = categories(view);
     let filters = filters(view);
     let search = crate::housing_component::housing_search_box(

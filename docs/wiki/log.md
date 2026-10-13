@@ -1,3 +1,7 @@
+## 2026-10-13 — Source storage tiles
+
+[Housing](systems/housing.md#source-stored-entry-tiles):97px state-atlas tiles/87px inset icons/anchored16px counts/102×107 sequence pitch replace invented125px cards. Source member-local crop reset fixes rejected blank-border native captures. Both skins physically prove visible normal/hover/held/release/cancel and paid1693/2330 conservation; six-record second grid row is CPU proof, owned drag remains next.
+
 ## 2026-10-13 — Expert PlacedDecorList native proof
 
 [Housing](systems/housing.md#expert-placeddecorlist): both-skin actual paid-instance select/deselect, UI/world hover, clamped header drag, released-right source menu at pointer position, authoritative remove and normal re-place; source atlas6654379 lead-published from independently verified local CASC. Behavioral32 model/20 registry/native release1 pass. Unknown budget “— / —”, source lock/audio and full housing completion remain gaps.
