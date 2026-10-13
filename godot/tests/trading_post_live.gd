@@ -14,7 +14,10 @@ func _initialize() -> void:
 	call_deferred("run_fixture")
 
 func run_fixture() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
+	if DisplayServer.screen_get_size() != Vector2i(1920, 1080):
+		fail("Private compositor must expose 1920x1080 output")
+		return
 	var account := OS.get_environment("TP_ACCOUNT")
 	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
