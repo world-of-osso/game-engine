@@ -13,6 +13,8 @@ func proof_cases() -> Array:
 func prove_toy(sample: Array) -> void:
 	await learn_toy(PENDANT)
 	if failed or not learned_toy(PENDANT): return
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["teleport", character, "1116", str(OUTSIDE.x), str(-OUTSIDE.z), str(OUTSIDE.y)]): return
+	if not await wait_until(func(): return ready_at_source_site(OUTSIDE, 7332), "Ashran actual area and native HUD ready", 180000): return
 	await open_source_toy(str(sample[3]))
 	if failed: return
 	await click("ToySpellButton1")
@@ -21,7 +23,7 @@ func prove_toy(sample: Array) -> void:
 	await capture("pendant22-outside-refused")
 	await click("CollectionsMicroButton")
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["teleport", character, "1116", str(ALLOWED.x), str(-ALLOWED.z), str(ALLOWED.y)]): return
-	if not await wait_until(func(): return at_source_site(ALLOWED) and client.account_state().screen == "InWorld", "actual Draenor parent-area transfer", 180000): return
+	if not await wait_until(func(): return ready_at_source_site(ALLOWED, 6797), "Draenor actual parent area and native HUD ready", 180000): return
 	await open_source_toy(str(sample[3]))
 	if failed: return
 	var errors_before: int = client.spells_state().errors.size()
@@ -91,6 +93,21 @@ func at_source_site(point: Vector3) -> bool:
 	if transform == null: return false
 	var delta: Vector3 = transform.origin - point
 	return Vector2(delta.x, delta.z).length() < 1.0
+
+func ready_at_source_site(point: Vector3, area: int) -> bool:
+	if not at_source_site(point): return false
+	var state = client.account_state()
+	if state.screen != "InWorld" or int(state.area_id) != area: return false
+	return control("CollectionsMicroButton") != null and native_display(-1)
+
+func fail(message: String) -> void:
+	if client != null:
+		var controls := []
+		for node in client.find_children("*", "Control", true, false):
+			if node.is_visible_in_tree(): controls.append(str(node.name))
+		receipts.append({"phase": "failure", "message": message, "account": client.account_state(), "spells": client.spells_state(), "toys": client.toybox_state(), "visible_controls": controls})
+		write_receipts()
+	super.fail(message)
 
 func observed_position() -> Array:
 	var point: Vector3 = client.unit_transform(int(client.account_state().local_player_id)).origin
