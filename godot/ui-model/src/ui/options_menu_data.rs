@@ -5,7 +5,7 @@ use crate::client_options_data::{
 use crate::input_bindings_data::{
     BindingSection, InputAction, InputBinding, InputBindingsData, actions_for_section,
 };
-use crate::nameplate_style_data::{NameplateStyle, StyleSlider};
+use crate::nameplate_style_data::{NameplateBarThickness, NameplateStyle, StyleSlider};
 use crate::soft_target_data::{InteractKeyIcons, SoftTargetOptions};
 use crate::status_text_data::StatusTextDisplay;
 use crate::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
@@ -989,6 +989,18 @@ fn apply_hud_toggle(
     skin: game_engine_core::ui_layout_data::LayoutSkin,
 ) -> bool {
     match key {
+        "nameplate_health_thickness:0" => hud
+            .nameplate_style
+            .apply_health_preset(NameplateBarThickness::Thin),
+        "nameplate_health_thickness:1" => hud
+            .nameplate_style
+            .apply_health_preset(NameplateBarThickness::Thick),
+        "nameplate_spellbar_thickness:0" => hud
+            .nameplate_style
+            .apply_cast_preset(NameplateBarThickness::Thin),
+        "nameplate_spellbar_thickness:1" => hud
+            .nameplate_style
+            .apply_cast_preset(NameplateBarThickness::Thick),
         "nameplate_health_thickness" => {
             let style = &mut hud.nameplate_style;
             style.apply_health_preset(style.health_preset().toggled())
