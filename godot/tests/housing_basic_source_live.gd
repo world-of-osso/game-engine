@@ -22,8 +22,14 @@ func run_test() -> void:
 		return
 	var tile: Control = housing_control("HouseEditorStored2330")
 	var start: Vector2 = tile.get_global_rect().get_center()
+	push_mouse_motion(start)
+	await frames(5)
+	print("BASIC_DRAG_BEFORE rect=",tile.get_global_rect()," source=",tile.get_instance_id()," hover=",root.gui_get_hovered_control()," mouse=",root.get_mouse_position())
+	if not await record_editor("basic-drag-before"): return
 	await tile_mouse_button(start,true)
+	print("BASIC_DRAG_PRESSED source=",tile.get_instance_id()," current=",housing_control("HouseEditorStored2330").get_instance_id()," mask=",Input.get_mouse_button_mask()," draw=",tile.get_draw_mode())
 	await held_motion(start+Vector2(35,0),Vector2(35,0))
+	print("BASIC_DRAG_MOVED dragging=",root.gui_is_dragging()," hover=",root.gui_get_hovered_control()," mouse=",root.get_mouse_position()," source=",housing_control("HouseEditorStored2330")," state=",client.housing_state())
 	if not await wait_housing(func(): return int(client.housing_state().get("placing",0))==2330,"actual owned storage OnDragStart",10000): return
 	if client.housing_state().decor!=before.decor or client.housing_state().stored!=before.stored:
 		fail("Held source drag changed confirmed paid copies")
