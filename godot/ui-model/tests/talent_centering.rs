@@ -149,7 +149,7 @@ fn retail_ret_and_arcane_centers_use_db2_pan_without_fit_zoom_in_both_skins() {
             );
             close(
                 center(&registry, "TalentLoadoutDropDown"),
-                [148.0, 815.0],
+                [108.0, 815.0], // 120px WowStyle1 child LEFT in the200px LoadSystem.
                 "loadout",
             );
             close(
