@@ -97,7 +97,12 @@ func check_pet_loadout_models() -> bool:
 	await click(item_control.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	await frames(5)
 	await click_control(backpack)
-	await click_control(client.find_child("CollectionsMicroButton", true, false) as Control)
+	var collections := client.find_child("CollectionsMicroButton", true, false) as Control
+	print("PET_SETUP_DIMENSIONS window=", root.size, " image=", root.get_texture().get_image().get_size(),
+		" backpack=", backpack.get_global_rect(), " collections=", collections.get_global_rect())
+	await click_control(collections)
+	await frames(3)
+	print("PET_SETUP_CHILDREN ", client.get_children().map(func(node): return node.name))
 	if not await wait_frames(func(): return client.find_child("CollectionsJournalTab2", true, false) != null, "collections shell"):
 		return false
 	await click_control(client.find_child("CollectionsJournalTab2", true, false) as Control)
