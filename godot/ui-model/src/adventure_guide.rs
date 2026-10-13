@@ -835,12 +835,14 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         Art::RightHeader,
         (406., 75., 386., 39.),
     ));
-    out.extend(label(
-        "EncounterJournalEncounterTitle".into(),
-        &encounter.name,
-        (442., 88., 220., 12.),
-        (14., HEADER, "LEFT"),
-    ));
+    if view.page != Page::Loot {
+        out.extend(label(
+            "EncounterJournalEncounterTitle".into(),
+            &encounter.name,
+            (442., 88., 220., 12.),
+            (14., HEADER, "LEFT"),
+        ));
+    }
     out.extend(difficulty_button(view));
     match view.page {
         Page::Loot => out.extend(loot_page(ctx, view)),
