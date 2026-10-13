@@ -4,18 +4,22 @@ use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
     quest_art::{DynName, named_atlas_texture, panel_button},
-    ui::strata::FrameStrata,
+    ui::{
+        screens::menu_primitives::{
+            ContextMenu, ContextMenuItem, DropdownButton, context_menu, dropdown_button,
+        },
+        strata::FrameStrata,
+    },
 };
 use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
 use std::sync::Arc;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const MODEL: &str = "PerksProgramMainModelScene";
-pub const SEARCH: &str = "PerksProgramSearchBox";
 pub const LIST: &str = "PerksProgramScrollBox";
 pub const WIDTH: f32 = 1920.;
 pub const HEIGHT: f32 = 1080.;
-const ROW_HEIGHT: f32 = 84.;
+const ROW_HEIGHT: f32 = 48.;
 const LIST_HEIGHT: f32 = 573.;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct View {
@@ -25,6 +29,8 @@ pub struct View {
     pub selected: Option<u32>,
     pub search: String,
     pub dropdown: bool,
+    pub sort: Option<Sort>,
+    pub descending: bool,
     pub pending: bool,
     pub confirm: Option<String>,
     pub error: String,
@@ -33,8 +39,12 @@ pub struct View {
 pub enum Action {
     Request(TradingPostRequest),
     Close,
-    Log,
-    Collections,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Sort {
+    Name,
+    Time,
+    Price,
 }
 impl View {
     pub fn receive(&mut self, snapshot: Arc<TradingPostSnapshot>) {
@@ -56,8 +66,19 @@ impl View {
             })
             .collect();
         rows.sort_by(|a, b| {
-            b.ui_group_priority
-                .cmp(&a.ui_group_priority)
+            let order = match self.sort {
+                Some(Sort::Name) => a.name.cmp(&b.name),
+                Some(Sort::Price) => a.price.cmp(&b.price),
+                // Snapshot items share the authored month end; stable name tie-break.
+                Some(Sort::Time) => std::cmp::Ordering::Equal,
+                None => b.ui_group_priority.cmp(&a.ui_group_priority),
+            };
+            let order = if self.descending {
+                order.reverse()
+            } else {
+                order
+            };
+            order
                 .then_with(|| a.name.cmp(&b.name))
                 .then(a.id.cmp(&b.id))
         });
@@ -98,35 +119,21 @@ impl View {
         }
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
-            "perks:log" => return Ok(Some(Action::Log)),
-            "perks:collections" => return Ok(Some(Action::Collections)),
             "perks:filter" => self.dropdown = !self.dropdown,
             "perks:cancel" => self.confirm = None,
             "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
             "perks:refund" if self.can_refund() => self.confirm = Some("refund".into()),
             "perks:confirm" => return self.confirm_request(),
-            "perks:freeze" => {
-                let row = self.selected_item().ok_or("No Trading Post selection")?;
-                if row.grant_unavailable.is_some() || self.pending {
-                    return Ok(None);
-                }
-                self.pending = true;
-                return Ok(Some(Action::Request(TradingPostRequest::Freeze {
-                    vendor_item_id: self.selected,
-                })));
-            }
-            "perks:unfreeze" => {
-                if self.pending {
-                    return Ok(None);
-                }
-                self.pending = true;
-                return Ok(Some(Action::Request(TradingPostRequest::Freeze {
-                    vendor_item_id: None,
-                })));
-            }
+            "perks:sort:name" => self.sort_by(Sort::Name),
+            "perks:sort:time" => self.sort_by(Sort::Time),
+            "perks:sort:price" => self.sort_by(Sort::Price),
             _ => self.select_action(action)?,
         }
         Ok(None)
+    }
+    fn sort_by(&mut self, sort: Sort) {
+        self.descending = self.sort == Some(sort) && !self.descending;
+        self.sort = Some(sort);
     }
     fn select_action(&mut self, action: &str) -> Result<(), String> {
         if let Some(id) = action.strip_prefix("perks:category:") {
@@ -166,64 +173,45 @@ impl View {
     }
 }
 
+// Blizzard_PerksProgram.xml ProductsScrollBoxContainer: LEFT +46, CENTER Y +22.
+const CONTAINER_X: f32 = 46.;
+const CONTAINER_Y: f32 = (HEIGHT - 751.) / 2. - 22.;
+const LIST_WIDTH: f32 = 527. - 24.;
+const FILTER_X: f32 = CONTAINER_X + 9.;
+const FILTER_Y: f32 = CONTAINER_Y - 22. - 25.;
+const DETAILS_X: f32 = WIDTH - 46. - 360.;
+const FOOTER_Y: f32 = HEIGHT - 20. - 46.;
+
 pub fn trading_post_screen(ctx: &SharedContext) -> Element {
-    let Some(view) = ctx.get::<View>() else {
+    let Some(view) = ctx.get::<View>().filter(|view| view.visible) else {
         return vec![];
     };
-    if !view.visible {
-        return vec![];
-    }
     let mut children = named_atlas_texture(
         "PerksProgramLeftGradient".into(),
         "perks-gradient-stormwind-left",
-        (0., 0., 700., HEIGHT),
+        (0., 0., 950., HEIGHT),
     );
     children.extend(named_atlas_texture(
         "PerksProgramRightGradient".into(),
         "perks-gradient-stormwind-right",
-        (1220., 0., 700., HEIGHT),
+        (WIDTH - 600., 0., 600., HEIGHT),
     ));
-    children.extend(label(
-        "PerksProgramTitle".into(),
-        "Trading Post",
-        (46., 90., 527., 50.),
-        (28., WHITE, "CENTER"),
-    ));
-    children.extend(panel_button(
-        "PerksProgramLeaveButton".into(),
+    children.extend(perks_button(
+        "PerksProgramLeaveButton",
         "Leave",
         "perks:close",
         true,
-        (46., 988., 180., 46.),
-    ));
-    children.extend(panel_button(
-        "PerksProgramLogButton".into(),
-        "Traveler's Log",
-        "perks:log",
-        true,
-        (1500., 988., 180., 46.),
-    ));
-    children.extend(panel_button(
-        "PerksProgramCollectionsButton".into(),
-        "Collections",
-        "perks:collections",
-        true,
-        (1690., 988., 180., 46.),
+        CONTAINER_X,
     ));
     if let Some(snapshot) = &view.snapshot {
         children.extend(catalog_controls(ctx, view, snapshot));
         children.extend(selected_details(view));
-        children.extend(label(
-            "PerksProgramCurrencyAmount".into(),
-            &format!("{} Trader's Tender", snapshot.tender),
-            (50., 150., 520., 28.),
-            (20., WHITE, "LEFT"),
-        ));
+        children.extend(currency(snapshot.tender));
     } else {
         children.extend(label(
             "PerksProgramLoading".into(),
             "Loading Trading Post…",
-            (46., 250., 527., 40.),
+            (CONTAINER_X, CONTAINER_Y, 527., 48.),
             (18., WHITE, "CENTER"),
         ));
     }
@@ -236,14 +224,14 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
 fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnapshot) -> Element {
     let rows = view.rows();
     let content_height = (rows.len() as f32 * ROW_HEIGHT).max(LIST_HEIGHT);
-    let offset = pixel_geometry(LIST_HEIGHT, content_height, LIST_HEIGHT)
-        .clamp(ctx.scroll_first_row(LIST)) as f32;
+    let geometry = pixel_geometry(LIST_HEIGHT, content_height, LIST_HEIGHT);
+    let offset = geometry.clamp(ctx.scroll_first_row(LIST)) as f32;
     let content: Element = rows
         .iter()
         .enumerate()
         .filter(|(index, _)| {
-            let top = *index as f32 * ROW_HEIGHT;
-            top + ROW_HEIGHT > offset && top < offset + LIST_HEIGHT
+            let y = *index as f32 * ROW_HEIGHT;
+            y + ROW_HEIGHT > offset && y < offset + LIST_HEIGHT
         })
         .flat_map(|(index, row)| {
             product_row(
@@ -253,203 +241,357 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
             )
         })
         .collect();
-    let geometry = pixel_geometry(LIST_HEIGHT, content_height, LIST_HEIGHT);
     let scroll_attr = scroll_list_attr(&geometry);
     let child_top = -offset;
     let bar = MinimalScrollBar {
         list: LIST,
-        left: 511.,
-        top: 0.,
-        height: LIST_HEIGHT,
+        left: LIST_WIDTH,
+        top: 4.,
+        height: LIST_HEIGHT - 12.,
         geometry,
         offset: offset as usize,
         unscrollable: Unscrollable::HideBar,
     };
-    let mut out = rsx! {r#frame{name:{DynName(LIST.into())},left:46.0,top:260.0,width:527.0,height:LIST_HEIGHT,pos_type:"absolute",mouse_enabled:true,scroll_list:scroll_attr.as_str(),
-        r#frame{name:"PerksProgramScrollChild",left:0.0,top:child_top,width:503.0,height:content_height,pos_type:"absolute",{content}}
-        {bar.element()}
+    let mut inner = rsx! {r#frame{name:{DynName(LIST.into())},left:0.0,top:58.0,width:LIST_WIDTH,height:LIST_HEIGHT,pos_type:"absolute",mouse_enabled:true,scroll_list:scroll_attr.as_str(),
+        r#frame{name:"PerksProgramScrollChild",left:0.0,top:child_top,width:LIST_WIDTH,height:content_height,pos_type:"absolute",{content}}
     }};
-    out.extend(named_atlas_texture(
+    // MinimalScrollBar is a sibling of ScrollBox, as in the XML.
+    inner.extend(rsx! {r#frame{name:"PerksProgramScrollBarContainer",left:0.0,top:58.0,width:527.0,height:LIST_HEIGHT,pos_type:"absolute",{bar.element()}}});
+    inner.extend(named_atlas_texture(
         "PerksProgramDivider".into(),
         "perks-divider-short",
-        (76., 248., 443., 3.),
+        (30., 51., 527. - 60., 3.),
     ));
+    inner.extend(sort_header(
+        "Name",
+        "Name",
+        "perks:sort:name",
+        (38., 24., 265., 20.),
+    ));
+    inner.extend(sort_header(
+        "Time",
+        "",
+        "perks:sort:time",
+        (527. - 30. - 24. - 24., 24., 24., 20.),
+    ));
+    inner.extend(sort_header(
+        "Price",
+        "Price",
+        "perks:sort:price",
+        (527. - 30. - 24. - 24. - 48. - 60., 24., 60., 20.),
+    ));
+    inner.extend(frozen_row(snapshot));
+    let mut out = rsx! {r#frame{name:"PerksProgramProductsScrollBoxContainer",left:CONTAINER_X,top:CONTAINER_Y,width:527.0,height:751.0,pos_type:"absolute",{inner}}};
     let category = snapshot
         .categories
         .iter()
         .find(|row| row.id == view.category)
         .map_or("All", |row| row.name.as_str());
-    out.extend(panel_button(
-        "PerksProgramFilter".into(),
-        category,
-        "perks:filter",
-        true,
-        (46., 210., 245., 32.),
+    out.extend(named_atlas_texture(
+        "PerksProgramFilterBackground".into(),
+        "common-dropdown-c-button",
+        (FILTER_X - 7., FILTER_Y - 7., 136., 39.),
     ));
-    out.extend(rsx!{editbox{name:{DynName(SEARCH.into())},left:305.0,top:210.0,width:244.0,height:32.0,pos_type:"absolute",text:view.search.as_str(),font_size:16.0}});
-    out.extend(frozen_row(snapshot));
+    out.extend(dropdown_button(DropdownButton {
+        frame_name: "PerksProgramFilter",
+        label_name: "PerksProgramFilterText",
+        arrow_name: "PerksProgramFilterArrow",
+        text: category,
+        width: 122.,
+        height: 25.,
+        x: FILTER_X,
+        y: -FILTER_Y,
+        background_color: "0,0,0,0",
+        text_color: "1,0.82,0,1",
+        arrow_color: WHITE,
+        onclick: Some("perks:filter"),
+    }));
     if view.dropdown {
         out.extend(category_menu(snapshot));
     }
     out
 }
+
+fn sort_header(
+    kind: &str,
+    text: &str,
+    action: &str,
+    (x, y, width, height): (f32, f32, f32, f32),
+) -> Element {
+    let art = if kind == "Time" {
+        named_atlas_texture(
+            "PerksProgramTimeSortIcon".into(),
+            "perks-clock",
+            (0., 0., 20., 20.),
+        )
+    } else {
+        vec![]
+    };
+    rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",text,font_size:14.0,font_color:"1,0.82,0,1",button_default_skin:false,onclick:action,{art}}}
+}
+
 fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
-    let mut children = texture(
+    let mut children = if selected {
+        named_atlas_texture(
+            format!("PerksProgramSelected{}", row.id),
+            "perks-list-active",
+            (0., 0., LIST_WIDTH, ROW_HEIGHT),
+        )
+    } else {
+        vec![]
+    };
+    children.extend(texture(
         format!("PerksProgramIcon{}", row.id),
         row.icon_fdid,
-        (10., 10., 64., 64.),
+        (32., 8., 32., 32.),
         WHITE,
-    );
+    ));
     children.extend(label(
         format!("PerksProgramName{}", row.id),
         &row.name,
-        (88., 8., 290., 40.),
+        (72., 5., 265., 38.),
         (16., WHITE, "LEFT"),
     ));
     children.extend(label(
         format!("PerksProgramPrice{}", row.id),
         &row.price.to_string(),
-        (387., 15., 95., 24.),
-        (18., WHITE, "RIGHT"),
+        (337., 12., 44., 24.),
+        (16., WHITE, "RIGHT"),
     ));
-    let status = if row.purchased {
-        "Purchased"
-    } else if row.collected {
-        "Already collected"
-    } else {
-        row.ui_group_name.as_str()
-    };
-    children.extend(label(
-        format!("PerksProgramStatus{}", row.id),
-        status,
-        (88., 49., 300., 23.),
-        (14., WHITE, "LEFT"),
+    children.extend(texture(
+        format!("PerksProgramPriceIcon{}", row.id),
+        TENDER_ICON,
+        (389., 13.5, 21., 21.),
+        WHITE,
     ));
-    if selected {
+    if row.purchased || row.collected {
         children.extend(named_atlas_texture(
-            format!("PerksProgramSelected{}", row.id),
-            "perks-list-active",
-            (0., 0., 503., ROW_HEIGHT),
+            format!("PerksProgramOwned{}", row.id),
+            if row.refund_seconds > 0 {
+                "common-icon-undo"
+            } else {
+                "perks-owned-small"
+            },
+            (389., 13.5, 21., 21.),
         ));
     }
     let action = format!("perks:select:{}", row.id);
-    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:503.0,height:ROW_HEIGHT,pos_type:"absolute",onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
+    rsx! {button{name:{DynName(format!("PerksProgramProduct{}",row.id))},left:0.0,top,width:LIST_WIDTH,height:ROW_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),button_atlas_highlight:"perks-list-hover",{children}}}
 }
+
 fn frozen_row(snapshot: &TradingPostSnapshot) -> Element {
     let frozen = snapshot
         .items
         .iter()
         .find(|row| Some(row.id) == snapshot.frozen_item_id);
-    let title = frozen.map_or("Drag an item here to freeze it", |row| row.name.as_str());
-    let mut out = named_atlas_texture(
-        "PerksProgramFrozenSlot".into(),
+    // HoldFrame TOP=ScrollBox.BOTTOM, BOTTOM=container.BOTTOM; frozen button centered, height84.
+    let y = 58. + LIST_HEIGHT + (120. - 84.) / 2.;
+    let mut children = named_atlas_texture(
+        "PerksProgramFrozenSlotArt".into(),
         "perks-slot-empty",
-        (46., 855., 503., 84.),
+        (32., 26., 32., 32.),
     );
-    out.extend(label(
+    children.extend(label(
         "PerksProgramFrozenLabel".into(),
-        title,
-        (134., 871., 350., 40.),
+        frozen.map_or("Drag an item here to freeze it", |row| row.name.as_str()),
+        (72., 19.5, 270., 45.),
         (16., WHITE, "LEFT"),
     ));
     if let Some(row) = frozen {
-        out.extend(texture(
+        children.extend(texture(
             "PerksProgramFrozenIcon".into(),
             row.icon_fdid,
-            (56., 865., 64., 64.),
+            (32., 26., 32., 32.),
             WHITE,
         ));
-        out.extend(panel_button(
-            "PerksProgramUnfreezeButton".into(),
-            "Unfreeze",
-            "perks:unfreeze",
-            true,
-            (350., 939., 180., 32.),
+        children.extend(named_atlas_texture(
+            "PerksProgramFrozenFrame".into(),
+            "perks-frost-frame-1",
+            (32., 26., 32., 32.),
         ));
     }
-    out
+    rsx! {r#frame{name:"PerksProgramFrozenSlot",left:0.0,top:y,width:527.0,height:84.0,pos_type:"absolute",mouse_enabled:true,{children}}}
 }
+
 fn category_menu(snapshot: &TradingPostSnapshot) -> Element {
-    let mut rows = panel_button(
-        "PerksProgramCategoryAll".into(),
-        "All",
-        "perks:category:0",
-        true,
-        (0., 0., 245., 32.),
-    );
-    for (index, category) in snapshot.categories.iter().enumerate() {
-        rows.extend(panel_button(
-            format!("PerksProgramCategory{}", category.id),
-            &category.name,
-            &format!("perks:category:{}", category.id),
-            true,
-            (0., (index + 1) as f32 * 32., 245., 32.),
-        ));
-    }
-    let height = (snapshot.categories.len() + 1) as f32 * 32.;
-    rsx! {r#frame{name:"PerksProgramCategoryMenu",left:46.0,top:244.0,width:245.0,height,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,frame_level:1000.0,{rows}}}
+    let names: Vec<_> = std::iter::once("PerksProgramCategoryAll".to_owned())
+        .chain(
+            snapshot
+                .categories
+                .iter()
+                .map(|c| format!("PerksProgramCategory{}", c.id)),
+        )
+        .collect();
+    let actions: Vec<_> = std::iter::once("perks:category:0".to_owned())
+        .chain(
+            snapshot
+                .categories
+                .iter()
+                .map(|c| format!("perks:category:{}", c.id)),
+        )
+        .collect();
+    let labels: Vec<_> = std::iter::once("All")
+        .chain(snapshot.categories.iter().map(|c| c.name.as_str()))
+        .collect();
+    let items: Vec<_> = names
+        .iter()
+        .zip(&actions)
+        .zip(labels)
+        .map(|((name, action), label)| ContextMenuItem {
+            name,
+            label,
+            action,
+        })
+        .collect();
+    context_menu(ContextMenu {
+        frame_name: "PerksProgramCategoryMenu",
+        title_name: "PerksProgramCategoryTitle",
+        divider_name: "PerksProgramCategoryDivider",
+        hidden: false,
+        title: "Filter",
+        width: 122.,
+        x: FILTER_X,
+        y: FILTER_Y + 25.,
+        items: &items,
+    })
 }
+
+// PerksProgramButtonTemplate -> SharedButtonLargeTemplate -> 128-RedButton three slices.
+fn perks_button(name: &str, text: &str, action: &str, enabled: bool, x: f32) -> Element {
+    let suffix = if enabled { "" } else { "-Disabled" };
+    let cap = 128. * (46. / 128.); // native atlas end-cap width scales with template height
+    let mut art = named_atlas_texture(
+        format!("{name}Left"),
+        &format!("128-RedButton-Left{suffix}"),
+        (0., 0., cap, 46.),
+    );
+    art.extend(named_atlas_texture(
+        format!("{name}Right"),
+        &format!("128-RedButton-Right{suffix}"),
+        (180. - cap, 0., cap, 46.),
+    ));
+    let center = if enabled {
+        "_128-RedButton-Center"
+    } else {
+        "_128-RedButton-Disabled"
+    };
+    art.extend(named_atlas_texture(
+        format!("{name}Center"),
+        center,
+        (cap, 0., 180. - 2. * cap, 46.),
+    ));
+    art.extend(label(
+        format!("{name}Text"),
+        text,
+        (0., 0., 180., 46.),
+        (
+            16.,
+            if enabled {
+                "1,0.82,0,1"
+            } else {
+                "0.5,0.5,0.5,1"
+            },
+            "CENTER",
+        ),
+    ));
+    let disabled = !enabled;
+    let action = if enabled { action } else { "" };
+    rsx! {button{name:{DynName(name.into())},left:x,top:FOOTER_Y,width:180.0,height:46.0,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight",{art}}}
+}
+
+const TENDER_ICON: u32 = 4696085; // verified CurrencyTypes 2032 iconFileDataID
+fn currency(tender: u32) -> Element {
+    // CurrencyFrame RIGHT=container.RIGHT, BOTTOM=container.TOP+15, size200x50.
+    let x = CONTAINER_X + 527. - 200.;
+    let y = CONTAINER_Y - 15. - 50.;
+    let mut content = texture(
+        "PerksProgramCurrencyIcon".into(),
+        TENDER_ICON,
+        (168., 9., 32., 32.),
+        WHITE,
+    );
+    content.extend(label(
+        "PerksProgramCurrencyAmount".into(),
+        &tender.to_string(),
+        (0., 8., 160., 34.),
+        (32., WHITE, "RIGHT"),
+    ));
+    rsx! {r#frame{name:"PerksProgramCurrencyFrame",left:x,top:y,width:200.0,height:50.0,pos_type:"absolute",{content}}}
+}
+
 fn selected_details(view: &View) -> Element {
     let Some(row) = view.selected_item() else {
         return vec![];
     };
-    let mut out = rsx! {r#frame{name:{DynName(MODEL.into())},left:620.0,top:150.0,width:1220.0,height:670.0,pos_type:"absolute"}};
+    // DetailsContainer fixedWidth360 RIGHT-46. XML VerticalLayoutFrame padding20/16/36.
+    let mut details = label(
+        "PerksProgramSelectedCategory".into(),
+        &row.ui_group_name,
+        (20., 16., 320., 24.),
+        (16., WHITE, "CENTER"),
+    );
+    details.extend(label(
+        "PerksProgramSelectedName".into(),
+        &row.name,
+        (20., 56., 320., 80.),
+        (30., WHITE, "CENTER"),
+    ));
+    details.extend(label(
+        "PerksProgramDetails".into(),
+        row.grant_unavailable.as_deref().unwrap_or(&row.description),
+        (20., 152., 320., 96.),
+        (16., "1,0.82,0,1", "CENTER"),
+    ));
+    details.extend(named_atlas_texture(
+        "PerksProgramDetailsDivider".into(),
+        "perks-divider-short",
+        (10., 284., 340., 3.),
+    ));
+    let mut out = rsx! {r#frame{name:"PerksProgramProductDetailsContainerFrame",left:DETAILS_X,top:{(HEIGHT-323.0)/2.0},width:360.0,height:323.0,pos_type:"absolute",{details}}};
+    // ModelSceneContainerFrame full-width1920, TOP/BOTTOM of parent.
+    out.extend(rsx! {r#frame{name:{DynName(MODEL.into())},left:573.0,top:0.0,width:{DETAILS_X-573.0},height:{HEIGHT-100.0},pos_type:"absolute"}});
     if row.category_id == 5 {
         out.extend(named_atlas_texture(
             "PerksProgramToyBackground".into(),
             "perks-item-background",
-            (1010., 190., 530., 631.),
+            ((WIDTH - 530.) / 2., (HEIGHT - 631.) / 2., 530., 631.),
         ));
         out.extend(texture(
             "PerksProgramToyIcon".into(),
             row.icon_fdid,
-            (1231., 405., 88., 88.),
+            ((WIDTH - 88.) / 2., HEIGHT / 2. - 88., 88., 88.),
             WHITE,
         ));
         out.extend(label(
             "PerksProgramToyDescription".into(),
             &row.description,
-            (1110., 530., 330., 180.),
-            (18., WHITE, "CENTER"),
+            ((WIDTH - 280.) / 2., HEIGHT / 2., 280., 74.),
+            (16., WHITE, "CENTER"),
+        ));
+    }
+    let x = WIDTH - 46. - 180.;
+    // Purchase and Refund share the exact anchor; only one is shown by Retail.
+    if view.can_refund() {
+        out.extend(perks_button(
+            "PerksProgramRefundButton",
+            "Refund",
+            "perks:refund",
+            true,
+            x,
+        ));
+    } else {
+        out.extend(perks_button(
+            "PerksProgramPurchaseButton",
+            "Purchase",
+            "perks:purchase",
+            view.can_purchase(),
+            x,
         ));
     }
     out.extend(label(
-        "PerksProgramSelectedName".into(),
-        &row.name,
-        (680., 835., 1140., 50.),
-        (30., WHITE, "CENTER"),
-    ));
-    out.extend(label(
-        "PerksProgramDetails".into(),
-        row.grant_unavailable.as_deref().unwrap_or(&row.description),
-        (680., 886., 1140., 45.),
-        (16., WHITE, "CENTER"),
-    ));
-    out.extend(panel_button(
-        "PerksProgramPurchaseButton".into(),
-        &format!("Purchase — {}", row.price),
-        "perks:purchase",
-        view.can_purchase(),
-        (850., 939., 260., 46.),
-    ));
-    out.extend(panel_button(
-        "PerksProgramRefundButton".into(),
-        "Refund",
-        "perks:refund",
-        view.can_refund(),
-        (1120., 939., 180., 46.),
-    ));
-    out.extend(panel_button(
-        "PerksProgramFreezeButton".into(),
-        "Freeze",
-        "perks:freeze",
-        !view.pending && row.grant_unavailable.is_none(),
-        (1310., 939., 180., 46.),
-    ));
-    out.extend(label(
         "PerksProgramError".into(),
         &view.error,
-        (680., 990., 800., 40.),
+        (DETAILS_X, FOOTER_Y - 80., 360., 60.),
         (16., WHITE, "CENTER"),
     ));
     out
@@ -458,34 +600,43 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
     let Some(row) = view.selected_item() else {
         return vec![];
     };
-    let mut children = label(
-        "PerksProgramConfirmText".into(),
-        &format!(
-            "{} {} for {} Trader's Tender?",
-            if kind == "refund" {
-                "Refund"
-            } else {
-                "Purchase"
-            },
-            row.name,
-            row.price
-        ),
-        (25., 25., 510., 80.),
-        (18., WHITE, "CENTER"),
+    let text = format!(
+        "{} {} for {} Trader's Tender?",
+        if kind == "refund" {
+            "Refund"
+        } else {
+            "Purchase"
+        },
+        row.name,
+        row.price
     );
+    let text_height = crate::quest_art::wrapped_line_count(&text, 290., 14.) as f32 * 18.;
+    let height = 16. + text_height + 12. + 26. + 16.;
+    let mut children = texture(
+        "PerksProgramConfirmBackground".into(),
+        6839810,
+        (7., 7., 306., height - 14.),
+        WHITE,
+    );
+    children.extend(label(
+        "PerksProgramConfirmText".into(),
+        &text,
+        (15., 16., 290., text_height),
+        (14., WHITE, "CENTER"),
+    ));
     children.extend(panel_button(
         "PerksProgramConfirmButton".into(),
         "Confirm",
         "perks:confirm",
         !view.pending,
-        (80., 120., 180., 36.),
+        (26., 16. + text_height + 12., 128., 26.),
     ));
     children.extend(panel_button(
         "PerksProgramCancelButton".into(),
         "Cancel",
         "perks:cancel",
         true,
-        (300., 120., 180., 36.),
+        (166., 16. + text_height + 12., 128., 26.),
     ));
-    rsx! {r#frame{name:"PerksProgramConfirmDialog",left:680.0,top:430.0,width:560.0,height:180.0,pos_type:"absolute",background_color:"0.05,0.04,0.03,0.98",strata:FrameStrata::FullscreenDialog,frame_level:2000.0,mouse_enabled:true,{children}}}
+    rsx! {r#frame{name:"PerksProgramConfirmDialog",left:{(WIDTH-320.0)/2.0},top:135.0,width:320.0,height,pos_type:"absolute",style:"static_popup",strata:FrameStrata::FullscreenDialog,frame_level:2000.0,mouse_enabled:true,{children}}}
 }

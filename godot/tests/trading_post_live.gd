@@ -16,8 +16,8 @@ func _initialize() -> void:
 func run_fixture() -> void:
 	root.size = Vector2i(1280, 720)
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5731" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["browse", "relog", "purchase", "refund"]:
-		fail("Explicit private 127.0.0.1:5731, fb_* account, phase and evidence paths required")
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "browse", "relog", "purchase", "refund"]:
+		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
@@ -31,11 +31,20 @@ func run_fixture() -> void:
 	var expected := "Modern" if skin == "modern" else "Forever"
 	if client.account_state().ui_skin != expected:
 		fail("Active skin %s, expected %s" % [client.account_state().ui_skin, expected]); return
+	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not await travelers_log(): return
+	if phase != "layout" and not await travelers_log(): return
 	if not await open_vendor(): return
 	match phase:
+		"layout":
+			await capture("vendor-all")
+			await click("PerksProgramFilter")
+			if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
+			await capture("category-dropdown")
+			await choose_category(1)
+			await capture("vendor-transmog")
+			finish("layout")
 		"relog": await relog_checks()
 		"purchase": await purchase_each_collection()
 		"refund": await refund_after_relog()
