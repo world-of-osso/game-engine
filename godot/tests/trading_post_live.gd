@@ -89,6 +89,8 @@ func layout_proof() -> void:
 	var price := int(client.trading_post_state().price)
 	var footer := control("PerksProgramFooterFrame")
 	print("TP_LAYOUT_FOOTER ", footer.get_global_rect() if footer != null else "no projected control", " button=", control("PerksProgramPurchaseButton").get_global_rect(), " model=", control("PerksProgramMainModelScene").get_global_rect(), " enabled=", control_enabled("PerksProgramPurchaseButton"))
+	for signal_name in ["button_down", "button_up", "pressed"]:
+		control("PerksProgramPurchaseButton").connect(signal_name, func(): print("TP_PURCHASE_SIGNAL ", signal_name))
 	await click("PerksProgramPurchaseButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "source popup"): return
 	await capture("purchase-confirm")
@@ -364,6 +366,9 @@ func click(name: String, button: int = MOUSE_BUTTON_LEFT) -> void:
 	if node == null: fail("Missing visible control " + name); return
 	var point := node.get_global_rect().get_center()
 	await motion(point, false)
+	if name == "PerksProgramPurchaseButton":
+		var hovered := root.gui_get_hovered_control()
+		print("TP_PURCHASE_HIT target=", node.get_path(), " z=", node.z_index, " mouse=", node.mouse_filter, " hover=", hovered.get_path() if hovered != null else "none", " hover_z=", hovered.z_index if hovered != null else -1)
 	await button_event(point, button, true)
 	await button_event(point, button, false)
 	await wait_frames(5)
