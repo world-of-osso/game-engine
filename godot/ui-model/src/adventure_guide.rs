@@ -68,6 +68,7 @@ pub struct View {
     pub keys: Vec<shared::protocol::KeystoneInfo>,
     pub owned_keys_only: bool,
     pub activities: Option<Arc<shared::protocol::AdventureGuideSnapshot>>,
+    pub trading_post: Option<Arc<shared::protocol::TradingPostSnapshot>>,
     pub activity_filters: crate::adventure_activities::ActivityFilters,
 }
 impl Default for View {
@@ -98,6 +99,7 @@ impl Default for View {
             keys: Vec::new(),
             owned_keys_only: false,
             activities: None,
+            trading_post: None,
             activity_filters: Default::default(),
         }
     }

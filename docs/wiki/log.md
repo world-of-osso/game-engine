@@ -1,3 +1,7 @@
+## 2026-10-12 — Native Trading Post live proof and preview asset closure
+
+[Trading Post](systems/trading-post.md): authentic Tawny gossip opens the full-screen vendor; other layers hide like Retail area `full` and are restored on Leave. Live RED showed an unreadable top Transmog row leaving the previous gryphon on screen; unavailable rows now show no model and failed previews clear. The authenticated local-CASC closure raises complete preview chains from 167 to 1287 of 1309 rows in a private, validated package. Modern/Forever browse and relog PASS with 26 inspected PNGs. Live purchase is blocked because supported activities have no reachable content; server tests prove purchase/collection/refund.
+
 ## 2026-10-12 — Cage collision-only WMOs and arena source gaps
 
 [WMO format](formats/wmo-format.md#batch-and-material-records): Cage of Carnage's only logged material errors came from collision WMOs 6371365/6133755 (no MOMT, no MOBA). The client ignored their MPY2 per-face materials, so it built a material-0 batch. MPY2 is now parsed, and its collision-only faces are not drawn. [Native arenas](systems/arenas.md): Rogue Stealth children and the Cage starting-area warning/teleport chain are source-backed; 254013 and 96538 remain named TC gaps.
