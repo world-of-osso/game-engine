@@ -452,6 +452,13 @@ impl RegistryModel {
                 &mut self.registry,
             );
         }
+        if self
+            .shared
+            .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
+            .is_some()
+        {
+            self.icon_masks.apply(&mut self.registry);
+        }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
         if self
             .shared
