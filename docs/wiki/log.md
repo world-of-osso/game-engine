@@ -3502,3 +3502,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Source ADD/0.5 drawer hover alignment, RSX fractional-alpha RED→string-parser GREEN, actual both-skin cursor activation/reset and923/1657 brighter handle pixels with conservation; four inspected PNGs. Raw Retail PlayerCondition has14 unreadable rows/IDs, so exact stock eligibility remains unresolved, not aliased.
 
 - 2026-10-12: Central source tooltips extended to owned-storage cards and House Chest handle, native missing-route RED→both-skin actual text/count/right-anchor/leave/unmount/conservation GREEN; four inspected PNGs. Existing Catalog presentation reused.
+
+- 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
