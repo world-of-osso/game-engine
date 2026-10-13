@@ -159,7 +159,7 @@ fn nav_button(
     let onclick = if current { "" } else { button.action };
     let mouse_enabled = !current;
     rsx! { button { name: {DynName(button.name.into())}, left:x, top:y, width, height,
-    pos_type:"absolute", button_default_skin:false, onclick, mouse_enabled, {contents} } }
+    pos_type:"absolute", button_default_skin:false, disabled: current, onclick, mouse_enabled, {contents} } }
 }
 
 fn nav_button_art(name: &str, home: bool, current: bool, width: f32, height: f32) -> Element {
@@ -186,7 +186,14 @@ fn nav_button_art(name: &str, home: bool, current: bool, width: f32, height: f32
         hover,
         (0.0, 0.0, width, height),
     ));
-    if !home {
+    if home {
+        contents.extend(crate::bank_art::texture(
+            format!("{name}Shadow"),
+            423811,
+            (0.0, 0.0, 30.0, 30.0),
+            "1,1,1,1",
+        ));
+    } else {
         contents.extend(breadcrumb_arrow(name, width, height, current));
     }
     contents

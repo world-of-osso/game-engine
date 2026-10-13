@@ -79,6 +79,7 @@ pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownStat
     contents.extend(dropdown_text(props, state));
     contents.extend(reset_button(props, state));
     let name = DynName(props.frame_name.into());
+    let disabled = !state.enabled;
     let onclick = if state.enabled {
         props.onclick.unwrap_or("")
     } else {
@@ -86,7 +87,7 @@ pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownStat
     };
     rsx! { button {
         name, width: {props.width}, height: {props.height}, button_default_skin: false,
-        onclick, mouse_enabled: state.enabled, pos_type: "absolute", left: {props.x}, top: {-props.y},
+        onclick, disabled, mouse_enabled: state.enabled, pos_type: "absolute", left: {props.x}, top: {-props.y},
         {contents}
     } }
 }
@@ -222,7 +223,7 @@ fn reset_button(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element 
         name: {DynName(format!("{}ResetButton", props.frame_name))}, width: 23.0, height: 23.0,
         pos_type: "absolute", left: {props.width - 3.0 - 11.5}, top: {y - 11.5}, hidden, onclick,
         button_default_skin: false, button_atlas_up: "auctionhouse-ui-filter-redx",
-        button_atlas_highlight: "auctionhouse-ui-filter-redx", button_highlight_alpha: 0.4,
+        button_atlas_highlight: "auctionhouse-ui-filter-redx", button_highlight_alpha: "0.4",
     } }
 }
 
@@ -279,9 +280,10 @@ pub fn menu_element(
     }
     let name = DynName(item.name.into());
     let onclick = if enabled { item.action } else { "" };
+    let disabled = !enabled;
     rsx! { button {
         name, width, height, pos_type: "absolute", left: x, top: y, onclick,
-        mouse_enabled: enabled, button_default_skin: false,
+        disabled, mouse_enabled: enabled, button_default_skin: false,
         button_highlight_alpha: 1.0, {contents}
     } }
 }
