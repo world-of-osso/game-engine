@@ -187,8 +187,7 @@ impl GameClient {
             Some(Action::Log) => {
                 self.close_trading_post_window()
                     .map_err(|error| error.to_string())?;
-                self.toggle_adventure_guide()?;
-                self.adventure_guide.view.tab = game_engine_ui_model::adventure_guide::Tab::Monthly;
+                self.open_adventure_monthly()?;
             }
             Some(Action::Collections) => {
                 self.close_trading_post_window()

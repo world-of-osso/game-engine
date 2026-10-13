@@ -1532,81 +1532,104 @@ fn housing_basic_selection_hides_both_drawer_parts_and_cancel_restores_preferenc
     };
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        for collapsed in [false, true] {
-            let mut model = HousingDashboard::new(catalog.clone());
-            model.surface = HousingSurface::Editor;
-            model.storage_panel.resize([725.0, 730.0]).unwrap();
-            model.storage_panel.collapsed = collapsed;
-            model.set_storage_search("tEs".into());
-            model.storage_alphabetical = true;
-            let saved_panel = model.storage_panel;
-            let mut view = HousingView {
-                model,
-                authority: authority.clone(),
-                viewport: [1280.0, 720.0],
-                money: None,
-                missing_thumbnails: Default::default(),
-                vendor_names: Default::default(),
-            };
-            let mut context = SharedContext::new();
-            let mut screen = Screen::new(housing_screen);
-            let mut registry = FrameRegistry::new(1280.0, 720.0);
-            context.insert(view.clone());
-            screen.sync(&context, &mut registry);
-            let shown = if collapsed {
-                "HouseEditorStorageExpandButton"
-            } else {
-                "HouseEditorStorageFrame"
-            };
-            assert!(registry.get_by_name(shown).is_some());
-            view.model.editor.select(&view.authority, 26).unwrap();
-            context.insert(view.clone());
-            screen.sync(&context, &mut registry);
-            assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
-            assert!(
-                registry
-                    .get_by_name("HouseEditorStorageExpandButton")
-                    .is_none()
-            );
-            assert!(
-                registry
-                    .get_by_name("HouseEditorStorageSearchBox")
-                    .is_none()
-            );
-            view.model.editor.cancel();
-            context.insert(view.clone());
-            screen.sync(&context, &mut registry);
-            assert!(registry.get_by_name(shown).is_some());
-            assert_eq!(view.model.storage_panel, saved_panel);
-            assert_eq!(view.model.storage_search, "tEs");
-            assert!(view.model.storage_alphabetical);
-            assert_eq!(view.authority, authority);
-            let source = view
-                .model
-                .catalog
-                .decor
-                .iter()
-                .find(|decor| decor.id == 2330)
-                .unwrap();
-            view.model
-                .editor
-                .begin_place(&view.authority, source)
-                .unwrap();
-            context.insert(view.clone());
-            screen.sync(&context, &mut registry);
-            assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
-            assert!(
-                registry
-                    .get_by_name("HouseEditorStorageExpandButton")
-                    .is_none()
-            );
-            view.model.editor.cancel();
-            context.insert(view.clone());
-            screen.sync(&context, &mut registry);
-            assert!(registry.get_by_name(shown).is_some());
-            assert_eq!(view.model.storage_panel, saved_panel);
-            assert_eq!(view.model.storage_search, "tEs");
-            assert_eq!(view.authority, authority);
+        for (viewport_height, panel_height, panel_top) in [
+            (720.0, 651.0, 0.0),
+            (1080.0, 651.0, 64.5),
+            (720.0, 730.0, 0.0),
+            (1080.0, 730.0, 25.0),
+            (720.0, 800.0, 0.0),
+            (1080.0, 800.0, 0.0),
+        ] {
+            for collapsed in [false, true] {
+                let mut model = HousingDashboard::new(catalog.clone());
+                model.surface = HousingSurface::Editor;
+                model.storage_panel.resize([725.0, panel_height]).unwrap();
+                model.storage_panel.collapsed = collapsed;
+                model.set_storage_search("tEs".into());
+                model.storage_alphabetical = true;
+                let saved_panel = model.storage_panel;
+                let mut view = HousingView {
+                    model,
+                    authority: authority.clone(),
+                    viewport: [1280.0, viewport_height],
+                    money: None,
+                    missing_thumbnails: Default::default(),
+                    vendor_names: Default::default(),
+                };
+                let mut context = SharedContext::new();
+                let mut screen = Screen::new(housing_screen);
+                let mut registry = FrameRegistry::new(1280.0, viewport_height);
+                context.insert(view.clone());
+                screen.sync(&context, &mut registry);
+                let shown = if collapsed {
+                    "HouseEditorStorageExpandButton"
+                } else {
+                    "HouseEditorStorageFrame"
+                };
+                let expected_top = if collapsed {
+                    (viewport_height - 72.0) / 2.0 - 150.0
+                } else {
+                    panel_top
+                };
+                let frame = registry.get(registry.get_by_name(shown).unwrap()).unwrap();
+                assert_eq!(
+                    frame.position.top,
+                    ui_toolkit::layout_values::Val::Px(expected_top)
+                );
+                view.model.editor.select(&view.authority, 26).unwrap();
+                context.insert(view.clone());
+                screen.sync(&context, &mut registry);
+                assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+                assert!(
+                    registry
+                        .get_by_name("HouseEditorStorageExpandButton")
+                        .is_none()
+                );
+                assert!(
+                    registry
+                        .get_by_name("HouseEditorStorageSearchBox")
+                        .is_none()
+                );
+                view.model.editor.cancel();
+                context.insert(view.clone());
+                screen.sync(&context, &mut registry);
+                assert!(registry.get_by_name(shown).is_some());
+                assert_eq!(view.model.storage_panel, saved_panel);
+                assert_eq!(view.model.storage_search, "tEs");
+                assert!(view.model.storage_alphabetical);
+                assert_eq!(view.authority, authority);
+                let source = view
+                    .model
+                    .catalog
+                    .decor
+                    .iter()
+                    .find(|decor| decor.id == 2330)
+                    .unwrap();
+                view.model
+                    .editor
+                    .begin_place(&view.authority, source)
+                    .unwrap();
+                context.insert(view.clone());
+                screen.sync(&context, &mut registry);
+                assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+                assert!(
+                    registry
+                        .get_by_name("HouseEditorStorageExpandButton")
+                        .is_none()
+                );
+                view.model.editor.cancel();
+                context.insert(view.clone());
+                screen.sync(&context, &mut registry);
+                assert!(registry.get_by_name(shown).is_some());
+                assert_eq!(view.model.storage_panel, saved_panel);
+                assert_eq!(view.model.storage_search, "tEs");
+                assert_eq!(view.authority, authority);
+                let restored = registry.get(registry.get_by_name(shown).unwrap()).unwrap();
+                assert_eq!(
+                    restored.position.top,
+                    ui_toolkit::layout_values::Val::Px(expected_top)
+                );
+            }
         }
     }
 }

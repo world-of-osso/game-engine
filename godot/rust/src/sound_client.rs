@@ -103,7 +103,19 @@ impl GameClient {
             .play(&self.data_root, kit, &self.client_options.sound)
     }
 
-    /// UI sound kits started so far, for automation.
+    /// TC normal-play creature_text SoundKit: the server already selected its audience.
+    pub(crate) fn play_creature_text_sound(&mut self, kit: u32) -> Result<(), String> {
+        let sound = self
+            .sound
+            .as_mut()
+            .ok_or_else(|| "Creature text audio is not initialized".to_string())?;
+        sound
+            .bind_mut()
+            .ui_kits
+            .play_creature(&self.data_root, kit, &self.client_options.sound)
+    }
+
+    /// UI and creature text sound kits started so far, for automation.
     pub(crate) fn played_ui_sound_kits(&self) -> Vec<u32> {
         self.sound
             .as_ref()
