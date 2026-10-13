@@ -28,7 +28,7 @@ Engine `c647e688a`, protocol `ab7f848`, server `675bec22`: 17 targeted Guide tes
 
 Nine inspected1280PNG images: `/syncthing/AgentShared/2026-10-13/adventure-guide/`. Logs/snapshots/commands: `/home/osso/.worktrees/adventure-guide4-proof/`. Source NPCs for Trading Post live in `content_creature`/`content_creature_template`, not legacy `creature*` tables. Wait for map-transfer acknowledgment before another transfer. A wiped boss must evade/reset (or enter a fresh copy) before another start; direct admin damage is not a reliable pull trigger. CLI spell targets accept numeric server entity IDs, not NPC names.
 
-Journeys is distinct from Traveler's Log: Retail `Blizzard_Journeys.lua` reads MajorFaction renown and encounter journeys. No client/server backing exists yet; record this gap instead of manufacturing progress. Ozruk's opaque effect cards were reproduced and fixed at the transparent-preview compositing boundary below. Complete boss payload closure and RPE activation remain open.
+Journeys is distinct from Traveler's Log: Retail `Blizzard_Journeys.lua` reads MajorFaction renown and encounter journeys. No client/server backing exists yet; record this gap instead of manufacturing progress. Ozruk's opaque effect cards were reproduced and fixed at the transparent-preview compositing boundary below. RPE activation remains open.
 
 ## Transparent preview additive coverage
 
@@ -45,6 +45,8 @@ Engine8966a5080/servercec3f237/protocol7062a60 private5771 Model-page captures i
 Import every positive JournalEncounterCreature.CreatureDisplayInfoID with the existing `import_npc_appearance.py --display-id ... --base-cache ...` pipeline. Use pinned CreatureDisplayInfo/TextureFileData, the local listfile, authenticated creature-display catalog and local Extra/Option/Geoset WDC5 inputs. Never add `requires_appearance=0` by hand or bypass strict coverage in the renderer.
 
 The October11 import covers all1889 positive Journal display IDs and retains every prior profile, choice, geoset and coverage row. This proves authored appearance coverage, **not** all1889 model/texture payloads. Ozruk36475 and Lucifron13031 chains were extracted from frozen Retail69933 local archives, content-key/SHA256 checked and published in additive `cache/model-asset-index-adventure-guide.json` (22 assets,6 aliases). Existing no-clobber publisher rules apply. Reproduce a new boss's closure from its actual creature-display model and replacement textures; never relabel unqualified bytes.
+
+October13 closure: `scripts/stage_adventure_guide_model_assets.py` seeds every positive JournalEncounterCreature display through the shared mount/Trading Post `stage_closure` (authenticated local CASC config/encoding/root, MD5 content keys, magic checks). Before: 947/1889 displays and 664/1158 encounter previews had complete receipts; after: 1889/1889 and 1158/1158 with zero failures. The package (23,853 artifacts, 3.83GB, fragment `model-asset-index-adventure-guide-boss-assets-20261013.json`) validates read-only with `apply_mount_model_assets.py --package`; the lead publishes it with `--apply`. Overlaid on a slot's private data, previously missing Helix Gearbreaker33002 (Deadmines Heroic) and Ra-den93871 (Ny'alotha) render textured in both skins (`{modern,forever}-{helix-gearbreaker,raden}-closure.png` under `/syncthing/AgentShared/2026-10-13/adventure-guide/`).
 
 ## Proof and boundaries
 
