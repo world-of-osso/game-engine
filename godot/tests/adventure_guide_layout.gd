@@ -83,6 +83,28 @@ func run() -> void:
 		stop("Guide did not open")
 		return
 	if not await capture_layout("grid"): return
+	if not await click("EncounterJournalTierDropdown"): return
+	if not await capture_layout("tier-menu"): return
+	if not await click("EncounterJournalTierDropdown"): return
+	if not await click("EncounterJournalSearchBox"): return
+	for index in range(50):
+		var typed := InputEventKey.new()
+		typed.keycode = KEY_A
+		typed.unicode = 97
+		typed.pressed = true
+		root.push_input(typed,true)
+		await process_frame
+	await settle()
+	var edit := client.find_child("EncounterJournalSearchBox",true,false) as LineEdit
+	if edit.text.length()!=40:
+		stop("Search limit must be40, got%s" % edit.text.length())
+		return
+	if not await capture_layout("search-filled"): return
+	if not await click("EncounterJournalSearchBoxClearButton"): return
+	if not edit.text.is_empty() or edit.has_focus():
+		stop("Clear must empty search and release focus")
+		return
+	print("GUIDE_LAYOUT_SEARCH limit40+physical-clear PASS")
 	if not await click("JournalInstance67"): return
 	if not await capture_layout("instance"): return
 	var lore := client.find_child("EncounterJournalInstanceLore",true,false) as Control
@@ -105,6 +127,26 @@ func run() -> void:
 	if not await capture_layout("abilities"): return
 	if not await click("EncounterJournalPage2"): return
 	if not await capture_layout("loot"): return
+	if not await click("JournalDifficultyDropdown"): return
+	if not await capture_layout("difficulty-menu"): return
+	if not await click("JournalDifficultyDropdown"): return
+	if not await click("JournalClassFilter"): return
+	if not await capture_layout("class-spec-menu"): return
+	if not await click("JournalClassMenu"): return
+	if not await capture_layout("class-submenu"): return
+	if not await click("JournalClass2"): return
+	if client.adventure_guide_state().class!=2:
+		stop("Combined class submenu did not select Paladin")
+		return
+	if not await click("JournalClassFilter"): return
+	if not await click("JournalSpec70"): return
+	if client.adventure_guide_state().spec!=70:
+		stop("Combined specialization menu did not select Retribution")
+		return
+	if not await click("JournalSlotFilter"): return
+	if not await capture_layout("slot-menu"): return
+	if not await click("JournalSlot0"): return
+	print("GUIDE_LAYOUT_LOOT combined-class2-spec70+slot-menu PASS")
 	if not await click("EncounterJournalPage3"): return
 	var deadline := Time.get_ticks_msec() + 90000
 	while client.adventure_guide_state().model_display != 36475 and Time.get_ticks_msec() < deadline:
@@ -130,19 +172,45 @@ func geometry(name: String, expected: Rect2) -> bool:
 		return false
 	print("GUIDE_LAYOUT_GEOMETRY %s rect=%s scale=%s" % [name,actual,scale])
 	return true
+func clipped_pane(name: String, child_name: String) -> bool:
+	var pane := client.find_child(name,true,false) as Control
+	var art := client.find_child(child_name,true,false) as Control
+	if pane==null or art==null or not pane.clip_contents or art.get_parent()!=pane:
+		stop("XML pane must parent and clip its art: "+name)
+		return false
+	print("GUIDE_LAYOUT_CLIPPING "+name+" PASS")
+	return true
 func capture_layout(label: String) -> bool:
 	for frame in range(30): await process_frame
 	if OS.get_environment("GUIDE_LAYOUT_PHASE")=="after":
-		if label=="grid" and not geometry("EncounterJournalContent",Rect2(18,112,748,367)): return false
+		if label=="grid":
+			if client.find_child("JournalOwnedKeystones",true,false)!=null:
+				stop("Unsourced Owned Keystones control")
+				return false
+			if not geometry("EncounterJournalContent",Rect2(18,112,748,367)): return false
+			if not clipped_pane("EncounterJournalInstanceSelect","EncounterJournalInstanceSelectBackground"): return false
+		if label=="overview" or label=="abilities":
+			if client.find_child("JournalRole0",true,false)!=null:
+				stop("Unsourced role row")
+				return false
+		if label=="loot":
+			if not geometry("JournalClassFilter",Rect2(444,77,120,25)): return false
+			if not geometry("JournalSlotFilter",Rect2(574,77,90,25)): return false
+			if not geometry("EncounterJournalContent",Rect2(422,105,345,382)): return false
 		if label=="instance":
+			if not clipped_pane("EncounterJournalInstanceFrame","EncounterJournalInstanceLoreArt"): return false
 			if not geometry("EncounterJournalInfo",Rect2(7,64,785,425)): return false
 			if not geometry("EncounterJournalBosses",Rect2(32,106,338,382)): return false
 		if label=="model":
+			if not clipped_pane("EncounterJournalModelScene","EncounterJournalInstanceBackground"): return false
 			if not geometry("EncounterJournalModelScene",Rect2(399,65,390,423)): return false
 			if not geometry("EncounterJournalPage3",Rect2(780,264,63,57)): return false
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var path := shots.path_join("%s-%s-%s.png" % [OS.get_environment("GUIDE_LAYOUT_PHASE"), client.account_state().ui_skin.to_lower(), label])
+	if OS.get_environment("GUIDE_LAYOUT_FULLHD")=="1" and image.get_size()!=Vector2i(1920,1080):
+		stop("Required1920x1080 capture; got%s" % image.get_size())
+		return false
 	if image.save_png(path) != OK:
 		stop("Cannot save " + path)
 		return false
