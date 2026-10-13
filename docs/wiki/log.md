@@ -5,6 +5,9 @@
 ## 2026-10-13 — Collections binding and pet loadout previews
 
 [Battle-pet journal](systems/battle-pets.md#journal-loadout-previews--2026-10-13): assignable Shift-P, card+three detached loadout models, authoritative move/empty teardown and close/reopen proved through real owned-pet native input in both skins. Hidden bag-tree input corrected in the fixture, not product visibility. Filters and owned-health/ability journal payloads remain open.
+## 2026-10-13 — Glue/menu template fidelity
+
+[Glue/menu fidelity](investigations/glue-menu-fidelity.md): five native Retail-template frames retain selection/category/paging/delete actions in both skins. Exact pinned DB2 slice margins replace stretched borders; shared Options radio popups retain one-open/select/Escape/outside behavior. Native RED distinguishes actionless dropdown Background interception and subpixel shadow crops expanding to full atlas art. Offline source geometry/input/pixel fixtures gate these boundaries; authenticated deletion and server-side campsite persistence are not claimed.
 
 ## 2026-10-13 — CASC installed-build following
 
