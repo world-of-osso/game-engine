@@ -49,12 +49,35 @@ pub fn monthly(
         ),
         (15., 65., 770., 24.),
     );
-    out.extend(text(
-        "JournalMonthlyPoints",
-        &format!(
+    let tender = ctx
+        .get::<crate::adventure_guide::View>()
+        .and_then(|view| view.trading_post.as_ref());
+    let contributions = match tender {
+        Some(tender) => {
+            let cap: u32 = tender
+                .thresholds
+                .iter()
+                .map(|threshold| threshold.tender)
+                .sum();
+            let earned: u32 = tender
+                .thresholds
+                .iter()
+                .filter(|threshold| threshold.claimed)
+                .map(|threshold| threshold.tender)
+                .sum();
+            format!(
+                "{} activity points · Tender earned {earned}/{cap} · Balance {}",
+                snapshot.points, tender.tender
+            )
+        }
+        None => format!(
             "Completed activity contributions: {} points",
             snapshot.points
         ),
+    };
+    out.extend(text(
+        "JournalMonthlyPoints",
+        &contributions,
         (15., 93., 770., 20.),
     ));
     let notice = source_notice(snapshot);

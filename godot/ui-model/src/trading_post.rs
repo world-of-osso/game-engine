@@ -93,6 +93,9 @@ impl View {
             .is_some_and(|row| !self.pending && row.refund_seconds > 0)
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
+        if self.confirm.is_some() && !matches!(action, "perks:confirm" | "perks:cancel") {
+            return Ok(None);
+        }
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
             "perks:log" => return Ok(Some(Action::Log)),
@@ -250,21 +253,22 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
             )
         })
         .collect();
-    let scroll_attr = scroll_list_attr(LIST, LIST_HEIGHT, content_height, LIST_HEIGHT);
-    let mut out = rsx! {scrollframe{name:{DynName(LIST.into())},left:46.0,top:260.0,width:503.0,height:LIST_HEIGHT,pos_type:"absolute",clip_children:true,scroll_list:scroll_attr.as_str(),{content}}};
-    let bar = MinimalScrollBar::new(
-        "PerksProgramScrollBar",
-        LIST,
-        46. + 503.,
-        260.,
-        24.,
-        LIST_HEIGHT,
-        LIST_HEIGHT,
-        content_height,
-        offset as f64,
-        Unscrollable::Hide,
-    );
-    out.extend(bar.elements());
+    let geometry = pixel_geometry(LIST_HEIGHT, content_height, LIST_HEIGHT);
+    let scroll_attr = scroll_list_attr(&geometry);
+    let child_top = -offset;
+    let bar = MinimalScrollBar {
+        list: LIST,
+        left: 511.,
+        top: 0.,
+        height: LIST_HEIGHT,
+        geometry,
+        offset: offset as usize,
+        unscrollable: Unscrollable::HideBar,
+    };
+    let mut out = rsx! {r#frame{name:{DynName(LIST.into())},left:46.0,top:260.0,width:527.0,height:LIST_HEIGHT,pos_type:"absolute",mouse_enabled:true,scroll_list:scroll_attr.as_str(),
+        r#frame{name:"PerksProgramScrollChild",left:0.0,top:child_top,width:503.0,height:content_height,pos_type:"absolute",{content}}
+        {bar.element()}
+    }};
     out.extend(named_atlas_texture(
         "PerksProgramDivider".into(),
         "perks-divider-short",
@@ -294,6 +298,7 @@ fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
         format!("PerksProgramIcon{}", row.id),
         row.icon_fdid,
         (10., 10., 64., 64.),
+        WHITE,
     );
     children.extend(label(
         format!("PerksProgramName{}", row.id),
@@ -352,6 +357,7 @@ fn frozen_row(snapshot: &TradingPostSnapshot) -> Element {
             "PerksProgramFrozenIcon".into(),
             row.icon_fdid,
             (56., 865., 64., 64.),
+            WHITE,
         ));
         out.extend(panel_button(
             "PerksProgramUnfreezeButton".into(),
@@ -398,6 +404,7 @@ fn selected_details(view: &View) -> Element {
             "PerksProgramToyIcon".into(),
             row.icon_fdid,
             (1231., 405., 88., 88.),
+            WHITE,
         ));
         out.extend(label(
             "PerksProgramToyDescription".into(),
