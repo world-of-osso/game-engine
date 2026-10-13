@@ -44,7 +44,7 @@ References:
 
 ## Native Godot coverage
 
-- [ ] Tooltip canvas paints above native dialog/launcher windows, below held cursor; clamped Mentor icon tooltips must not be occluded by the Keys panel ([Mentor proof](../wiki/systems/mythic-mentor.md)).
+- [x] Tooltip canvas paints above native dialog/launcher windows, below held cursor; post-fix Modern/Forever native unlearned-tooltip captures show complete clamped text above the Keys panel ([Mentor proof](../wiki/systems/mythic-mentor.md)).
 
 One `GameTooltipUI` canvas (layer 8) shows every native tooltip; `godot/ui-model/src/game_tooltip/` builds the content and placement, `godot/rust/src/tooltips.rs` picks the source.
 

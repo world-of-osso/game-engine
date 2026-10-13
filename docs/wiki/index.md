@@ -46,7 +46,7 @@
 - [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
-- [Native Mythic Mentor](systems/mythic-mentor.md) — built-in party Keys panel, server bag authority, loading lifetime, icon layering and private5751 both-skin rendered-row/leader/raid/control proof; catalog/teleport expansion active.
+- [Native Mythic Mentor](systems/mythic-mentor.md) — native party Keys panel, authored current-reference summaries/icons, ready-query handshake, shared8h teleport clocks and both-skin private5751 proof; post-fix active-tooltip pixels blocked by local install update.
 
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
