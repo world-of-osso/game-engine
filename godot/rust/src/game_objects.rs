@@ -483,6 +483,25 @@ mod tests {
     }
 
     #[test]
+    fn toyfx18_spellcaster_objects_render_and_send_use() {
+        // Foam Sword Rack 194342/display8614: TC GameObject::Use casts its spell on the user.
+        let rack = GameObjectInfo {
+            entry: 194342,
+            go_type: 22,
+            display_id: 8614,
+            name: "Foam Sword Rack".into(),
+            scale: 1.0,
+        };
+        assert!(game_object_is_renderable(rack.go_type));
+        assert_eq!(
+            game_object_cursor(rack.go_type),
+            Some(ActiveWowCursor::Interact)
+        );
+        let request = crate::meeting_stones::spell_or_quest_object_request(7, &rack);
+        assert_eq!(request.map(|use_object| use_object.object), Some(7));
+    }
+
+    #[test]
     fn meetingstones_stone_and_portal_have_interaction_cursor() {
         for kind in [
             shared::protocol::GAMEOBJECT_TYPE_MEETINGSTONE,
