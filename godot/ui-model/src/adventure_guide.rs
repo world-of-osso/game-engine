@@ -401,6 +401,7 @@ impl View {
                     Some("suggested") => Tab::Suggested,
                     _ => return Err("Unknown journal tab".into()),
                 };
+                self.visible = true;
                 if self.tab == Tab::ItemSets && self.spec == 0 {
                     self.spec = self.choose_set_specialization();
                 }

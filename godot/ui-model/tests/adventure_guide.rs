@@ -41,6 +41,22 @@ fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
 }
 
 #[test]
+fn travelers_log_navigation_opens_closed_or_already_visible_guide() {
+    let mut view = journal();
+    view.search = "Lucifron".into();
+    view.select_encounter(1519).unwrap();
+    for visible in [false, true] {
+        view.visible = visible;
+        view.apply("journal:tab:monthly").unwrap();
+        assert!(view.visible, "Log is navigation, not a visibility toggle");
+        assert_eq!(view.tab, Tab::Monthly);
+        assert!(view.instance.is_none());
+        assert!(view.encounter.is_none());
+        assert!(view.search.is_empty());
+    }
+}
+
+#[test]
 fn encounter_link_replaces_search_and_open_navigation_menus() {
     let mut view = journal();
     view.visible = true;
