@@ -10,7 +10,7 @@ Native independent Keys window, modelled on installed `BossHelper/UI/GroupFinder
 - [x] Title drag clamps to screen and saves per-character placement. Native drag/close/reopen proof records the saved position in both skins.
 - [x] Use local-CASC Retail art only; Forever changes the same chrome's art, not elements or behaviour. Dungeon icons join local MapChallengeMode.MapID to JournalInstance.MapID/ButtonSmallFileDataID: eight installed-addon maps plus Azure401; square authored LFG art, not stretched panoramas. Leader132062; no-key/unknown texture134400 per addon.
 - [ ] Current-season hosted-dungeon summaries use imported authored names/timers and real icon identities; no inferred seasonal/acquisition policy.
-- [ ] Dungeon-icon teleport buttons match installed `MythicTeleport.lua`, including 50% black hover only for mapped teleports, known/unlearned spell hover and server-fed category1407 cooldown countdown without a swipe. Existing PlayerSpells/action-button countdown formatting is shared; casts use normal server authority. Azure401 has no addon teleport mapping. Missing destination rows remain explicit gaps, never inferred.
+- [ ] Dungeon-icon teleport buttons match installed `MythicTeleport.lua`, including 50% black hover only for mapped teleports, known/unlearned spell hover and server-fed category1407 cooldown countdown without a swipe. Existing PlayerSpells/action-button countdown formatting is shared, with Retail TimeUtil's hour abbreviation for8h; casts use normal server authority. Azure401 has no addon teleport mapping. Missing destination rows remain explicit gaps, never inferred.
 
 ## How it works
 

@@ -42,7 +42,7 @@ fn mythic_mentor_shared_teleport_category_replaces_clears_and_expires() {
         crate::mythic_mentor::mentor_cooldowns(&account.party_keystones, &account.spells)
             .get(&393256)
             .map(String::as_str),
-        Some("480m")
+        Some("8h")
     );
     let clear = shared::protocol::SpellCooldownUpdate {
         spell_id: 131229,

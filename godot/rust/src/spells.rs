@@ -417,5 +417,6 @@ mod tests {
         assert_eq!(cooldown_text(19.2), "20");
         assert_eq!(cooldown_text(0.4), "1");
         assert_eq!(cooldown_text(95.0), "2m");
+        assert_eq!(cooldown_text(28_800.0), "8h");
     }
 }

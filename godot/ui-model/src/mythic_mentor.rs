@@ -274,7 +274,7 @@ mod tests {
             set_thread_skin(skin);
             let mut view = MentorView {
                 position: [510.0, 100.0],
-                cooldowns: BTreeMap::from([(393256, "480m".into())]),
+                cooldowns: BTreeMap::from([(393256, "8h".into())]),
                 snapshot: PartyKeystoneSnapshot {
                     members: vec![PartyKeystoneMember {
                         character_id: 17,
@@ -296,12 +296,12 @@ mod tests {
             let mut registry = FrameRegistry::new(1280.0, 720.0);
             let mut screen = Screen::new(mentor_screen);
             screen.sync(&shared, &mut registry);
-            assert_eq!(text(&registry, "MentorRow0Cooldown"), "480m");
+            assert_eq!(text(&registry, "MentorRow0Cooldown"), "8h");
             view.cooldowns.clear();
             shared.insert(view.clone());
             screen.sync(&shared, &mut registry);
             assert_eq!(text(&registry, "MentorRow0Cooldown"), "");
-            view.cooldowns.insert(393256, "480m".into());
+            view.cooldowns.insert(393256, "8h".into());
             view.snapshot.members[0].key = None;
             shared.insert(view);
             screen.sync(&shared, &mut registry);
