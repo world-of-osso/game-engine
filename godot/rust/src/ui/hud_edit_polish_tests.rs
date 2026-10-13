@@ -235,9 +235,7 @@ fn hud_edit_manager_button_labels_fit_rendered_buttons_in_both_skins() {
         let bounds =
             super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
                 .unwrap();
-        for name in [
-            "New", "Rename", "Delete", "Reset", "Revert", "Save", "Exit", "Prev", "Next",
-        ] {
+        for name in ["New", "Rename", "Delete", "Reset", "Revert", "Save", "Exit"] {
             let id = registry
                 .get_by_name(&format!("EditModeManagerFrame{name}"))
                 .unwrap();
@@ -266,6 +264,10 @@ fn hud_edit_manager_button_labels_fit_rendered_buttons_in_both_skins() {
 
 #[test]
 fn hudeditshowlist_manager_has_retail_basic_labels_in_order_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     use ui_toolkit::frame::WidgetData;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         ui_toolkit::atlas::set_thread_skin(skin);
@@ -1000,28 +1002,38 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
 }
 
 #[test]
-fn hudnames_new_rejects_empty_names_without_action_or_persistence() {
+fn hudnames_new_dialog_rejects_empty_names_without_action_or_persistence() {
     let path = std::env::temp_dir().join(format!("hudnames-invalid-{}.ron", std::process::id()));
     let layout = ui_layout_data::set_active_layout(&path, 57, "Modern").unwrap();
     ui_layout_data::create_layout(&path, 58, "Raid Night", Default::default()).unwrap();
     for name in ["", "   ", "Modern", "Forever", "Raid Night", " Raid Night "] {
         let state = EditModePanelState {
             name_draft: name.into(),
+            name_dialog: Some(LayoutNameOperation::New),
             layout_names: ui_layout_data::layout_names(&path).unwrap(),
             ..Default::default()
         };
         assert_eq!(
-            click_manager_button(state, "EditModeManagerFrameNew"),
+            click_manager_button(state, "EditModeLayoutDialogAccept"),
             None,
             "{name:?}"
         );
         let mut draft = EditDraft::default();
         draft.enter(&layout);
+        crate::hud_edit::apply_manager_action(
+            &path,
+            57,
+            ACTION_EDIT_MODE_NAME_NEW,
+            "",
+            &layout,
+            &mut draft,
+        )
+        .unwrap();
         assert!(
             crate::hud_edit::apply_manager_action(
                 &path,
                 57,
-                ACTION_EDIT_MODE_NEW,
+                ACTION_EDIT_MODE_NAME_CONFIRM,
                 name,
                 &layout,
                 &mut draft
@@ -1042,7 +1054,7 @@ fn hudnames_new_rejects_empty_names_without_action_or_persistence() {
         &mut active,
         &mut draft,
         "EditModeManagerFrameNew",
-        ACTION_EDIT_MODE_NEW,
+        ACTION_EDIT_MODE_NAME_NEW,
         "Dungeon Night",
     );
     assert_eq!(active.name, "Dungeon Night");
