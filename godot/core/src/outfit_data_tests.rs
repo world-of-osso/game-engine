@@ -2,8 +2,36 @@ use std::path::Path;
 
 use crate::outfit_data::OutfitData;
 
+#[test]
+fn owned_retail_native_zero_display_is_distinct_from_missing_item() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let data = OutfitData::load(&root);
+    let retail = data.load_owned_retail().unwrap();
+    // Pinned12.1.0.69933:133320 -> appearance29124 -> display0.
+    assert_eq!(retail.resolve_item_display_id(133_320).unwrap(), 0);
+    assert_eq!(retail.resolve_item_display_id(38).unwrap(), 5_729);
+    assert!(retail.resolve_item_display_id(u32::MAX).is_err());
+}
+
 mod baked_display {
     use super::*;
+
+    #[test]
+    fn owned_item_catalog_rejects_malformed_display_instead_of_no_visual() {
+        let root = write_catalog("invalid-display");
+        std::fs::write(
+            root.join("db2/1.60.1.70205/items/ItemAppearance.csv"),
+            "ID,ItemDisplayInfoID\n1,not-a-number\n",
+        )
+        .unwrap();
+        let data = OutfitData::load(&root);
+        let error = data.load_owned_forever_70205().err().unwrap();
+        assert!(
+            error.contains("appearance 1: invalid ItemDisplayInfoID"),
+            "{error}"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     fn write_catalog(label: &str) -> std::path::PathBuf {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
