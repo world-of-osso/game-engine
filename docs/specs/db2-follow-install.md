@@ -6,6 +6,7 @@
 - Select column order, signedness, arrays and localized strings from the payload's exact layout in WoWDBDefs at a pinned commit. Unknown layouts fail before output.
 - Record actual install version/build key, binary and DBD SHA-256, schema commit, readable row count and unreadable records in build-keyed receipts.
 - Regenerate client caches and server CSV inputs in an isolated output tree. Preserve TDB1210 world.db; report its broken joins rather than rewriting server content.
+- Catalog consumers validate one declared source identity, not a compiled build number. Housing catalog keys follow their imported receipt; the property-storage namespace is unchanged. Renown reads `data/db2/active/renown.json` at server startup (`GAME_SERVER_RENOWN_CATALOG` selects an explicit input).
 - Canonical publication is lead-only: one command with a fingerprint comparison and backup.
 - Acceptance includes a row/ID census against former exports and native private hotkey captures for atlas7508739 in both skins.
 
