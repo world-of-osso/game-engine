@@ -39,6 +39,7 @@ pub(crate) fn player_can_attack(
     player: u64,
     id: u64,
     templates: &HashMap<u32, FactionTemplateEntry>,
+    battleground: Option<&shared::protocol::BattlegroundSnapshot>,
 ) -> bool {
     let (Some(me), Some(unit)) = (replica.unit(player), replica.unit(id)) else {
         return false;
@@ -49,6 +50,9 @@ pub(crate) fn player_can_attack(
     let flags = UnitFlags(unit.unit_flags().unwrap_or_default());
     if id == player || !alive || !flags.can_be_attacked_by(true) {
         return false;
+    }
+    if let Some(permission) = arena_attack_permission(replica, player, id, battleground) {
+        return permission;
     }
     let template = |id: Option<u32>| id.and_then(|id| templates.get(&id));
     can_attack(
@@ -61,6 +65,29 @@ pub(crate) fn player_can_attack(
             is_player: unit.has::<Player>(),
         },
     )
+}
+
+fn arena_attack_permission(
+    replica: &Replica,
+    player: u64,
+    target: u64,
+    bg: Option<&shared::protocol::BattlegroundSnapshot>,
+) -> Option<bool> {
+    let bg = bg?;
+    let arena = bg.arena.as_ref()?;
+    if !bg.accepted || bg.phase != shared::battleground::BgPhase::InProgress {
+        return Some(false);
+    }
+    let controller = replica
+        .unit(target)
+        .and_then(|unit| unit.get::<shared::components::UnitSummonedBy>())
+        .map_or(target, |owner| owner.0);
+    let attacker = arena.units.iter().find(|unit| unit.entity == player);
+    let victim = arena.units.iter().find(|unit| unit.entity == controller);
+    Some(match (attacker, victim) {
+        (Some(attacker), Some(victim)) => attacker.team != victim.team,
+        _ => false,
+    })
 }
 
 #[cfg(test)]
@@ -103,12 +130,12 @@ mod tests {
             },
         );
         replica.insert(2, UnitFlags(0));
-        assert!(player_can_attack(&replica, 1, 2, &templates));
+        assert!(player_can_attack(&replica, 1, 2, &templates, None));
         replica.insert(2, UnitFlags(320));
-        assert!(!player_can_attack(&replica, 1, 2, &templates));
+        assert!(!player_can_attack(&replica, 1, 2, &templates, None));
         replica.insert(2, UnitFlags(0x200));
         assert!(
-            player_can_attack(&replica, 1, 2, &templates),
+            player_can_attack(&replica, 1, 2, &templates, None),
             "NPC-only immunity is not player immunity"
         );
     }
@@ -123,7 +150,13 @@ impl GameClient {
         let Ok(templates) = self.nameplates.templates(&self.data_root) else {
             return false;
         };
-        player_can_attack(&self.replica, player, id, templates)
+        player_can_attack(
+            &self.replica,
+            player,
+            id,
+            templates,
+            self.battleground.view.battleground(),
+        )
     }
 
     /// `AttackTarget`: request auto-attack on an attackable `target`, once per victim.

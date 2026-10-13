@@ -13,6 +13,14 @@ pub(super) struct StorageResize {
 }
 
 impl GameClient {
+    pub(super) fn configure_housing_storage_cursor(&mut self) {
+        if let Some(ui) = &self.housing.ui
+            && let Some(mut control) = ui.bind().frame_control("HouseEditorStorageResizeButton")
+        {
+            control.set_default_cursor_shape(godot::classes::control::CursorShape::FDIAGSIZE);
+        }
+    }
+
     pub(super) fn dispatch_housing_drawer_action(&mut self, action: &str) -> Result<bool, String> {
         let collapsed = match action {
             "housing:storage:collapse" => true,

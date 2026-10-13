@@ -1,5 +1,6 @@
 # Wiki Index
 
+- [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 - [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold pixel fix, published online protocol alignment, actual glyph/full-Herald player-camera witnesses and BC1/BC3 source census; rainbow cause remains unknown.
 
 - [Native player housing](systems/housing.md) — Persisted drawer collapse/resize, owned-storage Dyeable/alphabetical filters, categories/search/thumbnail recovery and Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.

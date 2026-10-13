@@ -623,6 +623,17 @@ fn housing_source_lines_name_vendors_only_through_the_creature_query() {
 }
 
 #[test]
+fn housing_storage_handle_tooltip_names_the_source_house_chest_without_policy_lines() {
+    let tooltip = crate::housing::storage_handle_tooltip();
+    assert_eq!(tooltip.content.title, "House Chest");
+    assert_eq!(
+        tooltip.content.title_color,
+        crate::tooltip_presentation::TOOLTIP_WHITE
+    );
+    assert!(tooltip.content.lines.is_empty());
+}
+
+#[test]
 fn housing_entry_tooltip_lists_categories_and_owned_breakdown() {
     let model = dashboard();
     let decor = &model.catalog.decor[0];
