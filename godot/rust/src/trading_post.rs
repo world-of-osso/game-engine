@@ -108,27 +108,29 @@ impl GameClient {
         if self.trading_post.view.visible {
             self.hide_ui_parent();
             self.sync_trading_ui()?;
-            match self.sync_trading_model() {
-                // A failed preview must not leave the previous selection's model on screen.
-                Err(error) => {
-                    self.clear_trading_model();
-                    self.trading_post.view.error = error;
-                    self.trading_post.preview_failed = true;
-                }
-                Ok(()) if self.trading_post.preview_failed => {
-                    self.trading_post.preview_failed = false;
-                    self.trading_post.view.error = self
-                        .trading_post
-                        .view
-                        .snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.error.clone())
-                        .unwrap_or_default();
-                }
-                Ok(()) => {}
-            }
+            let preview = self.sync_trading_model();
+            self.record_trading_preview(preview);
         }
         Ok(())
+    }
+    /// A failed preview must not leave the previous selection's model on screen; the
+    /// next successful one restores the server's own error text.
+    fn record_trading_preview(&mut self, preview: Result<(), String>) {
+        match preview {
+            Err(error) => {
+                self.clear_trading_model();
+                self.trading_post.view.error = error;
+                self.trading_post.preview_failed = true;
+            }
+            Ok(()) if self.trading_post.preview_failed => {
+                self.trading_post.preview_failed = false;
+                let snapshot = self.trading_post.view.snapshot.as_ref();
+                self.trading_post.view.error = snapshot
+                    .and_then(|snapshot| snapshot.error.clone())
+                    .unwrap_or_default();
+            }
+            Ok(()) => {}
+        }
     }
     /// Hide every other visible client layer, including ones created while open.
     fn hide_ui_parent(&mut self) {
