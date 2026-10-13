@@ -48,7 +48,7 @@ Native RED accepted45 ASCII characters with max_length0. Both skins now type45 A
 
 ### Search focus keys
 
-Only `HouseEditorStorageSearchBox` uses the source Enter/keypad-Enter/Escape GUI-key closure: release focus and accept the event before window/chat/editor handling. It does not register generic form submission. Other edit boxes remain unchanged. Source inherited SearchBoxTemplate maps Enter/Escape to EditBox_ClearFocus; [contract](../../specs/housing.md#owned-storage-search-focus-keys).
+`HouseEditorStorageSearchBox` and `HousingCatalogSearchBox` use the source Enter/keypad-Enter/Escape GUI-key closure: release focus and accept the event before window/chat/editor handling. It does not register generic form submission. Other edit boxes remain unchanged. Source inherited SearchBoxTemplate maps Enter/Escape to EditBox_ClearFocus; [contract](../../specs/housing.md#owned-storage-search-focus-keys).
 
 Native RED retained focus after Enter. Both skins physically retain `tEs`, actual Tesla result and drawer after Enter/Escape, never open chat; empty keypad-Enter hides clear/restores gray glyph, and Cleanup→Basic remount retains empty/unfocused input. Exact paid quantities/layout are unchanged. Evidence `core9/{modern,forever}/owner/focus-native-observed/`; four inspected1280 PNGs. The initial chat observer called a non-exported RegistryUi Rust method; existing named-control scene helper fixes the observer, not product code.
 
@@ -57,6 +57,10 @@ Native RED retained focus after Enter. Both skins physically retain `tEs`, actua
 Storage category/subcategory setters validate ownership before accepting focus. Same focus does not invoke the clear callback; All/Back keeps raw query. A changed specific focus clears query and focus in the model, then native dispatch clears registry edit text and releases the actual input. Dispatch derives callback necessity from before/after focus IDs, not merely empty text. Source categories SetFocus callback only on ID change and storage OnCategoryFocusChanged/ClearSearchText.
 
 Pure/native RED showed same child-All losing short `zz`. Both skins now retain `zz`/Structural/Tesla on child-All reselection and retain it on Back; changed Furnishings clears/blurs, gray glyph/hidden clear, then All restores the paid result. Exact stored/placed/layout state is unchanged. Evidence `core9/{modern,forever}/owner/focus-callback-native-green/`; four inspected1280 PNGs. [Contract](../../specs/housing.md#owned-storage-category-focus-callbacks).
+
+## Shared Catalog search template
+
+Catalog and storage share the RSX SearchBox construction and registry postsetup. Catalog retains separate raw text/focus, applies the same default UTF8 threshold and routes source clear/category callbacks through registry edit text before native sampling. Native clear-art/focus-key handling names only these two inputs; unrelated forms stay unchanged. [Contract](../../specs/housing.md#shared-catalog-search-template). Inherited pure/registry RED logs reproduce short-query filtering and uncapped Unicode insertion; green model/registry tests pass. Native Catalog cap RED reproduced on the prior binary; current both-skin native acceptance is pending under `/home/osso/.worktrees/housing-core14-evidence/`.
 
 ## Basic drawer controls and preferences
 
