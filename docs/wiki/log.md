@@ -1,6 +1,22 @@
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+## 2026-10-13 — Pending owned-placement storage implementation
+
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): StartPlacingNewDecor routes the same source selected-target event. Registry/native RED reproduced retained drawer with actual paid2330 pending placement; same presentation now hides it. Both-skin native actual paid2330 click→placing+hidden→Cancel/retainedTesla/exactconservation GREEN, plus selected/collapsed regression. Registry19/nativecheck0warnings/fmt pass; four inspected1280 new-placement PNGs public. No preview-mesh/mouse-up-commit claim.
+
+## 2026-10-13 — Basic selected-target storage implementation
+
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): Basic selection hides panel/handle without overwriting preferences. Registry/native prior-binary RED→both-skin actual paid actor select/cancel panel+collapsed-handle GREEN, unchanged query/size/paid state. Registry19/native/server checks0warnings/currentserver28+3ignored/fmt pass; exact private source flags refresh leaves canonical untouched. New-placement overlay remains separate.
+
+## 2026-10-13 — Retroactive grant source boundary
+
+[Housing](systems/housing.md#dye-authority-without-native-recoloring):59direct dyeable-decor reward quests have no source/runtime starter joins; scripted/item/automatic eligibility is not disproved. Retroactive reward fields Field_12_0_0_63534_002/Field_12_0_0_63967_005 remain literal unknowns; lead confirms no quantity/flags grant contract. No guessed grant implementation.
+
+## 2026-10-13 — Shared Catalog search template implementation
+
+[Housing](systems/housing.md#shared-catalog-search-template): shared source search construction/threshold and independent raw state; Catalog native clear/category backing-text/focus routes and shared clear-art/key handling implemented. Pure/registry green; prior-binary native cap RED→both-skin native cappedUTF8/threshold/category/clear/key/conservation PASS, shared-storage callback regression PASS. Post-master model30/registry18/server28+3ignored/protocol4 and warning-free checks pass; live binaries predate unrelated master changes. Inspected1280 PNGs public; canonical data untouched.
+
 ## 2026-10-12 — Category focus callback boundaries
 
 [Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.

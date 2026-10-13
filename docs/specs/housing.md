@@ -36,6 +36,12 @@ Owner House Settings opens the Retail600×550 panel and stages House Access with
 
 Plot Access, Blueprint Export and owner assignment remain disabled/unavailable and are never altered by saving house flags. Source: local Blizzard_HousingHouseSettings.lua HouseAccessFlags, OnAccessTypeSelected, OnSaveClicked and XML three160px columns. Server derives relationships from persisted plot ownership, assigned owner's character friends/guild and current party membership; no client relationship claim. Battle.net social authority remains unavailable. Previous Anyone permissions migrate once without changing storage/layout/ownership. Live acceptance includes staged/closed drafts, saved/relogged selections and denied other-account entry in both skins.
 
+## Shared Catalog search template
+
+Dashboard Catalog and owned storage inherit the same Retail HousingCatalogSearchBoxTemplate. Both use40 Unicode letters,16/20 text gutters,10px source magnifier (RGB0.6 empty/unfocused; white focused/nonempty), source gray placeholder and17px clear button with half-pixel centering. Raw text stays independent per surface; default applied query starts at three Unicode characters. Qualifying new Catalog search resets category/subcategory to All; shortening clears filtering without restoring prior focus. Same-category/subcategory no-ops retain raw text; changed specific focus clears registry text and releases focus; All/Back retains text. Clear explicitly refreshes results and releases focus; Enter/keypad Enter/Escape only release focus and consume the event, never submit/open chat/close the panel. Shared clear artwork follows existing hover/held/release behavior. Browsing cannot mutate confirmed storage/layout/ownership. Locale one-character overrides remain unimplemented, not inferred.
+
+Source: local Blizzard_HousingDashboardCatalog Lua OnSearchTextUpdated/OnCategoryFocusChanged/ClearSearchText, XML SearchBox inherits HousingCatalogSearchBoxTemplate, Blizzard_HousingCatalogFilters Lua/XML and inherited InputBoxTemplates. Native both-skin Catalog acceptance remains separate from storage proofs.
+
 ## Catalog model preview
 
 Catalog selection mounts the authenticated decor model in a transparent, isolated 3D viewport. Dispatch literal ModelType1 to M2 and2 to WMO root/groups through their maintained loaders; do not create an M2 filename for WMO bytes. Any required WMO batch failure makes that preview unavailable instead of hiding missing geometry. Replace the previous actor on selection, clear it when search has no results, and tear down before its UI parent disappears on tab switch, close or logout. Missing/unsupported models or required texture receipts show Retail's Preview unavailable state; never substitute a thumbnail or retain the previous actor. Browsing/drag rotation cannot change owned quantities, placements or gameplay camera. Tile thumbnails remain tile art only. Honor Retail SetPreferModelCollisionBounds(true): use authored collision bounds when present, otherwise the authored model header bounds; never include animation/particle envelopes in catalog framing.
@@ -53,6 +59,10 @@ After landing the server importer, run it with the audit evidence and pinned bui
 ## References
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
+
+## Basic selected-target storage visibility
+
+Selecting existing placed decor or starting placement of actually owned stored decor in Basic mode hides both storage panel and expand handle. Cancelling/unselecting restores the saved collapsed/size preference, retained query/category/filters and actual owned results; selection alone never changes storage/layout. Source: HouseEditorBasicDecorMode.OnTargetSelected/OnTargetUnselected invokes HouseEditor.HideHouseStorage (both parts)/ShowHouseStorage (UpdateCollapseState). CatalogEntry.StartPlacingNewDecor explicitly routes the same selected-target-changed handler. Cancel new placement restores storage without spending a copy. Drag/overlay/mouse-up commit semantics remain separate acceptance boundaries.
 
 ## Storage drawer controls
 
