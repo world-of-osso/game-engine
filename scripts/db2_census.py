@@ -9,9 +9,9 @@ import re
 import sqlite3
 
 
-def read_rows(path):
-    with path.open(newline='') as stream:
-        return {row['ID']: row for row in csv.DictReader(stream)}
+def read_rows(path, id_column='ID'):
+    with path.open(newline='', encoding='utf-8-sig') as stream:
+        return {row[id_column]: row for row in csv.DictReader(stream)}
 
 
 def equal_cell(column, left, right):
@@ -19,6 +19,8 @@ def equal_cell(column, left, right):
         return True
     if any(word in column.lower() for word in ('name', 'lang', 'description', 'directory')):
         return False
+    if re.fullmatch(r'-?\d+', left) and re.fullmatch(r'-?\d+', right):
+        return int(left) == int(right)
     try:
         return math.isclose(float(left), float(right), rel_tol=1e-7, abs_tol=1e-10)
     except ValueError:
@@ -115,7 +117,8 @@ def census(args):
             previous = args.old / path.name
             if not previous.exists():
                 continue
-            diff = compare_rows(read_rows(previous), read_rows(path))
+            id_column = receipt['tables'][path.stem]['id_column']
+            diff = compare_rows(read_rows(previous, id_column), read_rows(path, id_column))
             tables[path.stem] = diff
             writer.writerow([path.stem, diff['old_rows'], diff['new_rows'], len(diff['added_ids']), len(diff['removed_ids']),
                              len(diff['changed_ids']), len(diff['identity_changed_ids']), '|'.join(diff['added_columns']), '|'.join(diff['removed_columns'])])
