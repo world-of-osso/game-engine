@@ -878,7 +878,7 @@ mod tests {
     fn retail_vendor_interaction_precedes_neutral_attack_but_not_hostility() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
-            .map(|dir| dir.join("data/db2/12.1.0.69933/FactionTemplate.csv"))
+            .map(|dir| dir.join("data/db2/active/FactionTemplate.csv"))
             .find(|path| path.exists())
             .expect("pinned Retail faction CSV");
         let rows = crate::faction_reaction::parse_faction_template_csv(

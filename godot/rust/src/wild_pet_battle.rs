@@ -45,7 +45,7 @@ impl GameClient {
             // This is local visual/input metadata only; the server validates SQLite species,
             // ownership, range, map copy, target life and exclusive battle claims.
             game_engine_core::csv_util::read_numeric_rows(
-                &self.data_root.join("db2/12.1.0.69933/BattlePetSpecies.csv"),
+                &self.data_root.join("db2/active/BattlePetSpecies.csv"),
                 ["CreatureID", "SourceTypeEnum"],
                 |[creature, source]| {
                     if source == 4 {

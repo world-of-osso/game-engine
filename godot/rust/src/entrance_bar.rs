@@ -19,7 +19,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::background_load::BackgroundLoad;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
-const DB2_DIR: &str = "db2/12.1.0.69933";
+const DB2_DIR: &str = "db2/active";
 const FONT_SIZE: i32 = 14;
 /// Plumber fades: the frame +5/s in, -2/s out; the bar 0.5 idle, +5/s / -2/s on hover.
 const FRAME_FADE_IN: f32 = 5.0;

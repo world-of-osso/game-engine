@@ -127,8 +127,7 @@ fn professions_create_emits_spell_id_and_cast_quantity() {
 }
 #[test]
 fn professions_trainer_learned_leather_pants_use_recipe_knowledge_not_auto_learn_rank() {
-    let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = crate::professions_catalog::RecipeCatalog::load(&dir).unwrap();
     let recipe = catalog.get(2153).unwrap().clone();
     assert_eq!(recipe.min_rank, 30);

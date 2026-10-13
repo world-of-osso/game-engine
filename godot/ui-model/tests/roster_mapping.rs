@@ -129,7 +129,7 @@ fn skyborne_names_are_loaded_from_active_data_in_both_skins() {
 fn catalog_names_are_not_hardcoded_and_missing_ids_are_explicit_errors() {
     use std::fs::{create_dir_all, remove_dir_all, write};
     let root = std::env::temp_dir().join(format!("rosterfix-names-{}", std::process::id()));
-    let retail = root.join("db2/12.1.0.69933");
+    let retail = root.join("db2/active");
     let forever = root.join("db2/1.60.1.70205");
     create_dir_all(&retail).unwrap();
     create_dir_all(&forever).unwrap();

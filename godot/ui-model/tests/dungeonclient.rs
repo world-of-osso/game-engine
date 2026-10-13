@@ -10,7 +10,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn retail_categories() -> Vec<AchievementCategoryEntry> {
-    include_str!("../../../data/db2/12.1.0.69933/Achievement_Category.csv")
+    include_str!("../../../data/db2/active/Achievement_Category.csv")
         .lines()
         .skip(1)
         .map(|line| {

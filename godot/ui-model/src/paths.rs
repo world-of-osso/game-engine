@@ -11,7 +11,7 @@ static DATA_ROOT: OnceLock<PathBuf> = OnceLock::new();
 pub fn set_data_root(root: PathBuf) -> Result<(), String> {
     ui_toolkit::widgets::font_string::set_font_directory(root.join("fonts"))?;
     ui_toolkit::atlas::set_atlas_directories(
-        &root.join("db2/12.1.0.69933"),
+        &root.join("db2/active"),
         &root.join("db2/1.60.1.69913"),
     )?;
     let current = DATA_ROOT.get_or_init(|| root.clone());

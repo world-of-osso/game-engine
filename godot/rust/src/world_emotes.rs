@@ -63,8 +63,8 @@ mod tests {
     use super::*;
 
     fn gear() -> NpcGearData {
-        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../data/db2/12.1.0.69933");
+        let dir =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
         NpcGearData::load(&dir).unwrap()
     }
 
