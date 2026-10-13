@@ -412,11 +412,11 @@ mod tests {
         .unwrap();
         let mut registry = FrameRegistry::new(1920., 1080.);
         Screen::new(|_| ui_toolkit::rsx! {
-            texture { name:"PerksProgramIconMissing", texture_fdid:4294967295u32, width:32.0, height:32.0 }
+            texture { name:"PerksProgramIcon4", texture_fdid:4294967295u32, width:32.0, height:32.0 }
         }).sync(&SharedContext::new(), &mut registry);
         IconMasks::default().apply(&mut registry);
         let frame = registry
-            .get(registry.get_by_name("PerksProgramIconMissing").unwrap())
+            .get(registry.get_by_name("PerksProgramIcon4").unwrap())
             .unwrap();
         let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
             panic!("icon");
