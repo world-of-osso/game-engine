@@ -1,6 +1,6 @@
 extends "res://tests/toy_effects19_gladiator_live.gd"
 # Real learning/journal activation, native back attachment, then ordinary right-click
-# AttackSwing against an observed source Kobold. No aura/combat injection or cooldown reset.
+# AttackSwing against an observed source Blackrock Worg. No aura/combat injection or cooldown reset.
 func run_fixture() -> void:
 	root.size = Vector2i(1920, 1080)
 	client = load("res://scenes/client.tscn").instantiate()
@@ -77,12 +77,16 @@ func enter_source_combat() -> void:
 		await tap(KEY_TAB)
 		await create_timer(0.1).timeout
 		var state: Dictionary = client.target_state()
-		if state.target == null or not str(state.target_name).contains("Kobold"): continue
+		receipts.append({"phase": "source-target-candidate", "target": state})
+		if state.target == null or not str(state.target_name).contains("Blackrock Worg"): continue
 		var candidate := int(state.target)
 		if client.unit_transform(candidate).origin.distance_to(client.unit_transform(local_id).origin) < 30.0:
 			target = candidate
 			break
-	if target == 0: fail("no observed source Kobold within30yd"); return
+	if target == 0:
+		write_receipts()
+		fail("no observed source Blackrock Worg within30yd")
+		return
 	var position: Vector3 = client.unit_transform(target).origin
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(position.x + 2.5), str(-position.z), str(position.y)]): return
 	await create_timer(1.0).timeout
