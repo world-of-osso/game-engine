@@ -41,6 +41,25 @@ fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
 }
 
 #[test]
+fn runtime_encounter_link_uses_authoritative_timewalking_difficulty() {
+    let mut view = journal();
+    view.difficulty = 2;
+    view.select_dungeon_encounter(1058, Some(24)).unwrap();
+    assert_eq!(view.encounter, Some(112));
+    assert_eq!(view.instance, Some(67));
+    assert_eq!(view.difficulty, 24);
+    assert_eq!(view.loot().len(), 8);
+    let before = view.clone();
+    assert!(view.select_dungeon_encounter(1058, Some(999)).is_err());
+    assert_eq!(
+        view, before,
+        "Unsupported realm difficulty cannot change selection"
+    );
+    assert!(view.select_dungeon_encounter(u32::MAX, Some(24)).is_err());
+    assert_eq!(view, before);
+}
+
+#[test]
 fn travelers_log_navigation_opens_closed_or_already_visible_guide() {
     let mut view = journal();
     view.search = "Lucifron".into();
