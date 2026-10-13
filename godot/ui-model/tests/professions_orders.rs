@@ -183,6 +183,33 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
             );
         }
         assert!(frame(&r, "CraftingOrderMenuBackground").visible);
+        // CustomerOrders.xml: form TOPLEFT(5,-60), width815; recipient TOPRIGHT(-10,-11).
+        let recipient = frame(&r, "CraftingOrderRecipientDropdown");
+        assert_eq!(
+            (recipient.width.value(), recipient.height.value()),
+            (120.0, 25.0)
+        );
+        assert_eq!(
+            recipient.position.left,
+            ui_toolkit::layout_values::Val::Px(690.0)
+        );
+        assert_eq!(
+            recipient.position.top,
+            ui_toolkit::layout_values::Val::Px(71.0)
+        );
+        assert_eq!(
+            frame(&r, "CraftingOrderDuration").position.left,
+            ui_toolkit::layout_values::Val::Px(620.0)
+        );
+        assert_eq!(
+            frame(&r, "CraftingOrderDuration").position.top,
+            ui_toolkit::layout_values::Val::Px(352.5)
+        );
+        assert_eq!(frame(&r, "CraftingOrdersBrowseTab").height.value(), 32.0);
+        assert_eq!(
+            frame(&r, "CraftingOrdersBrowseTab").position.top,
+            ui_toolkit::layout_values::Val::Px(564.0)
+        );
         assert!(r.get_by_name("CraftingOrderRecipes").is_none());
         assert!(r.get_by_name("CraftingOrderGold").is_some());
         v.orders.menu = Some(OrderMenu::Duration);
