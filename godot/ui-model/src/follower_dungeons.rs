@@ -8,6 +8,7 @@ use ui_toolkit::{screen::SharedContext, widget_def::Element};
 pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::frame::WidgetData;
     apply_follower_background_layers(registry);
+    apply_follower_tab_layers(registry);
     for index in 2..=3 {
         for part in ["Icon", "Ring"] {
             let name = format!("GroupFinderFrameGroupButton{index}{part}");
@@ -16,6 +17,19 @@ pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegist
                 && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
             {
                 texture.desaturated = true;
+            }
+        }
+    }
+}
+/// PanelTabButtonTemplate places caps in BACKGROUND, below every overlapping tab label.
+fn apply_follower_tab_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    for index in 1..=3 {
+        for part in ["Left", "Middle", "Right"] {
+            let name = format!("PVEFrameTab{index}{part}");
+            if let Some(id) = registry.get_by_name(&name)
+                && let Some(frame) = registry.get_mut(id)
+            {
+                frame.draw_layer = ui_toolkit::strata::DrawLayer::Background;
             }
         }
     }
