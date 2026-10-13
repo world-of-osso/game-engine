@@ -100,9 +100,41 @@ fn parse_mopy_reads_triangle_material_info() {
 
     assert_eq!(materials.len(), 2);
     assert_eq!(materials[0].flags, 0x20);
-    assert_eq!(materials[0].material_id, 0x05);
+    assert_eq!(materials[0].material_id, Some(0x05));
     assert_eq!(materials[1].flags, 0x08);
-    assert_eq!(materials[1].material_id, 0xFF);
+    assert_eq!(materials[1].material_id, None);
+}
+
+/// Cage of Carnage collision WMO 6371389: no MOBA, MPY2 faces (u16 flags, u16
+/// material) all 0xFFFF collision-only, so nothing in the group is drawn.
+#[test]
+fn mpy2_collision_only_faces_are_not_rendered_in_a_whole_group_batch() {
+    let mut data = Vec::new();
+    let mut mpy2 = Vec::new();
+    for value in [74_u16, 0xFFFF, 0x20, 3] {
+        mpy2.extend_from_slice(&value.to_le_bytes());
+    }
+    append_chunk(&mut data, b"2YPM", &mpy2);
+    let mut movt = Vec::new();
+    for value in [0.0_f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0] {
+        movt.extend_from_slice(&value.to_le_bytes());
+    }
+    append_chunk(&mut data, b"TVOM", &movt);
+    let mut movi = Vec::new();
+    for value in [0_u16, 1, 2, 2, 1, 0] {
+        movi.extend_from_slice(&value.to_le_bytes());
+    }
+    append_chunk(&mut data, b"IVOM", &movi);
+
+    let group = parse_group_subchunks(&data).expect("parse group subchunks");
+    let header = parse_mogp_header(&[0_u8; MOGP_HEADER_SIZE]).expect("parse MOGP header");
+    let batches = crate::asset::wmo_format::mesh_data::build_group_batches(&header, &group, None);
+
+    assert_eq!(group.triangle_materials[0].material_id, None);
+    assert_eq!(group.triangle_materials[1].flags, 0x20);
+    assert_eq!(group.triangle_materials[1].material_id, Some(3));
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].indices, vec![2, 1, 0]);
 }
 
 #[test]
