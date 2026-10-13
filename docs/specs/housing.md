@@ -36,7 +36,7 @@ Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and select
 
 Retail Expert submode switching, six translation increments, rotate-left/right, scale-up/down and next rotation axis use their `HOUSING_EXPERTDECOR*` action identities in native Housing bindings. No unsourced default keys: arrows/PageUp/PageDown/Q/E/1–3/X cannot substitute for actual assignments. Increment bindings follow native down/up held lifecycle; leaving the mode or cancelling clears holds. Transform staging/cancel/explicit commit and visitor authority remain unchanged.
 
-Current inventory registration is separate from native dispatch/instruction acceptance. Installed-build GlobalStrings localization is a dependency; raw source action identities stay literal until that data is available. Do not claim registered actions are implemented or invent labels/rates/snap geometry. Hotkey visual acceptance remains the db2-follow-install gap above.
+Native dispatch reads player-assigned bindings, with distinct held rotate and scale actions; key/modifier release, unbind, menu entry, mouse takeover, mode change and cancel stop increments. No invented Enter commit: use the existing sourced world click. Native instruction/live acceptance remains separate from registration and dispatch. Installed-build GlobalStrings localization is a dependency; raw source action identities stay literal until that data is available. Do not invent labels/rates/snap geometry. Hotkey visual acceptance remains the db2-follow-install gap above.
 
 ## Authoritative storage boundary
 
