@@ -1,4 +1,35 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Paladin Avenging Wrath: authentic local-CASC wing/cast sheets and particle textures.
+models/165644.m2
+models/16564400.skin
+models/166338.m2
+models/16633800.skin
+models/2368643.m2
+models/236864300.skin
+models/2368644.m2
+models/236864400.skin
+models/2368645.m2
+models/236864500.skin
+models/2368646.m2
+models/236864600.skin
+textures/1634713.blp
+textures/166266.blp
+textures/167209.blp
+textures/167218.blp
+textures/1687628.blp
+textures/1733915.blp
+textures/1893769.blp
+textures/1929233.blp
+textures/1983725.blp
+textures/2098299.blp
+textures/2373422.blp
+textures/2373423.blp
+textures/2373424.blp
+textures/2373425.blp
+textures/2373428.blp
+textures/2373429.blp
+textures/2373431.blp
+textures/982938.blp
 # Real legacy MWMO/MODF name-index regression, already extracted from local CASC.
 terrain/952203.wdt
 # Retail cooldown categories and assisted rotation: local CASC exact-layout exports.

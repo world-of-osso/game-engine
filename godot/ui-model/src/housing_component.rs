@@ -490,7 +490,7 @@ fn filter_menu(model: &HousingDashboard, ownership_known: bool) -> Element {
     } }
 }
 
-fn filter_choice(
+pub(crate) fn filter_choice(
     name: &str,
     label: &str,
     box_atlas: &str,

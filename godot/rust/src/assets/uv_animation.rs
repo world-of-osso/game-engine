@@ -1,6 +1,9 @@
-//! Effect UVs, batch colours and opacities share application time, independently of
-//! bone sequence playback.
-use game_engine_core::m2_material::{self, BatchBinding, MaterialSample, MaterialTracks};
+//! Local effect UVs, colours and opacity follow model playback. Global-sequence
+//! tracks share application time.
+use crate::animation::WowAnimationPlayer;
+use game_engine_core::m2_material::{
+    self, BatchBinding, MaterialSample, MaterialTime, MaterialTracks,
+};
 use godot::{
     classes::{INode, Node, ShaderMaterial},
     prelude::*,
@@ -59,6 +62,7 @@ pub struct WowMaterialAnimation {
     materials: Vec<AnimatedMaterial>,
     tracks: Option<MaterialTracks>,
     clock: Option<Gd<WowMaterialClock>>,
+    player: Option<Gd<WowAnimationPlayer>>,
     /// Some material track changes over time; otherwise the first sample holds and the
     /// node never processes.
     animates: bool,
@@ -72,11 +76,17 @@ impl INode for WowMaterialAnimation {
             materials: Vec::new(),
             tracks: None,
             clock: None,
+            player: None,
             animates: true,
         }
     }
 
     fn ready(&mut self) {
+        self.base_mut().set_process_priority(1);
+        self.player = self
+            .base()
+            .get_parent()
+            .and_then(|parent| parent.try_get_node_as::<WowAnimationPlayer>("M2Animation"));
         self.clock = self
             .base()
             .try_get_node_as::<WowMaterialClock>("/root/M2MaterialClock");
@@ -98,7 +108,7 @@ impl INode for WowMaterialAnimation {
 
 impl WowMaterialAnimation {
     /// The batch materials with texture matrices, weights or colour; `None` when no
-    /// batch has any. Their inputs follow the shared material clock.
+    /// batch has any. Local inputs follow their own model's animation.
     pub(super) fn from_batches(
         tracks: MaterialTracks,
         batches: impl Iterator<Item = (Gd<ShaderMaterial>, BatchBinding)>,
@@ -126,6 +136,7 @@ impl WowMaterialAnimation {
             materials,
             tracks: Some(tracks),
             clock: None,
+            player: None,
             animates,
         }))
     }
@@ -138,9 +149,22 @@ impl WowMaterialAnimation {
         let (Some(clock), Some(tracks)) = (&self.clock, &self.tracks) else {
             return;
         };
-        let elapsed_ms = clock.bind().elapsed_ms as u32;
+        let global_ms = clock.bind().elapsed_ms as u32;
+        let playback = self
+            .player
+            .as_ref()
+            .filter(|player| player.is_instance_valid())
+            .and_then(|player| player.bind().playback());
+        let time = match playback {
+            Some((sequence, time_ms)) => MaterialTime {
+                sequence,
+                time_ms,
+                global_ms,
+            },
+            None => tracks.stand_time(global_ms),
+        };
         for entry in &mut self.materials {
-            let sample = m2_material::sample_material(tracks, &entry.binding, elapsed_ms);
+            let sample = m2_material::sample_material(tracks, &entry.binding, time);
             super::material::apply_sample(&mut entry.material, &sample, entry.applied.as_ref());
             entry.applied = Some(sample);
         }
