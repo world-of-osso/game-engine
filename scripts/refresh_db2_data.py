@@ -137,9 +137,13 @@ def prepare_manifest(args, receipt, root):
             add(source, repository / 'data/db2' / build / source.name)
         if source.suffix == '.csv' and (args.canonical_engine / 'data' / source.name).exists():
             add(source, args.canonical_engine / 'data' / source.name)
-    for source in sorted((root / 'cache').iterdir()):
-        if source.is_file() and not source.is_symlink() and source.suffix in ('.sqlite', '.bin'):
-            add(source, args.canonical_engine / 'data/cache' / source.name)
+    cache_paths = [Path(line) for line in (args.output / 'cache-import.log').read_text().splitlines()]
+    cache_paths.extend(root / 'cache' / name for name in ('adventure_guide.sqlite', 'housing.sqlite')
+                       if (root / 'cache' / name).exists())
+    for source in cache_paths:
+        if not source.resolve().is_relative_to((root / 'cache').resolve()):
+            raise ValueError(f'cache output outside private cache root: {source}')
+        add(source, args.canonical_engine / 'data/cache' / source.name)
     links = []
     for repository in (args.canonical_engine, args.canonical_server):
         path = repository / 'data/db2/active'
