@@ -273,7 +273,7 @@ fn graphics_settings_remain_reachable_after_scrolling() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(|ctx: &SharedContext| {
             let (view, offset) = ctx.get::<(OptionsViewModel, usize)>().unwrap();
-            options_view(view, *offset)
+            options_view(view, *offset, None)
         });
         screen.sync(&shared, &mut registry);
         assert!(registry.get_by_name("SliderRowbloom_intensity").is_none());

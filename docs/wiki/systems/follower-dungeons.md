@@ -18,7 +18,7 @@ The initial layout used generic panel-button tabs and incorrectly stretched dung
 
 Eight full1920×1080 PNGs (`before/after` × `Modern/Forever` × `closed/open dropdown`) are published there; private command/revision/asset/binary hashes are recorded in `group-finder-layout/receipt.json`. New source UI files337492/517165/593917/593919/341547/922034 were extracted locally only into the retained private texture overlay; canonical publication remains lead-owned.
 
-A subsequent LFDFrame.lua:382–424 review caught a remaining menu-shape mismatch: CreateRadio was incorrectly represented as the shared helper's title/divider/button menu. Native RED observes76px rather than the source one-row43px menu. Shared `context_menu_with_kind` now supports the existing radio element and omission of an empty heading; ordinary titled button menus retain their existing behavior. Updated rendered-radio proof and both-skin captures remain pending. This section does not supersede the admission or full-gameplay proof boundary.
+A subsequent LFDFrame.lua:382–424 review caught a remaining menu-shape mismatch: CreateRadio was incorrectly represented as the shared helper's title/divider/button menu. Native RED observes76px rather than the source one-row43px menu. The incoming shared `context_menu_with_rows` API composes the existing radio element; heading-aware shared row geometry and omission of an empty heading preserve ordinary titled button menus and Options radio consumers. Updated rendered-radio proof and both-skin captures remain pending. This section does not supersede the admission or full-gameplay proof boundary.
 
 ## Proof boundary
 
