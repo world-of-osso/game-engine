@@ -85,7 +85,9 @@ func check_pet_loadout_models() -> bool:
 		return false
 	var backpack := client.find_child("MainMenuBarBackpackButton", true, false) as Control
 	await click_control(backpack)
-	if not await wait_frames(func(): return client.find_child("ContainerFrame0", true, false) != null, "backpack"):
+	if not await wait_frames(func():
+		var bag := client.find_child("ContainerFrame0", true, false) as Control
+		return bag != null and bag.is_visible_in_tree() and bag.size.x > 0, "visible backpack"):
 		return false
 	var slot_name := ""
 	for item in client.merchant_state().bags:
@@ -97,6 +99,10 @@ func check_pet_loadout_models() -> bool:
 	# Actual item use is a right-click, not a staged journal snapshot.
 	print("PET_LEARN_INPUT slot=", slot_name, " bags=", client.merchant_state().bags)
 	var item_control := client.find_child(slot_name, true, false) as Control
+	if not await wait_frames(func(): return item_control != null and item_control.is_visible_in_tree() and item_control.size.x > 0, "resolved item control"):
+		return false
+	print("PET_LEARN_RECT ", item_control.get_global_rect(), " account=", client.account_state())
+	await capture("fidelity-pet-learning-input.png")
 	await click(item_control.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	await frames(5)
 	await click_control(backpack)
