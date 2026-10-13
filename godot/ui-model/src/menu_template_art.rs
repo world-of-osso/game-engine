@@ -36,6 +36,7 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
     apply_texture_flags(registry);
     apply_atlas_slices(registry);
     apply_dropdown_text_displacement(registry);
+    apply_menu_disabled_art(registry);
 }
 
 fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<RegionUpdate> {
@@ -249,4 +250,26 @@ fn find_filter_background<'a>(registry: &'a FrameRegistry, owner: &Frame) -> Opt
             || atlas.starts_with("common-dropdown-c-button");
         filter_atlas.then_some(atlas.as_str())
     })
+}
+
+/// MenuTemplates.SetHierarchyEnabled desaturates every texture under disabled entries.
+fn apply_menu_disabled_art(registry: &mut FrameRegistry) {
+    let updates: Vec<_> = registry.frames_iter().filter_map(|frame| {
+        let Some(WidgetData::Texture(_))=&frame.widget_data else {return None;};
+        let owner=registry.get(frame.parent_id?)?;
+        let Some(WidgetData::Button(button))=&owner.widget_data else {return None;};
+        let menu_element=owner.children.iter().any(|id| {
+            registry.get(*id).is_some_and(|child| child.draw_layer==ui_toolkit::strata::DrawLayer::Highlight
+                && matches!(&child.widget_data,Some(WidgetData::Texture(texture)) if texture.source==TextureSource::FileDataId(136810)))
+        });
+        menu_element.then_some((frame.id,button.state==ButtonState::Disabled))
+    }).collect();
+    for (id, disabled) in updates {
+        let Some(WidgetData::Texture(texture)) =
+            &mut registry.get_mut(id).expect("menu art").widget_data
+        else {
+            unreachable!();
+        };
+        texture.desaturated = disabled;
+    }
 }

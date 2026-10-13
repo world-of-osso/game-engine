@@ -224,7 +224,7 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
                 label: "Unavailable",
                 action: "do_not_send",
             },
-            MenuElementKind::Button,
+            MenuElementKind::Checkbox { checked: true },
             false,
             (0.0, 80.0, 150.0, 20.0),
         ));
@@ -280,6 +280,11 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
             panic!("reset")
         };
         assert_eq!(reset.highlight_alpha, 0.4);
+        game_engine_ui_model::menu_template_art::sync_template_art(&mut reg);
+        let Some(WidgetData::Texture(tick)) = &frame(&reg, "DisabledTick").widget_data else {
+            panic!("disabled tick")
+        };
+        assert!(tick.desaturated);
         let id = reg.get_by_name("Filter").unwrap();
         let Some(WidgetData::Button(button)) = &mut reg.get_mut(id).unwrap().widget_data else {
             panic!("filter")
