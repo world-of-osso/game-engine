@@ -80,19 +80,41 @@ fn class_id(view: &View) -> u32 {
 }
 pub fn loot_menu(view: &View, filter: LootFilter) -> Element {
     if filter == LootFilter::Slot {
-        let entries: Vec<_> = loot_filter_entries(view, filter)
-            .into_iter()
-            .map(|(id, title)| {
-                radio(
-                    format!("JournalSlot{id}"),
-                    title,
-                    format!("journal:slot:{id}"),
-                    view.slot == id,
-                )
-            })
-            .collect();
+        let entries = filter_entries(view, filter);
         return menu("EncounterJournalFilterMenu", &entries, 574., 102.);
     }
+    let entries = class_spec_entries(view);
+    let root_width = menu_width(&entries);
+    let mut out = menu("EncounterJournalFilterMenu", &entries, 444., 102.);
+    if view.class_menu_open {
+        out.extend(menu(
+            "EncounterJournalClassMenu",
+            &filter_entries(view, LootFilter::Class),
+            root_width + 444.,
+            110.,
+        ));
+    }
+    out
+}
+fn filter_entries(view: &View, filter: LootFilter) -> Vec<Entry> {
+    let (key, selected) = if filter == LootFilter::Slot {
+        ("Slot", view.slot)
+    } else {
+        ("Class", view.class)
+    };
+    loot_filter_entries(view, filter)
+        .into_iter()
+        .map(|(id, title)| {
+            radio(
+                format!("Journal{key}{id}"),
+                title,
+                format!("journal:{}:{id}", key.to_lowercase()),
+                selected == id,
+            )
+        })
+        .collect()
+}
+fn class_spec_entries(view: &View) -> Vec<Entry> {
     let id = class_id(view);
     let mut entries = vec![(
         "JournalClassMenu".into(),
@@ -130,28 +152,7 @@ pub fn loot_menu(view: &View, filter: LootFilter) -> Element {
             view.class == id && view.spec == 0,
         ));
     }
-    let root_width = menu_width(&entries);
-    let mut out = menu("EncounterJournalFilterMenu", &entries, 444., 102.);
-    if view.class_menu_open {
-        let entries: Vec<_> = loot_filter_entries(view, LootFilter::Class)
-            .into_iter()
-            .map(|(id, title)| {
-                radio(
-                    format!("JournalClass{id}"),
-                    title,
-                    format!("journal:class:{id}"),
-                    view.class == id,
-                )
-            })
-            .collect();
-        out.extend(menu(
-            "EncounterJournalClassMenu",
-            &entries,
-            root_width + 444.,
-            110.,
-        ));
-    }
-    out
+    entries
 }
 fn menu_width(entries: &[Entry]) -> f32 {
     entries
