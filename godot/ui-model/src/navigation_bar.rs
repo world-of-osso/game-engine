@@ -278,7 +278,9 @@ fn overflow_menu(props: &NavBar<'_>, layout: &NavLayout) -> Element {
                 )
             }),
     );
-    rsx! { r#frame { name:{DynName(format!("{}OverflowMenu",props.name))}, width,height,left:0.0,top:HEIGHT,
+    // DropdownButton.xml: TOPLEFT on the centered overflow button's BOTTOMLEFT.
+    let top = (props.rect.3 + BUTTON_HEIGHT) / 2.0;
+    rsx! { r#frame { name:{DynName(format!("{}OverflowMenu",props.name))}, width,height,left:0.0,top,
     pos_type:"absolute",strata:"DIALOG",frame_level:60.0,{contents} } }
 }
 
