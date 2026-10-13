@@ -4,7 +4,7 @@ Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server
 
 ## Prismatic Bauble rendering boundary (2026-10-13)
 
-Source1417024 is a rainbow ribbon model, not a visible-effect proof merely because its node loads. Real-source scalar parsing fixes its density/lifetime; native ribbon consumption remains absent. Modern stationary aura/kit/removal/recovery is bounded state proof, while Forever delivery/lifecycle probes failed. [Exact source and per-boundary evidence](../../../../game-server/docs/toy-effects14-coverage.md#prismatic-bauble--source-admission-native-gaps-open-2026-10-13); [format](../formats/m2-format.md#ribbon-emitter-scalars-2026-10-13).
+Source1417024 is a rainbow ribbon model, not a visible-effect proof merely because its node loads. Real-source parsing and native strip consumption now pass actual moving raster in both skins (Modern2880/four bands, Forever2994/five bands), with source width/texture/material inputs. Later native natural-removal gates remain claim-specific. Immediate recovery checks were invalid across independent channels; waiting for both observations passes. Earlier ownership/initialcatalog timeouts remain unexplained, not a transport fix. [Exact source and per-boundary evidence](../../../../game-server/docs/toy-effects14-coverage.md#prismatic-bauble--source-admission-native-gaps-open-2026-10-13); [format](../formats/m2-format.md#ribbon-emitter-scalars-2026-10-13).
 
 ## Native source area lifecycle (2026-10-13)
 

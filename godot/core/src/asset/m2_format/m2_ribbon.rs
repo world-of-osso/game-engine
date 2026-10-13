@@ -19,6 +19,9 @@ const TILE_ROWS_OFFSET: usize = 0x80;
 const TILE_COLS_OFFSET: usize = 0x82;
 const SLOT_OFFSET: usize = 0x84;
 const VISIBILITY_OFFSET: usize = 0x98;
+const PRIORITY_OFFSET: usize = 0xac;
+const COLOR_INDEX_OFFSET: usize = 0xae;
+const TEXTURE_TRANSFORM_OFFSET: usize = 0xaf;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct M2RibbonEmitter {
@@ -91,9 +94,9 @@ fn parse_ribbon(md20: &[u8], base: usize) -> Result<M2RibbonEmitter, String> {
         gravity: read_f32(md20, base + ANGLE_OFFSET)?,
         texture_rows: read_u16(md20, base + TILE_ROWS_OFFSET)?,
         texture_cols: read_u16(md20, base + TILE_COLS_OFFSET)?,
-        priority_plane: read_i16(md20, base + 0xac)?,
-        color_index: md20[base + 0xae] as i8,
-        texture_transform_lookup: md20[base + 0xaf] as i8,
+        priority_plane: read_i16(md20, base + PRIORITY_OFFSET)?,
+        color_index: md20[base + COLOR_INDEX_OFFSET] as i8,
+        texture_transform_lookup: md20[base + TEXTURE_TRANSFORM_OFFSET] as i8,
     })
 }
 

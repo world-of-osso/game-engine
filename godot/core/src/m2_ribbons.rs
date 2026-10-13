@@ -16,6 +16,7 @@ pub struct RibbonValues {
     pub enabled: bool,
 }
 
+/// Unauthored tracks use calcRibbonEmitters' initialized values, never replacement assets.
 pub fn sample(emitter: &M2RibbonEmitter, time: &AnimTime<'_>) -> RibbonValues {
     let (sequence, ms) = time.track_time(&emitter.color);
     let rgb = m2_anim::evaluate_vec3_track(&emitter.color, sequence, ms).unwrap_or([1.0; 3]);
@@ -117,6 +118,20 @@ impl RibbonTrail {
         }
         let start = self.clock;
         self.clock += f64::from(seconds);
+        self.expire_edges();
+        self.head = None;
+        if !emitting || !values.enabled {
+            self.previous = None;
+            self.next_edge = self.clock;
+            return Ok(());
+        }
+        self.emit_edges(start, frame, values);
+        self.head = Some(interpolate_edge(frame, frame, values, 1.0, self.clock));
+        self.previous = Some(frame);
+        Ok(())
+    }
+
+    fn expire_edges(&mut self) {
         while self
             .edges
             .front()
@@ -124,12 +139,10 @@ impl RibbonTrail {
         {
             self.edges.pop_front();
         }
-        self.head = None;
-        if !emitting || !values.enabled {
-            self.previous = None;
-            self.next_edge = self.clock;
-            return Ok(());
-        }
+    }
+
+    fn emit_edges(&mut self, start: f64, frame: RibbonFrame, values: RibbonValues) {
+        // SetPos initializes the previous frame to the first authored position.
         let previous = self.previous.unwrap_or(frame);
         self.skip_expired_samples();
         while self.next_edge <= self.clock {
@@ -147,9 +160,6 @@ impl RibbonTrail {
             ));
             self.next_edge += self.interval;
         }
-        self.head = Some(interpolate_edge(frame, frame, values, 1.0, self.clock));
-        self.previous = Some(frame);
-        Ok(())
     }
 
     fn skip_expired_samples(&mut self) {

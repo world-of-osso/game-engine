@@ -46,10 +46,11 @@ impl PlacedRibbons {
         if !model.sequences.is_empty() && player.is_none() {
             return Err("Ribbon model is missing its animation player".into());
         }
-        let mut ribbons = Vec::new();
-        for source in &model.ribbon_emitters {
-            ribbons.push(place_ribbon(model, source, root, texture_dir)?);
-        }
+        let ribbons = model
+            .ribbon_emitters
+            .iter()
+            .map(|source| place_ribbon(model, source, root, texture_dir))
+            .collect::<Result<_, _>>()?;
         Ok(Some(Self {
             ribbons,
             skeleton,
@@ -80,23 +81,7 @@ impl PlacedRibbons {
             global_sequences: &self.global_sequences,
         };
         for ribbon in &mut self.ribbons {
-            let bone = i32::try_from(ribbon.source.bone_index)
-                .map_err(|_| "Ribbon bone index exceeds engine range")?;
-            if bone >= self.skeleton.get_bone_count() {
-                return Err(format!("Ribbon bone{bone} missing from skeleton"));
-            }
-            let pose = self.skeleton.get_bone_global_pose(bone)
-                * Transform3D::IDENTITY.translated(-self.pivots[bone as usize]);
-            let transform = root.get_global_transform()
-                * pose
-                * Transform3D::IDENTITY.translated(wow_vector(ribbon.source.position));
-            let frame = RibbonFrame {
-                position: glam::Vec3::from_array(transform.origin.to_array()),
-                direction: glam::Vec3::from_array((transform.basis * Vector3::UP).to_array()),
-                vertical: glam::Vec3::from_array(
-                    (transform.basis * Vector3::BACK * -1.0).to_array(),
-                ),
-            };
+            let frame = read_emitter_frame(root, &self.skeleton, &self.pivots, &ribbon.source)?;
             let values = m2_ribbons::sample(&ribbon.source, &time);
             ribbon.trail.advance(delta, frame, values, emitting)?;
             let vertices = ribbon.trail.triangles(fade);
@@ -132,11 +117,55 @@ fn place_ribbon(
     root: &Gd<Node3D>,
     texture_dir: &Path,
 ) -> Result<PlacedRibbon, String> {
-    let bone = source.bone_index as usize;
-    if bone >= model.bones.len() {
+    validate_ribbon_references(model, source)?;
+    let trail = RibbonTrail::new(source)?;
+    let materials = source
+        .texture_indices
+        .iter()
+        .zip(&source.material_indices)
+        .map(|(&texture, &material)| load_ribbon_material(model, texture, material, texture_dir))
+        .collect::<Result<Vec<_>, _>>()?;
+    let geometry = ArrayMesh::new_gd();
+    let meshes = materials
+        .iter()
+        .map(|material| spawn_ribbon_mesh(root, &geometry, material))
+        .collect();
+    Ok(PlacedRibbon {
+        source: source.clone(),
+        trail,
+        meshes,
+        geometry,
+    })
+}
+
+fn read_emitter_frame(
+    root: &Gd<Node3D>,
+    skeleton: &Gd<Skeleton3D>,
+    pivots: &[Vector3],
+    source: &M2RibbonEmitter,
+) -> Result<RibbonFrame, String> {
+    let bone =
+        i32::try_from(source.bone_index).map_err(|_| "Ribbon bone index exceeds engine range")?;
+    if bone >= skeleton.get_bone_count() {
+        return Err(format!("Ribbon bone{bone} missing from skeleton"));
+    }
+    let pose = skeleton.get_bone_global_pose(bone)
+        * Transform3D::IDENTITY.translated(-pivots[bone as usize]);
+    let transform = root.get_global_transform()
+        * pose
+        * Transform3D::IDENTITY.translated(wow_vector(source.position));
+    Ok(RibbonFrame {
+        position: glam::Vec3::from_array(transform.origin.to_array()),
+        direction: glam::Vec3::from_array((transform.basis * Vector3::UP).to_array()),
+        vertical: glam::Vec3::from_array((transform.basis * -Vector3::BACK).to_array()),
+    })
+}
+
+fn validate_ribbon_references(model: &m2::Model, source: &M2RibbonEmitter) -> Result<(), String> {
+    if source.bone_index as usize >= model.bones.len() {
         return Err(format!(
-            "Ribbon bone{bone} exceeds {} model bones",
-            model.bones.len()
+            "Ribbon bone{} missing from model",
+            source.bone_index
         ));
     }
     if source.texture_indices.len() != source.material_indices.len()
@@ -147,29 +176,24 @@ fn place_ribbon(
             source.id
         ));
     }
-    validate_texture_transform(model, source)?;
-    let trail = RibbonTrail::new(source)?;
-    let geometry = ArrayMesh::new_gd();
-    let mut meshes = Vec::new();
-    for (&texture, &material) in source.texture_indices.iter().zip(&source.material_indices) {
-        let material = load_ribbon_material(model, texture, material, texture_dir)?;
-        let mut mesh = MeshInstance3D::new_alloc();
-        mesh.set_name("M2RibbonStrip");
-        mesh.set_mesh(&geometry);
-        mesh.set_material_override(&material);
-        mesh.set_cast_shadows_setting(ShadowCastingSetting::OFF);
-        root.clone().add_child(&mesh);
-        mesh.set_as_top_level(true);
-        mesh.set_global_transform(Transform3D::IDENTITY);
-        mesh.set_visible(false);
-        meshes.push(mesh);
-    }
-    Ok(PlacedRibbon {
-        source: source.clone(),
-        trail,
-        meshes,
-        geometry,
-    })
+    validate_texture_transform(model, source)
+}
+
+fn spawn_ribbon_mesh(
+    root: &Gd<Node3D>,
+    geometry: &Gd<ArrayMesh>,
+    material: &Gd<ShaderMaterial>,
+) -> Gd<MeshInstance3D> {
+    let mut mesh = MeshInstance3D::new_alloc();
+    mesh.set_name("M2RibbonStrip");
+    mesh.set_mesh(geometry);
+    mesh.set_material_override(material);
+    mesh.set_cast_shadows_setting(ShadowCastingSetting::OFF);
+    root.clone().add_child(&mesh);
+    mesh.set_as_top_level(true);
+    mesh.set_global_transform(Transform3D::IDENTITY);
+    mesh.set_visible(false);
+    mesh
 }
 
 fn validate_texture_transform(model: &m2::Model, source: &M2RibbonEmitter) -> Result<(), String> {
