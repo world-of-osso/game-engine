@@ -7,7 +7,9 @@
 - Record actual install version/build key, binary and DBD SHA-256, schema commit, readable row count and unreadable records in build-keyed receipts.
 - Regenerate client caches and server CSV inputs in an isolated output tree. Preserve TDB1210 world.db; report its broken joins rather than rewriting server content.
 - Catalog consumers validate one declared source identity, not a compiled build number. Housing catalog keys follow their imported receipt; the property-storage namespace is unchanged. Renown reads `data/db2/active/renown.json` at server startup (`GAME_SERVER_RENOWN_CATALOG` selects an explicit input).
-- Canonical publication is lead-only: one command with a fingerprint comparison and backup.
+- Model-asset mappings follow the installed Retail build. A new-build receipt supersedes the prior receipt for the same product, FDID and kind, including unchanged bytes. Changed bytes use the new namespace; base and fragment indexes retain one mapping, not competing receipts.
+- Runtime and player bundles select the current asset namespace, not a compiled historical build key.
+- Canonical DB2 and model-asset migration publication is lead-only: one runtime-build command with a fingerprint comparison and backup.
 - Acceptance includes a row/ID census against former exports and native private hotkey captures for atlas7508739 in both skins.
 
 ## Current implementation
