@@ -14,6 +14,18 @@ Approved acceptance criteria:
 - [x] Retain authored ItemAppearance rows whose display ID is0. Those equipped slots draw no item model/textures/geoset changes but remain occupied; absent item/appearance rows and malformed display IDs still error. Do not substitute legacy or another product's appearance.
 - [x] Both named displays render from extracted-only model/appearance files without type9 failures; a comparable native run shows no new errors for other displays. Model loads do not require access to a WoW installation.
 
+## Installed-build extraction decision (2026-10-13)
+
+Local-CASC runtime misses and new offline extraction follow the product's unique
+active `.build.info` build. Resolution metadata/state must be keyed by that build,
+including after a patch within a running process. Never require the installed
+build to equal the authored DB2 export build. Existing published receipts/files
+retain their authenticated historical identity and remain valid; newly extracted
+files/receipts use the build actually read, never the former receipt's namespace.
+`extracted-only` and explicitly authenticated frozen offline publication remain
+unchanged. No DB2 re-export or old-build extraction fallback is authorized.
+This supersedes the active-install prohibition below for local extraction only.
+
 ## Decision record (2026-10-09)
 
 1. **Explicit product/build resolver and scoped asset paths — recommended.** Pass ownership from source-selected display/model data into extraction. Use one CASC state per identity and product/build-qualified disk and memory keys. Keep existing filename conventions inside each scoped model directory. Derive the build from verified importer provenance, not whichever build is currently active in the installation.
