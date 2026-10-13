@@ -1,3 +1,7 @@
+## 2026-10-12 — Cage collision-only WMOs and arena source gaps
+
+[WMO format](formats/wmo-format.md#batch-and-material-records): Cage of Carnage's only logged material errors came from collision WMOs 6371365/6133755 (no MOMT, no MOBA). The client ignored their MPY2 per-face materials, so it built a material-0 batch. MPY2 is now parsed, and its collision-only faces are not drawn. [Native arenas](systems/arenas.md): Rogue Stealth children and the Cage starting-area warning/teleport chain are source-backed; 254013 and 96538 remain named TC gaps.
+
 ## 2026-10-12 — Authoritative live arena collision
 
 [Native arenas](systems/arenas.md#authoritative-live-collision-2026-10-12): exact Cage walking-position RED reproduced static-only server gravity; instance-keyed cached M2 hulls now serve authoritative floors/movement/LOS. Source Cage support→open drop and Dalaran/Empyrean state/hide/despawn/copy fixtures pass. Full six-player server query+sync costs measured; native physics benchmark and exact-revision proof receipts added. Named source/art/stall gaps remain.
