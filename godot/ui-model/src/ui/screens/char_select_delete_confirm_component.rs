@@ -12,10 +12,10 @@ pub const DELETE_CONFIRM_INPUT: FrameName = FrameName("DeleteCharacterConfirmInp
 pub const DELETE_CONFIRM_BUTTON: FrameName = FrameName("DeleteCharacterConfirmButton");
 pub const DELETE_CANCEL_BUTTON: FrameName = FrameName("DeleteCharacterCancelButton");
 
-const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
-const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
-const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
-const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
+const BUTTON_ATLAS_UP: &str = "128-redbutton-left";
+const BUTTON_ATLAS_PRESSED: &str = "128-redbutton-left-pressed";
+const BUTTON_ATLAS_HIGHLIGHT: &str = "retail-128-redbutton-highlight";
+const BUTTON_ATLAS_DISABLED: &str = "128-redbutton-left-disabled";
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeleteConfirmUiState {

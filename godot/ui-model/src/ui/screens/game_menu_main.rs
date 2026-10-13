@@ -102,76 +102,22 @@ pub fn dialog_border(prefix: &str, width: f32, height: f32) -> Element {
 }
 
 fn menu_button(name: &str, text: &str, action: &str) -> Element {
-    // BigRedThreeSliceButtonTemplate scales 128px source slices to36px.
-    let left =
-        ui_toolkit::atlas::resolve_region("128-RedButton-Left", ui_toolkit::atlas::thread_skin())
-            .expect("BigRedThreeSliceButtonTemplate left atlas");
-    let cap_width = left.width * BUTTON_H / left.height;
-    let art: Element = [("", false), ("-Pressed", true), ("-Disabled", true)]
-        .into_iter().flat_map(|(suffix, hidden)| {
-            rsx! {
-                r#frame {
-                    name: DynName(format!("{name}Art{suffix}")), stretch: true, hidden,
-                    {named_atlas_texture(format!("{name}Left{suffix}"), &format!("128-RedButton-Left{suffix}"), (0.0, 0.0, cap_width, BUTTON_H))}
-                    {named_atlas_texture(format!("{name}Center{suffix}"), &format!("_128-RedButton-Center{suffix}"), (cap_width, 0.0, BUTTON_W - 2.0 * cap_width, BUTTON_H))}
-                    {named_atlas_texture(format!("{name}Right{suffix}"), &format!("128-RedButton-Right{suffix}"), (BUTTON_W - cap_width, 0.0, cap_width, BUTTON_H))}
-                }
-            }
-        }).collect();
-    rsx! {
-        button {
-            name: DynName(name.into()), width: BUTTON_W, height: BUTTON_H, text, font_size: 16.0,
-            strata: FrameStrata::Fullscreen, frame_level: 20.0, onclick: action, button_default_skin: false,
-            {art}
-            fontstring {
-                name: DynName(format!("{name}Label")), text, width: BUTTON_W, height: BUTTON_H,
-                font_size: 16.0, font_color: crate::ui::widgets::font_string::FontColor::new(1.0, 1.0, 1.0, 1.0),
-                frame_level: 100.0, draw_layer: "OVERLAY", pos_type: "absolute", left: 0.0, top: 0.0,
-            }
-            texture {
-                name: DynName(format!("{name}Highlight")), texture_atlas: "128-RedButton-Highlight", stretch: true, hidden: true,
-            }
-        }
-    }
+    // Native SharedButton projection scales the authored128-RedButton three slices.
+    rsx! { button {
+        name: DynName(name.into()), width: BUTTON_W, height: BUTTON_H, text, font_size: 16.0,
+        strata: FrameStrata::Fullscreen, frame_level: 20.0, onclick: action,
+        button_default_skin: false, button_atlas_up: "128-redbutton-left",
+    } }
 }
 
 pub fn sync_menu_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
     crate::options_menu_component::sync_options_art(registry);
-    use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
     if let Some(id) = registry.get_by_name("GameMenuBackground")
         && let Some(frame) = registry.get_mut(id)
-        && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
+        && let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_mut()
     {
         texture.horiz_tile = true;
         texture.vert_tile = true;
-    }
-    for name in [
-        "MenuBtnOptions",
-        "MenuBtnSupport",
-        "MenuBtnAddons",
-        "MenuBtnLogout",
-        "MenuBtnExit",
-        "MenuBtnResume",
-    ] {
-        let Some(WidgetData::Button(button)) = registry
-            .get_by_name(name)
-            .and_then(|id| registry.get(id))
-            .and_then(|f| f.widget_data.as_ref())
-        else {
-            continue;
-        };
-        let state = button.state;
-        let hovered = button.hovered && state != ButtonState::Disabled;
-        for (part, visible) in [
-            ("Art", state == ButtonState::Normal),
-            ("Art-Pressed", state == ButtonState::Pushed),
-            ("Art-Disabled", state == ButtonState::Disabled),
-            ("Highlight", hovered),
-        ] {
-            if let Some(id) = registry.get_by_name(&format!("{name}{part}")) {
-                registry.set_hidden(id, !visible);
-            }
-        }
     }
 }
 
@@ -243,12 +189,10 @@ pub fn sliced_atlas(
     (0..3)
         .flat_map(|y| {
             (0..3).flat_map(move |x| {
-                let left = region.left + (region.right - region.left) * source_x[x] / region.width;
-                let right =
-                    region.left + (region.right - region.left) * source_x[x + 1] / region.width;
-                let top = region.top + (region.bottom - region.top) * source_y[y] / region.height;
-                let bottom =
-                    region.top + (region.bottom - region.top) * source_y[y + 1] / region.height;
+                let left = source_x[x] / region.width;
+                let right = source_x[x + 1] / region.width;
+                let top = source_y[y] / region.height;
+                let bottom = source_y[y + 1] / region.height;
                 let tex_coords = format!("{left},{right},{top},{bottom}");
                 rsx! { texture {
                     name: DynName(format!("{prefix}{y}{x}")), texture_atlas: atlas, tex_coords,
