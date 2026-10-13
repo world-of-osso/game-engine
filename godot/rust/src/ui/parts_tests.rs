@@ -1,5 +1,5 @@
 use super::*;
-use ui_toolkit::frame::{Frame, WidgetType};
+use ui_toolkit::frame::{Dimension, Frame, WidgetType};
 use ui_toolkit::widgets::texture::TextureData;
 
 fn button(data: ButtonData) -> Frame {
@@ -196,6 +196,34 @@ fn transmog_hover_borders_add_light_without_covering_the_preview() {
         let hover = parts.last().expect("hover border");
         assert!(hover.additive, "{atlas} hover must add light to the model");
         assert_eq!(hover.rect, [-7.0, -7.0, size[0], size[1]]);
+    }
+}
+
+#[test]
+fn housing_storage_hover_overlays_add_half_alpha_with_source_handle_alignment() {
+    for (atlas, size, left) in [
+        ("house-chest-open-drawer-button", [64.0, 72.0], -4.0),
+        ("house-chest-close-drawer-button", [32.0, 74.0], 0.0),
+    ] {
+        let mut frame = button(ButtonData {
+            use_default_skin: false,
+            highlight_texture: Some(TextureSource::Atlas(atlas.into())),
+            highlight_alpha: 0.5,
+            hovered: true,
+            ..Default::default()
+        });
+        frame.width = Dimension::Fixed(size[0]);
+        frame.height = Dimension::Fixed(size[1]);
+        let parts = project_images(&frame, size[0], size[1]);
+        let hover = parts.last().expect("source drawer hover image");
+        assert!(hover.overlay);
+        assert!(hover.additive);
+        assert_eq!(hover.color[3], 0.5);
+        assert_eq!(hover.rect, [left, 0.0, size[0], size[1]]);
+        if let Some(WidgetData::Button(button)) = &mut frame.widget_data {
+            button.hovered = false;
+        }
+        assert!(project_images(&frame, size[0], size[1]).is_empty());
     }
 }
 

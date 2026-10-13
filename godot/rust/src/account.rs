@@ -861,6 +861,11 @@ impl Account {
             PvpAction::Queue(battleground_id) => {
                 bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
             }
+            PvpAction::Arena(mode) => bridge.send::<_, PvpChannel>(QueueForArena { mode }),
+            PvpAction::Rated(bracket) => bridge.send::<_, PvpChannel>(QueueForRatedPvp { bracket }),
+            PvpAction::Target(entity) => bridge.send::<_, CombatChannel>(SetTarget {
+                target_entity: Some(entity),
+            }),
             PvpAction::Dequeue => bridge.send::<_, PvpChannel>(DequeueFromPvp),
             PvpAction::Respond { match_id, accepted } => {
                 bridge.send::<_, PvpChannel>(RespondToBattlegroundInvite { match_id, accepted })

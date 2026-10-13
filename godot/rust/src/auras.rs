@@ -273,6 +273,28 @@ impl GameClient {
     }
 
     pub(crate) fn reaction_to(&mut self, unit: u64) -> Reaction {
+        let controller = self
+            .replica
+            .unit(unit)
+            .and_then(|unit| unit.get::<shared::components::UnitSummonedBy>())
+            .map_or(unit, |owner| owner.0);
+        if let Some(bg) = self
+            .battleground
+            .view
+            .battleground()
+            .filter(|bg| bg.accepted)
+            && let Some(arena) = &bg.arena
+            && let Some(member) = arena
+                .units
+                .iter()
+                .find(|member| member.entity == controller)
+        {
+            return if member.team == bg.team {
+                Reaction::Friendly
+            } else {
+                Reaction::Hostile
+            };
+        }
         let target = self
             .replica
             .unit(unit)

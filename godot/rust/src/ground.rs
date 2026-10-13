@@ -14,6 +14,8 @@ pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
     /// Distance to the first WMO wall on a ray `(origin, direction, length)`.
     pub walls: &'a dyn Fn(Vec3, Vec3, f32) -> Option<f32>,
+    /// Highest active replicated game-object collision face under these feet.
+    pub game_object_floor: &'a dyn Fn(Vec3) -> Option<f32>,
 }
 
 impl TerrainGround<'_> {
@@ -57,8 +59,8 @@ impl TerrainGround<'_> {
                 .is_some_and(|ground| ground.height > feet.y)
     }
 
-    fn sample(&self, feet: Vec3) -> Option<Ground> {
-        let base = shared::ground::ground_at(
+    fn static_ground(&self, feet: Vec3) -> Option<Ground> {
+        shared::ground::ground_at(
             feet,
             self.terrain_height(feet),
             self.terrain
@@ -73,9 +75,11 @@ impl TerrainGround<'_> {
                         .values()
                         .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
                 ),
-        );
-        let m2 = self
-            .terrain
+        )
+    }
+
+    fn m2_ground(&self, feet: Vec3) -> Option<Ground> {
+        self.terrain
             .map_wdt
             .as_ref()
             .into_iter()
@@ -91,9 +95,18 @@ impl TerrainGround<'_> {
             .map(|height| Ground {
                 height,
                 surface: Surface::M2,
-            });
-        base.into_iter()
-            .chain(m2)
+            })
+    }
+
+    fn sample(&self, feet: Vec3) -> Option<Ground> {
+        let object = (self.game_object_floor)(feet).map(|height| Ground {
+            height,
+            surface: Surface::M2,
+        });
+        self.static_ground(feet)
+            .into_iter()
+            .chain(self.m2_ground(feet))
+            .chain(object)
             .max_by(|a, b| a.height.total_cmp(&b.height))
     }
 
@@ -182,6 +195,7 @@ mod tests {
         let ground = TerrainGround {
             terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         match ground.probe(start) {
             GroundState::Supported(height) => {
@@ -225,6 +239,93 @@ mod tests {
     }
 
     #[test]
+    fn arena_cage_authored_live_trapdoor_supports_walk_then_opens_into_a_drop() {
+        use std::cell::Cell;
+        let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let model = game_engine_core::m2::parse_model(
+            &std::fs::read(data.join("6339134.m2")).unwrap(),
+            &std::fs::read(data.join("6339702.skin")).unwrap(),
+        )
+        .unwrap();
+        // TDB1210 entry505683/guid30001717, display99831, exact source transform.
+        let transform = glam::Affine3A::from_scale_rotation_translation(
+            Vec3::ONE,
+            glam::Quat::from_rotation_y(1.5708),
+            Vec3::new(443.59, -24.8806, -321.262),
+        );
+        let faces = crate::terrain::doodad_collision::collision_triangles(
+            model.collision.as_ref().unwrap(),
+        );
+        let vertices: Vec<_> = faces
+            .iter()
+            .flatten()
+            .map(|point| transform.transform_point3(*point))
+            .collect();
+        let triangles = (0..faces.len() as u32)
+            .map(|index| [index * 3, index * 3 + 1, index * 3 + 2])
+            .collect();
+        let tile = shared::los::LosTile::build(32, 31, vertices, triangles);
+        let start = Vec3::new(443.59, -24.5936, -321.262);
+        let terrain = load_floor_map("2759", bevy_to_tile_coords(start.x, start.z));
+        let closed = Cell::new(true);
+        let live_floor = |feet| {
+            if closed.get() {
+                tile.floor_height(feet)
+            } else {
+                None
+            }
+        };
+        assert!(
+            live_floor(Vec3::new(443.59, -24.5936, -321.262)).is_some(),
+            "authored dedicated collision supplies a floor"
+        );
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            game_object_floor: &live_floor,
+        };
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        let mut feet = start;
+        for _ in 0..60 {
+            feet = movement.predict(
+                feet,
+                crate::gameplay::MovementFrame {
+                    direction: [0.0, 0.0, -1.0],
+                    speed: 2.0,
+                    vertical: 0.0,
+                },
+                false,
+                &ground,
+                &mut |_, to, _| to,
+                1.0 / 60.0,
+            );
+        }
+        assert!(
+            feet.y > -30.0,
+            "closed authored trapdoor must support the player: {feet}"
+        );
+        closed.set(false);
+        for _ in 0..120 {
+            feet = movement.predict(
+                feet,
+                crate::gameplay::MovementFrame {
+                    direction: [0.0; 3],
+                    speed: 0.0,
+                    vertical: 0.0,
+                },
+                false,
+                &ground,
+                &mut |_, to, _| to,
+                1.0 / 60.0,
+            );
+        }
+        assert!(
+            feet.y < -30.0,
+            "opening removes only the live floor; gravity reaches the arena: {feet}"
+        );
+    }
+
+    #[test]
     fn m2_floor_eots_real_start_stands_and_walks_before_render_spawns() {
         let terrain = load_floor_map("NetherstormBG", (29, 27));
         stand_and_walk(&terrain, Vec3::new(2523.76, 1247.7, -1596.13), 1247.7, 3.0);
@@ -249,6 +350,7 @@ mod tests {
             TerrainGround {
                 terrain: &terrain,
                 walls: &|_, _, _| None,
+                game_object_floor: &|_| None,
             }
             .probe(inside),
             GroundState::Unloaded
@@ -274,6 +376,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         match ground.probe(inside) {
             GroundState::Supported(height) => assert!((height + 34.9).abs() < 0.2, "{height}"),
@@ -300,6 +403,7 @@ mod tests {
             TerrainGround {
                 terrain: &terrain,
                 walls: &|_, _, _| None,
+                game_object_floor: &|_| None,
             }
             .probe(inside),
             GroundState::Unloaded
@@ -328,6 +432,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            game_object_floor: &|_| None,
         };
         // Where the server stood the player: WoW (-8785.926, 820.665, 97.652).
         let room = Vec3::new(-8785.926, 97.652, -820.665);
