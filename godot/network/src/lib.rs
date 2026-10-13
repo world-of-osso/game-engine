@@ -497,11 +497,6 @@ fn client_app() -> App {
     let mut app = App::new();
     app.set_error_handler(protocol::defer_lightyear_protocol_check);
     app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>());
-    app.add_plugins(bevy::log::LogPlugin {
-        level: bevy::log::Level::ERROR,
-        filter: "off,lightyear_messages=error,lightyear_transport=error".to_owned(),
-        ..default()
-    });
     app.add_plugins(StatesPlugin);
     app.add_plugins(
         client_network::ClientPlugins {
