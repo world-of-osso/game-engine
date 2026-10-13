@@ -571,6 +571,16 @@ impl UiProjection {
                     &emit(pending, UiInput::Hover(frame.id, false)),
                 );
             }
+            WidgetType::Button
+                if frame
+                    .onclick
+                    .as_deref()
+                    .is_some_and(|action| action.starts_with("housing:placed-list:select:")) =>
+            {
+                connect_button(pending, frame.id, node);
+                // Retail entries register both LeftButtonUp and RightButtonUp.
+                connect_buff_cancel(pending, frame.id, node);
+            }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame, node),
             WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),

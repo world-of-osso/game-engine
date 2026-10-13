@@ -25,6 +25,7 @@ pub(crate) struct HousingHud {
     pub(super) expert_held: [bool; 8],
     pub(super) mouse_pointer: Option<crate::housing_mouse::ExpertPointer>,
     pub(super) storage_resize: Option<crate::housing_storage::StorageResize>,
+    pub(super) placed_list_drag: Option<crate::housing_placed_list::PlacedListDrag>,
     next_request_id: u64,
     confirming_plot: Option<u32>,
 }
@@ -276,6 +277,7 @@ impl GameClient {
             }
         }
         drop(host);
+        self.sync_housing_placed_list_input()?;
         self.query_housing_vendor_names()?;
         self.clear_inactive_housing_preview();
         let view = self.housing_view()?;
