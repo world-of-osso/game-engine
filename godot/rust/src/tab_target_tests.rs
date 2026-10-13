@@ -148,7 +148,7 @@ fn arena_native_attacks_same_race_enemies_and_their_pets_only_after_preparation(
         "match_id":1,"battleground_id":8,"name":"Ruins of Lordaeron","map_id":572,
         "team":"A","phase":"Waiting","accepted":true,"invitation_time_left_secs":null,
         "score_a":0,"score_b":0,"flags":{"flag_a":"AtBase","flag_b":"AtBase"},
-        "outcome":null,"players":[],"honor_reward":null,
+        "outcome":null,"players":[],"honor_reward":null,"world_states":[],
         "arena":{"mode":"Skirmish2v2","preparation_remaining_secs":60,
             "shadow_sight_available":false,"rating_changes":[],"units":[
                 {"character_id":57,"entity":57,"name":"Petlive","class":3,"team":"A","health":100,"max_health":100},
