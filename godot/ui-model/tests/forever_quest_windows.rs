@@ -152,6 +152,7 @@ fn modern_trees() -> String {
     view.view = GameMenuView::Options;
     for category in OptionsCategory::ALL {
         view.options.category = category;
+        view.options.addons_tab = category == OptionsCategory::SocialAddons;
         out += &dump(view.clone(), game_menu_screen, "GameMenuRoot");
     }
     out
@@ -298,7 +299,11 @@ fn graphics_settings_remain_reachable_after_scrolling() {
 fn quest_chrome_preserves_modern_and_resolves_forever() {
     load_tables();
     set_thread_skin(ActiveSkin::Modern);
-    assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
+    let trees = modern_trees();
+    if std::env::var_os("PRINT_MODERN_TREES").is_some() {
+        println!("<<<MODERN_TREES\n{trees}MODERN_TREES>>>");
+    }
+    assert_eq!(trees.as_bytes(), fixture::MODERN_TREES.as_bytes());
     // Forever draws its own close-button art, not Modern's.
     assert_ne!(
         assert_close_texture(ActiveSkin::Modern),
