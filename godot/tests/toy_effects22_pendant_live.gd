@@ -4,7 +4,8 @@ extends "res://tests/toy_effects21_area_live.gd"
 const PENDANT := 115503
 const MOLTEN_PATH := 171352
 const MAGMA_MODELS := [937030]
-const ALLOWED := Vector3(1433.39, 104.446, -1081.63)
+# TDB395482/80769 friendly Karabor Peacekeeper; ADT843283 Area7078→6719.
+const ALLOWED := Vector3(1867.41, 78.231, -260.26)
 const OUTSIDE := Vector3(3594.38, 19.8726, 3928.24)
 
 func proof_cases() -> Array:
@@ -13,7 +14,9 @@ func proof_cases() -> Array:
 func prove_toy(sample: Array) -> void:
 	await learn_toy(PENDANT)
 	if failed or not learned_toy(PENDANT): return
-	if not command(OS.get_environment("TOYFX_ADMIN"), ["teleport", character, "1116", str(OUTSIDE.x), str(-OUTSIDE.z), str(OUTSIDE.y)]): return
+	if int(client.account_state().world_map_id) != 1116: fail("source Draenor login required"); return
+	await move_on_source_map(OUTSIDE)
+	if failed: return
 	if not await wait_until(func(): return ready_at_source_site(OUTSIDE, 7332), "Ashran actual area and native HUD ready", 180000): return
 	await open_source_toy(str(sample[3]))
 	if failed: return
@@ -22,8 +25,9 @@ func prove_toy(sample: Array) -> void:
 	if has_aura(MOLTEN_PATH) or remaining_cooldown(PENDANT) > 0.0: fail("refusal spent Pendant recovery"); return
 	await capture("pendant22-outside-refused")
 	await click("CollectionsMicroButton")
-	if not command(OS.get_environment("TOYFX_ADMIN"), ["teleport", character, "1116", str(ALLOWED.x), str(-ALLOWED.z), str(ALLOWED.y)]): return
-	if not await wait_until(func(): return ready_at_source_site(ALLOWED, 6797), "Draenor actual parent area and native HUD ready", 180000): return
+	await move_on_source_map(ALLOWED)
+	if failed: return
+	if not await wait_until(func(): return ready_at_source_site(ALLOWED, 7078), "Draenor actual parent area and native HUD ready", 180000): return
 	await open_source_toy(str(sample[3]))
 	if failed: return
 	var errors_before: int = client.spells_state().errors.size()
