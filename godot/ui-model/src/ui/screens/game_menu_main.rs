@@ -1,5 +1,5 @@
 //! MainMenuFrameTemplates.xml and DialogTemplates.xml; section spacing from MainMenuFrameMixin.
-use super::quest_art::{DynName, named_atlas_texture};
+use crate::quest_art::{DynName, named_atlas_texture};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use ui_toolkit::rsx;
@@ -44,7 +44,7 @@ fn panel_title() -> Element {
             {named_atlas_texture("GameMenuHeaderCenter".into(), "_UI-Frame-DiamondMetal-Header-Tile", (32.0, 0.0, width - 64.0, 39.0))}
             fontstring {
                 name: TITLE_LABEL, text, font_size: 14.0, color: "1,0.82,0,1",
-                width: width - 64.0, height: 16.0, pos_type: "absolute",
+                width: {width - 64.0}, height: 16.0, pos_type: "absolute",
                 left: "50%", top: 13.0, translate_x: "-50%",
             }
         }
@@ -209,7 +209,7 @@ pub fn main_menu_view(logged_in: bool) -> Element {
                         pos_type: "absolute", left: 7.0, right: 7.0, top: 7.0, bottom: 7.0, }
                     {dialog_border("GameMenuBorder", PANEL_W, height)}
                     r#frame {
-                        name: "GameMenuContents", width: PANEL_W - SIDE_PADDING * 2.0, height: height - TOP_PADDING - BOTTOM_PADDING,
+                        name: "GameMenuContents", width: {PANEL_W - SIDE_PADDING * 2.0}, height: {height - TOP_PADDING - BOTTOM_PADDING},
                         layout: "flex-column", gap: 0.0, align: "start",
                         margin_top: TOP_PADDING, margin_left: SIDE_PADDING,
                         {menu_buttons(logged_in)}
