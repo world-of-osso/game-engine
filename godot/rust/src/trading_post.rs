@@ -516,6 +516,7 @@ impl GameClient {
             state.set("items", snapshot.items.len() as i64);
             if let Some(row) = view.selected_item() {
                 state.set("selected_name", row.name.as_str());
+                state.set("item_id", i64::from(row.item_id));
                 state.set("price", i64::from(row.price));
                 state.set("purchased", row.purchased);
                 state.set("collected", row.collected);
