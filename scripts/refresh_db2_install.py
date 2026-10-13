@@ -41,7 +41,7 @@ def consumed_tables(engine, server, definitions):
         for path in root.rglob('*'):
             if path.suffix not in ('.py', '.rs', '.sql') or 'fixtures' in path.parts or 'target' in path.parts:
                 continue
-            tokens = set(re.findall(r'[A-Za-z][A-Za-z0-9]+', path.read_text()))
+            tokens = set(re.findall(r'''["']([A-Z][A-Za-z0-9]+)(?:\.csv)?["']''', path.read_text()))
             consumed.update(names & tokens)
     return sorted(consumed)
 
