@@ -1,3 +1,7 @@
+## 2026-10-12 — Owned-storage search clear lifecycle
+
+[Housing](systems/housing.md#search-clear-lifecycle): inherited Retail17×17 clear control, focused-empty/nonempty visibility, backing-text clear/focus release and normal source art. Both skins physically clear unmatched query, restore actual paid Tesla pixels, remount without stale search and conserve stored/placed/layout. Hover/pressed art, minimum-character semantics and missing acquisition/assembly policy remain separate.
+
 ## 2026-10-12 — Cage collision-only WMOs and arena source gaps
 
 [WMO format](formats/wmo-format.md#batch-and-material-records): Cage of Carnage's only logged material errors came from collision WMOs 6371365/6133755 (no MOMT, no MOBA). The client ignored their MPY2 per-face materials, so it built a material-0 batch. MPY2 is now parsed, and its collision-only faces are not drawn. [Native arenas](systems/arenas.md): Rogue Stealth children and the Cage starting-area warning/teleport chain are source-backed; 254013 and 96538 remain named TC gaps.
