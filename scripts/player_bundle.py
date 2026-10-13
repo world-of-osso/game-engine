@@ -15,7 +15,7 @@ DATA_DIRS = (
     'forever-1.60.1.70205', 'gametables', 'glues', 'item-models', 'los',
     'minimap', 'models', 'music', 'products', 'reference', 'sounds', 'terrain', 'textures', 'ui',
 )
-DATA_FILE_GLOBS = ('*.csv', '*.ron', 'local-listfile-cache.sqlite')
+DATA_FILE_GLOBS = ('*.csv', '*.ron', 'local-listfile-cache.sqlite', 'battle-pet-model-scenes.json')
 LIBRARIES = {
     'linux-x86_64': ('linux.x86_64', 'libgame_engine_godot.so'),
     'windows-x86_64': ('windows.x86_64', 'game_engine_godot.dll'),
