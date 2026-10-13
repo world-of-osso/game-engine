@@ -95,15 +95,19 @@ impl GameClient {
         if !button.is_pressed() {
             return Ok(self.housing.placed_list_drag.take().is_some());
         }
+        self.press_housing_placed_list_header(button.get_position())
+    }
+
+    fn press_housing_placed_list_header(&mut self, point: Vector2) -> Result<bool, String> {
         let Some(header) = self.housing_control_rect("HouseEditorPlacedDecorListDragBar") else {
             return Ok(false);
         };
-        if !header.contains_point(button.get_position()) {
+        if !header.contains_point(point) {
             return Ok(false);
         }
         if self
             .housing_control_rect("HouseEditorPlacedDecorListCloseButton")
-            .is_some_and(|rect| rect.contains_point(button.get_position()))
+            .is_some_and(|rect| rect.contains_point(point))
         {
             return Ok(false);
         }
@@ -112,7 +116,7 @@ impl GameClient {
             .ok_or("Placed-list header exists without its panel.")?;
         let scale = self.effective_ui_scale();
         self.housing.placed_list_drag = Some(PlacedListDrag {
-            press: button.get_position() / scale,
+            press: point / scale,
             origin: panel.position / scale,
         });
         Ok(true)
