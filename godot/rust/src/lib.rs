@@ -2404,9 +2404,29 @@ impl GameClient {
                 self.refresh_transmog()?;
             }
             AccountEvent::Housing(reply) => self.receive_housing_reply(reply)?,
-            AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
+            AccountEvent::Toys(update) => {
+                for item in [140309, 90067] {
+                    if let Some(toy) = update.toys.iter().find(|toy| toy.item_id == item) {
+                        godot_print!(
+                            "TOY26_SNAPSHOT_RECEIVED item={item} learned={}",
+                            toy.learned
+                        );
+                    }
+                }
+                self.toybox.model.receive(update.toys);
+            }
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
-            AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
+            AccountEvent::ToyCooldown(update) => {
+                if update.spell_id == 223143 {
+                    godot_print!(
+                        "TOY26_CD_RECEIVED duration={} remaining={} gcd={}",
+                        update.duration_ms,
+                        update.remaining_ms,
+                        update.is_gcd
+                    );
+                }
+                self.toybox.model.cooldowns.apply(&update);
+            }
         }
         Ok(())
     }
