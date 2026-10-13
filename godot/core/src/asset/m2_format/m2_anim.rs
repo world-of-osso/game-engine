@@ -671,13 +671,21 @@ pub fn evaluate_f32_track(track: &AnimTrack<f32>, seq_idx: usize, time_ms: u32) 
     Some(values[i] + (values[i + 1] - values[i]) * t)
 }
 
-pub fn evaluate_u8_track(track: &AnimTrack<u8>, seq_idx: usize, time_ms: u32) -> Option<u8> {
+fn evaluate_step_track<T: Copy>(track: &AnimTrack<T>, seq_idx: usize, time_ms: u32) -> Option<T> {
     let (timestamps, values) = track.sequences.get(seq_idx)?;
     if timestamps.is_empty() || values.is_empty() {
         return None;
     }
     let (i, _) = find_keyframe_pair(timestamps, time_ms)?;
     values.get(i).copied()
+}
+
+pub fn evaluate_u8_track(track: &AnimTrack<u8>, seq_idx: usize, time_ms: u32) -> Option<u8> {
+    evaluate_step_track(track, seq_idx, time_ms)
+}
+
+pub fn evaluate_u16_track(track: &AnimTrack<u16>, seq_idx: usize, time_ms: u32) -> Option<u16> {
+    evaluate_step_track(track, seq_idx, time_ms)
 }
 
 #[cfg(test)]

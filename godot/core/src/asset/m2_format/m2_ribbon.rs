@@ -36,7 +36,7 @@ pub struct M2RibbonEmitter {
     pub visibility: AnimTrack<u8>,
     pub edges_per_second: f32,
     pub edge_lifetime: f32,
-    /// Emission angle is arcsin(gravity); this is not acceleration.
+    /// CRibbonEmitter::Update world-Z displacement coefficient: gravity * age².
     pub gravity: f32,
     pub texture_rows: u16,
     pub texture_cols: u16,

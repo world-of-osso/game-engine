@@ -1,0 +1,225 @@
+//! M2 ribbon sampling and world-space strip geometry.
+//! WebWowViewerCpp animationManager::calcRibbonEmitters / CRibbonEmitter.
+use crate::{
+    asset::m2_format::{m2_anim, m2_ribbon::M2RibbonEmitter},
+    m2::AnimTime,
+};
+use glam::Vec3;
+use std::collections::VecDeque;
+
+#[derive(Clone, Copy, Debug)]
+pub struct RibbonValues {
+    pub color: [f32; 4],
+    pub above: f32,
+    pub below: f32,
+    pub slot: u16,
+    pub enabled: bool,
+}
+
+pub fn sample(emitter: &M2RibbonEmitter, time: &AnimTime<'_>) -> RibbonValues {
+    let (sequence, ms) = time.track_time(&emitter.color);
+    let rgb = m2_anim::evaluate_vec3_track(&emitter.color, sequence, ms).unwrap_or([1.0; 3]);
+    let (sequence, ms) = time.track_time(&emitter.alpha);
+    let alpha = m2_anim::evaluate_i16_track(&emitter.alpha, sequence, ms)
+        .map_or(1.0, |value| (f32::from(value) / 32767.0).clamp(0.0, 1.0));
+    let scalar = |track: &m2_anim::AnimTrack<f32>| {
+        let (sequence, ms) = time.track_time(track);
+        m2_anim::evaluate_f32_track(track, sequence, ms).unwrap_or(1.0)
+    };
+    let (sequence, ms) = time.track_time(&emitter.texture_slot);
+    let slot = m2_anim::evaluate_u16_track(&emitter.texture_slot, sequence, ms).unwrap_or(0);
+    let (sequence, ms) = time.track_time(&emitter.visibility);
+    let enabled = m2_anim::evaluate_u8_track(&emitter.visibility, sequence, ms).unwrap_or(1) != 0;
+    RibbonValues {
+        color: [rgb[0], rgb[1], rgb[2], alpha],
+        above: scalar(&emitter.height_above),
+        below: scalar(&emitter.height_below),
+        slot,
+        enabled,
+    }
+}
+
+/// Source SetPos columns2/1, already transformed into engine world coordinates.
+#[derive(Clone, Copy, Debug)]
+pub struct RibbonFrame {
+    pub position: Vec3,
+    pub direction: Vec3,
+    pub vertical: Vec3,
+}
+
+#[derive(Clone, Copy)]
+struct Edge {
+    born: f64,
+    below: Vec3,
+    above: Vec3,
+    color: [f32; 4],
+    slot: u16,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RibbonVertex {
+    pub position: [f32; 3],
+    pub uv: [f32; 2],
+    pub color: [f32; 4],
+}
+
+pub struct RibbonTrail {
+    interval: f64,
+    lifetime: f64,
+    gravity: f32,
+    rows: u16,
+    cols: u16,
+    clock: f64,
+    next_edge: f64,
+    previous: Option<RibbonFrame>,
+    head: Option<Edge>,
+    edges: VecDeque<Edge>,
+}
+
+impl RibbonTrail {
+    pub fn new(emitter: &M2RibbonEmitter) -> Result<Self, String> {
+        if !emitter.edges_per_second.is_finite()
+            || emitter.edges_per_second <= 0.0
+            || !emitter.edge_lifetime.is_finite()
+            || emitter.edge_lifetime <= 0.0
+        {
+            return Err(format!("Ribbon{} has invalid density/lifetime", emitter.id));
+        }
+        if emitter.texture_rows == 0 || emitter.texture_cols == 0 {
+            return Err(format!("Ribbon{} has empty texture tiles", emitter.id));
+        }
+        Ok(Self {
+            interval: 1.0 / f64::from(emitter.edges_per_second),
+            lifetime: f64::from(emitter.edge_lifetime),
+            gravity: emitter.gravity,
+            rows: emitter.texture_rows,
+            cols: emitter.texture_cols,
+            clock: 0.0,
+            next_edge: 0.0,
+            previous: None,
+            head: None,
+            edges: VecDeque::new(),
+        })
+    }
+
+    pub fn advance(
+        &mut self,
+        seconds: f32,
+        frame: RibbonFrame,
+        values: RibbonValues,
+        emitting: bool,
+    ) -> Result<(), String> {
+        if u32::from(values.slot) >= u32::from(self.rows) * u32::from(self.cols) {
+            return Err(format!(
+                "Ribbon texture slot{} exceeds {}x{}",
+                values.slot, self.rows, self.cols
+            ));
+        }
+        let start = self.clock;
+        self.clock += f64::from(seconds);
+        while self
+            .edges
+            .front()
+            .is_some_and(|edge| self.clock - edge.born > self.lifetime)
+        {
+            self.edges.pop_front();
+        }
+        self.head = None;
+        if !emitting || !values.enabled {
+            self.previous = None;
+            self.next_edge = self.clock;
+            return Ok(());
+        }
+        let previous = self.previous.unwrap_or(frame);
+        self.skip_expired_samples();
+        while self.next_edge <= self.clock {
+            let fraction = if self.clock > start {
+                ((self.next_edge - start) / (self.clock - start)).clamp(0.0, 1.0) as f32
+            } else {
+                1.0
+            };
+            self.edges.push_back(interpolate_edge(
+                previous,
+                frame,
+                values,
+                fraction,
+                self.next_edge,
+            ));
+            self.next_edge += self.interval;
+        }
+        self.head = Some(interpolate_edge(frame, frame, values, 1.0, self.clock));
+        self.previous = Some(frame);
+        Ok(())
+    }
+
+    fn skip_expired_samples(&mut self) {
+        let oldest = self.clock - self.lifetime;
+        if self.next_edge < oldest {
+            let skipped = ((oldest - self.next_edge) / self.interval).ceil();
+            self.next_edge += skipped * self.interval;
+        }
+    }
+
+    /// Explicit triangle vertices; previous edges never move with their owner.
+    pub fn triangles(&self, fade: f32) -> Vec<RibbonVertex> {
+        let edges: Vec<_> = self.edges.iter().chain(self.head.iter()).collect();
+        edges
+            .windows(2)
+            .flat_map(|pair| {
+                let a = self.vertices(pair[0], fade);
+                let b = self.vertices(pair[1], fade);
+                [a[0], a[1], b[0], b[0], a[1], b[1]]
+            })
+            .collect()
+    }
+
+    fn vertices(&self, edge: &Edge, fade: f32) -> [RibbonVertex; 2] {
+        let age = (self.clock - edge.born).max(0.0) as f32;
+        // CRibbonEmitter::Update advances world Z by g*(new_age²-old_age²).
+        let displacement = Vec3::Y * self.gravity * age * age;
+        let column = edge.slot % self.cols;
+        let row = edge.slot / self.cols;
+        let u = (f32::from(column) + age / self.lifetime as f32) / f32::from(self.cols);
+        let color = [
+            edge.color[0],
+            edge.color[1],
+            edge.color[2],
+            edge.color[3] * fade,
+        ];
+        [
+            RibbonVertex {
+                position: (edge.below + displacement).to_array(),
+                uv: [u, f32::from(row) / f32::from(self.rows)],
+                color,
+            },
+            RibbonVertex {
+                position: (edge.above + displacement).to_array(),
+                uv: [u, f32::from(row + 1) / f32::from(self.rows)],
+                color,
+            },
+        ]
+    }
+}
+
+fn interpolate_edge(
+    previous: RibbonFrame,
+    current: RibbonFrame,
+    values: RibbonValues,
+    fraction: f32,
+    born: f64,
+) -> Edge {
+    let distance = previous.position.distance(current.position);
+    let bend = (previous.direction - current.direction) * distance * fraction * (1.0 - fraction);
+    let interpolate = |height: f32| {
+        (previous.position + previous.vertical * height)
+            .lerp(current.position + current.vertical * height, fraction)
+            + bend
+    };
+    Edge {
+        born,
+        below: interpolate(-values.below),
+        above: interpolate(values.above),
+        color: values.color,
+        slot: values.slot,
+    }
+}
