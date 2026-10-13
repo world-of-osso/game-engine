@@ -20,6 +20,10 @@
 
 Build `db2_cache_import` through `scripts/depot-build.py --root CHECKOUT --fixture db2_cache_import` before invoking `scripts/refresh_db2_data.py`. Supply the built executable as `--cache-importer`, plus the private output, exact definitions checkout, resolver/cache, baseline, read-only world, and canonical repository paths. The refresh reads canonical Forever inputs but never writes them; failed housing regeneration leaves the previous catalog intact. Prepared server SQL is reviewable output only, never automatically imported into TDB.
 
+## Lead publication
+
+Stop canonical clients/importers first. Run `scripts/apply_db2_install.py --manifest PRIVATE/apply-manifest.json --backup PRIVATE/canonical-backup --asset-data CANONICAL/data --asset-resolver CASC_LOCAL --asset-resolver-cache PRIVATE/resolver`. The command reads and authenticates the installed Retail identity at run time and refuses a reviewed DB2 manifest from another build. It stages all model indexes and companion aliases in the current namespace, reuses identical bytes through hard links, and extracts changed bytes from local CASC only. Absent current-root FDIDs are reported and removed from the live index; historical files remain unreferenced. Old chain metadata remains in the migration report, not relabeled as current provenance. Publication backs up replaced files and records the combined DB2/assets fingerprint diff before any writes. The new asset namespace and staging tree must share a filesystem. A completed backup is never reused.
+
 ## Tests
 
 `scripts/tests/test_db2_install_export.py`: reordered new-layout fields and signed arrays; unknown layout refuses output.

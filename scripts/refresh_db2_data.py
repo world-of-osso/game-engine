@@ -163,7 +163,7 @@ def prepare_manifest(args, receipt, root):
                 'excluded': ['world.db', 'auth tokens', 'historical product assets', 'unavailable local tables']}
     path = args.output / 'apply-manifest.json'
     path.write_text(json.dumps(manifest, indent=2) + '\n')
-    print(f'Lead-only apply: python3 {args.canonical_engine / "scripts/apply_db2_install.py"} --manifest {path} --backup {args.output / "canonical-backup"}')
+    print(f'Lead-only manifest: {path}; apply with installed-build asset migration (docs/specs/db2-follow-install.md)')
 
 
 def main():
