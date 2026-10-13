@@ -146,6 +146,17 @@ impl GameClient {
         let (owner, target) =
             named_ancestor(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
         drop(ui);
+        let (tooltip, category) = self.housing_tooltip_content(target)?;
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        let tooltip = if category {
+            tooltip.owned_offset(rect, OwnerSide::Right, [-12.0, 12.0])
+        } else {
+            tooltip.owned(rect, OwnerSide::Right)
+        };
+        Some(HoveredTooltip::text(tooltip))
+    }
+
+    fn housing_tooltip_content(&self, target: HousingTooltipTarget) -> Option<(GameTooltip, bool)> {
         let category = matches!(
             target,
             HousingTooltipTarget::Category(_)
@@ -165,13 +176,7 @@ impl GameClient {
             }
             category => self.housing_category_tooltip(category)?,
         };
-        let rect = self.owner_rect(&hit.ui, owner)?;
-        let tooltip = if category {
-            tooltip.owned_offset(rect, OwnerSide::Right, [-12.0, 12.0])
-        } else {
-            tooltip.owned(rect, OwnerSide::Right)
-        };
-        Some(HoveredTooltip::text(tooltip))
+        Some((tooltip, category))
     }
 
     fn housing_category_tooltip(&self, target: HousingTooltipTarget) -> Option<GameTooltip> {
