@@ -37,10 +37,49 @@ pub fn reset_changed_scrolls(
 }
 
 pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    sync_search_state(registry);
     apply_button_art(view, registry);
     crate::adventure_guide_sections::sync_header_art(view, registry);
     apply_text_layout(registry);
 }
+fn sync_search_state(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, layout_values::Val, widgets::button::ButtonState};
+    let Some(id) = registry.get_by_name(crate::adventure_guide::SEARCH) else {
+        return;
+    };
+    let focused = registry.focused_frame == Some(id);
+    let Some(WidgetData::EditBox(edit)) = &mut registry.get_mut(id).unwrap().widget_data else {
+        return;
+    };
+    edit.max_letters = Some(40);
+    let empty = edit.text.is_empty();
+    let show_clear = focused || !empty;
+    if let Some(clear) = registry.get_by_name("EncounterJournalSearchBoxClearButton") {
+        registry.set_hidden(clear, !show_clear);
+        let Some(WidgetData::Button(button)) = &registry.get(clear).unwrap().widget_data else {
+            return;
+        };
+        let hovered = button.hovered;
+        let inset = if button.state == ButtonState::Pushed {
+            4.
+        } else {
+            3.
+        };
+        if let Some(icon) = registry.get_by_name("EncounterJournalSearchBoxClearIcon") {
+            let frame = registry.get_mut(icon).unwrap();
+            frame.alpha = if hovered { 1. } else { 0.5 };
+            frame.position.left = Val::Px(inset);
+            frame.position.top = Val::Px(inset);
+        }
+    }
+    if let Some(icon) = registry.get_by_name("EncounterJournalSearchIcon")
+        && let Some(WidgetData::Texture(texture)) = &mut registry.get_mut(icon).unwrap().widget_data
+    {
+        let color = if show_clear { 1. } else { 0.6 };
+        texture.vertex_color = [color, color, color, 1.];
+    }
+}
+
 fn apply_text_layout(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::{frame::WidgetData, widgets::font_string::JustifyV};
     let styles: Vec<_> = registry
@@ -246,18 +285,11 @@ pub fn search_box(value: &str) -> Element {
         ));
     }
     parts.extend(rsx! {editbox {name:"EncounterJournalSearchBox",text:value,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:40,text_insets:"16,20,0,0",pos_type:"absolute"}});
-    if value.is_empty() {
-        parts.extend(label(
-            "EncounterJournalSearchBoxInstructions".into(),
-            crate::auction_mail::text("SEARCH"),
-            (596., 32., 174., 20.),
-            (12., "0.5,0.5,0.5,1", "LEFT"),
-        ));
-    } else {
-        parts.extend(rsx! {button {name:"EncounterJournalSearchBoxClearButton",left:770.0,top:33.5,width:17.0,height:17.0,
-            pos_type:"absolute",button_default_skin:false,onclick:"journal:search-clear",
-            texture {name:"EncounterJournalSearchBoxClearIcon",left:3.0,top:3.0,width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"common-search-clearbutton",alpha:0.5}}});
-    }
+    let instructions_hidden = !value.is_empty();
+    parts.extend(rsx! {fontstring {name:"EncounterJournalSearchBoxInstructions",text:crate::auction_mail::text("SEARCH"),left:596.0,top:32.0,width:174.0,height:20.0,pos_type:"absolute",font_size:12.0,font_color:"0.5,0.5,0.5,1",hidden:instructions_hidden}});
+    parts.extend(rsx! {button {name:"EncounterJournalSearchBoxClearButton",left:770.0,top:33.5,width:17.0,height:17.0,
+        pos_type:"absolute",button_default_skin:false,onclick:"journal:search-clear",
+        texture {name:"EncounterJournalSearchBoxClearIcon",left:3.0,top:3.0,width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"common-search-clearbutton",alpha:0.5}}});
     parts
 }
 
