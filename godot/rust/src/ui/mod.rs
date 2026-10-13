@@ -32,6 +32,7 @@ pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
 mod mentor_host;
+mod menu_primitives_preview;
 mod meter_preview;
 mod minimap_preview;
 mod mount_journal_host;
@@ -281,6 +282,7 @@ impl RegistryModel {
             self.screen.sync(&self.shared, &mut self.registry);
         }
         self.apply_postsetup();
+        game_engine_ui_model::menu_template_art::sync_template_art(&mut self.registry);
     }
 
     fn apply_postsetup(&mut self) {
@@ -620,6 +622,7 @@ impl RegistryModel {
         {
             update(button);
         }
+        game_engine_ui_model::menu_template_art::sync_template_art(&mut self.registry);
     }
 
     /// Original `sync_button_input`: pressing pushes an enabled button; release restores it.
