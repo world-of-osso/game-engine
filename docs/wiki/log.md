@@ -1,6 +1,6 @@
 ## 2026-10-13 — Basic editor source continuation
 
-[Housing](systems/housing.md#basic-source-controls-and-release-input--active2026-10-13): source mode/instruction controls, assignable Retail actions without invented defaults, native owner-routed drag/release lifecycle and both-skin paid-copy click/drag/relog proof. Source queue, hotkey font/shadow and owned-preview rotation REDs recorded; final integrated art/state/preview/visitor gate remains open.
+[Housing](systems/housing.md#basic-source-controls-and-release-input--functional2026-10-13): source controls/layout, unbound assignable Retail actions, native owner-routed click/drag release, saved/preview rotation, user unbind and visitor/refusal/relog pass in both skins. Installed70340 hotkey atlas-member re-export remains a named visual gap owned by db2-follow-install; frozen69933 payloads/captures/test were removed under lead decision. Full housing remains open.
 
 ## 2026-10-13 — Source storage tiles
 
