@@ -10,6 +10,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::trading_post::{
     Action, HEIGHT, MODEL, SEARCH, View, WIDTH, trading_post_screen,
 };
+use godot::classes::CanvasLayer;
 use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
 use shared::protocol::{EquipmentSlot, TradingPostRequest};
@@ -28,7 +29,12 @@ pub(crate) struct TradingPost {
     yaw: f32,
     rotating: bool,
     dragged: Option<(u32, Vector2, bool)>,
+    /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
+    hidden_layers: Vec<Gd<CanvasLayer>>,
 }
+
+/// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
+const KEPT_LAYERS: [&str; 2] = ["PerksProgramUI", "GameTooltipUI"];
 impl TradingPost {
     pub(crate) fn visit_uis(
         &mut self,
@@ -54,6 +60,11 @@ impl GameClient {
         let visible = self.trading_post.view.visible;
         self.trading_post.view.visible = false;
         self.clear_trading_model();
+        for mut layer in std::mem::take(&mut self.trading_post.hidden_layers) {
+            if layer.is_instance_valid() {
+                layer.set_visible(true);
+            }
+        }
         if let Some(ui) = self.trading_post.ui.take() {
             ui.free();
         }
@@ -94,12 +105,28 @@ impl GameClient {
         }
         self.poll_trading_inputs()?;
         if self.trading_post.view.visible {
+            self.hide_ui_parent();
             self.sync_trading_ui()?;
             if let Err(error) = self.sync_trading_model() {
                 self.trading_post.view.error = error;
             }
         }
         Ok(())
+    }
+    /// Hide every other visible client layer, including ones created while open.
+    fn hide_ui_parent(&mut self) {
+        for child in self.base().get_children().iter_shared() {
+            let Ok(mut layer) = child.try_cast::<CanvasLayer>() else {
+                continue;
+            };
+            let name = layer.get_name().to_string();
+            if layer.is_visible() && !KEPT_LAYERS.contains(&name.as_str()) {
+                layer.set_visible(false);
+                if !self.trading_post.hidden_layers.contains(&layer) {
+                    self.trading_post.hidden_layers.push(layer);
+                }
+            }
+        }
     }
     fn poll_trading_inputs(&mut self) -> Result<(), String> {
         let Some(mut ui) = self.trading_post.ui.clone() else {
@@ -436,6 +463,10 @@ impl GameClient {
         state.set("category", i64::from(view.category));
         state.set("preview_ready", self.trading_post.shown.is_some());
         state.set("pending", view.pending);
+        state.set(
+            "hidden_layers",
+            self.trading_post.hidden_layers.len() as i64,
+        );
         state.set("error", view.error.as_str());
         if let Some(snapshot) = &view.snapshot {
             state.set("tender", i64::from(snapshot.tender));
