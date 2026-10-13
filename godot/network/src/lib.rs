@@ -509,6 +509,13 @@ fn client_app() -> App {
         .disable::<lightyear::prediction::plugin::PredictionPlugin>(),
     );
     app.add_plugins(shared::ProtocolPlugin);
+    app.add_systems(
+        PreUpdate,
+        battleground_trace::record_socket_receive
+            .after(lightyear::prelude::LinkReceiveSystems::BufferToLink)
+            .before(lightyear::prelude::ConnectionSystems::Receive)
+            .run_if(battleground_trace::enabled),
+    );
     app
 }
 
