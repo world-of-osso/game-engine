@@ -8,6 +8,21 @@ import re
 import struct
 from pathlib import Path
 
+# Stable existing CSV names. These rename DBD symbols, never choose binary indexes.
+CSV_NAMES = {
+    'CooldownSet': {'ChrSpecialization': 'ChrSpecializationID'},
+    'Achievement': {'Criteria_tree': 'CriteriaTree'},
+    'Criteria': {'Modifier_tree_ID': 'ModifierTreeId', 'Start_event': 'StartEvent',
+                 'Start_asset': 'StartAsset', 'Start_timer': 'StartTimer',
+                 'Fail_event': 'FailEvent', 'Fail_asset': 'FailAsset',
+                 'Eligibility_world_state_ID': 'EligibilityWorldStateID',
+                 'Eligibility_world_state_value': 'EligibilityWorldStateValue'},
+    'JournalInstanceEntrance': {'Position': 'Pos'},
+    'TraitTreeXTraitCurrency': {'Index': '_Index'},
+    'TraitNodeGroupXTraitNode': {'Index': '_Index'},
+    'TraitNodeXTraitNodeEntry': {'Index': '_Index'},
+}
+
 
 def layout_fields(definition, layout):
     text = Path(definition).read_text()
@@ -35,6 +50,7 @@ def layout_fields(definition, layout):
             raise ValueError(f'{definition}: unsupported DBD field {line}')
         tags, name, width, count = match.groups()
         kind = types[name]
+        name = CSV_NAMES.get(Path(definition).stem, {}).get(name, name)
         fields.append((name + '_lang' if kind == 'locstring' and not name.endswith('_lang') else name,
                        kind, (tags or '').split(','), width, int(count or 1)))
     if not fields:
@@ -117,8 +133,15 @@ def export(data, definition, output, fixed_reader, sparse_reader=None):
     flags = struct.unpack_from('<H', data, 172)[0]
     rows, dropped = (sparse_rows(data, fields, sparse_reader) if flags & 1
                      else fixed_rows(data, fields, layout, fixed_reader))
+    names = columns(fields)
+    if Path(definition).stem == 'DungeonEncounter':
+        # Existing server CSV contract exposes the relationship column separately.
+        # DBD marks MapID as the inline relation; it is not a second binary field.
+        relation = next(i for i, f in enumerate(fields) if 'relation' in f[2])
+        names.append('RelationMapID')
+        rows = [[*row, row[relation]] for row in rows]
     with Path(output).open('w', newline='') as stream:
         writer = csv.writer(stream)
-        writer.writerow(columns(fields))
+        writer.writerow(names)
         writer.writerows(rows)
     return {'layout': f'{layout:08X}', 'rows': len(rows), 'unreadable_records': max(0, dropped)}
