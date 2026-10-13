@@ -9,10 +9,48 @@ use game_engine_core::adventure_guide::{Encounter, Instance};
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub const INK: &str = "0.13,0.07,0.01,1.0";
+/// QuestTitleFontBlackShadow/QuestFont_Super_Huge (GameFontStyles.xml/GameFonts.xml).
+pub const GOLD: &str = "1.0,0.82,0.0,1.0";
 pub const HEADER: &str = "0.902,0.788,0.671,1.0";
 pub const SHEET: u32 = 522972;
 /// XML Normal/Pushed/Highlight textures, driven by real registry input state.
-pub fn apply_button_art(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    apply_button_art(view, registry);
+    apply_text_layout(registry);
+}
+fn apply_text_layout(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, widgets::font_string::JustifyV};
+    let styles: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let name = frame.name.as_deref()?;
+            let vertical = if name == "EncounterJournalInstanceTitle" {
+                JustifyV::Bottom
+            } else if name.starts_with("JournalBoss") && name.ends_with("Name") {
+                JustifyV::Middle
+            } else if (name.starts_with("JournalInstance") && name.ends_with("Title"))
+                || name == "EncounterJournalInstanceLore"
+                || name == "JournalEncounterLore"
+                || (name.starts_with("JournalSection") && name.ends_with("Body"))
+            {
+                JustifyV::Top
+            } else {
+                return None;
+            };
+            Some((frame.id, vertical))
+        })
+        .collect();
+    for (id, vertical) in styles {
+        let Some(WidgetData::FontString(font)) =
+            registry.get_mut(id).and_then(|f| f.widget_data.as_mut())
+        else {
+            continue;
+        };
+        font.word_wrap = true;
+        font.justify_v = vertical;
+    }
+}
+fn apply_button_art(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
     for instance in view.instances() {
         apply_button_state(
             registry,
@@ -122,6 +160,7 @@ pub enum Art {
     InstanceRing,
     DungeonName,
     BossName,
+    LootFrame,
 }
 impl Art {
     pub fn uv(self) -> &'static str {
@@ -148,6 +187,7 @@ impl Art {
             Self::InstanceRing => "0.50585938,0.63085938,0.02246094,0.08203125",
             Self::DungeonName => "0.34570313,0.84570313,0.42871094,0.49121094",
             Self::BossName => "0.00195313,0.77343750,0.26953125,0.33105469",
+            Self::LootFrame => "0.00195313,0.62890625,0.61816406,0.66210938",
         }
     }
 }
@@ -475,7 +515,7 @@ pub fn instance_lore(instance: &Instance) -> Element {
         "EncounterJournalInstanceTitle".into(),
         &instance.name,
         (437., 112., 320., 35.),
-        (24., INK, "CENTER"),
+        (24., GOLD, "CENTER"),
     ));
     out.extend(label(
         "EncounterJournalInstanceLore".into(),
@@ -530,7 +570,7 @@ pub fn model_art(instance: &Instance, name: &str) -> Element {
         "EncounterJournalModelTitle".into(),
         name,
         (404., 472., 380., 10.),
-        (14., INK, "CENTER"),
+        (14., GOLD, "CENTER"),
     ));
     out
 }

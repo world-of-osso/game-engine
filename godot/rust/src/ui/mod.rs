@@ -286,7 +286,7 @@ impl RegistryModel {
             .shared
             .get::<game_engine_ui_model::adventure_guide::View>()
         {
-            game_engine_ui_model::adventure_guide_art::apply_button_art(view, &mut self.registry);
+            game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
             self.icon_masks.apply(&mut self.registry);
         }
         if self
