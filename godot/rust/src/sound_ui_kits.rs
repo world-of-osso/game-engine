@@ -46,11 +46,31 @@ impl UiKits {
         settings: &SoundOptionsFile,
     ) -> Result<(), String> {
         let kit = ui_sound_kit(id).ok_or_else(|| format!("UI sound kit {id} is not listed"))?;
+        self.play_kit(&data_root.join("sounds/ui"), kit, settings)
+    }
+
+    pub fn play_creature(
+        &mut self,
+        data_root: &Path,
+        id: u32,
+        settings: &SoundOptionsFile,
+    ) -> Result<(), String> {
+        let kit = game_engine_core::creature_text_sounds::creature_text_sound_kit(id)
+            .ok_or_else(|| format!("Creature text sound kit {id} is not listed"))?;
+        self.play_kit(&data_root.join("sounds"), kit, settings)
+    }
+
+    fn play_kit(
+        &mut self,
+        directory: &Path,
+        kit: &game_engine_core::ui_sound_kits::UiSoundKit,
+        settings: &SoundOptionsFile,
+    ) -> Result<(), String> {
         let fdid = kit.file(godot::global::randi() as u32);
         let stream = match self.streams.get(&fdid) {
             Some(stream) => stream.clone(),
             None => {
-                let path = data_root.join("sounds/ui").join(format!("{fdid}.ogg"));
+                let path = directory.join(format!("{fdid}.ogg"));
                 let stream = load_ogg(&path, fdid)?;
                 self.streams.insert(fdid, stream.clone());
                 stream
@@ -74,7 +94,7 @@ impl UiKits {
         self.root.add_child(&player);
         player.play();
         self.active.push(player);
-        self.played.push(id);
+        self.played.push(kit.id);
         Ok(())
     }
 }

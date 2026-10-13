@@ -2,9 +2,27 @@
 
 [Housing](systems/housing.md#expert-placeddecorlist): confirmed-instance/name sorting, independent local list/menu state, read-only selection, existing owner-only remove request and stale-target reconciliation; native UI/proof pending. Source budget uses lead-approved unknown “— / —”, never instance-count substitution.
 
+## 2026-10-13 — Native follower Group Finder implementation
+
+[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
+## 2026-10-13 — Adventure Guide navigation lifetime
+
+[Adventure Guide](systems/adventure-guide.md#october-13-navigation-lifetime-proof): encounter links clear stale search/menus; Trading Post Log navigates without closing an already-visible Guide; real ENCOUNTER_START follows source difficulty without auto-opening a closed window. Targeted17/native build/check/fmt pass; nine inspected both-skin private5771 PNGs. Journeys backing, complete model closure/Ozruk effect planes and RPE activation remain open.
+[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New private5761 both-skin actual native input→source Ruby admission/five roles/14m follow proof added below; camera/geometry/gear and whole-dungeon gates remain open. Whole companion/dungeon acceptance remains open.
+
+## 2026-10-13 — Unrated six-round Shuffle proof
+
+[Native arenas](systems/arenas.md#unrated-solo-shuffle--verified-2026-10-13): both skins complete six real first-kill rounds and all-six returns; source-role admission/spec lock, four-map rotations/gate resets, item cast-time panic and category-isolation RED/GREEN proof. Explicit unrated realm policy and delayed peer snapshot/wall-clock harness boundaries retained; rating/MMR, dampening and named source gaps unchanged.
+
+## 2026-10-13 — Arena announcer and shared reconnect proof
+
+[Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures completed, with the original null-snapshot readiness failure retained.
 ## 2026-10-13 — Storage source vertical anchor implementation
 
 [Housing](systems/housing.md#basic-drawer-controls-and-preferences): F1 confirmed against LEFT/y150/clamped source. Registry source64.5 versus0 and native logical/nonclamped anchor RED; expanded panel now computes source top before native scaling. Both-skin native720→1080/source-scaled anchor/select/cancel/query+paidconservation GREEN; registry720/1080/651–800expanded+collapsed restores correctly. Currentregistry19/server28+3ignored/protocol4/check/fmt PASS; four inspected≤1280PNG public. Physical pixel coordinates are UI-scale-adjusted, not logical source values.
+## 2026-10-13 — Mythic Mentor expanded private proof
+
+[Mythic Mentor](systems/mythic-mentor.md#expanded-private-proof--2026-10-13): fresh5751 both-skin real rendered8/11 rows, leader transfer, raid hide/party restore, drag/save/close/Escape and leave pruning; Forever no-key→bag grant. Atomic fixture records and explicit asynchronous readiness; source catalog/teleport expansion remains open.
 
 ## 2026-10-13 — Pending owned-placement storage implementation
 

@@ -9,7 +9,8 @@ Native independent Keys window, modelled on installed `BossHelper/UI/GroupFinder
 - [x] Replace server rows completely: self first, then party, including “No key”; solo remains; raid/empty hides. Bag/roster/leader updates must not retain old rows. Loading retains the initial snapshot; logout clears it.
 - [x] Title drag clamps to screen and saves per-character placement. Native drag/close/reopen proof records the saved position in both skins.
 - [x] Use local-CASC Retail art only; Forever changes the same chrome's art, not elements or behaviour. Azure icon4880614 is explicitly selected authentic `interface/lfgframe/ui-lfg-background-azurevaults.blp`, not a claimed C_ChallengeMode mapping; leader132062; no-key134400.
-- [ ] Dungeon-icon teleport mappings match installed `MythicTeleport.lua`; casts use normal server authority. Azure401 has no addon teleport mapping. Other dungeon teleport/cooldown execution is not live-qualified in this cycle.
+- [ ] Current-season hosted-dungeon summaries use imported authored names/timers and real icon identities; no inferred seasonal/acquisition policy.
+- [ ] Dungeon-icon teleport buttons match installed `MythicTeleport.lua`, including known/unknown hover and cooldown countdown; casts use normal server authority. Azure401 has no addon teleport mapping. Unhosted destinations remain explicit gaps.
 
 ## How it works
 
@@ -28,12 +29,13 @@ Native independent Keys window, modelled on installed `BossHelper/UI/GroupFinder
 
 - `godot/ui-model/src/mythic_mentor.rs` — both-skin labels, level replacement, no-key, crown, pruning and hide.
 - `godot/rust/src/account_mythic_mentor_tests.rs` — loading retention/transport-stop clearing.
-- `godot/tests/mythic_mentor_live.gd`, `godot/network/examples/native_mythic_mentor_peer.rs` — real private5811 loading/party/control/prune proof; no preview injection.
+- `godot/tests/mythic_mentor_live.gd`, `godot/network/examples/native_mythic_mentor_peer.rs` — real private5751 loading/party/control/no-key/bag-grant/leadership/raid/prune proof in both skins; atomic observable row/placement records, no preview injection.
 
 ## Known gaps (current cycle)
 
-No blocker for the approved independent list-panel scope. Existing server qualification is Azure Vault; no invented seasonal/dungeon data.
+- [ ] Existing server qualification is Azure Vault401; expand panel summaries for current-season dungeons the realm actually hosts from authentic catalog data.
+- [ ] Addon teleport hover/cooldown presentation and qualified destination execution remain unverified; no invented data.
 
 ## Out of scope
 
-Addon messaging and fabricated IDs/assets prohibited. Group Finder service excluded by lead approval; addon settings/start-page cards are not this list panel. Expanded dungeon acquisition/catalog and full teleport/cooldown parity require supporting authoritative data beyond the current Azure401 dependency.
+Addon messaging and fabricated IDs/assets prohibited. Group Finder service excluded by lead approval; addon settings/start-page cards are not this list panel. Dungeon acquisition/season policy is not defined by this panel; authored catalog summaries and supported teleport/cooldown parity are in scope.

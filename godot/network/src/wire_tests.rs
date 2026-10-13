@@ -1294,11 +1294,11 @@ fn native_bridge_receives_remote_player_motion_changes() {
     host.stop();
 }
 
-/// The nameplate rule inputs reach the host with the unit: FactionTemplate, UnitFlags
-/// and the combat flag, including a combat drop that changes nothing else.
+/// Independent unit flag words reach the native host alongside faction/combat,
+/// including flag-only updates and removal without losing the other words.
 #[test]
 fn native_bridge_receives_faction_flags_and_combat_status() {
-    use shared::components::{UnitFactionTemplate, UnitFlags};
+    use shared::components::{UnitFactionTemplate, UnitFlags, UnitFlags2, UnitFlags3};
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8194);
     await_connected(&mut server, &mut host);
@@ -1316,6 +1316,8 @@ fn native_bridge_receives_faction_flags_and_combat_status() {
             },
             UnitFactionTemplate(7),
             UnitFlags(UnitFlags::NOT_SELECTABLE),
+            UnitFlags2(UnitFlags2::FEIGN_DEATH),
+            UnitFlags3(UnitFlags3::FAKE_DEAD),
             CombatStatus(true),
             Replicate::to_clients(NetworkTarget::All),
         ))
@@ -1329,6 +1331,34 @@ fn native_bridge_receives_faction_flags_and_combat_status() {
     );
     assert_eq!(
         unit.get::<UnitFlags>(),
+        Some(&UnitFlags(UnitFlags::NOT_SELECTABLE))
+    );
+    assert_eq!(
+        unit.get::<UnitFlags2>(),
+        Some(&UnitFlags2(UnitFlags2::FEIGN_DEATH))
+    );
+    assert_eq!(
+        unit.get::<UnitFlags3>(),
+        Some(&UnitFlags3(UnitFlags3::FAKE_DEAD))
+    );
+    server.world_mut().entity_mut(entity).insert(UnitFlags2(0));
+    await_unit(&mut server, &mut host, id, "flag2-only update", |unit| {
+        unit.get::<UnitFlags2>() == Some(&UnitFlags2(0))
+    });
+    assert_eq!(
+        host.unit(id).unwrap().get::<UnitFlags3>(),
+        Some(&UnitFlags3(UnitFlags3::FAKE_DEAD))
+    );
+    server.world_mut().entity_mut(entity).remove::<UnitFlags3>();
+    await_unit(&mut server, &mut host, id, "flag3 removal", |unit| {
+        unit.get::<UnitFlags3>().is_none()
+    });
+    assert_eq!(
+        host.unit(id).unwrap().get::<UnitFlags2>(),
+        Some(&UnitFlags2(0))
+    );
+    assert_eq!(
+        host.unit(id).unwrap().get::<UnitFlags>(),
         Some(&UnitFlags(UnitFlags::NOT_SELECTABLE))
     );
     server
@@ -2059,5 +2089,36 @@ fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
             .ok(),
         Some(loadouts)
     );
+    host.stop();
+}
+
+#[test]
+fn follower_group_finder_default_bridge_receives_catalog_over_udp() {
+    use shared::protocol::{FollowerDungeonEntry, FollowerDungeons, LfgChannel};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 57612436);
+    await_connected(&mut server, &mut host);
+    let expected = FollowerDungeons {
+        entries: vec![FollowerDungeonEntry {
+            id: 2436,
+            name: "Ruby Life Pools".into(),
+            map_id: 2521,
+        }],
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<FollowerDungeons>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<LfgChannel>(expected.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "prepared follower catalog on default bridge",
+        |event| matches!(event, Event::Message(message) if message.is::<FollowerDungeons>()),
+    ) else {
+        panic!("expected follower catalog")
+    };
+    assert_eq!(message.downcast::<FollowerDungeons>().ok(), Some(expected));
     host.stop();
 }
