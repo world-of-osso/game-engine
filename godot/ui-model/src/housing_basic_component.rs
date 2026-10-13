@@ -52,6 +52,13 @@ fn text_width(text: &str) -> f32 {
         .0
 }
 
+fn binding_width(text: &str) -> f32 {
+    measure_text(text, GameFont::ArialNarrow, 16.0)
+        .expect("Housing hotkeys require initialized fonts")
+        .0
+        + 26.0
+}
+
 fn binding_text(view: &HousingView, action: InputAction) -> String {
     view.model
         .editor_bindings
@@ -96,7 +103,7 @@ fn instructions(view: &HousingView) -> Element {
     let control_width = rows
         .iter()
         .filter_map(|(_, _, text, _)| text.as_deref())
-        .map(|text| text_width(text) + 26.0)
+        .map(binding_width)
         .fold(ROW, f32::max);
     let width = label_width + GAP + control_width;
     let height = rows.len() as f32 * ROW;
@@ -131,7 +138,7 @@ fn instruction_row(
     top: f32,
 ) -> Element {
     let prefix = format!("HouseEditor{name}Instruction");
-    let control_width = text.map(|text| text_width(text) + 26.0).unwrap_or(ROW);
+    let control_width = text.map(binding_width).unwrap_or(ROW);
     let width = label_width + GAP + control_width;
     let left = label_width + GAP;
     let alpha = if disabled { "0.5" } else { "1.0" };
@@ -143,7 +150,7 @@ fn instruction_row(
         );
         rsx! {r#frame {name:{DynName(format!("{prefix}Control"))},width:control_width,height:45.0,left,top:0.0,pos_type:"absolute",
             {background}
-            fontstring {name:{DynName(format!("{prefix}ControlText"))},text,width:control_width,height:45.0,font_size:16.0,justify_h:"CENTER",mouse_enabled:false}
+            fontstring {name:{DynName(format!("{prefix}ControlText"))},text,width:control_width,height:45.0,font_size:16.0,font:GameFont::ArialNarrow,justify_h:"CENTER",mouse_enabled:false}
         }}
     } else {
         let icon = named_atlas_texture(
