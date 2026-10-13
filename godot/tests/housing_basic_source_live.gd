@@ -1,0 +1,146 @@
+extends "res://tests/housing_storage_tiles_live.gd"
+
+func run_test() -> void:
+	root.size = Vector2i(1280,720)
+	housing_server = OS.get_environment("GODOT_TEST_SERVER")
+	housing_account = OS.get_environment("HOUSING_ACCOUNT")
+	housing_skin = OS.get_environment("HOUSING_SKIN")
+	shots = OS.get_environment("HOUSING_SHOTS")
+	editor_house = int(OS.get_environment("HOUSING_HOUSE_ID"))
+	cleanup_role = "owner"
+	if housing_server != "127.0.0.1:5870" or not housing_account.begins_with("fb_housing_") or shots.is_empty() or editor_house<=0:
+		fail("Basic source proof needs private5870/fb_housing_* owned house")
+		return
+	DirAccess.make_dir_recursive_absolute(shots)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	if not await connect_housing_account(): return
+	if not await open_cleanup_house(): return
+	var before: Dictionary = client.housing_state()
+	if before.decor.size()!=1 or int(before.decor[0].decor_id)!=1693 or housing_count(2330,"stored")!=1:
+		fail("Basic proof needs actual paid bookcase/Tesla fixture")
+		return
+	var tile: Control = housing_control("HouseEditorStored2330")
+	var start: Vector2 = tile.get_global_rect().get_center()
+	await tile_mouse_button(start,true)
+	await held_motion(start+Vector2(35,0),Vector2(35,0))
+	if not await wait_housing(func(): return int(client.housing_state().get("placing",0))==2330,"actual owned storage OnDragStart",10000): return
+	if client.housing_state().decor!=before.decor or client.housing_state().stored!=before.stored:
+		fail("Held source drag changed confirmed paid copies")
+		return
+	if not await source_instructions(): return
+	if not await record_editor("basic-owned-drag-held"): return
+	await press_escape()
+	await tile_mouse_button(start+Vector2(35,0),false)
+	if not await wait_housing(func(): return housing_control("HouseEditorStored2330")!=null and int(client.housing_state().get("placing",0))==0,"Escape clears owned drag capture"): return
+	if not await normal_click_placement(before): return
+	if not await remove_actual_decor(2330): return
+	if not await remove_actual_decor(1693): return
+	if stored_bookcases()!=1 or not client.housing_state().decor.is_empty():
+		fail("Normal source removal did not return actual owned bookcase")
+		return
+	start = housing_control("HouseEditorStored1693").get_global_rect().get_center()
+	await tile_mouse_button(start,true)
+	await held_motion(start+Vector2(35,0),Vector2(35,0))
+	if not await wait_housing(func(): return int(client.housing_state().get("placing",0))==1693,"paid bookcase native drag"): return
+	var ground: Vector2 = ground_point(4.0)
+	await held_motion(ground,ground-start)
+	await frames(8)
+	if not client.housing_state().decor.is_empty() or stored_bookcases()!=1:
+		fail("Held bookcase drag persisted before release")
+		return
+	if not await record_editor("basic-bookcase-drag-preview"): return
+	await tile_mouse_button(ground,false)
+	if not await wait_housing(func(): return stored_bookcases()==0 and client.housing_state().decor.size()==1 and int(client.housing_state().decor[0].decor_id)==1693,"first drag release commits actual bookcase"): return
+	if not await record_editor("basic-bookcase-drag-placed"): return
+	var saved: Dictionary = client.housing_state()
+	if not await connect_housing_account(): return
+	if not await open_cleanup_house(): return
+	var restored: Dictionary = client.housing_state()
+	if restored.decor.size()!=1 or int(restored.decor[0].instance_id)!=int(saved.decor[0].instance_id) or restored.decor[0].position.distance_to(saved.decor[0].position)>0.01 or total_bookcases(restored)!=1 or housing_count(2330,"stored")!=1:
+		fail("Basic source drag/click/relog lost or duplicated paid copies")
+		return
+	if not await record_editor("basic-source-relogged"): return
+	print("PASS: private5870 source Basic controls click-versus-owned-drag release ",housing_skin)
+	client.free()
+	quit(0)
+
+func held_motion(point: Vector2,relative: Vector2) -> void:
+	var event := InputEventMouseMotion.new()
+	event.position = point
+	event.global_position = point
+	event.relative = relative
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT
+	Input.parse_input_event(event)
+	await frames(8)
+
+func press_escape() -> void:
+	var event := InputEventKey.new()
+	event.keycode = KEY_ESCAPE
+	event.physical_keycode = KEY_ESCAPE
+	event.pressed = true
+	Input.parse_input_event(event)
+	await frames(3)
+	event.pressed = false
+	Input.parse_input_event(event)
+	await frames(3)
+
+func source_instructions() -> bool:
+	for name: String in ["RotateLeft","RotateRight","Remove","ToggleGrid"]:
+		if housing_text("HouseEditor"+name+"InstructionControlText")!="[UNBOUND]":
+			fail("Basic instruction invented default key: "+name)
+			return false
+	if housing_text("HouseEditorCancelInstructionControlText")!="Escape" or housing_control("HouseEditorRotateLeft")!=null or housing_control("HouseEditorDone")!=null:
+		fail("Basic did not replace invented text controls with source instructions")
+		return false
+	for name: String in ["Snap","FreePlace","CustomizeMode"]:
+		var button: BaseButton = housing_control("HouseEditor"+name+"Button") as BaseButton
+		if button==null or not button.disabled:
+			fail("Unavailable source mode is not disabled: "+name)
+			return false
+	return true
+
+func normal_click_placement(before: Dictionary) -> bool:
+	var tile: Control = housing_control("HouseEditorStored2330")
+	await tile_mouse_button(tile.get_global_rect().get_center(),true)
+	if int(client.housing_state().get("placing",0))!=0:
+		fail("Catalog press started click placement before source release")
+		return false
+	await tile_mouse_button(tile.get_global_rect().get_center(),false)
+	if not await wait_housing(func(): return int(client.housing_state().get("placing",0))==2330,"normal released click starts placement"): return false
+	if client.housing_state().decor!=before.decor or client.housing_state().stored!=before.stored:
+		fail("Original catalog release placed a paid copy")
+		return false
+	if not await record_editor("basic-click-preview"): return false
+	var ground: Vector2 = ground_point(7.0)
+	await tile_mouse_button(ground,true)
+	if client.housing_state().decor!=before.decor or housing_count(2330,"stored")!=1:
+		await tile_mouse_button(ground,false)
+		await remove_actual_decor(2330)
+		fail("Move overlay persisted placement on press instead of release")
+		return false
+	await tile_mouse_button(ground,false)
+	if not await wait_housing(func(): return client.housing_state().decor.size()==2 and housing_count(2330,"stored")==0,"next overlay release places actual owned Tesla"): return false
+	return await record_editor("basic-click-placed")
+
+func decor_node(decor: int) -> Node3D:
+	for node in client.get_children():
+		if node is Node3D and node.has_meta("housing_instance_id") and int(node.get_meta("housing_decor_id"))==decor:
+			return node as Node3D
+	return null
+
+func remove_actual_decor(decor: int) -> bool:
+	if not await click_exposed_control(housing_control("HouseEditorCleanupModeButton")): return false
+	if not await wait_housing(func(): return client.housing_state().get("editor_mode","")=="Cleanup" or housing_control("HouseEditorStorageFrame")==null,"source Cleanup mode"): return false
+	var node: Node3D = decor_node(decor)
+	if node==null:
+		fail("Removal needs actual rendered owned decor"+str(decor))
+		return false
+	var hit: Dictionary = find_visible_cornerstone_triangle(node,int(node.get_meta("housing_instance_id")))
+	if hit.is_empty():
+		fail("Removal needs real placed pick triangle"+str(decor))
+		return false
+	await click(hit.point,MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return housing_count(decor,"stored")==1 and decor_node(decor)==null,"normal removal returns owned copy"+str(decor)): return false
+	if not await click_exposed_control(housing_control("HouseEditorBasicDecorModeButton")): return false
+	return await wait_housing(func(): return housing_control("HouseEditorStored%d"%decor)!=null,"Basic restores returned owned tile")
