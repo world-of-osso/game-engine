@@ -16,7 +16,7 @@ func _initialize() -> void:
 func run_fixture() -> void:
 	root.size = Vector2i(1280, 720)
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "browse", "relog", "purchase", "refund"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	client = load("res://scenes/client.tscn").instantiate()
@@ -34,7 +34,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if phase != "layout" and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	match phase:
 		"layout":
@@ -45,10 +45,71 @@ func run_fixture() -> void:
 			await choose_category(1)
 			await capture("vendor-transmog")
 			finish("layout")
+		"layout-proof": await layout_proof()
 		"relog": await relog_checks()
 		"purchase": await purchase_each_collection()
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func layout_proof() -> void:
+	await capture("vendor-all")
+	await click("PerksProgramPriceSortButton")
+	if not await wait_until(func(): return client.trading_post_state().ascending, "ascending price header"): return
+	await capture("price-ascending")
+	await click("PerksProgramNameSortButton")
+	if not await wait_until(func(): return client.trading_post_state().sort == "name", "name header"): return
+	await click("PerksProgramFilter")
+	if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
+	await capture("category-dropdown")
+	if not await choose_category(2): return
+	if not await select_first_available(int(client.trading_post_state().tender)): return
+	await capture("vendor-mount")
+	var first := int(client.trading_post_state().selected)
+	if not await drag_to_frozen("PerksProgramProduct%d" % first): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == first and not client.trading_post_state().pending, "native freeze"): return
+	await capture("frozen")
+	if not await choose_category(1): return
+	if not await select_first_available(int(client.trading_post_state().tender)): return
+	var replacement := int(client.trading_post_state().selected)
+	if replacement == first: fail("replacement did not change vendor identity"); return
+	if not await drag_to_frozen("PerksProgramProduct%d" % replacement): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == replacement and not client.trading_post_state().pending, "replace frozen item"): return
+	await capture("frozen-replaced")
+	if not await drag_off_frozen(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "native drag-off unfreeze"): return
+	await capture("unfrozen")
+	var tender := int(client.trading_post_state().tender)
+	var price := int(client.trading_post_state().price)
+	await click("PerksProgramPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "source popup"): return
+	await capture("purchase-confirm")
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null and client.trading_post_state().open, "Escape cancels popup without leaving vendor"): return
+	if int(client.trading_post_state().tender) != tender: fail("cancel changed Tender"); return
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and int(client.trading_post_state().tender) == tender-price, "authoritative purchase"): return
+	await capture("purchased")
+	await click("PerksProgramRefundButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "refund popup"): return
+	await capture("refund-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and int(client.trading_post_state().tender) == tender, "authoritative refund"): return
+	await capture("refunded")
+	finish("layout-proof")
+
+func drag_off_frozen() -> bool:
+	var slot := control("PerksProgramFrozenSlot")
+	var model := control("PerksProgramMainModelScene")
+	if slot == null or model == null: fail("Missing frozen slot/model canvas"); return false
+	var from := slot.get_global_rect().get_center()
+	var to := model.get_global_rect().get_center()
+	await motion(from, false)
+	await button_event(from, MOUSE_BUTTON_LEFT, true)
+	for step in range(1, 11):
+		await motion(from.lerp(to, step / 10.0), true, (to-from)/10.0)
+	await button_event(to, MOUSE_BUTTON_LEFT, false)
+	return true
 
 func browse() -> void:
 	var state: Dictionary = client.trading_post_state()
@@ -201,7 +262,7 @@ func open_vendor() -> bool:
 	if not await wait_until(func(): return client.trading_post_state().open or control("GossipOption0Text") != null, "Tawny greeting or vendor"): return false
 	if not client.trading_post_state().open:
 		await click("GossipOption0Text")
-	return await wait_until(func(): return client.trading_post_state().open and int(client.trading_post_state().get("items", 0)) > 0, "authoritative Trading Post snapshot", 60000)
+	return await wait_until(func(): return client.trading_post_state().open and int(client.trading_post_state().get("items", 0)) > 0, "authoritative Trading Post snapshot", 180000)
 
 func choose_category(id: int) -> bool:
 	if control("PerksProgramCategoryMenu") == null:

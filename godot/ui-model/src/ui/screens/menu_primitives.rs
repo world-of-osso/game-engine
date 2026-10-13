@@ -337,6 +337,7 @@ fn context_menu_button(index: usize, width: f32, item: &ContextMenuItem<'_>) -> 
             width: {width},
             height: {MENU_BUTTON_HEIGHT},
             text: item.label,
+            button_default_skin: false,
             font_size: 10.0,
             onclick: item.action,
             pos_type: "absolute",
