@@ -8,6 +8,10 @@ Use `Blizzard_EncounterJournal.xml` and its inherited templates, not generic pan
 
 `tests/adventure_guide_layout.rs` checks these translated anchors in both skins, real Journal portrait FDIDs and pressed/hover row texture output. Missing texture payloads must be reported for publication, never substituted.
 
+## Retail fidelity gate
+
+The grid has no extra Owned Keystones button; authoritative key information remains in instance content. Overview and Abilities have no role-filter button row. Bottom tabs use shared merchant tabs with the source selected text offset and disabled selected state; Suggested uses `AJ_SUGGESTED_CONTENT_TAB`. Breadcrumbs use the shared navigation bar, including current-disabled, pressed, hover and overflow state. Tier, difficulty and the two loot dropdowns use the shared WowStyle1 menu primitives. The inherited SearchBoxListTemplate retains SEARCH instructions, clear input,40-letter limit,16/20px text insets and source icon/clear anchors. Section headers use EncounterInfoTemplate paper art; pane textures are children of their clipped XML parents.
+
 ## Required behavior
 
 - Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list. Classify dungeons from pinned Map.InstanceType, not JournalInstance.Flags (Wailing Caverns43 has zero Journal flags).

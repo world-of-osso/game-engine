@@ -55,6 +55,8 @@ pub struct View {
     pub tier: u32,
     pub tier_open: bool,
     pub difficulty_open: bool,
+    pub nav_overflow_open: bool,
+    pub class_menu_open: bool,
     pub instance: Option<u32>,
     pub encounter: Option<u32>,
     pub difficulty: u32,
@@ -88,6 +90,8 @@ impl Default for View {
             tier: 73,
             tier_open: false,
             difficulty_open: false,
+            nav_overflow_open: false,
+            class_menu_open: false,
             instance: None,
             encounter: None,
             difficulty: 2,
@@ -465,6 +469,9 @@ impl View {
                 self.owned_keys_only = !self.owned_keys_only;
                 self.tier_open = false;
             }
+            "nav-overflow" => self.nav_overflow_open = !self.nav_overflow_open,
+            "class-menu" => self.class_menu_open = !self.class_menu_open,
+            "search-clear" => self.search.clear(),
             "tier-menu" => self.tier_open = !self.tier_open,
             "tier" => {
                 self.tier_open = false;
@@ -537,6 +544,7 @@ impl View {
                     0
                 };
                 self.filter_menu = None;
+                self.class_menu_open = false;
             }
             "spec" => {
                 self.spec = number()?;
@@ -649,6 +657,7 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         title,
         "journal:tier-menu",
         (609., 72., 160., 25.),
+        view.tier_open,
     ));
     controls.extend(label(
         "EncounterJournalInstanceSelectTitle".into(),
@@ -666,19 +675,6 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         .enumerate()
         .flat_map(|(index, instance)| instance_card(index, instance, view))
         .collect();
-    if view.tab == Tab::Dungeons {
-        let title = if view.owned_keys_only {
-            "Owned Keystones ✓"
-        } else {
-            "Owned Keystones"
-        };
-        controls.extend(button(
-            "JournalOwnedKeystones".into(),
-            title,
-            "journal:owned-keys",
-            (320., 72., 210., 24.),
-        ));
-    }
     controls.extend(scroll(
         ctx,
         content,
@@ -884,18 +880,7 @@ fn description_page(
     encounter: &game_engine_core::adventure_guide::Encounter,
 ) -> Element {
     let mut content = Vec::new();
-    for (index, (id, title)) in [(0, "All roles"), (1, "Tank"), (2, "Damage"), (4, "Healer")]
-        .into_iter()
-        .enumerate()
-    {
-        content.extend(button(
-            format!("JournalRole{id}"),
-            title,
-            &format!("journal:role:{id}"),
-            (index as f32 * 80., 0., 78., 22.),
-        ));
-    }
-    let mut y = 30.;
+    let mut y = 0.;
     if view.page == Page::Overview {
         let height = paragraph_height(&encounter.description, 46.);
         content.extend(paper_text(
@@ -1000,6 +985,7 @@ fn difficulty_button(view: &View) -> Element {
         name,
         "journal:difficulty-menu",
         (673., 77., 100., 25.),
+        view.difficulty_open,
     )
 }
 fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Element {
