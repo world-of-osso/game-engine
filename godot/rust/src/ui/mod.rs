@@ -1217,10 +1217,18 @@ impl RegistryUi {
         &mut self,
         state: game_engine_ui_model::cooldown_assist::CooldownViewerView,
     ) -> Result<(), String> {
-        self.show_viewport_screen(
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
             state,
             game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen,
             ScreenPostsetup::None,
+            registry,
+            parent,
         )
     }
 
