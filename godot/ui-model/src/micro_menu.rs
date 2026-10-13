@@ -175,7 +175,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
     MicroButton {
         name: "CollectionsMicroButton",
         title: "Warband Collections",
-        binding: None,
+        binding: Some(InputAction::ToggleCollections),
         art: Some("Collections"),
         unavailable: None,
     },

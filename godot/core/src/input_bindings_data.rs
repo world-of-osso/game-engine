@@ -299,6 +299,7 @@ pub enum InputAction {
     ToggleTalents,
     ToggleSpecialization,
     ToggleEncounterJournal,
+    ToggleCollections,
     ToggleSocial,
     ToggleLootRules,
     ToggleQuestLog,
@@ -407,7 +408,7 @@ impl InputAction {
         Self::MultiActionBar4Button12,
     ];
 
-    pub const ALL: [Self; 120] = [
+    pub const ALL: [Self; 121] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -515,6 +516,7 @@ impl InputAction {
         Self::ToggleTalents,
         Self::ToggleSpecialization,
         Self::ToggleEncounterJournal,
+        Self::ToggleCollections,
         Self::ToggleSocial,
         Self::ToggleLootRules,
         Self::ToggleQuestLog,
@@ -638,6 +640,12 @@ impl InputAction {
                 "toggle_encounter_journal",
                 "Adventure Guide",
                 Some(keyboard(BindingKey::KeyJ)),
+            ),
+            // Retail TOGGLECOLLECTIONS (Bindings_Standard.xml:1326-1330), Shift+P.
+            Self::ToggleCollections => (
+                "toggle_collections",
+                "Warband Collections",
+                Some(InputBinding::ShiftKeyboard(BindingKey::KeyP)),
             ),
             Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(BindingKey::KeyO))),
             Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", None),
@@ -785,6 +793,7 @@ impl InputAction {
             | Self::ToggleTalents
             | Self::ToggleSpecialization
             | Self::ToggleEncounterJournal
+            | Self::ToggleCollections
             | Self::ToggleSocial
             | Self::ToggleLootRules
             | Self::ToggleQuestLog
@@ -1501,6 +1510,7 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
         "toggle_talents" => InputAction::ToggleTalents,
         "toggle_specialization" => InputAction::ToggleSpecialization,
         "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
+        "toggle_collections" => InputAction::ToggleCollections,
         "toggle_social" => InputAction::ToggleSocial,
         "toggle_loot_rules" => InputAction::ToggleLootRules,
         "toggle_quest_log" => InputAction::ToggleQuestLog,
@@ -1656,6 +1666,7 @@ fn interface_section_actions() -> &'static [InputAction] {
         InputAction::ToggleTalents,
         InputAction::ToggleSpecialization,
         InputAction::ToggleEncounterJournal,
+        InputAction::ToggleCollections,
         InputAction::ToggleSocial,
         InputAction::ToggleLootRules,
         InputAction::ToggleQuestLog,
