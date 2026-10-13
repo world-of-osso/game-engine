@@ -1224,12 +1224,14 @@ fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
         "loottab-set-background",
         (0., 0., 744., 41.),
     );
-    let quality = set
+    let mut items: Vec<_> = set
         .items
         .iter()
         .filter_map(|id| view.catalog.items.get(id))
-        .next()
-        .map_or(1, |item| item.quality as u8);
+        .collect();
+    items.sort_by_key(|item| (slot_order(item.slot), item.id));
+    // Retail ConfigureItemButton recolors the name per button, so the last sorted member wins.
+    let quality = items.last().map_or(1, |item| item.quality as u8);
     children.extend(label(
         format!("JournalSet{}", set.id),
         &set.name,
@@ -1245,12 +1247,6 @@ fn item_set_row(view: &View, set: &ItemSet, top: f32) -> Element {
         &level_text,
         (39., 24., 318., 16.),
     ));
-    let mut items: Vec<_> = set
-        .items
-        .iter()
-        .filter_map(|id| view.catalog.items.get(id))
-        .collect();
-    items.sort_by_key(|item| (slot_order(item.slot), item.id));
     children.extend(items.iter().enumerate().flat_map(|(index, item)| {
         let prefix = format!("JournalSet{}Item{}", set.id, item.id);
         let mut icon = texture(format!("{prefix}Icon"), item.icon, (2.,2.,28.,28.), WHITE);
