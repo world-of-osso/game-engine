@@ -5,7 +5,7 @@ use game_engine_core::housing::HousingCatalog;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::housing::{
     BulletinBoard, CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard,
-    HousingSurface, SEARCH_FIELD,
+    HousingSurface, SEARCH_FIELD, STORAGE_SEARCH_FIELD,
 };
 use game_engine_ui_model::housing_component::{HousingView, housing_screen};
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
@@ -141,6 +141,7 @@ impl GameClient {
     pub(super) fn close_housing(&mut self) {
         self.housing.catalog_preview.reset();
         self.housing.decor.clear_preview();
+        self.housing.decor.highlight(None);
         self.housing.expert_held = [false; 8];
         self.housing.mouse_pointer = None;
         if let Some(model) = &mut self.housing.model {
@@ -245,6 +246,15 @@ impl GameClient {
                 model.set_search(search, &self.housing.authority);
             }
         }
+        if let Some(model) = &mut self.housing.model
+            && model.surface == HousingSurface::Editor
+            && host.frame_control(STORAGE_SEARCH_FIELD).is_some()
+        {
+            let search = host.frame_text(STORAGE_SEARCH_FIELD.into()).to_string();
+            if model.storage_search != search {
+                model.set_storage_search(search);
+            }
+        }
         drop(host);
         self.query_housing_vendor_names()?;
         self.clear_inactive_housing_preview();
@@ -292,6 +302,28 @@ impl GameClient {
         Ok(())
     }
 
+    fn dispatch_housing_storage_action(&mut self, action: &str) -> Result<bool, String> {
+        let model = self
+            .housing
+            .model
+            .as_mut()
+            .ok_or("Housing UI has no storage model.")?;
+        if model.storage_filter_action(action)? {
+            return Ok(true);
+        }
+        if !model.storage_focus_action(action, &self.housing.authority)? {
+            return Ok(false);
+        }
+        let clear_search = model.storage_search.is_empty();
+        if clear_search && let Some(ui) = &mut self.housing.ui {
+            let mut host = ui.bind_mut();
+            if host.frame_control(STORAGE_SEARCH_FIELD).is_some() {
+                host.clear_editbox_named(STORAGE_SEARCH_FIELD)?;
+            }
+        }
+        Ok(true)
+    }
+
     pub(crate) fn housing_cursor_press(
         &mut self,
         owner: i64,
@@ -311,6 +343,9 @@ impl GameClient {
         }
         if action == "housing:purchase" {
             self.confirm_housing_purchase()?;
+            return Ok(true);
+        }
+        if self.dispatch_housing_storage_action(action)? {
             return Ok(true);
         }
         if self.dispatch_housing_editor_action(action)? {
