@@ -107,6 +107,12 @@ pub enum UiInput {
         right: bool,
         shift: bool,
     },
+    FrameAltClick {
+        id: u64,
+        right: bool,
+        shift: bool,
+        at: Vector2,
+    },
     PointerDown(u64),
     PointerUp(Vector2),
     Focus(u64),
@@ -570,6 +576,16 @@ impl UiProjection {
                     "mouse_exited",
                     &emit(pending, UiInput::Hover(frame.id, false)),
                 );
+            }
+            WidgetType::Button
+                if frame
+                    .onclick
+                    .as_deref()
+                    .is_some_and(|action| action.starts_with("housing:placed-list:select:")) =>
+            {
+                connect_button(pending, frame.id, node);
+                // Retail entries register both LeftButtonUp and RightButtonUp.
+                connect_placed_list_context(pending, frame.id, node);
             }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame, node),
@@ -1181,6 +1197,44 @@ pub(super) fn buff_cancel_input(
         right: true,
         shift,
     })
+}
+
+pub(super) fn placed_list_context_input(
+    id: u64,
+    button: godot::global::MouseButton,
+    pressed: bool,
+    shift: bool,
+    at: Vector2,
+) -> Option<UiInput> {
+    let right_release = button == godot::global::MouseButton::RIGHT && !pressed;
+    right_release.then_some(UiInput::FrameAltClick {
+        id,
+        right: true,
+        shift,
+        at,
+    })
+}
+
+fn connect_placed_list_context(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let callback = Callable::from_fn("registry-placed-list-context", move |args| {
+        let Some(event) = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
+        else {
+            return;
+        };
+        if let Some(input) = placed_list_context_input(
+            id,
+            event.get_button_index(),
+            event.is_pressed(),
+            event.is_shift_pressed(),
+            event.get_global_position(),
+        ) {
+            pending.push(input);
+        }
+    });
+    node.connect("gui_input", &callback);
 }
 
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
