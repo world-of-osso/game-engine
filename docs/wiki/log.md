@@ -1,10 +1,7 @@
-## 2026-10-12 — Epic source rules and AV channel boundary
+## 2026-10-12 — Shared subtle selection rows
 
-[Epic continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12): AV1/Isle30,10–40/team, levels20–90,700/400reinforcements. AV15node/four-minute/tower75/captain100/general/mine45s pure proof;20-account channel source-entry/eight-second cancellableOpening/actual NPC death/return proof. Native/live and Isle runtime remain pending.
+[Selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12): migrate default-button lists to a shared hit target drawing each list's own Retail template hover/selected art, preserve specialized rows and real actions, add native keyboard focus/activation/scroll reveal. Modern/Forever private pointer/keyboard/scroll runs pass; thirty before/after PNGs inspected. Targeted model/render tests and check/format pass; absent arena/rated/LFG lists and representative-only native coverage remain explicit.
 
-## 2026-10-12 — Retire redundant client-publication gate
-
-[Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
 ## 2026-10-12 — Owned storage category rail and registry-text root fix
 
 [Owned categories](systems/housing.md#owned-category-rail): actual stored/placed ownership, independent Back/All/category focus, source64/54px controls and multi-membership joins. Both-skin physical search→category RED exposed renderer-only text clearing; editing backing RegistryModel before projection fixes stale sampling. Current both-skin paid browsing/conservation PASS; UI23/registry12/check clean. Six inspected public PNGs; selected-art animation/paging/filter/collapse/resize authority remain separate.
@@ -13,6 +10,13 @@
 
 [Storage search](systems/housing.md#basic-owned-storage-search): independent case-insensitive stored-only input, hidden Cleanup/remount retention, unowned empty result and clear restoration. Actual native blank-thumbnail RED exposed unsupported RSX file_data_id; texture_fdid fixes real image resolution without re-extraction/cache mutation. Both-skin physical paid1693/2330 proof and six inspected filtered/empty/cleared PNGs; initial Forever image projection lag retained privately. Full drawer browsing/categories/paging/Market/Blueprint parity stays separate.
 
+## 2026-10-12 — Epic source rules and AV channel boundary
+
+[Epic continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12): AV1/Isle30,10–40/team, levels20–90,700/400reinforcements. AV15node/four-minute/tower75/captain100/general/mine45s pure proof;20-account channel source-entry/eight-second cancellableOpening/actual NPC death/return proof. Native/live and Isle runtime remain pending.
+
+## 2026-10-12 — Retire redundant client-publication gate
+
+[Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
 ## 2026-10-12 — Retail Cleanup mode both-skin native proof
 
 [Cleanup](systems/housing.md#cleanup-editor-input): source mode entry/storage hidden, visible-mesh hover highlight/name, exact-target single-click owned removal, visitor refusal, quantity conservation and real relog/re-place in both skins. Model21/registry11 and two focused server conservation/paid-variant tests pass; eight inspected PNGs. Highlight styling is native feedback, not certified Retail shader art. Evidence core9; independent gate lead-owned; broader housing remains open.
@@ -3488,3 +3492,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: [Toy Box](systems/toy-box.md#source-warning-sign-batches-2026-10-12): front-facing actual-use sign captures/natural expiry in both skins; carving/148628/shared-visibility remains explicitly uncertified.
 
 - 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
+
+- 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
+
+- 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
+
+- 2026-10-12: Source0.2s panel/0.15s handle OutExponential phases, transient timer/cold load, deterministic model and both-skin moving registry/native frame samples. Generic click settle invalidated initial witness; concurrent render observer proves ordered motion without product workaround.

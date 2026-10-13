@@ -257,8 +257,14 @@ fn service_row(
     }
     children.extend(art::hover(&prefix));
     let action = format!("trainer:select:{}", row.spell_id);
-    rsx! { button { name: {DynName(prefix)}, width: 298.0, height: ROW_HEIGHT, left: 0.0, top: {index as f32*ROW_HEIGHT},
-    pos_type: "absolute", button_default_skin: false, onclick: {action.as_str()}, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (0.0, index as f32 * ROW_HEIGHT, 298.0, ROW_HEIGHT),
+        (&crate::selection_list::AUTHORED, false),
+        children,
+    )
 }
 
 pub fn apply_trainer_art(view: &TrainerView, registry: &mut FrameRegistry) {

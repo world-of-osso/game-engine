@@ -1,10 +1,7 @@
 # Wiki Index
 
-- [Native player housing](systems/housing.md) — Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
+- [Native player housing](systems/housing.md) — Persisted drawer collapse/resize, owned-storage Dyeable/alphabetical filters, categories/search/thumbnail recovery and Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
 - [Class completeness continuation](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12) — private both-skin class receipts, authored zero-display equipment RED/GREEN and explicit full-goal gates.
-- [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
-- [Native player housing](systems/housing.md) — HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
-- [Native player housing](systems/housing.md) — Owned-storage categories/search/thumbnail recovery and Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
 - [Cooking focus and replicated-object fire](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12) — real both-skin journal/recipe/emitter proof; linked-trap and per-variant pixel boundaries explicit.
 - [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Dice scripts and received item labels](systems/toy-box.md#dice-scripts-and-received-item-labels-2026-10-12) — source roll count/audience, native raw-markup RED and plain/coloured unsplit labels; both-skin actual-use chat proof.
@@ -18,7 +15,6 @@
 - [Seething source objective slice](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12) — dynamic fissures/Azerite/six-second Gathering; source ship-relative entry explicitly blocked and public894 hidden; authored transport work remains in scope.
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
-- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Source warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12) — four actual-use/native lifetime identities, Swarthy’s two authored state models and explicit screenshot/per-effect pixel boundary.
 
 - [Scaled scenery natural expiry](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12) — both-skin actual Banner60s/Preyhunter120s expiry, preserving authored display/root scale and no combat pet ownership.
@@ -44,8 +40,6 @@
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [World-quest availability and native tasks](investigations/world-quest-availability.md) — authentic polygons/policy durations, per-character transport, automatic source settlement and both-skin native controlled completion;239/244 polygon quests admitted,5 unresolved objective sources and natural/living gameplay remain open.
 
-- [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
-- [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
 - [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
 - [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
@@ -182,7 +176,7 @@ Engine subsystems and how they work.
 - [talents-ui](systems/talents-ui.md) — historical retired Bevy trait window; [Talents](systems/talents.md) owns current native behavior and layout.
 - [xp-bar](systems/xp-bar.md) — [XP HUD spec](../specs/xp-bar.md), existing owner-only state, Modern named atlases and Forever flat palette/top-centre placement
 - [forever-preset](systems/forever-preset.md) — FlareUI-inspired skin/layout preset, atlas set selection, player aura lane/offline capture, current global skin lifetime and per-character Edit Mode wiring.
-- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
+- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, authored UI resolution, layout/input and [shared native selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12) with both-skin pointer/keyboard/scroll proof.
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [unit-tooltip](systems/unit-tooltip.md) — Retail unit GameTooltip (hover by unit frame/nameplate/ray, default anchor), NPC drops/vendor sections with appearance-collection check/cross marks from server CreatureTooltip data
 - [elastic-trees](systems/elastic-trees.md) — accepted coarse Barrens FDID 201394 prototype; lit deformation/recovery and private mounted-input/network proof, material-uniform buffer root cause, revision-scoped checks and remaining prototype boundaries
