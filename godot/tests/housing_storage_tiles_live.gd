@@ -57,7 +57,7 @@ func run_test() -> void:
 		return
 	await tile_mouse_button(tile.get_global_rect().get_center(),false)
 	if not await wait_housing(func(): return client.housing_state().get("placing",0)==2330 and housing_control("HouseEditorStorageFrame")==null, "normal released tile begins owned placement"): return
-	if not await click_exposed_control(housing_control("HouseEditorCancel")): return
+	await press_editor_escape()
 	if not await wait_housing(func(): return housing_control("HouseEditorStored2330")!=null and client.housing_state().get("placing",0)==0, "normal Cancel restores real tile"): return
 	push_mouse_motion(Vector2(500,500))
 	if not await wait_housing(func(): return tile_atlas(bg_name).region==normal_region and housing_control(hover_name).modulate.a==0.0, "released source default artwork"): return

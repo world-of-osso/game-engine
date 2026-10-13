@@ -2234,3 +2234,125 @@ fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both
         }
     }
 }
+
+#[test]
+fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
+    use game_engine_ui_model::housing::HousingSurface;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+        model.surface = HousingSurface::Editor;
+        model.editor.selected = Some(23);
+        let view = HousingView {
+            model,
+            authority: Default::default(),
+            viewport: [1280.0, 720.0],
+            money: None,
+            missing_thumbnails: Default::default(),
+            vendor_names: Default::default(),
+        };
+        let mut context = SharedContext::new();
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&context, &mut registry);
+        for (name, text) in [
+            ("Place", "Place Decor"),
+            ("RotateLeft", "Rotate Left"),
+            ("RotateRight", "Rotate Right"),
+            ("Remove", "Remove Decor"),
+            ("ToggleGrid", "Toggle Grid"),
+            ("Cancel", "Cancel"),
+        ] {
+            let row = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("HouseEditor{name}Instruction"))
+                        .expect("Retail instruction row required"),
+                )
+                .unwrap();
+            assert_eq!(row.height, Dimension::Fixed(45.0));
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("HouseEditor{name}InstructionText"))
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::FontString(font)) = &frame.widget_data else {
+                panic!("Instruction label required")
+            };
+            assert_eq!(font.text, text);
+            assert_eq!(font.font_size, 16.0);
+            assert_eq!(font.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+            assert_eq!(font.shadow_offset, [1.0, -1.0]);
+            if name != "Place" {
+                let frame = registry
+                    .get(
+                        registry
+                            .get_by_name(&format!("HouseEditor{name}InstructionControlText"))
+                            .unwrap(),
+                    )
+                    .unwrap();
+                let Some(WidgetData::FontString(font)) = &frame.widget_data else {
+                    panic!("Binding label required")
+                };
+                assert_eq!(
+                    font.font,
+                    ui_toolkit::widgets::font_string::GameFont::ArialNarrow
+                );
+                assert_eq!(
+                    font.text,
+                    if name == "Cancel" {
+                        "Escape"
+                    } else {
+                        "[UNBOUND]"
+                    }
+                );
+            }
+        }
+        for name in [
+            "BasicDecorMode",
+            "ExpertDecorMode",
+            "CleanupMode",
+            "CustomizeMode",
+            "Snap",
+            "FreePlace",
+        ] {
+            let button = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("HouseEditor{name}Button"))
+                        .unwrap(),
+                )
+                .unwrap();
+            assert_eq!(button.width, Dimension::Fixed(64.0));
+            assert_eq!(button.height, Dimension::Fixed(64.0));
+        }
+        assert!(registry.get_by_name("HouseEditorRotateLeft").is_none());
+        assert!(registry.get_by_name("HouseEditorDone").is_none());
+        let gradient = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorModeBarGradientAlpha")
+                    .expect("Retail mode bar gradient required"),
+            )
+            .unwrap();
+        assert_eq!(gradient.width, Dimension::Fixed(800.0));
+        assert_eq!(gradient.height, Dimension::Fixed(260.0));
+        assert_eq!(gradient.alpha, 0.5);
+        let gradient = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorModeBarGradientBackground")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(&gradient.widget_data,Some(WidgetData::Texture(texture)) if texture.source==ui_toolkit::widgets::texture::TextureSource::FileDataId(5215694))
+        );
+    }
+}

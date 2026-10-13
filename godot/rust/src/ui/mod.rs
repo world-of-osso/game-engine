@@ -20,6 +20,8 @@ mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
 #[cfg(test)]
+mod housing_drag_input_tests;
+#[cfg(test)]
 mod housing_placed_list_input_tests;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
@@ -565,6 +567,11 @@ impl RegistryModel {
                 Some(*at / self.registry.ui_scale),
             ),
             UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::HousingDecorDragStart(id) => {
+                let action = self.click_action(*id)?;
+                let decor = action.strip_prefix("housing:place:")?;
+                (format!("housing:place-drag:{decor}"), Click::LEFT, None)
+            }
             UiInput::FrameAltClick {
                 id,
                 right,
