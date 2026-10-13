@@ -185,6 +185,49 @@ fn housing_home_navigation_requests_house_identity_without_component_grants() {
 }
 
 #[test]
+fn housing_storage_short_utf8_search_keeps_category_focus_until_three_characters() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    let authority = owning(&[(1693, 1), (2330, 1)], &[]);
+    let original = authority.clone();
+    model.set_search("Tesla".into(), &authority);
+    model.storage_alphabetical = true;
+    let ids = |model: &HousingDashboard| {
+        model
+            .stored_entries(&authority)
+            .iter()
+            .map(|(_, decor)| decor.id)
+            .collect::<Vec<_>>()
+    };
+    for short in ["z", "zz", "éé", "🦀🦀"] {
+        model.set_storage_category(Some(1), &authority).unwrap();
+        model.set_storage_subcategory(Some(6), &authority).unwrap();
+        model.set_storage_search(short.into());
+        assert_eq!(model.storage_search, short);
+        assert_eq!(
+            model.storage_category,
+            Some(1),
+            "short UTF8 query must retain category: {short}"
+        );
+        assert_eq!(model.storage_subcategory, Some(6));
+        assert_eq!(ids(&model), vec![1693]);
+    }
+    model.set_storage_search("zzz".into());
+    assert_eq!(model.storage_category, None);
+    assert_eq!(model.storage_subcategory, None);
+    assert!(ids(&model).is_empty());
+    model.set_storage_search("zz".into());
+    assert_eq!(model.storage_category, None);
+    assert_eq!(ids(&model), vec![2330, 1693]);
+    model.set_storage_search("tEs".into());
+    assert_eq!(ids(&model), vec![2330]);
+    assert_eq!(model.search, "Tesla");
+    assert!(model.storage_alphabetical);
+    assert_eq!(authority, original);
+}
+
+#[test]
 fn housing_storage_categories_use_real_ownership_and_keep_search_focus_independent() {
     use shared::protocol::{HousingState, StoredDecor};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -620,6 +663,17 @@ fn housing_source_lines_name_vendors_only_through_the_creature_query() {
             "Boss Drop: Chrome King Gallywix in Liberation of Undermine (Mythic)",
         ]
     );
+}
+
+#[test]
+fn housing_storage_handle_tooltip_names_the_source_house_chest_without_policy_lines() {
+    let tooltip = crate::housing::storage_handle_tooltip();
+    assert_eq!(tooltip.content.title, "House Chest");
+    assert_eq!(
+        tooltip.content.title_color,
+        crate::tooltip_presentation::TOOLTIP_WHITE
+    );
+    assert!(tooltip.content.lines.is_empty());
 }
 
 #[test]

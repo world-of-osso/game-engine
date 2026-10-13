@@ -35,6 +35,7 @@ const ROOT_CHUNK_HANDLERS: &[(&[u8; 4], RootChunkHandler)] = &[
 
 const GROUP_CHUNK_HANDLERS: &[(&[u8; 4], GroupChunkHandler)] = &[
     (b"YPOM", apply_group_mopy_chunk),
+    (b"2YPM", apply_group_mpy2_chunk),
     (b"RDOM", apply_group_modr_chunk),
     (b"RLOM", apply_group_molr_chunk),
     (b"PLOM", apply_group_molp_chunk),
@@ -392,6 +393,11 @@ fn group_chunk_handler(tag: &[u8]) -> Option<GroupChunkHandler> {
 
 fn apply_group_mopy_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
     group.triangle_materials = parse_mopy(payload)?;
+    Ok(())
+}
+
+fn apply_group_mpy2_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.triangle_materials = parse_mpy2(payload)?;
     Ok(())
 }
 

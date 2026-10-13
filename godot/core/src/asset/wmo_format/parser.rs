@@ -348,11 +348,28 @@ pub fn parse_mopy(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
         parse_binrw_entries::<RawWmoTriangleMaterial>(data, MOPY_ENTRY_SIZE, "MOPY")?
             .into_iter()
             .map(|entry| WmoTriangleMaterial {
-                flags: entry.flags,
-                material_id: entry.material_id,
+                flags: u16::from(entry.flags),
+                material_id: (entry.material_id != u8::MAX).then_some(u16::from(entry.material_id)),
             })
             .collect(),
     )
+}
+
+/// MPY2 (newer groups): MOPY widened to little-endian u16 flags and material.
+pub fn parse_mpy2(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
+    if data.len() % 4 != 0 {
+        return Err(format!("MPY2 size {} is not a multiple of 4", data.len()));
+    }
+    Ok(data
+        .chunks_exact(4)
+        .map(|entry| {
+            let material = u16::from_le_bytes([entry[2], entry[3]]);
+            WmoTriangleMaterial {
+                flags: u16::from_le_bytes([entry[0], entry[1]]),
+                material_id: (material != u16::MAX).then_some(material),
+            }
+        })
+        .collect())
 }
 
 pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {

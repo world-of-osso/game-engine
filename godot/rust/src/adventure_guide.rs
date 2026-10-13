@@ -58,6 +58,9 @@ impl GameClient {
             .send_challenge_request(shared::protocol::ChallengeRequest::Query)
             .map_err(|error| error.to_string())?;
         self.account
+            .send_trading_post(shared::protocol::TradingPostRequest::Balance)
+            .map_err(|error| error.to_string())?;
+        self.account
             .send_adventure_guide(shared::protocol::AdventureGuideRequest::Query)
             .map_err(|error| error.to_string())
     }
@@ -154,6 +157,7 @@ impl GameClient {
         }
         self.select_queued_journal_encounter()?;
         self.adventure_guide.view.activities = self.account.adventure_guide.clone();
+        self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
@@ -406,6 +410,22 @@ impl GameClient {
                 "activity_source_error",
                 snapshot.source_error.as_deref().unwrap_or(""),
             );
+            let available: PackedStringArray = snapshot
+                .activities
+                .iter()
+                .filter_map(|row| match &row.progress {
+                    shared::protocol::PerksActivityProgress::Available {
+                        current,
+                        required,
+                        ..
+                    } => Some(GString::from(&format!(
+                        "{}|{}|{current}/{required}|{}",
+                        row.id, row.points, row.name
+                    ))),
+                    shared::protocol::PerksActivityProgress::Unavailable { .. } => None,
+                })
+                .collect();
+            state.set("available_activities", &available);
             state.set(
                 "tracked_activity_count",
                 snapshot.activities.iter().filter(|row| row.tracked).count() as i64,

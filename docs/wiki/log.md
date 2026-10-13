@@ -1,7 +1,44 @@
+## 2026-10-12 — Native Trading Post live proof and preview asset closure
+
+[Trading Post](systems/trading-post.md): authentic Tawny gossip opens the full-screen vendor; other layers hide like Retail area `full` and are restored on Leave. Live RED showed an unreadable top Transmog row leaving the previous gryphon on screen; unavailable rows now show no model and failed previews clear. The authenticated local-CASC closure raises complete preview chains from 167 to 1287 of 1309 rows in a private, validated package. Modern/Forever browse and relog PASS with 26 inspected PNGs. Live purchase is blocked because supported activities have no reachable content; server tests prove purchase/collection/refund.
+## 2026-10-12 — Default UTF-8 storage search threshold
+
+[Housing](systems/housing.md#default-search-threshold-and-utf-8): default Mainline three-character applied query distinct from retained raw input. Both-skin physical short `z`/`zz`/`éé` keeps Structural and actual paid Tesla; three-character no-match focuses All, shortening restores results, clear/remount and conservation pass. Pure emoji/subcategory/sort/Catalog independence proof; locale1 overrides remain unclaimed.
+
+## 2026-10-12 — Clear icon source hover/press and release capture
+
+[Housing](systems/housing.md#clear-icon-hoverpress-and-captured-release): source0.5/1 opacity and3/4 inset in both skins,34 brighter/24 shifted actual viewport pixels. Outside-release RED traced to editor world-region consumption before GUI; only clear-button captured left release now reaches GUI. Paid copies/layout and subsequent clear/remount unchanged; minimum-search-length/audio remain separate.
+
+## 2026-10-12 — Owned-storage search clear lifecycle
+
+[Housing](systems/housing.md#search-clear-lifecycle): inherited Retail17×17 clear control, focused-empty/nonempty visibility, backing-text clear/focus release and normal source art. Both skins physically clear unmatched query, restore actual paid Tesla pixels, remount without stale search and conserve stored/placed/layout. Hover/pressed art, minimum-character semantics and missing acquisition/assembly policy remain separate.
+
+## 2026-10-12 — Cage collision-only WMOs and arena source gaps
+
+[WMO format](formats/wmo-format.md#batch-and-material-records): Cage of Carnage's only logged material errors came from collision WMOs 6371365/6133755 (no MOMT, no MOBA). The client ignored their MPY2 per-face materials, so it built a material-0 batch. MPY2 is now parsed, and its collision-only faces are not drawn. [Native arenas](systems/arenas.md): Rogue Stealth children and the Cage starting-area warning/teleport chain are source-backed; 254013 and 96538 remain named TC gaps.
+
+## 2026-10-12 — Authoritative live arena collision
+
+[Native arenas](systems/arenas.md#authoritative-live-collision-2026-10-12): exact Cage walking-position RED reproduced static-only server gravity; instance-keyed cached M2 hulls now serve authoritative floors/movement/LOS. Source Cage support→open drop and Dalaran/Empyrean state/hide/despawn/copy fixtures pass. Full six-player server query+sync costs measured; native physics benchmark and exact-revision proof receipts added. Named source/art/stall gaps remain.
+
+## 2026-10-12 — Live arena object collision in native prediction
+
+[Native arenas](systems/arenas.md#authority-and-lifecycle): real Cage movement exposed camera-only replicated GO bodies absent from baked-ground prediction. Dedicated live-object floor/wall probes consume authored M2 collision and replicated collision state; actual6339134/6339702 hull regression reproduces the closed-platform fall. Private both-skin physical proof remains in progress.
+
+## 2026-10-12 — Arena preparation object visibility
+
+[Native arenas](systems/arenas.md#preparation-and-detection-consumers): real Cage preparation reproduced32727/type4 incorrectly hiding game objects through unit-only reciprocal invisibility checks. Pinned TC explicitly excludes non-units; a source-channel/Interest fixture now covers that boundary. Dynamic native/final gates remain tracked in the handoff.
 ## 2026-10-12 — Shared subtle selection rows
 
 [Selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12): migrate default-button lists to a shared hit target drawing each list's own Retail template hover/selected art, preserve specialized rows and real actions, add native keyboard focus/activation/scroll reveal. Modern/Forever private pointer/keyboard/scroll runs pass; thirty before/after PNGs inspected. Targeted model/render tests and check/format pass; absent arena/rated/LFG lists and representative-only native coverage remain explicit.
 
+## 2026-10-12 — Avenging Wrath bounded material finish proof
+
+[Material time](investigations/avenging-wrath-material-time.md#native-finish-proof--2026-10-12):10 authentic tests, Hold6,654/6,654 native pixels, preserved global gold/purple/negative green; eight inspected same-camera frontal Modern+Forever PNGs on master/corrected branches. Classic442416 is an explicit shared-model witness, not glyph availability. Published online registry mismatch remains; rainbow model/batch is unidentified. Positioner59/crossfade/aliases/curve2–3 stay named gaps.
+
+## 2026-10-12 — Avenging Wrath local material playback
+
+[Material time](investigations/avenging-wrath-material-time.md): source2368645 local alpha and native Hold158 rendering prove material tracks incorrectly looped Stand on application age. Local sampling now receives owning-model playback; globals retain their shared clock. Seven actual private source casts cover both skins; published candidate assets/cache/shaders match local hashes. Hold GREEN and the original rainbow reproduction remain open at this commit; Positioner59 enum semantics remain unsourced.
 ## 2026-10-12 — Owned storage category rail and registry-text root fix
 
 [Owned categories](systems/housing.md#owned-category-rail): actual stored/placed ownership, independent Back/All/category focus, source64/54px controls and multi-membership joins. Both-skin physical search→category RED exposed renderer-only text clearing; editing backing RegistryModel before projection fixes stale sampling. Current both-skin paid browsing/conservation PASS; UI23/registry12/check clean. Six inspected public PNGs; selected-art animation/paging/filter/collapse/resize authority remain separate.
@@ -3477,6 +3514,9 @@ Added [raid system](systems/raid-entry.md) and contract reconciliation: source-d
 
 - [Gathering](systems/gathering.md): requested master snapshots integrated without merging into master; scoped checks/format and six real private-realm cases pass. Native images, numeric rank gains, timer boundaries and remaining limits are linked from the engine proof ledger.
 
+## 2026-10-12 — Arena lifecycle and rated reference
+
+[Native arenas](systems/arenas.md): source map/starts/gates/orbs, team-based preparation/attack rules, persistent-caster orb visibility, scored elimination/origins and full-group TC-reference rating. Nine scoped server cases include real skirmish/rated HostClient lifecycles; four both-skin UI cases and nine native object cases pass. Private rendered/UDP acceptance and final integration remain pending; no season/payout, Shuffle role/round or dampening policy invented.
 ## 2026-10-12 — Retail12.1 transmog revamp
 
 [Native transmog](systems/transmog-apply.md#retail121-native-proof--verified2026-10-12): shared-skin outfit/illusion/preset save/load, exact paid Apply, source/completion filters, primary set membership and correct alpha/additive-hover art. Real native popup click ordering RED→GREEN; both-skin private5926 proof includes hidden1500-copper staging and a real second Custom Set page. PvE/PvP classification stays disabled without authoritative/exhaustively verified mapping; conditional acquisition and enchant-effect/price boundaries remain explicit.
@@ -3498,3 +3538,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.
 
 - 2026-10-12: Source0.2s panel/0.15s handle OutExponential phases, transient timer/cold load, deterministic model and both-skin moving registry/native frame samples. Generic click settle invalidated initial witness; concurrent render observer proves ordered motion without product workaround.
+
+- 2026-10-12: Source ADD/0.5 drawer hover alignment, RSX fractional-alpha RED→string-parser GREEN, actual both-skin cursor activation/reset and923/1657 brighter handle pixels with conservation; four inspected PNGs. Raw Retail PlayerCondition has14 unreadable rows/IDs, so exact stock eligibility remains unresolved, not aliased.
+
+- 2026-10-12: Central source tooltips extended to owned-storage cards and House Chest handle, native missing-route RED→both-skin actual text/count/right-anchor/leave/unmount/conservation GREEN; four inspected PNGs. Existing Catalog presentation reused.
+
+- 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.

@@ -128,6 +128,7 @@ pub struct Account {
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub challenge: shared::protocol::ChallengeSnapshot,
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
+    pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
     pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
@@ -355,6 +356,7 @@ impl Account {
             dungeon_objectives: Default::default(),
             challenge: Default::default(),
             adventure_guide: None,
+            trading_post: None,
             party_keystones: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
@@ -417,6 +419,7 @@ impl Account {
         self.dungeon_objectives = Default::default();
         self.scenario_objectives = Default::default();
         self.adventure_guide = None;
+        self.trading_post = None;
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -752,6 +755,15 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_trading_post(
+        &self,
+        request: shared::protocol::TradingPostRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
     pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
         self.bridge()?
@@ -849,6 +861,11 @@ impl Account {
             PvpAction::Queue(battleground_id) => {
                 bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
             }
+            PvpAction::Arena(mode) => bridge.send::<_, PvpChannel>(QueueForArena { mode }),
+            PvpAction::Rated(bracket) => bridge.send::<_, PvpChannel>(QueueForRatedPvp { bracket }),
+            PvpAction::Target(entity) => bridge.send::<_, CombatChannel>(SetTarget {
+                target_entity: Some(entity),
+            }),
             PvpAction::Dequeue => bridge.send::<_, PvpChannel>(DequeueFromPvp),
             PvpAction::Respond { match_id, accepted } => {
                 bridge.send::<_, PvpChannel>(RespondToBattlegroundInvite { match_id, accepted })
@@ -1510,6 +1527,7 @@ impl Account {
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
                     self.adventure_guide = None;
+                    self.trading_post = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -1739,6 +1757,7 @@ impl Account {
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ChallengeSnapshot>()
             || message.is::<shared::protocol::AdventureGuideSnapshot>()
+            || message.is::<shared::protocol::TradingPostSnapshot>()
             || message.is::<shared::protocol::PartyKeystoneSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
@@ -1753,6 +1772,13 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::TradingPostSnapshot>() {
+            let update = decode(message)?;
+            self.trading_post = Some(std::sync::Arc::new(
+                shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
+            ));
+            return Ok(());
+        }
         if message.is::<shared::protocol::AdventureGuideSnapshot>() {
             self.adventure_guide = Some(std::sync::Arc::new(decode(message)?));
             return Ok(());
@@ -2231,6 +2257,7 @@ impl Account {
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
                     self.adventure_guide = None;
+                    self.trading_post = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
