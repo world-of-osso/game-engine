@@ -77,16 +77,7 @@ impl GameClient {
                 return Ok(());
             }
             match self.follower_dungeons.view.action(&action) {
-                Some(Action::Queue(request)) => {
-                    if let Err(error) = self.account.send_lfg(request) {
-                        self.follower_dungeons.view.receive(LfgStateUpdate {
-                            snapshot: None,
-                            message: None,
-                            error: Some(error.clone()),
-                        });
-                        return Err(error.into());
-                    }
-                }
+                Some(Action::Queue(request)) => self.send_follower_queue(request)?,
                 Some(Action::Pvp) => {
                     if !self.battleground.view.visible {
                         self.toggle_pvp()?;
@@ -95,6 +86,20 @@ impl GameClient {
                 None => {}
             }
         }
+    }
+    fn send_follower_queue(
+        &mut self,
+        request: shared::protocol::QueueForLfg,
+    ) -> Result<(), FrameError> {
+        if let Err(error) = self.account.send_lfg(request) {
+            self.follower_dungeons.view.receive(LfgStateUpdate {
+                snapshot: None,
+                message: None,
+                error: Some(error.clone()),
+            });
+            return Err(error.into());
+        }
+        Ok(())
     }
     fn sync_follower_dungeons(&mut self) -> Result<(), String> {
         let scale = self.effective_ui_scale();
@@ -114,6 +119,9 @@ impl GameClient {
             ui.bind_mut().set_ui_scale(scale)?;
             return ui.bind_mut().set_state(view);
         }
+        self.spawn_follower_dungeon_ui(scale, view)
+    }
+    fn spawn_follower_dungeon_ui(&mut self, scale: f32, view: View) -> Result<(), String> {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("FollowerDungeonUI");
         ui.set_layer(7);

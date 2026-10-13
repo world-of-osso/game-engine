@@ -38,39 +38,14 @@ impl Default for View {
 }
 impl View {
     pub fn action(&mut self, action: &str) -> Option<Action> {
-        match action {
-            "follower:close" => {
-                self.visible = false;
-                return None;
-            }
-            "follower:pvp" => {
-                self.visible = false;
-                return Some(Action::Pvp);
-            }
-            "follower:type" => {
-                self.type_open = !self.type_open;
-                return None;
-            }
-            "follower:type:follower" => {
-                self.type_open = false;
-                return None;
-            }
-            _ => {}
+        if action == "follower:pvp" {
+            self.visible = false;
+            return Some(Action::Pvp);
         }
-        if self.pending || self.matched() {
+        if self.update_window_controls(action) || self.pending || self.matched() {
             return None;
         }
-        if let Some(role) = role_for_action(action) {
-            self.role = role;
-        }
-        if let Some(id) = action
-            .strip_prefix("follower:select:")
-            .and_then(|id| id.parse().ok())
-        {
-            if self.contains(id) {
-                self.selected = (self.selected != Some(id)).then_some(id);
-            }
-        }
+        self.select_role_and_dungeon(action);
         if action != "follower:queue" || !self.can_queue() {
             return None;
         }
@@ -80,6 +55,26 @@ impl View {
             role: self.role,
             dungeon_ids: vec![dungeon],
         }))
+    }
+    fn update_window_controls(&mut self, action: &str) -> bool {
+        match action {
+            "follower:close" => self.visible = false,
+            "follower:type" => self.type_open = !self.type_open,
+            "follower:type:follower" => self.type_open = false,
+            _ => return false,
+        }
+        true
+    }
+    fn select_role_and_dungeon(&mut self, action: &str) {
+        if let Some(role) = role_for_action(action) {
+            self.role = role;
+        }
+        let selected_id = action
+            .strip_prefix("follower:select:")
+            .and_then(|id| id.parse().ok());
+        if let Some(id) = selected_id.filter(|id| self.contains(*id)) {
+            self.selected = (self.selected != Some(id)).then_some(id);
+        }
     }
     pub fn receive(&mut self, update: LfgStateUpdate) {
         let refused = update.error.is_some();
@@ -102,7 +97,8 @@ impl View {
         self.catalog = Some(catalog);
     }
     pub fn can_queue(&self) -> bool {
-        !self.pending && !self.matched() && self.selected.is_some_and(|id| self.contains(id))
+        let idle = !self.pending && !self.matched();
+        idle && self.selected.is_some_and(|id| self.contains(id))
     }
     pub fn matched(&self) -> bool {
         self.state
