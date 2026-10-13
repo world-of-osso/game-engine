@@ -22,6 +22,10 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [ ] Canonical art gaps: FDID4626072 action-bar icon mask and FDID4331660 Hold/List/Tooltip vertical edge atlas are absent; source button atlas FDID6794983 also absent. CASC extraction remains blocked. Missing art is explicit, with no unmasked or solid-fill substitute; native missing-art inventory is `data/diagnostics/trading-post-ui-2026-10-13/missing-art.json`.
 - [x] Before/after both-skin private UDP5791 PNG comparison against XML; 1920×1080 after captures and native freeze/replace/drag-off, purchase/refund, popup cancellation and Leave. Proof: `modern-after9.log`, `forever-after1.log` under engine `data/diagnostics/trading-post-ui-2026-10-13/`; PNGs under `/syncthing/AgentShared/2026-10-13/trading-post-layout/`. Refund proof uses explicit private policy3600s; production default stays zero.
 
+## Fidelity rework — October13
+
+Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay passes are not Retail-fidelity acceptance. Current-build `12.1.5.70391` art is staged privately for lead publication. Shared GameDialog item confirmation supplies source prompts, 128×21 dialog-box state art, item icon/name frame, source border and half-black full-screen cover; defaultbutton art is not used for Trading Post confirmation.
+
 ## Retail continuation — October13
 
 - [ ] Resolve live catalog delivery under production startup/request ordering (isolated1321-row UDP round-trip passes; private delivery intermittently exceeds60s).

@@ -3,7 +3,7 @@
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
-    quest_art::{DynName, named_atlas_texture, panel_button},
+    quest_art::{DynName, named_atlas_texture},
     ui::{
         screens::menu_primitives::{
             ContextMenu, ContextMenuItem, DropdownButton, DropdownState, DropdownStyle,
@@ -900,46 +900,31 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
     out
 }
 fn confirm_popup(view: &View, kind: &str) -> Element {
+    use crate::static_popup_component::{ItemConfirmation, item_confirmation};
     let Some(row) = view.selected_item() else {
         return vec![];
     };
-    let text = format!(
-        "{} {} for {} Trader's Tender?",
-        if kind == "refund" {
-            "Refund"
-        } else {
-            "Purchase"
-        },
-        row.name,
-        row.price
-    );
-    let text_height = crate::quest_art::wrapped_line_count(&text, 290., 14.) as f32 * 18.;
-    let height = 16. + text_height + 12. + 26. + 16.;
-    let mut children = texture(
-        "PerksProgramConfirmBackground".into(),
-        6839810,
-        (7., 7., 306., height - 14.),
-        WHITE,
-    );
-    children.extend(label(
-        "PerksProgramConfirmText".into(),
-        &text,
-        (15., 16., 290., text_height),
-        (14., WHITE, "CENTER"),
-    ));
-    children.extend(panel_button(
-        "PerksProgramConfirmButton".into(),
-        "Confirm",
-        "perks:confirm",
-        !view.pending,
-        (26., 16. + text_height + 12., 128., 26.),
-    ));
-    children.extend(panel_button(
-        "PerksProgramCancelButton".into(),
-        "Cancel",
-        "perks:cancel",
-        true,
-        (166., 16. + text_height + 12., 128., 26.),
-    ));
-    rsx! {r#frame{name:"PerksProgramConfirmDialog",left:{(WIDTH-320.0)/2.0},top:135.0,width:320.0,height,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,frame_level:2000.0,mouse_enabled:true,{children}}}
+    // GlobalStrings PERKS_PROGRAM_CONFIRM_PURCHASE / _REFUND; currency markup is a texture.
+    let refund = kind == "refund";
+    let before = if refund {
+        format!("Refund the following item for {}", row.price)
+    } else {
+        format!("Exchange {}", row.price)
+    };
+    item_confirmation(ItemConfirmation {
+        name: "PerksProgramConfirm",
+        prompt: (
+            &before,
+            if refund {
+                "?"
+            } else {
+                "for the following item?"
+            },
+        ),
+        currency_icon: TENDER_ICON,
+        item: (&row.name, row.icon_fdid, row.quality),
+        accept: (if refund { "Refund" } else { "Purchase" }, "perks:confirm"),
+        cancel_action: "perks:cancel",
+        screen: (WIDTH, HEIGHT),
+    })
 }

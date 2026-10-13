@@ -37,6 +37,38 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
     apply_atlas_slices(registry);
     apply_dropdown_text_displacement(registry);
     apply_menu_disabled_art(registry);
+    apply_dialog_button_colors(registry);
+}
+
+fn apply_dialog_button_colors(registry: &mut FrameRegistry) {
+    let updates: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            if !frame.name.as_deref()?.ends_with("DialogButtonText") {
+                return None;
+            }
+            let owner = registry.get(frame.parent_id?)?;
+            let Some(WidgetData::Button(button)) = &owner.widget_data else {
+                return None;
+            };
+            let color = if button.state == ButtonState::Disabled {
+                [0.5, 0.5, 0.5, 1.0]
+            } else if button.hovered {
+                [1.0; 4]
+            } else {
+                [1.0, 0.82, 0.0, 1.0]
+            };
+            Some((frame.id, color))
+        })
+        .collect();
+    for (id, color) in updates {
+        if let Some(WidgetData::FontString(text)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            text.color = color;
+        }
+    }
 }
 
 fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<RegionUpdate> {
@@ -46,6 +78,19 @@ fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<Reg
         return None;
     };
     let visible = match &frame.widget_data {
+        Some(WidgetData::Texture(texture))
+            if matches!(
+                texture.source,
+                TextureSource::FileDataId(130760 | 130761 | 130763)
+            ) =>
+        {
+            Some(match texture.source {
+                TextureSource::FileDataId(130763) => button.state == ButtonState::Normal,
+                TextureSource::FileDataId(130761) => button.state == ButtonState::Pushed,
+                TextureSource::FileDataId(130760) => button.state == ButtonState::Disabled,
+                _ => unreachable!(),
+            })
+        }
         Some(WidgetData::Texture(texture))
             if matches!(texture.source, TextureSource::FileDataId(516763 | 516764)) =>
         {
