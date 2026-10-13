@@ -400,6 +400,9 @@ fn run() -> Result<(), String> {
             }
             thread::sleep(Duration::from_millis(50));
         }
+        if index < count {
+            settle_peer_login(&mut peers, &directory)?;
+        }
     }
     let mut last = String::new();
     let deadline = Instant::now() + Duration::from_secs(1800);
@@ -603,6 +606,22 @@ mod tests {
             assert!(parse_source_attack(input).is_err(), "{input}");
         }
     }
+}
+
+/// Fixture accommodation for server login/catalog frames measured at 2.6–3.8s.
+/// Keep earlier clients polling while the server drains this admission; production
+/// handshake deadlines and the source roster minimum remain unchanged.
+fn settle_peer_login(peers: &mut [Peer], directory: &Path) -> Result<(), String> {
+    const LOGIN_SETTLE_TIME: Duration = Duration::from_secs(10);
+    let deadline = Instant::now() + LOGIN_SETTLE_TIME;
+    while Instant::now() < deadline {
+        for peer in peers.iter_mut() {
+            peer.receive_events()?;
+            peer.write_state(directory)?;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    Ok(())
 }
 
 fn main() {
