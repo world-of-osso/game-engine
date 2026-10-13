@@ -178,8 +178,8 @@ func travelers_log() -> bool:
 	await click("MinimapLauncherButton")
 	if not await wait_until(func(): return control("LauncherEntryEJMicroButton") != null, "Adventure Guide launcher entry"): return false
 	await click("LauncherEntryEJMicroButton")
-	if not await wait_until(func(): return control("EncounterJournalTab4") != null, "Traveler's Log tab"): return false
-	await click("EncounterJournalTab4")
+	if not await wait_until(func(): return control("EncounterJournalMonthlyActivitiesTab") != null, "Traveler's Log tab"): return false
+	await click("EncounterJournalMonthlyActivitiesTab")
 	if not await wait_until(func(): return control("JournalMonthlyPoints") != null and "Tender earned" in control("JournalMonthlyPoints").text, "authoritative Log Tender line", 60000): return false
 	await capture("travelers-log")
 	await tap(KEY_ESCAPE)
