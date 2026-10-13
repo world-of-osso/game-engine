@@ -65,6 +65,8 @@ fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
 
 pub(crate) const GAMEOBJECT_TYPE_CHEST: u8 = 3;
 pub(crate) const GAMEOBJECT_TYPE_GOOBER: u8 = 10;
+/// Its use casts the template's spell on the user (TC GameObject::Use).
+pub(crate) const GAMEOBJECT_TYPE_SPELLCASTER: u8 = 22;
 
 /// The model's yaw inside its object node.
 const MODEL_YAW: f32 = -std::f32::consts::FRAC_PI_2;
@@ -88,6 +90,7 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
         | shared::protocol::GAMEOBJECT_TYPE_HOUSING_PLOT
         | GAMEOBJECT_TYPE_CHEST
         | GAMEOBJECT_TYPE_GOOBER
+        | GAMEOBJECT_TYPE_SPELLCASTER
         | GAMEOBJECT_TYPE_BATTLEGROUND_FLAG
         | shared::protocol::GAMEOBJECT_TYPE_BATTLEGROUND_FLAG_DROP
         | shared::protocol::GAMEOBJECT_TYPE_FLAGSTAND
