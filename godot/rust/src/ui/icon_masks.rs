@@ -389,15 +389,6 @@ mod tests {
                 let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
                     panic!("icon");
                 };
-                let mask_available =
-                    game_engine_ui_model::paths::resolve_data_path("textures/4626072.blp").exists();
-                if !mask_available {
-                    assert!(
-                        matches!(icon.source, TextureSource::None),
-                        "missing source mask must not render an unmasked substitute"
-                    );
-                    continue;
-                }
                 let TextureSource::Dynamic(id) = icon.source else {
                     panic!("Trading Post icon must use its authored mask");
                 };
@@ -411,6 +402,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn trading_post_missing_icon_source_never_renders_a_substitute() {
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        Screen::new(|_| ui_toolkit::rsx! {
+            texture { name:"PerksProgramIconMissing", texture_fdid:4294967295u32, width:32.0, height:32.0 }
+        }).sync(&SharedContext::new(), &mut registry);
+        IconMasks::default().apply(&mut registry);
+        let frame = registry
+            .get(registry.get_by_name("PerksProgramIconMissing").unwrap())
+            .unwrap();
+        let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
+            panic!("icon");
+        };
+        assert!(matches!(icon.source, TextureSource::None));
     }
 
     #[test]
