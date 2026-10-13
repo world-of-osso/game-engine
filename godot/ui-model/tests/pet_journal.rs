@@ -112,6 +112,38 @@ fn pet_filters_toggle_ownership_families_and_reset_without_changing_authority() 
 }
 
 #[test]
+fn journal_species_flags_hide_debug_rows_and_reveal_learned_only_species() {
+    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    let mut view = view();
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 0x4000,
+            source: 2,
+        },
+    );
+    assert_eq!(view.rows().len(), 1);
+    assert!(view.catalog.contains_key(&40));
+    let id = view
+        .journal
+        .add_with_breed(40, 1, PetQuality::Common, 3)
+        .unwrap();
+    assert!(
+        view.rows()
+            .iter()
+            .any(|row| row.key == PetRowKey::Owned(id))
+    );
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 33840,
+            source: -1,
+        },
+    );
+    assert!(view.rows().iter().all(|row| row.species != 40));
+}
+
+#[test]
 fn pet_source_menu_omits_no_source_sentinel_in_real_catalog_metadata() {
     use game_engine_ui_model::pet_journal::PetSpeciesFilter;
     game_engine_ui_model::paths::set_data_root(
