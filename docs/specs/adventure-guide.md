@@ -2,6 +2,12 @@
 
 Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern and Forever display the same controls; Forever changes art only.
 
+## Retail layout contract
+
+Use `Blizzard_EncounterJournal.xml` and its inherited templates, not generic panel controls. Both skins keep the authored geometry: frame800×496, SearchBox210×20 at TOPRIGHT(-10,-32), NavBar500×34 at TOPLEFT(61,-22), inset TOPRIGHT(-4,-60)/BOTTOMLEFT(4,5). InstanceSelect.ScrollBox748×367 at inset+(14,-52) contains four174×96 instance buttons with5px top padding and15px gaps; titles overlay their button art. Encounter.Info785×425 is anchored BOTTOMRIGHT(-1,2), with BossesScrollBox338×382 at BOTTOMLEFT(25,1),325×55 boss portrait rows and15px spacing. The right page contains authored instance lore art or350×383 Overview/Abilities scrolling; Model fills its390×423 page at BOTTOMRIGHT(-3,1). Side tabs63×57 use the XML UI-EJ tab/icon crops at TOPRIGHT(-12,-35) and subsequent TOP→BOTTOM(0,2) anchors. Difficulty is100×25 at TOPRIGHT(-19,-13), hidden on Model as Retail does. Bottom tabs use PanelTabButtonTemplate art and Retail order, not nine-slice pushbuttons. Preserve breadcrumb navigation and the round window/instance portraits.
+
+`tests/adventure_guide_layout.rs` checks these translated anchors in both skins, real Journal portrait FDIDs and pressed/hover row texture output. Missing texture payloads must be reported for publication, never substituted.
+
 ## Required behavior
 
 - Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list. Classify dungeons from pinned Map.InstanceType, not JournalInstance.Flags (Wailing Caverns43 has zero Journal flags).

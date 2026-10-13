@@ -1,0 +1,157 @@
+//! Blizzard_EncounterJournal.xml frame contract, converted from WoW bottom-up anchors.
+//! Root800×496 -> Inset (4,60)..(796,491) -> Encounter (4,60)..(793,491)
+//! -> Info BOTTOMRIGHT(-1,+2), size785×425 = (7,64)..(792,489).
+use game_engine_core::adventure_guide::Catalog;
+use game_engine_ui_model::adventure_guide::{View, adventure_guide_screen};
+use std::sync::Arc;
+use ui_toolkit::{
+    atlas::{ActiveSkin, set_thread_skin},
+    frame::{Dimension, WidgetData},
+    layout_values::Val,
+    registry::FrameRegistry,
+    screen::{Screen, SharedContext},
+    widgets::{button::ButtonState, texture::TextureSource},
+};
+
+fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    let frame = registry
+        .get(
+            registry
+                .get_by_name(name)
+                .unwrap_or_else(|| panic!("{name} missing")),
+        )
+        .unwrap();
+    let px = |v| match v {
+        Val::Px(value) => value,
+        other => panic!("{name} position {other:?}"),
+    };
+    let size = |v| match v {
+        Dimension::Fixed(value) => value,
+        other => panic!("{name} dimension {other:?}"),
+    };
+    [
+        px(frame.position.left),
+        px(frame.position.top),
+        size(frame.width),
+        size(frame.height),
+    ]
+}
+
+fn render(view: &View, skin: ActiveSkin) -> FrameRegistry {
+    set_thread_skin(skin);
+    let mut ctx = SharedContext::new();
+    ctx.insert(skin);
+    ctx.insert(view.clone());
+    let mut registry = FrameRegistry::new(1280., 720.);
+    Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
+    registry
+}
+
+#[test]
+fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            catalog: catalog.clone(),
+            ..Default::default()
+        };
+        let grid = render(&view, skin);
+        // XML SearchBox TOPRIGHT(-10,-32),210×20; NavBar TOPLEFT(61,-22),500×34.
+        assert_eq!(
+            rect(&grid, "EncounterJournalSearchBox"),
+            [580., 32., 210., 20.]
+        );
+        assert_eq!(rect(&grid, "EncounterJournalNavBar"), [61., 22., 500., 34.]);
+        // InstanceSelect.ScrollBox TOPLEFT(14,-50),748×367 relative to Inset+0,-2.
+        assert_eq!(
+            rect(&grid, "EncounterJournalContent"),
+            [18., 112., 748., 367.]
+        );
+        let first = view.instances()[0].id;
+        // EncounterInstanceButtonTemplate174×96; Lua grid TopPad5,Spacing15,4 columns.
+        assert_eq!(
+            rect(&grid, &format!("JournalInstance{first}")),
+            [0., 5., 174., 96.]
+        );
+        let second = view.instances()[1].id;
+        assert_eq!(
+            rect(&grid, &format!("JournalInstance{second}")),
+            [189., 5., 174., 96.]
+        );
+        view.apply("journal:instance:67").unwrap();
+        let mut instance = render(&view, skin);
+        // JournalEncounterCreature.FileDataID, not an inferred display/icon replacement.
+        let portrait = instance
+            .get(instance.get_by_name("JournalBoss112Portrait").unwrap())
+            .unwrap();
+        assert!(
+            matches!(&portrait.widget_data,Some(WidgetData::Texture(texture)) if texture.source==TextureSource::FileDataId(522258))
+        );
+        assert_eq!(rect(&instance, "JournalBoss112"), [0., 150., 325., 55.]);
+        assert_eq!(
+            rect(&instance, "JournalBoss112Portrait"),
+            [-4., -13., 128., 64.]
+        );
+        let row = instance.get_by_name("JournalBoss112").unwrap();
+        if let Some(WidgetData::Button(button)) =
+            instance.get_mut(row).unwrap().widget_data.as_mut()
+        {
+            button.state = ButtonState::Pushed;
+            button.hovered = true;
+        }
+        game_engine_ui_model::adventure_guide_art::apply_button_art(&view, &mut instance);
+        let pressed = instance
+            .get(instance.get_by_name("JournalBoss112ButtonArt").unwrap())
+            .unwrap();
+        assert!(
+            matches!(&pressed.widget_data,Some(WidgetData::Texture(texture)) if texture.tex_coords==[0.00195313,0.63671875,0.10253906,0.15625])
+        );
+        assert!(
+            !instance
+                .get(
+                    instance
+                        .get_by_name("JournalBoss112ButtonHighlight")
+                        .unwrap()
+                )
+                .unwrap()
+                .hidden
+        );
+
+        assert_eq!(
+            rect(&instance, "EncounterJournalInfo"),
+            [7., 64., 785., 425.]
+        );
+        // BossesScrollBox BOTTOMLEFT(25,+1),338×382 relative to Info.
+        assert_eq!(
+            rect(&instance, "EncounterJournalBosses"),
+            [32., 106., 338., 382.]
+        );
+        // InstanceFrame390×425; lore390×330 at TOP(3,-9); title320×35 at TOP(0,-48).
+        assert_eq!(
+            rect(&instance, "EncounterJournalInstanceLoreArt"),
+            [405., 73., 390., 330.]
+        );
+        assert_eq!(
+            rect(&instance, "EncounterJournalInstanceTitle"),
+            [437., 112., 320., 35.]
+        );
+        view.apply("journal:encounter:112").unwrap();
+        view.apply("journal:page:model").unwrap();
+        let model = render(&view, skin);
+        // ModelFrame390×423 BOTTOMRIGHT(-3,+1) relative to Info.
+        assert_eq!(
+            rect(&model, "EncounterJournalModelScene"),
+            [399., 65., 390., 423.]
+        );
+        // EncounterTabTemplate63×57; Overview TOPLEFT relative TOPRIGHT(-12,-35).
+        for (page, y) in [(0, 99.), (2, 154.), (1, 209.), (3, 264.)] {
+            assert_eq!(
+                rect(&model, &format!("EncounterJournalPage{page}")),
+                [780., y, 63., 57.]
+            );
+        }
+    }
+}
