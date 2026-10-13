@@ -26,7 +26,7 @@ pub(crate) fn emote_stand_state(emote: EmoteKind) -> Option<StandState> {
         EmoteKind::Sit => Some(StandState::Sit),
         EmoteKind::Sleep => Some(StandState::Sleep),
         EmoteKind::Kneel => Some(StandState::Kneel),
-        EmoteKind::Dance | EmoteKind::Wave => None,
+        EmoteKind::Dance | EmoteKind::Wave | EmoteKind::Love => None,
     }
 }
 
@@ -90,6 +90,7 @@ mod tests {
         assert_eq!(emote_stand_state(EmoteKind::Kneel), Some(StandState::Kneel));
         assert_eq!(emote_stand_state(EmoteKind::Dance), None);
         assert_eq!(emote_stand_state(EmoteKind::Wave), None);
+        assert_eq!(emote_stand_state(EmoteKind::Love), None);
     }
 
     /// wowdev AnimationList: SitGround 97, Sleep 100, SitChairLow/Med/High 102-104,
