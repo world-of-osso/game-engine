@@ -36,6 +36,7 @@ fn snapshot() -> TradingPostSnapshot {
             description: String::new(),
             icon_fdid: 135729,
             quality: 1,
+            usable: Some(true),
             price: 100,
             purchased: false,
             collected: false,
@@ -94,8 +95,11 @@ fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debi
     assert!(view.can_purchase());
     assert_eq!(view.click("perks:purchase").unwrap(), None);
     assert_eq!(view.confirm.as_deref(), Some("purchase"));
-    view.click("perks:category:2").unwrap();
-    assert_eq!(view.category, 0, "modal blocks underlying category clicks");
+    view.click("perks:type:2").unwrap();
+    assert!(
+        view.filters.excluded_types.is_empty(),
+        "modal blocks underlying filter clicks"
+    );
     assert_eq!(
         view.click("perks:confirm").unwrap(),
         Some(Action::Request(TradingPostRequest::Purchase {
@@ -199,7 +203,7 @@ fn trading_post_virtualized_list_reaches_second_page_then_empty_category_clamps_
         screen.sync(&ctx, &mut registry);
         assert!(registry.get_by_name("PerksProgramProduct11").is_some());
         assert!(registry.get_by_name("PerksProgramProduct8").is_none());
-        view.click("perks:category:2").unwrap();
+        view.click("perks:type:1").unwrap();
         ctx.insert(view);
         screen.sync(&ctx, &mut registry);
         assert_eq!(
@@ -304,11 +308,17 @@ fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
     );
     view.click("perks:filter").unwrap();
     let registry = render(ActiveSkin::Forever, view.clone());
-    assert!(registry.get_by_name("PerksProgramCategoryMenu").is_some());
-    view.click("perks:category:2").unwrap();
-    assert!(!view.dropdown);
+    assert!(registry.get_by_name("PerksProgramFilterMenu").is_some());
+    view.click("perks:type:1").unwrap();
+    assert!(view.dropdown, "checkbox refresh keeps the menu open");
     assert!(view.rows().is_empty());
-    assert_eq!(view.selected, None);
+    assert_eq!(
+        view.selected,
+        Some(4),
+        "frozen selection remains independent of list filters"
+    );
+    view.click("perks:filter").unwrap();
+    assert!(!view.dropdown);
 }
 
 fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
@@ -348,7 +358,7 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
         assert_eq!(rect(&registry, "PerksProgramIcon4"), [32., 8., 32., 32.]);
         assert_eq!(
             rect(&registry, "PerksProgramFilter"),
-            [55., 95.5, 122., 25.]
+            [55., 95.5, 145., 25.]
         );
         assert_eq!(
             rect(&registry, "PerksProgramHoldFrame"),
@@ -374,7 +384,7 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
         assert!(registry.get_by_name("PerksProgramFreezeButton").is_none());
         assert!(registry.get_by_name("PerksProgramUnfreezeButton").is_none());
         assert!(
-            registry.get_by_name("PerksProgramCategoryMenu").is_none(),
+            registry.get_by_name("PerksProgramFilterMenu").is_none(),
             "closed dropdown is not a persistent category button column"
         );
         assert!(registry.get_by_name("PerksProgramCategoryAll").is_none());
@@ -512,4 +522,61 @@ fn trading_post_empty_freeze_slot_and_leave_use_sourced_text_and_arrow() {
         "Drag an item here to freeze it and prevent it from expiring"
     );
     assert_eq!(rect(&registry, "PerksProgramLeaveArrow")[2..], [8., 13.]);
+}
+
+#[test]
+fn trading_post_retail_filter_checks_ownership_usability_and_multiple_types() {
+    let mut source = snapshot();
+    let mut owned = source.items[0].clone();
+    owned.id = 5;
+    owned.purchased = true;
+    owned.collected = true;
+    owned.category_id = 2;
+    owned.usable = Some(false);
+    let mut mount = source.items[0].clone();
+    mount.id = 6;
+    mount.category_id = 2;
+    let mut unknown = source.items[0].clone();
+    unknown.id = 7;
+    unknown.usable = None;
+    source.items.extend([owned, mount, unknown]);
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(source)),
+        selected: Some(4),
+        ..Default::default()
+    };
+    assert_eq!(view.rows().len(), 4);
+    view.click("perks:filter:collected").unwrap();
+    assert!(!view.rows().iter().any(|row| row.id == 5));
+    view.click("perks:filter:uncollected").unwrap();
+    assert!(view.rows().is_empty());
+    view.click("perks:filters:reset").unwrap();
+    assert_eq!(view.rows().len(), 4);
+    view.click("perks:filter:usable").unwrap();
+    let mut ids: Vec<_> = view.rows().iter().map(|row| row.id).collect();
+    ids.sort();
+    assert_eq!(ids, vec![4, 6]);
+    view.click("perks:type:1").unwrap();
+    assert_eq!(
+        view.rows().iter().map(|row| row.id).collect::<Vec<_>>(),
+        vec![6]
+    );
+    view.click("perks:type:2").unwrap();
+    assert!(view.rows().is_empty());
+    view.click("perks:filters:reset").unwrap();
+    view.click("perks:filter").unwrap();
+    let registry = render(ActiveSkin::Modern, view);
+    assert_eq!(text(&registry, "PerksProgramFilterText"), "Filter");
+    assert_eq!(rect(&registry, "PerksProgramFilter")[2..], [145., 25.]);
+    for name in [
+        "PerksProgramFilterCollected",
+        "PerksProgramFilterUncollected",
+        "PerksProgramFilterUsable",
+        "PerksProgramFilterTypes",
+        "PerksProgramFilterSort",
+    ] {
+        assert!(registry.get_by_name(name).is_some(), "{name}");
+    }
+    assert!(registry.get_by_name("PerksProgramCategoryAll").is_none());
 }

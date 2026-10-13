@@ -7,7 +7,7 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::trading_post::{Action, HEIGHT, MODEL, View, WIDTH};
+use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
 use godot::classes::CanvasLayer;
 use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
@@ -80,6 +80,11 @@ impl GameClient {
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
         if self.trading_post.view.confirm.take().is_some() {
+            return Ok(true);
+        }
+        if self.trading_post.view.dropdown {
+            self.trading_post.view.dropdown = false;
+            self.trading_post.view.submenu = None;
             return Ok(true);
         }
         if self.trading_post.view.visible {
@@ -172,6 +177,22 @@ impl GameClient {
             }
             let action = self.trading_post.view.click(&action)?;
             self.apply_trading_action(action)?;
+        }
+        if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
+            if let Some((name, _)) = ui.bind().hovered_button() {
+                match name.as_str() {
+                    "PerksProgramFilterTypes" => {
+                        self.trading_post.view.submenu = Some(FilterSubmenu::Types)
+                    }
+                    "PerksProgramFilterSort" => {
+                        self.trading_post.view.submenu = Some(FilterSubmenu::Sort)
+                    }
+                    "PerksProgramFilterCollected"
+                    | "PerksProgramFilterUncollected"
+                    | "PerksProgramFilterUsable" => self.trading_post.view.submenu = None,
+                    _ => {}
+                }
+            }
         }
         Ok(())
     }
@@ -348,6 +369,7 @@ impl GameClient {
         if !self.trading_post.view.visible {
             return false;
         }
+        self.close_trading_filter_on_outside_press(event);
         if let Some(ui) = &mut self.trading_post.ui {
             let scrolled = ui.bind_mut().scroll_list_input(event);
             match scrolled {
@@ -364,6 +386,40 @@ impl GameClient {
         }
         self.trading_product_pointer(event) || self.trading_model_pointer(event)
     }
+    fn close_trading_filter_on_outside_press(&mut self, event: &Gd<godot::classes::InputEvent>) {
+        if !self.trading_post.view.dropdown || self.trading_post.view.confirm.is_some() {
+            return;
+        }
+        let Ok(button) = event
+            .clone()
+            .try_cast::<godot::classes::InputEventMouseButton>()
+        else {
+            return;
+        };
+        if !button.is_pressed() {
+            return;
+        }
+        let inside = self.trading_post.ui.as_ref().is_some_and(|ui| {
+            [
+                "PerksProgramFilter",
+                "PerksProgramFilterResetButton",
+                "PerksProgramFilterMenu",
+                "PerksProgramTypeMenu",
+                "PerksProgramSortMenu",
+            ]
+            .iter()
+            .any(|name| {
+                ui.bind()
+                    .frame_viewport_rect(name)
+                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
+            })
+        });
+        if !inside {
+            self.trading_post.view.dropdown = false;
+            self.trading_post.view.submenu = None;
+        }
+    }
+
     fn trading_product_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         if self.trading_post.view.confirm.is_some() || self.trading_post.view.pending {
             self.trading_post.dragged = None;
@@ -487,7 +543,10 @@ impl GameClient {
             [
                 "PerksProgramProductsScrollBoxContainer",
                 "PerksProgramFilter",
-                "PerksProgramCategoryMenu",
+                "PerksProgramFilterResetButton",
+                "PerksProgramFilterMenu",
+                "PerksProgramTypeMenu",
+                "PerksProgramSortMenu",
                 "PerksProgramCurrencyFrame",
                 "PerksProgramProductDetailsContainerFrame",
                 "PerksProgramFooterFrame",
@@ -517,7 +576,37 @@ impl GameClient {
         let mut state = VarDictionary::new();
         state.set("open", view.visible);
         state.set("selected", view.selected.map_or(-1, i64::from));
-        state.set("category", i64::from(view.category));
+        let enabled_types: Vec<_> = view
+            .snapshot
+            .iter()
+            .flat_map(|snapshot| &snapshot.categories)
+            .filter(|category| !view.filters.excluded_types.contains(&category.id))
+            .map(|category| category.id)
+            .collect();
+        state.set(
+            "category",
+            if enabled_types.len() == 1 {
+                i64::from(enabled_types[0])
+            } else {
+                0
+            },
+        );
+        let types: PackedStringArray = view
+            .snapshot
+            .iter()
+            .flat_map(|snapshot| &snapshot.categories)
+            .map(|category| {
+                GString::from(&format!(
+                    "{}|{}",
+                    category.id,
+                    u8::from(!view.filters.excluded_types.contains(&category.id))
+                ))
+            })
+            .collect();
+        state.set("types", &types);
+        state.set("filter_collected", view.filters.collected);
+        state.set("filter_uncollected", view.filters.uncollected);
+        state.set("filter_usable", view.filters.usable_only);
         state.set(
             "sort",
             match view.sort {
