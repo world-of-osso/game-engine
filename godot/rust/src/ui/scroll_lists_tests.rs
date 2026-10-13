@@ -178,7 +178,23 @@ fn action_bar_2_bindings_scroll_their_last_buttons_into_view_by_wheel() {
     let down = wheel_to_end(&mut model, false);
     assert!(down > 0);
     assert!(shown(&model, &last), "{last} after {down} notches");
-    assert!(!shown(&model, &first), "{first} scrolled out");
+    // SettingsPanel.xml increased the viewport to529px. The first row retains a
+    // clipped1px strip at the bottom offset; its actual22px binding button is outside.
+    // Test visibility of the controls, not whether virtualization retained a row.
+    let area = rect(&model, OPTIONS_CONTENT_SCROLL).unwrap();
+    let first_button = first.replacen("KeybindingRow", "KeybindingButton", 1);
+    if let Some(button) = rect(&model, &first_button) {
+        assert!(
+            button.y + button.height <= area.y,
+            "{first_button} must be clipped above the list"
+        );
+    }
+    let last_button = last.replacen("KeybindingRow", "KeybindingButton", 1);
+    let button = rect(&model, &last_button).expect("last binding button mounted");
+    assert!(
+        button.y >= area.y && button.y + button.height <= area.y + area.height,
+        "{last_button} must be fully inside the list"
+    );
     assert_rows_inside_area(&model, "bottom");
 
     assert_eq!(wheel_to_end(&mut model, true), down);

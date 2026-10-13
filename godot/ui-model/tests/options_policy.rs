@@ -387,3 +387,23 @@ fn options_extra_action_bars_accept_retail_visibility_toggles() {
     reset_category_defaults(&mut m);
     assert_eq!(m.draft_hud.extra_action_bars, Default::default());
 }
+
+#[test]
+fn thickness_radio_choices_set_presets_without_toggling_the_current_choice() {
+    use game_engine_ui_model::nameplate_style_data::NameplateBarThickness;
+    let mut options = model();
+    for (key, thickness) in [
+        ("nameplate_health_thickness:1", NameplateBarThickness::Thick),
+        ("nameplate_health_thickness:0", NameplateBarThickness::Thin),
+    ] {
+        assert!(apply_toggle(key, &mut options));
+        assert_eq!(options.draft_hud.nameplate_style.health_preset(), thickness);
+        assert!(apply_toggle(key, &mut options));
+        assert_eq!(options.draft_hud.nameplate_style.health_preset(), thickness);
+    }
+    assert!(apply_toggle("nameplate_spellbar_thickness:1", &mut options));
+    assert_eq!(
+        options.draft_hud.nameplate_style.cast_preset(),
+        NameplateBarThickness::Thick
+    );
+}
