@@ -9,12 +9,12 @@
 - [Legacy global-WMO WDTs](investigations/legacy-global-wmo.md) — real MWMO/MODF name resolution, empty-MAIN handling,206 recovered bakes, hash-guarded floor package and three fresh both-skin native renders;110 local WDT gaps remain.
 
 - [Source-backed battleground maps](systems/battlegrounds.md#source-node-maps--implementation-proof-2026-10-12) — Arathi/Gilneas/Twin Peaks/Eye both-skin private lifecycle proof; Eye16-account tower/flag victory/return with20 inspected PNGs; art/preparation/resurrection gaps remain.
-- [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical assets/cache published by lead; public708 stays hidden pending client bundle publication.
+- [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical assets/cache published by lead;708/1110 rows ship with assets in the next client bundle,894 transport gate remains.
+- [Epic source continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12) — corrected AV/Isle queues/ten-per-team minimums; AV pure nodes/mines and real-channel cast/tower/captain/general/return proof, native/live pending.
 - [Deephaul lifecycle](systems/battlegrounds.md#deephaul-ravine--bounded-both-skin-proof-2026-10-12) — source crystal/cart control, both-skin10-account natural victory/return/save and24 inspected PNGs; crystal assets staged for lead publication, vehicle/art/aura gaps explicit.
 - [Seething source objective slice](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12) — dynamic fissures/Azerite/six-second Gathering; source ship-relative entry explicitly blocked and public894 hidden; authored transport work remains in scope.
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
-- [Toy input/source rendering](systems/toy-box.md#toy-effects14-witnessed-input-and-source-rendering-2026-10-11) — actual both-skin ground/target/PCM boundaries, source BC5 upload and retained per-toy/scale acceptance gaps.
 - [Source warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12) — four actual-use/native lifetime identities, Swarthy’s two authored state models and explicit screenshot/per-effect pixel boundary.
 
 - [Scaled scenery natural expiry](systems/toy-box.md#source-scaled-scenery-expiry-2026-10-12) — both-skin actual Banner60s/Preyhunter120s expiry, preserving authored display/root scale and no combat pet ownership.
@@ -40,8 +40,6 @@
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
 - [World-quest availability and native tasks](investigations/world-quest-availability.md) — authentic polygons/policy durations, per-character transport, automatic source settlement and both-skin native controlled completion;239/244 polygon quests admitted,5 unresolved objective sources and natural/living gameplay remain open.
 
-- [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
-- [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Raid entry and saved instances](systems/raid-entry.md) — native both-skin private proof, persistent difficulty/locks, Tuesday reset, source-derived credit and explicit data gaps.
 - [Group loot](systems/group-loot.md) — authoritative four-choice rolls, numeric chat/history, leader methods and scoped Modern/Forever private two-account award proofs.
 - [Scenario progression](systems/scenarios.md) — local DB2/TDB joins, active-tree copy credit and shared Retail stage block; Gnomeregan649 both-skin private finisher/completion/exit proof, explicit one-stage and HP-primed fixture boundary.
