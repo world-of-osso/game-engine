@@ -111,7 +111,7 @@ impl GameClient {
             self.trading_post.view.reselect();
         }
         loop {
-            let action = ui.bind_mut().pop_click().to_string();
+            let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
                 break;
             }
@@ -308,7 +308,8 @@ impl GameClient {
             return false;
         }
         if let Some(ui) = &mut self.trading_post.ui {
-            match ui.bind_mut().scroll_list_input(event) {
+            let scrolled = ui.bind_mut().scroll_list_input(event);
+            match scrolled {
                 Ok(true) => {
                     self.mark_viewport_input_handled();
                     return true;
@@ -323,6 +324,10 @@ impl GameClient {
         self.trading_product_pointer(event) || self.trading_model_pointer(event)
     }
     fn trading_product_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.trading_post.view.confirm.is_some() || self.trading_post.view.pending {
+            self.trading_post.dragged = None;
+            return false;
+        }
         if let Ok(motion) = event
             .clone()
             .try_cast::<godot::classes::InputEventMouseMotion>()
@@ -382,6 +387,9 @@ impl GameClient {
         true
     }
     fn trading_model_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.trading_post.view.confirm.is_some() {
+            return false;
+        }
         if let Ok(motion) = event
             .clone()
             .try_cast::<godot::classes::InputEventMouseMotion>()
