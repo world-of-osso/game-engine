@@ -24,24 +24,7 @@ struct Peer {
 }
 impl Peer {
     fn connect(index: usize, mode: ArenaQueueMode, address: SocketAddr) -> Result<Self, String> {
-        let client_id = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|error| error.to_string())?
-            .as_nanos() as u64;
-        let bridge = BridgeConfig::new()
-            .receive::<LoginResponse>()
-            .receive::<EnterWorldResponse>()
-            .receive::<LoadTerrain>()
-            .receive::<NewWorld>()
-            .receive::<PvpStateUpdate>()
-            .receive::<GroupInvitePrompt>()
-            .receive::<GroupRosterSnapshot>()
-            .connect(address, client_id)?;
-        bridge.send::<_, AuthChannel>(LoginRequest {
-            token: None,
-            username: format!("fb_arena{index}"),
-            password: "fbtest".into(),
-        })?;
+        let bridge = connect_peer_bridge(index, address)?;
         Ok(Self {
             index,
             mode,
@@ -252,6 +235,28 @@ fn run() -> Result<(), String> {
     }
     Err("Live peers exceeded one-hour integration deadline".into())
 }
+fn connect_peer_bridge(index: usize, address: SocketAddr) -> Result<NetworkBridge, String> {
+    let client_id = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_nanos() as u64;
+    let bridge = BridgeConfig::new()
+        .receive::<LoginResponse>()
+        .receive::<EnterWorldResponse>()
+        .receive::<LoadTerrain>()
+        .receive::<NewWorld>()
+        .receive::<PvpStateUpdate>()
+        .receive::<GroupInvitePrompt>()
+        .receive::<GroupRosterSnapshot>()
+        .connect(address, client_id)?;
+    bridge.send::<_, AuthChannel>(LoginRequest {
+        token: None,
+        username: format!("fb_arena{index}"),
+        password: "fbtest".into(),
+    })?;
+    Ok(bridge)
+}
+
 fn submit_action(peers: &mut [Peer], action: &str) -> Result<(), String> {
     if let Some(selected) = action.strip_prefix("peer:") {
         let (index, action) = selected
