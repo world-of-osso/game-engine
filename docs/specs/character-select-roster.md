@@ -4,6 +4,8 @@ The native character-select roster uses `godot/ui-model/src/ui/screens/char_sele
 
 ## What it must do
 
+- [x] Top navigation follows `CharacterSelectNavBar.xml`: 55px parent, 51px buttons, zero-spacing tray and 4px width padding. Labels retain existing actions; end caps/selected underlines use the source atlases and Lua offsets. Both skins share this geometry.
+
 - [x] Ten- and twelve-character rosters retain equal 95px cards, never compressed by the viewport; visible card portions stay inside the panel's clipped list viewport.
 - [x] Create/Delete footer controls never intersect the list or any visible card.
 - [x] Wheel movement uses two character pan extents; steppers use one; dragging the proportional thumb reaches both ends. Scrolling alone does not change selection or snap back to it.

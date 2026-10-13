@@ -7,7 +7,6 @@
 //! returns. The host owns navigation and supplies data in [`WorldMapFrameState`];
 //! positions on the canvas are normalized map UVs.
 
-use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -53,6 +52,7 @@ pub const ACTION_WORLD_MAP_MINIMIZE: &str = "world_map_minimize";
 pub const ACTION_QUEST_MAP_BACK: &str = "quest_map_back";
 /// Breadcrumb click: `world_map_nav:<UiMapID>`.
 pub const ACTION_WORLD_MAP_NAV_PREFIX: &str = "world_map_nav:";
+pub const ACTION_WORLD_MAP_NAV_OVERFLOW: &str = "world_map_nav_overflow";
 
 /// `minimizedWidth`/`minimizedHeight`/`questLogWidth` (Blizzard_WorldMap.lua:95-97).
 pub const MINIMIZED_W: f32 = 702.0;
@@ -71,8 +71,7 @@ const SCREEN_BORDER: f32 = 30.0;
 /// (Blizzard_UIParentPanelManager/Shared/UIPanelLayoutFrame.lua:3-4).
 pub const PANEL_SLOT: [f32; 2] = [16.0, 116.0];
 /// NavBar TOPLEFT on the spacer: +64 windowed, +8 maximized, y -25 (Blizzard_WorldMap.lua:44,59);
-/// BOTTOMRIGHT y +9 and x `NAVBAR_X_OFFSET` (Blizzard_WorldMap.lua:316; Retail -4,
-/// Forever Camelot/Blizzard_WorldMapConstants.lua:3 -50).
+/// BOTTOMRIGHT y +9 and x `NAVBAR_X_OFFSET` -4 (Blizzard_WorldMap.lua:316).
 const NAV_LEFT_WINDOWED: f32 = 64.0;
 const NAV_LEFT_MAXIMIZED: f32 = 8.0;
 const NAV_TOP: f32 = 25.0;
@@ -106,10 +105,6 @@ const DETAILS_TEXT_INSET: f32 = 10.0;
 /// (`SetPortraitToAsset`, Blizzard_WorldMap.lua:15).
 const BOOK_ICON: u32 = art::BOOK_ICON;
 
-const CRUMB_H: f32 = 26.0;
-const CRUMB_GAP: f32 = 4.0;
-const CRUMB_PAD: f32 = 14.0;
-const CRUMB_FONT: f32 = 12.0;
 const CLOSE_SIZE: f32 = 24.0;
 const PIN_SIZE: f32 = 20.0;
 const QUEST_PIN_SIZE: f32 = 24.0;
@@ -233,6 +228,7 @@ pub struct WorldMapFrameState {
     pub map_name: String,
     /// Root (World) to the displayed map.
     pub breadcrumbs: Vec<MapBreadcrumb>,
+    pub nav_overflow_open: bool,
     pub tiles: Vec<MapTile>,
     pub highlight: Option<MapHighlight>,
     pub pins: Vec<MapPin>,
@@ -250,6 +246,7 @@ pub struct WorldMapFrameState {
 pub struct WorldMapDisplay {
     pub maximized: bool,
     pub quest_details: bool,
+    pub nav_overflow_open: bool,
 }
 
 /// What a frame click leaves for the host after [`WorldMapDisplay::click`].
@@ -278,11 +275,13 @@ impl WorldMapDisplay {
             let id = id
                 .parse()
                 .map_err(|_| format!("Bad world map breadcrumb action {action}"))?;
+            self.nav_overflow_open = false;
             return Ok(WorldMapClick::Navigate(id));
         }
         match action {
             "" => {}
             ACTION_WORLD_MAP_CLOSE => return Ok(WorldMapClick::Close),
+            ACTION_WORLD_MAP_NAV_OVERFLOW => self.nav_overflow_open = !self.nav_overflow_open,
             ACTION_QUEST_MAP_BACK => self.quest_details = false,
             ACTION_WORLD_MAP_MAXIMIZE => self.maximized = true,
             ACTION_WORLD_MAP_MINIMIZE => self.maximized = false,
@@ -404,7 +403,7 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
                 top: y,
                 {background(&layout)}
                 {canvas(state, &layout)}
-                {nav_bar(&state.breadcrumbs, &layout, state.maximized)}
+                {nav_bar(&state.breadcrumbs, &layout, state.maximized, state.nav_overflow_open)}
                 {panel}
                 {border(&layout, state.maximized)}
                 {title(&layout, state.maximized)}

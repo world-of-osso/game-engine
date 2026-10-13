@@ -497,6 +497,7 @@ impl GameClient {
     fn drawable_world_map(&mut self) -> Result<WorldMapFrameState, String> {
         let mut state = self.world_map_view().ok_or("World map data not loaded")?;
         state.maximized = self.world_map.display.maximized;
+        state.nav_overflow_open = self.world_map.display.nav_overflow_open;
         state.quest_panel = (!state.maximized).then(|| QuestMapPanel {
             log: self.quest_map_log(),
             details: self.world_map.display.quest_details,
