@@ -223,7 +223,11 @@ impl HousingDashboard {
             if !available {
                 return Err("Storage category has no confirmed owned entries.".into());
             }
+            if self.storage_category == Some(id) && self.storage_subcategory.is_none() {
+                return Ok(());
+            }
             self.storage_search.clear();
+            self.storage_search_focused = false;
         }
         self.storage_category = id;
         self.storage_subcategory = None;
@@ -247,8 +251,12 @@ impl HousingDashboard {
                 return Err("Storage subcategory is not in the confirmed owned category.".into());
             }
         }
+        if self.storage_subcategory == id {
+            return Ok(());
+        }
         self.storage_subcategory = id;
         self.storage_search.clear();
+        self.storage_search_focused = false;
         Ok(())
     }
 

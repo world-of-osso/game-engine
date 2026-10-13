@@ -52,6 +52,12 @@ Only `HouseEditorStorageSearchBox` uses the source Enter/keypad-Enter/Escape GUI
 
 Native RED retained focus after Enter. Both skins physically retain `tEs`, actual Tesla result and drawer after Enter/Escape, never open chat; empty keypad-Enter hides clear/restores gray glyph, and Cleanup→Basic remount retains empty/unfocused input. Exact paid quantities/layout are unchanged. Evidence `core9/{modern,forever}/owner/focus-native-observed/`; four inspected1280 PNGs. The initial chat observer called a non-exported RegistryUi Rust method; existing named-control scene helper fixes the observer, not product code.
 
+### Category focus callback boundaries
+
+Storage category/subcategory setters validate ownership before accepting focus. Same focus does not invoke the clear callback; All/Back keeps raw query. A changed specific focus clears query and focus in the model, then native dispatch clears registry edit text and releases the actual input. Dispatch derives callback necessity from before/after focus IDs, not merely empty text. Source categories SetFocus callback only on ID change and storage OnCategoryFocusChanged/ClearSearchText.
+
+Pure/native RED showed same child-All losing short `zz`. Both skins now retain `zz`/Structural/Tesla on child-All reselection and retain it on Back; changed Furnishings clears/blurs, gray glyph/hidden clear, then All restores the paid result. Exact stored/placed/layout state is unchanged. Evidence `core9/{modern,forever}/owner/focus-callback-native-green/`; four inspected1280 PNGs. [Contract](../../specs/housing.md#owned-storage-category-focus-callbacks).
+
 ## Basic drawer controls and preferences
 
 Verified:2026-10-12. `HousingDashboard.storage_panel` holds `StoragePanelSettings { size, collapsed }`. Existing account-local `ui_layout.ron` saves it alongside—not instead of—window positions and Edit Mode layouts. Missing preferences use the source XML600×651 size; configured dimensions clamp to415–827 by651–800. The bottom-right20px input captures movement through release outside the handle, then snaps options width to102px columns except at clamp boundaries. Options width excludes the source85px left/5px right/23px ScrollBox gutter. Actual result tiles reflow; pure/registry proof covers3/4/6/7 columns. [Contract](../../specs/housing.md#storage-drawer-controls).
