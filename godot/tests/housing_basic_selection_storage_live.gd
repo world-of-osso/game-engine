@@ -14,7 +14,9 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(shots)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await connect_housing_account(): return
+	if not await connect_housing_account():
+		print("BASIC_AUTH_DIAGNOSTIC ",client.account_state())
+		return
 	if not await open_cleanup_house(): return
 	if not await wait_housing(func(): return placed_node() != null and client.housing_state().decor.size()==1 and stored_bookcases()==0 and housing_count(2330,"stored")==1, "actual paid selection fixture"): return
 	if not await type_storage_search("tEs"): return

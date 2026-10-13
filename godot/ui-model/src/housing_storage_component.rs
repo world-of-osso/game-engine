@@ -5,6 +5,10 @@ use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Element {
+    // Basic OnTargetSelected hides both drawer parts without changing saved preferences.
+    if view.model.editor.selected.is_some() {
+        return Element::default();
+    }
     let [width, height] = view.model.storage_panel.size;
     let (part, left) = view.model.storage_drawer_presentation();
     if part == crate::housing_storage::DrawerPart::Handle {
