@@ -33,11 +33,14 @@ pub fn basic_screen(view: &HousingView) -> Element {
     let drawer = crate::housing_storage_component::drawer(view, disabled, can_edit);
     let modes = mode_bar(view);
     let instructions = instructions(view);
+    let overlay_hidden =
+        view.model.editor.placing.is_none() && view.model.editor.selected.is_none();
     let left = (view.viewport[0] - (4.0 * BUTTON + GAP)) / 2.0 - 26.0;
     let top = view.viewport[1] - BUTTON - 82.0;
     let snap = icon_button("Snap", "snap", "", (0.0, 0.0), true, false);
     let free = icon_button("FreePlace", "freeplacement", "", (52.0, 0.0), true, false);
     rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
+        button {name:"HouseEditorDecorMoveOverlay",stretch:true,hidden:overlay_hidden,strata:FrameStrata::High,mouse_enabled:true,button_default_skin:false}
         {drawer} {modes} {instructions}
         r#frame {name:"HouseEditorBasicSubmodeBar",width:116.0,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,{snap}{free}}
     }}
@@ -108,7 +111,7 @@ fn instructions(view: &HousingView) -> Element {
                 label,
                 text.as_deref(),
                 disabled,
-                (label_width, control_width),
+                label_width,
                 index as f32 * ROW,
             )
         })
@@ -124,11 +127,11 @@ fn instruction_row(
     label: &str,
     text: Option<&str>,
     disabled: bool,
-    widths: (f32, f32),
+    label_width: f32,
     top: f32,
 ) -> Element {
     let prefix = format!("HouseEditor{name}Instruction");
-    let (label_width, control_width) = widths;
+    let control_width = text.map(|text| text_width(text) + 26.0).unwrap_or(ROW);
     let width = label_width + GAP + control_width;
     let left = label_width + GAP;
     let alpha = if disabled { "0.5" } else { "1.0" };
@@ -136,12 +139,7 @@ fn instruction_row(
         let background = named_atlas_texture(
             format!("{prefix}ControlBackground"),
             "housing-hotkey-icon-key-9slice",
-            (
-                control_width - text_width(text) - 26.0,
-                2.5,
-                text_width(text) + 26.0,
-                40.0,
-            ),
+            (0.0, 2.5, control_width, 40.0),
         );
         rsx! {r#frame {name:{DynName(format!("{prefix}Control"))},width:control_width,height:45.0,left,top:0.0,pos_type:"absolute",
             {background}

@@ -56,6 +56,7 @@ impl GameClient {
             .ok_or("Housing model is unavailable.")?;
         if model.pending {
             return Ok(action.starts_with("housing:place:")
+                || action.starts_with("housing:place-drag:")
                 || action.starts_with("housing:rotate:")
                 || matches!(
                     action,
@@ -81,7 +82,11 @@ impl GameClient {
             model.surface = HousingSurface::Editor;
             return Ok(true);
         }
-        if let Some(value) = action.strip_prefix("housing:place:") {
+        let dragging = action.starts_with("housing:place-drag:");
+        if let Some(value) = action
+            .strip_prefix("housing:place:")
+            .or_else(|| action.strip_prefix("housing:place-drag:"))
+        {
             let decor: u32 = value
                 .parse()
                 .map_err(|_| "Invalid stored decor identity.")?;
@@ -91,7 +96,13 @@ impl GameClient {
                 .iter()
                 .find(|source| source.id == decor)
                 .ok_or("Stored decor source is unavailable.")?;
-            model.editor.begin_place(&self.housing.authority, source)?;
+            if dragging {
+                model
+                    .editor
+                    .begin_place_drag(&self.housing.authority, source)?;
+            } else {
+                model.editor.begin_place(&self.housing.authority, source)?;
+            }
             self.housing.decor.clear_preview();
             return Ok(true);
         }
@@ -279,6 +290,9 @@ impl GameClient {
             return Ok(false);
         }
         if !button.is_pressed() {
+            if released_left {
+                self.commit_housing_basic_release(point)?;
+            }
             return Ok(true);
         }
         if button.get_button_index() == MouseButton::RIGHT {
@@ -296,6 +310,9 @@ impl GameClient {
             .as_mut()
             .ok_or("House editor model is unavailable.")?;
         if model.pending {
+            return Ok(true);
+        }
+        if model.editor.arm_move_overlay() {
             return Ok(true);
         }
         let picked = crate::unit_pick::pick_unit(&camera, point)
@@ -333,6 +350,33 @@ impl GameClient {
             model.editor.scale_allowed = source.model_type == 1;
         }
         Ok(true)
+    }
+
+    fn commit_housing_basic_release(&mut self, point: Vector2) -> Result<(), String> {
+        let camera = self
+            .base()
+            .get_viewport()
+            .and_then(|viewport| viewport.get_camera_3d())
+            .ok_or("House editor camera is unavailable.")?;
+        let ground =
+            crate::pet_bar::ground_under(&camera, point).map(|position| position.to_array());
+        let model = self
+            .housing
+            .model
+            .as_mut()
+            .ok_or("House editor model is unavailable.")?;
+        if model.pending {
+            return Ok(());
+        }
+        if let Some(command) = model
+            .editor
+            .basic_pointer_release(&self.housing.authority, ground)?
+        {
+            self.housing.decor.clear_preview();
+            self.housing.decor.highlight(None);
+            self.request_housing(command)?;
+        }
+        Ok(())
     }
 
     fn update_cleanup_hover(&mut self, point: Vector2) -> Result<(), String> {

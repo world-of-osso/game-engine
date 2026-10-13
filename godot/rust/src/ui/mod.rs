@@ -2794,6 +2794,14 @@ impl RegistryUi {
                     self.pointer_clicks += 1;
                 }
             }
+            UiInput::HousingDecorDragStart(id) => {
+                if let Some(action) = model.click_action(id)
+                    && let Some(decor) = action.strip_prefix("housing:place:")
+                {
+                    self.actions
+                        .push_back(format!("housing:place-drag:{decor}"));
+                }
+            }
             UiInput::Submit => model.submit(&mut self.actions),
             UiInput::SearchPreviewStep(step) => {
                 self.actions.push_back(format!("talent:search_move:{step}"))
