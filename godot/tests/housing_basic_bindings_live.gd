@@ -65,8 +65,6 @@ func menu_control(name: String) -> Control:
 	return housing_named_control("GameMenuUI",name)
 
 func open_housing_binding_page() -> bool:
-	if client.get_node_or_null("HousingDashboardUI")!=null:
-		if not await click_exposed_control(housing_named_control("MicroMenuUI","HousingMicroButton")): return false
 	await press_escape()
 	if not await wait_housing(func(): return menu_control("MenuBtnOptions")!=null,"native game menu"): return false
 	if not await click_exposed_control(menu_control("MenuBtnOptions")): return false
@@ -103,7 +101,5 @@ func clear_housing_bindings() -> bool:
 
 func close_binding_page() -> bool:
 	if not await click_exposed_control(menu_control("OptionsDoneButton")): return false
-	if not await wait_housing(func(): return menu_control("MenuBtnResume")!=null,"Options Done"): return false
-	if not await click_exposed_control(menu_control("MenuBtnResume")): return false
-	if not await wait_housing(func(): return client.get_node_or_null("GameMenuUI")==null,"menu closed"): return false
-	return await open_cleanup_house()
+	if not await wait_housing(func(): return client.get_node_or_null("GameMenuUI")==null,"Options Done closes menu"): return false
+	return await wait_housing(func(): return housing_control("HouseEditorBasicDecorModeButton")!=null,"unchanged Basic editor after keybinding capture")

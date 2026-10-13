@@ -28,7 +28,7 @@ Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates
 
 ## Housing editor bindings
 
-Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Save/reload preserves exact Retail names; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
+Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Save/reload preserves exact Retail names; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels only active selection/placement; otherwise it leaves normal menu handling intact. An open native Options menu owns pointer/key capture ahead of housing world editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
 
 ## Authoritative storage boundary
 
