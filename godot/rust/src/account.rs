@@ -239,6 +239,8 @@ pub enum AccountEvent {
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
     Pvp(shared::protocol::PvpStateUpdate),
+    FollowerDungeons(shared::protocol::FollowerDungeons),
+    Lfg(shared::protocol::LfgStateUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     TransmogState(shared::protocol::TransmogState),
@@ -1680,12 +1682,17 @@ impl Account {
             output.push(AccountEvent::Death(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::FollowerDungeons>() {
+            output.push(AccountEvent::FollowerDungeons(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::LfgStateUpdate>() {
             let update: shared::protocol::LfgStateUpdate = decode(message)?;
             if let Some(text) = update.error.as_ref().or(update.message.as_ref()) {
                 output.push(AccountEvent::GroupNotice(text.clone()));
             }
-            self.lfg = Some(update);
+            self.lfg = Some(update.clone());
+            output.push(AccountEvent::Lfg(update));
             return Ok(());
         }
         if message.is::<TradeStateUpdate>() {
