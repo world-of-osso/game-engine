@@ -3,9 +3,10 @@ use crate::housing_component::HousingView;
 use crate::quest_art::{DynName, named_atlas_texture};
 use crate::ui::strata::FrameStrata;
 use game_engine_core::input_bindings_data::InputAction;
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::{
     button::ButtonState,
-    font_string::{GameFont, measure_text},
+    font_string::GameFont,
     texture::{BlendMode, TextureSource},
 };
 use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, rsx, widget_def::Element};
