@@ -253,7 +253,7 @@ fn saved_instance_list(ctx: &SharedContext, state: &RaidInfoState) -> Element {
     }
     .element();
     let child_top = -(offset as f32);
-    rsx! { r#frame { name: SCROLL_BOX, width: 292.0, height: LIST_HEIGHT, left: 16.0, top: 48.0, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
+    rsx! { r#frame { name: {DynName(SCROLL_BOX.into())}, width: 292.0, height: LIST_HEIGHT, left: 16.0, top: 48.0, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
         r#frame { name: "RaidInfoScrollChild", width: 292.0, height, left: 0.0, top: child_top, pos_type: "absolute", {rows} }
         {scrollbar}
     } }
