@@ -279,7 +279,8 @@ fn graphics_settings_remain_reachable_after_scrolling() {
             options_view(view, *offset, None)
         });
         screen.sync(&shared, &mut registry);
-        assert!(registry.get_by_name("SliderRowbloom_intensity").is_none());
+        // Retail's529px viewport can mount Bloom Intensity at the initial edge;
+        // Particle Density still provides a concrete row that needs scrolling.
         assert!(registry.get_by_name("SliderRowparticle_density").is_none());
 
         // Scroll to the bottom; the production list clamps this pixel offset.
