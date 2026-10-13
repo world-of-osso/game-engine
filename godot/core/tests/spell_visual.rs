@@ -75,6 +75,35 @@ fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
 }
 
 #[test]
+fn toyfx22_pendant_resolves_source_ground_model_sound_and_aura_end_lifetime() {
+    let caster = warrior(None);
+    let visual = catalog().visual_for_spell(171352, &caster).unwrap();
+    assert_eq!(visual, 44786);
+    let kits = catalog().kits(visual, VisualEvent::AuraStart);
+    assert_eq!(kits.len(), 1);
+    let kit = &kits[0];
+    assert_eq!(kit.end, VisualEvent::AuraEnd);
+    assert_eq!(kit.models.len(), 1);
+    assert_eq!(kit.models[0].model_fdid, 937030);
+    assert_eq!(kit.models[0].attachment, Some(19));
+    assert_eq!(kit.models[0].scale, 1.0);
+    assert_eq!(kit.models[0].alpha, 1.0);
+    assert_eq!(kit.models[0].offset, [0.0, 0.0, 0.0]);
+    assert_eq!(kit.sounds.len(), 1);
+    assert_eq!(kit.sounds[0].sound_kit_id, 47637);
+    assert_eq!(
+        kit.sounds[0]
+            .files
+            .iter()
+            .map(|file| file.fdid)
+            .collect::<Vec<_>>(),
+        vec![925925, 925931, 925937]
+    );
+    assert!(catalog().kits(visual, VisualEvent::PrecastStart).is_empty());
+    assert!(catalog().kits(visual, VisualEvent::Cast).is_empty());
+}
+
+#[test]
 fn toyfx19_gladiator_banner_conditions_resolve_complete_back_models() {
     // All source race/sex-conditioned visual variants use the faction banner
     // model. Keep faction eligibility separate from visual variant selection.
