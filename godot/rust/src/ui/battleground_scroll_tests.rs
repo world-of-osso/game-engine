@@ -42,7 +42,7 @@ fn row_inside_list(model: &RegistryModel, name: &str) -> bool {
 }
 
 #[test]
-fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
+fn specific_list_stepper_and_wheel_reveal_all_rows_beyond_the_retail_viewport() {
     let mut model = queue_frame();
     let top = rect(&model, EYE_ROW).unwrap().y;
     let list = rect(&model, SPECIFIC_LIST).unwrap();
@@ -64,11 +64,15 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
         .iter()
         .map(|name| {
             let row = rect(&model, name).unwrap();
-            assert!(!row_inside_list(&model, name), "{name} starts clipped");
-            let overflow = row.y + row.height - (list.y + list.height);
+            let overflow = (row.y + row.height - (list.y + list.height)).max(0.0);
             (overflow / step).ceil() * step
         })
         .collect();
+    assert!(
+        row_inside_list(&model, EYE_ROW),
+        "Retail292px viewport includes fifth row"
+    );
+    assert!(max_offset > 0.0, "Concrete queue inventory must overflow");
     let forward = model
         .registry
         .get_by_name(&forward_stepper_name(SPECIFIC_LIST))
@@ -95,7 +99,7 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
     assert!(row_inside_list(&model, SIXTH_ROW));
     assert!(!row_inside_list(
         &model,
-        "HonorFrameSpecificBattlegroundButton894"
+        "HonorFrameSpecificBattlegroundButton1"
     ));
     let forward = model
         .registry
@@ -105,20 +109,17 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
     rebuild(&mut model);
     assert!(row_inside_list(
         &model,
-        "HonorFrameSpecificBattlegroundButton708"
+        "HonorFrameSpecificBattlegroundButton1"
     ));
     assert!(!row_inside_list(
         &model,
-        "HonorFrameSpecificBattlegroundButton894"
+        "HonorFrameSpecificBattlegroundButton30"
     ));
     assert!(press_stepper(&mut model, forward));
     rebuild(&mut model);
     assert!(row_inside_list(
         &model,
-        "HonorFrameSpecificBattlegroundButton894"
+        "HonorFrameSpecificBattlegroundButton30"
     ));
-    assert!(!row_inside_list(
-        &model,
-        "HonorFrameSpecificBattlegroundButton1110"
-    ));
+    assert!(!row_inside_list(&model, "HonorFrameArena2v2Button"));
 }

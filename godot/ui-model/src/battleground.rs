@@ -434,8 +434,9 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     ));
     let bar = MinimalScrollBar {
         list: SPECIFIC_LIST,
-        left: 374.0,
-        top: 5.0,
+        // HonorFrame's sibling ScrollBar TOPRIGHT(-22,-92), not a clipped list child.
+        left: 220.0 + 402.0 - 22.0,
+        top: 22.0 + 92.0,
         height: 284.0,
         geometry,
         offset,
@@ -450,7 +451,7 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     scroll_list: config,
     r#frame { name: "HonorFrameSpecificScrollChild", width: 370.0, height, left: 0.0,
         top: child_top, pos_type: "absolute", {children} }
-    {bar.element()} } };
+    } {bar.element()} };
     elements.extend(hidden_text(
         "HonorFrameDescription",
         &view.selected_arena.map_or_else(
