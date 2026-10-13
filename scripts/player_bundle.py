@@ -4,6 +4,7 @@
 import argparse
 import fnmatch
 import itertools
+import json
 import os
 import shutil
 import subprocess
@@ -22,12 +23,37 @@ LIBRARIES = {
 }
 
 
+def model_asset_files(data):
+    cache = data / 'cache'
+    indexes = [cache / 'model-asset-index.json', *sorted(cache.glob('model-asset-index-*.json'))]
+    paths = set()
+    for index in indexes:
+        document = json.loads(index.read_text())
+        if document['version'] != 1:
+            raise ValueError(f'Unsupported model asset index version: {index}')
+        for row in [*document['assets'], *document.get('aliases', [])]:
+            path = Path(row['path'])
+            namespace = Path('products') / row['product'] / row['build_key']
+            if not path.is_relative_to(namespace) or '..' in path.parts:
+                raise ValueError(f'Invalid asset namespace: {path}')
+            if not (data / path).is_file():
+                raise FileNotFoundError(f'Missing indexed model asset: {path}')
+            paths.add(path)
+            sidecar = Path(str(path) + '.receipt.json')
+            if (data / sidecar).is_file():
+                paths.add(sidecar)
+    return sorted(paths)
+
+
 def data_files(root):
     data = root / 'data'
     for name in DATA_DIRS:
         source = data / name
         if not source.is_dir():
             raise FileNotFoundError(f'Missing runtime data directory: {source}')
+        if name == 'products':
+            yield from model_asset_files(data)
+            continue
         for directory, subdirs, files in os.walk(source, followlinks=True):
             if Path(directory) == data / 'cache':
                 subdirs[:] = [name for name in subdirs if name != 'casc' and not fnmatch.fnmatch(name, 'pre-retail-*')]
