@@ -124,6 +124,8 @@ mod trading_post;
 mod trainer;
 mod trainer_preview;
 mod transmog;
+mod transport_gameplay;
+mod transport_motion;
 mod ui;
 mod ui_layout;
 mod ui_scale;
@@ -298,6 +300,7 @@ pub struct GameClient {
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
+    local_transport: Option<transport_motion::LocalTransport>,
     /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
     /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
@@ -454,6 +457,7 @@ impl INode3D for GameClient {
             client_options,
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
+            local_transport: None,
             scripted_movement: Default::default(),
             map_waypoint: None,
             waypoint_path: Default::default(),
@@ -2075,6 +2079,7 @@ impl GameClient {
                 |c, _| Ok(c.update_character_preview()?),
             ),
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
+            ("Transport motion", |c, d| Ok(c.update_transport_motion(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Pet bar", |c, d| c.update_pet_bar(d)),
             ("Ground spell reticle", |c, _| {
@@ -2130,6 +2135,7 @@ impl GameClient {
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
+                c.update_transport_motion(0.0)?;
                 Ok(())
             }),
             ("Player animation", |c, _| Ok(c.update_player_animation()?)),
