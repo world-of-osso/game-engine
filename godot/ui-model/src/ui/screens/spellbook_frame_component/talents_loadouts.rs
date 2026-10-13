@@ -78,7 +78,9 @@ fn sentinel_row(
     menu_row(name, text, action, enabled, index, 200.0, scale)
 }
 
-pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
+pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
+    // StaticPopup_SetUpPosition: special dialogs are UIParent children, independent of book fitting.
+    let scale = 1.0;
     let Some(dialog) = &view.editor.loadout_dialog else {
         return Vec::new();
     };
@@ -213,10 +215,10 @@ pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
             scale,
         ));
     }
-    rsx! { r#frame {name:"TalentLoadoutDialogBlocker",width:{BOOK_W*scale},height:{BOOK_H*scale},
+    rsx! { r#frame {name:"TalentLoadoutDialogBlocker",width:{viewport[0]},height:{viewport[1]},
         strata:FrameStrata::Dialog,frame_level:2090,pos_type:"absolute",left:0.0,top:0.0}
         r#frame {name:"TalentLoadoutDialog",width:{460.0*scale},height:{height*scale},
-            strata:FrameStrata::Dialog,frame_level:2100,pos_type:"absolute",left:{(BOOK_W-460.0)/2.0*scale},top:{(BOOK_H-height)/2.0*scale},
+            strata:FrameStrata::Dialog,frame_level:2100,pos_type:"absolute",left:{(viewport[0]-460.0)/2.0},top:135.0,
             texture {name:"TalentLoadoutDialogBackground",texture_fdid:312922,width:{446.0*scale},height:{(height-14.0)*scale},horiz_tile:true,vert_tile:true,
                 pos_type:"absolute",left:{7.0*scale},top:{7.0*scale}} {contents}
         }
