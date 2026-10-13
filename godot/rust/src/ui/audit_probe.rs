@@ -61,6 +61,9 @@ impl UiAuditProbe {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("CollectionsAuditUI");
         self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
         let result = match journal.to_string().as_str() {
             "mounts" => ui.bind_mut().show_mount_journal(
                 game_engine_ui_model::mount_journal::MountJournalView {
