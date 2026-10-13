@@ -10,7 +10,7 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 pub const FRAME: &str = "RaidInfoFrame";
 pub const SCROLL_BOX: &str = "RaidInfoScrollBox";
 const LIST_HEIGHT: f32 = 157.0;
-const ROW_HEIGHT: f32 = 40.0;
+pub const ROW_HEIGHT: f32 = 40.0;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SavedInstanceRow {

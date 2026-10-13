@@ -5,7 +5,7 @@ use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, 
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, window_chrome};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
-const SCROLL: &str = "CooldownSettingsScroll";
+pub const SCROLL: &str = "CooldownSettingsScroll";
 pub const SEARCH: &str = "CooldownSettingsSearch";
 
 #[derive(Clone, Debug, Default, PartialEq)]
