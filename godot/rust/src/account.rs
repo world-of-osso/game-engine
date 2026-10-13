@@ -1825,7 +1825,7 @@ impl Account {
     ) -> Result<(), String> {
         if message.is::<shared::protocol::TradingPostSnapshot>() {
             let update: shared::protocol::TradingPostSnapshot = decode(message)?;
-            godot_print!(
+            eprintln!(
                 "TP_SNAPSHOT_RECEIVE complete={} rows={} frozen={:?} previous={}",
                 update.catalog_complete,
                 update.items.len(),
