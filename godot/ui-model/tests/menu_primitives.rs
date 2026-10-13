@@ -153,6 +153,7 @@ fn retail_context_menu_keeps_item_callbacks_and_twenty_pixel_entries() {
         assert_eq!(frame(&reg, "Heroic").onclick.as_deref(), Some("heroic"));
         assert_eq!(frame(&reg, "Normal").height.value(), 20.0);
         assert_eq!(frame(&reg, "Menu").height.value(), 96.0);
+        assert_eq!(frame(&reg, "MenuBackground").alpha, 0.925);
         let Some(WidgetData::Button(button)) = &frame(&reg, "Normal").widget_data else {
             panic!("menu entry");
         };
@@ -217,6 +218,16 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
             true,
             (0.0, 60.0, 150.0, 20.0),
         ));
+        out.extend(menu_element(
+            ContextMenuItem {
+                name: "Disabled",
+                label: "Unavailable",
+                action: "do_not_send",
+            },
+            MenuElementKind::Button,
+            false,
+            (0.0, 80.0, 150.0, 20.0),
+        ));
         rsx! {r#frame {name:"Root",width:640.0,height:480.0,{out}}}
     }
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -248,6 +259,20 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
         );
         assert_eq!(frame(&reg, "RadioBox").width.value(), 18.0);
         assert_eq!(frame(&reg, "CheckBox").width.value(), 12.0);
+        let Some(WidgetData::Button(disabled)) = &frame(&reg, "Disabled").widget_data else {
+            panic!("disabled entry")
+        };
+        assert!(!disabled.enabled);
+        assert_eq!(
+            disabled.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
+        assert_eq!(frame(&reg, "Disabled").onclick.as_deref(), Some(""));
+        assert!(!frame(&reg, "Disabled").mouse_enabled);
+        let Some(WidgetData::Button(reset)) = &frame(&reg, "FilterResetButton").widget_data else {
+            panic!("reset")
+        };
+        assert_eq!(reset.highlight_alpha, 0.4);
         let id = reg.get_by_name("Filter").unwrap();
         let Some(WidgetData::Button(button)) = &mut reg.get_mut(id).unwrap().widget_data else {
             panic!("filter")
