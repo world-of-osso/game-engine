@@ -1,4 +1,105 @@
-use game_engine_core::input_bindings_data::{InputAction, InputBindingsData, actions_for_section};
+use game_engine_core::input_bindings_data::{
+    BindingKey, BindingMouseButton, InputAction, InputBinding, InputBindingsData, InputState,
+    actions_for_section,
+};
+
+#[derive(Default)]
+struct HeldInput {
+    pressed: bool,
+    ctrl: bool,
+}
+impl InputState for HeldInput {
+    fn key_pressed(&self, key: BindingKey) -> bool {
+        self.pressed && key == BindingKey::F6
+    }
+    fn key_just_pressed(&self, key: BindingKey) -> bool {
+        self.key_pressed(key)
+    }
+    fn mouse_pressed(&self, _: BindingMouseButton) -> bool {
+        false
+    }
+    fn mouse_just_pressed(&self, _: BindingMouseButton) -> bool {
+        false
+    }
+    fn shift_held(&self) -> bool {
+        false
+    }
+    fn ctrl_held(&self) -> bool {
+        self.ctrl
+    }
+}
+
+#[test]
+fn expert_held_increments_follow_assignment_release_modifiers_and_unbind() {
+    let mut bindings = InputBindingsData::default();
+    let mut input = HeldInput {
+        pressed: true,
+        ctrl: false,
+    };
+    assert_eq!(bindings.expert_increment_state(&input), [false; 10]);
+    bindings.assign(
+        InputAction::HousingExpertRight,
+        InputBinding::Keyboard(BindingKey::F6),
+    );
+    let mut expected = [false; 10];
+    expected[1] = true;
+    assert_eq!(bindings.expert_increment_state(&input), expected);
+    input.pressed = false;
+    assert_eq!(bindings.expert_increment_state(&input), [false; 10]);
+    bindings.assign(
+        InputAction::HousingExpertScaleUp,
+        InputBinding::CtrlKeyboard(BindingKey::F6),
+    );
+    input.pressed = true;
+    input.ctrl = true;
+    expected = [false; 10];
+    expected[8] = true;
+    assert_eq!(bindings.expert_increment_state(&input), expected);
+    input.ctrl = false;
+    expected = [false; 10];
+    expected[1] = true;
+    assert_eq!(bindings.expert_increment_state(&input), expected);
+    bindings.clear(InputAction::HousingExpertRight);
+    assert_eq!(bindings.expert_increment_state(&input), [false; 10]);
+}
+
+#[test]
+fn expert_increment_actions_have_distinct_hold_slots_and_submodes_do_not_hold() {
+    for (index, name) in [
+        "HOUSING_EXPERTDECORINCREMENT_LEFT",
+        "HOUSING_EXPERTDECORINCREMENT_RIGHT",
+        "HOUSING_EXPERTDECORINCREMENT_FORWARD",
+        "HOUSING_EXPERTDECORINCREMENT_BACK",
+        "HOUSING_EXPERTDECORINCREMENT_UP",
+        "HOUSING_EXPERTDECORINCREMENT_DOWN",
+        "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
+        "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
+        "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
+        "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(
+            InputAction::from_key(name)
+                .unwrap()
+                .expert_increment_index(),
+            Some(index)
+        );
+    }
+    assert_eq!(
+        InputAction::HousingExpertTranslate.expert_increment_index(),
+        None
+    );
+    assert_eq!(
+        InputAction::HousingExpertNextAxis.expert_increment_index(),
+        None
+    );
+    assert_eq!(
+        InputAction::HousingRotateLeft.expert_increment_index(),
+        None
+    );
+}
 
 #[test]
 fn retail_expert_actions_are_assignable_without_invented_default_keys() {

@@ -640,6 +640,25 @@ impl InputAction {
         })
     }
 
+    pub const EXPERT_INCREMENT_ACTIONS: [Self; 10] = [
+        Self::HousingExpertLeft,
+        Self::HousingExpertRight,
+        Self::HousingExpertForward,
+        Self::HousingExpertBack,
+        Self::HousingExpertUp,
+        Self::HousingExpertDown,
+        Self::HousingExpertRotateLeft,
+        Self::HousingExpertRotateRight,
+        Self::HousingExpertScaleUp,
+        Self::HousingExpertScaleDown,
+    ];
+
+    pub fn expert_increment_index(self) -> Option<usize> {
+        Self::EXPERT_INCREMENT_ACTIONS
+            .iter()
+            .position(|action| *action == self)
+    }
+
     pub fn default_binding(self) -> Option<InputBinding> {
         self.meta().default_binding
     }
@@ -1428,6 +1447,11 @@ impl Default for InputBindingsData {
 impl InputBindingsData {
     pub fn binding(&self, action: InputAction) -> Option<InputBinding> {
         self.bindings.get(&action).copied().flatten()
+    }
+
+    /// Retail precision increments remain active only while their assigned input is held.
+    pub fn expert_increment_state(&self, state: &impl InputState) -> [bool; 10] {
+        InputAction::EXPERT_INCREMENT_ACTIONS.map(|action| self.is_pressed(action, state))
     }
 
     pub fn is_pressed(&self, action: InputAction, state: &impl InputState) -> bool {

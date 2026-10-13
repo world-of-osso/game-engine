@@ -38,6 +38,7 @@ impl GameClient {
 
     pub(super) fn dispatch_housing_editor_action(&mut self, action: &str) -> Result<bool, String> {
         if action == "housing:info" {
+            self.housing.expert_input.clear();
             self.housing.decor.clear_preview();
             self.housing.decor.highlight(None);
             if let Some(model) = &mut self.housing.model {
@@ -58,6 +59,7 @@ impl GameClient {
             return Ok(action.starts_with("housing:place:")
                 || action.starts_with("housing:place-drag:")
                 || action.starts_with("housing:rotate:")
+                || action.starts_with("housing:precision:")
                 || matches!(
                     action,
                     "housing:remove"
@@ -120,7 +122,7 @@ impl GameClient {
             self.housing.mouse_pointer = None;
             self.housing.storage_resize = None;
             self.housing.decor.highlight(None);
-            self.housing.expert_held = [false; 8];
+            self.housing.expert_input.clear();
             self.housing.decor.clear_preview();
             self.housing.decor.restore_saved();
             return Ok(true);
@@ -160,7 +162,7 @@ impl GameClient {
             "housing:cancel" => {
                 model.editor.cancel();
                 self.housing.decor.highlight(None);
-                self.housing.expert_held = [false; 8];
+                self.housing.expert_input.clear();
                 self.housing.decor.clear_preview();
                 self.housing.decor.restore_saved();
                 return Ok(true);
@@ -201,7 +203,34 @@ impl GameClient {
                 .bindings
                 .is_just_pressed(*action, &input)
         });
+        if mode == EditorMode::Expert
+            && let Some(action) = action
+        {
+            if action.expert_increment_index().is_some() {
+                return Ok(true);
+            }
+            if action == InputAction::HousingExpertNextAxis {
+                if !model.pending {
+                    self.housing
+                        .model
+                        .as_mut()
+                        .ok_or("Housing model is unavailable.")?
+                        .editor
+                        .next_axis();
+                }
+                return Ok(true);
+            }
+        }
         let command = match action {
+            Some(InputAction::HousingExpertTranslate) if mode == EditorMode::Expert => {
+                "housing:precision:translate"
+            }
+            Some(InputAction::HousingExpertRotate) if mode == EditorMode::Expert => {
+                "housing:precision:rotate"
+            }
+            Some(InputAction::HousingExpertScale) if mode == EditorMode::Expert => {
+                "housing:precision:scale"
+            }
             Some(InputAction::HousingBasicMode) => "housing:basic",
             Some(InputAction::HousingExpertMode) => "housing:expert",
             Some(InputAction::HousingCleanupMode) => "housing:cleanup",
@@ -268,7 +297,12 @@ impl GameClient {
             .model
             .as_ref()
             .is_some_and(|model| model.surface == HousingSurface::Editor);
+        // Observe releases before GUI/menu routing so held precision never outlives its input.
+        if editing {
+            self.housing.expert_input.capture(event);
+        }
         if self.game_menu_ui.is_some() || !editing {
+            self.housing.expert_input.clear();
             return Ok(false);
         }
         if self.housing_bound_action(event)? {
@@ -280,7 +314,7 @@ impl GameClient {
         if self.housing_storage_pointer(event)? {
             return Ok(true);
         }
-        if self.housing_expert_key(event)? || self.housing_expert_mouse(event)? {
+        if self.housing_expert_mouse(event)? {
             return Ok(true);
         }
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
@@ -557,79 +591,22 @@ impl GameClient {
     }
 }
 
-// Native key choices/rates are input tuning, not claims about Retail's defaults.
+// Existing transform tuning; numerical Retail parity remains unqualified.
 const EXPERT_INCREMENT_RATE: f32 = 0.5;
-const EXPERT_KEYS: [godot::global::Key; 8] = [
-    godot::global::Key::LEFT,
-    godot::global::Key::RIGHT,
-    godot::global::Key::UP,
-    godot::global::Key::DOWN,
-    godot::global::Key::PAGEUP,
-    godot::global::Key::PAGEDOWN,
-    godot::global::Key::Q,
-    godot::global::Key::E,
-];
 
 impl GameClient {
-    fn housing_expert_key(
-        &mut self,
-        event: &Gd<godot::classes::InputEvent>,
-    ) -> Result<bool, String> {
-        use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
-        use godot::global::Key;
-        let Some(model) = &mut self.housing.model else {
-            return Ok(false);
-        };
-        if model.editor.mode != EditorMode::Expert {
-            return Ok(false);
-        }
-        let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() else {
-            return Ok(false);
-        };
-        let code = key.get_keycode();
-        if let Some(index) = EXPERT_KEYS.iter().position(|candidate| *candidate == code) {
-            self.housing.expert_held[index] = key.is_pressed() && !model.pending;
-            return Ok(true);
-        }
-        if !matches!(
-            code,
-            Key::KEY_1
-                | Key::KEY_2
-                | Key::KEY_3
-                | Key::X
-                | Key::ENTER
-                | Key::KP_ENTER
-                | Key::ESCAPE
-        ) {
-            return Ok(false);
-        }
-        if !key.is_pressed() || key.is_echo() || model.pending {
-            return Ok(true);
-        }
-        match code {
-            Key::KEY_1 => model.editor.set_submode(PrecisionSubmode::Translate),
-            Key::KEY_2 => model.editor.set_submode(PrecisionSubmode::Rotate),
-            Key::KEY_3 => model.editor.set_submode(PrecisionSubmode::Scale),
-            Key::X => model.editor.next_axis(),
-            Key::ESCAPE => {
-                model.editor.cancel();
-                self.housing.expert_held = [false; 8];
-                self.housing.decor.restore_saved();
-            }
-            Key::ENTER | Key::KP_ENTER => {
-                let command = model.editor.commit_expert(&self.housing.authority)?;
-                model.editor.cancel();
-                self.housing.expert_held = [false; 8];
-                self.housing.decor.restore_saved();
-                self.request_housing(command)?;
-            }
-            _ => unreachable!("recognized expert key"),
-        }
-        Ok(true)
-    }
-
     pub(super) fn advance_housing_precision(&mut self) -> Result<(), String> {
         use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+        if self.game_menu_ui.is_some()
+            || self
+                .housing
+                .model
+                .as_ref()
+                .is_some_and(|model| model.storage_search_focused || model.pending)
+        {
+            self.housing.expert_input.clear();
+            return Ok(());
+        }
         let delta = self.base().get_process_delta_time() as f32;
         if self.advance_housing_mouse(delta * EXPERT_INCREMENT_RATE)? {
             return Ok(());
@@ -644,7 +621,10 @@ impl GameClient {
         {
             return Ok(());
         }
-        let held = self.housing.expert_held;
+        let held = self
+            .client_options
+            .bindings
+            .expert_increment_state(&self.housing.expert_input);
         let direction = |positive: usize, negative: usize| {
             f32::from(u8::from(held[positive])) - f32::from(u8::from(held[negative]))
         };
@@ -656,10 +636,14 @@ impl GameClient {
                 direction(3, 2) * step,
             ])?,
             PrecisionSubmode::Rotate | PrecisionSubmode::Scale => {
-                let change = direction(7, 6) * step;
+                let change = match model.editor.submode {
+                    PrecisionSubmode::Rotate => direction(7, 6),
+                    PrecisionSubmode::Scale => direction(8, 9),
+                    PrecisionSubmode::Translate => unreachable!("handled translation"),
+                } * step;
                 if change != 0.0 {
                     if let Err(error) = model.editor.increment_expert(change) {
-                        self.housing.expert_held = [false; 8];
+                        self.housing.expert_input.clear();
                         return Err(error);
                     }
                 }
