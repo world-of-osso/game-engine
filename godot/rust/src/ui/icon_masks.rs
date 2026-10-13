@@ -20,6 +20,7 @@ use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 enum Mask {
     Round,
     AuctionItem,
+    PerksProduct,
     Glyph,
     TalentCircle,
     TalentChoice,
@@ -33,12 +34,14 @@ pub struct IconMasks {
     /// Keyed by mask, FDID and the bits of its normalized crop.
     icons: HashMap<(Mask, u32, [u32; 4]), DynamicTextureId>,
     mask_alpha: Option<GrayImage>,
+    perks_buttons: HashMap<(u8, &'static str), DynamicTextureId>,
 }
 
 impl IconMasks {
     /// Swap every round icon's (`is_round_icon`) and header glyph's FDID source for its
     /// masked image. Failures never fall back to the unmasked art.
     pub fn apply(&mut self, registry: &mut FrameRegistry) {
+        self.apply_perks_template(registry);
         let pending: Vec<_> = registry
             .frames_iter()
             .filter_map(|frame| {
@@ -72,6 +75,64 @@ impl IconMasks {
         }
     }
 
+    fn apply_perks_template(&mut self, registry: &mut FrameRegistry) {
+        // ToyDetails.xml justifyV=TOP; move into RSX when it exposes vertical justification.
+        if let Some(id) = registry.get_by_name("PerksProgramToyDescription")
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::FontString(text)) = &mut frame.widget_data
+        {
+            text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Top;
+        }
+        let names = [
+            "PerksProgramLeaveButton",
+            "PerksProgramPurchaseButton",
+            "PerksProgramRefundButton",
+        ];
+        if !names
+            .iter()
+            .any(|name| registry.get_by_name(name).is_some())
+        {
+            return;
+        }
+        let skin = match ui_toolkit::atlas::thread_skin() {
+            ui_toolkit::atlas::ActiveSkin::Modern => 0,
+            ui_toolkit::atlas::ActiveSkin::Forever => 1,
+        };
+        let mut textures = Vec::new();
+        for suffix in ["", "-Pressed", "-Disabled"] {
+            let key = (skin, suffix);
+            let source = if let Some(id) = self.perks_buttons.get(&key) {
+                Ok(*id)
+            } else {
+                read_perks_button(suffix).and_then(|image| {
+                    registry
+                        .create_dynamic_texture(image.width(), image.height(), image.into_raw())
+                        .map_err(str::to_owned)
+                })
+            };
+            match source {
+                Ok(id) => {
+                    self.perks_buttons.insert(key, id);
+                    textures.push(TextureSource::Dynamic(id));
+                }
+                Err(error) => {
+                    godot_error!("Trading Post shared button art: {error}");
+                    return;
+                }
+            }
+        }
+        for name in names {
+            if let Some(id) = registry.get_by_name(name)
+                && let Some(frame) = registry.get_mut(id)
+                && let Some(WidgetData::Button(button)) = &mut frame.widget_data
+            {
+                button.normal_texture = Some(textures[0].clone());
+                button.pushed_texture = Some(textures[1].clone());
+                button.disabled_texture = Some(textures[2].clone());
+            }
+        }
+    }
+
     fn masked(
         &mut self,
         mask: Mask,
@@ -89,11 +150,12 @@ impl IconMasks {
                 flare_glyph_mask(&mut source);
                 source
             }
-            Mask::TalentCircle
+            Mask::PerksProduct
+            | Mask::TalentCircle
             | Mask::TalentChoice
             | Mask::TalentChoiceLeft
             | Mask::TalentChoiceRight
-            | Mask::TalentChoiceFlyout => compose_masked_icon(source, &talent_mask(mask)?),
+            | Mask::TalentChoiceFlyout => compose_masked_icon(source, &load_atlas_mask(mask)?),
             Mask::Round | Mask::AuctionItem => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
@@ -111,6 +173,45 @@ impl IconMasks {
         self.icons.insert(key, id);
         Ok(id)
     }
+}
+
+/// SharedButtonLargeTemplate -> BigRedThreeSliceButtonTemplate; ThreeSliceButtonMixin UpdateScale.
+fn read_perks_button(suffix: &str) -> Result<RgbaImage, String> {
+    let names = [
+        format!("128-RedButton-Left{suffix}"),
+        format!("_128-RedButton-Center{suffix}"),
+        format!("128-RedButton-Right{suffix}"),
+    ];
+    let pieces = names
+        .iter()
+        .map(|name| {
+            let region = ui_toolkit::atlas::get_region(name)
+                .ok_or_else(|| format!("missing shared button atlas {name}"))?;
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                return Err(format!("shared button atlas {name} has no FDID"));
+            };
+            Ok(crop_normalized(
+                load_rgba(fdid, "shared button")?,
+                [region.left, region.right, region.top, region.bottom],
+            ))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    // Retail atlas geometry fixes cap widths in both skins; Forever only changes pixels.
+    let scale: f32 = 46. / 128.;
+    let widths = [
+        (114. * scale).round() as u32,
+        180 - (114. * scale).round() as u32 - (292. * scale).round() as u32,
+        (292. * scale).round() as u32,
+    ];
+    let mut result = RgbaImage::new(180, 46);
+    let mut x = 0;
+    for (piece, width) in pieces.iter().zip(widths) {
+        let piece =
+            image::imageops::resize(piece, width, 46, image::imageops::FilterType::Triangle);
+        image::imageops::overlay(&mut result, &piece, x, 0);
+        x += i64::from(width);
+    }
+    Ok(result)
 }
 
 /// `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon`, the bag bar's
@@ -136,21 +237,22 @@ fn is_round_icon(name: &str) -> bool {
     creation || bag || portrait || talent
 }
 
-fn talent_mask(mask: Mask) -> Result<GrayImage, String> {
+fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     let atlas = match mask {
+        Mask::PerksProduct => "UI-HUD-ActionBar-IconFrame-Mask",
         Mask::TalentCircle => "talents-node-circle-mask",
         Mask::TalentChoiceLeft => "talents-node-choice-mask-half",
         Mask::TalentChoice | Mask::TalentChoiceRight => "talents-node-choice-mask",
         Mask::TalentChoiceFlyout => "talents-node-choiceflyout-mask",
-        _ => unreachable!("talent mask only"),
+        _ => unreachable!("atlas mask only"),
     };
-    let region = ui_toolkit::atlas::get_region(atlas)
-        .ok_or_else(|| format!("missing talent mask {atlas}"))?;
+    let region =
+        ui_toolkit::atlas::get_region(atlas).ok_or_else(|| format!("missing icon mask {atlas}"))?;
     let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
-        return Err(format!("talent mask {atlas} has no FDID"));
+        return Err(format!("icon mask {atlas} has no FDID"));
     };
     let crop = [region.left, region.right, region.top, region.bottom];
-    let mut image = crop_normalized(load_rgba(fdid, "talent mask")?, crop);
+    let mut image = crop_normalized(load_rgba(fdid, "icon mask")?, crop);
     if mask == Mask::TalentChoiceRight {
         image = image::imageops::rotate180(&image);
     }
@@ -160,7 +262,13 @@ fn mask_of(name: &str) -> Option<Mask> {
     let talent_circle = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
     let profession_circle = (name.starts_with("ProfessionSpecNode") && name.ends_with("Icon"))
         || name == "ProfessionSpecDetailedIcon";
-    if talent_circle || profession_circle {
+    let perks = name == "PerksProgramFrozenIcon"
+        || name
+            .strip_prefix("PerksProgramIcon")
+            .is_some_and(|id| id.parse::<u32>().is_ok());
+    if perks {
+        Some(Mask::PerksProduct)
+    } else if talent_circle || profession_circle {
         Some(Mask::TalentCircle)
     } else if name.ends_with("ChoiceLeftIcon") {
         Some(Mask::TalentChoiceLeft)
@@ -242,6 +350,67 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
         let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
         RgbaImage::from_raw(image.width, image.height, image.pixels).unwrap()
+    }
+
+    #[test]
+    fn trading_post_shared_large_buttons_have_distinct_source_states() {
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
+        let normal = super::read_perks_button("").unwrap();
+        let pressed = super::read_perks_button("-Pressed").unwrap();
+        let disabled = super::read_perks_button("-Disabled").unwrap();
+        assert_eq!(normal.dimensions(), (180, 46));
+        assert_eq!(pressed.dimensions(), (180, 46));
+        assert_eq!(disabled.dimensions(), (180, 46));
+        assert_ne!(normal.as_raw(), pressed.as_raw());
+        assert_ne!(normal.as_raw(), disabled.as_raw());
+    }
+
+    #[test]
+    fn trading_post_icons_use_actionbar_mask_in_both_skins() {
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture { name:"PerksProgramIcon4", texture_fdid:135729, width:32.0, height:32.0 }
+                texture { name:"PerksProgramFrozenIcon", texture_fdid:135729, width:32.0, height:32.0 }
+            }).sync(&SharedContext::new(), &mut registry);
+            IconMasks::default().apply(&mut registry);
+            for name in ["PerksProgramIcon4", "PerksProgramFrozenIcon"] {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
+                    panic!("icon");
+                };
+                let mask_available =
+                    game_engine_ui_model::paths::resolve_data_path("textures/4626072.blp").exists();
+                if !mask_available {
+                    assert!(
+                        matches!(icon.source, TextureSource::None),
+                        "missing source mask must not render an unmasked substitute"
+                    );
+                    continue;
+                }
+                let TextureSource::Dynamic(id) = icon.source else {
+                    panic!("Trading Post icon must use its authored mask");
+                };
+                let pixels = registry.dynamic_texture(id).unwrap();
+                let rgba =
+                    RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap();
+                assert_eq!(rgba.get_pixel(0, 0)[3], 0, "masked corner {skin:?}");
+                assert!(
+                    rgba.get_pixel(rgba.width() / 2, rgba.height() / 2)[3] > 200,
+                    "opaque centre {skin:?}"
+                );
+            }
+        }
     }
 
     #[test]

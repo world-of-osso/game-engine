@@ -17,8 +17,16 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 ## Retail layout acceptance — October13
 
 - [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter 122×25 LEFT+9/BOTTOM to container TOP+22.
-- [ ] Native sort headers, action-bar icon mask, source-sized frozen art, shared large-button art and StaticPopup confirmation; no solid fill replacing authored art.
+- [x] Native price/name sort headers, action-bar icon mask, source-sized frozen/hold art, shared large-button state art and StaticPopup confirmation; no solid fill replacing authored art. No unsourced search control/API remains.
+- [ ] Time header: per-item remaining time has no sourced calendar binding; visible but disabled, not a fabricated duration.
+- [ ] Source action-bar mask pixels: canonical FDID4626072 absent while CASC auto-patch blocks extraction. Missing art is explicit; no unmasked substitute.
 - [ ] Before/after both-skin private UDP5791 PNG comparison against XML; native freeze/replace/drag-off, purchase/refund.
+
+## Retail continuation — October13
+
+- [ ] Resolve live catalog delivery under production startup/request ordering (isolated1321-row UDP round-trip passes; private delivery intermittently exceeds60s).
+- [ ] Native multi-product cart and server-authoritative purchase/refund across protocol and persisted collections, sourced from Retail Lua; no invented policy.
+- [ ] Outfit/character preview toggle and native purchase-history widgets.
 
 ## How it works
 
@@ -37,7 +45,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 ## Tests asserting this spec
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
-- `godot/ui-model/tests/trading_post.rs`: both-skin Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state and second-page/search clipping.
+- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests and second-page/category clipping.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
 - `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.

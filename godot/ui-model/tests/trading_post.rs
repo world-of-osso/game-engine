@@ -131,7 +131,7 @@ fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debi
 }
 
 #[test]
-fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_skins() {
+fn trading_post_virtualized_list_reaches_second_page_then_empty_category_clamps_in_both_skins() {
     // Concrete authored identities, repeated with distinct vendor IDs to exceed a 573px page.
     let authored = [
         (4, 189869, 100, "Distinguished Warcloak"),
@@ -183,7 +183,7 @@ fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_
         let mut registry = FrameRegistry::new(1920., 1080.);
         let mut screen = Screen::new(trading_post_screen);
         screen.sync(&ctx, &mut registry);
-        assert!(registry.get_by_name("PerksProgramProduct5").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct8").is_some());
         assert!(
             registry
                 .scroll_lists
@@ -198,9 +198,8 @@ fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_
             .scroll_to("PerksProgramScrollBox", usize::MAX);
         screen.sync(&ctx, &mut registry);
         assert!(registry.get_by_name("PerksProgramProduct11").is_some());
-        assert!(registry.get_by_name("PerksProgramProduct5").is_none());
-        view.search = "Arcanofire".into();
-        view.reselect();
+        assert!(registry.get_by_name("PerksProgramProduct8").is_none());
+        view.click("perks:category:2").unwrap();
         ctx.insert(view);
         screen.sync(&ctx, &mut registry);
         assert_eq!(
@@ -211,8 +210,105 @@ fn trading_post_virtualized_list_reaches_second_page_then_search_clamps_in_both_
                 .first_row,
             0
         );
-        assert!(registry.get_by_name("PerksProgramProduct5").is_some());
+        assert!(registry.get_by_name("PerksProgramProduct5").is_none());
     }
+}
+
+#[test]
+fn trading_post_drag_freeze_replace_and_drag_off_wait_for_authority() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut data = snapshot();
+    let mut replacement = data.items[0].clone();
+    replacement.id = 5;
+    replacement.name = "Arcanofire Wrap".into();
+    data.items.push(replacement);
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data.clone())),
+        selected: Some(4),
+        ..Default::default()
+    };
+    assert_eq!(
+        view.drop_item(5, false, false),
+        None,
+        "abandoned drag does nothing"
+    );
+    assert_eq!(
+        view.drop_item(5, false, true),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert!(view.pending);
+    assert_eq!(
+        view.selected,
+        Some(5),
+        "dragging selects the displayed product"
+    );
+    assert_eq!(
+        view.snapshot.as_ref().unwrap().frozen_item_id,
+        Some(4),
+        "no optimistic frozen replacement"
+    );
+    assert_eq!(
+        view.drop_item(4, true, false),
+        None,
+        "pending request blocks drag-off"
+    );
+    data.frozen_item_id = Some(5);
+    view.receive(Arc::new(data.clone()));
+    assert_eq!(
+        view.drop_item(5, true, true),
+        None,
+        "drop on same slot retains item"
+    );
+    assert_eq!(
+        view.drop_item(5, true, false),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: None
+        }))
+    );
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(5));
+    view.receive(Arc::new(data));
+    view.click("perks:purchase").unwrap();
+    assert_eq!(
+        view.drop_item(5, true, false),
+        None,
+        "confirmation is modal"
+    );
+}
+
+#[test]
+fn trading_post_dropdown_selection_and_sort_headers_order_real_rows() {
+    let mut data = snapshot();
+    let mut row = data.items[0].clone();
+    row.id = 5;
+    row.name = "Arcanofire Wrap".into();
+    row.price = 75;
+    data.items.push(row);
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        selected: Some(4),
+        ..Default::default()
+    };
+    view.click("perks:sort:price").unwrap();
+    assert_eq!(
+        view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
+        vec![5, 4]
+    );
+    view.click("perks:sort:price").unwrap();
+    assert_eq!(
+        view.rows().iter().map(|r| r.id).collect::<Vec<_>>(),
+        vec![4, 5]
+    );
+    view.click("perks:filter").unwrap();
+    let registry = render(ActiveSkin::Forever, view.clone());
+    assert!(registry.get_by_name("PerksProgramCategoryMenu").is_some());
+    view.click("perks:category:2").unwrap();
+    assert!(!view.dropdown);
+    assert!(view.rows().is_empty());
+    assert_eq!(view.selected, None);
 }
 
 fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
@@ -254,6 +350,29 @@ fn trading_post_retail_xml_geometry_and_dropdown_in_both_skins() {
             rect(&registry, "PerksProgramFilter"),
             [55., 95.5, 122., 25.]
         );
+        assert_eq!(
+            rect(&registry, "PerksProgramHoldFrame"),
+            [0., 631., 527., 120.]
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramFrozenSlot"),
+            [0., 18., 527., 84.]
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramFooterFrame"),
+            [0., 980., 1920., 100.]
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramPurchaseButton"),
+            [1694., 34., 180., 46.]
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramPurchasePriceLayout"),
+            [54., 13., 72., 20.]
+        );
+        assert!(registry.get_by_name("PerksProgramSearchBox").is_none());
+        assert!(registry.get_by_name("PerksProgramFreezeButton").is_none());
+        assert!(registry.get_by_name("PerksProgramUnfreezeButton").is_none());
         assert!(
             registry.get_by_name("PerksProgramCategoryMenu").is_none(),
             "closed dropdown is not a persistent category button column"
