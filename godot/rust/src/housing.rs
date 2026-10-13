@@ -24,6 +24,7 @@ pub(crate) struct HousingHud {
     pub(super) catalog_preview: crate::housing_preview::CatalogPreview,
     pub(super) expert_held: [bool; 8],
     pub(super) mouse_pointer: Option<crate::housing_mouse::ExpertPointer>,
+    pub(super) storage_resize: Option<crate::housing_storage::StorageResize>,
     next_request_id: u64,
     confirming_plot: Option<u32>,
 }
@@ -66,6 +67,13 @@ impl GameClient {
     }
 
     fn mount_housing_dashboard(&mut self) -> Result<(), String> {
+        let panel = game_engine_core::ui_layout_data::load_housing_storage_panel(
+            &self.account.hud_layout_path()?,
+        )?;
+        if let Some(model) = &mut self.housing.model {
+            model.storage_panel = panel;
+            model.storage_transition = None;
+        }
         let view = self.housing_view()?;
         self.cache_housing_textures(&view);
         let mut ui = RegistryUi::new_alloc();
@@ -144,7 +152,9 @@ impl GameClient {
         self.housing.decor.highlight(None);
         self.housing.expert_held = [false; 8];
         self.housing.mouse_pointer = None;
+        self.housing.storage_resize = None;
         if let Some(model) = &mut self.housing.model {
+            model.storage_transition = None;
             model.surface = HousingSurface::Dashboard;
             model.editor = Default::default();
             model.settings = None;
@@ -227,6 +237,10 @@ impl GameClient {
         }
         self.sync_housing_layout()?;
         self.advance_housing_precision()?;
+        let delta = self.base().get_process_delta_time() as f32;
+        if let Some(model) = &mut self.housing.model {
+            model.advance_storage_transition(delta)?;
+        }
         let Some(ui) = &mut self.housing.ui else {
             return Ok(());
         };
@@ -303,11 +317,17 @@ impl GameClient {
     }
 
     fn dispatch_housing_storage_action(&mut self, action: &str) -> Result<bool, String> {
+        if self.dispatch_housing_drawer_action(action)? {
+            return Ok(true);
+        }
         let model = self
             .housing
             .model
             .as_mut()
             .ok_or("Housing UI has no storage model.")?;
+        if model.storage_filter_action(action)? {
+            return Ok(true);
+        }
         if !model.storage_focus_action(action, &self.housing.authority)? {
             return Ok(false);
         }

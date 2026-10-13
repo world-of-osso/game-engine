@@ -49,6 +49,7 @@ mod housing_decor;
 mod housing_editor;
 mod housing_mouse;
 mod housing_preview;
+mod housing_storage;
 mod hud_edit;
 mod input;
 mod input_keys;

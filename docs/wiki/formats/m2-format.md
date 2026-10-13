@@ -79,7 +79,9 @@ A skin batch's `shader_id` and `textureCount` select a pixel shader (combiner, `
 Mesh colour is `colors[colorIndex]` (RGB, alpha); mesh opacity is its alpha times texture weight 0
 (`transparencyLookup[textureWeightComboIndex]`) unless batch flag `0x40` is set. Weights 0..2 also
 feed the `_Wgt`/crossfade combiners. A batch whose opacity is below 0.0001 is skipped that frame
-(`forEachVisibleMesh`), not dropped. Local tracks (global sequence -1) loop sequence 0 (Stand).
+(`forEachVisibleMesh`), not dropped. Local tracks (global sequence -1) sample the owning model's
+playing sequence/time; a model without skeletal playback loops Stand. Global tracks retain timeline0
+and the shared clock. See [[avenging-wrath-material-time]] for the Hold/Decay counterexample.
 
 ## Texture Transforms
 
