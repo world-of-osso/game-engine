@@ -161,7 +161,7 @@ fn instruction_row(
         rsx! {r#frame {name:{DynName(format!("{prefix}Control"))},width:control_width,height:45.0,left,top:0.0,pos_type:"absolute",{icon}}}
     };
     rsx! {r#frame {name:{DynName(prefix.clone())},width,height:45.0,left:0.0,top,pos_type:"absolute",alpha,
-        fontstring {name:{DynName(format!("{prefix}Text"))},text:label,width:label_width,height:45.0,font_size:16.0,justify_h:"RIGHT",mouse_enabled:false}
+        fontstring {name:{DynName(format!("{prefix}Text"))},text:label,width:label_width,height:45.0,font_size:16.0,justify_h:"RIGHT",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1,-1",mouse_enabled:false}
         {art}
     }}
 }

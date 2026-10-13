@@ -20,6 +20,7 @@ func run_test() -> void:
 	if before.decor.size()!=1 or int(before.decor[0].decor_id)!=1693 or housing_count(2330,"stored")!=1:
 		fail("Basic proof needs actual paid bookcase/Tesla fixture")
 		return
+	if not await source_mode_states(): return
 	var tile: Control = housing_control("HouseEditorStored2330")
 	var start: Vector2 = tile.get_global_rect().get_center()
 	push_mouse_motion(start)
@@ -70,6 +71,31 @@ func run_test() -> void:
 	print("PASS: private5870 source Basic controls click-versus-owned-drag release ",housing_skin)
 	client.free()
 	quit(0)
+
+func source_mode_states() -> bool:
+	var button: BaseButton = housing_control("HouseEditorExpertDecorModeButton") as BaseButton
+	var icon_name: String = "HouseEditorExpertDecorModeButtonIcon"
+	var hover_name: String = "HouseEditorExpertDecorModeButtonHover"
+	var normal: Rect2 = tile_atlas(icon_name).region
+	var scale: float = button.get_global_rect().size.x/64.0
+	if absf(button.get_global_rect().size.y-64.0*scale)>0.1:
+		fail("Source mode button did not retain64px square")
+		return false
+	push_mouse_motion(button.get_global_rect().get_center())
+	if not await wait_housing(func(): return absf(housing_control(hover_name).modulate.a-0.5)<0.001,"source additive mode hover"): return false
+	if not await record_editor("basic-mode-hover"): return false
+	await tile_mouse_button(button.get_global_rect().get_center(),true)
+	if not await wait_housing(func(): return tile_atlas(icon_name).region!=normal,"source mode held-pressed atlas"): return false
+	if not await record_editor("basic-mode-pressed"): return false
+	await tile_mouse_button(Vector2(700,400),false)
+	if not await wait_housing(func(): return housing_control("HouseEditorStored2330")!=null and tile_atlas(icon_name).region==normal,"release outside restores source mode without switching"): return false
+	var snap: BaseButton = housing_control("HouseEditorSnapButton") as BaseButton
+	push_mouse_motion(snap.get_global_rect().get_center())
+	await frames(5)
+	if not snap.disabled or housing_control("HouseEditorSnapButtonHover").modulate.a!=0.0 or absf(housing_control("HouseEditorSnapButtonIcon").modulate.a-0.5)>0.001:
+		fail("Unavailable snap control invented hover/active behavior")
+		return false
+	return true
 
 func held_motion(point: Vector2,relative: Vector2) -> void:
 	var event := InputEventMouseMotion.new()

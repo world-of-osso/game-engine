@@ -1,0 +1,57 @@
+extends "res://tests/housing_basic_source_live.gd"
+
+func run_test() -> void:
+	root.size = Vector2i(1280,720)
+	housing_server = OS.get_environment("GODOT_TEST_SERVER")
+	housing_account = OS.get_environment("HOUSING_ACCOUNT")
+	housing_skin = OS.get_environment("HOUSING_SKIN")
+	shots = OS.get_environment("HOUSING_SHOTS")
+	editor_house = int(OS.get_environment("HOUSING_VISIT_HOUSE"))
+	cleanup_role = "visitor"
+	if housing_server!="127.0.0.1:5870" or not housing_account.begins_with("fb_housing_") or shots.is_empty() or editor_house<=0:
+		fail("Visitor proof needs private5870/fb_housing_* explicit other-account home")
+		return
+	DirAccess.make_dir_recursive_absolute(shots)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	if not await connect_housing_account(): return
+	if not await open_cleanup_house(): return
+	var before: Dictionary = client.housing_state()
+	if before.can_edit or before.decor.size()!=1 or int(before.decor[0].decor_id)!=1693:
+		fail("Visitor source proof needs authoritative read-only real paid bookcase")
+		return
+	var tile: BaseButton = housing_control("HouseEditorStored2330") as BaseButton
+	if tile==null or not tile.disabled:
+		fail("Other-account storage drag must be source-disabled")
+		return
+	var start: Vector2 = tile.get_global_rect().get_center()
+	push_mouse_motion(start)
+	await tile_mouse_button(start,true)
+	await held_motion(start+Vector2(35,0),Vector2(35,0))
+	if int(client.housing_state().get("placing",0))!=0 or root.gui_is_dragging():
+		fail("Disabled visitor tile began an owned placement drag")
+		return
+	await tile_mouse_button(ground_point(7.0),false)
+	if not await select_saved_decor(): return
+	if not await wait_housing(func(): return int(client.housing_state().get("selected",0))==int(before.decor[0].instance_id),"visitor may inspect real picked instance"): return
+	if not await source_instructions(): return
+	if not await record_editor("basic-visitor-source-selected"): return
+	await tile_mouse_button(ground_point(7.0),true)
+	await tile_mouse_button(ground_point(7.0),false)
+	await frames(20)
+	if client.housing_state().decor!=before.decor or client.housing_state().stored!=before.stored or client.housing_state().get("pending",true):
+		fail("Visitor release mutated owner placement or account storage")
+		return
+	await press_escape()
+	if not await wait_housing(func(): return int(client.housing_state().get("selected",0))==0 and housing_control("HouseEditorStored2330")!=null,"visitor Escape restores read-only source tile"): return
+	if not await record_editor("basic-visitor-release-refused"): return
+	if not await connect_housing_account(): return
+	if not await ready_dashboard(): return
+	var restored: Dictionary = client.housing_state()
+	if restored.get("house_id",0)!=editor_house or restored.get("can_edit",true) or restored.decor!=before.decor or restored.stored!=before.stored:
+		fail("Visitor relog lost source authority/conservation")
+		return
+	if not await record_editor("basic-visitor-relogged"): return
+	print("PASS: private5870 source Basic visitor disabled drag/overlay refusal/relog ",housing_skin)
+	client.free()
+	quit(0)
