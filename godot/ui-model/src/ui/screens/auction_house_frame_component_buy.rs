@@ -211,16 +211,7 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
     } else {
         NORMAL_FONT_COLOR
     };
-    rsx! {
-        button {
-            name: {DynName(name.clone())},
-            width: 132.0,
-            height: 21.0,
-            onclick: {action.as_str()},
-            button_default_skin: false,
-            pos_type: "absolute",
-            left: x,
-            top: y,
+    let content = rsx! {
             {art}
             fontstring {
                 name: {DynName(format!("{name}Text"))},
@@ -237,8 +228,9 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
                 left: indent,
                 top: 0.0,
             }
-        }
-    }
+    };
+    let template = (&crate::selection_list::AUCTION_CATEGORY, false);
+    crate::selection_list::row(name, &action, true, (x, y, 132.0, 21.0), template, content)
 }
 
 // Mainline/Blizzard_AuctionHouseCategoriesList.lua:5-65: secondary navigation

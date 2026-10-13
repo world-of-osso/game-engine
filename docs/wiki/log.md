@@ -1,3 +1,7 @@
+## 2026-10-12 — Shared subtle selection rows
+
+[Selection rows](systems/ui-system.md#shared-native-selection-rows-2026-10-12): migrate default-button lists to a shared hit target drawing each list's own Retail template hover/selected art, preserve specialized rows and real actions, add native keyboard focus/activation/scroll reveal. Modern/Forever private pointer/keyboard/scroll runs pass; thirty before/after PNGs inspected. Targeted model/render tests and check/format pass; absent arena/rated/LFG lists and representative-only native coverage remain explicit.
+
 ## 2026-10-12 — Owned storage category rail and registry-text root fix
 
 [Owned categories](systems/housing.md#owned-category-rail): actual stored/placed ownership, independent Back/All/category focus, source64/54px controls and multi-membership joins. Both-skin physical search→category RED exposed renderer-only text clearing; editing backing RegistryModel before projection fixes stale sampling. Current both-skin paid browsing/conservation PASS; UI23/registry12/check clean. Six inspected public PNGs; selected-art animation/paging/filter/collapse/resize authority remain separate.

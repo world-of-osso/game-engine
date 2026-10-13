@@ -169,11 +169,30 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
             frame(&r, "CraftingOrderMenuPersonal").onclick.as_deref(),
             Some("profession:order:recipient:personal")
         );
+        // Form.lua:556-560 radio menu: the current Public type is ticked, entries are
+        // menu rows (not push buttons) under the Retail dropdown background.
+        for (key, chosen) in [("Public", true), ("Guild", false), ("Personal", false)] {
+            let row = format!("CraftingOrderMenu{key}");
+            assert!(matches!(&frame(&r, &row).widget_data,
+                Some(WidgetData::Button(button)) if !button.use_default_skin));
+            assert_eq!(frame(&r, &format!("{row}Tick")).visible, chosen, "{row}");
+            assert!(frame(&r, &format!("{row}Box")).visible);
+            assert_eq!(
+                frame(&r, &format!("{row}RowHighlight")).draw_layer,
+                ui_toolkit::strata::DrawLayer::Highlight
+            );
+        }
+        assert!(frame(&r, "CraftingOrderMenuBackground").visible);
         assert!(r.get_by_name("CraftingOrderRecipes").is_none());
         assert!(r.get_by_name("CraftingOrderGold").is_some());
         v.orders.menu = Some(OrderMenu::Duration);
+        v.orders.duration_hours = 48;
         let r = render(v, skin);
-        for hours in [12, 24, 48] {
+        for (hours, chosen) in [(12, false), (24, false), (48, true)] {
+            assert_eq!(
+                frame(&r, &format!("CraftingOrderMenu{hours}Tick")).visible,
+                chosen
+            );
             assert_eq!(
                 frame(&r, &format!("CraftingOrderMenu{hours}"))
                     .onclick
@@ -223,6 +242,27 @@ fn orders_native_customer_frame_is_separate_and_can_cancel_only_own_orders() {
             Some("profession:order:cancel")
         );
         assert!(r.get_by_name("CraftingOrderClaim").is_none());
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+#[test]
+fn orders_rows_keep_auction_row_hover_without_generic_search_art() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.orders.selected = None;
+        let r = render(v, skin);
+        let hover = frame(&r, "CraftingOrderRow17RowHighlight");
+        assert_eq!(hover.draw_layer, ui_toolkit::strata::DrawLayer::Highlight);
+        assert!(
+            matches!(&hover.widget_data, Some(WidgetData::Texture(t))
+            if t.source == ui_toolkit::widgets::texture::TextureSource::Atlas(
+                "auctionhouse-ui-row-highlight".into())),
+            "CrafterOrderPage.xml:36 row highlight"
+        );
+        assert!(
+            r.get_by_name("CraftingOrderRow17RowSelected").is_none(),
+            "crafter order rows have no persistent selected texture"
+        );
     }
     set_thread_skin(ActiveSkin::Modern);
 }

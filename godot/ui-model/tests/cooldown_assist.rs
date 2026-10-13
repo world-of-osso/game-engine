@@ -81,6 +81,10 @@ fn cooldown_assist_flipbook_walks_all_thirty_cells_then_repeats() {
 
 #[test]
 fn cooldown_assist_settings_display_the_active_spec_selection() {
+    game_engine_ui_model::paths::set_data_root(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     shared.insert(ActiveSkin::Modern);
@@ -98,12 +102,18 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
     shared.insert(view.clone());
     let mut screen = Screen::new(cooldown_viewer_screen);
     screen.sync(&shared, &mut registry);
-    let button = registry.get_by_name("CooldownSettingsSelect27").unwrap();
-    let Some(WidgetData::Button(button)) = registry.get(button).unwrap().widget_data.as_ref()
+    let name = registry
+        .get_by_name("CooldownSettingsSelect27Name")
+        .unwrap();
+    let Some(WidgetData::FontString(label)) = registry.get(name).unwrap().widget_data.as_ref()
     else {
-        panic!("selection button")
+        panic!("visible row label")
     };
-    assert_eq!(button.text, "[x] Mortal Strike");
+    assert_eq!(label.text, "Mortal Strike");
+    let selected = registry
+        .get_by_name("CooldownSettingsSelect27RowSelected")
+        .unwrap();
+    assert!(registry.get(selected).unwrap().visible);
     let select_id = registry.get_by_name("CooldownSettingsSelect27").unwrap();
     assert_eq!(
         registry.click_frame(select_id),
@@ -112,12 +122,10 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
     view.settings.entries[0].selected = false;
     shared.insert(view);
     screen.sync(&shared, &mut registry);
-    let button = registry.get_by_name("CooldownSettingsSelect27").unwrap();
-    let Some(WidgetData::Button(button)) = registry.get(button).unwrap().widget_data.as_ref()
-    else {
-        panic!("selection button")
-    };
-    assert_eq!(button.text, "[ ] Mortal Strike");
+    let selected = registry
+        .get_by_name("CooldownSettingsSelect27RowSelected")
+        .unwrap();
+    assert!(!registry.get(selected).unwrap().visible);
 }
 
 fn catalog() -> CooldownAssistCatalog {
