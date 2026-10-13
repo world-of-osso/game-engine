@@ -42,7 +42,7 @@ Eight inspected1280x720 frontal PNGs and the192px held-feather comparison are in
 
 ## Player-camera rainbow investigation — 2026-10-12
 
-Private UDP5741, owned `fb_wingsrainbow_*` human-male Retribution characters. Player facingPI, camera yaw0/pitch-PI/4/distance9 yards is rear/45° elevation; yawPI/2 and PI provide side/front witnesses. All PNGs are1280x720. Runtime logs identify NVIDIA RTX5060Ti, NVIDIA615.78.08, Vulkan Forward+ on Linux, not Mesa. The user later identified the launcher-installed Linux 2026-10-11 player (engine f892e38b2) on NVIDIA; exact GPU, equipment and active auras remain unknown.
+Private UDP5741, owned `fb_wingsrainbow_*` human-male Retribution characters. Player facingPI, camera yaw0/pitch-PI/4/distance9 yards is rear/45° elevation; yawPI/2 and PI provide side/front witnesses. All PNGs are1280x720. Runtime logs identify NVIDIA RTX5060Ti, NVIDIA615.78.08, Vulkan Forward+ on Linux, not Mesa. The later provenance correction identifies this host's `cooldown-assist3` capture, not the published player: level10 starter Human Paladin, spec70, Northshire. Its receipts establish camera yaw0/pitch-0.3/distance15, facingPI, and overlapping Divine Shield642 then AW31884.
 
 | Boundary | Observed proof | Remaining limit |
 | --- | --- | --- |
@@ -62,9 +62,15 @@ Durable diagnostic root: `/home/osso/Projects/world-of-osso/game-engine/data/dia
 
 Manifest version2026-10-11: all115 model textures,4 indirect beam/dissolve textures and16 models are present and SHA256-identical to canonical. These119 textures have BLP paths and no KTX2/transcoded variants in the manifest; native M2 loading decodes BLP directly. Downloads into an isolated runtime verify published bytes against the manifest. The published entry selects extracted-only; launcher downloads before starting the client. There is no normal HTTP-streaming renderer path to test.
 
-The parser dropped TXAC. AW hold2368644 emitter1 and2368645 emitter6 carry257 after their material entries. WebWowViewerCpp `particleEmitter.cpp::selectShaderId` selects Refraction for multitexture+three-colour+nonzero TXAC, and its forward particle shader discards Refraction. Native instead selected the ordinary three-colour combiner. The continuation preserves TXAC, selects Refraction, and excludes it before native pool creation; no spell-specific exception or replacement texture.
+The initial TXAC interpretation was rejected. AW hold2368644 emitter1 and2368645 emitter6 carry257, but WWV shaderId4 maps to ThreeColorThreeAlpha_UV, not Refraction. The temporary TXAC parser/suppression changes were removed. An isolated AW emitter produced a grey/noise blob, not the user's rainbow. Published missing1893769 diagnostic: explicit extracted-only error, zero pools/quads, no colourful placeholder.
 
-Core RED parses real AW assets and catches colour selection; native RED catches two admitted emitters instead of only authored index0. An isolated published2368644 run uses owned diagnostic aliases in the existing particle-debug screen, with only emitter1 enabled: one particle drawn and no missing textures. Its initial user-angle capture did not match the reported rainbow. Original-shot attribution and exact gear/aura/environment identities remain open; a source-backed selection fix is not evidence that the user bug is fixed.
+### Actual source capture and root cause
+
+Original triple: engine90df0caa3c933a921bc87805641686dda82c5e83, server0ff9179444e854ea2d2ef2fe566b6a8d572ff2fc, protocol4e98753cc94c91f3fd94e6516c1ca3d1fdf86a8e. `cooldown_assist_live.gd::prove_timer` casts642, waits roughly3.6s, then casts31884. An owned private5741 replay uses this triple, source fixture and camera. The rectangle is already present before AW, during Divine Shield alone. Original client log has no effect-texture/shader failure; the unrelated FDID0 UI icon warning is not its cause.
+
+Divine Shield kit266453/model1127086 emitter5 and6 bind1127156, a smooth RGB normal/displacement map. Their flags0x60920031 include non-multitexture0x100000. WWV particle type3 selects shaderId5, whose table entry maps to fragment Refraction; its forward shader discards that draw. Native incorrectly selected Particle_Mod and drew the normal map as colour. The general fix classifies this flag as Refraction and omits it before forward-pool creation. It preserves the other eight Divine Shield emitters and AW's colour/UV emitters; no spell/FDID exception, texture substitution or clamp.
+
+Real-asset core RED observes Mod instead of Refraction. Native RED admits indices0..9 instead of0..4,7..9. The renderer's actual screen-refraction pass remains unimplemented. Initial replay staging copied a later WMO preview auxiliary receipt incompatible with the original engine; withholding that owned auxiliary file restores the capture-era model-index boundary without touching canonical data.
 
 Durable continuation evidence: `data/diagnostics/wings-rainbow2-2026-10-12/` (`manifest-census.json`, `txac-census.json`, download/scene ledgers, RED logs, isolated state and PNG). Isolated aliases never modify canonical assets and are not normal launcher behaviour.
 
@@ -74,11 +80,11 @@ Durable continuation evidence: `data/diagnostics/wings-rainbow2-2026-10-12/` (`m
 - `/home/osso/.worktrees/logs/m2-light-effects/`: source census, raw alpha tracks, private account/kit snapshots and both-skin captures.
 - `/home/osso/.worktrees/handoff-m2-light-effects.md`: revisions and proof ledger.
 
-The local-time defect is established independently. The user's original rainbow quad is not yet reproduced or explained; no claim that this fix resolves it.
+The local-time defect is independent. Rainbow attribution now follows the overlapping Divine Shield source capture and non-multitexture refraction flag, not AW's material-time sampler.
 
 ## Sources
 
-- Local WebWowViewerCpp `wowViewerLib/src/engine/geometry/m2Geom.cpp:121-134`, `managers/particles/particleEmitter.cpp:217-248` and `shaders/slang/forwardRendering/m2ParticleShader.frag.slang` — TXAC material/particle ordering, Refraction selection and forward discard.
+- Local WebWowViewerCpp `wowViewerLib/src/engine/geometry/m2Geom.cpp:121-134`, `managers/particles/particleEmitter.cpp:33-81,198-248` and `shaders/slang/forwardRendering/m2ParticleShader.frag.slang` — distinguish shaderId from fragment shader, non-multitexture refraction selection and forward discard.
 
 - `godot/core/src/m2_material.rs`, `godot/rust/src/assets/uv_animation.rs` — sampler and native playback binding.
 - `godot/rust/src/spell_effects/models.rs` — authored Start/Hold/Decay model lifecycle.
