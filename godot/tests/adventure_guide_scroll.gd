@@ -120,6 +120,17 @@ func run() -> void:
 	if client.adventure_guide_state().model_display != 36475:
 		stop("Ozruk model did not attach")
 		return
+	var guide := client.get_node("AdventureGuideUI")
+	var model := guide.find_child("NpcVisualRoot", true, false) as Node3D
+	if model == null:
+		stop("Attached Ozruk preview missing")
+		return
+	var camera := model.get_parent().get_node("Camera") as Camera3D
+	var alignment := model.global_basis.x.normalized().dot(camera.global_basis.z.normalized())
+	print("ADVENTURE_GUIDE_MODEL_FACING alignment=%s scale=%s" % [alignment, model.scale])
+	if alignment < 0.999 or not model.scale.is_equal_approx(Vector3.ONE):
+		stop("Boss must face preview camera without changing authored scale")
+		return
 	await click("EncounterJournalTab1")
 	await click("EncounterJournalTierDropdown")
 	await click("EncounterJournalTier68")
