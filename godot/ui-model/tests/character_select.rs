@@ -10,6 +10,14 @@ use ui_toolkit::layout_values::{PositionType, Val};
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::texture::TextureSource;
 
+fn character_select_model(width: f32, height: f32) -> CharacterSelectModel {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    CharacterSelectModel::new(width, height)
+}
+
 fn text(model: &CharacterSelectModel, name: &str) -> String {
     let frame = model
         .registry
@@ -55,7 +63,7 @@ fn roster(selected_index: Option<usize>) -> CharSelectState {
 
 #[test]
 fn character_select_root_tracks_viewport_after_sync() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.sync();
     let id = model.registry.get_by_name(CHAR_SELECT_ROOT.0).unwrap();
     let root = model.registry.get(id).unwrap();
@@ -76,7 +84,7 @@ fn character_select_root_tracks_viewport_after_sync() {
 
 #[test]
 fn authored_roster_retains_names_layout_resources_and_actions() {
-    let mut model = CharacterSelectModel::new(1920.0, 1080.0);
+    let mut model = character_select_model(1920.0, 1080.0);
     model.shared.insert(roster(Some(0)));
     model.sync();
     let registry = &model.registry;
@@ -146,7 +154,7 @@ fn authored_roster_retains_names_layout_resources_and_actions() {
 
 #[test]
 fn roster_selection_and_delete_confirmation_follow_shared_state() {
-    let mut model = CharacterSelectModel::new(1920.0, 1080.0);
+    let mut model = character_select_model(1920.0, 1080.0);
     model.shared.insert(roster(Some(0)));
     model.sync();
     model.shared.insert(roster(Some(1)));
@@ -277,7 +285,7 @@ const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 #[test]
 fn top_navigation_uses_retail_geometry_labels_and_actions() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.sync();
     for art in [
         "CharSelectTopHudLeft",
@@ -340,7 +348,7 @@ fn top_navigation_uses_retail_geometry_labels_and_actions() {
 
 #[test]
 fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.sync();
     let set_button = |model: &mut CharacterSelectModel, name: &str, hovered: bool, state| {
         let id = model.registry.get_by_name(name).unwrap();
@@ -432,7 +440,7 @@ fn listed_campsites(model: &CharacterSelectModel) -> Vec<u32> {
 
 #[test]
 fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.shared.insert(campsites(8, 0));
     model.sync();
     assert_eq!(listed_campsites(&model), [1, 2, 3, 4]);

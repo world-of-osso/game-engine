@@ -20,7 +20,7 @@ const NAV_HEIGHT: f32 = 55.0;
 const TAB_HEIGHT: f32 = 51.0;
 // Lua NavBarButtonWidthBuffer=70: native text measurement plus 35 at each side.
 const TEXT_PADDING: f32 = 35.0;
-const LABEL_FONT_SIZE: f32 = 16.0;
+const LABEL_FONT_SIZE: f32 = 15.0;
 const LABEL_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const LABEL_GOLD_RGBA: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 const LABEL_ACTIVE_RGBA: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -58,6 +58,10 @@ fn tab_art(name: FrameName) -> Element {
             name: tab_part(name, "Normal"), texture_atlas: format!("glues-characterselect-tophud-{end}-bg"),
             pos_type: "absolute", left: normal_left, right: normal_right, top: 0.0, bottom: 0.0,
         }
+        texture {
+            name: tab_part(name, "Disabled"), texture_atlas: format!("glues-characterselect-tophud-{end}-dis-bg"),
+            hidden: true, pos_type: "absolute", left: normal_left, right: normal_right, top: 0.0, bottom: 0.0,
+        }
         r#frame {
             name: tab_part(name, "Box"), hidden: true,
             pos_type: "absolute", left: highlight_left, right: highlight_right, top: 0.0, bottom: 0.0,
@@ -79,13 +83,17 @@ fn tab_art(name: FrameName) -> Element {
 
 fn tab(name: FrameName, text: &str, action: Option<&CharSelectAction>) -> Element {
     let onclick = action.map(ToString::to_string).unwrap_or_default();
+    let (text_width, _) =
+        ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, LABEL_FONT_SIZE)
+            .expect("CharacterSelectNavBar requires the loaded GlueFontNormal font");
+    let width = text_width + TEXT_PADDING * 2.0;
     rsx! {
         button {
-            name, width: "auto", height: TAB_HEIGHT, onclick, button_default_skin: false,
+            name, width, height: TAB_HEIGHT, onclick, button_default_skin: false,
             layout: "flex-row", align: "center", padding_left: TEXT_PADDING, padding_right: TEXT_PADDING,
             {tab_art(name)}
             fontstring {
-                name: tab_part(name, "Label"), width: "auto", height: TAB_HEIGHT,
+                name: tab_part(name, "Label"), width: text_width, height: TAB_HEIGHT,
                 text, font: GameFont::FrizQuadrata, font_size: LABEL_FONT_SIZE,
                 font_color: LABEL_GOLD, justify_h: JustifyH::Center,
             }
@@ -130,13 +138,21 @@ fn sync_tab(registry: &mut FrameRegistry, tab: FrameName, selected: bool) {
     else {
         return;
     };
-    let active = selected || button.hovered || button.state == ButtonState::Pushed;
+    let disabled = button.state == ButtonState::Disabled;
+    let active = !disabled && (selected || button.hovered || button.state == ButtonState::Pushed);
+    for (part, hidden) in [("Normal", disabled), ("Disabled", !disabled)] {
+        if let Some(id) = registry.get_by_name(&tab_part(tab, part).0) {
+            registry.set_hidden(id, hidden);
+        }
+    }
     if let Some(id) = registry.get_by_name(&tab_part(tab, "Box").0)
         && registry.get(id).is_some_and(|frame| frame.hidden == active)
     {
         registry.set_hidden(id, !active);
     }
-    let color = if active {
+    let color = if disabled {
+        [0.5, 0.5, 0.5, 1.0]
+    } else if active {
         LABEL_ACTIVE_RGBA
     } else {
         LABEL_GOLD_RGBA
