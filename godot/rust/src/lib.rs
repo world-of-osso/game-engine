@@ -1069,6 +1069,22 @@ impl GameClient {
                 .unwrap_or_default(),
         );
         state.set(
+            "local_player_epoch",
+            &self
+                .world
+                .local_player_epoch()
+                .map(|epoch| i64::from(epoch).to_variant())
+                .unwrap_or_default(),
+        );
+        state.set(
+            "local_server_epoch",
+            &self
+                .world
+                .local_player_server_epoch()
+                .map(|epoch| i64::from(epoch).to_variant())
+                .unwrap_or_default(),
+        );
+        state.set(
             "local_server_position",
             &self
                 .world
