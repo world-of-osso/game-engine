@@ -3,6 +3,7 @@
 ## Contract
 - Collections micro button opens the Pets tab of the existing CollectionsJournal shell. Pets and Toy Box share the same centered window, portrait (FDID454046), title and six-tab bar; switching tabs never opens a second journal. Retail Mainline defines geometry and elements; Forever changes art only.
 - Journal lists server-owned instances and uncollected catalog species, with names, icons, level, quality and breed. Search filters names; selecting an uncollected species cannot summon it.
+- Each populated CompanionLoadOutTemplate slot shows its owned pet's extracted creature display model in the XML ModelScene host, independently of card selection. Moving/removing pets clears old models; closing cancels pending loads and frees previews before the journal UI. Health/ability content remains hidden until authoritative snapshots exist.
 - Selected pet card shows the species' extracted creature display model, name, level/quality/breed and Retail type icon. Summon/Dismiss sits at the bottom of the right panel; Find Battle remains disabled. No standalone Pet Journal tab button below the shell.
 - Summon/dismiss sends the owned instance GUID through existing CollectionChannel requests. Wait for server authority; show refusals and prevent duplicate pending requests.
 - Companion is an ordinary replicated non-combat creature, rendered through the existing CreatureID/display/model path and moved by authoritative owner-follow positions.

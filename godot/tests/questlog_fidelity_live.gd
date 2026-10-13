@@ -119,16 +119,28 @@ func check_pet_loadout_models() -> bool:
 	await click_control(owned)
 	if not await wait_frames(func(): return model_meshes("PetJournalPetCardModelScene") > 0, "authentic pet card model prerequisite", 60000):
 		return false
-	await click_control(journal.find_child("PetJournalBattleSlot0", true, false) as Control)
-	if not await wait_frames(func(): return journal.frame_text("PetJournalBattleSlot0Name") == "Mechanical Squirrel", "server loadout equip"):
-		return false
-	await frames(10)
+	for slot in [0, 1, 2, 0]:
+		await click_control(journal.find_child("PetJournalBattleSlot%d" % slot, true, false) as Control)
+		if not await wait_frames(func(): return journal.frame_text("PetJournalBattleSlot%dName" % slot) == "Mechanical Squirrel", "server loadout equip"):
+			return false
+		if not await wait_frames(func(): return model_meshes("PetJournalBattleSlot%dModelScene" % slot) > 0, "owned loadout model slot %d" % slot, 60000):
+			return false
+		for empty_slot in range(3):
+			if empty_slot != slot and model_meshes("PetJournalBattleSlot%dModelScene" % empty_slot) != 0:
+				fail("Superseded loadout model survived move")
+				return false
 	await capture("fidelity-pet-loadout-model.png")
-	var meshes := model_meshes("PetJournalBattleSlot0ModelScene")
-	if meshes == 0:
-		fail("Owned loadout has no model mesh despite populated card; slot=" + str(meshes))
+	await tap_collections()
+	if not await wait_frames(func(): return client.get_node_or_null("CollectionsJournalUI") == null, "Shift+P closes active pet journal"):
 		return false
-	print("PASS PET_LOADOUT_MODEL skin=", OS.get_environment("QF_SKIN"), " real item4401/owned/equip/meshes=", meshes)
+	await tap_collections()
+	if not await wait_frames(func(): return client.find_child("CollectionsJournalTab2", true, false) != null, "Shift+P reopens Collections"):
+		return false
+	await click_control(client.find_child("CollectionsJournalTab2", true, false) as Control)
+	if not await wait_frames(func(): return model_meshes("PetJournalBattleSlot0ModelScene") > 0, "loadout model after reopening", 60000):
+		return false
+	await capture("fidelity-pet-loadout-reopened.png")
+	print("PASS PET_LOADOUT_MODEL skin=", OS.get_environment("QF_SKIN"), " real item4401/owned/equip/all3hosts/move/close/reopen")
 	return true
 
 func tap_collections() -> void:
