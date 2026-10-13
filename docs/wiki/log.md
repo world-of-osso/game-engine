@@ -1,6 +1,10 @@
 ## 2026-10-13 — Native follower Group Finder implementation
 
 [Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
+## 2026-10-13 — Transparent model-preview additive coverage
+
+[Adventure Guide](systems/adventure-guide.md#transparent-preview-additive-coverage): actual Ozruk black additive texel RED (zeroRGB/fullcoverage hides backdrop)→preview-only premultiplied GREEN, retained positive light/worldRGB and mix/opaque GPU checks. Two inspected both-skin private5771 fixed-model PNGs; world shaders unchanged. NoAlphaAdd source case, inherited Guide yaw, complete model closure/Journeys/RPE remain open.
+
 ## 2026-10-13 — Adventure Guide navigation lifetime
 
 [Adventure Guide](systems/adventure-guide.md#october-13-navigation-lifetime-proof): encounter links clear stale search/menus; Trading Post Log navigates without closing an already-visible Guide; real ENCOUNTER_START follows source difficulty without auto-opening a closed window. Targeted17/native build/check/fmt pass; nine inspected both-skin private5771 PNGs. Journeys backing, complete model closure/Ozruk effect planes and RPE activation remain open.
