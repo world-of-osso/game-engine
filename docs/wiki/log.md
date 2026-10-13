@@ -1,6 +1,6 @@
 ## 2026-10-12 — AW published assets and TXAC particle selection
 
-[Continuation](investigations/avenging-wrath-material-time.md#published-assets-and-txac-continuation--2026-10-12): 119 BLP textures and16 models match published hashes; no AW KTX variants or normal renderer HTTP streaming. Real-asset RED tests expose dropped TXAC and incorrectly admitted Refraction emitters. Parser/selection/forward exclusion follows WebWowViewerCpp; original rainbow attribution remains unproven.
+[Continuation](investigations/avenging-wrath-material-time.md#published-assets-and-txac-continuation--2026-10-12): 119 BLP textures and16 models match published hashes; no AW KTX variants or normal renderer HTTP streaming. TXAC hypothesis rejected: shaderId4 is colour/UV, not Refraction. Actual `cooldown-assist3` provenance/triple/642→31884 replay exposes Divine Shield1127086 emitters5/6 drawing normal map1127156 as colour; real-asset RED selection/admission tests and general non-multitexture0x100000 forward exclusion preserve AW.
 
 ## 2026-10-12 — Wings rainbow player-camera investigation
 

@@ -40,8 +40,6 @@ pub struct M2ParticleMultiTexture {
 #[derive(Debug, Clone, PartialEq)]
 pub struct M2ParticleEmitter {
     pub flags: u32,
-    /// Per-particle TXAC value, after the model's material TXAC entries.
-    pub txac: u16,
     /// Position in WoW coordinates (relative to bone).
     pub position: [f32; 3],
     pub bone_index: u16,
@@ -704,28 +702,6 @@ fn read_uv_velocity(data: &[u8], offset: usize) -> Result<[f32; 2], String> {
         f32::from(packed_x) / FIXED_6_9_SCALE,
         f32::from(packed_y) / FIXED_6_9_SCALE,
     ])
-}
-
-/// TXAC stores one u16 per material, then one per particle (WebWowViewerCpp
-/// `m2Geom.cpp`). Nonzero particle entries change the authored shader selection.
-pub fn apply_txac(
-    emitters: &mut [M2ParticleEmitter],
-    txac: &[u8],
-    material_count: usize,
-) -> Result<(), String> {
-    const ENTRY_BYTES: usize = 2;
-    let start = material_count * ENTRY_BYTES;
-    let end = start + emitters.len() * ENTRY_BYTES;
-    let values = txac.get(start..end).ok_or_else(|| {
-        format!(
-            "TXAC has {} bytes, needs {end} for materials and particles",
-            txac.len()
-        )
-    })?;
-    for (emitter, value) in emitters.iter_mut().zip(values.chunks_exact(ENTRY_BYTES)) {
-        emitter.txac = u16::from_le_bytes([value[0], value[1]]);
-    }
-    Ok(())
 }
 
 /// Resolve texture FDIDs on parsed emitters from the TXID array.
