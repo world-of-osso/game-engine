@@ -5,8 +5,8 @@ use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::sub_viewport::UpdateMode;
 use godot::classes::texture_rect::{ExpandMode, StretchMode};
 use godot::classes::{
-    Camera3D, Control, DirectionalLight3D, MeshInstance3D, Node3D, ShaderMaterial, SubViewport,
-    TextureRect,
+    Camera3D, CanvasItemMaterial, Control, DirectionalLight3D, MeshInstance3D, Node3D,
+    ShaderMaterial, SubViewport, TextureRect,
 };
 use godot::prelude::*;
 use shared::components::SheathState;
@@ -193,6 +193,9 @@ impl Scene {
         view.set_mouse_filter(MouseFilter::IGNORE);
         view.set_expand_mode(ExpandMode::IGNORE_SIZE);
         view.set_stretch_mode(StretchMode::SCALE);
+        let mut composite = CanvasItemMaterial::new_gd();
+        composite.set_blend_mode(godot::classes::canvas_item_material::BlendMode::PREMULT_ALPHA);
+        view.set_material(&composite);
         view.add_child(&viewport);
         host.add_child(&view);
         view.set_anchors_and_offsets_preset(LayoutPreset::FULL_RECT);
@@ -396,13 +399,23 @@ pub(crate) fn bind_preview_light(visual: &Gd<Node3D>, rays: Vector3) {
         let Some(material) = mesh.get_active_material(0) else {
             continue;
         };
-        let mut material = material.cast::<ShaderMaterial>();
-        for name in ["ambient", "horizon_ambient", "ground_ambient"] {
-            material.set_shader_parameter(name, &AMBIENT.to_variant());
-        }
-        material.set_shader_parameter("direct", &DIRECT.to_variant());
-        material.set_shader_parameter("sun_direction", &rays.to_variant());
+        bind_preview_batch(material.cast::<ShaderMaterial>(), rays);
     }
+}
+
+fn bind_preview_batch(mut material: Gd<ShaderMaterial>, rays: Vector3) {
+    let key = crate::assets::material::PREVIEW_ADDITIVE_SHADER_META;
+    if let Some(shader) = material.get_shader()
+        && shader.has_meta(key)
+    {
+        let preview = shader.get_meta(key).to::<Gd<godot::classes::Shader>>();
+        material.set_shader(&preview);
+    }
+    for name in ["ambient", "horizon_ambient", "ground_ambient"] {
+        material.set_shader_parameter(name, &AMBIENT.to_variant());
+    }
+    material.set_shader_parameter("direct", &DIRECT.to_variant());
+    material.set_shader_parameter("sun_direction", &rays.to_variant());
 }
 
 /// Visual slots of a player appearance, for automation.
