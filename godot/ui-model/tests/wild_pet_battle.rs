@@ -106,7 +106,10 @@ fn retail_pet_selection_buttons_keep_initial_and_dead_swap_rules_and_source_geom
         let WidgetData::Button(button) = second.widget_data.as_ref().unwrap() else {
             panic!("pet swap button")
         };
-        assert!(!button.enabled);
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
         let model = registry
             .get(registry.get_by_name("PetBattleSwapPet1ModelScene").unwrap())
             .unwrap();
