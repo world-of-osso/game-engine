@@ -34,7 +34,7 @@ fn snapshot() -> TradingPostSnapshot {
             item_id: 189869,
             name: "Distinguished Warcloak".into(),
             description: String::new(),
-            icon_fdid: 0,
+            icon_fdid: 135729,
             quality: 1,
             price: 100,
             purchased: false,
