@@ -36,6 +36,24 @@ Native RED isolates the actual production small-shadow TextureRect on a gray bac
 - PNGs: `/syncthing/AgentShared/2026-10-13/ui-glue-menus/`. Offline projection proves UI/dispatch, not authenticated deletion or server-side campsite persistence.
 - Missing source textures were extracted locally and published by the lead:4190639,3058483,383587,383585,383586,921208,1318750. No CDN or canonical cache edits.
 
+## Capture receipt
+
+All five frames accepted at `c4d0a075d` after merging master `285c1da80`; source geometry and actions inspected against the XML above. PNG root: `/syncthing/AgentShared/2026-10-13/ui-glue-menus/`. Each filename below has `modern` and `forever` variants; original `before-*` captures retained for comparison.
+
+| Frame | Source implementation SHA | Final PNG stem |
+|---|---|---|
+| Character-select nav | `5dfe1a878` | `final-nav-{skin}.png` |
+| Main menu | `3a9678803` | `final-menu-{skin}.png` |
+| Delete dialog | `5dfe1a878` | `final-delete-{skin}.png` |
+| Campsite collection | `c69a81a73`, native crop `f01da0067` | `final-campsite-{skin}.png` |
+| Settings/Options | `c69a81a73`, shared row geometry `c4d0a075d` | `final-options-{graphics,keybindings,radio}-{skin}.png` |
+
+Passive dropdown hit-testing is isolated in `b633ba1e8` (projection only), native Background click assertion in `9363df7c7`; `context_menu_with_rows` first appears in `cc33a79fa`.
+
+Final proof:40 focused Rust tests, exporter1, extension build/check and scoped Rust format check; native12 frame geometry/click cases, two isolated shadow-pixel cases, and two popup lifecycle cases. Logs under `/home/osso/.worktrees/logs/ui-glue-menus-final-*`. Source-only independent verifier passed the bounded popup/input/sampling changes; native execution and pixel inspection remain main-thread evidence.
+
+A stale slot-local shared crate artifact initially hid already-exported Renown messages. Cleaning only the slot's shared artifacts and rebuilding resolved it; protocol source was not changed. Disabled/tiled desaturation material composition is outside the assigned frames and was not expanded into this patch.
+
 ## Sources
 
 - Retail AddOns: `Blizzard_CharacterSelectNavBar/CharacterSelectNavBar.{xml,lua}`; `Blizzard_GlueCollections/GlueCollections.xml`, `GlueWarbandSceneCollection.xml`; `Blizzard_StaticPopup_Glue/GlueDialog.{xml,lua}`.
