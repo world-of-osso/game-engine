@@ -284,6 +284,14 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
         };
         assert!(button.hovered);
         assert_eq!(
+            frame(&reg, "FilterText").position.left,
+            ui_toolkit::layout_values::Val::Px(2.0)
+        );
+        assert_eq!(
+            frame(&reg, "FilterText").position.top,
+            ui_toolkit::layout_values::Val::Px(1.0)
+        );
+        assert_eq!(
             button.state,
             ui_toolkit::widgets::button::ButtonState::Pushed
         );
