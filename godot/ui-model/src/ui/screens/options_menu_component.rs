@@ -8,7 +8,7 @@ use super::options_menu_sections;
 use crate::input_bindings::{BindingSection, InputAction};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
+use crate::ui::widgets::font_string::{FontColor, JustifyH};
 use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESETS};
 
 #[path = "options_menu_scroll.rs"]
@@ -402,7 +402,7 @@ fn tab_button(category: OptionsCategory, selected: bool) -> Element {
     let hide = !selected;
     let background = ui_toolkit::atlas::get_region("Options_List_Active")
         .expect("Settings category selected atlas");
-    rsx! { button { name: &name, width: TAB_ROW_W, height: TAB_ROW_H, onclick: action, button_default_skin: false,
+    rsx! { button { name: {&name}, width: TAB_ROW_W, height: TAB_ROW_H, onclick: action, button_default_skin: false,
         texture { name: DynName(format!("{}Selected",name.0)), texture_atlas: "Options_List_Active", hidden: hide,
             width: background.width, height: background.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
         fontstring { name: DynName(format!("{}Label",name.0)), text: category.title(), font_size: 12.0,

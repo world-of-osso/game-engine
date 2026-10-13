@@ -1,9 +1,7 @@
 use std::fmt;
 
 use ui_toolkit::rsx;
-use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::slider::{SliderWidget, slider_widget};
 use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
