@@ -107,7 +107,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 28] = [
+        const SOURCES: [Source; 29] = [
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
             GameClient::transmog_source_tooltip,
@@ -115,6 +115,7 @@ impl GameClient {
             GameClient::housing_tooltip,
             GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
+            GameClient::mentor_teleport_tooltip,
             GameClient::talent_gate_tooltip,
             GameClient::profession_specialization_tooltip,
             GameClient::spellbook_tooltip,
@@ -402,6 +403,20 @@ impl GameClient {
     }
 
     fn spell_game_tooltip(&self, spell_id: u32, available_at: Option<u32>) -> GameTooltip {
+        let remaining = self
+            .account
+            .spells
+            .button_cooldown(spell_id, false)
+            .map(|timer| timer.remaining);
+        self.spell_game_tooltip_with_cooldown(spell_id, available_at, remaining)
+    }
+
+    fn spell_game_tooltip_with_cooldown(
+        &self,
+        spell_id: u32,
+        available_at: Option<u32>,
+        cooldown_remaining: Option<f32>,
+    ) -> GameTooltip {
         let Some(catalog) = self.spells.catalog() else {
             return unknown_spell_tooltip(spell_id);
         };
@@ -419,11 +434,7 @@ impl GameClient {
                 .render_description(spell_id, &context)
                 .unwrap_or_default(),
             available_at,
-            cooldown_remaining: self
-                .account
-                .spells
-                .button_cooldown(spell_id, false)
-                .map(|timer| timer.remaining),
+            cooldown_remaining,
         };
         spell_tooltip(spell, &input)
     }
@@ -436,6 +447,37 @@ impl GameClient {
             spell_power: derived.spell_power,
             attack_power: derived.attack_power,
         })
+    }
+
+    fn mentor_teleport_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        use game_engine_ui_model::mythic_mentor::{
+            TELEPORT_ACTION_PREFIX, mentor_teleport_tooltip,
+        };
+        let ui = hit.ui.bind();
+        let (owner, spell_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            frame
+                .onclick
+                .as_deref()?
+                .strip_prefix(TELEPORT_ACTION_PREFIX)?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let remaining = self
+            .account
+            .spells
+            .category_cooldown(game_engine_ui_model::mythic_mentor::TELEPORT_CATEGORY)
+            .map(|timer| timer.remaining);
+        let tooltip = mentor_teleport_tooltip(
+            self.spell_game_tooltip_with_cooldown(spell_id, None, remaining),
+            self.account.spells.known().contains(&spell_id),
+        );
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
     }
 
     fn action_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
