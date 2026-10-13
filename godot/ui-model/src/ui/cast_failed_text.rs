@@ -76,6 +76,7 @@ pub fn cast_failed_text(
         CastFailReason::NotShapeshift => "SPELL_FAILED_NOT_SHAPESHIFT",
         CastFailReason::OnlyShapeshift => "SPELL_FAILED_ONLY_SHAPESHIFT",
         CastFailReason::CantDoThatRightNow => "SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW",
+        CastFailReason::IncorrectArea => "SPELL_FAILED_INCORRECT_AREA",
     };
     text.to_string()
 }
