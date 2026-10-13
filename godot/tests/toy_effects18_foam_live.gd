@@ -15,7 +15,9 @@ func prove_toy(sample: Array) -> void:
 			actor = unit
 			break
 	if actor == null: fail("native actor missing"); return
-	if foam_swords() != 0: fail("proof must start without a foam sword"); return
+	# A character already holding a source sword proves the "only one" rule instead.
+	var held_before := foam_swords()
+	if held_before > 1: fail("more than one foam sword held"); return
 	# A rack left by an earlier run stays for its own 180s; prove the one placed now.
 	var earlier := racks()
 	await start_cursor(str(sample[3]))
@@ -37,11 +39,13 @@ func prove_toy(sample: Array) -> void:
 	var point = await hover_rack(rack)
 	if point == null: fail("pointer never shows the rack's Interact cursor: " + str(client.merchant_state().cursor)); return
 	await click_world(point, MOUSE_BUTTON_RIGHT)
-	if not await wait_until(func(): return foam_swords() == 1, "one source foam sword", 30000): return
+	if held_before == 1:
+		await create_timer(3.0).timeout
+	elif not await wait_until(func(): return foam_swords() == 1, "one source foam sword", 30000): return
 	await click_world(point, MOUSE_BUTTON_RIGHT)
 	await create_timer(3.0).timeout
 	if foam_swords() != 1: fail("second rack use created another foam sword"); return
-	receipts.append({"phase": "rack-use", "swords": held_swords()})
+	receipts.append({"phase": "rack-use", "held_before": held_before, "swords": held_swords()})
 	await click("MainMenuBarBackpackButton")
 	await capture("toy45063-foam-sword")
 
