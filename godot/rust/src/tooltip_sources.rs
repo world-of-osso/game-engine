@@ -63,6 +63,9 @@ fn indexed(frame: &Frame, prefix: &str) -> Option<usize> {
 enum HousingTooltipTarget {
     Decor(u32),
     Chest,
+    Category(u32),
+    Subcategory(u32),
+    AllSubcategories,
 }
 
 fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
@@ -70,10 +73,34 @@ fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
     if name == "HouseEditorStorageExpandButton" {
         return Some(HousingTooltipTarget::Chest);
     }
-    let id = name
-        .strip_prefix("HousingCatalogEntry")
-        .or_else(|| name.strip_prefix("HouseEditorStored"))?;
-    id.parse().ok().map(HousingTooltipTarget::Decor)
+    if matches!(
+        name,
+        "HousingCatalogSubcategoryAll" | "HouseEditorStorageSubcategoryAll"
+    ) {
+        return Some(HousingTooltipTarget::AllSubcategories);
+    }
+    for (prefix, kind) in [
+        (
+            "HousingCatalogEntry",
+            HousingTooltipTarget::Decor as fn(u32) -> HousingTooltipTarget,
+        ),
+        ("HouseEditorStored", HousingTooltipTarget::Decor),
+        ("HousingCatalogCategory", HousingTooltipTarget::Category),
+        ("HouseEditorStorageCategory", HousingTooltipTarget::Category),
+        (
+            "HousingCatalogSubcategory",
+            HousingTooltipTarget::Subcategory,
+        ),
+        (
+            "HouseEditorStorageSubcategory",
+            HousingTooltipTarget::Subcategory,
+        ),
+    ] {
+        if let Some(value) = name.strip_prefix(prefix) {
+            return value.parse().ok().map(kind);
+        }
+    }
+    None
 }
 
 impl GameClient {
@@ -119,6 +146,23 @@ impl GameClient {
         let (owner, target) =
             named_ancestor(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
         drop(ui);
+        let (tooltip, category) = self.housing_tooltip_content(target)?;
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        let tooltip = if category {
+            tooltip.owned_offset(rect, OwnerSide::Right, [-12.0, 12.0])
+        } else {
+            tooltip.owned(rect, OwnerSide::Right)
+        };
+        Some(HoveredTooltip::text(tooltip))
+    }
+
+    fn housing_tooltip_content(&self, target: HousingTooltipTarget) -> Option<(GameTooltip, bool)> {
+        let category = matches!(
+            target,
+            HousingTooltipTarget::Category(_)
+                | HousingTooltipTarget::Subcategory(_)
+                | HousingTooltipTarget::AllSubcategories
+        );
         let tooltip = match target {
             HousingTooltipTarget::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
             HousingTooltipTarget::Decor(id) => {
@@ -130,9 +174,37 @@ impl GameClient {
                     &self.housing.authority,
                 )
             }
+            category => self.housing_category_tooltip(category)?,
         };
-        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
-        Some(HoveredTooltip::text(tooltip))
+        Some((tooltip, category))
+    }
+
+    fn housing_category_tooltip(&self, target: HousingTooltipTarget) -> Option<GameTooltip> {
+        let catalog = &self.housing.model.as_ref()?.catalog;
+        let name = match target {
+            HousingTooltipTarget::Category(id) => {
+                &catalog.categories.iter().find(|row| row.id == id)?.name
+            }
+            HousingTooltipTarget::Subcategory(id) => {
+                &catalog.subcategories.iter().find(|row| row.id == id)?.name
+            }
+            HousingTooltipTarget::AllSubcategories => {
+                &catalog
+                    .categories
+                    .iter()
+                    .find(|row| row.id == game_engine_ui_model::housing::ALL_CATEGORY)?
+                    .name
+            }
+            _ => return None,
+        };
+        Some(GameTooltip::new(
+            TooltipPresentation {
+                title: name.clone(),
+                title_color: game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE,
+                ..TooltipPresentation::hidden()
+            },
+            None,
+        ))
     }
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
