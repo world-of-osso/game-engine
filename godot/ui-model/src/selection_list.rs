@@ -262,13 +262,31 @@ pub const PVP_CASUAL_ACTIVITY: RowTemplate = RowTemplate {
     selected: Some(fill(Art::Atlas("pvpqueue-button-casual-selected"), true)),
 };
 
-const TEMPLATES: [&RowTemplate; 16] = [
+/// PetBattleUI.xml:96 / Patchwerks.xml:86, BOTTOM(2,6), 169x42 inside192x200.
+pub const PET_BATTLE_SELECTION: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(RowArt {
+        art: Art::File(603587, [0.56347656, 0.72851563, 0.76757813, 0.84960938]),
+        insets: [13.5, 152.0, 9.5, 6.0],
+        alpha: 0.5,
+        additive: false,
+    }),
+    selected: Some(RowArt {
+        art: Art::File(603587, [0.56347656, 0.72851563, 0.76757813, 0.84960938]),
+        insets: [13.5, 152.0, 9.5, 6.0],
+        alpha: 1.0,
+        additive: false,
+    }),
+};
+
+const TEMPLATES: [&RowTemplate; 17] = [
     &SEARCH,
     &RAID_INSTANCE,
     &PVP_INSTANCE,
     &PVP_CATEGORY,
     &PVP_RATED_ACTIVITY,
     &PVP_CASUAL_ACTIVITY,
+    &PET_BATTLE_SELECTION,
     &MENU,
     &AUCTION_ROW,
     &AUCTION_CATEGORY,
