@@ -57,6 +57,33 @@ fn visible_frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
 }
 
 #[test]
+fn toy_filters_use_retail_checkbox_submenu_and_reset_controls_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = journal(skin);
+        let mut model = ToyBox::default();
+        model.receive(vec![toy(1, "Picnic Basket", true)]);
+        model.filters_open = true;
+        model.filters.uncollected = false;
+        let mut shared = SharedContext::new();
+        shared.insert(ToyBoxView {
+            model,
+            viewport: [1920.0, 1080.0],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(toybox_screen).sync(&shared, &mut registry);
+        let filter = visible_frame(&registry, "ToyBoxFilterDropdown");
+        assert_eq!(filter.width.value(), 90.0);
+        let first = visible_frame(&registry, "ToyFilter0");
+        assert_eq!(first.height.value(), 20.0);
+        assert_eq!(first.onclick.as_deref(), Some("toy_filter:collected"));
+        assert!(registry.get_by_name("ToyFilter0Box").is_some());
+        assert!(registry.get_by_name("ToyFilter3SubmenuArrow").is_some());
+        let reset = visible_frame(&registry, "ToyBoxFilterDropdownResetButton");
+        assert_eq!(reset.onclick.as_deref(), Some("toy_filter:reset"));
+    }
+}
+
+#[test]
 fn collections_portrait_shell_uses_source_background_in_both_skins() {
     // CollectionsJournal inherits PortraitFrameTemplate; SharedUIPanelTemplates.xml:597-614.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
