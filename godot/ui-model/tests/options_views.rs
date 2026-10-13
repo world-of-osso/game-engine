@@ -646,6 +646,26 @@ fn settings_search_filters_categories_and_setting_rows_case_insensitively() {
 }
 
 #[test]
+fn settings_search_shared_controls_are_not_duplicated_across_categories() {
+    let mut view = model();
+    view.options.search = "UI Scale".into();
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view);
+    menu.sync();
+    let count = menu
+        .registry
+        .frames_iter()
+        .filter(|frame| {
+            matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "UI Scale")
+        })
+        .count();
+    assert_eq!(
+        count, 1,
+        "one shared setting appears once in search results"
+    );
+}
+
+#[test]
 fn settings_addons_tab_contains_only_addon_categories() {
     let mut view = model();
     view.options.addons_tab = true;
