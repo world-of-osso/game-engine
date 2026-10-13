@@ -43,6 +43,7 @@ impl RegistryUi {
         };
         let mut state = self.options_dropdown_state();
         if let Some(key) = action.strip_prefix("options_dropdown:") {
+            godot_print!("Options dropdown route key={key} was_open={}", state.menu.is_some());
             let (button, _) = self
                 .frame_rect(&format!("Choice{key}"))
                 .ok_or("Options dropdown button has no layout")?;
