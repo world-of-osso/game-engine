@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
+
 - [Native follower dungeon Group Finder](systems/follower-dungeons.md) — source role/type/checkbox list, authoritative catalog and both-skin private native admission/five roles/14m follow; combat, camera/geometry/gear and whole-dungeon acceptance remain open.
 
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
@@ -7,7 +9,7 @@
 - [Linked cooking-fire proof](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12) — actual both-skin Little Wickerman/source.25 model/particles, real cooking and Cozy Fire cancellation-refresh; seven-item backend and per-variant boundaries.
 
 - [Native player housing](systems/housing.md) — Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
-- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5415/1800 census (server inventory), remaining producers and source gaps explicit.
+- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5415/1803 census (server inventory), remaining producers and source gaps explicit.
 - [Native arenas](systems/arenas.md) — skirmish/rated/Shuffle lifecycle, source consumers, authoritative live-GO support/walls, Naminze native voice playback and shared exact-copy/origin reconnect; revision-receipted map/skin and query-cost proof tracked in handoff.
 - [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 - [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold pixel fix, published hash census and capture provenance correction: Divine Shield normal-map particles misclassified as colour; general refraction-flag/forward exclusion preserves AW.
