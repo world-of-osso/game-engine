@@ -2321,6 +2321,21 @@ impl GameClient {
             }
             AccountEvent::Lfg(update) => self.follower_dungeons.view.receive(update),
             AccountEvent::Pvp(update) => {
+                if std::env::var_os("BG_DIRECTORY").is_some()
+                    && let Some(bg) = update
+                        .snapshot
+                        .as_ref()
+                        .and_then(|state| state.battleground.as_ref())
+                {
+                    godot_print!(
+                        "BG_NATIVE_PVP_RECEIVED match={} bg={} phase={:?} score_a={} score_b={}",
+                        bg.match_id,
+                        bg.battleground_id,
+                        bg.phase,
+                        bg.score_a,
+                        bg.score_b
+                    );
+                }
                 self.battleground.view.receive(update);
                 self.sync_spellbook()?;
             }
