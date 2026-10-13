@@ -1,3 +1,11 @@
+## 2026-10-12 — Category focus callback boundaries
+
+[Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
+
+## 2026-10-12 — Source search focus keys
+
+[Housing](systems/housing.md#search-focus-keys): Enter/Escape/keypad Enter release only storage search focus, consuming keys without form/chat/window/editor action. Both-skin native retained-query/Tesla, empty gray/clear-hidden, remount and exact conservation proof; shared edit-box behavior unchanged.
+
 ## 2026-10-12 — Source search input limits and chrome
 
 [Housing](systems/housing.md#search-input-limit-gutters-and-magnifier): real registry40-letter limit,16/20 gutters and source magnifier/placeholder. Both skins type45 ASCII/UTF8 keys→40 characters, observe19 brighter focus pixels, remount configured input, clear and conserve paid copies/layout. Reacquiring replaced projected images fixes observer lifetime; owned orphan server cleaned after restart.
