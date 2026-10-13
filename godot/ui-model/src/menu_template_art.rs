@@ -161,7 +161,7 @@ fn apply_texture_flags(registry: &mut FrameRegistry) {
             };
             let template_art = matches!(
                 texture.source,
-                TextureSource::FileDataId(516764 | 516763 | 136810)
+                TextureSource::FileDataId(516764 | 516763 | 136810 | 6839810)
             );
             template_art.then_some(frame.id)
         })
@@ -177,6 +177,11 @@ fn apply_texture_flags(registry: &mut FrameRegistry) {
         }
         if texture.source == TextureSource::FileDataId(516764) {
             texture.horiz_tile = true;
+        }
+        // GameDialog BG.Bottom atlas flags6: repeat both axes.
+        if texture.source == TextureSource::FileDataId(6839810) {
+            texture.horiz_tile = true;
+            texture.vert_tile = true;
         }
     }
 }

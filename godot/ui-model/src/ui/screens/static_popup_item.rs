@@ -36,15 +36,14 @@ pub fn item_confirmation(props: ItemConfirmation<'_>) -> Element {
     let buttons_y = item_y + ITEM_HEIGHT + 18.;
     let height = buttons_y + BUTTON_HEIGHT + 16.;
     let prefix = props.name;
-    let mut contents = texture(
-        format!("{prefix}Background"),
-        6839810,
-        (7., 7., WIDTH - 14., height - 14.),
-        WHITE,
-    );
+    let mut contents = rsx! { texture {
+        name:{DynName(format!("{prefix}Background"))}, texture_fdid:6839810,
+        left:7.0,top:7.0,width:{WIDTH-14.},height:{height-14.},
+        pos_type:"absolute",draw_layer:"BACKGROUND",
+    } };
     contents.extend(rsx! { r#frame {
         name:{DynName(format!("{prefix}Border"))}, width:WIDTH, height, left:0.0, top:0.0,
-        pos_type:"absolute", style:"static_popup",
+        pos_type:"absolute", style:"static_popup",draw_layer:"BACKGROUND",
     } });
     contents.extend(label(
         format!("{prefix}TextBefore"),
