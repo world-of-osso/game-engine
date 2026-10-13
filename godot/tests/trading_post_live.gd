@@ -59,6 +59,8 @@ func layout_proof() -> void:
 	if control("PerksProgramFilterBackground").mouse_filter != Control.MOUSE_FILTER_IGNORE:
 		fail("Decorative WowStyle2 Button intercepted owner input")
 		return
+	if not assert_vendor_rects(): return
+	if not await assert_header_hover(): return
 	await capture("vendor-all")
 	await click("PerksProgramPriceSortButton")
 	if not await wait_until(func(): return client.trading_post_state().ascending, "ascending price header"): return
@@ -70,10 +72,12 @@ func layout_proof() -> void:
 	await capture("filter-description")
 	if not await choose_category(2): return
 	if not await select_first_available(int(client.trading_post_state().tender)): return
+	if not assert_masked_icon("PerksProgramIcon%d" % int(client.trading_post_state().selected)): return
 	await capture("vendor-mount")
 	var first := int(client.trading_post_state().selected)
 	if not await drag_to_frozen("PerksProgramProduct%d" % first): return
 	if not await wait_until(func(): return int(client.trading_post_state().frozen) == first and not client.trading_post_state().pending, "native freeze", 180000): return
+	if not assert_masked_icon("PerksProgramFrozenIcon"): return
 	await capture("frozen")
 	if not await choose_category(1): return
 	if not await select_first_available(int(client.trading_post_state().tender)): return
@@ -91,6 +95,7 @@ func layout_proof() -> void:
 	print("TP_LAYOUT_FOOTER ", footer.get_global_rect() if footer != null else "no projected control", " button=", control("PerksProgramPurchaseButton").get_global_rect(), " model=", control("PerksProgramMainModelScene").get_global_rect(), " enabled=", control_enabled("PerksProgramPurchaseButton"))
 	await click("PerksProgramPurchaseButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "source popup"): return
+	if not assert_dialog_rects_and_art(): return
 	await capture("purchase-confirm")
 	await tap(KEY_ESCAPE)
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null and client.trading_post_state().open, "Escape cancels popup without leaving vendor"): return
@@ -325,6 +330,89 @@ func drag_to_frozen(name: String) -> bool:
 	for step in range(1, 11):
 		await motion(from.lerp(to, step / 10.0), true, (to - from) / 10.0)
 	await button_event(to, MOUSE_BUTTON_LEFT, false)
+	return true
+
+func assert_native_rect(name: String, expected: Rect2) -> bool:
+	var node := control(name)
+	if node == null: fail("Missing projected control " + name); return false
+	var actual := node.get_global_rect()
+	for delta in [actual.position.x-expected.position.x, actual.position.y-expected.position.y, actual.size.x-expected.size.x, actual.size.y-expected.size.y]:
+		if absf(delta) > 0.51:
+			fail("Source projected rect %s: %s != %s" % [name,actual,expected]); return false
+	return true
+
+func assert_vendor_rects() -> bool:
+	for row in [
+		["PerksProgramProductsScrollBoxContainer", Rect2(46,142.5,527,751)],
+		["PerksProgramScrollBox", Rect2(46,200.5,503,573)],
+		["PerksProgramHoldFrame", Rect2(46,773.5,527,120)],
+		["PerksProgramFrozenSlot", Rect2(46,791.5,527,84)],
+		["PerksProgramFilter", Rect2(55,95.5,145,25)],
+		["PerksProgramFooterFrame", Rect2(0,980,1920,100)],
+		["PerksProgramLeaveButton", Rect2(46,1014,180,46)],
+		["PerksProgramPurchaseButton", Rect2(1694,1014,180,46)],
+		["PerksProgramLeftGradient", Rect2(0,0,950,1080)],
+		["PerksProgramRightGradient", Rect2(1320,0,600,1080)],
+	]:
+		if not assert_native_rect(row[0],row[1]): return false
+	var price := control("PerksProgramPriceSortButton").get_global_rect()
+	var time := control("PerksProgramTimeSortButton").get_global_rect()
+	if absf(price.get_center().y-time.get_center().y) > 0.51 or absf(price.end.x+48-time.position.x) > 0.51:
+		fail("Price RIGHT-to-Time.LEFT centering diverged"); return false
+	return true
+
+func assert_header_hover() -> bool:
+	var label := control("PerksProgramNameSortLabel")
+	await motion(control("PerksProgramMainModelScene").get_global_rect().get_center(),false)
+	await wait_frames(5)
+	if not label.get_theme_color("font_color").is_equal_approx(Color(1,0.82,0,1)):
+		fail("Header normal color is not source gold"); return false
+	var before := await pixels("PerksProgramNameSortLabel")
+	await motion(control("PerksProgramNameSortButton").get_global_rect().get_center(),false)
+	await wait_frames(5)
+	if not label.get_theme_color("font_color").is_equal_approx(Color.WHITE):
+		fail("Header hover did not become source white"); return false
+	if before == await pixels("PerksProgramNameSortLabel"):
+		fail("Header hover did not change rendered pixels"); return false
+	await capture("headers-hover")
+	await motion(control("PerksProgramMainModelScene").get_global_rect().get_center(),false)
+	await wait_frames(5)
+	if not label.get_theme_color("font_color").is_equal_approx(Color(1,0.82,0,1)):
+		fail("Header leave did not restore source gold"); return false
+	return true
+
+func assert_texture_pixels(name: String) -> bool:
+	var node := control(name)
+	var part := node.get_node_or_null("Parts/Part0") as TextureRect if node != null else null
+	if part == null or part.texture == null:
+		fail("Source art is absent on " + name); return false
+	var image := part.texture.get_image()
+	if image == null or image.is_empty(): fail("Source image is empty on " + name); return false
+	var covered := 0
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			if image.get_pixel(x,y).a > 0.1: covered += 1
+	if covered == 0: fail("Source image has no visible pixels on " + name); return false
+	return true
+
+func assert_masked_icon(name: String) -> bool:
+	if not assert_texture_pixels(name): return false
+	var image: Image = control(name).get_node("Parts/Part0").texture.get_image()
+	if image.get_pixel(0,0).a > 0.01 or image.get_pixel(floori(image.get_width()*0.5),floori(image.get_height()*0.5)).a < 0.75:
+		fail("Authored mask did not cut corners/preserve icon on " + name); return false
+	return true
+
+func assert_dialog_rects_and_art() -> bool:
+	var item := control("PerksProgramConfirmItem").get_global_rect()
+	var text := control("PerksProgramConfirmItemText").get_global_rect()
+	var button := control("PerksProgramConfirmButton").get_global_rect()
+	if item.size != Vector2(37,37) or text.size != Vector2(103,38) or button.size != Vector2(128,21):
+		fail("StaticPopup ItemFrame/button dimensions differ from source"); return false
+	if absf(item.end.x+10-text.position.x)>0.51:
+		fail("StaticPopup item is not RIGHT-to-text.LEFT-10"); return false
+	if not assert_native_rect("PerksProgramConfirmCover", Rect2(0,0,1920,1080)): return false
+	for name in ["PerksProgramConfirmItem", "PerksProgramConfirmItemNameFrame", "PerksProgramConfirmButtonNormalArt", "PerksProgramConfirmBorder"]:
+		if not assert_texture_pixels(name): return false
 	return true
 
 func pixels(name: String) -> PackedByteArray:
