@@ -752,14 +752,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn avenging_wrath_refraction_emitter_is_not_in_forward_particles() {
+    fn divine_shield_refraction_emitters_do_not_create_forward_particles() {
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
-        let bytes = std::fs::read(data.join("2368644.m2")).unwrap();
-        let skin = std::fs::read(data.join("236864400.skin")).unwrap();
+        let bytes = std::fs::read(data.join("1127086.m2")).unwrap();
+        let skin = std::fs::read(data.join("112708600.skin")).unwrap();
         let mut model = m2::parse_model(&bytes, &skin).unwrap();
-        let particles = ModelParticles::from_model(2368644, &model).unwrap();
-        assert_eq!(particles.authored_indices().collect::<Vec<_>>(), [0]);
-        model.particle_emitters.remove(0);
-        assert!(ModelParticles::from_model(2368644, &model).is_none());
+        let particles = ModelParticles::from_model(1127086, &model).unwrap();
+        assert_eq!(
+            particles.authored_indices().collect::<Vec<_>>(),
+            [0, 1, 2, 3, 4, 7, 8, 9]
+        );
+        model.particle_emitters = model.particle_emitters[5..=6].to_vec();
+        assert!(ModelParticles::from_model(1127086, &model).is_none());
     }
 }

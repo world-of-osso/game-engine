@@ -9,6 +9,8 @@ models/166338.m2
 models/16633800.skin
 models/2368643.m2
 models/236864300.skin
+models/1127086.m2
+models/112708600.skin
 models/2368644.m2
 models/236864400.skin
 models/2368645.m2

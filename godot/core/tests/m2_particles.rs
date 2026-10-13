@@ -17,34 +17,37 @@ fn model(fdid: u32) -> m2::Model {
     m2::parse_model(&read(format!("{fdid}.m2")), &read(format!("{fdid}00.skin"))).unwrap()
 }
 
-/// TXAC follows the material entries, then one u16 per particle. WebWowViewerCpp
-/// selects Refraction for nonzero TXAC on a multitexture three-colour emitter.
+/// WWV selectShaderId's non-multitexture 0x100000 path is shaderId5;
+/// particleMaterialShader maps it to fragment Refraction, not Particle_Mod.
 #[test]
-fn avenging_wrath_txac_selects_refraction_after_material_entries() {
-    const THREE_COLOR: u32 = 0x4000_0000;
-    for (fdid, noise_index) in [(2368644, 1), (2368645, 6)] {
+fn divine_shield_refraction_uses_displacement_not_colour() {
+    const REFRACTION: u32 = 0x0010_0000;
+    const MULTITEXTURE: u32 = 0x1000_0000;
+    let emitters = model(1127086).particle_emitters;
+    assert_eq!(emitters.len(), 10);
+    for index in [5, 6] {
+        let emitter = &emitters[index];
+        assert_eq!(emitter.texture_fdid, Some(1127156));
+        assert_eq!(m2_particles::pixel_shader(emitter), PixelShader::Refraction);
+        let mut colour = emitter.clone();
+        colour.flags &= !REFRACTION;
+        assert_eq!(m2_particles::pixel_shader(&colour), PixelShader::Mod);
+        let mut multitexture = emitter.clone();
+        multitexture.flags |= MULTITEXTURE;
+        assert_eq!(
+            m2_particles::pixel_shader(&multitexture),
+            PixelShader::ThreeColorThreeAlpha
+        );
+    }
+}
+
+#[test]
+fn avenging_wrath_colour_uv_emitters_are_not_refraction() {
+    for (fdid, index) in [(2368644, 1), (2368645, 6)] {
         let emitters = model(fdid).particle_emitters;
         assert_eq!(
-            m2_particles::pixel_shader(&emitters[0]),
+            m2_particles::pixel_shader(&emitters[index]),
             PixelShader::ThreeColorThreeAlpha
-        );
-        assert_eq!(
-            m2_particles::pixel_shader(&emitters[noise_index]),
-            PixelShader::Refraction,
-            "{fdid} refraction parameters must not be drawn as colour"
-        );
-        assert_eq!(emitters[noise_index].txac, 257);
-        let mut without_txac = emitters[noise_index].clone();
-        without_txac.txac = 0;
-        assert_eq!(
-            m2_particles::pixel_shader(&without_txac),
-            PixelShader::ThreeColorThreeAlpha
-        );
-        let mut without_three_color = emitters[noise_index].clone();
-        without_three_color.flags &= !THREE_COLOR;
-        assert_eq!(
-            m2_particles::pixel_shader(&without_three_color),
-            PixelShader::Mod
         );
     }
 }
