@@ -95,6 +95,7 @@ mod quests;
 mod raid_info;
 mod raid_targets;
 mod replicated;
+mod ribbons;
 mod scene;
 mod scene_export;
 mod selection_debug;

@@ -1,0 +1,254 @@
+//! Native source M2 ribbon strips; model bones supply world-space emitter frames.
+use crate::{animation::WowAnimationPlayer, assets::material};
+use game_engine_core::{
+    asset::m2_format::m2_ribbon::M2RibbonEmitter,
+    m2,
+    m2_ribbons::{self, RibbonFrame, RibbonTrail, RibbonVertex},
+};
+use godot::{
+    classes::{
+        ArrayMesh, MeshInstance3D, Node3D, ShaderMaterial, Skeleton3D,
+        geometry_instance_3d::ShadowCastingSetting, mesh,
+    },
+    prelude::*,
+};
+use std::path::Path;
+
+struct PlacedRibbon {
+    source: M2RibbonEmitter,
+    trail: RibbonTrail,
+    meshes: Vec<Gd<MeshInstance3D>>,
+    geometry: Gd<ArrayMesh>,
+}
+
+pub(crate) struct PlacedRibbons {
+    ribbons: Vec<PlacedRibbon>,
+    skeleton: Gd<Skeleton3D>,
+    player: Option<Gd<WowAnimationPlayer>>,
+    pivots: Vec<Vector3>,
+    global_sequences: Vec<u32>,
+    clock_ms: f64,
+}
+
+impl PlacedRibbons {
+    pub(crate) fn place(
+        model: &m2::Model,
+        root: &Gd<Node3D>,
+        texture_dir: &Path,
+    ) -> Result<Option<Self>, String> {
+        if model.ribbon_emitters.is_empty() {
+            return Ok(None);
+        }
+        let skeleton = root
+            .try_get_node_as::<Skeleton3D>("Skeleton3D")
+            .ok_or("Ribbon model has no skeleton")?;
+        let player = root.try_get_node_as::<WowAnimationPlayer>("M2Animation");
+        if !model.sequences.is_empty() && player.is_none() {
+            return Err("Ribbon model is missing its animation player".into());
+        }
+        let mut ribbons = Vec::new();
+        for source in &model.ribbon_emitters {
+            ribbons.push(place_ribbon(model, source, root, texture_dir)?);
+        }
+        Ok(Some(Self {
+            ribbons,
+            skeleton,
+            player,
+            pivots: model
+                .bones
+                .iter()
+                .map(|bone| wow_vector(bone.pivot))
+                .collect(),
+            global_sequences: model.global_sequences.clone(),
+            clock_ms: 0.0,
+        }))
+    }
+
+    pub(crate) fn update_and_draw(
+        &mut self,
+        root: &Gd<Node3D>,
+        delta: f32,
+        fade: f32,
+        emitting: bool,
+    ) -> Result<(), String> {
+        self.clock_ms += f64::from(delta) * 1000.0;
+        let (sequence, time_ms, global_ms) = self.playback()?;
+        let time = m2::AnimTime {
+            sequence,
+            time_ms,
+            global_ms,
+            global_sequences: &self.global_sequences,
+        };
+        for ribbon in &mut self.ribbons {
+            let bone = i32::try_from(ribbon.source.bone_index)
+                .map_err(|_| "Ribbon bone index exceeds engine range")?;
+            if bone >= self.skeleton.get_bone_count() {
+                return Err(format!("Ribbon bone{bone} missing from skeleton"));
+            }
+            let pose = self.skeleton.get_bone_global_pose(bone)
+                * Transform3D::IDENTITY.translated(-self.pivots[bone as usize]);
+            let transform = root.get_global_transform()
+                * pose
+                * Transform3D::IDENTITY.translated(wow_vector(ribbon.source.position));
+            let frame = RibbonFrame {
+                position: glam::Vec3::from_array(transform.origin.to_array()),
+                direction: glam::Vec3::from_array((transform.basis * Vector3::UP).to_array()),
+                vertical: glam::Vec3::from_array(
+                    (transform.basis * Vector3::BACK * -1.0).to_array(),
+                ),
+            };
+            let values = m2_ribbons::sample(&ribbon.source, &time);
+            ribbon.trail.advance(delta, frame, values, emitting)?;
+            let vertices = ribbon.trail.triangles(fade);
+            upload_geometry(&mut ribbon.geometry, &vertices);
+            for mesh in &mut ribbon.meshes {
+                mesh.set_visible(!vertices.is_empty());
+            }
+        }
+        Ok(())
+    }
+
+    fn playback(&self) -> Result<(usize, u32, f64), String> {
+        let Some(player) = &self.player else {
+            return Ok((0, 0, self.clock_ms)); // Source model has no animation sequences.
+        };
+        if !player.is_instance_valid() {
+            return Err("Ribbon animation player disappeared".into());
+        }
+        let player = player.bind();
+        let (sequence, time_ms) = player
+            .playback()
+            .ok_or("Ribbon animation has no playback")?;
+        let global_ms = player
+            .global_ms()
+            .ok_or("Ribbon animation has no global clock")?;
+        Ok((sequence, time_ms, global_ms))
+    }
+}
+
+fn place_ribbon(
+    model: &m2::Model,
+    source: &M2RibbonEmitter,
+    root: &Gd<Node3D>,
+    texture_dir: &Path,
+) -> Result<PlacedRibbon, String> {
+    let bone = source.bone_index as usize;
+    if bone >= model.bones.len() {
+        return Err(format!(
+            "Ribbon bone{bone} exceeds {} model bones",
+            model.bones.len()
+        ));
+    }
+    if source.texture_indices.len() != source.material_indices.len()
+        || source.material_indices.is_empty()
+    {
+        return Err(format!(
+            "Ribbon{} has unsupported texture/material reference counts",
+            source.id
+        ));
+    }
+    validate_texture_transform(model, source)?;
+    let trail = RibbonTrail::new(source)?;
+    let geometry = ArrayMesh::new_gd();
+    let mut meshes = Vec::new();
+    for (&texture, &material) in source.texture_indices.iter().zip(&source.material_indices) {
+        let material = load_ribbon_material(model, texture, material, texture_dir)?;
+        let mut mesh = MeshInstance3D::new_alloc();
+        mesh.set_name("M2RibbonStrip");
+        mesh.set_mesh(&geometry);
+        mesh.set_material_override(&material);
+        mesh.set_cast_shadows_setting(ShadowCastingSetting::OFF);
+        root.clone().add_child(&mesh);
+        mesh.set_as_top_level(true);
+        mesh.set_global_transform(Transform3D::IDENTITY);
+        mesh.set_visible(false);
+        meshes.push(mesh);
+    }
+    Ok(PlacedRibbon {
+        source: source.clone(),
+        trail,
+        meshes,
+        geometry,
+    })
+}
+
+fn validate_texture_transform(model: &m2::Model, source: &M2RibbonEmitter) -> Result<(), String> {
+    if source.texture_transform_lookup < 0 {
+        return Ok(());
+    }
+    let lookup = usize::from(source.texture_transform_lookup as u8);
+    let index = model
+        .uv_animation_lookup
+        .get(lookup)
+        .ok_or_else(|| format!("Ribbon UV lookup{lookup} missing"))?;
+    if *index >= 0 {
+        return Err(format!(
+            "Ribbon animated UV transform{index} remains unsupported"
+        ));
+    }
+    Ok(())
+}
+
+fn load_ribbon_material(
+    model: &m2::Model,
+    texture_index: u16,
+    material_index: u16,
+    dir: &Path,
+) -> Result<Gd<ShaderMaterial>, String> {
+    let texture = *model
+        .texture_fdids
+        .get(usize::from(texture_index))
+        .ok_or_else(|| format!("Ribbon texture index{texture_index} missing"))?;
+    let authored = model
+        .materials
+        .get(usize::from(material_index))
+        .ok_or_else(|| format!("Ribbon material index{material_index} missing"))?;
+    let mut missing = PackedInt32Array::new();
+    let image = material::shared_texture(texture, dir, &mut missing)?
+        .ok_or_else(|| format!("Ribbon texture{texture} has no verified local image"))?;
+    let (shader, blend) = material::ribbon_material_shader(authored)?;
+    let mut material = ShaderMaterial::new_gd();
+    material.set_shader(&shader);
+    material.set_shader_parameter("ribbon_texture", &image.to_variant());
+    material.set_shader_parameter("gx_blend", &i32::from(blend).to_variant());
+    Ok(material)
+}
+
+fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
+    mesh.clear_surfaces();
+    if vertices.is_empty() {
+        return;
+    }
+    let positions: PackedVector3Array = vertices
+        .iter()
+        .map(|vertex| Vector3::from_array(vertex.position))
+        .collect();
+    let uvs: PackedVector2Array = vertices
+        .iter()
+        .map(|vertex| Vector2::from_array(vertex.uv))
+        .collect();
+    let colors: PackedColorArray = vertices
+        .iter()
+        .map(|vertex| {
+            Color::from_rgba(
+                vertex.color[0],
+                vertex.color[1],
+                vertex.color[2],
+                vertex.color[3],
+            )
+        })
+        .collect();
+    let mut arrays = VarArray::new();
+    arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
+    arrays.set(
+        mesh::ArrayType::VERTEX.ord() as usize,
+        &positions.to_variant(),
+    );
+    arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uvs.to_variant());
+    arrays.set(mesh::ArrayType::COLOR.ord() as usize, &colors.to_variant());
+    mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
+}
+
+fn wow_vector([x, y, z]: [f32; 3]) -> Vector3 {
+    Vector3::new(x, z, -y)
+}
