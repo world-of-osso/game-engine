@@ -46,12 +46,19 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
         GameMenuView::Options => options_menu_overlay(
             &model.options,
             shared.scroll_first_row(OPTIONS_CONTENT_SCROLL),
+            shared
+                .get::<crate::options_dropdown::OptionsDropdownState>()
+                .and_then(|state| state.menu.as_ref()),
         ),
     }
 }
 
-fn options_menu_overlay(options: &OptionsViewModel, offset: usize) -> Element {
-    let options = options_view(options, offset);
+fn options_menu_overlay(
+    options: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
+    let options = options_view(options, offset, open);
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,

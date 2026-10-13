@@ -1,3 +1,4 @@
+use crate::options_dropdown::OptionsDropdownMenu;
 use std::fmt;
 
 use ui_toolkit::rsx;
@@ -41,8 +42,6 @@ const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_TOGGLE_W: f32 = 170.0;
 const OPTIONS_TOGGLE_H: f32 = 28.0;
-/// Every dropdown row is three 140-wide segments wide.
-const CHOICE_ROW_W: f32 = 420.0;
 const OPTIONS_TOGGLE_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TOGGLE_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_TOGGLE_BORDER: &str = "1px solid 0.32,0.24,0.10,0.75";
@@ -134,7 +133,7 @@ pub fn action_bars_body(
     )
 }
 
-pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
+pub fn interface_body(hud: &HudOptionsView, open: Option<&OptionsDropdownMenu>) -> OptionsPage {
     content_stack(
         [
             toggle_row(
@@ -147,6 +146,7 @@ pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
                 "Encounter View",
                 &[(1, "Timeline"), (2, "Bars")],
                 if hud.encounter_bars { 2 } else { 1 },
+                open,
             ),
             toggle_row(
                 "encounter_warnings",
@@ -158,7 +158,7 @@ pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
                 "Encounter Warning Sounds",
                 hud.encounter_sounds,
             ),
-            status_text_row(hud.status_text_display),
+            status_text_row(hud.status_text_display, open),
             slider_row(
                 "chat_font_size",
                 "Chat Font Size",
@@ -185,19 +185,27 @@ pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
     )
 }
 
-pub fn accessibility_body(graphics: &GraphicsOptionsView, hud: &HudOptionsView) -> OptionsPage {
-    content_stack(accessibility_items(graphics, hud))
+pub fn accessibility_body(
+    graphics: &GraphicsOptionsView,
+    hud: &HudOptionsView,
+    open: Option<&OptionsDropdownMenu>,
+) -> OptionsPage {
+    content_stack(accessibility_items(graphics, hud, open))
 }
 
 fn accessibility_ui_scale_item(ui_scale: f32) -> Element {
     slider_row("ui_scale", "UI Scale", ui_scale, UI_SCALE_MIN, UI_SCALE_MAX)
 }
 
-fn accessibility_items(graphics: &GraphicsOptionsView, hud: &HudOptionsView) -> Element {
+fn accessibility_items(
+    graphics: &GraphicsOptionsView,
+    hud: &HudOptionsView,
+    open: Option<&OptionsDropdownMenu>,
+) -> Element {
     [
         accessibility_ui_scale_item(graphics.ui_scale),
         accessibility_colorblind_item(graphics.colorblind_mode),
-        interact_key_icons_row(hud.interact_key_icons),
+        interact_key_icons_row(hud.interact_key_icons, open),
         accessibility_info_rows(),
     ]
     .into_iter()
@@ -211,32 +219,37 @@ fn accessibility_colorblind_item(colorblind_mode: bool) -> Element {
 
 /// Retail Accessibility "Interact Key Icons" dropdown (Accessibility.lua:176-221), its
 /// three choices side by side.
-fn interact_key_icons_row(selected: InteractKeyIcons) -> Element {
+fn interact_key_icons_row(
+    selected: InteractKeyIcons,
+    open: Option<&OptionsDropdownMenu>,
+) -> Element {
     let choices = InteractKeyIcons::ALL.map(|choice| (choice.value(), choice.label()));
     choice_row(
         "interact_key_icons",
         "Interact Key Icons",
         &choices,
         selected.value(),
+        open,
     )
 }
 
 /// Retail Interface → Display "Status Text" dropdown (Interface.lua:57-105), its four
 /// choices side by side.
-fn status_text_row(selected: StatusTextDisplay) -> Element {
+fn status_text_row(selected: StatusTextDisplay, open: Option<&OptionsDropdownMenu>) -> Element {
     let choices = StatusTextDisplay::ALL.map(|choice| (choice.value(), choice.label()));
     choice_row(
         "status_text_display",
         "Status Text",
         &choices,
         selected.value(),
+        open,
     )
 }
 
 /// Retail Edit Mode "Layout" dropdown (`Blizzard_EditMode/Shared/EditModeManager.xml:50`,
 /// `EditModeManager.lua:1277-1310`): the system presets, then the saved player layouts.
 /// This client has no Edit Mode window yet, so the dropdown heads HUD options.
-fn layout_row(layout: &LayoutOptionsView) -> Element {
+fn layout_row(layout: &LayoutOptionsView, open: Option<&OptionsDropdownMenu>) -> Element {
     let choices: Vec<(u8, &str)> = (0u8..)
         .zip(layout.names.iter().map(String::as_str))
         .collect();
@@ -244,94 +257,57 @@ fn layout_row(layout: &LayoutOptionsView) -> Element {
         .iter()
         .find_map(|&(index, name)| (name == layout.active).then_some(index))
         .unwrap_or(u8::MAX);
-    choice_row(LAYOUT_CHOICE_KEY, "Layout", &choices, selected)
+    choice_row(LAYOUT_CHOICE_KEY, "Layout", &choices, selected, open)
 }
 
 /// A dropdown's `(value, label)` choices as one segmented row; the selected one is lit.
-fn choice_row(key: &str, label: &str, choices: &[(u8, &str)], selected: u8) -> Element {
-    let segment_w = CHOICE_ROW_W / choices.len() as f32;
-    let segments: Element = choices
-        .iter()
-        .enumerate()
-        .flat_map(|(index, &(value, text))| {
-            let left = segment_w * index as f32;
-            choice_segment(key, (left, segment_w), (value, text), value == selected)
-        })
-        .collect();
-    rsx! {
-        r#frame {
-            name: {DynName(format!("ChoiceRow{key}"))},
-            width: {OPTIONS_ROW_W},
-            height: 44.0,
-            {row_label(&format!("ChoiceLabel{key}"), label)}
-            r#frame {
-                name: {DynName(format!("Choice{key}"))},
-                width: {CHOICE_ROW_W},
-                height: {OPTIONS_TOGGLE_H},
-                background_color: OPTIONS_TOGGLE_BG,
-                border: OPTIONS_TOGGLE_BORDER,
-                pos_type: "absolute",
-                left: "100%",
-                top: "50%",
-                translate_x: "-100%",
-                translate_y: "-50%",
-                margin_left: "-8",
-                {segments}
-            }
-        }
-    }
-}
-
-/// One choice: highlighted when selected, else clickable (`options_toggle:{key}:{value}`).
-fn choice_segment(
+fn choice_row(
     key: &str,
-    (left, width): (f32, f32),
-    (value, label): (u8, &str),
-    selected: bool,
+    label: &str,
+    choices: &[(u8, &str)],
+    selected: u8,
+    open: Option<&OptionsDropdownMenu>,
 ) -> Element {
-    let name = format!("Choice{key}{value}");
-    let action = toggle_action(&format!("{key}:{value}"));
-    let (fill, text) = if selected {
-        (OPTIONS_TOGGLE_FILL, OPTIONS_TOGGLE_TEXT_ACTIVE)
-    } else {
-        ("0,0,0,0", OPTIONS_TOGGLE_TEXT_IDLE)
+    use super::menu_primitives::{
+        DropdownButton, DropdownState, DropdownStyle, dropdown_button_with_state,
     };
-    let hit = if selected {
-        Vec::new()
-    } else {
-        rsx! {
-            r#frame {
-                name: {DynName(format!("{name}Hit"))},
-                width,
-                height: {OPTIONS_TOGGLE_H},
-                onclick: {action.as_str()},
-            }
-        }
-    };
-    rsx! {
-        r#frame {
-            name: {DynName(name.clone())},
-            width,
-            height: {OPTIONS_TOGGLE_H},
-            background_color: fill,
-            pos_type: "absolute",
-            left,
-            top: 0.0,
-            fontstring {
-                name: {DynName(format!("{name}Label"))},
-                width,
-                height: {OPTIONS_TOGGLE_H},
-                text: label,
-                font_size: 14.0,
-                color: text,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
-            {hit}
-        }
-    }
+    let selected_text = choices
+        .iter()
+        .find_map(|(value, text)| (*value == selected).then_some(*text))
+        .unwrap_or("");
+    let menu = open.filter(|menu| menu.key == key);
+    let action = format!("options_dropdown:{key}");
+    // SettingsDropdownControlMixin width220, LEFT at CENTER-80; WowStyle2 height25.
+    let dropdown = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: &format!("Choice{key}"),
+            label_name: &format!("Choice{key}Text"),
+            arrow_name: &format!("Choice{key}Arrow"),
+            text: selected_text,
+            width: 220.0,
+            height: 25.0,
+            x: OPTIONS_ROW_W / 2.0 - 80.0,
+            y: -6.5,
+            background_color: "",
+            text_color: "1,1,1,1",
+            arrow_color: "",
+            onclick: Some(&action),
+        },
+        DropdownState {
+            style: DropdownStyle::WowStyle2,
+            open: menu.is_some(),
+            enabled: !choices.is_empty(),
+            reset_action: None,
+        },
+    );
+    let popup = menu
+        .map(|menu| {
+            crate::options_dropdown::radio_popup(key, label, choices, selected, menu.position)
+        })
+        .unwrap_or_default();
+    rsx! { r#frame { name: DynName(format!("ChoiceRow{key}")), width: OPTIONS_ROW_W, height: 44.0,
+        {row_label(&format!("ChoiceLabel{key}"),label)} {dropdown} {popup}
+    } }
 }
 
 fn accessibility_info_rows() -> Element {
@@ -362,11 +338,15 @@ fn accessibility_info_rows() -> Element {
     .collect()
 }
 
-pub fn hud_body(hud: &HudOptionsView, layout: &LayoutOptionsView) -> OptionsPage {
+pub fn hud_body(
+    hud: &HudOptionsView,
+    layout: &LayoutOptionsView,
+    open: Option<&OptionsDropdownMenu>,
+) -> OptionsPage {
     content_stack(
         [
-            layout_row(layout),
-            layout_section::layout_settings_rows(layout),
+            layout_row(layout, open),
+            layout_section::layout_settings_rows(layout, open),
             toggle_row("show_minimap", "Show Minimap", hud.show_minimap),
             toggle_row("show_action_bars", "Show Action Bars", hud.show_action_bars),
             toggle_row(

@@ -30,10 +30,11 @@ pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
 mod mentor_host;
-mod meter_preview;
 mod menu_primitives_preview;
+mod meter_preview;
 mod minimap_preview;
 mod mount_journal_host;
+mod options_dropdown;
 mod options_keybindings;
 mod parts;
 mod party_preview;
@@ -787,6 +788,16 @@ impl ICanvasLayer for RegistryUi {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        match self.handle_options_dropdown_input(&event) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => godot_error!("Options dropdown input: {error}"),
+        }
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);
         }
@@ -2788,6 +2799,9 @@ impl RegistryUi {
     }
 
     fn dispatch_ui_input(&mut self, arrival: u64, event: UiInput) -> Result<(), String> {
+        if self.handle_options_dropdown_click(&event)? {
+            return Ok(());
+        }
         self.release_search_clear_focus(&event);
         if self.toplevel && matches!(event, UiInput::PointerDown(_)) {
             self.raise_request = Some(arrival);

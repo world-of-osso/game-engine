@@ -91,11 +91,11 @@ mod housing_storage_component;
 mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
-pub mod mount_journal;
-pub mod navigation_bar;
 pub mod menu_template_art;
+pub mod mount_journal;
 mod mount_source;
 pub mod mythic_mentor;
+pub mod navigation_bar;
 pub mod pet_journal;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]
@@ -236,6 +236,8 @@ pub use game_engine_core::status_text_data;
 pub mod game_menu_component;
 #[path = "ui/screens/game_menu_main.rs"]
 pub mod game_menu_main;
+#[path = "ui/screens/options_dropdown.rs"]
+pub mod options_dropdown;
 #[path = "ui/screens/options_menu_active_sections.rs"]
 pub mod options_menu_active_sections;
 #[path = "ui/screens/options_menu_component.rs"]

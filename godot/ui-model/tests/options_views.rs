@@ -543,3 +543,67 @@ fn settings_panel_and_category_rows_match_retail_xml() {
         );
     }
 }
+
+#[test]
+fn options_choice_is_one_dropdown_and_unclipped_radio_popup() {
+    use game_engine_ui_model::options_dropdown::OptionsDropdownState;
+    let mut view = model();
+    view.options.category = OptionsCategory::Interface;
+    let mut menu = GameMenuModel::from_view(1600.0, 900.0, view);
+    menu.sync();
+    let button = menu
+        .registry
+        .get_by_name("Choicestatus_text_display")
+        .unwrap();
+    assert_eq!(
+        menu.registry.click_frame(button).as_deref(),
+        Some("options_dropdown:status_text_display")
+    );
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupstatus_text_display")
+            .is_none()
+    );
+    let mut state = OptionsDropdownState::default();
+    state.toggle("status_text_display", [320.0, 180.0]);
+    menu.shared.insert(state.clone());
+    menu.sync();
+    let popup = menu
+        .registry
+        .get(
+            menu.registry
+                .get_by_name("OptionsChoicePopupstatus_text_display")
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(popup.parent_id, menu.registry.get_by_name("OptionsRoot"));
+    let radio = menu
+        .registry
+        .get_by_name("Choicestatus_text_display2Hit")
+        .unwrap();
+    assert_eq!(
+        menu.registry.click_frame(radio).as_deref(),
+        Some("options_toggle:status_text_display:2")
+    );
+    state.toggle("encounter_view", [300.0, 200.0]);
+    menu.shared.insert(state.clone());
+    menu.sync();
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupstatus_text_display")
+            .is_none()
+    );
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupencounter_view")
+            .is_some()
+    );
+    assert!(state.close());
+    menu.shared.insert(state);
+    menu.sync();
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupencounter_view")
+            .is_none()
+    );
+}
