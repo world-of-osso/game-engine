@@ -19,7 +19,7 @@ const SWORD_1H: u8 = 7;
 const SWORD_2H: u8 = 8;
 
 fn db2_dir() -> std::path::PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("data/db2/12.1.0.69933")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("data/db2/active")
 }
 
 fn catalog() -> &'static SpellVisualCatalog {

@@ -22,7 +22,7 @@ impl MapCatalog {
             std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))
         };
         Self::parse(
-            &read("db2/12.1.0.69933/Map.csv")?,
+            &read("db2/active/Map.csv")?,
             &read("db2/1.60.1.70205/Map.csv")?,
         )
     }

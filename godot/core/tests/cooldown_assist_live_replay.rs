@@ -38,7 +38,7 @@ fn replay_skin(skin: &str) {
     // untouched native JSON string, not that presentation projection.
     let encoded = proof["assisted"]["evaluation_json"].as_str().unwrap();
     let mut evaluation: Evaluation = serde_json::from_str(encoded).unwrap();
-    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = CooldownAssistCatalog::load(&data).unwrap();
     let after = proof["after"].as_u64().unwrap() as u32;
     assert_ne!(proof["before"].as_u64().unwrap(), u64::from(after));

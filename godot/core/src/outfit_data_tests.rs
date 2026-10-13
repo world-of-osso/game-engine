@@ -207,7 +207,7 @@ mod baked_display {
     fn model_asset_owned_equipment_columns_keep_model_and_material_products() {
         let root = write_catalog("owned-replacements");
         let forever = root.join("db2/1.60.1.70205");
-        let components = root.join("db2/12.1.0.69933");
+        let components = root.join("db2/active");
         std::fs::create_dir_all(&components).unwrap();
         for name in [
             "ItemModifiedAppearance.csv",
@@ -409,11 +409,7 @@ fn forever_npc_gear_reports_declared_missing_resources() {
         )
         .unwrap();
     }
-    std::os::unix::fs::symlink(
-        source.join("db2/12.1.0.69933"),
-        fixture.join("db2/12.1.0.69933"),
-    )
-    .unwrap();
+    std::os::unix::fs::symlink(source.join("db2/active"), fixture.join("db2/active")).unwrap();
     std::os::unix::fs::symlink(
         source.join("db2/HelmetGeosetData.db2"),
         fixture.join("db2/HelmetGeosetData.db2"),

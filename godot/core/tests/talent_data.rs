@@ -1,7 +1,7 @@
 use game_engine_core::talent_data::{TalentPage, load_talent_page};
 use std::path::Path;
 fn arcane() -> TalentPage {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     load_talent_page(&dir, 8, 62).expect("local Mage Arcane rows")
 }
 #[test]

@@ -11,7 +11,7 @@ fn data() -> &'static NpcGearData {
             .into_iter()
             .find(|dir| dir.is_dir())
             .expect("repository data directory")
-            .join("db2/12.1.0.69933");
+            .join("db2/active");
         NpcGearData::load(&dir).unwrap()
     })
 }
