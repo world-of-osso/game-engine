@@ -8,7 +8,7 @@ use game_engine_ui_model::{
     },
     minimap::{MinimapClusterState, TrackingState, minimap_cluster_screen},
     transmog::{TransmogBook, WardrobeTab},
-    transmog_frame::{TransmogView, transmog_screen},
+    transmog_frame::TransmogView,
 };
 use godot::prelude::*;
 use ui_toolkit::{
@@ -44,18 +44,6 @@ fn screen(ctx: &SharedContext) -> Element {
                 ..Default::default()
             });
             minimap_cluster_screen(&shared)
-        }
-        "transmog" => {
-            let mut book = TransmogBook::default();
-            book.state = Some(shared::protocol::TransmogState::default());
-            book.tab = WardrobeTab::Sets;
-            book.filters_open = true;
-            shared.insert(TransmogView {
-                book,
-                viewport_width: 1920.0,
-                ..Default::default()
-            });
-            transmog_screen(&shared)
         }
         "difficulty" => {
             shared.insert(InWorldUnitFramesState {
@@ -112,6 +100,17 @@ impl RegistryUi {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
             self.set_ui_scale(1.0)?;
+            if page == "transmog" {
+                let mut book = TransmogBook::default();
+                book.state = Some(shared::protocol::TransmogState::default());
+                book.tab = WardrobeTab::Sets;
+                book.filters_open = true;
+                return self.show_transmog(TransmogView {
+                    book,
+                    viewport_width: 1920.0,
+                    ..Default::default()
+                });
+            }
             self.show_viewport_screen(Preview { page, skin }, screen, ScreenPostsetup::None)
         });
         GString::from(result.err().unwrap_or_default().as_str())
