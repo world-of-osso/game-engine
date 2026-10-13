@@ -225,3 +225,5 @@ full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json
 
 - [[m2-product-shadowing]] — FDID presence is not authenticated source/build identity.
 - [[forever-data]] — product-selected metadata and provenance gaps.
+
+The 44 `manifest*.json` files under `data/diagnostics/closure-*` (61.5 GiB) were deleted on 2026-10-13 at the user's request. The SHA-256 and size of each are kept in `data/diagnostics/lead-deleted-closure-manifests-2026-10-13.sha256`. Hashes cited above still identify those manifests, but the files are gone; rerun `scripts/asset_closure.py` to regenerate one.
