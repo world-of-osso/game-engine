@@ -53,7 +53,7 @@ Queue894/map1803 retains the source5–10perteam roster, levels40–90 and1500re
 
 ## Isle of Conquest continuation — active
 
-Retail queue 30/map 628 displays authoritative reinforcements against source starting 400, without unrelated team-flag cells. Source banner entries use normal replicated object rendering and Opening interaction. Both skins retain the same queue identity, HUD, ordered Bases Assaulted 245/Bases Defended 246 scoreboard columns and automatic results. The shared AV/IoC both-skin fixture proves these UI contracts. Native objective/return captures remain pending; destructible gates, siege vehicles and hangar transport are not certified.
+Retail queue 30/map 628 displays authoritative reinforcements against source starting 400, without unrelated team-flag cells. Source banner entries use normal replicated object rendering and Opening interaction. Both skins retain the same queue identity, HUD, ordered Bases Assaulted 245/Bases Defended 246 scoreboard columns and automatic results. The shared AV/IoC both-skin fixture proves these UI contracts. Private Modern/Forever native runs (`modern-isle1`, `forever-isle2`) prove 20 real accounts, visible Quarry banner Opening, one-minute capture, natural 400→401 reinforcement tick, stat 245 and both scoreboard columns, exact native origin return and all 20 return ACKs/saves. Receipts are `*-isle-proof.json` in the coverage diagnostics. This does not prove victory, terrain/player appearance parity, destructible gates, siege vehicles or hangar transport.
 
 ## Alterac Valley continuation — active
 
