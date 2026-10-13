@@ -102,6 +102,31 @@ fn expert_increment_actions_have_distinct_hold_slots_and_submodes_do_not_hold() 
 }
 
 #[test]
+fn expert_binding_labels_use_current_authorized_canonical_globalstrings() {
+    for (action, label) in [
+        (InputAction::HousingExpertTranslate, "Advanced Move Submode"),
+        (InputAction::HousingExpertRotate, "Advanced Rotate Submode"),
+        (InputAction::HousingExpertScale, "Advanced Scale Submode"),
+        (InputAction::HousingExpertLeft, "Move Decor Left"),
+        (InputAction::HousingExpertRight, "Move Decor Right"),
+        (InputAction::HousingExpertForward, "Move Decor Forward"),
+        (InputAction::HousingExpertBack, "Move Decor Backward"),
+        (InputAction::HousingExpertUp, "Move Decor Up"),
+        (InputAction::HousingExpertDown, "Move Decor Down"),
+        (InputAction::HousingExpertRotateLeft, "Rotate Decor Left"),
+        (InputAction::HousingExpertRotateRight, "Rotate Decor Right"),
+        (InputAction::HousingExpertScaleUp, "Scale Decor Up"),
+        (InputAction::HousingExpertScaleDown, "Scale Decor Down"),
+        (
+            InputAction::HousingExpertNextAxis,
+            "Switch to next rotation axis",
+        ),
+    ] {
+        assert_eq!(action.label(), label);
+    }
+}
+
+#[test]
 fn retail_expert_actions_are_assignable_without_invented_default_keys() {
     let bindings = InputBindingsData::default();
     for name in [

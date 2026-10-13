@@ -6,113 +6,14 @@ use ui_toolkit::{rsx, widget_def::Element};
 
 pub fn editor_screen(view: &HousingView) -> Element {
     match view.model.editor.mode {
-        crate::housing_editor::EditorMode::Expert => return expert_screen(view),
+        crate::housing_editor::EditorMode::Expert => {
+            return crate::housing_expert_component::expert_screen(view);
+        }
         crate::housing_editor::EditorMode::Cleanup => return cleanup_screen(view),
         crate::housing_editor::EditorMode::Basic => {
             return crate::housing_basic_component::basic_screen(view);
         }
     }
-}
-
-/// Expert XML: 64px mode/submode buttons, submode bar18 above the mode button;
-/// OnShow hides the storage drawer. Unselected/selected instructions share the right.
-fn expert_screen(view: &HousingView) -> Element {
-    use crate::housing_editor::{PrecisionSubmode, RotationAxis};
-    let editor = &view.model.editor;
-    let can_edit = view
-        .authority
-        .state
-        .as_ref()
-        .and_then(|state| state.layout.as_ref())
-        .is_some_and(|layout| layout.can_edit);
-    let disabled = !can_edit || view.model.pending;
-    let scale_disabled = disabled || (editor.selected.is_some() && !editor.scale_allowed);
-    let left = ((view.viewport[0] - 192.0) / 2.0).max(0.0);
-    let top = (view.viewport[1] - 84.0).max(0.0);
-    let sub_left = left - 32.0;
-    let sub_top = top - 82.0;
-    let axis = match editor.rotation_axis() {
-        RotationAxis::X => "X",
-        RotationAxis::Y => "Y",
-        RotationAxis::Z => "Z",
-    };
-    let instruction = if editor.selected.is_none() {
-        "Select placed decor to edit in Expert Mode.".to_string()
-    } else {
-        format!(
-            "1 Move: drag selection ({axis}); X next axis\n2 Rotate: hold mouse arrows or Q / E\n3 Scale: drag thumb or hold mouse arrows\nArrows / Page Up / Page Down also move\nEnter saves; Esc cancels staged changes"
-        )
-    };
-    let mut controls = mode_icon(
-        "HouseEditorBasicDecorModeButton",
-        "decor-ability-move-default",
-        "housing:basic",
-        (0.0, 0.0),
-        view.model.pending,
-    );
-    controls.extend(mode_icon(
-        "HouseEditorExpertDecorModeButton",
-        "decor-ability-expertmode-active",
-        "housing:expert",
-        (64.0, 0.0),
-        view.model.pending,
-    ));
-    controls.extend(mode_icon(
-        "HouseEditorCleanupModeButton",
-        "decor-ability-cleanup-default",
-        "housing:cleanup",
-        (128.0, 0.0),
-        view.model.pending,
-    ));
-    let mut submodes = Element::default();
-    for (index, (name, atlas, action, mode, restricted)) in [
-        (
-            "TranslateSubmodeButton",
-            "horzmove",
-            "housing:precision:translate",
-            PrecisionSubmode::Translate,
-            disabled,
-        ),
-        (
-            "RotateSubmodeButton",
-            "rotate",
-            "housing:precision:rotate",
-            PrecisionSubmode::Rotate,
-            disabled,
-        ),
-        (
-            "ScaleSubmodeButton",
-            "scale",
-            "housing:precision:scale",
-            PrecisionSubmode::Scale,
-            scale_disabled,
-        ),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let state = if editor.submode == mode {
-            "active"
-        } else {
-            "default"
-        };
-        submodes.extend(mode_icon(
-            name,
-            &format!("decor-ability-expert-{atlas}-{state}"),
-            action,
-            (index as f32 * 64.0, 0.0),
-            restricted,
-        ));
-    }
-    let mouse_controls = crate::housing_mouse_component::mouse_controls(view);
-    // HouseEditorInstructionsContainerTemplate: RIGHT, x=-30, y=0.
-    let instruction_top = ((view.viewport[1] - 150.0) / 2.0).max(0.0);
-    rsx! { r#frame { name:"HouseEditorFrame",stretch:true,
-        {mouse_controls}
-        r#frame {name:"HouseEditorModeBar",width:192.0,height:64.0,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,{controls}}
-        r#frame {name:"HouseEditorExpertSubmodeBar",width:192.0,height:64.0,pos_type:"absolute",left:sub_left,top:sub_top,mouse_enabled:true,strata:FrameStrata::Dialog,{submodes}}
-        fontstring {name:"HouseEditorInstructions",text:instruction,width:330.0,height:150.0,pos_type:"absolute",left:{(view.viewport[0]-360.0).max(0.0)},top:instruction_top,font_size:14.0}
-    } }
 }
 
 fn cleanup_screen(view: &HousingView) -> Element {
