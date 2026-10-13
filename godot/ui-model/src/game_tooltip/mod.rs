@@ -568,7 +568,13 @@ mod tests {
             ..SCREEN
         };
         let placed = place(tooltip.clone(), bottom_right);
-        assert!(inside(&placed));
+        assert!(
+            inside(&placed),
+            "right edge actual={:?} expected_width={} height={}",
+            placed,
+            w(),
+            height
+        );
         assert_eq!(placed.x + w(), 1920.0);
         assert_eq!(placed.y + height, 1078.0);
         // Top right: a tooltip taller than the space above the cursor drops to the top edge.
@@ -577,7 +583,13 @@ mod tests {
             ..SCREEN
         };
         let placed = place(tooltip, top_right);
-        assert!(inside(&placed));
+        assert!(
+            inside(&placed),
+            "top edge actual={:?} expected_width={} height={}",
+            placed,
+            w(),
+            height
+        );
         assert_eq!((placed.x + w(), placed.y), (1920.0, 0.0));
     }
 
