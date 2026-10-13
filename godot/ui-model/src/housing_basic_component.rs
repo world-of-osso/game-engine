@@ -37,8 +37,8 @@ pub fn basic_screen(view: &HousingView) -> Element {
         view.model.editor.placing.is_none() && view.model.editor.selected.is_none();
     let left = (view.viewport[0] - (4.0 * BUTTON + GAP)) / 2.0 - 26.0;
     let top = view.viewport[1] - BUTTON - 82.0;
-    let snap = icon_button("Snap", "snap", "", (0.0, 0.0), true, false);
-    let free = icon_button("FreePlace", "freeplacement", "", (52.0, 0.0), true, false);
+    let snap = icon_button(("Snap", "snap", ""), (0.0, 0.0), true, false);
+    let free = icon_button(("FreePlace", "freeplacement", ""), (52.0, 0.0), true, false);
     rsx! {r#frame {name:"HouseEditorFrame",stretch:true,
         button {name:"HouseEditorDecorMoveOverlay",stretch:true,hidden:overlay_hidden,strata:FrameStrata::High,mouse_enabled:true,button_default_skin:false}
         {drawer} {modes} {instructions}
@@ -114,10 +114,7 @@ fn instructions(view: &HousingView) -> Element {
         .enumerate()
         .map(|(index, (name, label, text, disabled))| {
             instruction_row(
-                name,
-                label,
-                text.as_deref(),
-                disabled,
+                (name, label, text.as_deref(), disabled),
                 label_width,
                 index as f32 * ROW,
             )
@@ -129,14 +126,8 @@ fn instructions(view: &HousingView) -> Element {
     rsx! {r#frame {name:"HouseEditorInstructions",width,height,left,top,pos_type:"absolute",{children}}}
 }
 
-fn instruction_row(
-    name: &str,
-    label: &str,
-    text: Option<&str>,
-    disabled: bool,
-    label_width: f32,
-    top: f32,
-) -> Element {
+fn instruction_row(row: (&str, &str, Option<&str>, bool), label_width: f32, top: f32) -> Element {
+    let (name, label, text, disabled) = row;
     let prefix = format!("HouseEditor{name}Instruction");
     let control_width = text.map(binding_width).unwrap_or(ROW);
     let width = label_width + GAP + control_width;
@@ -170,6 +161,12 @@ fn mode_bar(view: &HousingView) -> Element {
     let width = 4.0 * BUTTON + GAP;
     let left = (view.viewport[0] - width) / 2.0;
     let top = view.viewport[1] - BUTTON;
+    let gradient = named_atlas_texture(
+        "HouseEditorModeBarGradientBackground".into(),
+        "Radial_Wheel_BG_Small",
+        (0.0, 0.0, 800.0, 260.0),
+    );
+    let gradient_left = (width - 800.0) / 2.0;
     let mut children = named_atlas_texture(
         "HouseEditorModeBarBackground".into(),
         "decor-abilitybar-bg-horz",
@@ -192,25 +189,25 @@ fn mode_bar(view: &HousingView) -> Element {
     ));
     for (index, (name, atlas, action)) in MODES.into_iter().enumerate() {
         children.extend(icon_button(
-            name,
-            atlas,
-            action,
+            (name, atlas, action),
             (index as f32 * BUTTON, 0.0),
             view.model.pending || action.is_empty(),
             index == 0,
         ));
     }
-    rsx! {r#frame {name:"HouseEditorModeBar",width,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,mouse_enabled:true,{children}}}
+    rsx! {r#frame {name:"HouseEditorModeBar",width,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,mouse_enabled:true,
+        r#frame {name:"HouseEditorModeBarGradientAlpha",width:800.0,height:260.0,left:gradient_left,top:-47.0,pos_type:"absolute",alpha:"0.5",mouse_enabled:false,{gradient}}
+        {children}
+    }}
 }
 
 fn icon_button(
-    name: &str,
-    atlas: &str,
-    action: &str,
+    mode: (&str, &str, &str),
     position: (f32, f32),
     disabled: bool,
     active: bool,
 ) -> Element {
+    let (name, atlas, action) = mode;
     let prefix = format!("HouseEditor{name}Button");
     let state = if active { "active" } else { "default" };
     let atlas = format!("decor-ability-{atlas}-{state}");

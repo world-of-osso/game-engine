@@ -2334,5 +2334,25 @@ fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
         }
         assert!(registry.get_by_name("HouseEditorRotateLeft").is_none());
         assert!(registry.get_by_name("HouseEditorDone").is_none());
+        let gradient = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorModeBarGradientAlpha")
+                    .expect("Retail mode bar gradient required"),
+            )
+            .unwrap();
+        assert_eq!(gradient.width, Dimension::Fixed(800.0));
+        assert_eq!(gradient.height, Dimension::Fixed(260.0));
+        assert_eq!(gradient.alpha, 0.5);
+        let gradient = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorModeBarGradientBackground")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(&gradient.widget_data,Some(WidgetData::Texture(texture)) if texture.source==ui_toolkit::widgets::texture::TextureSource::FileDataId(5215694))
+        );
     }
 }
