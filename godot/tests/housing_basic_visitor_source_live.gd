@@ -1,5 +1,13 @@
 extends "res://tests/housing_basic_source_live.gd"
 
+func open_friend_plot_info(house: int) -> bool:
+	var related: Array = []
+	for plot in client.housing_state().get("plots",[]):
+		if int(plot.house_id)==house:
+			related.append(plot)
+	print("VISITOR_FINDER_DIAGNOSTIC target=",house," account=",housing_account," related=",related," homes=",client.housing_state().get("houses",[])," map=",client.account_state().world_map_id)
+	return await super(house)
+
 func run_test() -> void:
 	root.size = Vector2i(1280,720)
 	housing_server = OS.get_environment("GODOT_TEST_SERVER")
