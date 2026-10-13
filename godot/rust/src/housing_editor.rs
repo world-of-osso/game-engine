@@ -169,11 +169,13 @@ impl GameClient {
         if self.game_menu_ui.is_some() || model.storage_search_focused {
             return Ok(false);
         }
+        let active_editing = model.editor.placing.is_some() || model.editor.selected.is_some();
         if let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() {
             if key.is_echo() {
                 return Ok(false);
             }
-            if key.get_keycode() == godot::global::Key::ESCAPE && key.is_pressed() {
+            if active_editing && key.get_keycode() == godot::global::Key::ESCAPE && key.is_pressed()
+            {
                 return self.dispatch_housing_editor_action("housing:cancel");
             }
         }
@@ -189,13 +191,17 @@ impl GameClient {
             Some(InputAction::HousingBasicMode) => "housing:basic",
             Some(InputAction::HousingExpertMode) => "housing:expert",
             Some(InputAction::HousingCleanupMode) => "housing:cleanup",
-            Some(InputAction::HousingRotateLeft) if mode == EditorMode::Basic => {
+            Some(InputAction::HousingRotateLeft) if mode == EditorMode::Basic && active_editing => {
                 "housing:rotate:left"
             }
-            Some(InputAction::HousingRotateRight) if mode == EditorMode::Basic => {
+            Some(InputAction::HousingRotateRight)
+                if mode == EditorMode::Basic && active_editing =>
+            {
                 "housing:rotate:right"
             }
-            Some(InputAction::HousingRemoveDecor) if mode != EditorMode::Cleanup => {
+            Some(InputAction::HousingRemoveDecor)
+                if mode != EditorMode::Cleanup && model.editor.selected.is_some() =>
+            {
                 "housing:remove"
             }
             _ => return Ok(false),
@@ -243,12 +249,12 @@ impl GameClient {
         &mut self,
         event: &Gd<godot::classes::InputEvent>,
     ) -> Result<bool, String> {
-        if self
+        let editing = self
             .housing
             .model
             .as_ref()
-            .is_none_or(|model| model.surface != HousingSurface::Editor)
-        {
+            .is_some_and(|model| model.surface == HousingSurface::Editor);
+        if self.game_menu_ui.is_some() || !editing {
             return Ok(false);
         }
         if self.housing_bound_action(event)? {
