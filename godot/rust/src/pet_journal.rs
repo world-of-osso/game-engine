@@ -4,7 +4,7 @@ use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::pet_journal::{
-    PetJournalView, PetRowKey, PetSpeciesVisual, SEARCH, pet_journal_screen,
+    PetJournalView, PetRowKey, PetSpeciesFilter, PetSpeciesVisual, SEARCH, pet_journal_screen,
 };
 use godot::prelude::*;
 
@@ -91,16 +91,25 @@ impl GameClient {
         self.load_pet_visuals()?;
         let path = self.data_root.join("db2/12.1.0.69933/BattlePetSpecies.csv");
         let mut icons = std::collections::BTreeMap::new();
+        let mut metadata = std::collections::BTreeMap::new();
         game_engine_core::csv_util::read_numeric_rows(
             &path,
-            ["ID", "IconFileDataID"],
-            |[species, fdid]| {
+            ["ID", "IconFileDataID", "Flags", "SourceTypeEnum"],
+            |[species, fdid, flags, source]| {
                 icons.insert(species as u32, fdid as u32);
+                metadata.insert(
+                    species as u32,
+                    PetSpeciesFilter {
+                        flags: flags as u32,
+                        source: source as i32,
+                    },
+                );
             },
         )?;
         for icon in icons.values_mut() {
             *icon = self.drawable_fdid(*icon);
         }
+        self.pet_journal.view.species_filters = metadata;
         self.pet_journal.view.icons = icons;
         self.pet_journal.icons_loaded = true;
         Ok(())
@@ -143,6 +152,9 @@ impl GameClient {
         Ok(())
     }
     fn apply_pet_journal_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if self.pet_journal.view.apply_filter(action) {
+            return Ok(());
+        }
         if let Some(slot) = action.strip_prefix("pet:equip:") {
             let slot = slot
                 .parse()
@@ -179,10 +191,7 @@ impl GameClient {
                     self.close_pet_journal();
                     self.toggle_toybox()?;
                 }
-                "pet:filter" => {
-                    self.pet_journal.view.collected_only = !self.pet_journal.view.collected_only;
-                    self.pet_journal.view.reselect_visible();
-                }
+                "pet:search-clear" => self.pet_journal.view.set_search(String::new()),
                 "pet:summon" => {
                     if let Some(request) = self.pet_journal.view.summon_or_dismiss() {
                         self.account.send_pet_request(request)?;

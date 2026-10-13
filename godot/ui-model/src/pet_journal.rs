@@ -3,8 +3,11 @@ use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button};
 use shared::pet_battle::PetJournal;
+#[path = "pet_journal_filters.rs"]
+mod filters;
 #[path = "pet_journal_loadout.rs"]
 mod loadout;
+pub use filters::{PetFilters, PetSort, PetSpeciesFilter};
 use shared::protocol::{CollectionPetSnapshot, CollectionStateUpdate};
 use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -38,6 +41,7 @@ pub struct PetRow {
     pub species: u32,
     pub name: String,
     pub level: Option<u8>,
+    pub quality: Option<shared::pet_battle::PetQuality>,
     pub detail: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
@@ -66,7 +70,8 @@ pub struct PetJournalView {
     pub summoned: Option<u64>,
     pub selected: Option<PetRowKey>,
     pub search: String,
-    pub collected_only: bool,
+    pub filters: PetFilters,
+    pub species_filters: BTreeMap<u32, PetSpeciesFilter>,
     pub pending: bool,
     pub error: String,
     pub queue: shared::protocol::PetBattleQueueState,
@@ -84,7 +89,8 @@ impl Default for PetJournalView {
             summoned: None,
             selected: None,
             search: String::new(),
-            collected_only: false,
+            filters: PetFilters::default(),
+            species_filters: BTreeMap::new(),
             pending: false,
             error: String::new(),
             queue: shared::protocol::PetBattleQueueState::Idle,
@@ -161,6 +167,7 @@ impl PetJournalView {
             .journal
             .pets
             .iter()
+            .filter(|_| self.filters.collected)
             .filter_map(|pet| {
                 let species = self.catalog.get(&pet.species_id)?;
                 Some(PetRow {
@@ -171,6 +178,7 @@ impl PetJournalView {
                         .clone()
                         .unwrap_or_else(|| species.name.clone()),
                     level: Some(pet.level),
+                    quality: Some(pet.quality),
                     detail: format!(
                         "Level {} · {:?} · Breed {}",
                         pet.level, pet.quality, pet.breed_id
@@ -178,7 +186,7 @@ impl PetJournalView {
                 })
             })
             .collect();
-        if !self.collected_only {
+        if self.filters.uncollected {
             let owned_species: BTreeSet<_> =
                 self.journal.pets.iter().map(|pet| pet.species_id).collect();
             rows.extend(
@@ -191,16 +199,30 @@ impl PetJournalView {
                         species: species.pet_id,
                         name: species.name.clone(),
                         level: None,
+                        quality: None,
                         detail: "Not Collected".into(),
                     }),
             );
         }
         let query = self.search.to_lowercase();
-        rows.retain(|row| row.name.to_lowercase().contains(&query));
+        rows.retain(|row| {
+            row.name.to_lowercase().contains(&query) && self.filters.matches(self, row)
+        });
         rows.sort_by(|left, right| {
+            let sort = match self.filters.sort {
+                PetSort::Name => left.name.to_lowercase().cmp(&right.name.to_lowercase()),
+                PetSort::Level => right.level.cmp(&left.level),
+                PetSort::Rarity => right.quality.cmp(&left.quality),
+                PetSort::Type => self
+                    .visuals
+                    .get(&left.species)
+                    .map(|visual| visual.family)
+                    .cmp(&self.visuals.get(&right.species).map(|visual| visual.family)),
+            };
             left.level
                 .is_none()
                 .cmp(&right.level.is_none())
+                .then(sort)
                 .then(left.name.cmp(&right.name))
                 .then(left.species.cmp(&right.species))
         });
@@ -279,24 +301,60 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
         (70.0, 35.0, 160.0, 20.0),
         (12.0, WHITE, "LEFT"),
     ));
-    children.extend(search_box());
+    children.extend(search_box(view));
     children.extend(pet_list(ctx, view));
     children.extend(pet_card(view));
     children.extend(battle_slots(view));
     children.extend(journal_buttons(view));
+    children.extend(filters::controls(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
     left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
     let mut out = crate::collections_component::collections_shell(view.viewport, 1, body);
     out.extend(queue_popup(view));
     out
 }
-fn search_box() -> Element {
-    rsx! { editbox { name: "PetJournalSearchBox", width: 145.0, height: 20.0,
-    left: 19.0, top: 69.0, pos_type: "absolute", font_size: 12.0,
-    font_color: WHITE, text_insets: "4,4,0,0", max_letters: 40 }
-    button { name: "PetJournalFilterButton", width: 78.0, height: 20.0,
-    left: 182.0, top: 69.0, pos_type: "absolute", text: "Collected",
-    onclick: "pet:filter", font_size: 12.0 } }
+fn search_box(view: &PetJournalView) -> Element {
+    use crate::quest_art::named_atlas_texture;
+    let art: Element = [
+        ("Left", "common-search-border-left", (14.0, 69.0, 8.0, 20.0)),
+        (
+            "Middle",
+            "common-search-border-middle",
+            (22.0, 69.0, 134.0, 20.0),
+        ),
+        (
+            "Right",
+            "common-search-border-right",
+            (156.0, 69.0, 8.0, 20.0),
+        ),
+        (
+            "Icon",
+            "common-search-magnifyingglass",
+            (20.0, 75.0, 10.0, 10.0),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(suffix, atlas, rect)| {
+        named_atlas_texture(format!("PetJournalSearch{suffix}"), atlas, rect)
+    })
+    .collect();
+    let clear = named_atlas_texture(
+        "PetJournalSearchClearIcon".into(),
+        "common-search-clearbutton",
+        (3.0, 3.0, 10.0, 10.0),
+    );
+    let search = view.search.as_str();
+    rsx! { {art}
+        editbox { name: "PetJournalSearchBox", text: search, width: 145.0, height: 20.0,
+            left: 19.0, top: 69.0, pos_type: "absolute", font_size: 12.0,
+            font_color: WHITE, text_insets: "16,20,0,0", max_letters: 40 }
+        fontstring { name: "PetJournalSearchHint", text: "Search", hidden: {!search.is_empty()},
+            mouse_enabled: false, width: 100.0, height: 20.0, left: 35.0, top: 69.0,
+            pos_type: "absolute", font_size: 12.0, font_color: "0.5,0.5,0.5,1", justify_h: "LEFT" }
+        button { name: "PetJournalSearchClear", width: 17.0, height: 17.0,
+            left: 144.0, top: 70.5, pos_type: "absolute", hidden: {search.is_empty()},
+            button_default_skin: false, onclick: "pet:search-clear", {clear} }
+    }
 }
 fn pet_list(ctx: &SharedContext, view: &PetJournalView) -> Element {
     let rows = view.rows();
