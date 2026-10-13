@@ -1,3 +1,7 @@
+## 2026-10-12 — Avenging Wrath bounded material finish proof
+
+[Material time](investigations/avenging-wrath-material-time.md#native-finish-proof--2026-10-12):10 authentic tests, Hold6,654/6,654 native pixels, preserved global gold/purple/negative green; eight inspected same-camera frontal Modern+Forever PNGs on master/corrected branches. Classic442416 is an explicit shared-model witness, not glyph availability. Published online registry mismatch remains; rainbow model/batch is unidentified. Positioner59/crossfade/aliases/curve2–3 stay named gaps.
+
 ## 2026-10-12 — Avenging Wrath local material playback
 
 [Material time](investigations/avenging-wrath-material-time.md): source2368645 local alpha and native Hold158 rendering prove material tracks incorrectly looped Stand on application age. Local sampling now receives owning-model playback; globals retain their shared clock. Seven actual private source casts cover both skins; published candidate assets/cache/shaders match local hashes. Hold GREEN and the original rainbow reproduction remain open at this commit; Positioner59 enum semantics remain unsourced.

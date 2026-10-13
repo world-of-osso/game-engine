@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — authentic Hold opacity RED, local-track playback correction, source/published asset equality and explicit rainbow/positioner gaps.
+- [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold34.3%→100% native pixels, authentic global RGB, both-skin same-camera frontal witnesses, source/published asset equality and explicit unreproduced rainbow/positioner gaps.
 
 - [Native player housing](systems/housing.md) — real friend/sale Finder maps, physical bulletin roster, both-skin receipt-backed catalog3D preview/acquisition, basic/expert transforms, visitor/observer proof and sourced schema migration; starter assembly/outdoor bounds/charter and reference WMO AO remain explicit gaps.
 - [Native player housing](systems/housing.md) — HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
