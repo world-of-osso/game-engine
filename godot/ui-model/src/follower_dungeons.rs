@@ -5,6 +5,7 @@ pub use crate::follower_dungeons_component::{FOLLOWER_LIST, ROW_HEIGHT};
 /// PVEFrame.lua GroupFinderFrameButton_SetEnabled: disabled category icon/ring gray.
 pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     use ui_toolkit::frame::WidgetData;
+    apply_follower_background_layers(registry);
     for index in 2..=3 {
         for part in ["Icon", "Ring"] {
             let name = format!("GroupFinderFrameGroupButton{index}{part}");
@@ -14,6 +15,31 @@ pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegist
             {
                 texture.desaturated = true;
             }
+        }
+    }
+}
+/// XML useParentLevel prevents nested native-size background textures covering queue labels.
+fn apply_follower_background_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::strata::DrawLayer;
+    let Some(parent) = registry
+        .get_by_name("LFDParentFrame")
+        .and_then(|id| registry.get(id))
+    else {
+        return;
+    };
+    let level = parent.frame_level;
+    let layers = [
+        ("LFDParentFrameInset", DrawLayer::Background),
+        ("LFDParentFrameInsetBg", DrawLayer::Background),
+        ("LFDQueueFrameBackground", DrawLayer::Border),
+        ("LFDParentFrameRoleBackground", DrawLayer::Background),
+    ];
+    for (name, layer) in layers {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+        {
+            frame.frame_level = level;
+            frame.draw_layer = layer;
         }
     }
 }

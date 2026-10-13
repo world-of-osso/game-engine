@@ -31,6 +31,10 @@ func capture() -> void:
 					quit(1)
 					return
 			var image := root.get_texture().get_image()
+			if OS.get_environment("GODOT_FOLLOWER_LAYOUT_ASSERT") == "1":
+				if not verify_description_pixels(image):
+					quit(1)
+					return
 			var suffix := "-dropdown" if menu else ""
 			var result := image.save_png(directory.path_join(skin + suffix + ".png"))
 			if result != OK:
@@ -78,5 +82,18 @@ func verify_xml_geometry(ui: Node) -> bool:
 	var third: Rect2 = tab3.get_global_rect()
 	if first.position != Vector2(119, 510) or first.size.y != 32 or second.position != Vector2(first.end.x - 16, first.position.y) or third.position != Vector2(second.end.x - 16, second.position.y):
 		push_error("PanelTabButtonTemplate BOTTOMLEFT19,-30 and LEFT-to-RIGHT -16 anchors differ")
+		return false
+	return true
+
+# Native parchment must sit behind the white description, not cover sibling text.
+func verify_description_pixels(image: Image) -> bool:
+	var white_pixels := 0
+	for y in range(267, 304):
+		for x in range(339, 619):
+			var color := image.get_pixel(x, y)
+			if color.r > 0.9 and color.g > 0.9 and color.b > 0.9:
+				white_pixels += 1
+	if white_pixels < 20:
+		push_error("Native quest paper covered the follower description")
 		return false
 	return true
