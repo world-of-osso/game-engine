@@ -8,6 +8,7 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 - [x] Source receipts include build-relative paths. Changing from root inputs invalidates old caches; customization receipts also include race/model dependencies.
 - [x] Forever inputs remain product-local, with existing Retail collision precedence and Skyborne overlay behavior.
 - [x] Runtime customization race/requirement readers, creation backgrounds and owned Retail equipment/resource catalogs use pinned Retail inputs.
+- [ ] Exact local69933 `SpellCastingRequirements` and `AreaGroupMember` exports preserve region/facing fields and parent-linked membership, count encrypted omissions and reject layout drift before output.
 - [ ] Import tools accept an optional data-root argument for isolated regeneration without changing canonical caches.
 
 ## How it works
@@ -32,6 +33,7 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 - `godot/core/tests/unit/customization_catalog_cache_tests.rs`
 - Existing cache-module and creation-background fixture tests.
 - `scripts/tests/test_cache_import_exports.py`
+- `scripts/tests/test_toy_cast_limit_exports.py` — genuine local cast/group snapshots and layout refusal.
 - `godot/core/src/outfit_data_tests.rs` — owned-product material/model fixture with divergent root inputs.
 
 ## Known gaps (current cycle)
