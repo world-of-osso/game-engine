@@ -53,6 +53,8 @@ pub enum DropdownStyle {
 #[derive(Clone, Copy)]
 pub struct DropdownState<'a> {
     pub style: DropdownStyle,
+    /// Retail resizeToText; false preserves an explicit XML/Lua width.
+    pub resize_to_text: bool,
     pub open: bool,
     pub enabled: bool,
     /// UIResetButtonTemplate: hidden unless filters differ from defaults.
@@ -62,6 +64,7 @@ impl Default for DropdownState<'_> {
     fn default() -> Self {
         Self {
             style: DropdownStyle::WowStyle1,
+            resize_to_text: true,
             open: false,
             enabled: true,
             reset_action: None,
@@ -75,7 +78,7 @@ pub fn dropdown_button(props: DropdownButton<'_>) -> Element {
 
 /// Mainline/MenuTemplates.xml:3,66 and MenuTemplates.xml:4. Callers own menu visibility.
 pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
-    let props = resize_filter_to_text(props, state.style);
+    let props = resize_filter_to_text(props, state);
     let mut contents = dropdown_art(props, state);
     contents.extend(dropdown_text(props, state));
     contents.extend(reset_button(props, state));
@@ -94,8 +97,11 @@ pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownStat
 }
 
 /// DropdownTextMixin:UpdateText and WowStyle1FilterDropdownTemplate resizeToTextPadding60.
-fn resize_filter_to_text(props: DropdownButton<'_>, style: DropdownStyle) -> DropdownButton<'_> {
-    if style != DropdownStyle::Filter {
+fn resize_filter_to_text<'a>(
+    props: DropdownButton<'a>,
+    state: DropdownState<'_>,
+) -> DropdownButton<'a> {
+    if state.style != DropdownStyle::Filter || !state.resize_to_text {
         return props;
     }
     let (text_width, _) = ui_toolkit::text_measure::measure_text(
@@ -382,6 +388,33 @@ pub fn menu_height_for_items(item_count: usize) -> f32 {
     MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
 }
 
+/// MenuTemplates/MenuVariants title, divider and 20px entry layout.
+/// Keep custom radio/checkbox rows at the same inset and pitch as normal entries.
+pub fn menu_row_rect(width: f32, index: usize) -> (f32, f32, f32, f32) {
+    menu_row_rect_with_header(width, index, true)
+}
+
+/// Untitled dropdowns omit the menu title/divider without copying row geometry.
+pub fn menu_row_rect_with_header(
+    width: f32,
+    index: usize,
+    has_header: bool,
+) -> (f32, f32, f32, f32) {
+    (
+        MENU_INSET,
+        MENU_INSET + menu_header_height(has_header) + index as f32 * ROW_HEIGHT,
+        width - 2. * MENU_INSET,
+        ROW_HEIGHT,
+    )
+}
+fn menu_header_height(has_header: bool) -> f32 {
+    if has_header {
+        ROW_HEIGHT + DIVIDER_HEIGHT
+    } else {
+        0.
+    }
+}
+
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
     let rows: Element = props
         .items
@@ -392,12 +425,7 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
                 *item,
                 MenuElementKind::Button,
                 true,
-                (
-                    MENU_INSET,
-                    MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
-                    props.width - 16.0,
-                    ROW_HEIGHT,
-                ),
+                menu_row_rect_with_header(props.width, index, !props.title.is_empty()),
             )
         })
         .collect();
@@ -407,11 +435,7 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
 /// Compose menu_element rows without changing the shared frame/backdrop/layout.
 pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element {
     let has_title = !props.title.is_empty();
-    let header_height = if has_title {
-        ROW_HEIGHT + DIVIDER_HEIGHT
-    } else {
-        0.
-    };
+    let header_height = menu_header_height(has_title);
     let height = MENU_INSET + header_height + props.items.len() as f32 * ROW_HEIGHT + MENU_BOTTOM;
     let mut contents = crate::selection_list::menu_background(
         format!("{}Background", props.frame_name),

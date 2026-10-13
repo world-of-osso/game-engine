@@ -32,14 +32,15 @@ varying vec4 tint;
 void vertex() { tint = COLOR; }
 void fragment() {
     vec2 uv = region.xy + fract(UV * repeats) * region.zw;
-    vec2 half_pixel = TEXTURE_PIXEL_SIZE * 0.5;
-    uv = clamp(uv, region.xy + half_pixel, region.xy + region.zw - half_pixel);
+    vec2 inset = min(TEXTURE_PIXEL_SIZE * 0.5, region.zw * 0.5);
+    uv = clamp(uv, region.xy + inset, region.xy + region.zw - inset);
     COLOR = texture(TEXTURE, uv) * tint;
 }
 "#;
 
-/// Crop-aware repetition: TextureRect's TILE would repeat an entire atlas sheet.
-fn apply_atlas_tiling(
+/// Sample authored atlas UVs directly: Godot rounds subpixel AtlasTexture sizes to
+/// zero and then substitutes the full sheet size; TILE would also repeat the sheet.
+fn apply_atlas_sampling(
     rect: &mut Gd<TextureRect>,
     image: &Gd<Texture2D>,
     crop: [f32; 4],
@@ -512,19 +513,25 @@ impl UiProjection {
                 .as_deref()
                 .unwrap_or(&format!("Frame{}", frame.id)),
         );
-        node.set_mouse_filter(
-            if frame.mouse_enabled
-                || frame.onclick.is_some()
-                || matches!(
-                    frame.widget_type,
-                    WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
-                )
-            {
-                godot::classes::control::MouseFilter::STOP
-            } else {
-                godot::classes::control::MouseFilter::IGNORE
-            },
-        );
+        // Shared dropdown chrome carries ButtonData for pressed/hover art only; its
+        // owner, not this actionless child surface, receives pointer events.
+        let passive_dropdown_art = frame.onclick.is_none()
+            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
+                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
+                    if atlas.starts_with("common-dropdown-")));
+        node.set_mouse_filter(if passive_dropdown_art {
+            godot::classes::control::MouseFilter::IGNORE
+        } else if frame.mouse_enabled
+            || frame.onclick.is_some()
+            || matches!(
+                frame.widget_type,
+                WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
+            )
+        {
+            godot::classes::control::MouseFilter::STOP
+        } else {
+            godot::classes::control::MouseFilter::IGNORE
+        });
         let mut parts = Control::new_alloc();
         parts.set_name(PARTS_NODE);
         parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
@@ -838,8 +845,9 @@ impl UiProjection {
         let art = self.source(source, registry);
         if let Art::Ready((image, region)) = &art {
             let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, *region);
-            if part.tiling.iter().any(|tile| *tile) {
-                apply_atlas_tiling(&mut rect, image, crop, part);
+            let subpixel_crop = crop[2] < 1.0 || crop[3] < 1.0;
+            if subpixel_crop || part.tiling.iter().any(|tile| *tile) {
+                apply_atlas_sampling(&mut rect, image, crop, part);
             } else {
                 rect.set_texture(&assets::sub_texture(image, crop));
             }

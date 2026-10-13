@@ -5,6 +5,10 @@
 ## 2026-10-13 — Retail Adventure Guide frame layout
 
 [Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
+## 2026-10-13 — Glue/menu template fidelity
+
+[Glue/menu fidelity](investigations/glue-menu-fidelity.md): five native Retail-template frames retain selection/category/paging/delete actions in both skins. Exact pinned DB2 slice margins replace stretched borders; shared Options radio popups retain one-open/select/Escape/outside behavior. Native RED distinguishes actionless dropdown Background interception and subpixel shadow crops expanding to full atlas art. Offline source geometry/input/pixel fixtures gate these boundaries; authenticated deletion and server-side campsite persistence are not claimed.
+
 ## 2026-10-13 — CASC installed-build following
 
 [Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
