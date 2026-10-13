@@ -1844,7 +1844,8 @@ impl RegistryUi {
         state: game_engine_ui_model::trading_post::View,
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
-        let registry = parent.registry();
+        let mut registry = parent.registry();
+        register_auction_popup_style(&mut registry);
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::trading_post::trading_post_screen,

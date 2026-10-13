@@ -413,3 +413,40 @@ fn trading_post_both_skins_show_real_tender_price_frozen_item_and_disabled_refun
         assert!(registry.get_by_name("PerksProgramMainModelScene").is_some());
     }
 }
+
+#[test]
+fn trading_post_confirmation_uses_sourced_prompt_item_and_dialog_geometry() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            skin,
+            View {
+                visible: true,
+                snapshot: Some(Arc::new(snapshot())),
+                selected: Some(4),
+                confirm: Some("purchase".into()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramConfirmTextBefore"),
+            "Exchange 100"
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramConfirmTextAfter"),
+            "for the following item?"
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramConfirmItemText"),
+            "Distinguished Warcloak"
+        );
+        assert_eq!(
+            rect(&registry, "PerksProgramConfirmButton")[2..],
+            [128., 21.]
+        );
+        assert_eq!(rect(&registry, "PerksProgramConfirmItem")[2..], [37., 37.]);
+        assert_eq!(
+            rect(&registry, "PerksProgramConfirmCover")[2..],
+            [1920., 1080.]
+        );
+    }
+}

@@ -5,6 +5,14 @@ textures/7367529.blp
 textures/4626072.blp
 textures/4331660.blp
 textures/6794983.blp
+# GameDialog item confirmation: border/background, dialog button states, item name frame.
+textures/6795680.blp
+textures/6839810.blp
+textures/130760.blp
+textures/130761.blp
+textures/130762.blp
+textures/130763.blp
+textures/136796.blp
 # Source Cage505683 live trapdoor hull/primary skin, already extracted from local CASC.
 models/6339134.m2
 models/6339702.skin
