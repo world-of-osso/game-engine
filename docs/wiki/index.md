@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5334/1751 census (server inventory), remaining producers and source gaps explicit.
+- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5375/1751 census (server inventory), remaining producers and source gaps explicit.
 - [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 - [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold34.3%→100% native pixels, authentic global RGB, both-skin same-camera frontal witnesses, source/published asset equality and explicit unreproduced rainbow/positioner gaps.
 
