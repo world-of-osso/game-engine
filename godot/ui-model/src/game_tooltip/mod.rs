@@ -450,6 +450,8 @@ mod tests {
     };
 
     fn five_lines() -> GameTooltip {
+        // Font assets must be initialized before both placement and expected measurements.
+        set_test_data_root();
         GameTooltip::new(
             TooltipPresentation {
                 lines: vec![TooltipLineState::new("line"); 5],
