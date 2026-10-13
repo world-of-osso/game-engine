@@ -14,6 +14,12 @@ The client reads `data/cache/housing.sqlite` produced by game-server `scripts/im
 
 Further ranks: authentic vendor/quest/achievement/crafting acquisition; visiting/social permissions; charter/create-neighborhood/house finder/bulletin board; room/exterior/dye/blueprint customization; sourced initiatives/favor/levels/upgrades/market cart. Missing reward/grant/progression data stays a gap, never a synthetic substitute.
 
+## Basic placement release contract
+
+Normal owned-storage click starts placement but its original release does not place decor; the next visible move-overlay click commits on release, not press. Owned-storage drag starts placement armed for the first global left release. Selected placed decor moves only after an armed overlay release. Invalid authored ground retains editing state with an explicit error. Cancel clears release capture. All commands preserve confirmed counts/layout until authority replies; visitors and absent-owned copies cannot start drag placement. Preview/market placement remains unavailable.
+
+Source: `HousingCatalogDecorEntryMixin:TypeSpecificOnInteract` sets `commitNewDecorOnMouseUp=isDrag`; Basic `GLOBAL_MOUSE_UP` and `DecorMoveOverlay.OnMouseUp` finish placement/commit movement.
+
 ## Basic editor controls
 
 Basic uses source64px mode controls at bottom center and Snap/Free Place submode buttons above Basic (disabled while semantics remain unavailable). Customize stays disabled, not replaced by a fake editing action. Replace invented bottom Rotate/Remove/Cancel/Done text buttons with right-centered45px instruction rows, source16px labels, source mouse icon/key background,10px label/control spacing and30px right inset. Selected or placing state shows Place/Rotate Left/Rotate Right/Remove/Toggle Grid/Cancel; otherwise Select Decor. Toggle Grid remains visibly disabled. Mode controls retain source default/active/pressed atlas members and additive0.5 hover. Missing bindings show `[UNBOUND]`, never fabricated keys.
