@@ -46,6 +46,7 @@ fn dropdown(
             open,
             enabled: true,
             reset_action: (style == DropdownStyle::Filter).then_some("preview:reset"),
+            ..Default::default()
         },
     )
 }
