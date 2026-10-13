@@ -238,6 +238,14 @@ fn filter_reset_open_state_and_radio_checkbox_art_both_skins() {
             frame(&reg, "FilterResetButton").onclick.as_deref(),
             Some("reset")
         );
+        let label_width = ui_toolkit::text_measure::measure_text(
+            "Filter",
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            12.0,
+        )
+        .unwrap()
+        .0;
+        assert_eq!(frame(&reg, "Filter").width.value(), label_width + 60.0);
         assert_eq!(
             (
                 frame(&reg, "FilterResetButton").width.value(),
