@@ -2350,7 +2350,8 @@ impl GameClient {
                         .and_then(|state| state.battleground.as_ref())
                 {
                     godot_print!(
-                        "BG_NATIVE_PVP_RECEIVED match={} bg={} phase={:?} score_a={} score_b={}",
+                        "BG_NATIVE_PVP_RECEIVED unix_ms={:.3} match={} bg={} phase={:?} score_a={} score_b={}",
+                        godot::classes::Time::singleton().get_unix_time_from_system() * 1000.0,
                         bg.match_id,
                         bg.battleground_id,
                         bg.phase,

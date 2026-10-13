@@ -5,6 +5,7 @@
 mod adventure_guide_wire_tests;
 #[path = "ui/automation_data.rs"]
 pub mod automation_data;
+mod battleground_trace;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 #[cfg(test)]
@@ -461,6 +462,7 @@ fn run_worker(
     client_id: u64,
     relays: Vec<fn(&mut App, Sender<Event>)>,
 ) -> Result<(), String> {
+    battleground_trace::configure()?;
     let mut app = client_app();
     for relay in relays {
         relay(&mut app, events.clone());
@@ -618,6 +620,7 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
         (move |mut receivers: Query<&mut MessageReceiver<M>>| {
             for mut receiver in &mut receivers {
                 for message in receiver.receive() {
+                    battleground_trace::record_relay(&message);
                     events
                         .send(Event::Message(ProtocolMessage(Box::new(message))))
                         .expect("host event receiver closed");
