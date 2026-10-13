@@ -5,6 +5,13 @@ use game_engine_ui_model::game_menu_main::{
 };
 use ui_toolkit::frame::{Dimension, WidgetData};
 
+fn load_fonts_and_atlases() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+}
+
 fn action(model: &GameMenuModel, name: &str) -> Option<String> {
     let id = model.registry.get_by_name(name)?;
     model.registry.get(id)?.onclick.clone()
@@ -12,6 +19,7 @@ fn action(model: &GameMenuModel, name: &str) -> Option<String> {
 
 #[test]
 fn logged_in_menu_preserves_authored_actions_and_labels() {
+    load_fonts_and_atlases();
     let mut model = GameMenuModel::new(1920.0, 1080.0, true);
     model.sync();
 
@@ -33,23 +41,34 @@ fn logged_in_menu_preserves_authored_actions_and_labels() {
         );
     }
     assert_eq!(model.registry.get_by_name("OptionsRoot"), None);
-    for name in ["GameMenuPanel", "GameMenuTitleFrame"] {
-        let frame = model
-            .registry
-            .get(model.registry.get_by_name(name).unwrap())
-            .unwrap();
-        let border = frame
-            .nine_slice
-            .as_ref()
-            .expect("authored panel style resolved");
-        assert_eq!(border.edge_size, 8.0);
-        assert_eq!(border.uv_edge_size, Some(8.0));
-        assert!(border.texture.is_some(), "{name}: border texture resolved");
-    }
+    // MainMenuFrameTemplates.xml:23-33: 260 wide, padding48/34, spacing0.
+    let panel = model
+        .registry
+        .get(model.registry.get_by_name("GameMenuPanel").unwrap())
+        .unwrap();
+    assert_eq!(
+        (panel.width, panel.height),
+        (Dimension::Fixed(260.0), Dimension::Fixed(358.0))
+    );
+    let contents = model
+        .registry
+        .get(model.registry.get_by_name("GameMenuContents").unwrap())
+        .unwrap();
+    assert_eq!(contents.flex_layout.as_ref().unwrap().gap, 0.0);
+    assert_eq!(
+        contents.margin.top,
+        ui_toolkit::layout_values::Val::Px(48.0)
+    );
+    assert_eq!(
+        contents.margin.left,
+        ui_toolkit::layout_values::Val::Px(28.0)
+    );
+    assert!(panel.background_color.is_none());
 }
 
 #[test]
 fn logged_out_menu_has_five_actions_and_full_screen_blocker() {
+    load_fonts_and_atlases();
     let mut model = GameMenuModel::new(1280.0, 720.0, false);
     model.sync();
 
