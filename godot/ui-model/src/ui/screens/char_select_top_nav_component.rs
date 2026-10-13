@@ -55,22 +55,22 @@ fn tab_art(name: FrameName) -> Element {
     let hide_divider = name == CAMPSITES_TAB;
     rsx! {
         texture {
-            name: tab_part(name, "Normal"), texture_atlas: format!("glues-characterselect-tophud-{end}-bg"),
+            name: tab_part(name, "Normal"), width: "auto", height: "auto", texture_atlas: format!("glues-characterselect-tophud-{end}-bg"),
             pos_type: "absolute", left: normal_left, right: normal_right, top: 0.0, bottom: 0.0,
         }
         texture {
-            name: tab_part(name, "Disabled"), texture_atlas: format!("glues-characterselect-tophud-{end}-dis-bg"),
+            name: tab_part(name, "Disabled"), width: "auto", height: "auto", texture_atlas: format!("glues-characterselect-tophud-{end}-dis-bg"),
             hidden: true, pos_type: "absolute", left: normal_left, right: normal_right, top: 0.0, bottom: 0.0,
         }
         r#frame {
-            name: tab_part(name, "Box"), hidden: true,
+            name: tab_part(name, "Box"), width: "auto", height: "auto", hidden: true,
             pos_type: "absolute", left: highlight_left, right: highlight_right, top: 0.0, bottom: 0.0,
             texture {
-                name: tab_part(name, "Selected"), texture_atlas: format!("glues-characterselect-tophud-selected-{end}"),
+                name: tab_part(name, "Selected"), width: "auto", height: "auto", texture_atlas: format!("glues-characterselect-tophud-selected-{end}"),
                 pos_type: "absolute", left: -2.0, right: 0.0, top: 0.0, bottom: 4.0,
             }
             texture {
-                name: tab_part(name, "SelectedLine"), texture_atlas: format!("glues-characterselect-tophud-selected-line-{end}"),
+                name: tab_part(name, "SelectedLine"), width: "auto", texture_atlas: format!("glues-characterselect-tophud-selected-line-{end}"),
                 pos_type: "absolute", left: -2.0, right: 0.0, top: "100%", margin_top: -5.0, height: 4.0,
             }
         }
@@ -81,38 +81,47 @@ fn tab_art(name: FrameName) -> Element {
     }
 }
 
+fn label_width(text: &str) -> f32 {
+    ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, LABEL_FONT_SIZE)
+        .expect("CharacterSelectNavBar requires the loaded GlueFontNormal font")
+        .0
+}
+
 fn tab(name: FrameName, text: &str, action: Option<&CharSelectAction>) -> Element {
     let onclick = action.map(ToString::to_string).unwrap_or_default();
-    let (text_width, _) =
-        ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, LABEL_FONT_SIZE)
-            .expect("CharacterSelectNavBar requires the loaded GlueFontNormal font");
+    let text_width = label_width(text);
     let width = text_width + TEXT_PADDING * 2.0;
     rsx! {
         button {
             name, width, height: TAB_HEIGHT, onclick, button_default_skin: false,
-            layout: "flex-row", align: "center", padding_left: TEXT_PADDING, padding_right: TEXT_PADDING,
             {tab_art(name)}
             fontstring {
                 name: tab_part(name, "Label"), width: text_width, height: TAB_HEIGHT,
                 text, font: GameFont::FrizQuadrata, font_size: LABEL_FONT_SIZE,
                 font_color: LABEL_GOLD, justify_h: JustifyH::Center,
+                pos_type: "absolute", left: "50%", top: 0.0, translate_x: "-50%",
             }
         }
     }
 }
 
 pub fn char_select_top_nav() -> Element {
+    let tray_width: f32 = TABS
+        .iter()
+        .map(|(_, text, _)| label_width(text) + TEXT_PADDING * 2.0)
+        .sum::<f32>()
+        + 8.0;
     let tabs: Element = TABS
         .iter()
         .flat_map(|(name, text, action)| tab(*name, text, action.as_ref()))
         .collect();
     rsx! {
         r#frame {
-            name: TOP_NAV, width: "100%", height: NAV_HEIGHT,
-            pos_type: "absolute", left: 0.0, top: 0.0,
+            name: TOP_NAV, width: "auto", height: NAV_HEIGHT,
+            pos_type: "absolute", left: 0.0, right: 0.0, top: 0.0,
             r#frame {
-                name: "CharSelectTopNavTabs", width: "auto", height: NAV_HEIGHT,
-                layout: "flex-row", align: "center", gap: 0.0, padding_left: 4.0, padding_right: 4.0,
+                name: "CharSelectTopNavTabs", width: tray_width, height: NAV_HEIGHT,
+                layout: "flex-row", align: "center", justify: "center", gap: 0.0,
                 pos_type: "absolute", left: "50%", top: 0.0, translate_x: "-50%",
                 {tabs}
             }
