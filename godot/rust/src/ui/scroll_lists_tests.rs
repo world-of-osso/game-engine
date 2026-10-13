@@ -468,7 +468,15 @@ fn the_wheel_scrolls_by_pixels_and_clips_a_partial_row() {
 
     assert!(wheel(&mut model, OPTIONS_CONTENT_SCROLL, false));
     rebuild(&mut model);
-    assert!((before - row_top(&model, &first) - step).abs() < 0.01);
+    let list = model
+        .registry
+        .scroll_lists
+        .get(OPTIONS_CONTENT_SCROLL)
+        .unwrap();
+    let maximum = (list.row_count - list.visible_rows) as f32;
+    // Wheel motion clamps at the source-sized list's end, even on its first notch.
+    let expected = step.min(maximum);
+    assert!((before - row_top(&model, &first) - expected).abs() < 0.01);
 
     let mut partial = None;
     for _ in 0..100 {
