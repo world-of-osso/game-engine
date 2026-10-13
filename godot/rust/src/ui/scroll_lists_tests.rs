@@ -41,7 +41,7 @@ pub(crate) fn options_model(
         view: GameMenuView::Options,
         category,
         search: String::new(),
-        addons_tab: false,
+        addons_tab: category == OptionsCategory::SocialAddons,
         modal_position: [0.0, 0.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
