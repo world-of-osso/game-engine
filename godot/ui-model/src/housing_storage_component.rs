@@ -4,6 +4,60 @@ use crate::quest_art::named_atlas_texture;
 use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
+pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Element {
+    let [width, height] = view.model.storage_panel.size;
+    if view.model.storage_panel.collapsed {
+        let icon = named_atlas_texture(
+            "HouseEditorStorageExpandIcon".into(),
+            "house-chest-open-drawer-button",
+            (-4.0, 0.0, 64.0, 72.0),
+        );
+        let top = ((view.viewport[1] - 72.0) / 2.0 - 150.0).max(0.0);
+        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left:0.0,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,{icon}}};
+    }
+    let background = named_atlas_texture(
+        "HouseEditorStorageBackground".into(),
+        "house-chest-container-bg",
+        (0.0, 0.0, width, height),
+    );
+    let header = named_atlas_texture(
+        "HouseEditorStorageHeader".into(),
+        "house-chest-header-bg",
+        (0.0, 0.0, width, 68.0),
+    );
+    let collapse = named_atlas_texture(
+        "HouseEditorStorageCollapseIcon".into(),
+        "house-chest-close-drawer-button",
+        (0.0, 0.0, 32.0, 74.0),
+    );
+    let stored = crate::housing_editor_component::stored_entries(view, disabled);
+    let categories = categories(view);
+    let filters = filters(view);
+    let category_path = view.model.storage_category_path();
+    let hide_hint = !view.model.storage_search.is_empty();
+    let status = if can_edit {
+        "Owned Decor Storage"
+    } else {
+        "Visitor — read-only"
+    };
+    let search_width = width - 180.0;
+    let content_width = width - 100.0;
+    let footer_top = height - 31.0;
+    let collapse_left = width - 3.0;
+    let collapse_top = (height - 74.0) / 2.0;
+    let resize_left = width - 20.0;
+    let resize_top = height - 20.0;
+    rsx! {r#frame {name:"HouseEditorStorageFrame",width,height,pos_type:"absolute",left:0.0,top:0.0,mouse_enabled:true,strata:FrameStrata::Dialog,
+        {background}{header}{stored}{categories}{filters}
+        fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:content_width,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
+        fontstring {name:"HouseEditorStorageTitle",text:status,width:content_width,height:32.0,pos_type:"absolute",left:85.0,top:footer_top,font_size:14.0}
+        editbox {name:"HouseEditorStorageSearchBox",text:{view.model.storage_search.as_str()},width:search_width,height:30.0,pos_type:"absolute",left:20.0,top:20.0,font_size:12.0}
+        fontstring {name:"HouseEditorStorageSearchHint",text:"Search",hidden:hide_hint,mouse_enabled:false,width:search_width,height:30.0,pos_type:"absolute",left:30.0,top:20.0,font_size:12.0,font_color:"0.5,0.5,0.5,1.0",justify_h:"LEFT"}
+        button {name:"HouseEditorStorageCollapseButton",width:32.0,height:74.0,pos_type:"absolute",left:collapse_left,top:collapse_top,onclick:"housing:storage:collapse",button_default_skin:false,{collapse}}
+        button {name:"HouseEditorStorageResizeButton",width:20.0,height:20.0,pos_type:"absolute",left:resize_left,top:resize_top,button_default_skin:false}
+    }}
+}
+
 pub(crate) fn filters(view: &HousingView) -> Element {
     let menu = if view.model.storage_filters_open {
         filter_menu(view)
@@ -11,9 +65,11 @@ pub(crate) fn filters(view: &HousingView) -> Element {
         Element::default()
     };
     let hide_reset = !view.model.storage_dyeable_only;
+    let left = view.model.storage_panel.size[0] - 150.0;
+    let reset_left = left + 105.0;
     rsx! {
-        button {name:"HouseEditorStorageFilters",text:"Filter",width:100.0,height:20.0,pos_type:"absolute",left:450.0,top:25.0,onclick:"housing:storage:filters"}
-        button {name:"HouseEditorStorageResetFilters",text:"X",width:20.0,height:20.0,pos_type:"absolute",left:555.0,top:25.0,hidden:hide_reset,onclick:"housing:storage:filter:reset"}
+        button {name:"HouseEditorStorageFilters",text:"Filter",width:100.0,height:20.0,pos_type:"absolute",left,top:25.0,onclick:"housing:storage:filters"}
+        button {name:"HouseEditorStorageResetFilters",text:"X",width:20.0,height:20.0,pos_type:"absolute",left:reset_left,top:25.0,hidden:hide_reset,onclick:"housing:storage:filter:reset"}
         {menu}
     }
 }
@@ -38,7 +94,8 @@ fn filter_menu(view: &HousingView) -> Element {
     } else {
         Element::default()
     };
-    rsx! {r#frame {name:"HouseEditorStorageFilterMenu",width:230.0,height:110.0,pos_type:"absolute",left:345.0,top:50.0,strata:FrameStrata::Tooltip,mouse_enabled:true,
+    let left = view.model.storage_panel.size[0] - 255.0;
+    rsx! {r#frame {name:"HouseEditorStorageFilterMenu",width:230.0,height:110.0,pos_type:"absolute",left,top:50.0,strata:FrameStrata::Tooltip,mouse_enabled:true,
         {background}{dyeable}{sort}
         button {name:"HouseEditorStorageSort",text:"Sort By >",width:184.0,height:20.0,pos_type:"absolute",left:28.0,top:18.0,button_default_skin:false,onclick:"housing:storage:sort"}
         fontstring {name:"HouseEditorStorageLocationUnavailable",text:"Location filters unavailable",width:210.0,height:20.0,pos_type:"absolute",left:15.0,top:75.0,font_size:11.0,font_color:"0.5,0.5,0.5,1.0"}
@@ -79,7 +136,7 @@ pub(crate) fn categories(view: &HousingView) -> Element {
     let background = named_atlas_texture(
         "HouseEditorStorageCategoriesBackground".into(),
         "house-chest-nav-bg_primary",
-        (0.0, 0.0, 75.0, 581.0),
+        (0.0, 0.0, 75.0, view.model.storage_panel.size[1] - 70.0),
     );
     let buttons = match view.model.expanded_storage_category() {
         Some(category) => subcategories(view, category.id),
@@ -102,7 +159,8 @@ pub(crate) fn categories(view: &HousingView) -> Element {
             })
             .collect(),
     };
-    rsx! {r#frame {name:"HouseEditorStorageCategories",width:75.0,height:581.0,pos_type:"absolute",left:0.0,top:68.0,{background}{buttons}}}
+    let height = view.model.storage_panel.size[1] - 70.0;
+    rsx! {r#frame {name:"HouseEditorStorageCategories",width:75.0,height,pos_type:"absolute",left:0.0,top:68.0,{background}{buttons}}}
 }
 
 fn subcategories(view: &HousingView, category_id: u32) -> Element {

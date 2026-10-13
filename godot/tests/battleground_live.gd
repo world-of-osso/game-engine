@@ -67,7 +67,7 @@ func live_run() -> void:
 				await frames(3)
 				await RenderingServer.frame_post_draw
 				result.error = root.get_texture().get_image().save_png(command.path)
-			"click":
+			"click", "right-click":
 				var target = root.find_child(command.name, true, false) as Control
 				if target == null or not target.is_visible_in_tree():
 					result.error = "Missing visible native control: " + str(command.name)
@@ -75,7 +75,8 @@ func live_run() -> void:
 					result.target = str(target.get_path())
 					result.mouse_filter = target.mouse_filter
 					result.target_viewport = str(target.get_viewport().get_path())
-					await pointer(target.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+					var button := MOUSE_BUTTON_RIGHT if command.action == "right-click" else MOUSE_BUTTON_LEFT
+					await pointer(target.get_global_rect().get_center(), button)
 					result.input_handled = root.is_input_handled()
 			"key":
 				await tap(int(command.key))

@@ -13,6 +13,8 @@ struct LayoutFile {
     window_positions: BTreeMap<String, BTreeMap<String, [f32; 2]>>,
     #[serde(default)]
     edit_mode: EditModeLayoutsFile,
+    #[serde(default)]
+    housing_storage_panel: crate::housing::StoragePanelSettings,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -419,6 +421,24 @@ pub fn window_position(
         .and_then(|windows| windows.get(root).copied()))
 }
 
+pub fn load_housing_storage_panel(
+    path: &Path,
+) -> Result<crate::housing::StoragePanelSettings, String> {
+    let mut panel = read_layout(path)?.housing_storage_panel;
+    panel.resize(panel.size)?;
+    Ok(panel)
+}
+
+pub fn save_housing_storage_panel(
+    path: &Path,
+    mut panel: crate::housing::StoragePanelSettings,
+) -> Result<(), String> {
+    panel.resize(panel.size)?;
+    let mut file = read_layout(path)?;
+    file.housing_storage_panel = panel;
+    write_layout(path, &file)
+}
+
 pub fn save_window_position(
     path: &Path,
     character_id: u64,
@@ -451,6 +471,50 @@ pub fn reset_window_positions(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn housing_storage_panel_clamps_snaps_and_persists_without_replacing_other_layout_state() {
+        use crate::housing::StoragePanelSettings;
+        let path = temp_layout("housing-storage-panel");
+        save_window_position(&path, 17, "WorldMapFrame", [210.0, 104.0]).unwrap();
+        let layout = set_active_layout(&path, 17, "Modern").unwrap();
+        assert_eq!(
+            load_housing_storage_panel(&path).unwrap(),
+            StoragePanelSettings::default()
+        );
+        let mut panel = StoragePanelSettings::default();
+        panel.resize([700.0, 730.0]).unwrap();
+        assert_eq!(panel.size, [700.0, 730.0]); // During capture, no column snap.
+        panel.finish_resize();
+        assert_eq!(panel.size, [725.0, 730.0]); // (700-113) rounded to6*102, plus113.
+        assert_eq!(panel.columns(), 6);
+        panel.collapsed = true;
+        save_housing_storage_panel(&path, panel).unwrap();
+        assert_eq!(load_housing_storage_panel(&path).unwrap(), panel);
+        assert_eq!(active_layout(&path, 17).unwrap(), layout);
+        assert_eq!(
+            window_position(&path, 17, "WorldMapFrame").unwrap(),
+            Some([210.0, 104.0])
+        );
+        panel.resize([100.0, 900.0]).unwrap();
+        panel.finish_resize();
+        assert_eq!(panel.size, [415.0, 800.0]); // Clamp boundaries do not snap inward.
+        assert_eq!(panel.columns(), 3);
+        panel.resize([900.0, 100.0]).unwrap();
+        panel.finish_resize();
+        assert_eq!(panel.size, [827.0, 651.0]);
+        assert_eq!(panel.columns(), 7);
+        let before = panel;
+        assert!(panel.resize([f32::NAN, 720.0]).is_err());
+        assert_eq!(panel, before);
+        fs::write(&path, "(window_positions: invalid)").unwrap();
+        assert!(save_housing_storage_panel(&path, panel).is_err());
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "(window_positions: invalid)"
+        );
+        fs::remove_file(path).unwrap();
+    }
 
     #[test]
     fn invalid_layout_and_missing_character_never_replace_saved_data() {
