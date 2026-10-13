@@ -61,6 +61,30 @@ fn forever_npc_gear_keeps_retail_displays_and_scopes_extra_collisions() {
     std::fs::remove_dir_all(fixture).unwrap();
 }
 
+#[test]
+fn db2_follow_install_npc_gear_preserves_ids_with_quoted_emote_names() {
+    let directory = std::env::temp_dir().join(format!("quoted-emotes-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    for (name, text) in [
+        (
+            "Emotes",
+            "ID,EmoteSlashCommand,AnimID\n599,\"STATE_WORK_CHOPWOOD (NO AXE, GARRISON)\",136\n614,\"STATE_WORK_CHOPWOOD (NO AXE, GARRISON, FLESH)\",136\n",
+        ),
+        ("CreatureDisplayInfo", "ID,ExtendedDisplayInfoID\n"),
+        (
+            "NPCModelItemSlotDisplayInfo",
+            "NpcModelID,ItemSlot,ItemDisplayInfoID\n",
+        ),
+        ("Item", "ID,SheatheType,ClassID,SubclassID\n"),
+    ] {
+        std::fs::write(directory.join(format!("{name}.csv")), text).unwrap();
+    }
+    let gear = NpcGearData::load(&directory).unwrap();
+    assert_eq!(gear.emote_anim_id(599), Some(136));
+    assert_eq!(gear.emote_anim_id(614), Some(136));
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
 fn emote_anim_id(emote: u32) -> Option<u16> {
     data().emote_anim_id(emote)
 }
