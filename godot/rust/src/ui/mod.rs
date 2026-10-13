@@ -977,6 +977,7 @@ impl RegistryUi {
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
     pub fn show_world_map(&mut self, state: WorldMapFrameState) -> Result<(), String> {
+        self.toplevel = true;
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }

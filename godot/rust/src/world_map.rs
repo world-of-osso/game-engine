@@ -577,6 +577,11 @@ impl GameClient {
         }
     }
 
+    pub(super) fn open_quest_details(&mut self) -> Result<(), String> {
+        self.world_map.display.quest_details = true;
+        self.open_quest_map()
+    }
+
     pub(super) fn open_quest_map(&mut self) -> Result<(), String> {
         self.world_map.display.maximized = false;
         if self.world_map.is_open() {

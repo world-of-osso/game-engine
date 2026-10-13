@@ -481,7 +481,7 @@ impl GameClient {
         for effect in effects {
             match effect {
                 QuestUiEffect::Send(request) => self.account.send_quest_request(request)?,
-                QuestUiEffect::OpenLog => self.open_quest_map()?,
+                QuestUiEffect::OpenLog => self.open_quest_details()?,
                 QuestUiEffect::CloseLog => self.close_world_map(),
                 QuestUiEffect::ConfirmAbandon { quest_id, popup } => {
                     self.quests.pending_abandon = Some(quest_id);
