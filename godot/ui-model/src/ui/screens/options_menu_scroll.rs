@@ -34,6 +34,28 @@ pub struct OptionsPage {
 }
 
 impl OptionsPage {
+    /// Search complete rendered row labels, retaining controls with their labels.
+    pub fn filter(self, query: &str) -> Self {
+        if query.is_empty() {
+            return self;
+        }
+        let query = query.to_lowercase();
+        let items = into_widgets(self.items)
+            .into_iter()
+            .filter(|item| widget_matches(item, &query))
+            .map(WidgetChild::Widget)
+            .collect();
+        Self {
+            items,
+            gap: self.gap,
+        }
+    }
+
+    pub fn matches(&self, query: &str) -> bool {
+        let query = query.to_lowercase();
+        widgets(&self.items).any(|item| widget_matches(item, &query))
+    }
+
     /// Pixels a stepper click scrolls: the first element's extent plus the spacing, as
     /// `ScrollBoxListViewMixin:GetPanExtent` caches it (`ScrollBoxListView.lua:637-661`) and
     /// `ScrollBarMixin:ScrollStepInDirection` pans by it (`ScrollBar.lua:117-119`).
@@ -172,6 +194,11 @@ fn widgets(children: &[WidgetChild]) -> Box<dyn Iterator<Item = &WidgetDef> + '_
         WidgetChild::Fragment(children) => widgets(children),
         WidgetChild::Dynamic => panic!("an options row must be a concrete widget"),
     }))
+}
+
+fn widget_matches(def: &WidgetDef, query: &str) -> bool {
+    attr(def, "text").is_some_and(|text| text.to_lowercase().contains(query))
+        || widgets(&def.children).any(|child| widget_matches(child, query))
 }
 
 fn attr<'a>(def: &'a WidgetDef, name: &str) -> Option<&'a str> {

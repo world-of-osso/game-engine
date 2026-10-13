@@ -203,6 +203,8 @@ pub struct OptionsModel {
     pub logged_in: bool,
     pub view: GameMenuView,
     pub category: OptionsCategory,
+    pub search: String,
+    pub addons_tab: bool,
     pub modal_position: [f32; 2],
     pub draft_graphics: GraphicsDraft,
     pub draft_sound: SoundDraft,
@@ -471,12 +473,37 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
     }
 }
 
+/// Retail category-set selection clears search; menu shortcuts open existing settings pages.
+pub fn apply_settings_navigation(model: &mut OptionsModel, action: &str) -> bool {
+    if let Some(search) = action.strip_prefix("options_search:") {
+        model.search = search.chars().take(64).collect();
+        return true;
+    }
+    if action == "options_search_clear" {
+        model.search.clear();
+        return true;
+    }
+    let category = match action {
+        "options_tab:game" => OptionsCategory::Graphics,
+        "options_tab:addons" | "menu_addons" => OptionsCategory::SocialAddons,
+        "menu_macros" => OptionsCategory::Macros,
+        "menu_support" => OptionsCategory::Support,
+        _ => return false,
+    };
+    model.category = category;
+    model.addons_tab = category == OptionsCategory::SocialAddons;
+    model.search.clear();
+    true
+}
+
 pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
     GameMenuViewModel {
         logged_in: model.logged_in,
         view: model.view,
         options: OptionsViewModel {
             category: model.category,
+            search: model.search.clone(),
+            addons_tab: model.addons_tab,
             position: model.modal_position,
             graphics: graphics_to_view(&model.draft_graphics),
             sound: sound_to_view(&model.draft_sound),

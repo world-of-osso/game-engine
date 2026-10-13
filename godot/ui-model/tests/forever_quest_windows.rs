@@ -80,6 +80,8 @@ fn options_model() -> OptionsModel {
         logged_in: true,
         view: GameMenuView::Options,
         category: OptionsCategory::Graphics,
+        search: String::new(),
+        addons_tab: false,
         modal_position: [0.0, 0.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
