@@ -14,6 +14,10 @@ The client reads `data/cache/housing.sqlite` produced by game-server `scripts/im
 
 Further ranks: authentic vendor/quest/achievement/crafting acquisition; visiting/social permissions; charter/create-neighborhood/house finder/bulletin board; room/exterior/dye/blueprint customization; sourced initiatives/favor/levels/upgrades/market cart. Missing reward/grant/progression data stays a gap, never a synthetic substitute.
 
+## Housing editor bindings
+
+Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Save/reload preserves exact Retail names; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
+
 ## Authoritative storage boundary
 
 Opening the dashboard requests server state without entering a neighborhood or granting property. Registered HousingReply traffic must reach the native account dispatcher and preserve ownership, stored quantities and refusals. Before a matching-build authoritative snapshot, quantity is unknown; after one, an absent stored entry is a known zero. Unavailable/wrong-build replies cannot become fabricated empty ownership. Leaving InWorld clears account housing state.
