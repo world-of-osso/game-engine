@@ -28,7 +28,17 @@ Engine `c647e688a`, protocol `ab7f848`, server `675bec22`: 17 targeted Guide tes
 
 Nine inspected1280PNG images: `/syncthing/AgentShared/2026-10-13/adventure-guide/`. Logs/snapshots/commands: `/home/osso/.worktrees/adventure-guide4-proof/`. Source NPCs for Trading Post live in `content_creature`/`content_creature_template`, not legacy `creature*` tables. Wait for map-transfer acknowledgment before another transfer. A wiped boss must evade/reset (or enter a fresh copy) before another start; direct admin damage is not a reliable pull trigger. CLI spell targets accept numeric server entity IDs, not NPC names.
 
-Journeys is distinct from Traveler's Log: Retail `Blizzard_Journeys.lua` reads MajorFaction renown and encounter journeys. No client/server backing exists yet; record this gap instead of manufacturing progress. Ozruk previews reproduce opaque black effect planes in both skins; their renderer/asset cause remains under investigation. Complete boss payload closure and RPE activation also remain open.
+Journeys is distinct from Traveler's Log: Retail `Blizzard_Journeys.lua` reads MajorFaction renown and encounter journeys. No client/server backing exists yet; record this gap instead of manufacturing progress. Ozruk's opaque effect cards were reproduced and fixed at the transparent-preview compositing boundary below. Complete boss payload closure and RPE activation remain open.
+
+## Transparent preview additive coverage
+
+Ozruk36475's authored Add batches0/3 use chalk415840 with full-opacity black texels. Their world material correctly adds zero light for black; the transparent preview target accumulated coverage instead, so its TextureRect obscured the Guide backdrop. This was a renderer/compositing failure, not missing texture data or particles (the source model has none).
+
+The M2 material factory publishes preview-only Add/NoAlphaAdd shader metadata. Those variants write additive RGB with zero coverage using premultiplied blending; Add retains authored source opacity, NoAlphaAdd ignores it. `bind_preview_light` selects that variant only for model previews, and the shared model-view TextureRect uses premultiplied compositing. Authored world shaders and their blend/depth state remain unchanged. No black-texel discard, texture replacement or alpha threshold masks the problem.
+
+`godot/tests/m2_preview_blend_pixels.gd` reproduces the real black texel boundary and checks five GPU outputs: backdrop preserved, positive half-opacity Add matches world RGB, its light remains over the backdrop, ordinary mix coverage and actual opaque-batch coverage. Root RED was RT(0,0,0,1)/black UI; GREEN is RTcoverage0/backdrop(.251,.349,.451). Positive RGB(.4196,.5333,.3961) remains and composes(.6706,.8824,.8471). NoAlphaAdd's generated branch is implemented but not certified by a sourced model case in this gate.
+
+Engine8966a5080/servercec3f237/protocol7062a60 private5771 Model-page captures in both skins remove the black cards while retaining the authored effect. Requested PNGs `modern-ozruk-additive-compositing-fixed.png` and `forever-ozruk-additive-compositing-fixed.png` are inspected. Helper native build/check and changed-file format checks pass; exact logs/revisions in `/home/osso/.worktrees/adventure-guide4-proof/proof-ledger.md`. All owned processes stopped. Remaining framing issue: the detached creature retains the world's -π/2 yaw while the preview camera faces +X; the Guide has not normalized it yet.
 
 ## Journal model preparation
 
