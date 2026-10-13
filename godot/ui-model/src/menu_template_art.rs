@@ -51,6 +51,28 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
         {
             button.state = state;
             button.hovered = hovered;
+            if let Some(TextureSource::Atlas(normal)) = &button.normal_texture {
+                let prefix = if normal.starts_with("common-dropdown-a-button") {
+                    "common-dropdown-a-button"
+                } else if normal.starts_with("common-dropdown-b-button") {
+                    "common-dropdown-b-button"
+                } else {
+                    "common-dropdown-c-button"
+                };
+                let suffix = if prefix.ends_with("c-button") {
+                    "-1"
+                } else {
+                    ""
+                };
+                let hover_state = if state == ButtonState::Pushed {
+                    "pressedhover"
+                } else {
+                    "hover"
+                };
+                button.highlight_texture = Some(TextureSource::Atlas(format!(
+                    "{prefix}-{hover_state}{suffix}"
+                )));
+            }
         }
     }
     apply_texture_flags(registry);

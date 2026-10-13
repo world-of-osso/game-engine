@@ -213,19 +213,29 @@ fn breadcrumb_arrow(name: &str, width: f32, height: f32, current: bool) -> Eleme
 
 fn overflow_button(props: &NavBar<'_>, height: f32) -> Element {
     let name = format!("{}OverflowButton", props.name);
-    let contents = state_crops(
+    let mut contents = state_crops(
         &name,
         SHEET,
         [0.54296875, 0.62890625, 0.7578125, 0.9921875],
         [0.453125, 0.5390625, 0.7578125, 0.9921875],
         (0.0, 0.0, OVERFLOW_WIDTH, BUTTON_HEIGHT),
     );
+    contents.extend(highlight_crop(
+        &name,
+        SHEET,
+        [0.54296875, 0.62890625, 0.7578125, 0.9921875],
+        (0.0, 0.0, OVERFLOW_WIDTH, BUTTON_HEIGHT),
+    ));
     rsx! { button { name:{DynName(name)}, left:0.0, top:{(height-BUTTON_HEIGHT)/2.0}, width:OVERFLOW_WIDTH,
     height:BUTTON_HEIGHT, pos_type:"absolute", button_default_skin:false, onclick:props.overflow_action, {contents} } }
 }
 
 fn overflow_menu(props: &NavBar<'_>, layout: &NavLayout) -> Element {
-    let width = 180.0;
+    let width = props.buttons[..layout.first_shown]
+        .iter()
+        .map(|button| button.text_width)
+        .fold(0.0_f32, f32::max)
+        + 36.0;
     let height = 23.0 + 20.0 * layout.first_shown as f32;
     let mut contents = crate::selection_list::menu_background(
         format!("{}OverflowMenuBackground", props.name),
