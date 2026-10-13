@@ -1,3 +1,7 @@
+## 2026-10-13 — Follower type radio fidelity
+
+[Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): LFDFrame.lua CreateRadio/no-header replaces invented Type title/divider/button row. Incoming shared WithRows API retained; heading-aware geometry supports43px radio popup without changing titled consumers. Native76→43 RED/GREEN;12 registry/menu cases, library checks/fmt and replaced inspected1920×1080 both-skin closed/open PNGs pass at46cdad1cf.
+
 ## 2026-10-13 — Group Finder Retail layout repair
 
 [Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): shared PanelTab/WowStyle1 controls, XML blue-menu category art/insets and native512×256 clipped quest paper replace generic tabs/stretched wall. Native geometry and covered-description pixel RED→GREEN; both-skin1920×1080 before/after closed/open PNGs inspected against XML. Targeted UI5/native-mask5, library build/check and fmt pass at5b6f57417. Source UI extracts remain private; full follower gameplay still open.
