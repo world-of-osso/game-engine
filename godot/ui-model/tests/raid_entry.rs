@@ -54,6 +54,79 @@ fn retail_primary_and_legacy_size_selection_preserves_heroic_and_disables_mythic
     );
 }
 #[test]
+fn raid_info_retail_scrollbox_geometry_and_scroll_reaches_eighth_saved_instance() {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        layout_values::Val,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let rows = [409, 469, 533, 249, 532, 565, 544, 580]
+            .into_iter()
+            .enumerate()
+            .map(|(index, map_id)| SavedInstanceRow {
+                lock: InstanceLockInfo {
+                    map_id,
+                    difficulty_id: 9,
+                    instance_id: index as u32 + 1,
+                    time_remaining_secs: 4000,
+                    completed_mask: 0,
+                    locked: true,
+                    extended: false,
+                },
+                name: format!("Saved instance {map_id}"),
+                difficulty: "Raid".into(),
+                extend_disabled: false,
+            })
+            .collect();
+        let state = RaidInfoState {
+            visible: true,
+            rows,
+            ..Default::default()
+        };
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        shared.insert(skin);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(game_engine_ui_model::raid_info::screen);
+        screen.sync(&shared, &mut registry);
+        let list = registry
+            .get(registry.get_by_name("RaidInfoScrollBox").unwrap())
+            .unwrap();
+        assert_eq!((list.width.value(), list.height.value()), (292.0, 157.0));
+        assert_eq!(
+            (list.position.left, list.position.top),
+            (Val::Px(16.0), Val::Px(48.0))
+        );
+        assert!(registry.scroll_lists.scroll_to("RaidInfoScrollBox", 10_000));
+        screen.sync(&shared, &mut registry);
+        assert_eq!(
+            registry
+                .scroll_lists
+                .get("RaidInfoScrollBox")
+                .unwrap()
+                .first_row,
+            163
+        );
+        let child = registry
+            .get(registry.get_by_name("RaidInfoScrollChild").unwrap())
+            .unwrap();
+        assert_eq!(child.position.top, Val::Px(-163.0));
+        let last = registry
+            .get(registry.get_by_name("RaidInfoRow7").unwrap())
+            .unwrap();
+        assert_eq!(last.position.top, Val::Px(280.0));
+        assert_eq!(last.onclick.as_deref(), Some("raid_info:select:7"));
+    }
+}
+
+#[test]
 fn saved_instance_selection_extends_unextends_and_reactivates_without_unsaving_active_lock() {
     let lock = InstanceLockInfo {
         map_id: 409,
@@ -89,8 +162,7 @@ fn saved_instance_selection_extends_unextends_and_reactivates_without_unsaving_a
     assert_eq!(state.rows[0].lock.completed_mask, 1);
 }
 #[test]
-fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_scroll_reaches_fourth_save()
-{
+fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_selects_fourth_save() {
     let db2 =
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
     let catalog = RaidCatalog::load(&db2).unwrap();
@@ -144,11 +216,8 @@ fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_scroll_r
         rows,
         ..Default::default()
     };
-    state.action("raid_info:down");
-    assert_eq!(state.offset, 1);
+
     state.action("raid_info:select:3");
     assert_eq!(state.selected_row().unwrap().lock.instance_id, 11);
     assert_eq!(state.selected_row().unwrap().lock.map_id, 670);
-    state.action("raid_info:up");
-    assert_eq!(state.offset, 0);
 }
