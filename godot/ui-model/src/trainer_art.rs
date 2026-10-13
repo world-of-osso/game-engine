@@ -199,7 +199,8 @@ pub(super) fn apply_rows(view: &TrainerView, registry: &mut FrameRegistry) {
         set_texture_effect(registry, &format!("{prefix}Icon"), unavailable, false);
         set_texture_effect(registry, &format!("{prefix}Selected"), false, true);
         set_texture_effect(registry, &format!("{prefix}Highlight"), false, true);
-        let hovered = registry.get_by_name(&prefix).and_then(|id| registry.get(id)).is_some_and(|frame| matches!(&frame.widget_data, Some(WidgetData::Button(button)) if button.hovered));
+        // Keyboard focus locks the same highlight pointer hover shows.
+        let hovered = registry.get_by_name(&prefix).and_then(|id| registry.get(id)).is_some_and(|frame| matches!(&frame.widget_data, Some(WidgetData::Button(button)) if button.hovered || button.highlight_locked));
         if let Some(id) = registry.get_by_name(&format!("{prefix}Highlight")) {
             registry.set_hidden(id, !hovered);
         }

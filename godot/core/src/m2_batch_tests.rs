@@ -256,7 +256,12 @@ fn instance_portal_sheet_carries_its_colour_track_rgb() {
     let unit = &model.batches[sheet.source_unit_index];
     let binding = crate::m2_material::batch_binding(&model, unit, &[0; 3]).unwrap();
     let tracks = crate::m2_material::MaterialTracks::of(&model);
-    let mesh_color = crate::m2_material::sample_material(&tracks, &binding, 0).mesh_color;
+    let mesh_color = crate::m2_material::sample_material(
+        &tracks,
+        &binding,
+        crate::m2_material::MaterialTime::default(),
+    )
+    .mesh_color;
     for (actual, expected) in mesh_color.iter().zip(expected) {
         assert!((actual - expected).abs() < 1e-6, "{mesh_color:?}");
     }

@@ -1360,9 +1360,14 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
         width:40.0,height:26.0,left:429.0,top:12.0,pos_type:"absolute",justify_h:"CENTER",font:GameFont::FrizQuadrata,
         font_size:12.0,font_color:GOLD,onclick:action.as_str(),
     }});
-    rsx! {button {name:{DynName(format!("{prefix}SummaryRow"))},width:483.0,height:48.0,left:241.0,top:y,
-        pos_type:"absolute",onclick:action.as_str(),button_default_skin:false,{content}
-    }}
+    crate::selection_list::row(
+        format!("{prefix}SummaryRow"),
+        &action,
+        true,
+        (241.0, y, 483.0, 48.0),
+        (&crate::selection_list::AUTHORED, false),
+        content,
+    )
 }
 
 fn browse_controls(window: &AchievementWindow) -> Element {
@@ -1504,10 +1509,16 @@ fn achievement_rows(ctx: &SharedContext, window: &AchievementWindow) -> Element 
         };
         let height = achievement_row_height(entry, expanded, window.criterion_offset);
         let children = achievement_row(entry, 0.0, expanded, height);
-        content.extend(rsx! {button {name:{DynName(format!("Achievement{}Row",entry.achievement_id))},
-            onclick:{format!("achievement:row:{}",entry.achievement_id)},button_default_skin:false,width:500.0,height,
-            left:0.0,top:y,pos_type:"absolute", {children} {criteria}
-        }});
+        let mut children = children;
+        children.extend(criteria);
+        content.extend(crate::selection_list::row(
+            format!("Achievement{}Row", entry.achievement_id),
+            &format!("achievement:row:{}", entry.achievement_id),
+            true,
+            (0.0, y, 500.0, height),
+            (&crate::selection_list::AUTHORED, false),
+            children,
+        ));
         y += height + 1.0;
     }
     if window.displayed_entries().is_empty() {

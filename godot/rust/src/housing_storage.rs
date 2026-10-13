@@ -32,6 +32,7 @@ impl GameClient {
         )?;
         if let Some(model) = self.housing.model.as_mut() {
             model.storage_panel = panel;
+            model.start_storage_transition(collapsed);
         }
         self.housing.storage_resize = None;
         Ok(true)

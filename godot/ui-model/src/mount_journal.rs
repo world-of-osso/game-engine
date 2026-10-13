@@ -2,7 +2,7 @@
 use crate::bank_art::{WHITE, cropped, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::mount_source::readable_source;
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
+use crate::quest_art::{NORMAL_FONT_COLOR, named_atlas_texture, panel_button};
 use shared::protocol::mount_journal_types::{AQUATIC, FLYING, GROUND, RIDE_ALONG, SKYRIDING};
 use shared::protocol::{MountJournalEntry, MountJournalUpdate};
 use std::collections::{BTreeMap, BTreeSet};
@@ -294,8 +294,14 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
             (42.0, 0.0, 208.0, 46.0),
         ));
     }
-    rsx! { button { name: {DynName(prefix)}, width: 250.0, height: ROW_HEIGHT, left: 0.0, top,
-    pos_type: "absolute", button_default_skin: false, onclick: {action.as_str()}, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (0.0, top, 250.0, ROW_HEIGHT),
+        (&crate::selection_list::MOUNT, false),
+        children,
+    )
 }
 fn mount_details(view: &MountJournalView) -> Element {
     // Blizzard_MountCollection.xml MountDisplay.YesMountsTex, local listfile FDID651761.
@@ -413,15 +419,39 @@ fn filter_menu(view: &MountJournalView) -> Element {
             ("mount:sources".into(), "Sources >".into(), false),
         ],
     };
-    let children: Element=entries.iter().enumerate().flat_map(|(index,(action,title,checked))| {
-        let name=DynName(format!("MountJournalFilter{index}"));
-        let text=format!("{} {title}",if *checked { "✓" } else { "  " });
-        let top=5.0+index as f32*22.0;
-        rsx! { button { name, width: 190.0,height: 22.0,left: 5.0,top,pos_type: "absolute",text: {text.as_str()},onclick: {action.as_str()},font_size: 12.0 } }
-    }).collect();
+    let children: Element = entries
+        .iter()
+        .enumerate()
+        .flat_map(|(index, (action, title, checked))| {
+            let name = format!("MountJournalFilter{index}");
+            let rect = (5.0, 5.0 + index as f32 * 22.0, 190.0, 22.0);
+            // MountJournal filter menu: CreateCheckbox entries and submenu buttons.
+            match title.strip_suffix(" >") {
+                Some(submenu) => crate::selection_list::text_row(
+                    name,
+                    submenu,
+                    action,
+                    (true, false),
+                    rect,
+                    &crate::selection_list::MENU,
+                ),
+                None => crate::selection_list::menu_choice(
+                    name,
+                    title,
+                    action,
+                    (crate::selection_list::MenuTick::Checkbox, *checked),
+                    rect,
+                ),
+            }
+        })
+        .collect();
     let height = 10.0 + entries.len() as f32 * 22.0;
+    let background = crate::selection_list::menu_background(
+        "MountJournalFilterMenuBackground".into(),
+        (200.0, height),
+    );
     rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 75.0,top: 91.0,pos_type: "absolute",
-    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
+    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,{background}{children} } }
 }
 fn context_menu(view: &MountJournalView) -> Element {
     let Some((id, [left, top])) = view.context else {
