@@ -940,5 +940,5 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         true,
         (166., 16. + text_height + 12., 128., 26.),
     ));
-    rsx! {r#frame{name:"PerksProgramConfirmDialog",left:{(WIDTH-320.0)/2.0},top:135.0,width:320.0,height,pos_type:"absolute",style:"static_popup",strata:FrameStrata::FullscreenDialog,frame_level:2000.0,mouse_enabled:true,{children}}}
+    rsx! {r#frame{name:"PerksProgramConfirmDialog",left:{(WIDTH-320.0)/2.0},top:135.0,width:320.0,height,pos_type:"absolute",strata:FrameStrata::FullscreenDialog,frame_level:2000.0,mouse_enabled:true,{children}}}
 }
