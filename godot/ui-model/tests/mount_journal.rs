@@ -258,6 +258,40 @@ fn mount_journal_search_source_type_and_collected_filters_reselect() {
     assert_eq!(view.rows().len(), 1);
 }
 #[test]
+fn mount_search_keeps_query_when_filter_rebuilds_and_renders_search_template() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = view();
+    view.visible = true;
+    view.search = "Brown".into();
+    view.apply_filter("mount:filters");
+    let mut shared = SharedContext::new();
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+    let search = registry
+        .get(registry.get_by_name("MountJournalSearchBox").unwrap())
+        .unwrap();
+    let Some(WidgetData::EditBox(edit)) = &search.widget_data else {
+        panic!("search editbox")
+    };
+    assert_eq!(edit.text, "Brown");
+    assert!(registry.get_by_name("MountJournalSearchLeft").is_some());
+    let clear = registry
+        .get(registry.get_by_name("MountJournalSearchClear").unwrap())
+        .unwrap();
+    assert_eq!(clear.onclick.as_deref(), Some("mount:search-clear"));
+}
+
+#[test]
 fn mount_filters_reset_and_source_bulk_controls_reselect_real_rows() {
     let mut view = view();
     assert!(view.apply_filter("mount:sources:none"));

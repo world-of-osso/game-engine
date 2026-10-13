@@ -99,41 +99,12 @@ fn collections_background() -> Element {
 }
 
 fn search_box(model: &ToyBox) -> Element {
-    let mut art = named_atlas_texture(
-        "ToyBoxSearchLeft".into(),
-        "common-search-border-left",
-        (476.0, 35.0, 8.0, 20.0),
-    );
-    art.extend(named_atlas_texture(
-        "ToyBoxSearchMiddle".into(),
-        "common-search-border-middle",
-        (484.0, 35.0, 104.0, 20.0),
-    ));
-    art.extend(named_atlas_texture(
-        "ToyBoxSearchRight".into(),
-        "common-search-border-right",
-        (588.0, 35.0, 8.0, 20.0),
-    ));
-    art.extend(named_atlas_texture(
-        "ToyBoxSearchIcon".into(),
-        "common-search-magnifyingglass",
-        (482.0, 41.0, 10.0, 10.0),
-    ));
-    let search = model.filters.search.as_str();
-    let clear = named_atlas_texture(
-        "ToyBoxSearchClearIcon".into(),
-        "common-search-clearbutton",
-        (3.0, 3.0, 10.0, 10.0),
-    );
-    rsx! { {art}
-        editbox { name: "ToyBoxSearchBox", text: search, width: 115.0, height: 20.0,
-            text_insets: "16,20,0,0", pos_type: "absolute", left: 481.0, top: 35.0, font_size: 12.0 }
-        fontstring { name: "ToyBoxSearchHint", text: "Search", hidden: {!search.is_empty()},
-            mouse_enabled: false, width: 70.0, height: 20.0, pos_type: "absolute", left: 497.0, top: 35.0,
-            font_size: 12.0, font_color: "0.5,0.5,0.5,1.0", justify_h: "LEFT" }
-        button { name: "ToyBoxSearchClear", width: 17.0, height: 17.0, hidden: {search.is_empty()},
-            pos_type: "absolute", left: 576.0, top: 36.5, button_default_skin: false, onclick: "toy_search:clear", {clear} }
-    }
+    crate::search_box_template::search_box(
+        "ToyBox",
+        &model.filters.search,
+        "toy_search:clear",
+        (481.0, 35.0, 115.0, 20.0),
+    )
 }
 
 fn progress_bar(model: &ToyBox) -> Element {
