@@ -1,6 +1,6 @@
 extends "res://tests/unitrank_live.gd"
 
-# Real private5811, fb_* account. Opens via ordinary minimap launcher clicks.
+# Real private5751, fb_* account. Opens via ordinary minimap launcher clicks.
 var run_dir := ""
 var last_command := -1
 
@@ -12,8 +12,8 @@ func run_test() -> void:
 	character = OS.get_environment("MENTOR_CHARACTER")
 	var account := OS.get_environment("MENTOR_ACCOUNT")
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
-	if endpoint != "127.0.0.1:5811" or not account.begins_with("fb_") or run_dir.is_empty():
-		fail("Explicit private5811, fb_* account and output directory required")
+	if endpoint != "127.0.0.1:5751" or not account.begins_with("fb_") or run_dir.is_empty():
+		fail("Explicit private5751, fb_* account and output directory required")
 		return
 	DirAccess.make_dir_recursive_absolute(run_dir)
 	client = load("res://scenes/client.tscn").instantiate()
@@ -52,8 +52,25 @@ func run_test() -> void:
 
 func write_state(filename: String) -> void:
 	var file := FileAccess.open(shots + filename, FileAccess.WRITE)
-	file.store_string(JSON.stringify({"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null}))
+	file.store_string(JSON.stringify({"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect()}))
 	file.close()
+
+func panel_rect() -> Array:
+	var panel := control("MythicMentorUI", "MythicMentorPanel")
+	if panel == null:
+		return []
+	var rect := panel.get_global_rect()
+	return [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+
+func rendered_rows() -> Array:
+	var rows := []
+	for index in range(5):
+		var prefix := "MentorRow%d" % index
+		var dungeon := control("MythicMentorUI", prefix + "Dungeon")
+		if dungeon == null:
+			break
+		rows.append({"dungeon": dungeon.text, "player": control("MythicMentorUI", prefix + "Player").text, "level": control("MythicMentorUI", prefix + "Level").text, "timer": control("MythicMentorUI", prefix + "Timer").text, "leader": control("MythicMentorUI", prefix + "Leader") != null})
+	return rows
 
 func execute_command(command: Dictionary) -> String:
 	match str(command.get("op", "")):
