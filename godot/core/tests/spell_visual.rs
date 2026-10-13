@@ -36,6 +36,41 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
         spec_order_index: None,
         main_hand_subclass,
         auras: Vec::new(),
+        current_pvp_faction: 0,
+    }
+}
+
+#[test]
+fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
+    for (spell, faction, model) in [(300104, 2, 2925498), (300144, 1, 2925497)] {
+        for race in [1, 2, 24, 52, 70, 84, 85, 86, 91] {
+            for current_pvp_faction in [0, 1, 2] {
+                let caster = CasterContext {
+                    race,
+                    current_pvp_faction,
+                    ..warrior(None)
+                };
+                let selected = catalog().visual_for_spell(spell, &caster);
+                if current_pvp_faction != faction {
+                    assert_eq!(
+                        selected, None,
+                        "spell {spell}, race {race}, faction {current_pvp_faction}"
+                    );
+                    continue;
+                }
+                let visual = selected.expect("authored CurrentPvpFaction condition");
+                let kits = catalog().kits(visual, VisualEvent::AuraStart);
+                assert!(!kits.is_empty());
+                let models: Vec<_> = kits.iter().flat_map(|kit| &kit.models).collect();
+                assert!(!models.is_empty());
+                assert!(
+                    models
+                        .iter()
+                        .all(|attachment| attachment.model_fdid == model)
+                );
+                assert!(kits.iter().all(|kit| kit.end == VisualEvent::AuraEnd));
+            }
+        }
     }
 }
 
