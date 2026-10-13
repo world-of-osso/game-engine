@@ -371,7 +371,7 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         let reg = mounted(&session);
         assert_eq!(text(&reg, "GuildRankRow2Name"), "Member");
         assert!(
-            reg.get(reg.get_by_name("GuildRankRow2Selected").unwrap())
+            reg.get(reg.get_by_name("GuildRankRow2RowSelected").unwrap())
                 .unwrap()
                 .visible
         );

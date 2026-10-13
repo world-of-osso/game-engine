@@ -158,6 +158,7 @@ pub(super) fn category_row(
         action,
         true,
         (x, y, width, 24.0),
+        (&crate::selection_list::ACHIEVEMENT_CATEGORY, false),
         content,
     )
 }

@@ -29,6 +29,7 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             &action,
             enabled,
             (6.0 * scale, top, 164.0 * scale, 28.0 * scale),
+            (&crate::selection_list::MENU, false),
             content,
         ));
         rows.extend(rsx! { button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},disabled,button_default_skin:false,

@@ -204,6 +204,7 @@ fn selection_row(index: usize, entry: &SelectionDebugEntry, selected: bool) -> E
         &SelectionDebugAction::SelectEntry(index).to_string(),
         true,
         (0.0, index as f32 * 92.0, 402.0, 80.0),
+        (&crate::selection_list::SEARCH, false),
         content,
     )
 }

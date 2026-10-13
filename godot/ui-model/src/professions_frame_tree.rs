@@ -162,6 +162,7 @@ fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Elemen
         &action,
         true,
         (0.0, y, ROW_WIDTH, CATEGORY_HEIGHT),
+        (&crate::selection_list::AUTHORED, false),
         children,
     )
 }
@@ -216,8 +217,22 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
         &action,
         true,
         (10.0, y, ROW_WIDTH - 10.0, ROW_HEIGHT),
+        (recipe_template(view, recipe), false),
         children,
     )
+}
+
+/// Blizzard_ProfessionsRecipeList.lua:375-376: the hover overlay shows only while the
+/// recipe is not selected; its selected overlay is part of the row art.
+fn recipe_template(
+    view: &ProfessionView,
+    recipe: &Recipe,
+) -> &'static crate::selection_list::RowTemplate {
+    if view.book.selected == Some(recipe.spell_id) {
+        &crate::selection_list::AUTHORED
+    } else {
+        &crate::selection_list::PROFESSION_RECIPE
+    }
 }
 
 fn recipe_row_art(

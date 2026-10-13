@@ -317,16 +317,22 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
     };
     let mut elements = Vec::new();
     if row.selected {
-        elements.extend(crate::selection_list::selection_background(
-            format!("{name}Selected"),
-            true,
-            (0.0, 0.0, list_w, ROW_H),
-        ));
+        elements.extend(rsx! {
+            r#frame {
+                name: {DynName(format!("{name}Selected"))},
+                width: list_w,
+                height: ROW_H,
+                background_color: "1.0,0.82,0.0,0.2",
+                pos_type: "absolute",
+                left: list_x,
+                top: y,
+            }
+        });
     }
     elements.extend(atlas_texture(
         format!("{name}Icon"),
         &icon,
-        (22.0, 1.0, 16.0, 16.0),
+        (list_x + 22.0, y + 1.0, 16.0, 16.0),
     ));
     elements.extend(rsx! {
         fontstring {
@@ -338,19 +344,20 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
             font_size: ROW_FONT,
             font_color: color,
             justify_h: "LEFT",
+            onclick: {action.as_str()},
             pos_type: "absolute",
-            left: 42.0,
-            top: 2.0,
+            left: {list_x + 42.0},
+            top: {y + 2.0},
         }
     });
     if row.watched {
         elements.extend(atlas_texture(
             format!("{name}Check"),
             &TRACKER_CHECK,
-            (list_w - 20.0, 1.0, 16.0, 16.0),
+            (list_x + list_w - 20.0, y + 1.0, 16.0, 16.0),
         ));
     }
-    crate::selection_list::row(name, &action, true, (list_x, y, list_w, ROW_H), elements)
+    elements
 }
 
 const DETAILS_TEXT_PANE: QuestPane = QuestPane {

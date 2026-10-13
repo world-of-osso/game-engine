@@ -249,6 +249,7 @@ fn tracking_choice_at(index: usize, row: usize, label: &str, checked: bool) -> E
         &action,
         true,
         (MENU_PAD, top, MENU_WIDTH - MENU_PAD * 2.0, ROW_HEIGHT),
+        (&crate::selection_list::MENU, false),
         checkbox,
     )
 }

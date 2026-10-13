@@ -363,6 +363,7 @@ fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
         &action,
         true,
         (0.0, top, 250.0, ROW_HEIGHT),
+        (&crate::selection_list::PET, false),
         children,
     )
 }

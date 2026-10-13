@@ -267,15 +267,6 @@ fn saved_row(
     let action = format!("raid_info:select:{index}");
     let name = format!("RaidInfoRow{index}");
     let selected = selected == Some((row.lock.map_id, row.lock.difficulty_id));
-    let mut background = if selected {
-        crate::selection_list::selection_background(
-            format!("{name}Selected"),
-            true,
-            (0.0, 0.0, 292.0, 40.0),
-        )
-    } else {
-        Vec::new()
-    };
     let color = if row.lock.locked || row.lock.extended {
         "1,0.82,0,1"
     } else {
@@ -313,8 +304,8 @@ fn saved_row(
             "1,1,1,1",
         ));
     }
-    background.extend(texts);
-    crate::selection_list::row(name, &action, true, (16.0, y, 292.0, 40.0), background)
+    let template = (&crate::selection_list::RAID_INSTANCE, selected);
+    crate::selection_list::row(name, &action, true, (16.0, y, 292.0, 40.0), template, texts)
 }
 fn label(name: &str, text: &str, x: f32, y: f32, width: f32, color: &str) -> Element {
     rsx! { fontstring {name:{DynName(name.into())},text:text,width:width,height:18.0,font_size:11.0,font_color:color,

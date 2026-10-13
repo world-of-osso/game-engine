@@ -677,7 +677,7 @@ impl RegistryModel {
 
     fn selection_scroll_target(&self, id: u64) -> Option<(String, usize)> {
         let frame = self.registry.get(id)?;
-        if !game_engine_ui_model::selection_list::is_selection_row(frame) {
+        if !game_engine_ui_model::selection_list::is_selection_row(&self.registry, frame) {
             return None;
         }
         let row = frame.layout_rect.as_ref()?;

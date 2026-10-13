@@ -206,6 +206,7 @@ fn stabled_row(view: &StableFrameView, pet: &StablePetInfo, y: f32) -> Element {
         &action,
         !disabled,
         (40.0, y, 260.0, 56.0),
+        (&crate::selection_list::AUTHORED, false),
         children,
     )
 }

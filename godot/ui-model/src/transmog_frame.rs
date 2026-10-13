@@ -289,6 +289,7 @@ fn outfit_entry(book: &TransmogBook, row: &crate::transmog::OutfitRow, top: f32)
         &action,
         !book.busy(),
         (65.0, top + 1.0, 208.0, 43.0),
+        (&crate::selection_list::TRANSMOG_OUTFIT, false),
         card,
     ));
     out
