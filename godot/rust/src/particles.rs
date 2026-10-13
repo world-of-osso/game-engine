@@ -313,13 +313,14 @@ pub(crate) struct ModelParticles {
 impl ModelParticles {
     /// `None` when the model has no emitter the simulation can draw.
     pub fn from_model(fdid: u32, model: &m2::Model) -> Option<Rc<Self>> {
-        let emitters: Vec<_> = model
+        // Refraction parameters are not colours: WebWowViewerCpp discards
+        // Refraction in its forward shader until a refraction pass exists.
+        let forward_emitters = model
             .particle_emitters
             .iter()
             .enumerate()
-            // Refraction parameters are not colours: WebWowViewerCpp discards
-            // Refraction in its forward shader until a refraction pass exists.
-            .filter(|(_, emitter)| m2_particles::pixel_shader(emitter) != PixelShader::Refraction)
+            .filter(|(_, emitter)| m2_particles::pixel_shader(emitter) != PixelShader::Refraction);
+        let emitters: Vec<_> = forward_emitters
             .filter(|(_, emitter)| m2_particles::shape(emitter).is_some())
             .map(|(index, emitter)| (index, emitter.clone()))
             .collect();
