@@ -288,7 +288,9 @@ func select_first_available(budget: int = -1) -> bool:
 		if parts[1] != "1": continue
 		await click("PerksProgramProduct" + parts[0])
 		if not await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0]): return false
-		if budget < 0 or int(client.trading_post_state().price) <= budget: return true
+		var state: Dictionary = client.trading_post_state()
+		if budget < 0: return true
+		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
 
