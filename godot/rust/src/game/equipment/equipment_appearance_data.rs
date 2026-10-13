@@ -168,6 +168,10 @@ fn load_equipment_entries(
             },
             (None, None) => continue,
         };
+        if display_info_id == 0 {
+            // Authored no-visual appearance; the equipped slot remains explicit.
+            continue;
+        }
         match apply_visible_entry(
             &mut resolved,
             entry.slot,
@@ -824,6 +828,27 @@ mod tests {
 
     fn resolve(entries: Vec<EquippedAppearanceEntry>) -> ResolvedEquipmentAppearance {
         resolve_equipment_appearance(&EquipmentAppearance { entries }, outfit_data(), 1, 0).unwrap()
+    }
+
+    #[test]
+    fn owned_retail_native_zero_display_keeps_slot_without_drawing_equipment() {
+        let result = resolve(vec![entry(EquipmentVisualSlot::Head, 133_320)]);
+        assert!(result.explicit_slots.contains(&EquipmentVisualSlot::Head));
+        assert!(result.runtime_models.is_empty());
+        assert!(result.outfit.item_textures.is_empty());
+        assert!(result.outfit.geoset_overrides.is_empty());
+        assert!(result.hidden_character_geoset_ids.is_empty());
+        let visible = resolve(vec![entry(EquipmentVisualSlot::Chest, 38)]);
+        assert!(!visible.outfit.item_textures.is_empty());
+        let missing = resolve_equipment_appearance(
+            &EquipmentAppearance {
+                entries: vec![entry(EquipmentVisualSlot::Head, u32::MAX)],
+            },
+            outfit_data(),
+            1,
+            0,
+        );
+        assert!(missing.is_err());
     }
 
     #[test]

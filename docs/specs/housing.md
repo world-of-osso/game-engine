@@ -54,6 +54,24 @@ After landing the server importer, run it with the audit evidence and pinned bui
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
 
+## Owned storage search
+
+Basic editor storage exposes Retail's header SearchBox and shows only authenticated positive stored stacks whose qualified decor names match the case-insensitive search. Placed-only/unowned/unconfirmed entries are not storage results. Preserve storage search separately from Dashboard Catalog search and while Cleanup/Expert hides the drawer; remount the retained input without sampling an absent field as empty. Clear input restores stored results. Search never changes ownership, quantities, selected transforms or pending server authority. Both skins share input/filter behavior. Paging/collection filters, drawer collapse/resize, Market/Blueprints, dyed variant controls and maximum-storage authority remain separate capabilities; this search slice must not claim full storage parity.
+
+Source: `Blizzard_HouseEditorStorageFrame.lua` CreateCatalogSearcher/SetStoredOnly(true)/OnSearchTextUpdated/OnShow and XML SearchBox TOPLEFT20,-20/TOPRIGHT-160,-20/height30 in600×651 drawer.
+
+## Owned storage categories
+
+Storage category focus is separate from Dashboard Catalog focus. Show All and source categories/subcategories with confirmed owned entries (stored plus placed), never Featured/Rooms/unowned categories merely because they exist in DB2. Result tiles remain stored-only. Category selection clears storage text search; new nonempty search clears category/subcategory focus to All. Back restores top-level categories; All subcategories clears only subcategory focus. Hidden Cleanup/Expert retains Basic storage focus. Do not infer indoor/outdoor legality from category membership.
+
+Use the source75px category rail,64px roots and54px subcategories. A category with more than one authored child shows Back/All; specific child buttons appear only when more than one owned child is showable, exactly as DisplaySubcategoriesUnderCategory. Header shows source category or `%s | %s` path. Source: Retail StorageFrame Initialize/OnStorageTabSelected/OnSearchTextUpdated/OnCategoryFocusChanged and HousingCatalogCategories Lua/XML filter/populate/focus/order/Back/All rules. Animated selection art remains separate native presentation coverage.
+
+## Cleanup mode
+
+Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered placed decor, show its name at the pointer, and left-click the actual picked target to remove it into owned storage. Do not require a prior Basic selection or a second click. Empty ground clicks do nothing. A visitor may inspect the hover name but receives a read-only refusal; never change quantities/layout optimistically. Pending requests cannot submit twice. Mode exit/removal/close clears hover and restores saved materials. Existing owner-only RemoveDecor authority preserves paid dye variants and exact stored/placed quantities across relog. Both skins share the same controls/behavior; native highlight styling is presentation, not authenticated Retail shader/art parity.
+
+Source: cached `Blizzard_HouseEditorCleanupMode.lua/.xml` OnShow hides storage, target-selected calls RemoveSelectedDecor, hover shows name/removal errors and XML provides left-click instructions; `HousingCleanupModeUIDocumentation.lua` defines hovered info and selected-target events. Unavailable exterior assembly/locks remain separate source gaps; do not infer new removal policy.
+
 ## Expert transforms
 
 Expert uses the same owned decor and server conservation rules as Basic. Retail Expert Translate/Rotate/Scale submodes stage complete transforms; commit saves once, cancel restores the confirmed layout, rotation axis cycles X→Y→Z, and WMO scaling is refused. Both skins share the64px mode/submode controls and expert's hidden storage drawer. Initial placement uses authenticated HouseDecor InitialRotation/InitialScale, not identity defaults. Persistence migration and finite/positive constraints are in the server contract. Native bindings/rates are documented input tuning rather than certified Retail defaults:1/2/3 choose submode, arrows/PageUp/PageDown translate, Q/E increment rotation/scale, X cycles axis, Enter commits, Esc cancels. Native3D manipulator identity and Shift snapping remain source gaps; sourced unsnapped mouse controls are specified below. Outdoor bounds and default grants remain unsourced.

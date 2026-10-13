@@ -307,13 +307,19 @@ fn insert_item_appearance_rows(
             .get(id_col)
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(0);
-        let display_info_id = fields
-            .get(display_info_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        if appearance_id == 0 || display_info_id == 0 {
+        if appearance_id == 0 {
             continue;
         }
+        let display_info_id = fields
+            .get(display_info_col)
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or_else(|| {
+                format!(
+                    "{} appearance {appearance_id}: invalid ItemDisplayInfoID",
+                    path.display()
+                )
+            })?;
+        // An authored display0 is no visual, not an absent appearance row.
         insert
             .execute((appearance_id, display_info_id))
             .map_err(|err| format!("insert item_appearance_map row: {err}"))?;
