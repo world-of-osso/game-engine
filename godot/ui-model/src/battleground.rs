@@ -192,11 +192,14 @@ impl PvpView {
         if self.pending {
             return None;
         }
-        if action == "pvp:rated:2v2" || action == "pvp:rated:3v3" {
-            self.rated_bracket = if action == "pvp:rated:2v2" {
-                PvpBracketSnapshot::Arena2v2
-            } else {
-                PvpBracketSnapshot::Arena3v3
+        if matches!(
+            action,
+            "pvp:rated:2v2" | "pvp:rated:3v3" | "pvp:rated:shuffle"
+        ) {
+            self.rated_bracket = match action {
+                "pvp:rated:2v2" => PvpBracketSnapshot::Arena2v2,
+                "pvp:rated:3v3" => PvpBracketSnapshot::Arena3v3,
+                _ => PvpBracketSnapshot::SoloShuffle,
             };
             return None;
         }
@@ -243,7 +246,11 @@ impl PvpView {
                         .as_ref()
                         .is_none_or(|snapshot| snapshot.queue.is_none()) =>
             {
-                PvpAction::Rated(self.rated_bracket.clone())
+                if self.rated_bracket == PvpBracketSnapshot::SoloShuffle {
+                    PvpAction::Arena(ArenaQueueMode::SoloShuffle)
+                } else {
+                    PvpAction::Rated(self.rated_bracket.clone())
+                }
             }
             "pvp:warmode" => {
                 let mode = self.snapshot.as_ref()?.war_mode.as_ref()?;
@@ -764,11 +771,19 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     let mut children =
         window_chrome_no_portrait(name, (1024.0, height), &bg.name, "pvp:score-close");
     if ended {
-        let outcome = match bg.outcome {
-            Some(BgOutcome::Winner(team)) if team == bg.team => "Victory",
-            Some(BgOutcome::Winner(_)) => "Defeat",
-            Some(BgOutcome::Draw) => "Draw",
-            None => "Match complete",
+        let outcome = if bg
+            .arena
+            .as_ref()
+            .is_some_and(|arena| arena.shuffle.is_some())
+        {
+            "Solo Shuffle complete"
+        } else {
+            match bg.outcome {
+                Some(BgOutcome::Winner(team)) if team == bg.team => "Victory",
+                Some(BgOutcome::Winner(_)) => "Defeat",
+                Some(BgOutcome::Draw) => "Draw",
+                None => "Match complete",
+            }
         };
         children.extend(label(
             "PVPMatchOutcome".into(),
@@ -850,6 +865,13 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
     )
 }
 fn arena_stat_titles(bg: &BattlegroundSnapshot) -> &'static [&'static str] {
+    if bg
+        .arena
+        .as_ref()
+        .is_some_and(|arena| arena.shuffle.is_some())
+    {
+        return &["Rounds Won"];
+    }
     if bg
         .arena
         .as_ref()
@@ -945,10 +967,22 @@ fn score_rows(
                 ("MMR".into(), change.mmr_after.to_string()),
             ]
         });
+        let rounds = bg
+            .arena
+            .as_ref()
+            .and_then(|arena| arena.shuffle.as_ref())
+            .and_then(|shuffle| {
+                shuffle
+                    .rounds_won
+                    .iter()
+                    .find(|(id, _)| *id == player.character_id)
+            })
+            .map(|(_, wins)| ("RoundsWon".into(), wins.to_string()));
         for (i, (suffix, value)) in base
             .into_iter()
             .chain(objectives)
             .chain(ratings)
+            .chain(rounds)
             .enumerate()
         {
             let (x, width) = column(i, stats.len() + arena_stat_titles(bg).len());

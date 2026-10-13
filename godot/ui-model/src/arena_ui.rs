@@ -18,16 +18,22 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
             (194.0, 90.0, 340.0, 22.0),
         ));
     }
+    let shuffle = view.rated_bracket == shared::protocol::PvpBracketSnapshot::SoloShuffle;
     let selected = if view.rated_bracket == shared::protocol::PvpBracketSnapshot::Arena2v2 {
         "2v2"
     } else {
         "3v3"
     };
-    elements.extend(text(
-        "ConquestFramePolicy",
+    let policy = if shuffle {
+        "Solo Shuffle • Unrated • Levels60–90\nSolo healers/damage; two healers/four damage"
+    } else {
         &format!(
             "{selected} • Full max-level group; leader queues\nRating uses the pinned TC reference"
-        ),
+        )
+    };
+    elements.extend(text(
+        "ConquestFramePolicy",
+        policy,
         (194.0, 122.0, 340.0, 36.0),
     ));
     for (name, title, action, top) in [
@@ -44,9 +50,9 @@ pub(super) fn rated_panel(view: &PvpView) -> Element {
     }
     elements.extend(panel_button(
         "ConquestFrameRatedSoloShuffle".into(),
-        "Solo Shuffle — round reset policy unverified",
-        "",
-        false,
+        "Solo Shuffle — Unrated",
+        "pvp:rated:shuffle",
+        !view.pending,
         (194.0, 256.0, 340.0, 40.0),
     ));
     elements.extend(panel_button(
@@ -112,6 +118,12 @@ pub(super) fn arena_hud(view: &PvpView, bg: &BattlegroundSnapshot) -> Element {
     } else {
         bg.name.clone()
     };
+    let status = arena.shuffle.as_ref().map_or(status.clone(), |shuffle| {
+        format!(
+            "Round {}/{} • {status}",
+            shuffle.round, shuffle.total_rounds
+        )
+    });
     let mut hud = text("ArenaPreparationTimer", &status, (0.0, 0.0, 430.0, 24.0));
     hud.extend(panel_button(
         "WorldStateScoreboardButton".into(),
