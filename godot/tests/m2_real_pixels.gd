@@ -23,6 +23,13 @@ const SCENE := {
 # fdid, skin batch index (file order), view direction (Godot axes), zoom (<1 closer),
 # focus (0..1 inside the batch bounds), time (material clock ms), minimum compared pixels.
 const CASES := [
+	{"name": "avenging_wrath_held_feathers", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.05, "focus": Vector3(0.5, 0.5, 0.25), "orthographic": true, "time": 900, "animation": 158, "sequence": 1, "local_time": 150},
+	{"name": "avenging_wrath_core_premultiplied", "fdid": 2368645, "batch": 0, "view": Vector3(1.0, 0.2, 0.1), "time": 900},
+	{"name": "avenging_wrath_feathers_mod2x_t2", "fdid": 2368645, "batch": 1, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900},
+	{"name": "avenging_wrath_feathers_second_sheet", "fdid": 2368645, "batch": 2, "view": Vector3(1.0, 0.2, 0.1), "zoom": 0.2, "time": 900},
+	{"name": "avenging_wrath_feathers_third_sheet", "fdid": 2368645, "batch": 3, "view": Vector3(0.1, 0.2, 1.0), "zoom": 0.2, "time": 900},
+	{"name": "avenging_wrath_cast_glow", "fdid": 2368643, "batch": 0, "view": Vector3(0.1, 1.0, 0.1), "time": 900},
+	{"name": "avenging_wrath_classic_feathers", "fdid": 165644, "batch": 2, "view": Vector3(1.0, 0.1, 0.1), "zoom": 0.2, "time": 900},
 	{"name": "cenarius_additive_glow", "fdid": 1261840, "batch": 1, "view": Vector3(0.2, 0.2, 1.0), "zoom": 0.5},
 	{"name": "twilight_dragonspawn_additive_mod2x_scroll", "fdid": 356426, "batch": 0, "view": Vector3(0.3, 0.2, 1.0), "zoom": 0.5, "time": 600},
 	{"name": "shade_additive_env", "fdid": 125854, "batch": 2, "view": Vector3(0.2, 0.2, 1.0), "zoom": 0.6},
@@ -157,6 +164,8 @@ static func mip_chain(image: Image) -> Array:
 func run_case(case: Dictionary) -> bool:
 	var model_path := DATA + "models/%d.m2" % case.fdid
 	var oracle := Oracle.new(read_bytes(model_path), read_bytes(DATA + "models/%d00.skin" % case.fdid))
+	oracle.playing_sequence = int(case.get("sequence", 0))
+	oracle.local_time_ms = int(case.get("local_time", -1))
 	var info := oracle.batch(case.batch)
 	var time_ms: int = case.get("time", 0)
 	var material := oracle.material(info, time_ms)
@@ -175,6 +184,14 @@ func run_case(case: Dictionary) -> bool:
 	var animation := model.get_node_or_null("M2Animation")
 	if animation != null:
 		animation.process_mode = Node.PROCESS_MODE_DISABLED
+		if not animation.call("play_animation", int(case.get("animation", 0)), true):
+			push_error("%s: authored model animation unavailable" % case.name)
+			model.free()
+			return false
+		if not animation.call("advance_time_ms", float(case.get("local_time", time_ms))):
+			push_error("%s: model timeline advance failed" % case.name)
+			model.free()
+			return false
 	var target := model.get_node_or_null("Batch%d" % node_index(oracle, case.batch)) as MeshInstance3D
 	if target == null:
 		push_error("%s: no node for batch %d (colour alpha/weight 0 at time 0: %s, weight %s)" % [case.name, case.batch, oracle.mesh_color(info, 0), oracle.weight(info, 0, 0)])
@@ -214,7 +231,15 @@ func frame_camera(vertices: PackedVector3Array, case: Dictionary) -> void:
 	var center := bounds.position + bounds.size * focus
 	var radius := bounds.size.length() * 0.5 * float(case.get("zoom", 1.0))
 	var direction := (case.view as Vector3).normalized()
-	var distance := maxf(radius / sin(deg_to_rad(camera.fov * 0.5)), 0.05)
+	var distance: float
+	if case.get("orthographic", false):
+		# Magnify a folded feather sheet without putting the camera inside its bounds.
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.size = maxf(radius * 2.0, 0.05)
+		distance = maxf(bounds.size.length() * 2.0, 1.0)
+	else:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		distance = maxf(radius / sin(deg_to_rad(camera.fov * 0.5)), 0.05)
 	var up := Vector3.UP if absf(direction.y) < 0.95 else Vector3.FORWARD
 	camera.look_at_from_position(center + direction * distance, center, up)
 
@@ -367,6 +392,10 @@ func lods(material: Dictionary, images: Array, arrays: Array, transform: Transfo
 
 # The pixel's colour per WebWowViewer: [rgb (authored), alpha, discarded].
 func shade(material: Dictionary, images: Array, uvs: Array, world: Dictionary, lod: Array) -> Array:
+	# WebWowViewerCpp forEachVisibleMesh skips final transparency below 0.0001
+	# before evaluating the combiner, even BlendAdd whose RGB ignores output alpha.
+	if material.mesh_color.a < 0.0001:
+		return [Vector3.ZERO, 0.0, true]
 	var coords := sampled_uvs(material.pixel, uvs)
 	var texels := [Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]
 	for slot in images.size():
