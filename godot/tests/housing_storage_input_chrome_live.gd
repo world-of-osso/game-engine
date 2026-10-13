@@ -50,6 +50,10 @@ func run_test() -> void:
 	var normal_pixels: Image = await clear_pixels(glyph)
 	if not await click_exposed_control(input): return
 	await frames(4)
+	image = glyph.get_node_or_null("Parts/Part0") as TextureRect
+	if image == null or image.texture == null:
+		fail("Focused magnifier projection did not mount its current image")
+		return
 	if not magnifier_color_matches(image.self_modulate,1.0):
 		fail("Focused source magnifier is notRGB1: "+str(image.self_modulate))
 		return
