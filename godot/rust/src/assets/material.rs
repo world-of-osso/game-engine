@@ -81,6 +81,25 @@ pub(crate) fn shared_shader(code: &str) -> Gd<Shader> {
     })
 }
 
+/// Ribbon materials use the same authored GX/depth/cull state as M2 batches.
+pub(crate) fn ribbon_material_shader(material: &m2::Material) -> Result<(Gd<Shader>, u8), String> {
+    let pipeline = Pipeline {
+        gx_blend: m2_material::gx_blend(material.blend_mode)?,
+        two_sided: material.flags & 0x4 != 0,
+        depth_test: material.flags & 0x8 == 0,
+        depth_write: material.flags & 0x10 == 0,
+    };
+    let mut mode = pipeline.render_mode(false);
+    if material.flags & 0x1 != 0 {
+        mode = mode.replace("specular_disabled", "specular_disabled, unshaded");
+    }
+    if material.flags & 0x2 == 0 {
+        mode = mode.replace("fog_disabled, ", "");
+    }
+    let source = include_str!("../../../shaders/m2_ribbon.gdshader").replace(RENDER_MODE, &mode);
+    Ok((shared_shader(&source), pipeline.gx_blend))
+}
+
 pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
     TEXTURES.with_borrow_mut(HashMap::clear);

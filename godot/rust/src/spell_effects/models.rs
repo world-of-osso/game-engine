@@ -122,9 +122,18 @@ impl SpellEffects {
         let (mut node, particles) = self.build_effect(effect, model.model_fdid, &parent)?;
         node.set_transform(kit_model_transform(model));
         apply_kit_model_alpha(&mut node, model.alpha);
+        let ribbons =
+            match PlacedRibbons::place(&effect.model, &node, &self.data_root.join("textures")) {
+                Ok(ribbons) => ribbons,
+                Err(error) => {
+                    node.free();
+                    return Err(error);
+                }
+            };
         Ok(ActiveEffect {
             node,
             particles,
+            ribbons,
             owner: pending.unit,
             spell_id: pending.spell_id,
             kit_id: pending.kit_id,
@@ -150,6 +159,14 @@ impl SpellEffects {
         let view = view_basis(camera);
         self.pools.begin_frame();
         for effect in &mut self.active {
+            if let Some(ribbons) = &mut effect.ribbons {
+                let emitting = !matches!(effect.phase, Phase::End(_) | Phase::Tail(_));
+                if let Err(error) =
+                    ribbons.update_and_draw(&effect.node, delta, effect.alpha, emitting)
+                {
+                    godot_error!("Spell ribbon model{}: {error}", effect.model_fdid);
+                }
+            }
             if let Some(particles) = &mut effect.particles {
                 particles.update_and_draw(
                     &effect.node,
@@ -386,6 +403,12 @@ pub(super) fn effect_clips(model: &m2::Model, kit: &KitModel) -> EffectClips {
         .particle_emitters
         .iter()
         .map(|emitter| emitter.lifespan + emitter.lifespan_variation)
+        .chain(
+            model
+                .ribbon_emitters
+                .iter()
+                .map(|emitter| emitter.edge_lifetime),
+        )
         .fold(0.0, f32::max);
     EffectClips {
         start,

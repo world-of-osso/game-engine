@@ -23,9 +23,20 @@ func prove_toy(sample: Array) -> void:
 	var image := root.get_texture().get_image()
 	var camera := root.get_camera_3d()
 	var direction := motion.normalized()
-	var near := camera.unproject_position(position - direction * 1.0 + Vector3.UP * 0.15)
-	var far := camera.unproject_position(position - direction * 3.0 + Vector3.UP * 0.15)
-	var region := Rect2(near, Vector2.ZERO).expand(far).grow(7.0).intersection(Rect2(Vector2.ZERO, Vector2(image.get_size())))
+	if camera == null: fail("rainbow camera absent"); return
+	var models := client.find_children("SpellEffect1417024", "Node3D", true, false)
+	if models.is_empty(): fail("source ribbon model transform absent"); return
+	var model := models[0] as Node3D
+	var center := model.global_position
+	# Source width above/below0.5555556 in WoW Y, transformed by kit pitch.
+	var width: Vector3 = model.global_basis * Vector3(0.0, 0.0, -0.5555556)
+	var near := center - direction * 1.0
+	var far := center - direction * 3.0
+	var first := camera.unproject_position(near - width)
+	var region := Rect2(first, Vector2.ZERO)
+	for point in [near + width, far - width, far + width]:
+		region = region.expand(camera.unproject_position(point))
+	region = region.grow(2.0).intersection(Rect2(Vector2.ZERO, Vector2(image.get_size())))
 	var bands := {}
 	var colored := 0
 	for y in range(int(region.position.y), int(region.end.y)):
