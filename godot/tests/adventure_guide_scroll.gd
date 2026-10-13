@@ -66,7 +66,8 @@ func wait_screen(screen: String) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if client.account_state().screen == screen: return true
-	stop("Screen not ready: " + screen)
+	var state: Dictionary = client.account_state()
+	stop("Screen not ready: %s; observed=%s status=%s assets_starting=%s connected=%s" % [screen, state.screen, state.status, state.assets_starting, state.connected])
 	return false
 func run() -> void:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
@@ -76,6 +77,12 @@ func run() -> void:
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	var startup_deadline := Time.get_ticks_msec() + 180000
+	while client.account_state().assets_starting and Time.get_ticks_msec() < startup_deadline:
+		await process_frame
+	if client.account_state().assets_starting:
+		stop("Native asset startup did not complete")
+		return
 	await settle()
 	var error: String = client.connect_account(server, account, OS.get_environment("ADVENTURE_GUIDE_PASSWORD"), false)
 	if not error.is_empty():
