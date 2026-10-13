@@ -53,6 +53,8 @@ pub enum DropdownStyle {
 #[derive(Clone, Copy)]
 pub struct DropdownState<'a> {
     pub style: DropdownStyle,
+    /// Retail resizeToText; false preserves an explicit XML/Lua width.
+    pub resize_to_text: bool,
     pub open: bool,
     pub enabled: bool,
     /// UIResetButtonTemplate: hidden unless filters differ from defaults.
@@ -62,6 +64,7 @@ impl Default for DropdownState<'_> {
     fn default() -> Self {
         Self {
             style: DropdownStyle::WowStyle1,
+            resize_to_text: true,
             open: false,
             enabled: true,
             reset_action: None,
@@ -75,7 +78,7 @@ pub fn dropdown_button(props: DropdownButton<'_>) -> Element {
 
 /// Mainline/MenuTemplates.xml:3,66 and MenuTemplates.xml:4. Callers own menu visibility.
 pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
-    let props = resize_filter_to_text(props, state.style);
+    let props = resize_filter_to_text(props, state);
     let mut contents = dropdown_art(props, state);
     contents.extend(dropdown_text(props, state));
     contents.extend(reset_button(props, state));
@@ -94,8 +97,11 @@ pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownStat
 }
 
 /// DropdownTextMixin:UpdateText and WowStyle1FilterDropdownTemplate resizeToTextPadding60.
-fn resize_filter_to_text(props: DropdownButton<'_>, style: DropdownStyle) -> DropdownButton<'_> {
-    if style != DropdownStyle::Filter {
+fn resize_filter_to_text<'a>(
+    props: DropdownButton<'a>,
+    state: DropdownState<'_>,
+) -> DropdownButton<'a> {
+    if state.style != DropdownStyle::Filter || !state.resize_to_text {
         return props;
     }
     let (text_width, _) = ui_toolkit::text_measure::measure_text(
@@ -379,43 +385,66 @@ fn menu_tick(name: &str, kind: MenuElementKind) -> (f32, Element) {
 }
 
 pub fn menu_height_for_items(item_count: usize) -> f32 {
-    menu_height(item_count, ROW_HEIGHT + DIVIDER_HEIGHT)
+    menu_height(item_count, true)
 }
-fn menu_height(item_count: usize, heading_height: f32) -> f32 {
-    MENU_INSET + heading_height + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
+fn heading_height(has_heading: bool) -> f32 {
+    if has_heading {
+        ROW_HEIGHT + DIVIDER_HEIGHT
+    } else {
+        0.0
+    }
+}
+fn menu_height(item_count: usize, has_heading: bool) -> f32 {
+    MENU_INSET + heading_height(has_heading) + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
+}
+
+/// MenuTemplates/MenuVariants title, divider and20px entry layout.
+pub fn menu_row_rect(width: f32, index: usize) -> (f32, f32, f32, f32) {
+    menu_row_rect_with_heading(width, index, true)
+}
+
+/// LFDFrame.lua creates root radios without CreateTitle/CreateDivider.
+pub fn menu_row_rect_with_heading(
+    width: f32,
+    index: usize,
+    has_heading: bool,
+) -> (f32, f32, f32, f32) {
+    (
+        MENU_INSET,
+        MENU_INSET + heading_height(has_heading) + index as f32 * ROW_HEIGHT,
+        width - 2.0 * MENU_INSET,
+        ROW_HEIGHT,
+    )
 }
 
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
-    context_menu_with_kind(props, MenuElementKind::Button)
+    let has_heading = !props.title.is_empty();
+    let rows: Element = props
+        .items
+        .iter()
+        .enumerate()
+        .flat_map(|(index, item)| {
+            menu_element(
+                *item,
+                MenuElementKind::Button,
+                true,
+                menu_row_rect_with_heading(props.width, index, has_heading),
+            )
+        })
+        .collect();
+    context_menu_with_rows(props, rows)
 }
 
-/// Uniform root elements, including LFDFrame.lua's selected radio.
-/// Empty title means no CreateTitle/CreateDivider, not a blank invented header.
-pub fn context_menu_with_kind(props: ContextMenu<'_>, kind: MenuElementKind) -> Element {
-    let heading_height = if props.title.is_empty() {
-        0.0
-    } else {
-        ROW_HEIGHT + DIVIDER_HEIGHT
-    };
-    let height = menu_height(props.items.len(), heading_height);
+/// Compose menu_element rows without changing the shared frame/backdrop/layout.
+/// Empty title omits the heading/divider rather than creating a blank header.
+pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element {
+    let height = menu_height(props.items.len(), !props.title.is_empty());
     let mut contents = crate::selection_list::menu_background(
         format!("{}Background", props.frame_name),
         (props.width, height),
     );
     contents.extend(context_menu_heading(props));
-    contents.extend(props.items.iter().enumerate().flat_map(|(index, item)| {
-        menu_element(
-            *item,
-            kind,
-            true,
-            (
-                MENU_INSET,
-                MENU_INSET + heading_height + index as f32 * ROW_HEIGHT,
-                props.width - 16.0,
-                ROW_HEIGHT,
-            ),
-        )
-    }));
+    contents.extend(rows);
     rsx! { r#frame {
         name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
         strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
