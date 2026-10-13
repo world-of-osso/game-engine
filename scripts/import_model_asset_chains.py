@@ -112,7 +112,51 @@ def write_asset_files(data, verified):
                     raise ValueError(f"conflicting existing asset: {path}")
 
 
+def write_index_document(path, document):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".json.importing")
+    temporary.write_text(json.dumps(document, indent=2) + "\n")
+    temporary.replace(path)
+
+
+def supersede_asset_receipts(data, verified):
+    """Replace a prior-build mapping in its owning index, never duplicate it."""
+    cache = data / "cache"
+    documents, owners = {}, {}
+    for path in [cache / "model-asset-index.json", *sorted(cache.glob("model-asset-index-*.json"))]:
+        if not path.exists():
+            continue
+        document = json.loads(path.read_text())
+        if document["version"] != 1:
+            raise ValueError(f"Unsupported model asset index version {document['version']}")
+        documents[path] = document
+        for position, row in enumerate(document["assets"]):
+            key = row["product"], row["fdid"], row["kind"]
+            if key in owners:
+                raise ValueError(f"Duplicate existing receipt: {key}")
+            owners[key] = path, position, row
+    additions, updates = [], []
+    for receipt, raw in verified:
+        key = receipt["product"], receipt["fdid"], receipt["kind"]
+        owner = owners.get(key)
+        if owner is None:
+            additions.append((receipt, raw))
+            continue
+        path, position, previous = owner
+        if previous["build_key"] == receipt["build_key"]:
+            if any(previous[field] != receipt[field] for field in ["path", "bytes", "sha256", "content_key"]):
+                raise ValueError(f"conflicting existing receipt: {key}")
+            continue
+        updates.append((path, position, receipt))
+    for path, position, receipt in updates:
+        documents[path]["assets"][position] = receipt
+    for path in {path for path, _, _ in updates}:
+        write_index_document(path, documents[path])
+    return additions
+
+
 def write_asset_index(data, identity, staged, verified, aliases):
+    verified = supersede_asset_receipts(data, verified)
     path = data / "cache/model-asset-index.json"
     existing = json.loads(path.read_text()) if path.exists() else {"version": 1, "assets": [], "aliases": [], "chains": []}
     if existing["version"] != 1:
@@ -130,42 +174,24 @@ def write_asset_index(data, identity, staged, verified, aliases):
     chains = [c for c in chains if (c["product"], c["build_key"]) != namespace]
     result = {"version": 1, "assets": [assets[key] for key in sorted(assets)],
               "aliases": [alias_records[key] for key in sorted(alias_records)], "chains": [*chains, chain]}
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.importing")
-    temporary.write_text(json.dumps(result, indent=2) + "\n")
-    temporary.replace(path)
+    write_index_document(path, result)
     return result
 
 
 def write_asset_fragment(data, identity, staged, verified, aliases, name):
     if not name or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for char in name):
         raise ValueError("Invalid asset index fragment name")
-    existing = {}
-    cache = data / "cache"
-    paths = [cache / "model-asset-index.json", *sorted(cache.glob("model-asset-index-*.json"))]
-    for path in paths:
-        if not path.exists():
-            continue
-        index = json.loads(path.read_text())
-        if index["version"] != 1:
-            raise ValueError(f"Unsupported model asset index version {index['version']}")
-        for row in index["assets"]:
-            existing[row["product"], row["fdid"], row["kind"]] = row
-    assets = []
-    for receipt, _ in verified:
-        key = receipt["product"], receipt["fdid"], receipt["kind"]
-        previous = existing.get(key)
-        if previous is None:
-            assets.append(receipt)
-        elif any(previous[field] != receipt[field] for field in
-                 ["build_key", "path", "bytes", "sha256", "content_key"]):
-            raise ValueError(f"conflicting existing receipt: {key}")
-    result = {"version": 1, "assets": assets, "aliases": [r for r, _ in aliases],
-              "chains": [{**identity, "dependencies": staged["dependencies"],
-                          "metadata": staged.get("metadata", [])}]}
+    assets = [receipt for receipt, _ in supersede_asset_receipts(data, verified)]
     relative = f"cache/model-asset-index-{name}.json"
-    raw = (json.dumps(result, indent=2) + "\n").encode()
-    write_asset_files(data, [({"path": relative}, raw)])
+    path = data / relative
+    previous = json.loads(path.read_text()) if path.exists() else {"assets": [], "aliases": [], "chains": []}
+    alias_records = {row["path"]: row for row in previous.get("aliases", [])}
+    alias_records.update({row["path"]: row for row, _ in aliases})
+    result = {"version": 1, "assets": [*previous["assets"], *assets],
+              "aliases": list(alias_records.values()),
+              "chains": [*previous.get("chains", []), {**identity, "dependencies": staged["dependencies"],
+                          "metadata": staged.get("metadata", [])}]}
+    write_index_document(path, result)
     return result
 
 
@@ -196,7 +222,7 @@ def main():
     parser.add_argument("--product", choices=["wow", "wow_classic_beta"], required=True)
     parser.add_argument("--staged-manifest", type=Path, required=True)
     parser.add_argument("--resolution", type=Path, required=True)
-    parser.add_argument("--fragment", help="Publish an additive, no-clobber receipt index instead of replacing the base index")
+    parser.add_argument("--fragment", help="Publish a receipt fragment; new-build receipts supersede prior-build mappings")
     args = parser.parse_args()
     result = import_staged_chain(args.data, args.product, args.staged_manifest, args.resolution, args.fragment)
     name = f"model-asset-index-{args.fragment}.json" if args.fragment else "model-asset-index.json"

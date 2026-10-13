@@ -174,6 +174,29 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "fragment name"):
                 chains.write_asset_fragment(data, identity, staged, [soul], [], "../escape")
 
+    def test_new_build_fragment_supersedes_base_and_fragment_receipts(self):
+        for same_bytes in (True, False):
+            with self.subTest(same_bytes=same_bytes), tempfile.TemporaryDirectory() as directory:
+                data = Path(directory)
+                old = {"product": "wow", "build_key": "1" * 32, "build": "12.1.0.69933"}
+                new = {"product": "wow", "build_key": "2" * 32, "build": "12.1.5.70391"}
+                def asset(identity, fdid, raw):
+                    return chains.create_asset_receipt(identity, fdid, "blp", f"textures/{fdid}.blp", raw, hashlib.md5(raw).hexdigest()), raw
+                first = asset(old, 126862, b"old texture")
+                second = asset(old, 126863, b"old texture")
+                chains.write_asset_files(data, [first, second])
+                chains.write_asset_index(data, old, {"dependencies": {}, "metadata": []}, [first], [])
+                chains.write_asset_fragment(data, old, {"dependencies": {}, "metadata": []}, [second], [], "prior")
+                raw = b"old texture" if same_bytes else b"changed texture"
+                current = [asset(new, fdid, raw) for fdid in (126862, 126863)]
+                chains.write_asset_files(data, current)
+                chains.write_asset_fragment(data, new, {"dependencies": {}, "metadata": []}, current, [], "current")
+                rows = [r for p in (data / "cache").glob("model-asset-index*.json") for r in json.loads(p.read_text())["assets"]]
+                self.assertEqual(len(rows), 2)
+                self.assertEqual({r["build_key"] for r in rows}, {new["build_key"]})
+                for row in rows:
+                    self.assertEqual((data / row["path"]).read_bytes(), raw)
+
     def test_existing_different_scoped_bytes_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory)
