@@ -41,8 +41,7 @@ use floating_text::FloatingText;
 
 #[cfg(test)]
 use crate::world_map::title_hit;
-#[cfg(test)]
-use action_bar::cooldown_text;
+pub(crate) use action_bar::cooldown_text;
 #[cfg(test)]
 use floating_text::combat_text_size;
 #[cfg(test)]
@@ -418,5 +417,6 @@ mod tests {
         assert_eq!(cooldown_text(19.2), "20");
         assert_eq!(cooldown_text(0.4), "1");
         assert_eq!(cooldown_text(95.0), "2m");
+        assert_eq!(cooldown_text(28_800.0), "8h");
     }
 }

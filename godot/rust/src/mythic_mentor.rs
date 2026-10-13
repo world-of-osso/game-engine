@@ -7,6 +7,21 @@ use godot::{
     prelude::*,
 };
 
+pub(crate) fn mentor_cooldowns(
+    snapshot: &shared::protocol::PartyKeystoneSnapshot,
+    spells: &crate::player_spells::PlayerSpells,
+) -> std::collections::BTreeMap<u32, String> {
+    snapshot
+        .members
+        .iter()
+        .filter_map(|member| {
+            let spell = model::teleport_spell(member.key.as_ref()?.challenge_id)?;
+            let cooldown = spells.category_cooldown(model::TELEPORT_CATEGORY)?;
+            Some((spell, crate::spells::cooldown_text(cooldown.remaining)))
+        })
+        .collect()
+}
+
 #[derive(Default)]
 pub(crate) struct MentorUi {
     ui: Option<Gd<RegistryUi>>,
@@ -78,6 +93,7 @@ impl GameClient {
                 y.clamp(0.0, (viewport.y - height).max(0.0)),
             ],
             snapshot: self.account.party_keystones.clone(),
+            cooldowns: mentor_cooldowns(&self.account.party_keystones, &self.account.spells),
         };
         self.sync_mentor(view, scale)
     }
@@ -119,7 +135,7 @@ impl GameClient {
                 self.close_mythic_mentor();
                 break;
             }
-            if let Some(id) = action.strip_prefix("mentor:teleport:") {
+            if let Some(id) = action.strip_prefix(model::TELEPORT_ACTION_PREFIX) {
                 let spell = id.parse::<u32>().map_err(|error| error.to_string())?;
                 self.account.send_cast(spell, "", None, None)?;
             }
