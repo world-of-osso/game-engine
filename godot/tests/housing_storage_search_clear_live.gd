@@ -66,17 +66,30 @@ func prove_clear_affordance(clear: Control, icon: Control, scale: float) -> bool
 	if absf(art.modulate.a-0.5)>0.01:
 		fail("Source clear normal alpha must be0.5")
 		return false
+	var normal_pixels: Image = await clear_pixels(clear)
 	await hover_point(clear.get_global_rect().get_center())
+	await frames(4)
 	if absf(art.modulate.a-1.0)>0.01:
 		fail("Source clear hover alpha must be1.0, actual="+str(art.modulate.a))
 		return false
+	var hovered_pixels: Image = await clear_pixels(clear)
+	var brighter_hover: int = brighter_clear_pixels(normal_pixels,hovered_pixels)
+	if brighter_hover == 0:
+		fail("Clear hover alpha changed but no actual brighter icon pixel rendered")
+		return false
 	if not await record_storage_tooltip("storage-search-clear-hover"): return false
-	drawer_mouse_button(clear.get_global_rect().get_center(),true)
+	await drawer_mouse_button(clear.get_global_rect().get_center(),true)
 	await frames(4)
 	var pressed_inset: Vector2 = (icon.global_position-clear.global_position)/scale
 	if pressed_inset.distance_to(Vector2(4.0,4.0))>0.2 or absf(art.modulate.a-1.0)>0.01:
 		fail("Source clear pressed inset must be4,4, actual="+str(pressed_inset))
 		return false
+	var pressed_pixels: Image = await clear_pixels(clear)
+	var shifted_pixels: int = brighter_clear_pixels(hovered_pixels,pressed_pixels)
+	if shifted_pixels == 0:
+		fail("Clear pressed inset changed but rendered icon did not move")
+		return false
+	print("CLEAR_PIXEL_PROOF brighter_hover=",brighter_hover," shifted_pressed=",shifted_pixels," rect=",clear.get_global_rect())
 	if not await record_storage_tooltip("storage-search-clear-pressed"): return false
 	await hover_point(Vector2(1100.0,500.0))
 	await frames(4)
@@ -91,6 +104,20 @@ func prove_clear_affordance(clear: Control, icon: Control, scale: float) -> bool
 		fail("Source clear release outside must restore3,3/alpha0.5 without clicking: inset="+str(released_inset)+" alpha="+str(art.modulate.a)+" query="+storage_search_text())
 		return false
 	return true
+
+func clear_pixels(clear: Control) -> Image:
+	await RenderingServer.frame_post_draw
+	return root.get_texture().get_image().get_region(Rect2i(clear.get_global_rect()))
+
+func brighter_clear_pixels(before: Image, after: Image) -> int:
+	var count: int = 0
+	for y in before.get_height():
+		for x in before.get_width():
+			var old: Color = before.get_pixel(x,y)
+			var new: Color = after.get_pixel(x,y)
+			if new.r+new.g+new.b > old.r+old.g+old.b+0.05:
+				count += 1
+	return count
 
 func clear_visible() -> bool:
 	var clear: Control = housing_control("HouseEditorStorageSearchClearButton")
