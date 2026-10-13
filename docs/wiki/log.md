@@ -1,6 +1,6 @@
 ## 2026-10-13 — Shared Catalog search template implementation
 
-[Housing](systems/housing.md#shared-catalog-search-template): shared source search construction/threshold and independent raw state; Catalog native clear/category backing-text/focus routes and shared clear-art/key handling implemented. Pure/registry green; prior-binary native cap RED; both-skin native acceptance pending.
+[Housing](systems/housing.md#shared-catalog-search-template): shared source search construction/threshold and independent raw state; Catalog native clear/category backing-text/focus routes and shared clear-art/key handling implemented. Pure/registry green; prior-binary native cap RED→both-skin native cappedUTF8/threshold/category/clear/key/conservation PASS, shared-storage callback regression PASS. Post-master model30/registry18/server28+3ignored/protocol4 and warning-free checks pass; live binaries predate unrelated master changes. Inspected1280 PNGs public; canonical data untouched.
 
 ## 2026-10-12 — Category focus callback boundaries
 
