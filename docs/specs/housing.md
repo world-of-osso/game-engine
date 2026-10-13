@@ -60,6 +60,10 @@ After landing the server importer, run it with the audit evidence and pinned bui
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
 
+## Basic selected-target storage visibility
+
+Selecting existing placed decor in Basic mode hides both storage panel and expand handle. Cancelling/unselecting restores the saved collapsed/size preference, retained query/category/filters and actual owned results; selection alone never changes storage/layout. Source: HouseEditorBasicDecorMode.OnTargetSelected/OnTargetUnselected invokes HouseEditor.HideHouseStorage (both parts)/ShowHouseStorage (UpdateCollapseState). This acceptance covers selected placed decor; new-placement drag/overlay behavior remains a separate boundary.
+
 ## Storage drawer controls
 
 Basic Decor exposes the source collapse handle and replaces the drawer with its open handle when collapsed. Collapsing never resets search/category/filters or changes authority. Cleanup and Expert hide both handles independently of the saved collapsed preference. Account-local `ui_layout.ron` preserves collapsed/width/height while retaining other layouts and window positions; a fresh process restores it.

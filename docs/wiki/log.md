@@ -1,3 +1,7 @@
+## 2026-10-13 — Basic selected-target storage implementation
+
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): Basic selection hides panel/handle without overwriting preferences. Registry/native prior-binary RED; native green acceptance pending. Cancel/unselect restores saved part/query; new-placement overlay remains separate.
+
 ## 2026-10-13 — Retroactive grant source boundary
 
 [Housing](systems/housing.md#dye-authority-without-native-recoloring):59direct dyeable-decor reward quests have no source/runtime starter joins; scripted/item/automatic eligibility is not disproved. Retroactive reward fields Field_12_0_0_63534_002/Field_12_0_0_63967_005 remain literal unknowns; lead confirms no quantity/flags grant contract. No guessed grant implementation.
