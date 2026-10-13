@@ -32,14 +32,15 @@ varying vec4 tint;
 void vertex() { tint = COLOR; }
 void fragment() {
     vec2 uv = region.xy + fract(UV * repeats) * region.zw;
-    vec2 half_pixel = TEXTURE_PIXEL_SIZE * 0.5;
-    uv = clamp(uv, region.xy + half_pixel, region.xy + region.zw - half_pixel);
+    vec2 inset = min(TEXTURE_PIXEL_SIZE * 0.5, region.zw * 0.5);
+    uv = clamp(uv, region.xy + inset, region.xy + region.zw - inset);
     COLOR = texture(TEXTURE, uv) * tint;
 }
 "#;
 
-/// Crop-aware repetition: TextureRect's TILE would repeat an entire atlas sheet.
-fn apply_atlas_tiling(
+/// Sample authored atlas UVs directly: Godot rounds subpixel AtlasTexture sizes to
+/// zero and then substitutes the full sheet size; TILE would also repeat the sheet.
+fn apply_atlas_sampling(
     rect: &mut Gd<TextureRect>,
     image: &Gd<Texture2D>,
     crop: [f32; 4],
@@ -97,6 +98,7 @@ pub(super) fn stepper_art_is_disabled(frame: &Frame, registry: &FrameRegistry) -
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
+    HousingDecorDragStart(u64),
     FrameClick {
         id: u64,
         at: Vector2,
@@ -512,19 +514,25 @@ impl UiProjection {
                 .as_deref()
                 .unwrap_or(&format!("Frame{}", frame.id)),
         );
-        node.set_mouse_filter(
-            if frame.mouse_enabled
-                || frame.onclick.is_some()
-                || matches!(
-                    frame.widget_type,
-                    WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
-                )
-            {
-                godot::classes::control::MouseFilter::STOP
-            } else {
-                godot::classes::control::MouseFilter::IGNORE
-            },
-        );
+        // Shared dropdown chrome carries ButtonData for pressed/hover art only; its
+        // owner, not this actionless child surface, receives pointer events.
+        let passive_dropdown_art = frame.onclick.is_none()
+            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
+                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
+                    if atlas.starts_with("common-dropdown-")));
+        node.set_mouse_filter(if passive_dropdown_art {
+            godot::classes::control::MouseFilter::IGNORE
+        } else if frame.mouse_enabled
+            || frame.onclick.is_some()
+            || matches!(
+                frame.widget_type,
+                WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
+            )
+        {
+            godot::classes::control::MouseFilter::STOP
+        } else {
+            godot::classes::control::MouseFilter::IGNORE
+        });
         let mut parts = Control::new_alloc();
         parts.set_name(PARTS_NODE);
         parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
@@ -586,6 +594,15 @@ impl UiProjection {
                 connect_button(pending, frame.id, node);
                 // Retail entries register both LeftButtonUp and RightButtonUp.
                 connect_placed_list_context(pending, frame.id, node);
+            }
+            WidgetType::Button
+                if frame
+                    .onclick
+                    .as_deref()
+                    .is_some_and(|action| action.starts_with("housing:place:")) =>
+            {
+                connect_button(pending, frame.id, node);
+                connect_housing_storage_drag(pending, frame.id, node);
             }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame, node),
@@ -829,8 +846,9 @@ impl UiProjection {
         let art = self.source(source, registry);
         if let Art::Ready((image, region)) = &art {
             let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, *region);
-            if part.tiling.iter().any(|tile| *tile) {
-                apply_atlas_tiling(&mut rect, image, crop, part);
+            let subpixel_crop = crop[2] < 1.0 || crop[3] < 1.0;
+            if subpixel_crop || part.tiling.iter().any(|tile| *tile) {
+                apply_atlas_sampling(&mut rect, image, crop, part);
             } else {
                 rect.set_texture(&assets::sub_texture(image, crop));
             }
@@ -1235,6 +1253,29 @@ fn connect_placed_list_context(pending: &PendingInputs, id: u64, node: &mut Gd<C
         }
     });
     node.connect("gui_input", &callback);
+}
+
+/// Godot's native drag recognizer supplies OnDragStart; no invented Retail threshold.
+fn connect_housing_storage_drag(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let instance = node.instance_id();
+    let get = Callable::from_fn("housing-storage-drag-start", move |_| {
+        let Ok(control) = Gd::<Control>::try_from_instance_id(instance) else {
+            return Variant::nil();
+        };
+        let Ok(button) = control.try_cast::<godot::classes::BaseButton>() else {
+            return Variant::nil();
+        };
+        if button.is_disabled() {
+            return Variant::nil();
+        }
+        pending.push(UiInput::HousingDecorDragStart(id));
+        (id as i64).to_variant()
+    });
+    // World placement is resolved against authored ground in GameClient, not a UI drop target.
+    let can_drop = Callable::from_fn("housing-storage-ui-drop-disabled", |_| false);
+    let drop = Callable::from_fn("housing-storage-ui-drop-unused", |_| {});
+    node.set_drag_forwarding(&get, &can_drop, &drop);
 }
 
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {

@@ -22,7 +22,7 @@ pub(crate) struct HousingHud {
     pub authority: HousingAuthority,
     pub(super) decor: crate::housing_decor::HousingDecor,
     pub(super) catalog_preview: crate::housing_preview::CatalogPreview,
-    pub(super) expert_held: [bool; 8],
+    pub(super) expert_input: crate::input::PhysicalInput,
     pub(super) mouse_pointer: Option<crate::housing_mouse::ExpertPointer>,
     pub(super) storage_resize: Option<crate::housing_storage::StorageResize>,
     pub(super) placed_list_drag: Option<crate::housing_placed_list::PlacedListDrag>,
@@ -151,7 +151,7 @@ impl GameClient {
         self.housing.catalog_preview.reset();
         self.housing.decor.clear_preview();
         self.housing.decor.highlight(None);
-        self.housing.expert_held = [false; 8];
+        self.housing.expert_input.clear();
         self.housing.mouse_pointer = None;
         self.housing.storage_resize = None;
         if let Some(model) = &mut self.housing.model {
@@ -182,6 +182,7 @@ impl GameClient {
             .as_ref()
             .ok_or("Housing catalog is not loaded")?
             .clone();
+        model.editor_bindings = self.client_options.bindings.clone();
         model.editor.mouse_control_anchor =
             self.project_housing_control_anchor(model.editor.expert_transform(), scale);
         let authority = &self.housing.authority;

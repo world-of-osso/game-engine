@@ -189,6 +189,8 @@ pub struct HousingDashboard {
     pub collection: CollectionFilter,
     pub dyeable_only: bool,
     pub editor: crate::housing_editor::EditorInteraction,
+    /// Native account bindings copied into the view; absent keys remain source-unbound.
+    pub editor_bindings: game_engine_core::input_bindings_data::InputBindingsData,
     pub placed_list: crate::housing_placed_list::PlacedDecorListState,
     /// The roster from the last bulletin board use; later snapshots do not carry it.
     pub bulletin_board: Option<BulletinBoard>,
@@ -226,6 +228,7 @@ impl HousingDashboard {
             collection: CollectionFilter::All,
             dyeable_only: false,
             editor: crate::housing_editor::EditorInteraction::default(),
+            editor_bindings: Default::default(),
             placed_list: Default::default(),
             bulletin_board: None,
             settings: None,

@@ -9,14 +9,17 @@ use crate::options_menu_data::{LAYOUT_FONTS, LayoutSlider, SliderField, slider_k
 use crate::ui::screens::options_menu_component::{ACTION_RESET_LAYOUT_SETTINGS, LayoutSystem};
 use game_engine_core::ui_layout_data::{LayoutFont, UnitFrameSettings};
 
-pub(super) fn layout_settings_rows(layout: &LayoutOptionsView) -> Element {
+pub(super) fn layout_settings_rows(
+    layout: &LayoutOptionsView,
+    open: Option<&OptionsDropdownMenu>,
+) -> Element {
     let settings = &layout.settings;
     let system_rows = match layout.system {
-        LayoutSystem::PlayerFrame => unit_frame_rows(settings.player_frame),
-        LayoutSystem::TargetFrame => unit_frame_rows(settings.target_frame),
-        LayoutSystem::FocusFrame => unit_frame_rows(settings.focus_frame),
-        LayoutSystem::PetFrame => unit_frame_rows(settings.pet_frame),
-        LayoutSystem::PartyFrames => party_rows(layout),
+        LayoutSystem::PlayerFrame => unit_frame_rows(settings.player_frame, open),
+        LayoutSystem::TargetFrame => unit_frame_rows(settings.target_frame, open),
+        LayoutSystem::FocusFrame => unit_frame_rows(settings.focus_frame, open),
+        LayoutSystem::PetFrame => unit_frame_rows(settings.pet_frame, open),
+        LayoutSystem::PartyFrames => party_rows(layout, open),
         LayoutSystem::ChatFrame => {
             let (width, height) = layout_with(layout.skin, settings).chat_size;
             // `HUD_EDIT_MODE_SETTING_CHAT_FRAME_WIDTH` / `_HEIGHT`
@@ -41,7 +44,7 @@ pub(super) fn layout_settings_rows(layout: &LayoutOptionsView) -> Element {
             "Show Micro Menu",
             settings.show_micro_menu.unwrap_or(false),
         ),
-        system_row(layout.system),
+        system_row(layout.system, open),
         system_settings(system_rows),
         options_menu_sections::action_button_row(
             "reset_layout_settings",
@@ -74,7 +77,7 @@ fn system_settings(rows: Element) -> Element {
     }
 }
 
-fn system_row(selected: LayoutSystem) -> Element {
+fn system_row(selected: LayoutSystem, open: Option<&OptionsDropdownMenu>) -> Element {
     let choices: Vec<(u8, &str)> = (0u8..)
         .zip(LayoutSystem::ALL.map(LayoutSystem::label))
         .collect();
@@ -82,12 +85,18 @@ fn system_row(selected: LayoutSystem) -> Element {
         .iter()
         .position(|&system| system == selected)
         .expect("every system is listed") as u8;
-    choice_row(LAYOUT_SYSTEM_KEY, "Layout Settings", &choices, selected)
+    choice_row(
+        LAYOUT_SYSTEM_KEY,
+        "Layout Settings",
+        &choices,
+        selected,
+        open,
+    )
 }
 
 /// Frame Size (`HUD_EDIT_MODE_SETTING_UNIT_FRAME_FRAME_SIZE`, a percentage,
 /// `EditModeSettingDisplayInfo.lua:357-362`), then this client's Text Size and Font.
-fn unit_frame_rows(frame: UnitFrameSettings) -> Element {
+fn unit_frame_rows(frame: UnitFrameSettings, open: Option<&OptionsDropdownMenu>) -> Element {
     let percent = |slider: LayoutSlider, label, setting: Option<u16>| {
         let value = slider.range().clamp(setting.unwrap_or(100));
         slider_setting_cell(slider, label, f32::from(value), &format!("{value}%"))
@@ -97,14 +106,14 @@ fn unit_frame_rows(frame: UnitFrameSettings) -> Element {
         percent(LayoutSlider::FrameSize, "Frame Size", frame.frame_size),
         percent(LayoutSlider::TextSize, "Text Size", frame.text_size),
     );
-    [sizes, font_row(frame.font)]
+    [sizes, font_row(frame.font, open)]
         .into_iter()
         .flatten()
         .collect()
 }
 
 /// The two faces the client ships; an unset font is the authored Friz Quadrata.
-fn font_row(font: Option<LayoutFont>) -> Element {
+fn font_row(font: Option<LayoutFont>, open: Option<&OptionsDropdownMenu>) -> Element {
     let label = |font| match font {
         LayoutFont::FrizQuadrata => "Friz Quadrata",
         LayoutFont::ArialNarrow => "Arial Narrow",
@@ -114,11 +123,10 @@ fn font_row(font: Option<LayoutFont>) -> Element {
         .iter()
         .position(|&choice| choice == font.unwrap_or(LayoutFont::FrizQuadrata))
         .expect("every font is listed") as u8;
-    choice_row(LAYOUT_FONT_KEY, "Font", &choices, selected)
+    choice_row(LAYOUT_FONT_KEY, "Font", &choices, selected, open)
 }
 
-fn party_rows(layout: &LayoutOptionsView) -> Element {
-    use crate::options_menu_component::PartyDropdown;
+fn party_rows(layout: &LayoutOptionsView, open: Option<&OptionsDropdownMenu>) -> Element {
     use crate::options_menu_data::PartyToggle;
     use game_engine_core::ui_layout_data::{PartyAuraOrganization, PartySort};
     let settings = layout.settings;
@@ -165,7 +173,7 @@ fn party_rows(layout: &LayoutOptionsView) -> Element {
             PartySort::Group => 1,
             PartySort::Alphabetical => 2,
         },
-        layout.party_dropdown == Some(PartyDropdown::Sort),
+        open,
     ));
     rows.extend(party_dropdown(
         "party_aura",
@@ -180,7 +188,7 @@ fn party_rows(layout: &LayoutOptionsView) -> Element {
             PartyAuraOrganization::BuffsTop => 1,
             PartyAuraOrganization::BuffsRight => 2,
         },
-        layout.party_dropdown == Some(PartyDropdown::Aura),
+        open,
     ));
     for (slider, label, value) in [
         (
@@ -211,31 +219,19 @@ fn party_rows(layout: &LayoutOptionsView) -> Element {
     rows
 }
 
-fn party_dropdown(key: &str, label: &str, labels: &[&str], selected: usize, open: bool) -> Element {
-    let action = toggle_action(&format!("{key}_open"));
-    let items: Element = if open {
-        labels.iter().enumerate().flat_map(|(index, text)| {
-            let action = toggle_action(&format!("{key}:{index}"));
-            rsx! { button {
-                name: {DynName(format!("PartyChoice{key}{index}"))},
-                width: CHOICE_ROW_W, height: 28.0, text: {text.to_string()},
-                onclick: {action.as_str()}, pos_type: "absolute", left: 0.0, top: {28.0 + index as f32 * 28.0},
-            } }
-        }).collect()
-    } else {
-        Element::new()
-    };
-    rsx! { r#frame {
-        name: {DynName(format!("PartyDropdown{key}"))}, width: OPTIONS_ROW_W,
-        height: {if open { 28.0 * (labels.len() + 1) as f32 } else { 32.0 }},
-        {row_label(&format!("PartyDropdownLabel{key}"), label)}
-        r#frame {
-            width: CHOICE_ROW_W, height: "auto", pos_type: "absolute", left: 258.0, top: 0.0,
-            button { name: {DynName(format!("PartyDropdownButton{key}"))}, width: CHOICE_ROW_W, height: 28.0,
-                text: {format!("{}  ▾", labels[selected])}, onclick: {action.as_str()}, }
-            {items}
-        }
-    } }
+fn party_dropdown(
+    key: &str,
+    label: &str,
+    labels: &[&str],
+    selected: usize,
+    open: Option<&OptionsDropdownMenu>,
+) -> Element {
+    let choices: Vec<_> = labels
+        .iter()
+        .enumerate()
+        .map(|(index, text)| (index as u8, *text))
+        .collect();
+    choice_row(key, label, &choices, selected as u8, open)
 }
 
 type SizeSlider = (LayoutSlider, &'static str, f32);

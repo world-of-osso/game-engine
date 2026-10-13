@@ -27,6 +27,10 @@ fn roster(count: usize, selected: usize) -> CharSelectState {
 }
 
 fn model(count: usize, skin: ActiveSkin) -> RegistryModel {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     set_thread_skin(skin);
     let CharacterSelectModel {
         screen,
