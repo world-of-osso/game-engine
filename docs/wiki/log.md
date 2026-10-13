@@ -1,3 +1,7 @@
+## 2026-10-13 — Expert PlacedDecorList native proof
+
+[Housing](systems/housing.md#expert-placeddecorlist): both-skin actual paid-instance select/deselect, UI/world hover, clamped header drag, released-right source menu at pointer position, authoritative remove and normal re-place; source atlas6654379 lead-published from independently verified local CASC. Behavioral32 model/20 registry/native release1 pass. Unknown budget “— / —”, source lock/audio and full housing completion remain gaps.
+
 ## 2026-10-13 — Native follower Group Finder implementation
 
 [Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
