@@ -136,6 +136,7 @@ fn menu_button(name: &str, text: &str, action: &str) -> Element {
 }
 
 pub fn sync_menu_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    crate::options_menu_component::sync_options_art(registry);
     use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
     if let Some(id) = registry.get_by_name("GameMenuBackground")
         && let Some(frame) = registry.get_mut(id)

@@ -30,7 +30,7 @@ mod layout_section;
 #[path = "options_menu_active_sections_nameplates.rs"]
 mod nameplates_section;
 
-const OPTIONS_CONTENT_W: f32 = 716.0;
+const OPTIONS_CONTENT_W: f32 = 665.0;
 const OPTIONS_ROW_W: f32 = OPTIONS_CONTENT_W - 30.0;
 const OPTIONS_LABEL_W: f32 = 252.0;
 const OPTIONS_LABEL_GAP: f32 = 16.0;
@@ -63,7 +63,7 @@ const NAMEPLATE_DISTANCE_MAX: f32 = 80.0;
 const CHAT_FONT_SIZE_MIN: f32 = 8.0;
 const CHAT_FONT_SIZE_MAX: f32 = 16.0;
 const BINDING_BUTTON_W: f32 = 160.0;
-const BINDING_BUTTON_H: f32 = 28.0;
+const BINDING_BUTTON_H: f32 = 22.0;
 const BINDING_OUTPUT_H: f32 = 18.0;
 /// `GameFontHighlightSmall` white; `GRAY_FONT_COLOR` at the button's 0.8 alpha.
 const BINDING_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
@@ -72,15 +72,6 @@ const BINDING_NOT_BOUND_COLOR: &str = "0.5,0.5,0.5,0.8";
 /// is wrapped in `|cffff0000`.
 const BINDING_OUTPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const BINDING_OUTPUT_ERROR_COLOR: &str = "1.0,0.0,0.0,1.0";
-const KEYBINDING_TAB_LEAD_X: f32 = 11.0;
-const KEYBINDING_TAB_H: f32 = 32.0;
-const KEYBINDING_TAB_GAP: f32 = 1.0;
-const KEYBINDING_TAB_SIDE_PADDING: f32 = 20.0;
-const KEYBINDING_TAB_FONT_SIZE: f32 = 10.0;
-const KEYBINDING_TAB_LABEL_Y_IDLE: f32 = 2.0;
-const KEYBINDING_TAB_LABEL_Y_ACTIVE: f32 = -3.0;
-const KEYBINDING_TAB_TEXT_IDLE: &str = "0.85,0.78,0.61,1.0";
-const KEYBINDING_TAB_TEXT_ACTIVE: &str = "0.96,0.84,0.56,1.0";
 
 #[derive(Clone)]
 struct DynName(String);
@@ -800,7 +791,20 @@ fn thickness_row(
 }
 
 fn segmented_toggle(key: &str, enabled: bool) -> Element {
-    segmented_choice(key, enabled, "Off", "On")
+    let hide_check = !enabled;
+    let box_art =
+        ui_toolkit::atlas::get_region("checkbox-minimal").expect("SettingsCheckboxTemplate normal");
+    let check_art = ui_toolkit::atlas::get_region("checkmark-minimal")
+        .expect("SettingsCheckboxTemplate checked");
+    rsx! { button {
+        name: DynName(format!("ToggleSwitch{key}")), width: 30.0, height: 29.0,
+        onclick: toggle_action(key), button_default_skin: false,
+        pos_type: "absolute", right: 8.0, top: "50%", translate_y: "-50%",
+        texture { name: DynName(format!("ToggleSwitch{key}Box")), texture_atlas: "checkbox-minimal",
+            width: box_art.width, height: box_art.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
+        texture { name: DynName(format!("ToggleSwitch{key}Checked")), texture_atlas: "checkmark-minimal", hidden: hide_check,
+            width: check_art.width, height: check_art.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
+    } }
 }
 
 fn segmented_choice(key: &str, enabled: bool, left_label: &str, right_label: &str) -> Element {
