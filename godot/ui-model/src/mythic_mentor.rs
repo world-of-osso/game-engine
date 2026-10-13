@@ -117,13 +117,28 @@ fn icon_overlay(prefix: &str, level: &str, leader: bool) -> Element {
     rsx! { r#frame { name: {DynName(format!("{prefix}TopLayer"))}, width: 36.0, height: 36.0,
     frame_level: 20.0, mouse_enabled: false, pos_type: "absolute", left: 0.0, top: 0.0, {children} } }
 }
+/// MapChallengeMode.MapID → JournalInstance.MapID / ButtonSmallFileDataID,
+/// local adventure_guide.sqlite, build12.1.0.69933. These are square LFG icons.
+fn dungeon_icon(challenge_id: u32) -> u32 {
+    match challenge_id {
+        249 => 2178730,
+        250 => 2178734,
+        399 => 4746639,
+        401 => 4746634,
+        584 => 7478534,
+        585 => 7479112,
+        586 => 7478536,
+        587 => 7467179,
+        588 => 7956176,
+        // KeystoneWidget.lua uses the question mark when dungeon texture is unknown.
+        _ => UNKNOWN_ICON,
+    }
+}
 fn row_icon(prefix: &str, member: &PartyKeystoneMember) -> Element {
-    // local community-listfile: interface/lfgframe/ui-lfg-background-azurevaults.blp.
-    // Cropped list icon, not a fabricated C_ChallengeMode texture mapping.
     let art = match member.key.as_ref().map(|key| key.challenge_id) {
-        Some(401) => cropped(
+        Some(challenge_id) => cropped(
             format!("{prefix}Icon"),
-            4880614,
+            dungeon_icon(challenge_id),
             "0.07,0.93,0.07,0.93",
             (0.0, 0.0, 26.0, 26.0),
         ),
@@ -133,7 +148,6 @@ fn row_icon(prefix: &str, member: &PartyKeystoneMember) -> Element {
             (0.0, 0.0, 26.0, 26.0),
             "0.5,0.5,0.5,1.0",
         ),
-        Some(_) => Element::new(),
     };
     let action = member
         .key
@@ -166,6 +180,70 @@ mod tests {
         };
         font.text.clone()
     }
+    #[test]
+    fn mythic_mentor_current_dungeon_icons_and_teleport_actions() {
+        use ui_toolkit::widgets::texture::TextureSource;
+        crate::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut shared = SharedContext::new();
+            shared.insert(skin);
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            let mut screen = Screen::new(mentor_screen);
+            for (challenge_id, icon, spell) in [
+                (249, 2178730, Some(1286831)),
+                (250, 2178734, Some(1286828)),
+                (399, 4746639, Some(393256)),
+                (401, 4746634, None),
+                (584, 7478534, Some(1286801)),
+                (585, 7479112, Some(1286804)),
+                (586, 7478536, Some(1286807)),
+                (587, 7467179, Some(1286809)),
+                (588, 7956176, Some(1286812)),
+            ] {
+                shared.insert(MentorView {
+                    position: [510.0, 100.0],
+                    snapshot: PartyKeystoneSnapshot {
+                        members: vec![PartyKeystoneMember {
+                            character_id: 17,
+                            name: "Mentorone".into(),
+                            class: 2,
+                            is_leader: true,
+                            key: Some(PartyKeystone {
+                                challenge_id,
+                                level: 8,
+                                dungeon_name: "Source dungeon".into(),
+                                time_limit_ms: 1_800_000,
+                            }),
+                        }],
+                    },
+                });
+                screen.sync(&shared, &mut registry);
+                let frame = registry
+                    .get(
+                        registry
+                            .get_by_name("MentorRow0Icon")
+                            .expect("Sourced dungeon icon"),
+                    )
+                    .unwrap();
+                let Some(WidgetData::Texture(art)) = &frame.widget_data else {
+                    panic!("Dungeon icon must render artwork")
+                };
+                assert_eq!(art.source, TextureSource::FileDataId(icon));
+                let button = registry
+                    .get(registry.get_by_name("MentorRow0Teleport").unwrap())
+                    .unwrap();
+                let action = spell
+                    .map(|id| format!("mentor:teleport:{id}"))
+                    .unwrap_or_default();
+                assert_eq!(button.onclick.as_deref().unwrap_or_default(), action);
+            }
+        }
+    }
+
     #[test]
     fn mythic_mentor_both_skins_display_replace_and_prune_authoritative_rows() {
         crate::paths::set_data_root(
