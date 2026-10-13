@@ -157,8 +157,14 @@ fn category_row(index: usize, category: &str, y: f32, collapsed: bool) -> Elemen
         (10.0, 0.0, ROW_WIDTH - 35.0, CATEGORY_HEIGHT),
     ));
     let action = format!("profession:category:{category}");
-    rsx! { button { name: {DynName(prefix)}, width: ROW_WIDTH, height: CATEGORY_HEIGHT,
-    left: 0.0, top: y, pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (0.0, y, ROW_WIDTH, CATEGORY_HEIGHT),
+        (&crate::selection_list::AUTHORED, false),
+        children,
+    )
 }
 
 fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {
@@ -206,8 +212,27 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
         ));
     }
     let action = format!("profession:select:{}", recipe.spell_id);
-    rsx! { button { name: {DynName(prefix)}, width: {ROW_WIDTH - 10.0}, height: ROW_HEIGHT,
-    left: 10.0, top: y, pos_type: "absolute", onclick: {action.as_str()}, button_default_skin: false, {children} } }
+    crate::selection_list::row(
+        prefix,
+        &action,
+        true,
+        (10.0, y, ROW_WIDTH - 10.0, ROW_HEIGHT),
+        (recipe_template(view, recipe), false),
+        children,
+    )
+}
+
+/// Blizzard_ProfessionsRecipeList.lua:375-376: the hover overlay shows only while the
+/// recipe is not selected; its selected overlay is part of the row art.
+fn recipe_template(
+    view: &ProfessionView,
+    recipe: &Recipe,
+) -> &'static crate::selection_list::RowTemplate {
+    if view.book.selected == Some(recipe.spell_id) {
+        &crate::selection_list::AUTHORED
+    } else {
+        &crate::selection_list::PROFESSION_RECIPE
+    }
 }
 
 fn recipe_row_art(

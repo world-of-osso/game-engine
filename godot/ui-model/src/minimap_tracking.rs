@@ -4,7 +4,7 @@ use shared::protocol::NpcFlags;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{BlipKind, DynName, MinimapBlip, SheetArt, object_icon};
+use super::{BlipKind, MinimapBlip, SheetArt, object_icon};
 use crate::ui::strata::FrameStrata;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -244,10 +244,12 @@ fn tracking_choice_at(index: usize, row: usize, label: &str, checked: bool) -> E
     let name = format!("MinimapTrackingChoice{index}");
     let checkbox = crate::bank_art::checkbox(&name, label, checked, &action, (0.0, 0.0));
     let top = MENU_PAD + ROW_HEIGHT * row as f32;
-    rsx! { button {
-        name: {DynName(format!("MinimapTrackingRow{index}"))}, width: {MENU_WIDTH - MENU_PAD * 2.0},
-        height: ROW_HEIGHT, text: "", button_default_skin: false,
-        onclick: {action.as_str()}, pos_type: "absolute", left: MENU_PAD, top,
-        {checkbox}
-    } }
+    crate::selection_list::row(
+        format!("MinimapTrackingRow{index}"),
+        &action,
+        true,
+        (MENU_PAD, top, MENU_WIDTH - MENU_PAD * 2.0, ROW_HEIGHT),
+        (&crate::selection_list::MENU, false),
+        checkbox,
+    )
 }

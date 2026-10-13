@@ -231,7 +231,7 @@ fn project_sliced_background(
 fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
     let rect = [0.0, 0.0, width, height];
     match &frame.widget_data {
-        Some(WidgetData::Button(button)) => match select_button_texture_source(button) {
+        Some(WidgetData::Button(button)) => match select_button_base_texture_source(button) {
             Some(source) => Some(textured(rect, source.clone(), Crop::Full, WHITE)),
             None => frame.background_color.map(|color| solid(rect, color)),
         },
@@ -256,7 +256,8 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             let mut part = textured(rect, texture.source.clone(), crop, [r, g, b, a]);
             part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
-            part.additive = texture.blend_mode == BlendMode::Additive;
+            part.additive = texture.blend_mode == BlendMode::Additive
+                || game_engine_ui_model::selection_list::is_additive_row_art(frame, texture);
             part.tiling = [texture.horiz_tile, texture.vert_tile];
             Some(part)
         }
@@ -413,7 +414,7 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     };
     if frame.nine_slice.is_some()
         || button_skin(frame).is_some()
-        || !button.hovered
+        || !(button.hovered || button.highlight_locked)
         || button.state == ButtonState::Disabled
     {
         return;
