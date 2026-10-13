@@ -1,3 +1,7 @@
+## 2026-10-13 — Adventure Guide independent-gate corrections
+
+[Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Both-skin full-HD24 captures and viewport-on/off pixel proof at7fb076dd4 are bounded evidence; final literal color/title correction remains queued for host admission.
+
 ## 2026-10-13 — Retail Adventure Guide frame layout
 
 [Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
