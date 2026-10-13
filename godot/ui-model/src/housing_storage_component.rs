@@ -5,8 +5,8 @@ use crate::ui::strata::FrameStrata;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Element {
-    // Basic OnTargetSelected hides both drawer parts without changing saved preferences.
-    if view.model.editor.selected.is_some() {
+    // Placed selection and StartPlacingNewDecor both emit Basic OnTargetSelected.
+    if view.model.editor.selected.is_some() || view.model.editor.placing.is_some() {
         return Element::default();
     }
     let [width, height] = view.model.storage_panel.size;

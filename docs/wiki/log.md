@@ -1,3 +1,7 @@
+## 2026-10-13 — Pending owned-placement storage implementation
+
+[Housing](systems/housing.md#basic-selected-target-storage-visibility): StartPlacingNewDecor routes the same source selected-target event. Registry/native RED reproduced retained drawer with actual paid2330 pending placement; same presentation now hides it. Both-skin native actual paid2330 click→placing+hidden→Cancel/retainedTesla/exactconservation GREEN, plus selected/collapsed regression. Registry19/nativecheck0warnings/fmt pass; four inspected1280 new-placement PNGs public. No preview-mesh/mouse-up-commit claim.
+
 ## 2026-10-13 — Basic selected-target storage implementation
 
 [Housing](systems/housing.md#basic-selected-target-storage-visibility): Basic selection hides panel/handle without overwriting preferences. Registry/native prior-binary RED→both-skin actual paid actor select/cancel panel+collapsed-handle GREEN, unchanged query/size/paid state. Registry19/native/server checks0warnings/currentserver28+3ignored/fmt pass; exact private source flags refresh leaves canonical untouched. New-placement overlay remains separate.
