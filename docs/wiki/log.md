@@ -6,6 +6,13 @@
 
 [Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
 
+## 2026-10-12 — Source-private toy actor proof
+
+[Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12): real UDP owner/observer RED→GREEN with public control, both-skin owner Shirakess model/.6 scale/natural expiry, census337 unchanged and canonical flags import requirement.
+
+## 2026-10-12 — Linked cooking-fire native proof
+
+[Little Wickerman](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12): actual Modern/Forever journal use, authored.25 scale/nine emitters, real recipe output and visible Cozy Fire cancellation-refresh; representative proof does not certify all-seven pixels/native expiry. Requested PNGs and lead-only authenticated asset-import command recorded.
 ## 2026-10-12 — Source search focus keys
 
 [Housing](systems/housing.md#search-focus-keys): Enter/Escape/keypad Enter release only storage search focus, consuming keys without form/chat/window/editor action. Both-skin native retained-query/Tesla, empty gray/clear-hidden, remount and exact conservation proof; shared edit-box behavior unchanged.
@@ -3556,6 +3563,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
 
+- 2026-10-12: Recorded both-skin private criteria purchases/item learning, authoritative2→4 mount counts and isolated online comparison in [dungeon-achievements](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12);4524/246 structural census and outstanding producer/OAuth boundaries retained.
 - 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.
 
 - 2026-10-12: Sourced drawer collapse/open, resize bounds/column snap and account-local persistence; per-frame preference overwrite RED→mount-only GREEN, both-skin native/fresh-process conservation and eight inspected pixel-ready PNGs. Source animations remain separate acceptance.

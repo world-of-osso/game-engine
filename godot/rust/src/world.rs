@@ -149,6 +149,8 @@ struct UnitMotion {
     local_yaw: Option<f32>,
     control: Option<MovementControl>,
     adopted_epoch: Option<u32>,
+    forced_facing: Option<shared::components::ForcedFacing>,
+    adopted_facing_epoch: Option<u32>,
     facing_yaw: f32,
 }
 
@@ -162,6 +164,8 @@ impl UnitMotion {
             local_yaw: None,
             control: None,
             adopted_epoch: None,
+            forced_facing: None,
+            adopted_facing_epoch: None,
             facing_yaw: PI,
         }
     }
@@ -181,13 +185,14 @@ impl UnitMotion {
         self.control = control;
     }
 
-    fn advance(&mut self, pose: MotionPose, is_local: bool, delta: f32) -> MotionPose {
+    fn advance(&mut self, mut pose: MotionPose, is_local: bool, delta: f32) -> MotionPose {
         if !is_local {
             return interpolate_remote_motion(pose, self.target, delta);
         }
         let Some(control) = self.control else {
             return pose;
         };
+        self.adopt_forced_facing(&mut pose, control.epoch);
         let target = MotionTarget {
             yaw: self.local_yaw,
             ..self.target
@@ -205,6 +210,17 @@ impl UnitMotion {
             self.facing_yaw = yaw;
         }
         update.pose
+    }
+
+    fn adopt_forced_facing(&mut self, pose: &mut MotionPose, epoch: u32) {
+        let Some(facing) = self.forced_facing.filter(|facing| {
+            facing.epoch == epoch && Some(facing.epoch) != self.adopted_facing_epoch
+        }) else {
+            return;
+        };
+        pose.rotation = glam::Quat::from_rotation_y(facing.yaw);
+        self.facing_yaw = facing.yaw;
+        self.adopted_facing_epoch = Some(facing.epoch);
     }
 }
 
@@ -1206,6 +1222,7 @@ impl WorldUnits {
         }
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         sync_unit_animation(unit, snapshot, fallbacks);
+        unit.motion.forced_facing = snapshot.get::<shared::components::ForcedFacing>().copied();
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.get::<Rotation>().map(|rotation| rotation.y),
@@ -1836,6 +1853,65 @@ mod tests {
         );
         motion.advance(pose, true, 0.1);
         assert_eq!(motion.facing_yaw, 1.25);
+    }
+
+    #[test]
+    fn compass_facing_is_adopted_once_without_overriding_later_turns_or_teleports() {
+        use shared::components::ForcedFacing;
+        let mut motion = UnitMotion::new([1.0, 2.0, 3.0], 0.0);
+        let pose = MotionPose {
+            position: [1.0, 2.0, 3.0].into(),
+            rotation: glam::Quat::IDENTITY,
+        };
+        motion.set_target(
+            [1.0, 2.0, 3.0],
+            Some(0.0),
+            Some(MovementControl {
+                epoch: 7,
+                controlled: false,
+            }),
+        );
+        motion.advance(pose, true, 0.05);
+        motion.forced_facing = Some(ForcedFacing {
+            epoch: 8,
+            yaw: 1.25,
+        });
+        motion.set_target(
+            [1.0, 2.0, 3.0],
+            Some(0.0),
+            Some(MovementControl {
+                epoch: 8,
+                controlled: false,
+            }),
+        );
+        let turned = motion.advance(pose, true, 0.05);
+        assert_eq!(turned.position, pose.position);
+        assert!(turned.rotation.dot(glam::Quat::from_rotation_y(1.25)).abs() > 0.99999);
+        assert_eq!(motion.facing_yaw, 1.25);
+        let player_turn = MotionPose {
+            rotation: glam::Quat::from_rotation_y(2.25),
+            ..turned
+        };
+        motion.facing_yaw = 2.25;
+        let retained = motion.advance(player_turn, true, 0.05);
+        assert_eq!(retained, player_turn);
+        assert_eq!(motion.facing_yaw, 2.25);
+        motion.forced_facing = Some(ForcedFacing {
+            epoch: 7,
+            yaw: 0.25,
+        });
+        motion.set_target(
+            [10.0, 2.0, 3.0],
+            Some(0.25),
+            Some(MovementControl {
+                epoch: 9,
+                controlled: false,
+            }),
+        );
+        let teleported = motion.advance(retained, true, 0.05);
+        assert_eq!(teleported.position.to_array(), [10.0, 2.0, 3.0]);
+        assert_eq!(teleported.rotation, player_turn.rotation);
+        assert_eq!(motion.facing_yaw, 2.25);
     }
 
     #[test]
