@@ -20,6 +20,7 @@ SOURCES = {
     'Faction': (1361972, 0xE7553DC7),
     'CurrencyTypes': (1095531, 0xFA3226AB),
     'RenownRewards': (3743117, 0x30AFBCF8),
+    'PlayerCondition': (1045411, 0x1D743D99),
 }
 REWARD_FIELDS = {
     'ID': 'id', 'Level': 'level', 'UiOrder': 'ui_order', 'Flags': 'flags', 'Icon': 'icon',
@@ -39,7 +40,13 @@ def level_threshold(faction):
     return faction['ReputationMax_0']
 
 
-def build_catalog(covenants, factions, currencies, rewards):
+def unlock_description(conditions, condition_id):
+    """Authored failure text; an encrypted or missing condition stays absent."""
+    row = conditions.get(condition_id)
+    return row['Failure_description_lang'] if row else None
+
+
+def build_catalog(covenants, factions, currencies, rewards, conditions):
     by_covenant = {}
     for row in rewards:
         by_covenant.setdefault(row['CovenantID'], []).append(row)
@@ -56,6 +63,7 @@ def build_catalog(covenants, factions, currencies, rewards):
             'currency_id': currency['ID'], 'max_level': currency['MaxQty'],
             'level_threshold': level_threshold(faction),
             'player_condition_id': covenant['RequiredPlayerConditionID'],
+            'unlock_description': unlock_description(conditions, covenant['RequiredPlayerConditionID']),
             'rewards': [{key: row[field] for field, key in REWARD_FIELDS.items()} for row in ordered],
         })
     return catalog
@@ -83,7 +91,8 @@ def main():
         tables[name], receipt = read_source(args.db2, args.definitions, name)
         receipts.append(receipt)
     catalog = build_catalog(tables['Covenant'], {row['ID']: row for row in tables['Faction']},
-                            {row['ID']: row for row in tables['CurrencyTypes']}, tables['RenownRewards'])
+                            {row['ID']: row for row in tables['CurrencyTypes']}, tables['RenownRewards'],
+                            {row['ID']: row for row in tables['PlayerCondition']})
     args.output.write_text(json.dumps({'build': BUILD, 'sources': receipts, 'major_factions': catalog},
                                       indent=1, ensure_ascii=False) + '\n')
     print(json.dumps({'major_factions': len(catalog), 'rewards': sum(len(row['rewards']) for row in catalog)}))
