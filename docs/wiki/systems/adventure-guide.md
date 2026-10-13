@@ -2,6 +2,14 @@
 
 Verified: 2026-10-13. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
 
+## Retail frame layout — 2026-10-13
+
+`adventure_guide_art.rs` replaces generic pushbutton chrome with the local Retail XML texture regions and inherited PanelTab/SearchBox/NavigationBar/Dropdown templates. The geometry test derives Info `(7,64,785,425)`, Bosses `(32,106,338,382)`, right-page Model `(399,65,390,423)` and side tabs `(780,99+55n,63,57)` from the800×496 root/inset anchors. Grid buttons174×96 use15px gaps,5px top padding and title-over-art;325×55 boss rows use `JournalEncounterCreature.FileDataID` portraits. Instance lore is clipped/scrollable in its315×95 region, not painted across bottom tabs. Native captures verify those rectangles at the active2/3 UI scale in both skins.
+
+Source gotchas: `UI-EJ-*` control textures are XML UV regions on522972, not DB2 atlas names; later expansion backdrop names are lowercase. `JournalTier.Expansion` is ordering100…1200, with Current Season9000 taking evergreen `activities-background`, not an expansion ID. QuestTitleFontBlackShadow is **gold**, not black; GameFontBlack is unshadowed. The toolkit does not apply RSX wordwrap/vertical-justify attributes, so the Guide post-setup writes supported FontStringData fields. New instance/encounter navigation resets right-page scroll; boss-list position is retained as Retail's provider does.
+
+Art publication belongs to the lead; agent rendering uses extracted-only mode and read-only slot links. Required sheets/portraits/lore were listed in `/home/osso/.worktrees/adventure-guide4-proof/layout-missing-textures.json`, then published by the lead. Before/after PNGs live in `/syncthing/AgentShared/2026-10-13/adventure-guide-layout/`; interim missing-art/color/clipping captures are explicitly prefixed. This proves frame geometry/art and bounded native navigation, not pixel-identical typography: the renderer still supports FrizQuadrata/ArialNarrow, not Retail's Morpheus title face. The29px lore scrollbar has zero thumb travel under the shared38px arrow inset; wheel/steppers work, full ScrollingFont thumb behavior remains unverified.
+
 ## Catalog and native host
 
 `scripts/adventure_guide_import.py` decodes the pinned local69933 Journal WDC5 layouts into `data/cache/adventure_guide.sqlite`, preserving hierarchy, difficulty relations and readable/unreadable counts. Pinned Item/ItemSparse, ChrSpecialization, ChrClasses, GlobalStrings, Difficulty and MapDifficulty CSVs supply metadata. Item compatibility follows TrinityCore a352b1fa `ObjectMgr::ItemSpecStats/LoadItemTemplates`: overrides replace general type/stat matching; no authored specialization means unrestricted. Gem relic traits remain unmodeled without GemProperties.

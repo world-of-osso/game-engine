@@ -1,3 +1,7 @@
+## 2026-10-13 — Retail Adventure Guide frame layout
+
+[Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
+
 ## 2026-10-13 — Source storage tiles
 
 [Housing](systems/housing.md#source-stored-entry-tiles):97px state-atlas tiles/87px inset icons/anchored16px counts/102×107 sequence pitch replace invented125px cards. Source member-local crop reset fixes rejected blank-border native captures. Both skins physically prove visible normal/hover/held/release/cancel and paid1693/2330 conservation; six-record second grid row is CPU proof, owned drag remains next.

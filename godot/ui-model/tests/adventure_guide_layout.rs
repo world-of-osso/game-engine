@@ -168,6 +168,18 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             instance.scroll_lists.get("EncounterJournalLore").is_some(),
             "Native ScrollBox clipping is registered"
         );
+        let lore = instance
+            .get(
+                instance
+                    .get_by_name("EncounterJournalInstanceLore")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(&lore.widget_data,Some(WidgetData::FontString(font)) if font.word_wrap && font.shadow_color.is_none()),
+            "GameFontBlack is wrapped and unshadowed"
+        );
+
         view.apply("journal:encounter:112").unwrap();
         view.apply("journal:page:model").unwrap();
         let model = render(&view, skin);
