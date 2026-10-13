@@ -19,25 +19,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
     let disabled = !can_edit || view.model.pending;
     let selected = view.model.editor.selected.is_some();
     let edit_disabled = disabled || !selected;
-    let background = named_atlas_texture(
-        "HouseEditorStorageBackground".into(),
-        "house-chest-container-bg",
-        (0.0, 0.0, 600.0, 651.0),
-    );
-    let header = named_atlas_texture(
-        "HouseEditorStorageHeader".into(),
-        "house-chest-header-bg",
-        (0.0, 0.0, 600.0, 68.0),
-    );
-    let stored = stored_entries(view, disabled);
-    let categories = crate::housing_storage_component::categories(view);
-    let category_path = view.model.storage_category_path();
-    let hide_search_hint = !view.model.storage_search.is_empty();
-    let status = if can_edit {
-        "Owned Decor Storage"
-    } else {
-        "Visitor — read-only"
-    };
+    let drawer = crate::housing_storage_component::drawer(view, disabled, can_edit);
     let instruction = if view.model.editor.placing.is_some() {
         "Left-click an authored ground surface to place. Right-click cancels."
     } else if selected && can_edit {
@@ -49,15 +31,7 @@ pub fn editor_screen(view: &HousingView) -> Element {
     let top = (view.viewport[1] - 70.0).max(0.0);
     let instructions_left = (view.viewport[0] - 330.0).max(610.0);
     rsx! { r#frame { name: "HouseEditorFrame", stretch: true,
-        r#frame { name: "HouseEditorStorageFrame", width: 600.0, height: 651.0,
-            pos_type: "absolute", left: 0.0, top: 0.0, mouse_enabled: true, strata: FrameStrata::Dialog,
-            {background} {header} {stored} {categories}
-            fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:500.0,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
-            fontstring { name: "HouseEditorStorageTitle", text: status, width: 500.0, height: 32.0,
-                pos_type: "absolute", left: 85.0, top: 620.0, font_size: 14.0 }
-            editbox {name:"HouseEditorStorageSearchBox",text:{view.model.storage_search.as_str()},width:420.0,height:30.0,pos_type:"absolute",left:20.0,top:20.0,font_size:12.0}
-            fontstring {name:"HouseEditorStorageSearchHint",text:"Search",hidden:hide_search_hint,mouse_enabled:false,width:400.0,height:30.0,pos_type:"absolute",left:30.0,top:20.0,font_size:12.0,font_color:"0.5,0.5,0.5,1.0",justify_h:"LEFT"}
-        }
+        {drawer}
         fontstring { name: "HouseEditorInstructions", text: instruction, width: 300.0, height: 100.0,
             pos_type: "absolute", left: instructions_left, top: 40.0, font_size: 14.0 }
         r#frame { name: "HouseEditorModeBar", width: 800.0, height: 60.0,
@@ -81,17 +55,18 @@ pub fn editor_screen(view: &HousingView) -> Element {
     } }
 }
 
-fn stored_entries(view: &HousingView, disabled: bool) -> Element {
+pub(crate) fn stored_entries(view: &HousingView, disabled: bool) -> Element {
     let entries = view.model.stored_entries(&view.authority);
     if entries.is_empty() {
-        return rsx! {fontstring {name:"HouseEditorStorageEmpty",text:"No stored decor matches your search.",width:400.0,height:60.0,pos_type:"absolute",left:85.0,top:100.0,font_size:14.0}};
+        return rsx! {fontstring {name:"HouseEditorStorageEmpty",text:"No stored decor matches your search or filters.",width:400.0,height:60.0,pos_type:"absolute",left:85.0,top:100.0,font_size:14.0}};
     }
+    let columns = view.model.storage_panel.columns();
     entries
         .into_iter()
         .enumerate()
         .flat_map(|(index, (stored, decor))| {
-            let left = 85.0 + (index % 4) as f32 * 102.0;
-            let top = 100.0 + (index / 4) as f32 * 135.0;
+            let left = 85.0 + (index % columns) as f32 * 102.0;
+            let top = 100.0 + (index / columns) as f32 * 135.0;
             let text = format!("{}\n{} stored", decor.name, stored.quantity);
             let action = format!("housing:place:{}", decor.id);
             let fdid = decor.thumbnail_fdid;
