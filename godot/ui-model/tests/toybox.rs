@@ -57,6 +57,33 @@ fn visible_frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
 }
 
 #[test]
+fn collections_portrait_shell_uses_source_background_in_both_skins() {
+    // CollectionsJournal inherits PortraitFrameTemplate; SharedUIPanelTemplates.xml:597-614.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        let root = visible_frame(&registry, "CollectionsJournal");
+        assert_eq!(root.background_color, None);
+        let background = visible_frame(&registry, "CollectionsJournalBg");
+        assert_eq!(background.width, Dimension::Fixed(699.0));
+        assert_eq!(background.height, Dimension::Fixed(583.0));
+        assert_eq!(
+            background.position.left,
+            ui_toolkit::layout_values::Val::Px(2.0)
+        );
+        assert_eq!(
+            background.position.top,
+            ui_toolkit::layout_values::Val::Px(21.0)
+        );
+        assert_eq!(
+            visible_frame(&registry, "CollectionsJournalTopTileStreaks")
+                .position
+                .left,
+            ui_toolkit::layout_values::Val::Px(6.0)
+        );
+    }
+}
+
+#[test]
 fn names_are_visible_for_collected_and_uncollected_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = journal(skin);

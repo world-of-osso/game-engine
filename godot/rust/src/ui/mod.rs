@@ -282,6 +282,9 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        game_engine_ui_model::collections_component::apply_collections_postsetup(
+            &mut self.registry,
+        );
         if self
             .shared
             .get::<game_engine_ui_model::mythic_mentor::MentorView>()

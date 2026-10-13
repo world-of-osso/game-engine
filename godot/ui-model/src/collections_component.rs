@@ -22,12 +22,13 @@ pub fn collections_shell(viewport: [f32; 2], selected: usize, body: Element) -> 
     } else {
         TABS[selected]
     };
-    let chrome = portrait_border(
+    let mut chrome = portrait_background();
+    chrome.extend(portrait_border(
         "CollectionsJournal",
         (SIZE[0], SIZE[1]),
         title,
         "collections:close",
-    );
+    ));
     let portrait =
         window_portrait_texture(&window_portrait_slot("CollectionsJournalPortrait"), 454_046);
     let tabs = tabs(selected);
@@ -37,9 +38,41 @@ pub fn collections_shell(viewport: [f32; 2], selected: usize, body: Element) -> 
         r#frame { name: "CollectionsRoot", stretch: true,
             r#frame { name: "CollectionsJournal", width: 703.0, height: 606.0,
                 mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,
-                background_color: "0.08,0.07,0.06,1.0",
                 {chrome} {portrait} {body} {tabs}
             }
+        }
+    }
+}
+
+// PortraitFrameTexturedBaseTemplate, SharedUIPanelTemplates.xml:597-614.
+fn portrait_background() -> Element {
+    let streaks = named_atlas_texture(
+        "CollectionsJournalTopTileStreaks".into(),
+        "_UI-Frame-TopTileStreaks",
+        (6.0, 21.0, SIZE[0] - 8.0, 43.0),
+    );
+    rsx! {
+        texture { name: "CollectionsJournalBg", texture_fdid: 374_155,
+            width: {SIZE[0] - 4.0}, height: {SIZE[1] - 23.0},
+            pos_type: "absolute", left: 2.0, top: 21.0 }
+        {streaks}
+    }
+}
+
+/// RSX does not expose Retail Texture's horizTile/vertTile attributes.
+pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    for (name, horizontal, vertical) in [
+        ("CollectionsJournalBg", true, true),
+        ("CollectionsJournalTopTileStreaks", true, false),
+    ] {
+        if let Some(id) = registry.get_by_name(name) {
+            let frame = registry.get_mut(id).expect("collections texture");
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
+            else {
+                panic!("{name} must be a texture");
+            };
+            texture.horiz_tile = horizontal;
+            texture.vert_tile = vertical;
         }
     }
 }
