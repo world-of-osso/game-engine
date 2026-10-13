@@ -6,7 +6,19 @@ func open_friend_plot_info(house: int) -> bool:
 		if int(plot.house_id)==house:
 			related.append(plot)
 	print("VISITOR_FINDER_DIAGNOSTIC target=",house," account=",housing_account," related=",related," homes=",client.housing_state().get("houses",[])," map=",client.account_state().world_map_id)
-	return await super(house)
+	var started: int = Time.get_ticks_msec()
+	var reported: bool = false
+	while Time.get_ticks_msec()-started<120000:
+		var pin: BaseButton = friend_plot_control(house) as BaseButton
+		if pin!=null and not pin.disabled:
+			if not await click_exposed_control(pin): return false
+			return await wait_housing(func(): return housing_control("HouseFinderPlotVisitButton")!=null,"source friend plot visit control",120000)
+		if not reported and Time.get_ticks_msec()-started>5000:
+			reported = true
+			print("VISITOR_PIN_WAIT pending=",client.housing_state().get("pending",true)," pin=",pin," finder=",housing_control("HouseFinderFrame")," info=",housing_control("HouseFinderPlotVisitButton"))
+		await process_frame
+	fail("Housing timeout: authoritative friend pin after120s; no relationship synthesized")
+	return false
 
 func run_test() -> void:
 	root.size = Vector2i(1280,720)
