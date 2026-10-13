@@ -146,7 +146,7 @@ impl GameClient {
         Ok(true)
     }
 
-    fn editor_ui_contains(&self, point: Vector2) -> bool {
+    pub(super) fn editor_ui_contains(&self, point: Vector2) -> bool {
         self.housing.ui.as_ref().is_some_and(|ui| {
             [
                 "HouseEditorStorageFrame",
@@ -158,6 +158,8 @@ impl GameClient {
                 "HouseEditorPlacedDecorListButton",
                 "HouseEditorDecorBudget",
                 "HouseEditorPlacedDecorList",
+                "HouseEditorPlacedDecorListDragBar",
+                "HouseEditorPlacedDecorListCloseButton",
                 "HouseEditorPlacedDecorContextMenu",
                 "HouseEditorExpertSubmodeBar",
                 "HouseEditorRotateControl",

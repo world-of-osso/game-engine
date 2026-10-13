@@ -44,6 +44,13 @@ func run_test() -> void:
 	if not await record_editor("placed-list-selected"): return
 	if not await click_exposed_control(housing_control("HouseEditorPlacedDecorEntry%d"%instance)): return
 	if not await wait_housing(func(): return int(client.housing_state().get("selected",0))==0, "same row deselects"): return
+	var hit: Dictionary = find_visible_cornerstone_triangle(placed_node(), instance)
+	if hit.is_empty():
+		fail("Placed-list world hover needs an actual placed-decor pick triangle")
+		return
+	push_mouse_motion(hit.point)
+	if not await wait_housing(func(): return placed_row_color(entry_name).is_equal_approx(Color.WHITE), "world target hover updates source list row"): return
+	if not await record_editor("placed-list-world-hover"): return
 	var row: Control = housing_control("HouseEditorPlacedDecorEntry%d"%instance)
 	await click(row.get_global_rect().get_center(),MOUSE_BUTTON_RIGHT)
 	if not await wait_housing(func(): return housing_control("HouseEditorPlacedDecorRemove") != null, "released right button opens Remove Decor menu"): return
