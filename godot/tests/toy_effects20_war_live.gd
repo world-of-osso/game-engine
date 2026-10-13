@@ -14,16 +14,20 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return control("CharCard_0") != null, "roster", 120000): return
 	await click("CharCard_0")
 	await click("EnterWorld")
-	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("CollectionsMicroButton") != null, "world", 180000): return
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("MinimapLauncherButton") != null, "world", 180000): return
 	# Select through the actual Options UI; offline preview defaults omit live HUD rows.
 	await tap(KEY_ESCAPE)
 	await click("MenuBtnOptions")
 	await click("OptionsTabhud")
-	await click("Choiceui_layout%sHit" % ("2" if skin == "forever" else "0"))
+	var wanted_skin := "Modern" if skin == "modern" else "Forever"
+	if client.account_state().ui_skin != wanted_skin:
+		await click("Choiceui_layout%sHit" % ("1" if skin == "forever" else "0"))
+	if control("CollectionsMicroButton") == null:
+		await click("ToggleSwitchlayout_show_micro_menuRightHit")
 	await click("OptionsDoneButton")
 	if control("MenuBtnResume") != null: await click("MenuBtnResume")
-	var wanted_skin := "Modern" if skin == "modern" else "Forever"
 	if client.account_state().ui_skin != wanted_skin: fail("wrong native art skin"); return
+	if not await wait_until(func(): return control("CollectionsMicroButton") != null, "enabled native Micro Menu"): return
 	if not await wait_until(func(): return native_display(-1), "native player model", 120000): return
 	if not await wait_until(func(): return client.merchant_state().item_catalog_loaded, "source item catalog", 180000): return
 	if not await wait_until(func(): return client.toybox_state().catalog_count == 1166, "full authenticated toy catalog", 120000): return
