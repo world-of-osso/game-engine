@@ -1,3 +1,7 @@
+## 2026-10-13 — Shared Catalog search template implementation
+
+[Housing](systems/housing.md#shared-catalog-search-template): shared source search construction/threshold and independent raw state; Catalog native clear/category backing-text/focus routes and shared clear-art/key handling implemented. Pure/registry green; prior-binary native cap RED; both-skin native acceptance pending.
+
 ## 2026-10-12 — Category focus callback boundaries
 
 [Housing](systems/housing.md#category-focus-callback-boundaries): same-focus child-All no-op retains short query; Back preserves it, changed specific focus clears native/backing text and focus. Both-skin actual Tesla/gray-glyph/clear-hidden and exact conservation proof; ownership validation remains explicit.
