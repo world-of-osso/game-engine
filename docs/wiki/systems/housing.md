@@ -38,6 +38,12 @@ Both skins physically pass paidTesla2330 click versus paidbookcase1693 drag/rele
 
 Hotkey pixels remain a named gap, not visual acceptance. InstalledRetail12.1.5.70340 repacks atlas7508739 relative to current member metadata. Lead decision: follow installed data; `db2-follow-install` agent_5615 owns70340 atlas-member re-export. Frozen69933 payloads/derived captures were deleted and content-key test reverted; no obsolete-byte proof/publication is retained. F3 is functionally landable without hotkey visual acceptance. Do not guess UVs or pin the resolver.
 
+### Expert source action continuation — implementation2026-10-13
+
+[Contract](../../specs/housing.md#expert-editor-actions--continuation). Fourteen unbound assignable Retail Expert actions use native Housing bindings; ten distinct held increments read retained physical input so key/modifier release and unbind stop staging. Menu/pending, cancel, mouse takeover, mode/world close clear capture. Hardcoded1–3/X/Q/E/arrows/PageUp/PageDown/Enter are removed; sourced world click still commits. Existing transform rate and axis policy are retained, not asserted as numerical Retail parity. Visitors/WMO scale authority remain unchanged.
+
+`housing_expert_component` shares maintained mode/icon/45px instruction rendering with Basic. Source Lua selected/manipulating/submode sets determine rows;64px submode buttons use−12 spacing/bottom padding and18px source anchor. Reset/grid/snap stay disabled. Current canonical GlobalStrings labels are explicitly user-authorized pending installed70391 export by db2-follow-install; hotkey visual acceptance still withheld. Focused source-instruction/label REDs reproduce absent rows/raw action labels; native both-skin acceptance remains pending, not implied by earlier F3 proof. Evidence `/home/osso/.worktrees/housing-core14-evidence/F4-proof-ledger.md`.
+
 ### Source stored entry tiles
 
 Verified:2026-10-13. Source97×97 BaseHousingCatalogEntry tiles replace invented125px cards/under-tile labels;87px icons inset5, actual owned count BOTTOMRIGHT−9/+7,16px shadow font and102×107 source sequence pitch. Existing source tooltips retain authenticated names. [Contract](../../specs/housing.md#owned-storage-entry-tiles).
