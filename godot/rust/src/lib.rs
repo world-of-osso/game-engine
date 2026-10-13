@@ -2404,7 +2404,20 @@ impl GameClient {
                 self.refresh_transmog()?;
             }
             AccountEvent::Housing(reply) => self.receive_housing_reply(reply)?,
-            AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
+            AccountEvent::Toys(update) => {
+                eprintln!(
+                    "toyfx24 received tome_learned={} bff_learned={}",
+                    update
+                        .toys
+                        .iter()
+                        .any(|toy| toy.item_id == 127670 && toy.learned),
+                    update
+                        .toys
+                        .iter()
+                        .any(|toy| toy.item_id == 90067 && toy.learned)
+                );
+                self.toybox.model.receive(update.toys);
+            }
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
             AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
         }
