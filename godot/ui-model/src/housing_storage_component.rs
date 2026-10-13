@@ -6,14 +6,15 @@ use ui_toolkit::{rsx, widget_def::Element};
 
 pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Element {
     let [width, height] = view.model.storage_panel.size;
-    if view.model.storage_panel.collapsed {
+    let (part, left) = view.model.storage_drawer_presentation();
+    if part == crate::housing_storage::DrawerPart::Handle {
         let icon = named_atlas_texture(
             "HouseEditorStorageExpandIcon".into(),
             "house-chest-open-drawer-button",
             (-4.0, 0.0, 64.0, 72.0),
         );
         let top = ((view.viewport[1] - 72.0) / 2.0 - 150.0).max(0.0);
-        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left:0.0,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,{icon}}};
+        return rsx! {button {name:"HouseEditorStorageExpandButton",width:64.0,height:72.0,pos_type:"absolute",left,top,strata:FrameStrata::Dialog,onclick:"housing:storage:expand",button_default_skin:false,{icon}}};
     }
     let background = named_atlas_texture(
         "HouseEditorStorageBackground".into(),
@@ -47,7 +48,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
     let collapse_top = (height - 74.0) / 2.0;
     let resize_left = width - 20.0;
     let resize_top = height - 20.0;
-    rsx! {r#frame {name:"HouseEditorStorageFrame",width,height,pos_type:"absolute",left:0.0,top:0.0,mouse_enabled:true,strata:FrameStrata::Dialog,
+    rsx! {r#frame {name:"HouseEditorStorageFrame",width,height,pos_type:"absolute",left,top:0.0,mouse_enabled:true,strata:FrameStrata::Dialog,
         {background}{header}{stored}{categories}{filters}
         fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:content_width,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
         fontstring {name:"HouseEditorStorageTitle",text:status,width:content_width,height:32.0,pos_type:"absolute",left:85.0,top:footer_top,font_size:14.0}
