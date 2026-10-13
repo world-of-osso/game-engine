@@ -75,6 +75,25 @@ fn categories() -> Element {
 /// GroupFinderGroupButtonTemplate; PVEFrame.lua no-scenarios anchors101/191/281.
 fn category(index: usize, title: &str, icon: u32, enabled: bool) -> Element {
     let name = format!("GroupFinderFrameGroupButton{}", index + 1);
+    let mut art = category_surfaces(&name, icon, enabled);
+    let color = if enabled {
+        NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
+    art.extend(label(
+        format!("{name}Name"),
+        title,
+        (83.0, 0.0, 106.0, 60.0),
+        (16.0, color, "LEFT"),
+    ));
+    let top = 101.0 + index as f32 * 90.0;
+    let disabled = !enabled;
+    rsx! { button { name: {DynName(name)}, width: 203.0, height: 60.0,
+    left: 10.0, top, pos_type: "absolute", button_default_skin: false,
+    onclick: "follower:type:follower", disabled, {art} } }
+}
+fn category_surfaces(name: &str, icon: u32, enabled: bool) -> Element {
     let coords = if enabled {
         "0.00390625,0.87890625,0.75195313,0.83007813"
     } else {
@@ -97,28 +116,14 @@ fn category(index: usize, title: &str, icon: u32, enabled: bool) -> Element {
         (2.5, -2.0, 66.0, 66.0),
         WHITE,
     ));
-    let color = if enabled {
-        NORMAL_FONT_COLOR
-    } else {
-        "0.5,0.5,0.5,1"
-    };
-    art.extend(label(
-        format!("{name}Name"),
-        title,
-        (83.0, 0.0, 106.0, 60.0),
-        (16.0, color, "LEFT"),
-    ));
-    art.extend(
-        rsx! { texture { name: {DynName(format!("{name}Highlight"))},
-        width: 224.0, height: 80.0, left: -10.5, top: -10.0, pos_type: "absolute",
-        texture_fdid: 593_918, tex_coords: "0.00390625,0.87890625,0.75195313,0.83007813",
-        draw_layer: "HIGHLIGHT", blend_mode: "ADD", alpha: 0.8 } },
-    );
-    let top = 101.0 + index as f32 * 90.0;
-    let disabled = !enabled;
-    rsx! { button { name: {DynName(name)}, width: 203.0, height: 60.0,
-    left: 10.0, top, pos_type: "absolute", button_default_skin: false,
-    onclick: "follower:type:follower", disabled, {art} } }
+    art.extend(category_highlight(name));
+    art
+}
+fn category_highlight(name: &str) -> Element {
+    rsx! { texture { name: {DynName(format!("{name}Highlight"))},
+    width: 224.0, height: 80.0, left: -10.5, top: -10.0, pos_type: "absolute",
+    texture_fdid: 593_918, tex_coords: "0.00390625,0.87890625,0.75195313,0.83007813",
+    draw_layer: "HIGHLIGHT", blend_mode: "ADD", alpha: 0.8 } }
 }
 /// PVEFrame.xml BlueBg, corners, lines and filigree. UVs are source TexCoords.
 fn left_panel() -> Element {
@@ -330,7 +335,14 @@ fn dungeon_type(view: &View) -> Element {
         (6.0, 116.5, 115.0, 24.0),
         (13.0, NORMAL_FONT_COLOR, "RIGHT"),
     );
-    elements.extend(dropdown_button_with_state(
+    elements.extend(type_dropdown(view.type_open));
+    if view.type_open {
+        elements.extend(type_menu());
+    }
+    elements
+}
+fn type_dropdown(open: bool) -> Element {
+    dropdown_button_with_state(
         DropdownButton {
             frame_name: "LFDQueueFrameTypeDropdown",
             label_name: "LFDQueueFrameTypeDropdownText",
@@ -346,28 +358,27 @@ fn dungeon_type(view: &View) -> Element {
             onclick: Some("follower:type"),
         },
         DropdownState {
-            open: view.type_open,
+            open,
             ..Default::default()
         },
-    ));
-    if view.type_open {
-        elements.extend(context_menu(ContextMenu {
-            frame_name: "LFDQueueFrameTypeDropdownMenu",
-            title_name: "LFDQueueFrameTypeTitle",
-            divider_name: "LFDQueueFrameTypeDivider",
-            title: "Type",
-            hidden: false,
-            width: 200.0,
-            x: 131.0,
-            y: 141.0,
-            items: &[ContextMenuItem {
-                name: "LFDQueueFrameTypeFollower",
-                label: "Follower Dungeons",
-                action: "follower:type:follower",
-            }],
-        }));
-    }
-    elements
+    )
+}
+fn type_menu() -> Element {
+    context_menu(ContextMenu {
+        frame_name: "LFDQueueFrameTypeDropdownMenu",
+        title_name: "LFDQueueFrameTypeTitle",
+        divider_name: "LFDQueueFrameTypeDivider",
+        title: "Type",
+        hidden: false,
+        width: 200.0,
+        x: 131.0,
+        y: 141.0,
+        items: &[ContextMenuItem {
+            name: "LFDQueueFrameTypeFollower",
+            label: "Follower Dungeons",
+            action: "follower:type:follower",
+        }],
+    })
 }
 fn description(view: &View) -> String {
     if let Some(error) = view.state.as_ref().and_then(|state| state.error.as_ref()) {
