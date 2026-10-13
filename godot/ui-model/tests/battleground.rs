@@ -535,6 +535,52 @@ fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
     assert_eq!(label.text, expected);
 }
 
+#[test]
+fn retail_scoreboard_tabs_use_source_anchor_spacing_and_filter_actions() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = PvpView {
+            scoreboard: true,
+            ..Default::default()
+        };
+        receive(&mut view, snapshot(BgPhase::InProgress, true));
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pvp_screen).sync(&context, &mut registry);
+        let first = registry
+            .get(registry.get_by_name("PVPScoreboardTab1").unwrap())
+            .unwrap();
+        assert_eq!(first.height.value(), 32.0);
+        assert_eq!(
+            first.position.left,
+            ui_toolkit::layout_values::Val::Px(40.0)
+        );
+        assert_eq!(
+            first.position.top,
+            ui_toolkit::layout_values::Val::Px(348.0)
+        );
+        let second = registry
+            .get(registry.get_by_name("PVPScoreboardTab2").unwrap())
+            .unwrap();
+        assert_eq!(
+            second.position.left,
+            ui_toolkit::layout_values::Val::Px(40.0 + first.width.value() + 3.0)
+        );
+        assert_eq!(second.onclick.as_deref(), Some("pvp:alliance"));
+        view.action("pvp:alliance");
+        assert_eq!(view.filter, Some(BgTeam::A));
+        view.action("pvp:all");
+        assert_eq!(view.filter, None);
+    }
+}
+
 fn assert_size(registry: &FrameRegistry, name: &str, width: f32, height: f32) {
     let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
     assert_eq!(frame.width, ui_toolkit::frame::Dimension::Fixed(width));
