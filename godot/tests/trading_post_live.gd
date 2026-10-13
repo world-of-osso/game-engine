@@ -48,9 +48,17 @@ func browse() -> void:
 	await click("PerksProgramFilter")
 	if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
 	await capture("category-dropdown")
-	for category in [[1, "transmog"], [8, "transmog-set"], [3, "pet"], [2, "mount"]]:
+	for category in [[1, "transmog", "player"], [8, "transmog-set", "player"], [3, "pet", "creature"], [2, "mount", "creature"]]:
 		if not await choose_category(category[0]): return
-		if not await wait_until(func(): return client.trading_post_state().preview_ready, category[1] + " preview", 120000): return
+		var first: PackedStringArray = str(client.trading_post_state().rows[0]).split("|")
+		if first[1] == "0":
+			# Unreadable source rows keep their gap text and must not show a stale model.
+			await click("PerksProgramProduct" + first[0])
+			if not await wait_until(func(): return str(client.trading_post_state().selected) == first[0] and client.trading_post_state().preview_kind == "none", "unavailable row clears preview"): return
+			await capture("vendor-" + category[1] + "-unavailable-row")
+		if not await select_first_available(): return
+		var kind: String = category[2]
+		if not await wait_until(func(): return client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == kind, category[1] + " " + kind + " preview", 120000): return
 		await capture("vendor-" + category[1])
 	if not await rotate_model(): return
 	if not await choose_category(5): return
@@ -113,6 +121,15 @@ func choose_category(id: int) -> bool:
 		await click("PerksProgramFilter")
 	await click("PerksProgramCategory%d" % id)
 	return await wait_until(func(): return int(client.trading_post_state().category) == id, "category %d" % id)
+
+func select_first_available() -> bool:
+	for row in client.trading_post_state().rows:
+		var parts: PackedStringArray = row.split("|")
+		if parts[1] == "1":
+			await click("PerksProgramProduct" + parts[0])
+			return await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0])
+	fail("No available row in category %d" % int(client.trading_post_state().category))
+	return false
 
 func rotate_model() -> bool:
 	var start := control("PerksProgramMainModelScene").get_global_rect().get_center()
