@@ -1,6 +1,9 @@
 ## 2026-10-12 — Wings rainbow player-camera investigation
 
 [Material time](investigations/avenging-wrath-material-time.md#player-camera-rainbow-investigation--2026-10-12): published online protocol alignment resolved; actual glyph and full-budget Ret/Herald native purchases/casts captured rear45°/9yd in both skins. Named-source model/texture census and beam/dissolve references retained. No rainbow reproduced, no renderer fix claimed; user's platform/runtime visual identity remains unknown.
+## 2026-10-12 — Native Trading Post live proof and preview asset closure
+
+[Trading Post](systems/trading-post.md): authentic Tawny gossip opens the full-screen vendor; other layers hide like Retail area `full` and are restored on Leave. Live RED showed an unreadable top Transmog row leaving the previous gryphon on screen; unavailable rows now show no model and failed previews clear. The authenticated local-CASC closure raises complete preview chains from 167 to 1287 of 1309 rows in a private, validated package. Modern/Forever browse and relog PASS with 26 inspected PNGs. Live purchase is blocked because supported activities have no reachable content; server tests prove purchase/collection/refund.
 
 ## 2026-10-12 — Cage collision-only WMOs and arena source gaps
 

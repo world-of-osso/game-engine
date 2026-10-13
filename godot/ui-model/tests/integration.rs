@@ -110,6 +110,7 @@ mod target_raid_icon;
 mod textfit;
 mod threat_meter;
 mod toybox;
+mod trading_post;
 mod trainer;
 mod trainer_art;
 mod trainer_tooltips;
