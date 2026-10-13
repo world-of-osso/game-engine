@@ -179,8 +179,10 @@ func ipc(arguments: Array) -> String:
 
 func finish(label: String) -> void:
 	if int(client.trading_post_state().hidden_layers) == 0: fail("HUD stayed visible under the full-screen vendor"); return
+	var chat: CanvasLayer = client.get_node_or_null("ChatFrameUI")
+	if chat == null or chat.visible: fail("Chat stayed visible under the full-screen vendor"); return
 	await click("PerksProgramLeaveButton")
-	if not await wait_until(func(): return not client.trading_post_state().open and control("MinimapLauncherButton") != null, "Leave restores the HUD"): return
+	if not await wait_until(func(): return not client.trading_post_state().open and control("MinimapLauncherButton") != null and chat.visible, "Leave restores the HUD and chat"): return
 	print("TRADING_POST_LIVE PASS skin=", skin, " phase=", label, " state=", client.trading_post_state())
 	client.free()
 	quit(0)
