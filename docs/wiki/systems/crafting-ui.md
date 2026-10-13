@@ -2,6 +2,12 @@
 
 Verified: 2026-10-11 — private both-skin Leatherworking specialization and cross-character fixed-output order/mail proof. [Contract](../../specs/crafting-ui.md) owns requirements; [existing professions](native-professions-crafting.md) owns recipe/trainer behavior. Retail Mainline defines both skins' elements; Forever changes art.
 
+## Customer control fidelity — verified 2026-10-13
+
+CustomerOrders.xml67-77 supplies Browse BOTTOMLEFT(20,-28) and My Orders LEFT at Browse RIGHT(-10,0); shared PanelTabButtonTemplate measures widths. Form.xml142/421 supplies recipient TOPRIGHT(-10,-11), 120×25 WowStyle1, and duration LEFT at Payment.Duration RIGHT(+10,0). Form origin(5,60), Payment origin(510,155), Duration label110×40 at y345 resolves dropdown(620,352.5). Source sibling note/payment anchors prevent overlap. Pending disables dropdown actions; existing recipient/duration reducers remain unchanged.
+
+Orders RED caught145px vs120px; seven targeted order tests pass at279e638fc (later menu commits do not change orders). Native before/after four1920×1080 PNGs per phase inspected in both skins: `/syncthing/AgentShared/2026-10-13/ui-gameplay-panels/{before,after}/`. Preview959ec8e8d uses the production customer screen, no server. `depot-build.py` native build and helper-native cargo check pass ata4b4ffd3f. Cage emitted missing XWayland/libdecor/FIFO/activation and VSync warnings but rendered successfully. These captures establish control geometry/art, not new gameplay authority.
+
 ## Projection and authority
 
 `ProfessionView` selects Recipes, Specializations, Orders or the disabled recraft schematic. Customer orders use the separate825×568 PortraitFrame; crafter orders use942×658 ProfessionsFrame; specialization page is1144px. Backgrounds, tabs, paths and dial art use the authored Retail atlases and profession kit.
