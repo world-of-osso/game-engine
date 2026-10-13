@@ -3,6 +3,7 @@
 
 mod adventure_activities;
 mod adventure_guide;
+mod adventure_journeys;
 mod ahportrait;
 mod atlas_skins;
 mod auction_dialogs;
@@ -53,6 +54,7 @@ mod loading;
 mod login;
 mod loot_frame;
 mod main_action_bar;
+mod menu_primitives;
 mod merchant;
 mod merchant_junk;
 mod merchant_repair;

@@ -5,11 +5,10 @@ use ui_toolkit::widget_def::Element;
 
 use super::options_menu_active_sections;
 use super::options_menu_sections;
-use super::screen_title::framed_title;
 use crate::input_bindings::{BindingSection, InputAction};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
+use crate::ui::widgets::font_string::{FontColor, JustifyH};
 use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESETS};
 
 #[path = "options_menu_scroll.rs"]
@@ -27,7 +26,6 @@ impl fmt::Display for DynName {
 
 pub const OPTIONS_ROOT: FrameName = FrameName("OptionsRoot");
 pub const OPTIONS_DRAG_HANDLE: FrameName = FrameName("OptionsDragHandle");
-const OPTIONS_TITLE_FRAME: FrameName = FrameName("OptionsTitleFrame");
 const OPTIONS_TITLE_LABEL: FrameName = FrameName("OptionsTitleLabel");
 const OPTIONS_TAB_PANEL: FrameName = FrameName("OptionsTabPanel");
 const OPTIONS_TAB_INNER: FrameName = FrameName("OptionsTabInner");
@@ -39,32 +37,18 @@ const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
-const OPTIONS_W: f32 = 980.0;
-const OPTIONS_HEADER_H: f32 = 58.0;
-const OPTIONS_HEADER_GAP: f32 = 18.0;
-const OPTIONS_BODY_INSET_X: f32 = 18.0;
-const OPTIONS_BODY_GAP: f32 = 32.0;
-const OPTIONS_FOOTER_CLEARANCE: f32 = 106.0;
-const OPTIONS_TAB_W: f32 = 186.0;
-const OPTIONS_CONTENT_W: f32 = 716.0;
-const OPTIONS_CONTENT_H: f32 = 478.0;
+const OPTIONS_W: f32 = 920.0;
+const OPTIONS_H: f32 = 724.0;
+const OPTIONS_HEADER_H: f32 = 64.0;
+const OPTIONS_TAB_W: f32 = 199.0;
+const OPTIONS_CONTENT_W: f32 = 665.0;
+const OPTIONS_CONTENT_H: f32 = 601.0;
 const OPTIONS_CONTENT_INSET_X: f32 = 15.0;
 const OPTIONS_CONTENT_INSET_TOP: f32 = 54.0;
 const OPTIONS_CONTENT_INSET_BOTTOM: f32 = 18.0;
-const OPTIONS_FOOTER_RIGHT_INSET: f32 = 80.0;
-const TAB_ROW_W: f32 = 164.0;
-const TAB_ROW_H: f32 = 30.0;
-const TAB_LABEL_W: f32 = 132.0;
-const TAB_ACCENT_H: f32 = 18.0;
-
-const TAB_TEXT_IDLE: FontColor = FontColor::new(0.83, 0.79, 0.69, 1.0);
-const TAB_TEXT_SELECTED: FontColor = FontColor::new(0.96, 0.84, 0.56, 1.0);
-const TAB_BG_IDLE: &str = "0.07,0.06,0.05,0.0";
-const TAB_BG_SELECTED: &str = "0.18,0.14,0.08,0.55";
-const TAB_BORDER_IDLE: &str = "1px solid 0.30,0.24,0.09,0.0";
-const TAB_BORDER_SELECTED: &str = "1px solid 0.42,0.33,0.12,0.65";
-const TAB_ACCENT_COLOR: &str = "0.95,0.76,0.14,0.95";
-const TAB_DIVIDER_COLOR: &str = "0.22,0.18,0.10,0.45";
+const OPTIONS_FOOTER_RIGHT_INSET: f32 = 16.0;
+const TAB_ROW_W: f32 = 175.0;
+const TAB_ROW_H: f32 = 20.0;
 
 pub const ACTION_OPTIONS_OKAY: &str = "options_okay";
 pub const ACTION_OPTIONS_DEFAULTS: &str = "options_defaults";
@@ -358,14 +342,18 @@ pub fn keybinding_button_name(action: InputAction) -> String {
 
 /// The Options panel, its content scrolled down `offset` pixels (the
 /// [`OPTIONS_CONTENT_SCROLL`] position).
-pub fn options_view(model: &OptionsViewModel, offset: usize) -> Element {
+pub fn options_view(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
+    let mut body = build_body(model, offset, open);
+    let popups = crate::options_dropdown::detach_popup(&mut body);
     rsx! {
-        panel {
+        r#frame {
             name: OPTIONS_ROOT,
             width: {OPTIONS_W},
-            height: "auto",
-            layout: "flex-column",
-            align: "start",
+            height: OPTIONS_H,
             strata: FrameStrata::Dialog,
             frame_level: 0.0,
             pos_type: "absolute",
@@ -384,18 +372,10 @@ pub fn options_view(model: &OptionsViewModel, offset: usize) -> Element {
                 left: "0%",
                 top: "0%",
             }
+            {settings_chrome()}
             {title()}
-            r#frame {
-                name: "OptionsHeaderClearance",
-                width: {OPTIONS_W},
-                height: {OPTIONS_HEADER_H + OPTIONS_HEADER_GAP},
-            }
-            {build_body(model, offset)}
-            r#frame {
-                name: "OptionsFooterClearance",
-                width: {OPTIONS_W},
-                height: {OPTIONS_FOOTER_CLEARANCE},
-            }
+            {body}
+            {popups}
             {build_footer()}
         }
     }
@@ -404,166 +384,165 @@ pub fn options_view(model: &OptionsViewModel, offset: usize) -> Element {
 /// Retail SettingsPanel title: `SETTINGS_TITLE` "Options" (Blizzard_SettingsPanel.lua:54,
 /// GlobalStrings `SETTINGS_TITLE`).
 fn title() -> Element {
-    framed_title(
-        OPTIONS_TITLE_FRAME,
-        OPTIONS_TITLE_LABEL,
-        300.0,
-        "Options",
-        -18.0,
-    )
+    rsx! { fontstring { name: OPTIONS_TITLE_LABEL, text: "Options", font_size: 12.0,
+    width: 800.0, height: 20.0, pos_type: "absolute", left: 60.0, top: 5.0, } }
 }
-
-fn build_body(model: &OptionsViewModel, offset: usize) -> Element {
-    rsx! {
-        r#frame {
-            name: "OptionsBody",
-            width: {OPTIONS_TAB_W + OPTIONS_BODY_GAP + OPTIONS_CONTENT_W},
-            height: "auto",
-            layout: "flex-row",
-            align: "start",
-            gap: {OPTIONS_BODY_GAP},
-            pos_type: "relative",
-            margin_left: {OPTIONS_BODY_INSET_X},
-            {build_tabs(model)}
-            {build_content(model, offset)}
-        }
-    }
+fn build_body(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
+    rsx! { r#frame { name: "OptionsBody", width: 880.0, height: 602.0, pos_type: "absolute", left: 18.0, top: 76.0,
+        {build_tabs(model)}
+        r#frame { name: "OptionsContentMount", width: OPTIONS_CONTENT_W, height: OPTIONS_CONTENT_H,
+            pos_type: "absolute", left: 215.0, top: 0.0, {build_content(model,offset,open)} }
+    } }
 }
-
 fn build_tabs(model: &OptionsViewModel) -> Element {
     let buttons: Element = OptionsCategory::ALL
         .iter()
         .flat_map(|category| tab_button(*category, model.category == *category))
         .collect();
-    rsx! {
-        panel {
-            name: OPTIONS_TAB_PANEL,
-            style: "inner_plain",
-            width: {OPTIONS_TAB_W},
-            height: {OPTIONS_CONTENT_H},
-            pos_type: "relative",
-            {tab_stack(buttons)}
-        }
-    }
+    rsx! { r#frame { name: OPTIONS_TAB_PANEL, width: OPTIONS_TAB_W, height: 602.0,
+        r#frame { name: OPTIONS_TAB_INNER, width: TAB_ROW_W, height: 602.0, layout: "flex-column", gap: 0.0, {buttons} }
+    } }
 }
-
-fn tab_stack(buttons: Element) -> Element {
-    rsx! {
-        r#frame {
-            name: OPTIONS_TAB_INNER,
-            width: {OPTIONS_TAB_W - 16.0},
-            height: {OPTIONS_CONTENT_H - 24.0},
-            layout: "flex-column",
-            align: "center",
-            gap: 5.0,
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
-            margin_left: {8},
-            margin_top: {12.0},
-            {buttons}
-        }
-    }
-}
-
 fn tab_button(category: OptionsCategory, selected: bool) -> Element {
     let action = cat_action(category);
     let name = DynName(format!("OptionsTab{}", category.key()));
-    let (background, border, color) = tab_style(selected);
-    let accent = if selected {
-        tab_accent(&name.0)
-    } else {
-        Vec::new()
+    let hide = !selected;
+    let background = ui_toolkit::atlas::get_region("Options_List_Active")
+        .expect("Settings category selected atlas");
+    rsx! { button { name: {&name}, width: TAB_ROW_W, height: TAB_ROW_H, onclick: action, button_default_skin: false,
+        texture { name: DynName(format!("{}Selected",name.0)), texture_atlas: "Options_List_Active", hidden: hide,
+            width: background.width, height: background.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
+        texture { name: DynName(format!("{}Hover",name.0)), texture_atlas: "Options_List_Hover", hidden: true,
+            width: background.width, height: background.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
+        fontstring { name: DynName(format!("{}Label",name.0)), text: category.title(), font_size: 12.0,
+            font_color: {if selected { FontColor::new(1.0,1.0,1.0,1.0) } else { FontColor::new(1.0,0.82,0.0,1.0) }},
+            width: 139.0, height: TAB_ROW_H, justify_h: JustifyH::Left,
+            pos_type: "absolute", left: 36.0, top: -1.0, frame_level: 100.0, }
+    } }
+}
+fn settings_chrome() -> Element {
+    // SettingsFrameTemplate BG TOPLEFT7,-18 -> BOTTOMRIGHT-3,3.
+    // GlobalColor191 PANEL_BACKGROUND_COLOR =0xcc1f1e21.
+    let bg = ui_toolkit::atlas::get_region("uiframebackground-nineslice-cornerbottomleft")
+        .expect("FlatPanelBackgroundTemplate corner");
+    let bg_color = "0.121569,0.117647,0.129412,0.8";
+    let mut art = rsx! {
+        r#frame { name: "OptionsBackgroundTop", width: 910.0, height: {703.0 - bg.height},
+            background_color: bg_color, pos_type: "absolute", left: 7.0, top: 18.0, }
+        r#frame { name: "OptionsBackgroundBottom", width: {910.0 - bg.width * 2.0}, height: bg.height,
+            background_color: bg_color, pos_type: "absolute", left: {7.0 + bg.width}, top: {721.0 - bg.height}, }
+        texture { name: "OptionsBackgroundBottomLeft", texture_atlas: "uiframebackground-nineslice-cornerbottomleft",
+            width: bg.width, height: bg.height, vertex_color: bg_color, pos_type: "absolute", left: 7.0, top: {721.0-bg.height}, }
+        texture { name: "OptionsBackgroundBottomRight", texture_atlas: "uiframebackground-nineslice-cornerbottomright",
+            width: bg.width, height: bg.height, vertex_color: bg_color, pos_type: "absolute", left: {917.0-bg.width}, top: {721.0-bg.height}, }
     };
-    rsx! {
-        r#frame {
-            name: {&name},
-            width: {TAB_ROW_W},
-            height: {TAB_ROW_H},
-            onclick: {&action},
-            background_color: background,
-            border,
-            {tab_label(&name.0, category.title(), color)}
-            {tab_divider(&name.0)}
-            {accent}
-        }
+    art.extend(crate::quest_art::named_atlas_texture(
+        "OptionsInnerFrame".into(),
+        "Options_InnerFrame",
+        (17.0, 64.0, 886.0, 618.0),
+    ));
+    // ButtonFrameTemplateNoPortrait: source corner atlases, offsets-8/+4,+16/-3.
+    let corner =
+        ui_toolkit::atlas::get_region("UI-Frame-Metal-CornerTopLeft").expect("Settings corner");
+    // Retail2x metal top150px=>75logical; bottom64px=>32logical.
+    let cw = corner.width / 2.0;
+    let ch = corner.height / 2.0;
+    let bc = 32.0;
+    for (part, atlas, x, y, w, h) in [
+        (
+            "TopLeft",
+            "UI-Frame-Metal-CornerTopLeft",
+            -8.0,
+            -16.0,
+            cw,
+            ch,
+        ),
+        (
+            "TopRight",
+            "UI-Frame-Metal-CornerTopRight",
+            OPTIONS_W + 4.0 - cw,
+            -16.0,
+            cw,
+            ch,
+        ),
+        (
+            "BottomLeft",
+            "UI-Frame-Metal-CornerBottomLeft",
+            -8.0,
+            OPTIONS_H + 3.0 - bc,
+            bc,
+            bc,
+        ),
+        (
+            "BottomRight",
+            "UI-Frame-Metal-CornerBottomRight",
+            OPTIONS_W + 4.0 - bc,
+            OPTIONS_H + 3.0 - bc,
+            bc,
+            bc,
+        ),
+        (
+            "Top",
+            "_UI-Frame-Metal-EdgeTop",
+            cw - 8.0,
+            -16.0,
+            OPTIONS_W + 12.0 - 2.0 * cw,
+            ch,
+        ),
+        (
+            "Bottom",
+            "_UI-Frame-Metal-EdgeBottom",
+            bc - 8.0,
+            OPTIONS_H + 3.0 - bc,
+            OPTIONS_W + 12.0 - 2.0 * bc,
+            bc,
+        ),
+        (
+            "Left",
+            "!UI-Frame-Metal-EdgeLeft",
+            -8.0,
+            ch - 16.0,
+            cw,
+            OPTIONS_H + 19.0 - ch - bc,
+        ),
+        (
+            "Right",
+            "!UI-Frame-Metal-EdgeRight",
+            OPTIONS_W + 4.0 - cw,
+            ch - 16.0,
+            cw,
+            OPTIONS_H + 19.0 - ch - bc,
+        ),
+    ] {
+        art.extend(crate::quest_art::named_atlas_texture(
+            format!("OptionsBorder{part}"),
+            atlas,
+            (x, y, w, h),
+        ));
     }
-}
-
-fn tab_style(selected: bool) -> (&'static str, &'static str, FontColor) {
-    if selected {
-        (TAB_BG_SELECTED, TAB_BORDER_SELECTED, TAB_TEXT_SELECTED)
-    } else {
-        (TAB_BG_IDLE, TAB_BORDER_IDLE, TAB_TEXT_IDLE)
-    }
-}
-
-fn tab_label(name: &str, label: &str, color: FontColor) -> Element {
-    rsx! {
-        fontstring {
-            name: {DynName(format!("{name}Label"))},
-            width: {TAB_LABEL_W},
-            height: {TAB_ROW_H},
-            text: {label},
-            font: GameFont::FrizQuadrata,
-            font_size: 14.0,
-            font_color: color,
-            justify_h: JustifyH::Left,
-            pos_type: "absolute",
-            left: "0%",
-            top: "50%",
-            translate_y: "-50%",
-            margin_left: {18},
-        }
-    }
-}
-
-fn tab_divider(name: &str) -> Element {
-    rsx! {
-        r#frame {
-            name: {DynName(format!("{name}Divider"))},
-            width: {TAB_ROW_W - 22.0},
-            height: 1.0,
-            background_color: TAB_DIVIDER_COLOR,
-            pos_type: "absolute",
-            left: "50%",
-            top: "100%",
-            translate_x: "-50%",
-            translate_y: "-100%",
-            margin_top: {-1.0},
-        }
-    }
-}
-
-fn tab_accent(name: &str) -> Element {
-    rsx! {
-        r#frame {
-            name: {DynName(format!("{name}Accent"))},
-            width: 3.0,
-            height: {TAB_ACCENT_H},
-            background_color: TAB_ACCENT_COLOR,
-            pos_type: "absolute",
-            left: "0%",
-            top: "50%",
-            translate_y: "-50%",
-            margin_left: {8},
-        }
-    }
+    art
 }
 
 /// The content area is as tall as the category list, as Retail's settings container is
 /// anchored to it (`Blizzard_SettingsPanel.xml:59-74`); a taller page scrolls.
-fn build_content(model: &OptionsViewModel, offset: usize) -> Element {
+fn build_content(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
     rsx! {
-        panel {
+        r#frame {
             name: OPTIONS_CONTENT_PANEL,
-            style: "inner_plain",
             width: {OPTIONS_CONTENT_W},
             height: {OPTIONS_CONTENT_H},
             layout: "flex-column",
             pos_type: "relative",
             {content_header(model.category)}
-            {content_body(model, offset)}
+            {content_body(model, offset, open)}
         }
     }
 }
@@ -589,28 +568,35 @@ fn content_header(category: OptionsCategory) -> Element {
 
 /// Pixels the Options content scrolls per stepper click on `model`'s page.
 pub fn options_pan_extent(model: &OptionsViewModel) -> usize {
-    category_body(model).pan_extent()
+    category_body(model, None).pan_extent()
 }
 
 /// Pixels the Options content scrolls per wheel notch on `model`'s page.
 pub fn options_wheel_extent(model: &OptionsViewModel) -> usize {
-    category_body(model).wheel_extent()
+    category_body(model, None).wheel_extent()
 }
 
-fn category_body(model: &OptionsViewModel) -> OptionsPage {
+fn category_body(
+    model: &OptionsViewModel,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> OptionsPage {
     match model.category {
         OptionsCategory::Graphics => options_menu_active_sections::graphics_body(&model.graphics),
         OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
-        OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
-        OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud, &model.layout),
+        OptionsCategory::Interface => {
+            options_menu_active_sections::interface_body(&model.hud, open)
+        }
+        OptionsCategory::Hud => {
+            options_menu_active_sections::hud_body(&model.hud, &model.layout, open)
+        }
         OptionsCategory::ActionBars => {
             options_menu_active_sections::action_bars_body(&model.hud, model.layout.skin)
         }
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {
-            options_menu_active_sections::accessibility_body(&model.graphics, &model.hud)
+            options_menu_active_sections::accessibility_body(&model.graphics, &model.hud, open)
         }
         OptionsCategory::Keybindings => {
             options_menu_active_sections::keybindings_body(&model.bindings)
@@ -622,7 +608,11 @@ fn category_body(model: &OptionsViewModel) -> OptionsPage {
     }
 }
 
-fn content_body(model: &OptionsViewModel, offset: usize) -> Element {
+fn content_body(
+    model: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
     let area = scroll::ScrollArea {
         row_width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0,
         width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X,
@@ -636,7 +626,7 @@ fn content_body(model: &OptionsViewModel, offset: usize) -> Element {
             pos_type: "relative",
             margin_left: {OPTIONS_CONTENT_INSET_X},
             margin_top: {OPTIONS_CONTENT_INSET_TOP},
-            {scroll::scroll_area(category_body(model), &area, offset)}
+            {scroll::scroll_area(category_body(model,open), &area, offset)}
         }
     }
 }
@@ -651,14 +641,14 @@ fn build_footer() -> Element {
             layout: "flex-row",
             justify: "start",
             align: "center",
-            gap: 12.0,
+            gap: 2.0,
             pos_type: "absolute",
             left: "100%",
             top: "100%",
             translate_x: "-100%",
             translate_y: "-100%",
             margin_left: {(-OPTIONS_FOOTER_RIGHT_INSET).to_string()},
-            margin_top: {-20.0},
+            margin_top: -16.0,
             {footer_buttons}
         }
     }
@@ -677,9 +667,9 @@ fn footer_specs() -> [(&'static str, &'static str, &'static str, f32); 2] {
             "OptionsDefaultsButton",
             "Defaults",
             ACTION_OPTIONS_DEFAULTS,
-            116.0,
+            96.0,
         ),
-        ("OptionsDoneButton", "Done", ACTION_OPTIONS_OKAY, 94.0),
+        ("OptionsDoneButton", "Done", ACTION_OPTIONS_OKAY, 96.0),
     ]
 }
 
@@ -691,7 +681,7 @@ fn small_button(name: &str, text: &str, action: &str, width: f32) -> Element {
         button {
             name: {&n},
             width: {width},
-            height: 30.0,
+            height: 22.0,
             text: {&text},
             font_size: 14.0,
             onclick: {&action},
@@ -699,6 +689,54 @@ fn small_button(name: &str, text: &str, action: &str, width: f32) -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+        }
+    }
+}
+
+pub fn sync_options_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, widgets::button::ButtonState};
+    let categories: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let name = frame.name.as_deref()?;
+            if !name.starts_with("OptionsTab") {
+                return None;
+            }
+            let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
+                return None;
+            };
+            Some((name.to_owned(), button.hovered))
+        })
+        .collect();
+    for (name, hovered) in categories {
+        let selected = registry
+            .get_by_name(&format!("{name}Selected"))
+            .and_then(|id| registry.get(id))
+            .is_some_and(|frame| !frame.hidden);
+        if let Some(id) = registry.get_by_name(&format!("{name}Hover")) {
+            registry.set_hidden(id, !hovered || selected);
+        }
+    }
+    let bindings: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let key = frame.name.as_deref()?.strip_prefix("KeybindingButton")?;
+            let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
+                return None;
+            };
+            Some((key.to_owned(), button.state, button.hovered))
+        })
+        .collect();
+    for (key, state, hovered) in bindings {
+        let pushed = state == ButtonState::Pushed;
+        for (name, visible) in [
+            (format!("KeybindingSilver{key}"), !pushed),
+            (format!("KeybindingSilver{key}Pressed"), pushed),
+            (format!("KeybindingHover{key}"), hovered),
+        ] {
+            if let Some(id) = registry.get_by_name(&name) {
+                registry.set_hidden(id, !visible);
+            }
         }
     }
 }

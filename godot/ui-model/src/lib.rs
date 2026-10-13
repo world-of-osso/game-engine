@@ -43,6 +43,7 @@ pub mod ui {
 pub mod adventure_activities;
 pub mod adventure_guide;
 pub mod adventure_guide_tooltip;
+pub mod adventure_journeys;
 pub mod assisted_highlight;
 pub mod battleground;
 pub mod challenge;
@@ -79,15 +80,22 @@ mod housing_editor_tests;
 pub mod housing_finder_component;
 pub mod housing_mouse_component;
 pub mod housing_navigation_component;
+pub mod housing_placed_list;
+mod housing_placed_list_component;
+#[cfg(test)]
+mod housing_placed_list_tests;
 pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
 mod housing_storage_component;
+mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
+pub mod menu_template_art;
 pub mod mount_journal;
 mod mount_source;
 pub mod mythic_mentor;
+pub mod navigation_bar;
 pub mod pet_journal;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]
@@ -228,6 +236,8 @@ pub use game_engine_core::status_text_data;
 pub mod game_menu_component;
 #[path = "ui/screens/game_menu_main.rs"]
 pub mod game_menu_main;
+#[path = "ui/screens/options_dropdown.rs"]
+pub mod options_dropdown;
 #[path = "ui/screens/options_menu_active_sections.rs"]
 pub mod options_menu_active_sections;
 #[path = "ui/screens/options_menu_component.rs"]
@@ -609,6 +619,7 @@ impl GameMenuModel {
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
         let (width, height) = (self.registry.screen_width, self.registry.screen_height);
+        game_menu_main::sync_menu_button_art(&mut self.registry);
         if let Some(id) = self.registry.get_by_name(GAME_MENU_ROOT.0)
             && let Some(root) = self.registry.get_mut(id)
         {
