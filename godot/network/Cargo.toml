@@ -9,7 +9,7 @@ rust-version = "1.95"
 test-util = []
 
 [dependencies]
-bevy = { version = "0.19", default-features = false, features = ["bevy_state"] }
+bevy = { version = "0.19", default-features = false, features = ["bevy_state", "bevy_log"] }
 lightyear = { version = "0.28", features = ["client", "netcode", "replication", "udp"] }
 bevy_replicon = { version = "0.41.1", default-features = false, features = ["client"] }
 # Named directly to disable lightyear's replicon client and read its payload channels.
