@@ -53,6 +53,8 @@ pub enum DropdownStyle {
 #[derive(Clone, Copy)]
 pub struct DropdownState<'a> {
     pub style: DropdownStyle,
+    /// Retail resizeToText; false preserves an explicit XML/Lua width.
+    pub resize_to_text: bool,
     pub open: bool,
     pub enabled: bool,
     /// UIResetButtonTemplate: hidden unless filters differ from defaults.
@@ -62,6 +64,7 @@ impl Default for DropdownState<'_> {
     fn default() -> Self {
         Self {
             style: DropdownStyle::WowStyle1,
+            resize_to_text: true,
             open: false,
             enabled: true,
             reset_action: None,
@@ -75,7 +78,7 @@ pub fn dropdown_button(props: DropdownButton<'_>) -> Element {
 
 /// Mainline/MenuTemplates.xml:3,66 and MenuTemplates.xml:4. Callers own menu visibility.
 pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
-    let props = resize_filter_to_text(props, state.style);
+    let props = resize_filter_to_text(props, state);
     let mut contents = dropdown_art(props, state);
     contents.extend(dropdown_text(props, state));
     contents.extend(reset_button(props, state));
@@ -94,8 +97,11 @@ pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownStat
 }
 
 /// DropdownTextMixin:UpdateText and WowStyle1FilterDropdownTemplate resizeToTextPadding60.
-fn resize_filter_to_text(props: DropdownButton<'_>, style: DropdownStyle) -> DropdownButton<'_> {
-    if style != DropdownStyle::Filter {
+fn resize_filter_to_text<'a>(
+    props: DropdownButton<'a>,
+    state: DropdownState<'_>,
+) -> DropdownButton<'a> {
+    if state.style != DropdownStyle::Filter || !state.resize_to_text {
         return props;
     }
     let (text_width, _) = ui_toolkit::text_measure::measure_text(
