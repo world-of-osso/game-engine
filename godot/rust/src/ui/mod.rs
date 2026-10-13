@@ -280,6 +280,13 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if self
+            .shared
+            .get::<game_engine_ui_model::mythic_mentor::MentorView>()
+            .is_some()
+        {
+            game_engine_ui_model::mythic_mentor::apply_mentor_postsetup(&mut self.registry);
+        }
         if let Some(view) = self
             .shared
             .get::<game_engine_ui_model::housing_component::HousingView>()

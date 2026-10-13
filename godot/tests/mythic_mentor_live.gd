@@ -58,7 +58,7 @@ func run_test() -> void:
 	fail("Mentor fixture command deadline")
 
 func write_state(filename: String) -> void:
-	write_json_atomic(filename, {"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect()})
+	write_json_atomic(filename, {"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect(), "tooltip": client.tooltip_state()})
 
 func write_json_atomic(filename: String, data: Dictionary) -> void:
 	var destination := shots + filename
@@ -87,7 +87,7 @@ func rendered_rows() -> Array:
 		var dungeon := control("MythicMentorUI", prefix + "Dungeon")
 		if dungeon == null:
 			break
-		rows.append({"dungeon": dungeon.text, "player": control("MythicMentorUI", prefix + "Player").text, "level": control("MythicMentorUI", prefix + "Level").text, "timer": control("MythicMentorUI", prefix + "Timer").text, "leader": control("MythicMentorUI", prefix + "Leader") != null})
+		rows.append({"dungeon": dungeon.text, "player": control("MythicMentorUI", prefix + "Player").text, "level": control("MythicMentorUI", prefix + "Level").text, "timer": control("MythicMentorUI", prefix + "Timer").text, "cooldown": control("MythicMentorUI", prefix + "Cooldown").text, "leader": control("MythicMentorUI", prefix + "Leader") != null})
 	return rows
 
 func execute_command(command: Dictionary) -> String:
@@ -117,6 +117,16 @@ func execute_command(command: Dictionary) -> String:
 			push_key(KEY_ESCAPE, false)
 			await wait_frames(5)
 			return "closed" if client.get_node_or_null("MythicMentorUI") == null else "still open"
+		"hover_key", "click_key":
+			var button := control("MythicMentorUI", "MentorRow%dTeleport" % int(command.get("index", 0)))
+			if button == null:
+				return "missing key button"
+			if str(command.op) == "click_key":
+				await click(button)
+			else:
+				await hover(button)
+			await wait_frames(5)
+			return "clicked" if str(command.op) == "click_key" else "hovered"
 		"accept":
 			push_key(KEY_ENTER, true)
 			await process_frame

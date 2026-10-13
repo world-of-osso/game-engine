@@ -16,7 +16,7 @@ const COUNTDOWN_MIN_SECS: f32 = 2.0;
 /// Duration of the pushed texture after a key press.
 const PUSH_SECS: f32 = 0.15;
 
-pub(super) fn cooldown_text(remaining: f32) -> String {
+pub(crate) fn cooldown_text(remaining: f32) -> String {
     if remaining >= 60.0 {
         format!("{}m", (remaining / 60.0).ceil())
     } else {

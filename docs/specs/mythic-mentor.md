@@ -10,7 +10,7 @@ Native independent Keys window, modelled on installed `BossHelper/UI/GroupFinder
 - [x] Title drag clamps to screen and saves per-character placement. Native drag/close/reopen proof records the saved position in both skins.
 - [x] Use local-CASC Retail art only; Forever changes the same chrome's art, not elements or behaviour. Dungeon icons join local MapChallengeMode.MapID to JournalInstance.MapID/ButtonSmallFileDataID: eight installed-addon maps plus Azure401; square authored LFG art, not stretched panoramas. Leader132062; no-key/unknown texture134400 per addon.
 - [ ] Current-season hosted-dungeon summaries use imported authored names/timers and real icon identities; no inferred seasonal/acquisition policy.
-- [ ] Dungeon-icon teleport buttons match installed `MythicTeleport.lua`, including known/unknown hover and cooldown countdown; casts use normal server authority. Azure401 has no addon teleport mapping. Unhosted destinations remain explicit gaps.
+- [ ] Dungeon-icon teleport buttons match installed `MythicTeleport.lua`, including 50% black hover only for mapped teleports, known/unlearned spell hover and server-fed category1407 cooldown countdown without a swipe. Existing PlayerSpells/action-button countdown formatting is shared; casts use normal server authority. Azure401 has no addon teleport mapping. Missing destination rows remain explicit gaps, never inferred.
 
 ## How it works
 
@@ -34,7 +34,7 @@ Native independent Keys window, modelled on installed `BossHelper/UI/GroupFinder
 ## Known gaps (current cycle)
 
 - [ ] Existing server qualification is Azure Vault401; expand panel summaries for current-season dungeons the realm actually hosts from authentic catalog data.
-- [ ] Addon teleport hover/cooldown presentation and qualified destination execution remain unverified; no invented data.
+- [ ] Qualify native teleport hover/countdown against real server updates. Eight mapped teleports have no local TDB target-position rows; record that destination gap rather than fabricate travel. All eight DB2 category recoveries are8h/1407; full playable Mythic+ runs remain Azure401-only.
 
 ## Out of scope
 
