@@ -37,7 +37,7 @@ func check_quest_log_fidelity() -> bool:
 		return false
 	await click_control(quest_control("WorldMapUI", "QuestMapFrameShareButton"))
 	# QuestPushResult is a system/chat notice, not a UIErrorsFrame line.
-	if not await wait_quest(func(s): return Array(s.system_lines).has("You are not in a party."), "authoritative solo share rejection"):
+	if not await wait_quest(func(s): return Array(s.system_lines).has("That quest cannot be shared."), "authoritative non-shareable quest rejection"):
 		return false
 	await capture("fidelity-share-rejection.png")
 
@@ -76,7 +76,7 @@ func check_quest_log_fidelity() -> bool:
 	await tap(KEY_L)
 	if not await wait_quest(func(s): return not s.log_open, "final L closes map owner"):
 		return false
-	print("PASS QUEST_LOG_FIDELITY skin=", OS.get_environment("QF_SKIN"), " L/list/details/Back/track/share-denial/POI/maximize/abandon")
+	print("PASS QUEST_LOG_FIDELITY skin=", OS.get_environment("QF_SKIN"), " L/list/details/Back/track/non-shareable-denial/POI/maximize/abandon")
 	return true
 
 # Optional independent slice: real item4401 learning, owned selection/equip, slot model.
