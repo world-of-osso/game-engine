@@ -44,6 +44,8 @@ References:
 
 ## Native Godot coverage
 
+- [x] Tooltip canvas paints above native dialog/launcher windows, below held cursor; post-fix Modern/Forever native unlearned-tooltip captures show complete clamped text above the Keys panel ([Mentor proof](../wiki/systems/mythic-mentor.md)).
+
 One `GameTooltipUI` canvas (layer 8) shows every native tooltip; `godot/ui-model/src/game_tooltip/` builds the content and placement, `godot/rust/src/tooltips.rs` picks the source.
 
 - [x] Look (`game_tooltip/render.rs`): `TooltipDefaultLayout` nine-slice (atlases 4185447/4185474, centre 4185455 tinted `TOOLTIP_DEFAULT_BACKGROUND_COLOR`), title `GameTooltipHeaderText` 14, lines `GameTooltipText` 12, 10 px insets, 2 px line gaps, right text ≥ 20 px after the left, width of the widest line. The comparison header uses `tooltip-compare-label` (7304549). The 260 px Bevy look is not used natively.
