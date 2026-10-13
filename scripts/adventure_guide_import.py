@@ -63,15 +63,12 @@ def layout_fields(definition, layout):
 
 
 def decode_value(data, offset, descriptor, raw, kind, width, element):
-    bits = int((width or '32').lstrip('u'))
-    value = raw[element] if isinstance(raw, tuple) else (raw >> (bits * element)) & ((1 << bits) - 1)
+    import db2_dbd
     if kind in ('string', 'locstring'):
+        value = db2_dbd.number(raw, 'int', 'u32', element)
         return WDC.read_string(data, offset, descriptor, value)
-    if kind == 'float':
-        return struct.unpack('<f', struct.pack('<I', value))[0]
-    if width and not width.startswith('u') and value & (1 << (bits - 1)):
-        value -= 1 << bits
-    return value
+    value = db2_dbd.number(raw, kind, width, element)
+    return float(value) if kind == 'float' else value
 
 
 def read_table(table, path, definition):

@@ -149,7 +149,23 @@ impl HousingCatalog {
     pub fn load(path: &Path) -> Result<Self, String> {
         let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|error| format!("Housing catalog {}: {error}", path.display()))?;
-        load_connection(&db, RETAIL_BUILD, RETAIL_BUILD_KEY)
+        let mut statement = db
+            .prepare("SELECT build, build_key FROM housing_catalog_build")
+            .map_err(|error| format!("Housing source identity: {error}"))?;
+        let identities = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|error| format!("Housing source identity rows: {error}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("Housing source identity row: {error}"))?;
+        let [(build, key)] = identities.as_slice() else {
+            return Err(format!(
+                "Housing catalog {} must declare one source build",
+                path.display()
+            ));
+        };
+        load_connection(&db, build, key)
     }
 
     /// Names category icons from UiTextureAtlasElement.csv as Retail
