@@ -20,6 +20,7 @@ fn render(view: ProfessionView, skin: ActiveSkin) -> FrameRegistry {
     shared.insert(view);
     let mut r = FrameRegistry::new(1280.0, 900.0);
     Screen::new(professions_screen).sync(&shared, &mut r);
+    game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(&mut r);
     r
 }
 fn view() -> ProfessionView {
@@ -266,10 +267,19 @@ fn orders_customer_labels_align_with_source_payment_and_recipient_fields() {
                 "{name}"
             );
         }
-        assert_eq!(
-            frame(&r, "CraftingOrderRecipientLabel").position.left,
-            Val::Px(543.0)
-        );
+        let recipient_label = frame(&r, "CraftingOrderRecipientLabel");
+        let Val::Px(left) = recipient_label.position.left else {
+            panic!("pixel label");
+        };
+        assert_eq!(left + recipient_label.width.value(), 653.0);
+        for name in ["CraftingOrderCommissionLabel", "CraftingOrderDurationLabel"] {
+            let label = frame(&r, name);
+            let Val::Px(left) = label.position.left else {
+                panic!("pixel label");
+            };
+            assert!(left >= 525.0, "{name} outside right pane");
+            assert_eq!(left + label.width.value(), 620.0);
+        }
         assert_eq!(
             frame(&r, "CraftingOrderRecipientLabel").position.top,
             Val::Px(97.0)

@@ -21,7 +21,7 @@ pub(crate) struct Professions {
     catalog: Option<RecipeCatalog>,
     loading: Option<Receiver<Result<RecipeCatalog, String>>>,
     started: bool,
-    ui: Option<Gd<RegistryUi>>,
+    pub(crate) ui: Option<Gd<RegistryUi>>,
     pub(crate) error: String,
     collapsed: BTreeSet<String>,
     page: ProfessionPage,

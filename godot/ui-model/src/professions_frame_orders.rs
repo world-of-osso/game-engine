@@ -4,10 +4,14 @@ use crate::bank_art::{HIGHLIGHT_FONT_COLOR, MoneyBoxNames, edit_box, label, mone
 use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
 use crate::merchant_frame_component::{tab, tab_width};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, panel_button, window_chrome};
+use crate::quest_art::{
+    DynName, NORMAL_FONT_COLOR, panel_button, window_chrome, window_portrait, window_portrait_slot,
+};
 use shared::protocol::{CraftingOrderKind, CraftingOrderSnapshot};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
+pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+    window_portrait_slot("ProfessionsCustomerOrdersPortrait");
 pub const RECIPIENT: &str = "CraftingOrderRecipient";
 pub const NOTE: &str = "CraftingOrderNote";
 pub const ORDER_MONEY: MoneyBoxNames = MoneyBoxNames {
@@ -24,6 +28,8 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         "Crafting Orders",
         "profession:close",
     );
+    // CustomerOrders.lua:86 SetPortraitToUnit("npc"); the native host supplies its model.
+    children.extend(window_portrait(&PORTRAIT));
     if view.orders.creating {
         children.extend(customer_form(ctx, view));
     } else if view.orders.selected_order().is_some() {
@@ -32,7 +38,7 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         children.extend(order_list(ctx, view, 30.0, 90.0, 770.0, 410.0));
     }
     // CustomerOrders.xml:67-77: BOTTOMLEFT(20,-28), then LEFT at Browse RIGHT(-10,0).
-    let browse_width = tab_width("Browse");
+    let browse_width = tab_width("Browse Orders");
     let mine = view
         .orders
         .snapshot
@@ -40,7 +46,7 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         .is_some_and(|snapshot| snapshot.mine);
     children.extend(tab(
         "CraftingOrdersBrowseTab",
-        "Browse",
+        "Browse Orders",
         (20.0, 568.0 + 28.0 - 32.0, browse_width),
         !mine,
         if view.orders.pending {
@@ -473,18 +479,24 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
         CraftingOrderKind::Guild => "Guild",
         CraftingOrderKind::Personal => "Personal",
     };
-    // Form TOPLEFT(5,-60), 815x480; recipient TOPRIGHT(-10,-11), WowStyle1 120x25.
+    // Form TOPLEFT(5,-60), recipient TOPRIGHT(-10,-11); Form.lua:530 sets width136.
     out.extend(order_dropdown(
         view,
         "CraftingOrderRecipientDropdown",
         type_text,
         "profession:order:recipient-menu",
         crate::professions_orders::OrderMenu::Recipient,
-        (5.0 + 815.0 - 10.0 - 120.0, 60.0 + 11.0),
+        (5.0 + 815.0 - 10.0 - 136.0, 60.0 + 11.0),
     ));
 
     if view.orders.kind == CraftingOrderKind::Personal {
         out.extend(edit_box(RECIPIENT, (665.0, 97.0, 145.0, 25.0)));
+        // Target label RIGHT to input LEFT(-12,0), intrinsic GameFontNormal width.
+        out.extend(right_label(
+            "CraftingOrderRecipientLabel",
+            "Order To:",
+            (653.0, 97.0, 25.0),
+        ));
     }
     out.extend(text(
         "CraftingOrderReagentsTitle",
@@ -506,16 +518,17 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
     ));
     // Form.xml: Payment(510,155), Note TOPLEFT(17,0), TitleBox LEFT16, input LEFT+10/BOTTOM+3.
     out.extend(edit_box(NOTE, (553.0, 181.0, 242.0, 113.0)));
-    out.extend(text(
+    out.extend(right_label(
         "CraftingOrderCommissionLabel",
         "Commission:",
-        (510.0, 305.0, 110.0, 40.0),
+        (620.0, 305.0, 40.0),
     ));
-    out.extend(money_input(ORDER_MONEY, (630.0, 308.5)));
-    out.extend(text(
+    // Tip RIGHT+10, vertically centered: Tip center325 minus input height18/2.
+    out.extend(money_input(ORDER_MONEY, (630.0, 316.0)));
+    out.extend(right_label(
         "CraftingOrderDurationLabel",
         "Duration:",
-        (510.0, 345.0, 110.0, 40.0),
+        (620.0, 345.0, 40.0),
     ));
     // Payment LEFT at ReagentContainer RIGHT+5; Duration LEFT at label RIGHT+10.
     // Form(5,60)+Reagents(10,95)+Payment(490+5,0)+Duration(110+10,190+20-12.5).
@@ -551,7 +564,10 @@ fn order_dropdown(
             label_name: &format!("{name}Text"),
             arrow_name: &format!("{name}Arrow"),
             text,
-            width: 120.0,
+            width: match menu {
+                crate::professions_orders::OrderMenu::Recipient => 136.0,
+                crate::professions_orders::OrderMenu::Duration => 143.0,
+            },
             height: 25.0,
             x,
             y: -top,
@@ -566,6 +582,48 @@ fn order_dropdown(
             ..Default::default()
         },
     )
+}
+
+// Preserve the XML label's RIGHT edge and vertical extent while using its intrinsic ink width.
+fn right_label(name: &str, text: &str, (right, top, height): (f32, f32, f32)) -> Element {
+    let width = ui_toolkit::text_measure::measure_text(
+        text,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .expect("GameFontNormal metrics loaded")
+    .0
+    .ceil();
+    label(
+        name.into(),
+        text,
+        (right - width, top, width, height),
+        (12.0, NORMAL_FONT_COLOR, "RIGHT"),
+    )
+}
+
+/// SecureUIPanelTemplates.xml:47-78 sheet strips; Forever re-skins only the same controls.
+pub fn apply_customer_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    if ui_toolkit::atlas::thread_skin() != ui_toolkit::atlas::ActiveSkin::Modern {
+        return;
+    }
+    for name in [
+        "CraftingOrderFormBack",
+        "CraftingOrderBack",
+        "CraftingOrderPlace",
+        "CraftingOrderCancel",
+    ] {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(ui_toolkit::frame::WidgetData::Button(button)) = &mut frame.widget_data
+        {
+            use ui_toolkit::widgets::texture::TextureSource;
+            button.normal_texture = Some(TextureSource::FileDataId(130828));
+            button.pushed_texture = Some(TextureSource::FileDataId(130825));
+            button.disabled_texture = Some(TextureSource::FileDataId(130824));
+            button.highlight_texture = None;
+        }
+    }
 }
 
 fn customer_reagent(view: &ProfessionView, index: usize, item: u32, quantity: u32) -> Element {
@@ -659,7 +717,7 @@ fn form_menu(view: &ProfessionView) -> Element {
     let orders = &view.orders;
     let (left, top, choices) = match menu {
         OrderMenu::Recipient => (
-            690.0,
+            674.0,
             96.0,
             [
                 (
