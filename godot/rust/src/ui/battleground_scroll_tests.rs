@@ -1,4 +1,4 @@
-//! PVPUIFrame's SpecificScrollBox pans by one 40-unit row per stepper press and two per
+//! PVPUIFrame's SpecificScrollBox pans by one row per stepper press and two per
 //! wheel notch (ScrollBoxListView.lua:637-661), exposing all implemented queue rows.
 
 use game_engine_ui_model::battleground::{PvpView, SPECIFIC_LIST, pvp_screen};
@@ -11,7 +11,6 @@ use crate::ui::{RegistryModel, ScreenPostsetup};
 
 const EYE_ROW: &str = "HonorFrameSpecificBattlegroundButton7";
 const SIXTH_ROW: &str = "HonorFrameSpecificBattlegroundButton699";
-const LAST_ROW: &str = "HonorFrameSpecificBattlegroundButton1";
 
 fn queue_frame() -> RegistryModel {
     game_engine_ui_model::paths::set_data_root(
@@ -46,91 +45,58 @@ fn row_inside_list(model: &RegistryModel, name: &str) -> bool {
 fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
     let mut model = queue_frame();
     let top = rect(&model, EYE_ROW).unwrap().y;
-    assert!(
-        !row_inside_list(&model, EYE_ROW),
-        "fifth row starts clipped"
-    );
+    let list = rect(&model, SPECIFIC_LIST).unwrap();
+    let content = rect(&model, "HonorFrameSpecificScrollChild").unwrap();
+    let max_offset = (content.height - list.height).max(0.0);
+    let step = game_engine_ui_model::battleground::pvp_pan_extent(SPECIFIC_LIST).unwrap() as f32;
+    let rows = [
+        EYE_ROW,
+        SIXTH_ROW,
+        "HonorFrameSpecificBattlegroundButton708",
+        "HonorFrameSpecificBattlegroundButton894",
+        "HonorFrameSpecificBattlegroundButton1110",
+        "HonorFrameSpecificBattlegroundButton1",
+        "HonorFrameSpecificBattlegroundButton30",
+        "HonorFrameArena2v2Button",
+        "HonorFrameArena3v3Button",
+    ];
+    let required_offsets: Vec<_> = rows
+        .iter()
+        .map(|name| {
+            let row = rect(&model, name).unwrap();
+            assert!(!row_inside_list(&model, name), "{name} starts clipped");
+            let overflow = row.y + row.height - (list.y + list.height);
+            (overflow / step).ceil() * step
+        })
+        .collect();
     let forward = model
         .registry
         .get_by_name(&forward_stepper_name(SPECIFIC_LIST))
         .unwrap();
-    assert!(press_stepper(&mut model, forward));
-    rebuild(&mut model);
-    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 40.0);
-    assert!(row_inside_list(&model, EYE_ROW));
-    press_stepper(&mut model, forward);
-    rebuild(&mut model);
-    assert_eq!(
-        rect(&model, EYE_ROW).unwrap().y,
-        top - 80.0,
-        "sixth row requires a second step"
-    );
-    assert!(row_inside_list(&model, SIXTH_ROW));
-    assert!(!row_inside_list(&model, LAST_ROW));
-    press_stepper(&mut model, forward);
-    rebuild(&mut model);
-    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 120.0);
-    assert!(row_inside_list(
-        &model,
-        "HonorFrameSpecificBattlegroundButton708"
-    ));
-    assert!(!row_inside_list(&model, LAST_ROW));
-    press_stepper(&mut model, forward);
-    rebuild(&mut model);
-    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 160.0);
-    assert!(row_inside_list(
-        &model,
-        "HonorFrameSpecificBattlegroundButton1110"
-    ));
-    assert!(!row_inside_list(&model, LAST_ROW));
-    press_stepper(&mut model, forward);
-    rebuild(&mut model);
-    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 200.0);
-    assert!(row_inside_list(&model, LAST_ROW));
-    assert!(
-        model
-            .registry
-            .get_by_name("HonorFrameSpecificBattlegroundButton708")
-            .is_some()
-    );
-    assert!(
-        model
-            .registry
-            .get_by_name("HonorFrameSpecificBattlegroundButton894")
-            .is_none()
-    );
-    let list_height = rect(&model, SPECIFIC_LIST).unwrap().height;
-    let content_height = rect(&model, "HonorFrameSpecificScrollChild")
-        .unwrap()
-        .height;
-    let max_offset = (content_height - list_height).max(0.0);
-    let step = game_engine_ui_model::battleground::pvp_pan_extent(SPECIFIC_LIST).unwrap();
-    let remaining_steps = ((max_offset - 200.0) / step as f32).ceil() as usize;
-    for _ in 0..remaining_steps {
-        assert!(press_stepper(&mut model, forward));
-        rebuild(&mut model);
+    let mut offset = 0.0;
+    for (name, required_offset) in rows.iter().zip(required_offsets) {
+        while offset < required_offset.min(max_offset) {
+            assert!(press_stepper(&mut model, forward));
+            rebuild(&mut model);
+            offset = (offset + step).min(max_offset);
+            assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - offset);
+        }
+        assert!(row_inside_list(&model, name), "{name} visible at {offset}");
     }
-    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - max_offset);
-    assert!(row_inside_list(&model, "HonorFrameArena2v2Button"));
-    assert!(row_inside_list(&model, "HonorFrameArena3v3Button"));
+    assert_eq!(offset, max_offset);
     press_stepper(&mut model, forward);
     rebuild(&mut model);
-    assert_eq!(
-        rect(&model, EYE_ROW).unwrap().y,
-        top - max_offset,
-        "clamped after the final arena row is visible"
-    );
+    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - max_offset);
 
     let mut model = queue_frame();
     assert!(wheel(&mut model, SPECIFIC_LIST, false));
     rebuild(&mut model);
-    assert_eq!(
-        rect(&model, EYE_ROW).unwrap().y,
-        top - 80.0,
-        "a notch pans two rows to expose the sixth row"
-    );
+    assert_eq!(rect(&model, EYE_ROW).unwrap().y, top - 2.0 * step);
     assert!(row_inside_list(&model, SIXTH_ROW));
-    assert!(!row_inside_list(&model, LAST_ROW));
+    assert!(!row_inside_list(
+        &model,
+        "HonorFrameSpecificBattlegroundButton894"
+    ));
     let forward = model
         .registry
         .get_by_name(&forward_stepper_name(SPECIFIC_LIST))
@@ -141,15 +107,18 @@ fn specific_list_stepper_and_wheel_reveal_the_fifth_battleground_row() {
         &model,
         "HonorFrameSpecificBattlegroundButton708"
     ));
-    assert!(!row_inside_list(&model, LAST_ROW));
+    assert!(!row_inside_list(
+        &model,
+        "HonorFrameSpecificBattlegroundButton894"
+    ));
     assert!(press_stepper(&mut model, forward));
     rebuild(&mut model);
     assert!(row_inside_list(
         &model,
+        "HonorFrameSpecificBattlegroundButton894"
+    ));
+    assert!(!row_inside_list(
+        &model,
         "HonorFrameSpecificBattlegroundButton1110"
     ));
-    assert!(!row_inside_list(&model, LAST_ROW));
-    assert!(press_stepper(&mut model, forward));
-    rebuild(&mut model);
-    assert!(row_inside_list(&model, LAST_ROW));
 }

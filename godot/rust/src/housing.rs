@@ -25,6 +25,7 @@ pub(crate) struct HousingHud {
     pub(super) expert_held: [bool; 8],
     pub(super) mouse_pointer: Option<crate::housing_mouse::ExpertPointer>,
     pub(super) storage_resize: Option<crate::housing_storage::StorageResize>,
+    pub(super) placed_list_drag: Option<crate::housing_placed_list::PlacedListDrag>,
     next_request_id: u64,
     confirming_plot: Option<u32>,
 }
@@ -276,6 +277,9 @@ impl GameClient {
             }
         }
         drop(host);
+        if let Some(model) = self.housing.model.as_mut() {
+            model.reconcile_placed_list(&self.housing.authority);
+        }
         self.query_housing_vendor_names()?;
         self.clear_inactive_housing_preview();
         let view = self.housing_view()?;
@@ -399,6 +403,8 @@ impl GameClient {
         &mut self,
         owner: i64,
         action: &str,
+        click: game_engine_ui_model::merchant::Click,
+        at: Option<Vector2>,
     ) -> Result<bool, FrameError> {
         if !self
             .housing
@@ -407,6 +413,13 @@ impl GameClient {
             .is_some_and(|ui| ui.instance_id().to_i64() == owner)
         {
             return Ok(false);
+        }
+        if click.right && action.starts_with("housing:placed-list:select:") {
+            self.open_housing_placed_list_context(
+                action,
+                at.ok_or("Placed-decor context click has no pointer coordinates.")?,
+            )?;
+            return Ok(true);
         }
         if action == "housing:close" {
             self.close_housing();

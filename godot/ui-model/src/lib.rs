@@ -60,6 +60,8 @@ pub mod cooldown_viewer_component;
 pub mod countdown_component;
 pub mod encounter_timeline;
 pub mod encounter_timeline_component;
+pub mod follower_dungeons;
+mod follower_dungeons_component;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;
@@ -77,10 +79,15 @@ mod housing_editor_tests;
 pub mod housing_finder_component;
 pub mod housing_mouse_component;
 pub mod housing_navigation_component;
+pub mod housing_placed_list;
+mod housing_placed_list_component;
+#[cfg(test)]
+mod housing_placed_list_tests;
 pub mod housing_settings;
 pub mod housing_settings_component;
 mod housing_storage;
 mod housing_storage_component;
+mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
 pub mod mount_journal;

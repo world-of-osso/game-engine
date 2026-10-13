@@ -50,8 +50,8 @@ fn receive(
 fn run() -> Result<(), String> {
     let directory = PathBuf::from(std::env::var("MENTOR_RUN").map_err(|e| e.to_string())?);
     let address = std::env::var("GODOT_TEST_SERVER").map_err(|e| e.to_string())?;
-    if address != "127.0.0.1:5811" {
-        return Err("Private5811 only".into());
+    if address != "127.0.0.1:5751" {
+        return Err("Private5751 only".into());
     }
     let username = std::env::var("MENTOR_ACCOUNT").map_err(|e| e.to_string())?;
     if !username.starts_with("fb_") {
@@ -100,6 +100,9 @@ fn run() -> Result<(), String> {
                         name: "Mentorone".into(),
                     })?,
                     "leave" => bridge.send::<_, GroupChannel>(LeaveGroup)?,
+                    "promote" => bridge.send::<_, GroupChannel>(PromoteGroupLeader {
+                        name: "Mentorone".into(),
+                    })?,
                     "raid" => bridge.send::<_, GroupChannel>(ConvertGroupToRaid)?,
                     "party" => bridge.send::<_, GroupChannel>(ConvertGroupToParty)?,
                     "quit" => return Ok(()),

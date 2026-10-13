@@ -5,6 +5,26 @@
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+## 2026-10-13 — Source storage tiles
+
+[Housing](systems/housing.md#source-stored-entry-tiles):97px state-atlas tiles/87px inset icons/anchored16px counts/102×107 sequence pitch replace invented125px cards. Source member-local crop reset fixes rejected blank-border native captures. Both skins physically prove visible normal/hover/held/release/cancel and paid1693/2330 conservation; six-record second grid row is CPU proof, owned drag remains next.
+
+## 2026-10-13 — Expert PlacedDecorList native proof
+
+[Housing](systems/housing.md#expert-placeddecorlist): both-skin actual paid-instance select/deselect, UI/world hover, clamped header drag, released-right source menu at pointer position, authoritative remove and normal re-place; source atlas6654379 lead-published from independently verified local CASC. Behavioral32 model/20 registry/native release1 pass. Unknown budget “— / —”, source lock/audio and full housing completion remain gaps.
+
+## 2026-10-13 — Native follower Group Finder implementation
+
+[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
+## 2026-10-13 — Transparent model-preview additive coverage
+
+[Adventure Guide](systems/adventure-guide.md#transparent-preview-additive-coverage): actual Ozruk black additive texel RED (zeroRGB/fullcoverage hides backdrop)→preview-only premultiplied GREEN, retained positive light/worldRGB and mix/opaque GPU checks. Two inspected both-skin private5771 fixed-model PNGs; world shaders unchanged. NoAlphaAdd source case, inherited Guide yaw, complete model closure/Journeys/RPE remain open.
+
+## 2026-10-13 — Adventure Guide navigation lifetime
+
+[Adventure Guide](systems/adventure-guide.md#october-13-navigation-lifetime-proof): encounter links clear stale search/menus; Trading Post Log navigates without closing an already-visible Guide; real ENCOUNTER_START follows source difficulty without auto-opening a closed window. Targeted17/native build/check/fmt pass; nine inspected both-skin private5771 PNGs. Journeys backing, complete model closure/Ozruk effect planes and RPE activation remain open.
+[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New private5761 both-skin actual native input→source Ruby admission/five roles/14m follow proof added below; camera/geometry/gear and whole-dungeon gates remain open. Whole companion/dungeon acceptance remains open.
+
 ## 2026-10-13 — Unrated six-round Shuffle proof
 
 [Native arenas](systems/arenas.md#unrated-solo-shuffle--verified-2026-10-13): both skins complete six real first-kill rounds and all-six returns; source-role admission/spec lock, four-map rotations/gate resets, item cast-time panic and category-isolation RED/GREEN proof. Explicit unrated realm policy and delayed peer snapshot/wall-clock harness boundaries retained; rating/MMR, dampening and named source gaps unchanged.
@@ -15,6 +35,9 @@
 ## 2026-10-13 — Storage source vertical anchor implementation
 
 [Housing](systems/housing.md#basic-drawer-controls-and-preferences): F1 confirmed against LEFT/y150/clamped source. Registry source64.5 versus0 and native logical/nonclamped anchor RED; expanded panel now computes source top before native scaling. Both-skin native720→1080/source-scaled anchor/select/cancel/query+paidconservation GREEN; registry720/1080/651–800expanded+collapsed restores correctly. Currentregistry19/server28+3ignored/protocol4/check/fmt PASS; four inspected≤1280PNG public. Physical pixel coordinates are UI-scale-adjusted, not logical source values.
+## 2026-10-13 — Mythic Mentor expanded private proof
+
+[Mythic Mentor](systems/mythic-mentor.md#expanded-private-proof--2026-10-13): fresh5751 both-skin real rendered8/11 rows, leader transfer, raid hide/party restore, drag/save/close/Escape and leave pruning; Forever no-key→bag grant. Atomic fixture records and explicit asynchronous readiness; source catalog/teleport expansion remains open.
 
 ## 2026-10-13 — Pending owned-placement storage implementation
 
