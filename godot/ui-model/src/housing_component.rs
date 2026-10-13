@@ -26,7 +26,7 @@ pub struct HousingView {
 }
 
 /// SearchBoxTemplate fields not exposed by RSX attrs; apply before native projection.
-pub fn apply_housing_storage_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
+pub fn apply_housing_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
     for (prefix, focused, raw) in [
         (
             "HouseEditorStorageSearch",
@@ -41,6 +41,8 @@ pub fn apply_housing_storage_postsetup(view: &HousingView, registry: &mut FrameR
     ] {
         apply_search_postsetup(registry, prefix, focused || !raw.is_empty());
     }
+    crate::housing_placed_list_component::apply_placed_list_postsetup(registry);
+    crate::housing_storage_tiles::apply_stored_tiles_postsetup(view, registry);
 }
 
 fn apply_search_postsetup(registry: &mut FrameRegistry, prefix: &str, active: bool) {
@@ -108,7 +110,11 @@ pub fn housing_screen(context: &SharedContext) -> Element {
         return crate::housing_settings_component::settings_screen(view);
     }
     if view.model.surface == crate::housing::HousingSurface::Editor {
-        return crate::housing_editor_component::editor_screen(view);
+        let mut screen = crate::housing_editor_component::editor_screen(view);
+        screen.extend(crate::housing_placed_list_component::placed_list_controls(
+            context, view,
+        ));
+        return screen;
     }
     if view.model.surface != crate::housing::HousingSurface::Dashboard {
         return crate::housing_navigation_component::navigation_screen(view);

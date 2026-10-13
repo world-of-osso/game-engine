@@ -1,9 +1,12 @@
 //! Source-minimum real-UDP account peers alongside one native Godot client.
 //! No simulated match state, synthetic roster or server shortcuts.
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage, replica::Replica};
+#[path = "native_battleground_peers/sight.rs"]
+mod sight;
 use shared::battleground::BgTeam;
 use shared::protocol::*;
 use std::{
+    cell::RefCell,
     fs,
     path::{Path, PathBuf},
     thread,
@@ -12,6 +15,8 @@ use std::{
 struct Peer {
     index: usize,
     username: String,
+    character_name: String,
+    sight: RefCell<Option<sight::FixtureSight>>,
     battleground_id: u32,
     bridge: NetworkBridge,
     entered: bool,
@@ -30,6 +35,13 @@ impl Peer {
             || message.is::<InventoryError>();
         if inventory_receipt {
             return self.receive_inventory(message);
+        }
+        let spellbook_receipt = message.is::<KnownSpellsSnapshot>()
+            || message.is::<SpecializationChanged>()
+            || message.is::<SpellsLearned>()
+            || message.is::<SpellsUnlearned>();
+        if spellbook_receipt {
+            return self.receive_spellbook(message);
         }
         if message.is::<AttackStart>() {
             let receipt = message
@@ -54,6 +66,7 @@ impl Peer {
                 return Err(format!("{} login: {:?}", self.username, reply.error));
             }
             let character = reply.characters.first().ok_or("Empty roster")?;
+            self.character_name = character.name.clone();
             self.bridge.send::<_, AuthChannel>(SelectCharacter {
                 character_id: character.character_id,
             })?;
@@ -101,6 +114,31 @@ impl Peer {
                 Event::ProtocolRejected(reason) => return Err(reason),
                 _ => {}
             }
+        }
+        Ok(())
+    }
+
+    fn receive_spellbook(&self, message: ProtocolMessage) -> Result<(), String> {
+        if message.is::<KnownSpellsSnapshot>() {
+            let spells = message
+                .downcast::<KnownSpellsSnapshot>()
+                .map_err(|_| "known spells type")?;
+            println!("{} known spells {spells:?}", self.username);
+        } else if message.is::<SpecializationChanged>() {
+            let spec = message
+                .downcast::<SpecializationChanged>()
+                .map_err(|_| "specialization type")?;
+            println!("{} specialization {spec:?}", self.username);
+        } else if message.is::<SpellsLearned>() {
+            let spells = message
+                .downcast::<SpellsLearned>()
+                .map_err(|_| "learned spells type")?;
+            println!("{} learned spells {spells:?}", self.username);
+        } else {
+            let spells = message
+                .downcast::<SpellsUnlearned>()
+                .map_err(|_| "unlearned spells type")?;
+            println!("{} unlearned spells {spells:?}", self.username);
         }
         Ok(())
     }
@@ -177,11 +215,30 @@ impl Peer {
                     to: parse_bag_location(action, "unequip-offhand")?,
                 })
             }
-            _ if action.starts_with("cast:") => self
+            _ if action.starts_with("cast:") => self.send_spell_cast(action),
+            _ if action.starts_with("spec:") => self
                 .bridge
-                .send::<_, CombatChannel>(parse_spell_cast(action)?),
+                .send::<_, TalentChannel>(parse_specialization(action)?),
             _ => Err(format!("Unknown command {action}")),
         }
+    }
+
+    fn send_spell_cast(&self, action: &str) -> Result<(), String> {
+        let mut request = parse_spell_cast(action)?;
+        let map = self.map.ok_or("peer has not received its current map")?;
+        let mut sight = self.sight.borrow_mut();
+        if sight.is_none() {
+            let dir =
+                PathBuf::from(std::env::var("BG_LOS_DIR").map_err(|_| "casts require BG_LOS_DIR")?);
+            *sight = Some(sight::FixtureSight::load(&dir)?);
+        }
+        request.witness = Some(sight.as_mut().expect("loaded source sight").find_witness(
+            &self.replica,
+            &self.character_name,
+            request.target_entity.expect("parsed target"),
+            map,
+        )?);
+        self.bridge.send::<_, CombatChannel>(request)
     }
 
     fn battleground(&self) -> Result<&BattlegroundSnapshot, String> {
@@ -304,6 +361,10 @@ fn run() -> Result<(), String> {
             .receive::<EquipmentSnapshot>()
             .receive::<InventoryDelta>()
             .receive::<InventoryError>()
+            .receive::<KnownSpellsSnapshot>()
+            .receive::<SpecializationChanged>()
+            .receive::<SpellsLearned>()
+            .receive::<SpellsUnlearned>()
             .connect(address, clock + index as u64)?;
         let username = format!("{prefix}{index}");
         bridge.send::<_, AuthChannel>(LoginRequest {
@@ -314,6 +375,8 @@ fn run() -> Result<(), String> {
         peers.push(Peer {
             index,
             username,
+            character_name: String::new(),
+            sight: RefCell::new(None),
             battleground_id,
             bridge,
             entered: false,
@@ -397,6 +460,19 @@ fn parse_bag_location(action: &str, verb: &str) -> Result<ItemLocation, String> 
     Ok(ItemLocation::Bag { bag, slot })
 }
 
+fn parse_specialization(action: &str) -> Result<SetSpecialization, String> {
+    let id = action
+        .strip_prefix("spec:")
+        .ok_or("expected spec:<specialization-ID>")?;
+    let spec_id = id
+        .parse()
+        .map_err(|_| "specialization ID must be an integer")?;
+    if spec_id == 0 {
+        return Err("specialization ID must be nonzero".into());
+    }
+    Ok(SetSpecialization { spec_id })
+}
+
 fn parse_spell_cast(action: &str) -> Result<SpellCastIntent, String> {
     let fields: Vec<_> = action.split(':').collect();
     let ["cast", spell, target] = fields.as_slice() else {
@@ -452,6 +528,21 @@ mod tests {
         assert_eq!(select_peer_action(3, "queue"), Ok(Some("queue")));
         for input in ["peer:0:queue", "peer:bad:queue", "peer:2:", "peer:2"] {
             assert!(select_peer_action(2, input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn specialization_command_preserves_normal_server_authority() {
+        assert_eq!(
+            parse_specialization("spec:73"),
+            Ok(SetSpecialization { spec_id: 73 })
+        );
+        assert_eq!(
+            parse_specialization("spec:257"),
+            Ok(SetSpecialization { spec_id: 257 })
+        );
+        for input in ["spec:0", "spec:bad", "spec:257:all"] {
+            assert!(parse_specialization(input).is_err(), "{input}");
         }
     }
 

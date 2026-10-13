@@ -1,3 +1,19 @@
+## 2026-10-13 — Glue/menu template fidelity
+
+[Glue/menu fidelity](investigations/glue-menu-fidelity.md): five native Retail-template frames retain selection/category/paging/delete actions in both skins. Exact pinned DB2 slice margins replace stretched borders; shared Options radio popups retain one-open/select/Escape/outside behavior. Native RED distinguishes actionless dropdown Background interception and subpixel shadow crops expanding to full atlas art. Offline source geometry/input/pixel fixtures gate these boundaries; authenticated deletion and server-side campsite persistence are not claimed.
+
+## 2026-10-13 — CASC installed-build following
+
+[Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
+
+## 2026-10-13 — Source storage tiles
+
+[Housing](systems/housing.md#source-stored-entry-tiles):97px state-atlas tiles/87px inset icons/anchored16px counts/102×107 sequence pitch replace invented125px cards. Source member-local crop reset fixes rejected blank-border native captures. Both skins physically prove visible normal/hover/held/release/cancel and paid1693/2330 conservation; six-record second grid row is CPU proof, owned drag remains next.
+
+## 2026-10-13 — Expert PlacedDecorList native proof
+
+[Housing](systems/housing.md#expert-placeddecorlist): both-skin actual paid-instance select/deselect, UI/world hover, clamped header drag, released-right source menu at pointer position, authoritative remove and normal re-place; source atlas6654379 lead-published from independently verified local CASC. Behavioral32 model/20 registry/native release1 pass. Unknown budget “— / —”, source lock/audio and full housing completion remain gaps.
+
 ## 2026-10-13 — Native follower Group Finder implementation
 
 [Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
@@ -20,6 +36,10 @@
 ## 2026-10-13 — Storage source vertical anchor implementation
 
 [Housing](systems/housing.md#basic-drawer-controls-and-preferences): F1 confirmed against LEFT/y150/clamped source. Registry source64.5 versus0 and native logical/nonclamped anchor RED; expanded panel now computes source top before native scaling. Both-skin native720→1080/source-scaled anchor/select/cancel/query+paidconservation GREEN; registry720/1080/651–800expanded+collapsed restores correctly. Currentregistry19/server28+3ignored/protocol4/check/fmt PASS; four inspected≤1280PNG public. Physical pixel coordinates are UI-scale-adjusted, not logical source values.
+## 2026-10-13 — Authored Mentor summaries, shared teleport clocks and foreground correction
+
+[Mythic Mentor](systems/mythic-mentor.md#authored-summaries-and-teleports--2026-10-13): cached ready-query reply, nine authentic square icons/all current-reference summaries, real shared1407/8h clock and both-skin normal cast-denial/control proof. Tooltip canvas occlusion reproduced/fixed; both-skin post-fix unlearned foreground passes. Install auto-update blocks final active post-fix pixels; exact revision/proof bounds retained.
+
 ## 2026-10-13 — Mythic Mentor expanded private proof
 
 [Mythic Mentor](systems/mythic-mentor.md#expanded-private-proof--2026-10-13): fresh5751 both-skin real rendered8/11 rows, leader transfer, raid hide/party restore, drag/save/close/Escape and leave pruning; Forever no-key→bag grant. Atomic fixture records and explicit asynchronous readiness; source catalog/teleport expansion remains open.
@@ -3613,3 +3633,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Central source tooltips extended to owned-storage cards and House Chest handle, native missing-route RED→both-skin actual text/count/right-anchor/leave/unmount/conservation GREEN; four inspected PNGs. Existing Catalog presentation reused.
 
 - 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
+
+- 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).
