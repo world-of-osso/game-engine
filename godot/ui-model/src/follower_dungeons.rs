@@ -1,6 +1,22 @@
 //! Retail Mainline PVEFrame / LFDQueueFrame follower mode.
 //! Source: Blizzard_GroupFinder/Mainline/{PVEFrame,LFDFrame,LFGFrame}.xml/.lua.
 pub use crate::follower_dungeons_component::{FOLLOWER_LIST, ROW_HEIGHT};
+
+/// PVEFrame.lua GroupFinderFrameButton_SetEnabled: disabled category icon/ring gray.
+pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    for index in 2..=3 {
+        for part in ["Icon", "Ring"] {
+            let name = format!("GroupFinderFrameGroupButton{index}{part}");
+            if let Some(id) = registry.get_by_name(&name)
+                && let Some(frame) = registry.get_mut(id)
+                && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
+            {
+                texture.desaturated = true;
+            }
+        }
+    }
+}
 use shared::protocol::{FollowerDungeons, GroupRoleSnapshot, LfgStateUpdate, QueueForLfg};
 use ui_toolkit::{screen::SharedContext, widget_def::Element};
 

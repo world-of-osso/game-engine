@@ -26,6 +26,10 @@ func capture() -> void:
 			for frame in range(120):
 				await process_frame
 				await RenderingServer.frame_post_draw
+			if OS.get_environment("GODOT_FOLLOWER_LAYOUT_ASSERT") == "1":
+				if not verify_xml_geometry(ui):
+					quit(1)
+					return
 			var image := root.get_texture().get_image()
 			var suffix := "-dropdown" if menu else ""
 			var result := image.save_png(directory.path_join(skin + suffix + ".png"))
@@ -37,3 +41,40 @@ func capture() -> void:
 			await process_frame
 	print("PASS both-skin Group Finder capture at 1920x1080")
 	quit(0)
+
+# PVEFrame.xml + LFDFrame.xml values, observed after native Control layout.
+func verify_xml_geometry(ui: Node) -> bool:
+	var rects := {
+		"PVEFrame": Rect2(100, 84, 563, 428),
+		"PVEFrameLeftInset": Rect2(104, 108, 217, 400),
+		"LFDParentFrameInset": Rect2(328, 144, 328, 342),
+		"LFDQueueFrameBackground": Rect2(330, 230, 512, 256),
+		"GroupFinderFrameGroupButton1": Rect2(110, 185, 203, 60),
+		"GroupFinderFrameGroupButton2": Rect2(110, 275, 203, 60),
+		"GroupFinderFrameGroupButton3": Rect2(110, 365, 203, 60),
+		"GroupFinderFrameGroupButton1Ring": Rect2(98, 168, 95, 96),
+		"GroupFinderFrameGroupButton1Icon": Rect2(112.5, 183, 66, 66),
+		"LFDQueueFrameTypeDropdown": Rect2(455, 200, 200, 25),
+	}
+	for name in rects:
+		var node = ui.find_child(name, true, false)
+		if node == null or not node.get_global_rect().is_equal_approx(rects[name]):
+			push_error("XML geometry mismatch " + name + ": " + str(node.get_global_rect() if node else null) + " expected " + str(rects[name]))
+			return false
+	var inset = ui.find_child("LFDParentFrameInset", true, false)
+	if not inset.clip_contents:
+		push_error("LFDParentFrameInset must clip native quest paper")
+		return false
+	var tab1 = ui.find_child("PVEFrameTab1", true, false)
+	var tab2 = ui.find_child("PVEFrameTab2", true, false)
+	var tab3 = ui.find_child("PVEFrameTab3", true, false)
+	if tab1 == null or tab2 == null or tab3 == null:
+		push_error("All three PanelTabButtonTemplate tabs required")
+		return false
+	var first: Rect2 = tab1.get_global_rect()
+	var second: Rect2 = tab2.get_global_rect()
+	var third: Rect2 = tab3.get_global_rect()
+	if first.position != Vector2(119, 510) or first.size.y != 32 or second.position != Vector2(first.end.x - 16, first.position.y) or third.position != Vector2(second.end.x - 16, second.position.y):
+		push_error("PanelTabButtonTemplate BOTTOMLEFT19,-30 and LEFT-to-RIGHT -16 anchors differ")
+		return false
+	return true

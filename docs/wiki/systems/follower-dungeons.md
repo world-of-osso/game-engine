@@ -10,6 +10,12 @@ Retail Mainline's `LFDMicroButton` opens the native follower-mode `PVEFrame`/`LF
 
 `follower_dungeons_component.rs` constructs source role icons/checks, follower type dropdown, description,20px checkbox list, MinimalScrollBar and Find Group button. `RegistryUi` supplies actual input, skin resolution and existing HUD parent. `follower_dungeons.rs` hosts the screen, routes actions and catalog/state events, and retains the existing PvP tab. Raid Finder/Premade Groups are not implemented by this slice.
 
+## Retail template layout repair — 2026-10-13
+
+The initial layout used generic panel-button tabs and incorrectly stretched dungeon-wall337489. The repair uses shared merchant PanelTabButtonTemplate art, all three source tab anchors, PVEFrame blue-menu crops and InsetFrame borders, native category ring/icon/backdrop and shared WowStyle1 dropdown/menu. Native quest paper337492 keeps512×256 at BOTTOMLEFT6,26; the projection clips `LFDParentFrame` and `LFDParentFrameInset`, preserving source dimensions rather than rescaling texture art. Disabled categories retain source backdrop UVs and desaturated ring/icon; category icons reuse the native portrait-mask composer with XML66px icon/62px mask inset2.
+
+`follower_layout_capture.gd` captures the actual RegistryUi projection with an offline Ruby catalog snapshot, without server admission. Its geometry gate observes rendered global Control rectangles at1920×1080 against XML/Lua values, including the no-scenarios Lua101px/30px category anchors. Before captures and RED reproduce456px outer height instead of428px. PNG evidence goes to `/syncthing/AgentShared/2026-10-13/group-finder-layout/`; source logs stay in the private follower run directory. Rendered GREEN and inspection are pending; this section does not supersede the admission or full-gameplay proof boundary.
+
 ## Proof boundary
 
 Targeted RED reproduces missing catalog response, default-bridge UDP catalog delivery and unhandled native account catalog; both-skin registry tests reproduce missing controls/selection/match handling. Engine0746dbca5 passes six targeted registry/UDP/account tests and the helper's library checks; server2d62a2dc passes the new catalog loopback and existing companion/LFG tests (22 plus the Mythic Mentor companion test with its required read-only database environment). All three format checks pass. Both-skin native admission proof is bounded below; full dungeon and class/gear acceptance remain open. Earlier CLI/first-boss evidence does not establish this new UI or complete dungeon navigation.
@@ -28,7 +34,7 @@ Initial private appearance snapshot lacked current `uses_display_geosets`; refre
 
 - Local Retail `Blizzard_GroupFinder/Mainline/{PVEFrame,LFDFrame,LFGFrame}.xml/.lua` — frame dimensions/anchors, role/type/list controls, follower filter and queue behavior.
 - Local `Blizzard_SharedXMLBase/TextureUtil.lua` — `UI-LFG-RoleIcon-*` atlas names.
-- Local `data/community-listfile.csv` — source dungeon-wall337489, checkbox130755/check130751 and Group Finder art IDs.
+- Local `data/community-listfile.csv` — source quest-paper337492, blue-menu593918/593919/593917, role background517165, checkbox130755/check130751 and Group Finder art IDs.
 - [Contract](../../specs/follower-dungeons.md) — behavior and acceptance boundary.
 - [Server catalog](../../../../game-server/crates/server/src/lfg/follower_catalog.rs) — prepared source-backed entries.
 
