@@ -289,8 +289,11 @@ fn graphics_settings_remain_reachable_after_scrolling() {
         assert!(maximum > 0, "Graphics must have a second scroll position");
         assert_eq!(list.first_row, 0);
 
-        // Scroll to the bottom; the production list clamps this pixel offset.
-        shared.insert((view.options, usize::MAX));
+        // Use the production registry scroll state, not a separately injected offset.
+        let list_name = game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL;
+        assert!(registry.scroll_lists.scroll_by(list_name, maximum as isize));
+        let offset = registry.scroll_lists.get(list_name).unwrap().first_row;
+        shared.insert((view.options, offset));
         screen.sync(&shared, &mut registry);
         assert_eq!(
             registry
