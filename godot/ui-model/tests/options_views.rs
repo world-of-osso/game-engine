@@ -695,7 +695,8 @@ fn settings_footer_has_retail_close_and_hides_apply_without_pending_settings() {
             .get_by_name("OptionsApplyButton")
             .expect("Retail ApplyButton");
         assert!(menu.registry.get(apply).unwrap().hidden);
-        assert_eq!(menu.registry.click_frame(apply), None);
+        assert!(matches!(&menu.registry.get(apply).unwrap().widget_data,
+            Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled));
         let defaults = menu
             .registry
             .get_by_name("OptionsDefaultsButton")
