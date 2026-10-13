@@ -10,6 +10,12 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
         return Element::default();
     }
     let [width, height] = view.model.storage_panel.size;
+    let viewport_height = view.viewport[1];
+    let unclamped_top = (viewport_height - height) / 2.0 - 150.0;
+    let top = format!(
+        "{}",
+        unclamped_top.clamp(0.0, (viewport_height - height).max(0.0))
+    );
     let (part, left) = view.model.storage_drawer_presentation();
     if part == crate::housing_storage::DrawerPart::Handle {
         let icon = named_atlas_texture(
@@ -57,7 +63,7 @@ pub(crate) fn drawer(view: &HousingView, disabled: bool, can_edit: bool) -> Elem
     let collapse_top = (height - 74.0) / 2.0;
     let resize_left = width - 20.0;
     let resize_top = height - 20.0;
-    rsx! {r#frame {name:"HouseEditorStorageFrame",width,height,pos_type:"absolute",left,top:0.0,mouse_enabled:true,strata:FrameStrata::Dialog,
+    rsx! {r#frame {name:"HouseEditorStorageFrame",width,height,pos_type:"absolute",left,top,mouse_enabled:true,strata:FrameStrata::Dialog,
         {background}{header}{stored}{categories}{filters}
         fontstring {name:"HouseEditorStorageCategoryPath",text:{category_path.as_str()},width:content_width,height:20.0,pos_type:"absolute",left:85.0,top:78.0,font_size:14.0,justify_h:"LEFT"}
         fontstring {name:"HouseEditorStorageTitle",text:status,width:content_width,height:32.0,pos_type:"absolute",left:85.0,top:footer_top,font_size:14.0}
