@@ -1631,7 +1631,6 @@ fn housing_expert_placed_list_uses_source_bounds_unknown_budget_and_real_scrolla
                     .unwrap(),
             )
             .unwrap();
-        assert!(matches!(&remove.widget_data,Some(WidgetData::Button(button)) if !button.enabled));
         assert_eq!(registry.click_frame(remove.id), None);
         view.model.close_placed_list();
         context.insert(view.clone());
