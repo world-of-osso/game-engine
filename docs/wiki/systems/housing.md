@@ -40,6 +40,18 @@ Raw `storage_search` stays in the native edit box; `storage_search_query()` retu
 
 Pure RED reproduced short `z` clearing category; native RED reproduced lost Structural focus/result on one character. Both skins physically keep raw `z`/`zz`/`éé` plus clear control, Structural focus and actual paid Tesla thumbnail; `zzz` applies empty results and focuses All, shortening returns the actual result without restoring Structural, and `tEs` matches before native clear/remount. Paid copies/layout are unchanged. Evidence `core9/{modern,forever}/owner/search-threshold-native-green/`; four inspected1280 short-UTF8/three-character-empty PNGs. Pure tests additionally cover two emoji characters as eight bytes, retained subcategory/sort and independent Catalog query.
 
+### Search input limit, gutters and magnifier
+
+`apply_housing_storage_postsetup` sets existing registry EditBoxData `max_letters=40` and text insets16/20; current RSX lacks those setters. Native projection consumes the same widget data and keeps the caret stable when its limit is unchanged. The source10×10 magnifier uses vertex RGB0.6 for empty/unfocused and1 for focused/nonempty; placeholder follows the16/20 inner span and sourceRGB0.35. No SDK or renderer-only limit override. [Input contract](../../specs/housing.md#owned-storage-search-input).
+
+Native RED accepted45 ASCII characters with max_length0. Both skins now type45 ASCII/accented keys and retain40 characters (40/80 bytes), prove actual16/20 margins and magnifier rect/tint, observe19 brighter focused pixels, remount nonempty/unfocused with limit40/white magnifier, then clear and conserve paid copies/layout. Evidence `core9/{modern,forever}/owner/input-chrome-reobserved/`; four inspected1280 PNGs. Initial observer held a freed TextureRect across a tint projection change; reacquiring current Parts/Part0 fixed the test, not product behavior. After runtime restart, orphan private4060763 was stopped and5870 verified free before continuation; no other agent process was stopped.
+
+### Search focus keys
+
+Only `HouseEditorStorageSearchBox` uses the source Enter/keypad-Enter/Escape GUI-key closure: release focus and accept the event before window/chat/editor handling. It does not register generic form submission. Other edit boxes remain unchanged. Source inherited SearchBoxTemplate maps Enter/Escape to EditBox_ClearFocus; [contract](../../specs/housing.md#owned-storage-search-focus-keys).
+
+Native RED retained focus after Enter. Both skins physically retain `tEs`, actual Tesla result and drawer after Enter/Escape, never open chat; empty keypad-Enter hides clear/restores gray glyph, and Cleanup→Basic remount retains empty/unfocused input. Exact paid quantities/layout are unchanged. Evidence `core9/{modern,forever}/owner/focus-native-observed/`; four inspected1280 PNGs. The initial chat observer called a non-exported RegistryUi Rust method; existing named-control scene helper fixes the observer, not product code.
+
 ## Basic drawer controls and preferences
 
 Verified:2026-10-12. `HousingDashboard.storage_panel` holds `StoragePanelSettings { size, collapsed }`. Existing account-local `ui_layout.ron` saves it alongside—not instead of—window positions and Edit Mode layouts. Missing preferences use the source XML600×651 size; configured dimensions clamp to415–827 by651–800. The bottom-right20px input captures movement through release outside the handle, then snaps options width to102px columns except at clamp boundaries. Options width excludes the source85px left/5px right/23px ScrollBox gutter. Actual result tiles reflow; pure/registry proof covers3/4/6/7 columns. [Contract](../../specs/housing.md#storage-drawer-controls).
