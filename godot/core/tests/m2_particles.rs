@@ -21,16 +21,30 @@ fn model(fdid: u32) -> m2::Model {
 /// selects Refraction for nonzero TXAC on a multitexture three-colour emitter.
 #[test]
 fn avenging_wrath_txac_selects_refraction_after_material_entries() {
+    const THREE_COLOR: u32 = 0x4000_0000;
     for (fdid, noise_index) in [(2368644, 1), (2368645, 6)] {
         let emitters = model(fdid).particle_emitters;
         assert_eq!(
             m2_particles::pixel_shader(&emitters[0]),
             PixelShader::ThreeColorThreeAlpha
         );
-        assert_ne!(
+        assert_eq!(
             m2_particles::pixel_shader(&emitters[noise_index]),
-            PixelShader::ThreeColorThreeAlpha,
+            PixelShader::Refraction,
             "{fdid} refraction parameters must not be drawn as colour"
+        );
+        assert_eq!(emitters[noise_index].txac, 257);
+        let mut without_txac = emitters[noise_index].clone();
+        without_txac.txac = 0;
+        assert_eq!(
+            m2_particles::pixel_shader(&without_txac),
+            PixelShader::ThreeColorThreeAlpha
+        );
+        let mut without_three_color = emitters[noise_index].clone();
+        without_three_color.flags &= !THREE_COLOR;
+        assert_eq!(
+            m2_particles::pixel_shader(&without_three_color),
+            PixelShader::Mod
         );
     }
 }
