@@ -21,6 +21,7 @@ struct Peer {
     map: Option<u32>,
     snapshot: Option<PvpSnapshot>,
     group: Option<GroupRosterSnapshot>,
+    spec_id: Option<u32>,
 }
 impl Peer {
     fn connect(index: usize, mode: ArenaQueueMode, address: SocketAddr) -> Result<Self, String> {
@@ -37,6 +38,7 @@ impl Peer {
             map: None,
             snapshot: None,
             group: None,
+            spec_id: None,
         })
     }
 
@@ -73,7 +75,20 @@ impl Peer {
             if !reply.success {
                 return Err(format!("fb_arena{} login: {:?}", self.index, reply.error));
             }
-            let character = reply.characters.first().ok_or("Empty roster")?;
+            let character = if self.mode == ArenaQueueMode::SoloShuffle && self.index <= 2 {
+                let name = if self.index == 1 {
+                    "Arenahealone"
+                } else {
+                    "Arenahealtwo"
+                };
+                reply
+                    .characters
+                    .iter()
+                    .find(|character| character.name == name)
+                    .ok_or("Required source-role healer character absent")?
+            } else {
+                reply.characters.first().ok_or("Empty roster")?
+            };
             self.bridge.send::<_, AuthChannel>(SelectCharacter {
                 character_id: character.character_id,
             })?;
@@ -87,6 +102,18 @@ impl Peer {
             self.entered = true;
             self.player_entity = reply.player_entity;
             self.bridge.send::<_, PvpChannel>(QueryPvpStatus)?;
+            if self.mode == ArenaQueueMode::SoloShuffle {
+                self.bridge.send::<_, TalentChannel>(SetSpecialization {
+                    spec_id: if self.index <= 2 { 257 } else { 71 },
+                })?;
+            }
+        } else if message.is::<SpecializationChanged>() {
+            self.spec_id = Some(
+                message
+                    .downcast::<SpecializationChanged>()
+                    .map_err(|_| "specialization type")?
+                    .spec_id,
+            );
         } else if message.is::<LoadTerrain>() {
             let terrain = message
                 .downcast::<LoadTerrain>()
@@ -127,6 +154,14 @@ impl Peer {
     fn action(&mut self, action: &str) -> Result<(), String> {
         if !self.entered {
             return Err(format!("fb_arena{} has not entered", self.index));
+        }
+        if let Some(target) = action.strip_prefix("attack:") {
+            return self.bridge.send::<_, CombatChannel>(AttackSwing {
+                target: target.parse().map_err(|_| "attack target entity")?,
+            });
+        }
+        if let Some(cast) = action.strip_prefix("cast:") {
+            return self.cast_action(cast);
         }
         match action {
             "reconnect" => self.reconnect(),
@@ -174,8 +209,21 @@ impl Peer {
             _ => Err(format!("Unknown command {action}")),
         }
     }
+    fn cast_action(&self, value: &str) -> Result<(), String> {
+        let (spell, target) = value
+            .split_once(':')
+            .ok_or("Expected cast:<spell-id>:<target-entity>")?;
+        self.bridge.send::<_, CombatChannel>(SpellCastIntent {
+            spell_id: Some(spell.parse().map_err(|_| "spell ID")?),
+            spell: String::new(),
+            target_entity: Some(target.parse().map_err(|_| "cast target entity")?),
+            destination: None,
+            target_item_guid: None,
+            witness: None,
+        })
+    }
     fn write_state(&self, directory: &Path) -> Result<(), String> {
-        let value = serde_json::json!({"entered": self.entered,"map":self.map,"terrain":self.terrain,"player_entity":self.player_entity,"reconnects":self.reconnects,"snapshot":self.snapshot,"group":self.group});
+        let value = serde_json::json!({"spec_id":self.spec_id,"entered": self.entered,"map":self.map,"terrain":self.terrain,"player_entity":self.player_entity,"reconnects":self.reconnects,"snapshot":self.snapshot,"group":self.group});
         fs::write(
             directory.join(format!("peer{}.json", self.index)),
             serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
@@ -196,7 +244,8 @@ fn run() -> Result<(), String> {
         Ok("2v2") => (ArenaQueueMode::Skirmish2v2, 2),
         Ok("3v3") => (ArenaQueueMode::Skirmish3v3, 3),
         Ok("rated2v2") => (ArenaQueueMode::Rated2v2, 2),
-        _ => return Err("ARENA_MODE must explicitly select 2v2, 3v3 or rated2v2".into()),
+        Ok("shuffle") => (ArenaQueueMode::SoloShuffle, 3),
+        _ => return Err("ARENA_MODE must explicitly select 2v2, 3v3, rated2v2 or shuffle".into()),
     };
     let mut peers = (1..team_size * 2)
         .map(|index| Peer::connect(index, mode, address))
@@ -248,6 +297,7 @@ fn connect_peer_bridge(index: usize, address: SocketAddr) -> Result<NetworkBridg
         .receive::<PvpStateUpdate>()
         .receive::<GroupInvitePrompt>()
         .receive::<GroupRosterSnapshot>()
+        .receive::<SpecializationChanged>()
         .connect(address, client_id)?;
     bridge.send::<_, AuthChannel>(LoginRequest {
         token: None,
