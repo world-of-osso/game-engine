@@ -34,6 +34,24 @@ class InstallExportTest(unittest.TestCase):
                     {'ID': '1', 'Height': '1024', 'Width': '2048',
                      'Offset_0': '-1', 'Offset_1': '3'}])
 
+    def test_dbd_names_keep_existing_csv_contract_without_guessing_field_indexes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'CooldownSet.dbd').write_text(
+                'COLUMNS\nint ID\nint ChrSpecialization\nint PlayerConditionID\n\n'
+                'LAYOUT ABCD1234\n$noninline,id$ID<32>\n'
+                'PlayerConditionID<u32>\nChrSpecialization<u32>\n')
+            source = root / 'input.db2'
+            source.write_bytes(fixture(0xABCD1234, [8, 71]))
+            output = root / 'out.csv'
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/export_db2_csv.py'),
+                                     'CooldownSet', str(source), str(output), '--definitions', str(root)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with output.open() as stream:
+                self.assertEqual(list(csv.DictReader(stream)), [
+                    {'ID': '1', 'PlayerConditionID': '8', 'ChrSpecializationID': '71'}])
+
     def test_unknown_layout_fails_without_writing_export(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
