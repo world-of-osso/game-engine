@@ -5,7 +5,7 @@ The five assigned native frames use Retail template geometry and art; Forever ch
 ## Source geometry
 
 - CharacterSelectNavBar:55px root,51px buttons; zero-spacing tray with4px width padding; GlueFontNormal15px measured label+70px. End caps and selected lines follow `SetButtonVisuals` offsets, not guessed fixed button widths.
-- MainMenuFrame:260px width; padding48/34 vertically,28 horizontally; zero spacing,20px sections. Six36px buttons plus three sections yield358px. Dialog header uses measured text+64px and39px height at TOP+11.
+- MainMenuFrame:260px width; padding48/34 vertically,28 horizontally; zero spacing,20px sections. The original six36px buttons plus three sections yielded358px; [menu follow-up](../../specs/game-menu-settings.md) exposes eight supported36px buttons and retains three sections, yielding430px. Dialog header uses measured text+64px and39px height at TOP+11.
 - GlueDialog:512x256 base container,450px text region,150x32 editbox,200x30 buttons; input inherits TooltipDefaultLayout, not a Common-Input-Border stand-in.
 - GlueCollections:703x595 at CENTER+94; IconsFrame(4,60)..(-6,-53), grid inset13/38 and12/25. The resulting668x419 region fits three215x173 cards with11px horizontal and34px vertical spacing, hence six per page. Selected224x183 art is TOPLEFT(-4,+5); source paging controls are21px above grid bottom.
 - SettingsPanel:920x724,175x20 categories; SettingsCheckbox30x29. Keybinding buttons160x22 use the XML12x6 silver-button corner crops. Dropdown controls use SettingsDropdownControlMixin width220 and WowStyle2 height25.
@@ -53,6 +53,14 @@ Passive dropdown hit-testing is isolated in `b633ba1e8` (projection only), nativ
 Final proof:40 focused Rust tests, exporter1, extension build/check and scoped Rust format check; native12 frame geometry/click cases, two isolated shadow-pixel cases, and two popup lifecycle cases. Logs under `/home/osso/.worktrees/logs/ui-glue-menus-final-*`. Source-only independent verifier passed the bounded popup/input/sampling changes; native execution and pixel inspection remain main-thread evidence.
 
 A stale slot-local shared crate artifact initially hid already-exported Renown messages. Cleaning only the slot's shared artifacts and rebuilding resolved it; protocol source was not changed. Disabled/tiled desaturation material composition is outside the assigned frames and was not expanded into this patch.
+
+## Menu follow-up — 2026-10-13
+
+`fbf1a1ea0` adds supported Retail Game Menu entries: Edit Mode enters the existing HUD editor; Macros/Support open existing Options pages; AddOns opens its category set. Native admission now checks an actual playable InWorld session. No store/splash/ratings screen was invented; exact hidden capability/localization conditions and remaining macro/support functionality live in [the contract](../../specs/game-menu-settings.md).
+
+Settings Game/AddOns tabs reuse `merchant_frame_component::{tab,tab_width}` with MinimalTab.xml art/37px height and MinimalTabMixin text+40 width. Header anchors are(32,27), preceding TOPRIGHT+5, and SearchBox350x22 at(552,34). Search projects matching rendered labels/descriptions across the active category set, preserving each row's controls and grouping categories; empty results are explicit. Search/category-set changes reset content scroll. Actual SearchBox borders use InputBoxVisualTemplate cap8x20, left-5, right0; text insets are left16/right20.
+
+Model RED caught missing entries/tabs and unfiltered categories. `fbf1a1ea0` passed32 scoped options and two menu tests, including both-skin header geometry. `godot/tests/ui_menus_followup.gd` covers native geometry/clicks/captures; runtime proof is pending until its saved receipt is recorded. Supporting tabs/search textures1318750/8086468 and6725697/3281887 already exist in shared data; no extraction was needed.
 
 ## Sources
 
