@@ -193,6 +193,47 @@ fn pet_journal_skins_share_retail_layout_and_real_instance_text() {
 }
 
 #[test]
+fn companion_loadout_and_card_follow_retail_xml_in_both_skins() {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.select(PetRowKey::Owned(1));
+        state.journal.battle_slots[0] = Some(1);
+        let mut context = SharedContext::new();
+        context.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pet_journal_screen).sync(&context, &mut registry);
+        let card = registry
+            .get(registry.get_by_name("PetJournalPetCardBackground").unwrap())
+            .unwrap();
+        assert_eq!(card.height, Dimension::Fixed(166.0));
+        assert_eq!(card.position.left, Val::Px(289.0));
+        assert_eq!(card.position.top, Val::Px(63.0));
+        for slot in 0..3 {
+            let name = format!("PetJournalBattleSlot{slot}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!(frame.width, Dimension::Fixed(399.0));
+            assert_eq!(frame.height, Dimension::Fixed(106.0));
+            assert_eq!(frame.position.left, Val::Px(291.0));
+            assert_eq!(frame.position.top, Val::Px(255.0 + slot as f32 * 107.0));
+            assert_eq!(
+                frame.onclick.as_deref(),
+                Some(format!("pet:equip:{slot}").as_str())
+            );
+            assert!(registry.get_by_name(&format!("{name}Background")).is_some());
+            assert!(registry.get_by_name(&format!("{name}ModelScene")).is_some());
+        }
+        assert!(registry.get_by_name("PetJournalBattleSlot0Icon").is_some());
+        assert!(registry.get_by_name("PetJournalBattleSlot0Level").is_some());
+    }
+}
+
+#[test]
 fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
     use shared::protocol::{
         PetBattleQueueRequest as Request, PetBattleQueueState as State, PetBattleQueueUpdate,

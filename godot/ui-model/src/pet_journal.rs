@@ -3,6 +3,8 @@ use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button};
 use shared::pet_battle::PetJournal;
+#[path = "pet_journal_loadout.rs"]
+mod loadout;
 use shared::protocol::{CollectionPetSnapshot, CollectionStateUpdate};
 use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -369,7 +371,7 @@ fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
 }
 fn pet_card(view: &PetJournalView) -> Element {
     let mut out = rsx! { texture { name: "PetJournalPetCardBackground", texture_atlas: "PetJournal-PetCard-BG",
-    width: 405.0, height: 168.0, left: 292.0, top: 60.0, pos_type: "absolute" } };
+    width: 405.0, height: 166.0, left: 289.0, top: 63.0, pos_type: "absolute" } };
     let selected = view
         .rows()
         .into_iter()
@@ -417,29 +419,7 @@ fn pet_card(view: &PetJournalView) -> Element {
     out
 }
 fn battle_slots(view: &PetJournalView) -> Element {
-    let mut out = Vec::new();
-    let selected_owned = matches!(view.selected, Some(PetRowKey::Owned(_)));
-    for slot in 0..3 {
-        let top = 279.0 + slot as f32 * 100.0;
-        let pet = view.journal.battle_slots[slot].and_then(|id| view.journal.get(id));
-        let text = pet.map_or_else(
-            || format!("Battle slot {}: choose a pet", slot + 1),
-            |pet| {
-                let name = &view.catalog[&pet.species_id].name;
-                format!("{} · Level {} · Slot {}", name, pet.level, slot + 1)
-            },
-        );
-        out.extend(panel_button(
-            format!("PetJournalBattleSlot{slot}"),
-            &text,
-            &format!("pet:equip:{slot}"),
-            selected_owned
-                && !view.pending
-                && view.queue == shared::protocol::PetBattleQueueState::Idle,
-            (292.0, top, 405.0, 92.0),
-        ));
-    }
-    out
+    loadout::battle_slots(view)
 }
 fn journal_buttons(view: &PetJournalView) -> Element {
     let owned = matches!(view.selected, Some(PetRowKey::Owned(_)));
