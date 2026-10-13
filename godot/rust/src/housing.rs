@@ -182,6 +182,7 @@ impl GameClient {
             .as_ref()
             .ok_or("Housing catalog is not loaded")?
             .clone();
+        model.editor_bindings = self.client_options.bindings.clone();
         model.editor.mouse_control_anchor =
             self.project_housing_control_anchor(model.editor.expert_transform(), scale);
         let authority = &self.housing.authority;

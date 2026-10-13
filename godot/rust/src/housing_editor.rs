@@ -146,6 +146,52 @@ impl GameClient {
         Ok(true)
     }
 
+    fn housing_bound_action(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> Result<bool, String> {
+        use game_engine_core::input_bindings_data::InputAction;
+        use game_engine_ui_model::housing_editor::EditorMode;
+        let Some(model) = self.housing.model.as_ref() else {
+            return Ok(false);
+        };
+        if self.game_menu_ui.is_some() || model.storage_search_focused {
+            return Ok(false);
+        }
+        if let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() {
+            if key.is_echo() {
+                return Ok(false);
+            }
+            if key.get_keycode() == godot::global::Key::ESCAPE && key.is_pressed() {
+                return self.dispatch_housing_editor_action("housing:cancel");
+            }
+        }
+        let mode = model.editor.mode;
+        let mut input = crate::input::PhysicalInput::default();
+        input.capture(event);
+        let action = InputAction::HOUSING_ACTIONS.into_iter().find(|action| {
+            self.client_options
+                .bindings
+                .is_just_pressed(*action, &input)
+        });
+        let command = match action {
+            Some(InputAction::HousingBasicMode) => "housing:basic",
+            Some(InputAction::HousingExpertMode) => "housing:expert",
+            Some(InputAction::HousingCleanupMode) => "housing:cleanup",
+            Some(InputAction::HousingRotateLeft) if mode == EditorMode::Basic => {
+                "housing:rotate:left"
+            }
+            Some(InputAction::HousingRotateRight) if mode == EditorMode::Basic => {
+                "housing:rotate:right"
+            }
+            Some(InputAction::HousingRemoveDecor) if mode != EditorMode::Cleanup => {
+                "housing:remove"
+            }
+            _ => return Ok(false),
+        };
+        self.dispatch_housing_editor_action(command)
+    }
+
     pub(super) fn editor_ui_contains(&self, point: Vector2) -> bool {
         self.housing.ui.as_ref().is_some_and(|ui| {
             [
@@ -162,6 +208,7 @@ impl GameClient {
                 "HouseEditorPlacedDecorListCloseButton",
                 "HouseEditorPlacedDecorContextMenu",
                 "HouseEditorExpertSubmodeBar",
+                "HouseEditorBasicSubmodeBar",
                 "HouseEditorRotateControl",
                 "HouseEditorScaleControl",
                 "HouseEditorScaleThumb",
@@ -192,6 +239,9 @@ impl GameClient {
             .is_none_or(|model| model.surface != HousingSurface::Editor)
         {
             return Ok(false);
+        }
+        if self.housing_bound_action(event)? {
+            return Ok(true);
         }
         if self.housing_placed_list_pointer(event)? {
             return Ok(true);
