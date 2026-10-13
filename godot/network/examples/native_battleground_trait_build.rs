@@ -6,12 +6,10 @@ use game_engine_core::talent_data::{
     rules::{ConfigEntry, Purchase, TraitContext, build_config},
 };
 use shared::protocol::{CommitTraitConfig, TraitEntrySelection};
-use std::{
-    collections::BTreeSet,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-const PROTECTION_SPELLS: &[u32] = &[871, 12975, 1160, 190456];
+// Last Stand12975 exists only in legacy tree880, not active Protection tree850.
+const PROTECTION_SPELLS: &[u32] = &[871, 1160, 190456];
 const HOLY_SPELLS: &[u32] = &[2050, 47788, 64843];
 
 fn read_source_tree(data: &Path, class: u32, spec: u32) -> Result<TraitTree, String> {
@@ -24,6 +22,7 @@ fn plan_trait_commit(
     context: TraitContext,
     wanted: &[u32],
 ) -> Result<CommitTraitConfig, String> {
+    reject_missing_source_spells(tree, wanted)?;
     let candidates = order_main_tree_candidates(tree, wanted);
     let mut purchases = Vec::new();
     loop {
@@ -41,7 +40,6 @@ fn order_main_tree_candidates<'a>(
     tree: &'a TraitTree,
     wanted: &[u32],
 ) -> Vec<(&'a TraitNode, &'a TraitNodeEntry)> {
-    let prerequisites = collect_prerequisite_nodes(tree, wanted);
     let mut candidates: Vec<_> = tree
         .nodes
         .iter()
@@ -56,7 +54,6 @@ fn order_main_tree_candidates<'a>(
     candidates.sort_by_key(|(node, entry, index)| {
         (
             !wanted.contains(&entry.spell_id),
-            !prerequisites.contains(&node.id),
             node.pos_y,
             node.pos_x,
             node.id,
@@ -69,27 +66,26 @@ fn order_main_tree_candidates<'a>(
         .collect()
 }
 
-fn collect_prerequisite_nodes(tree: &TraitTree, wanted: &[u32]) -> BTreeSet<u32> {
-    let mut pending: Vec<_> = tree
-        .nodes
+fn reject_missing_source_spells(tree: &TraitTree, wanted: &[u32]) -> Result<(), String> {
+    let missing: Vec<_> = wanted
         .iter()
-        .filter(|node| {
-            node.entries
+        .copied()
+        .filter(|spell| {
+            !tree
+                .nodes
                 .iter()
-                .any(|entry| wanted.contains(&entry.spell_id))
+                .flat_map(|node| &node.entries)
+                .any(|entry| entry.spell_id == *spell)
         })
-        .map(|node| node.id)
         .collect();
-    let mut nodes = BTreeSet::new();
-    while let Some(id) = pending.pop() {
-        if !nodes.insert(id) {
-            continue;
-        }
-        if let Some(node) = tree.node(id) {
-            pending.extend(node.parents.iter().map(|(parent, _)| *parent));
-        }
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Requested spells {missing:?} are absent from source trait tree {}",
+            tree.tree_id
+        ))
     }
-    nodes
 }
 
 fn missing_spells(tree: &TraitTree, config: &[ConfigEntry], wanted: &[u32]) -> Vec<u32> {
@@ -241,8 +237,25 @@ mod tests {
     }
 
     #[test]
-    fn source_protection_build_purchases_wall_stand_shout_and_ignore_pain() {
+    fn source_protection_build_purchases_wall_shout_and_ignore_pain() {
         assert_requested_spells(1, 73, PROTECTION_SPELLS);
+    }
+
+    #[test]
+    fn active_protection_tree_refuses_legacy_last_stand_without_substitution() {
+        let tree = read_source_tree(&source_data(), 1, 73).unwrap();
+        let result = plan_trait_commit(
+            &tree,
+            TraitContext {
+                spec_id: 73,
+                level: 90,
+            },
+            &[12975],
+        );
+        assert_eq!(
+            result,
+            Err("Requested spells [12975] are absent from source trait tree 850".into())
+        );
     }
 
     #[test]
