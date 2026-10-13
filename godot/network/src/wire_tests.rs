@@ -2092,3 +2092,34 @@ fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
     );
     host.stop();
 }
+
+#[test]
+fn follower_group_finder_default_bridge_receives_catalog_over_udp() {
+    use shared::protocol::{FollowerDungeonEntry, FollowerDungeons, LfgChannel};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 57612436);
+    await_connected(&mut server, &mut host);
+    let expected = FollowerDungeons {
+        entries: vec![FollowerDungeonEntry {
+            id: 2436,
+            name: "Ruby Life Pools".into(),
+            map_id: 2521,
+        }],
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<FollowerDungeons>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<LfgChannel>(expected.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "prepared follower catalog on default bridge",
+        |event| matches!(event, Event::Message(message) if message.is::<FollowerDungeons>()),
+    ) else {
+        panic!("expected follower catalog")
+    };
+    assert_eq!(message.downcast::<FollowerDungeons>().ok(), Some(expected));
+    host.stop();
+}
