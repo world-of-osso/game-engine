@@ -7,7 +7,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-fn enabled() -> bool {
+pub(crate) fn enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
     *ENABLED.get_or_init(|| std::env::var_os("BG_NETWORK_TRACE").is_some())
 }
@@ -31,6 +31,35 @@ pub(crate) fn configure() -> Result<(), String> {
         .clone()
 }
 
+fn read_unix_millis() -> Option<u128> {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(elapsed) => Some(elapsed.as_millis()),
+        Err(error) => {
+            eprintln!("Cannot timestamp battleground transport diagnostic: {error}");
+            None
+        }
+    }
+}
+
+/// Sampling immediately after UDP buffer-to-link, before Netcode decrypt/reassembly.
+/// A batch timestamp bounds socket receipt; typed-message traces identify delivery.
+pub(crate) fn record_socket_receive(
+    links: bevy::prelude::Query<
+        &lightyear::prelude::Link,
+        bevy::prelude::With<lightyear::prelude::UdpIo>,
+    >,
+) {
+    for link in &links {
+        let packets = link.recv.len();
+        if packets == 0 {
+            continue;
+        }
+        if let Some(unix_ms) = read_unix_millis() {
+            eprintln!("BG_TRACE_SOCKET_BATCH unix_ms={unix_ms} packets={packets}");
+        }
+    }
+}
+
 pub(crate) fn record_relay(message: &dyn Any) {
     if !enabled() {
         return;
@@ -45,12 +74,8 @@ pub(crate) fn record_relay(message: &dyn Any) {
     else {
         return;
     };
-    let unix_ms = match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(elapsed) => elapsed.as_millis(),
-        Err(error) => {
-            eprintln!("Cannot timestamp battleground relay receipt: {error}");
-            return;
-        }
+    let Some(unix_ms) = read_unix_millis() else {
+        return;
     };
     eprintln!(
         "BG_TRACE_RELAY unix_ms={unix_ms} match={} bg={} phase={:?} score_a={} score_b={}",
