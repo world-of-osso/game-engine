@@ -2,6 +2,10 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## Native source area lifecycle (2026-10-13)
+
+Typed `IncorrectArea` and the server group detail use the existing native cast-error path. Both skins prove actual Eagger Basket learning/journal activation: Northshire refuses without cooldown, Goldshire applies, area exit removes the aura while cooldown continues. [Source and exact server coverage](../../../../game-server/docs/toy-effects14-coverage.md#source-requiredareasid-lifecycle-2026-10-13) owns provenance; no map fallback or new toy-effect admission.
+
 ## War Banner faction and combat presentation (2026-10-13)
 
 Client codec carries `CurrentPvpFaction`, and `SpellEffects::caster_context` reads that scalar rather than deriving team from race/reaction. PlayerCondition parser handles the source field, cache format14 invalidates older catalogs, and all other unsupported requirements remain refused. Source matching300104/300144 selects AuraStart back model2925498/2925497 until AuraEnd. Four private5911 native processes prove both models in Modern/Forever, through actual learning/journal activation and physical source Blackrock Worg right-click combat. Replicated aura removal ends the kit and preserves the native Human/Orc visual; all four receipts observe in_combat=true. Real saved Options controls select the skin and enable Micro Menu (now hidden by both presets), without offline-preview layout defaults. [Single-source coverage/source/asset boundary](../../../../game-server/docs/toy-effects14-coverage.md#current-pvp-faction-and-war-banners-2026-10-13); [client contract](../../specs/toy-box.md).
