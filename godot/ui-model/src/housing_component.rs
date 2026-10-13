@@ -43,6 +43,7 @@ pub fn apply_housing_postsetup(view: &HousingView, registry: &mut FrameRegistry)
     }
     crate::housing_placed_list_component::apply_placed_list_postsetup(registry);
     crate::housing_storage_tiles::apply_stored_tiles_postsetup(view, registry);
+    crate::housing_basic_component::apply_basic_postsetup(view, registry);
 }
 
 fn apply_search_postsetup(registry: &mut FrameRegistry, prefix: &str, active: bool) {

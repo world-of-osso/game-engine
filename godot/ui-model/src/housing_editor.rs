@@ -40,6 +40,8 @@ pub struct EditorInteraction {
     initial: Option<DecorTransform>,
     draft: Option<DecorTransform>,
     axis: RotationAxis,
+    commit_new_decor_on_mouse_up: bool,
+    move_overlay_pressed: bool,
 }
 
 fn apply_mouse_offset(
@@ -295,6 +297,43 @@ impl EditorInteraction {
         };
         Ok(())
     }
+    /// Retail CatalogEntry OnDragStart selects the owned source and arms GLOBAL_MOUSE_UP.
+    pub fn begin_place_drag(
+        &mut self,
+        authority: &HousingAuthority,
+        decor: &Decor,
+    ) -> Result<(), String> {
+        self.begin_place(authority, decor)?;
+        self.commit_new_decor_on_mouse_up = true;
+        Ok(())
+    }
+
+    /// An already-visible DecorMoveOverlay commits on release, never on this press.
+    pub fn arm_move_overlay(&mut self) -> bool {
+        self.move_overlay_pressed =
+            self.mode == EditorMode::Basic && (self.placing.is_some() || self.selected.is_some());
+        self.move_overlay_pressed
+    }
+
+    pub fn basic_pointer_release(
+        &mut self,
+        authority: &HousingAuthority,
+        ground: Option<[f32; 3]>,
+    ) -> Result<Option<HousingCommand>, String> {
+        let commit = self.move_overlay_pressed
+            || (self.placing.is_some() && self.commit_new_decor_on_mouse_up);
+        self.move_overlay_pressed = false;
+        if self.mode != EditorMode::Basic || !commit {
+            // Source ignores the catalog click's original release; next click can place.
+            self.commit_new_decor_on_mouse_up = self.placing.is_some();
+            return Ok(None);
+        }
+        let point = ground.ok_or("No authored ground surface is under the pointer.")?;
+        let command = self.commit_at(authority, point)?;
+        self.commit_new_decor_on_mouse_up = false;
+        Ok(Some(command))
+    }
+
     pub fn select(&mut self, authority: &HousingAuthority, instance_id: u64) -> Result<(), String> {
         let layout = layout(authority)?;
         let decor = layout
@@ -348,6 +387,24 @@ impl EditorInteraction {
             position,
         })
     }
+    /// New owned decor has no persisted instance yet; rotation belongs to its preview.
+    pub fn rotate_placement(
+        &mut self,
+        authority: &HousingAuthority,
+        radians: f32,
+    ) -> Result<(), String> {
+        editable_layout(authority)?;
+        if self.placing.is_none() {
+            return Err("Select owned decor before rotating its placement preview.".into());
+        }
+        let yaw = self.yaw + radians;
+        if !yaw.is_finite() {
+            return Err("Decor rotation must be finite.".into());
+        }
+        self.yaw = yaw;
+        Ok(())
+    }
+
     pub fn rotate(
         &mut self,
         authority: &HousingAuthority,

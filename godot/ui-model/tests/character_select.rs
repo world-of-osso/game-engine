@@ -10,6 +10,14 @@ use ui_toolkit::layout_values::{PositionType, Val};
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::texture::TextureSource;
 
+fn character_select_model(width: f32, height: f32) -> CharacterSelectModel {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    CharacterSelectModel::new(width, height)
+}
+
 fn text(model: &CharacterSelectModel, name: &str) -> String {
     let frame = model
         .registry
@@ -55,7 +63,7 @@ fn roster(selected_index: Option<usize>) -> CharSelectState {
 
 #[test]
 fn character_select_root_tracks_viewport_after_sync() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.sync();
     let id = model.registry.get_by_name(CHAR_SELECT_ROOT.0).unwrap();
     let root = model.registry.get(id).unwrap();
@@ -76,7 +84,7 @@ fn character_select_root_tracks_viewport_after_sync() {
 
 #[test]
 fn authored_roster_retains_names_layout_resources_and_actions() {
-    let mut model = CharacterSelectModel::new(1920.0, 1080.0);
+    let mut model = character_select_model(1920.0, 1080.0);
     model.shared.insert(roster(Some(0)));
     model.sync();
     let registry = &model.registry;
@@ -146,7 +154,7 @@ fn authored_roster_retains_names_layout_resources_and_actions() {
 
 #[test]
 fn roster_selection_and_delete_confirmation_follow_shared_state() {
-    let mut model = CharacterSelectModel::new(1920.0, 1080.0);
+    let mut model = character_select_model(1920.0, 1080.0);
     model.shared.insert(roster(Some(0)));
     model.sync();
     model.shared.insert(roster(Some(1)));
@@ -178,6 +186,25 @@ fn roster_selection_and_delete_confirmation_follow_shared_state() {
             .registry
             .get_by_name(DELETE_CONFIRM_DIALOG.0)
             .is_some()
+    );
+    // GlueDialog.xml:512 container,150x32 input,200x30 buttons.
+    assert_eq!(
+        frame(&model, DELETE_CONFIRM_DIALOG.0).width,
+        Dimension::Fixed(512.0)
+    );
+    assert_eq!(
+        (
+            frame(&model, DELETE_CONFIRM_INPUT.0).width,
+            frame(&model, DELETE_CONFIRM_INPUT.0).height
+        ),
+        (Dimension::Fixed(150.0), Dimension::Fixed(32.0))
+    );
+    assert_eq!(
+        (
+            frame(&model, DELETE_CONFIRM_BUTTON.0).width,
+            frame(&model, DELETE_CONFIRM_BUTTON.0).height
+        ),
+        (Dimension::Fixed(200.0), Dimension::Fixed(30.0))
     );
     assert_eq!(
         text(&model, "DeleteCharacterDialogWarning"),
@@ -276,8 +303,8 @@ const GOLD: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
 const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 #[test]
-fn top_navigation_tabs_replace_tophud_art_with_retail_labels_and_actions() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+fn top_navigation_uses_retail_geometry_labels_and_actions() {
+    let mut model = character_select_model(1280.0, 720.0);
     model.sync();
     for art in [
         "CharSelectTopHudLeft",
@@ -313,12 +340,26 @@ fn top_navigation_tabs_replace_tophud_art_with_retail_labels_and_actions() {
             Some(CharSelectAction::CampsiteToggle),
         ]
     );
-    for rule in ["CharSelectTopNavRuleTop", "CharSelectTopNavRuleBottom"] {
-        assert_eq!(
-            frame(&model, rule)
+    // CharacterSelectNavBar.xml:4,77,88 and CharacterSelect.xml:472-473.
+    assert_eq!(
+        frame(&model, "CharSelectTopNav").height,
+        Dimension::Fixed(55.0)
+    );
+    assert_eq!(frame(&model, "CharSelectTopNav").margin.top, Val::Px(0.0));
+    assert_eq!(
+        frame(&model, "CharSelectTopNavTabs")
+            .flex_layout
+            .as_ref()
+            .unwrap()
+            .gap,
+        0.0
+    );
+    for tab in TOP_NAV_TABS {
+        assert_eq!(frame(&model, tab).height, Dimension::Fixed(51.0));
+        assert!(
+            frame(&model, &format!("{tab}Box"))
                 .background_color
-                .map(|c| c[..3].to_vec()),
-            Some(GOLD[..3].to_vec())
+                .is_none()
         );
     }
     assert_eq!(tab_looks(&model), vec![(false, GOLD); 5]);
@@ -326,7 +367,7 @@ fn top_navigation_tabs_replace_tophud_art_with_retail_labels_and_actions() {
 
 #[test]
 fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.sync();
     let set_button = |model: &mut CharacterSelectModel, name: &str, hovered: bool, state| {
         let id = model.registry.get_by_name(name).unwrap();
@@ -346,12 +387,8 @@ fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
     );
     model.sync();
     let boxed = frame(&model, "CharSelectModeTabBox");
-    assert!(matches!(boxed.border, Some(ref b) if b.width == 1.0 && b.color[..3] == GOLD[..3]));
-    assert!(
-        boxed
-            .background_color
-            .is_some_and(|c| c[0] < 0.1 && c[3] < 1.0)
-    );
+    assert!(boxed.border.is_none());
+    assert!(boxed.background_color.is_none());
     assert_eq!(
         tab_looks(&model),
         vec![
@@ -422,10 +459,18 @@ fn listed_campsites(model: &CharacterSelectModel) -> Vec<u32> {
 
 #[test]
 fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
-    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    let mut model = character_select_model(1280.0, 720.0);
     model.shared.insert(campsites(8, 0));
     model.sync();
-    assert_eq!(listed_campsites(&model), [1, 2, 3, 4]);
+    assert_eq!(
+        frame(&model, "CampsitePanel").width,
+        Dimension::Fixed(703.0)
+    );
+    assert_eq!(
+        frame(&model, "CampsitePanel").height,
+        Dimension::Fixed(595.0)
+    );
+    assert_eq!(listed_campsites(&model), [1, 2, 3, 4, 5, 6]);
     assert_eq!(text(&model, "CampsitePageText"), "Page 1/2");
     assert_eq!(
         action(&model, "CampsitePrevPage"),
@@ -439,7 +484,7 @@ fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
 
     model.shared.insert(campsites(8, 1));
     model.sync();
-    assert_eq!(listed_campsites(&model), [5, 6, 7, 8]);
+    assert_eq!(listed_campsites(&model), [7, 8]);
     assert_eq!(text(&model, "CampsitePageText"), "Page 2/2");
     assert_eq!(
         action(&model, "CampsitePrevPage"),
@@ -451,11 +496,11 @@ fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
         "disabled next stays on the last page"
     );
 
-    model.shared.insert(campsites(5, 7));
+    model.shared.insert(campsites(7, 7));
     model.sync();
     assert_eq!(
         listed_campsites(&model),
-        [5],
+        [7],
         "stale page clamps to the last"
     );
     assert_eq!(text(&model, "CampsitePageText"), "Page 2/2");

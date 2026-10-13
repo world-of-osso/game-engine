@@ -177,6 +177,10 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
 
 #[test]
 fn hud_edit_manager_action_rows_keep_retail_bottom_and_side_insets() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         ui_toolkit::atlas::set_thread_skin(skin);
         let mut shared = SharedContext::new();
@@ -374,6 +378,10 @@ fn hudeditshowlist_checkbox_actions_toggle_movers_without_changing_layout() {
 #[test]
 fn hudeditshowlist_account_preferences_survive_reopen_character_layout_and_exit() {
     use super::super::hud_edit_layout::publish_account_settings;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let path = std::env::temp_dir().join(format!(
         "hudeditshowlist-account-{}.ron",
         std::process::id()
@@ -454,6 +462,10 @@ fn hudeditshowlist_account_preferences_survive_reopen_character_layout_and_exit(
 
 fn click_manager_button(state: EditModePanelState, button: &str) -> Option<String> {
     use super::super::{RegistryModel, ScreenPostsetup};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(state);
     let mut model = RegistryModel {

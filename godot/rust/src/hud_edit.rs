@@ -47,7 +47,7 @@ impl GameClient {
         Ok(false)
     }
 
-    fn enter_hud_edit(&mut self) -> Result<(), String> {
+    pub(crate) fn enter_hud_edit(&mut self) -> Result<(), String> {
         self.physical_input.clear();
         crate::ui::hud_edit_layout::publish_account_settings(
             ui_layout_data::edit_mode_account_settings(&self.account.hud_layout_path()?)?,
