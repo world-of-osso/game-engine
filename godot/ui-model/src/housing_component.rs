@@ -4,7 +4,9 @@ use crate::quest_art::{DynName, named_atlas_texture, portrait_border};
 use crate::ui::strata::FrameStrata;
 use game_engine_core::housing::Decor;
 use std::collections::{BTreeSet, HashMap};
-use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+use ui_toolkit::{
+    frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
+};
 
 pub const SIZE: [f32; 2] = [814.0, 544.0];
 /// Filter dropdown frame: five 20-unit rows inside the art's shadow border.
@@ -21,6 +23,83 @@ pub struct HousingView {
     pub missing_thumbnails: BTreeSet<u32>,
     /// Creature names the server's creature query returned, for decor vendor sources.
     pub vendor_names: HashMap<u32, String>,
+}
+
+/// SearchBoxTemplate fields not exposed by RSX attrs; apply before native projection.
+pub fn apply_housing_storage_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
+    for (prefix, focused, raw) in [
+        (
+            "HouseEditorStorageSearch",
+            view.model.storage_search_focused,
+            view.model.storage_search.as_str(),
+        ),
+        (
+            "HousingCatalogSearch",
+            view.model.search_focused,
+            view.model.search.as_str(),
+        ),
+    ] {
+        apply_search_postsetup(registry, prefix, focused || !raw.is_empty());
+    }
+}
+
+fn apply_search_postsetup(registry: &mut FrameRegistry, prefix: &str, active: bool) {
+    let Some(id) = registry.get_by_name(&format!("{prefix}Box")) else {
+        return;
+    };
+    let frame = registry
+        .get_mut(id)
+        .expect("Housing search frame exists after lookup");
+    let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut() else {
+        panic!("Housing search must be an EditBox");
+    };
+    edit.max_letters = Some(40);
+    edit.text_insets = [16.0, 20.0, 0.0, 0.0];
+    let id = registry
+        .get_by_name(&format!("{prefix}Glyph"))
+        .expect("Housing search must include its source magnifier");
+    let frame = registry
+        .get_mut(id)
+        .expect("Housing magnifier exists after lookup");
+    let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
+        panic!("Housing magnifier must be a Texture");
+    };
+    let channel = if active { 1.0 } else { 0.6 };
+    texture.vertex_color = [channel, channel, channel, 1.0];
+}
+
+pub(crate) fn housing_search_box(
+    prefix: &str,
+    raw: &str,
+    focused: bool,
+    rect: (f32, f32, f32),
+    clear_action: &str,
+) -> Element {
+    let (left, top, width) = rect;
+    let glyph = named_atlas_texture(
+        format!("{prefix}Glyph"),
+        "common-search-magnifyingglass",
+        (left + 1.0, top + 11.0, 10.0, 10.0),
+    );
+    let icon = named_atlas_texture(
+        format!("{prefix}ClearIcon"),
+        "common-search-clearbutton",
+        (3.0, 3.0, 10.0, 10.0),
+    );
+    let hint_hidden = !raw.is_empty();
+    let clear_hidden = raw.is_empty() && !focused;
+    let hint_left = left + 16.0;
+    let hint_width = width - 36.0;
+    let clear_left = left + width - 20.0;
+    let clear_top = format!("{}", top + 6.5);
+    rsx! {
+        editbox {name:{DynName(format!("{prefix}Box"))},text:raw,width,height:30.0,pos_type:"absolute",left,top,font_size:12.0}
+        fontstring {name:{DynName(format!("{prefix}Hint"))},text:"Search",hidden:hint_hidden,mouse_enabled:false,width:hint_width,height:30.0,pos_type:"absolute",left:hint_left,top,font_size:12.0,font_color:"0.35,0.35,0.35,1.0",justify_h:"LEFT"}
+        {glyph}
+        button {name:{DynName(format!("{prefix}ClearButton"))},width:17.0,height:17.0,pos_type:"absolute",left:clear_left,top:clear_top,hidden:clear_hidden,onclick:clear_action,button_default_skin:false,
+            r#frame {name:{DynName(format!("{prefix}ClearArt"))},width:17.0,height:17.0,alpha:"0.5",mouse_enabled:false,{icon}}
+        }
+    }
 }
 
 pub fn housing_screen(context: &SharedContext) -> Element {
@@ -194,6 +273,13 @@ fn catalog(view: &HousingView) -> Element {
         .collect();
     let preview = preview(view);
     let filter = filter_menu(model, authority.state.is_some());
+    let search = housing_search_box(
+        "HousingCatalogSearch",
+        &model.search,
+        model.search_focused,
+        (544.0, 25.0, 150.0),
+        "housing:search:clear",
+    );
     // HousingCatalogCategoriesMixin:GetFocusedCategoryString: HOUSING_CATALOG_CATEGORY_PATH_FMT
     // for a focused subcategory; the All category in highlight, others in normal color.
     let category_id = model.category.unwrap_or(crate::housing::ALL_CATEGORY);
@@ -237,11 +323,7 @@ fn catalog(view: &HousingView) -> Element {
     );
     rsx! {
         {background} {divider} {categories}
-        editbox { name: "HousingCatalogSearchBox", text: {model.search.as_str()}, width: 150.0, height: 30.0,
-            pos_type: "absolute", left: 544.0, top: 25.0, font_size: 12.0 }
-        fontstring { name: "HousingCatalogSearchHint", text: "Search", hidden: {!model.search.is_empty()},
-            mouse_enabled: false, width: 120.0, height: 30.0, pos_type: "absolute", left: 554.0, top: 25.0,
-            font_size: 12.0, font_color: "0.5,0.5,0.5,1.0", justify_h: "LEFT" }
+        {search}
         button { name: "HousingCatalogFilters", text: "Filter", width: 100.0, height: 20.0,
             pos_type: "absolute", left: 704.0, top: 30.0, onclick: "housing:filters" }
         fontstring { name: "HousingCatalogCategoryText", text: {category_title.as_str()}, width: 315.0, height: 20.0,

@@ -2,6 +2,18 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## Source-private summon proof (2026-10-12)
+
+Real private5911 UDP peers reproduced source-private Warning Sign73781 appearing in owner and nearby observer replicas. Source flags are now imported and respected by server interest on both observer/target updates, including wild zone spawns. Actual Lilian88280 UDP GREEN is owner-visible/observer-absent while public Scarecrow66768 stays visible to both; no client-side hiding or synthetic actor. [Source contract/import command and coverage](../../../../game-server/docs/toy-effects14-coverage.md#source-private-summons-2026-10-12).
+
+Fresh Modern/Forever owner processes also actually activate Shirakess170196/304505 and render source156052/display92597/four meshes/.6 scale, preserving natural60s expiry/no pet frame. Frontal source-camera PNGs inspected under requested `/syncthing/AgentShared/2026-10-12/toys/private-sign17/`; raw receipts/logs stay in continuation diagnostics. This preserves census337 without adding a working-toy claim. Wire proof uses two headless account peers; no simultaneous two-rendered-client claim. Group-private and other source flag semantics remain separate gaps.
+
+## Linked cooking-fire proof (2026-10-12)
+
+Actual native journal activation of Little Wickerman70722/99767 renders source208935/display10726/model524488 at its authored.25 scale: two meshes, nine source emitters and201/198 own submitted quads in Modern/Forever. Real cooking2538 spends one2672 and creates one2679. Replicated Cozy Fire7353 is visible in the ordinary buff row; real cancellation is followed by source trap refresh3211/3438ms, not a synthetic permanent aura. Both fire and refreshed-buff PNGs inspected under `/syncthing/AgentShared/2026-10-12/toys/linked-fire17/`.
+
+[Server source behavior, seven identities, census330→337, proof boundaries and lead-only asset-import command](../../../../game-server/docs/toy-effects14-coverage.md#linked-cooking-traps-2026-10-12). This is representative batch proof, not all-seven pixel/native-expiry certification. Local frozen69933 closure88 assets is authenticated and published only to the private slot; canonical publication stays lead-owned. No client production changes for linked31442: display0 does not create visible geometry, while its sourced aura uses ordinary replication/UI. The native fixture preserves source.25 scale; the initial guessed-scale1 assertion failed, then the corrected run waited the genuine300s item category cooldown before re-use.
+
 ## Data and actions
 
 `godot/ui-model/src/toybox.rs` projects the full ToyCollectionUpdate catalog, account ownership/favourites, filters and 18-item paging. Initial snapshots do not glow; newly learned identities glow and page to their filtered position. `toybox_component.rs` uses Retail Mainline geometry/chrome in both skins. Unimplemented journal tabs are disabled, not new feature panels. Collections OnLoad calls `PanelTemplates_SetNumTabs`, whose `PanelTemplates_AnchorTabs` replaces XML's overlapping -16 anchors with +3 sibling spacing; applying XML alone clips neighbouring captions.

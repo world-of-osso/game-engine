@@ -249,6 +249,33 @@ impl View {
             })
             .collect()
     }
+    pub fn select_dungeon_encounter(
+        &mut self,
+        dungeon_encounter: u32,
+        difficulty: Option<u32>,
+    ) -> Result<(), String> {
+        let encounter = self
+            .catalog
+            .encounters
+            .iter()
+            .find(|encounter| encounter.dungeon_encounter == dungeon_encounter)
+            .ok_or_else(|| format!("No journal entry for encounter {dungeon_encounter}"))?;
+        let id = encounter.id;
+        if let Some(difficulty) = difficulty
+            && !self
+                .available_difficulties(encounter.instance, Some(id))
+                .contains(&difficulty)
+        {
+            return Err(format!(
+                "Journal difficulty {difficulty} unavailable for encounter {dungeon_encounter}"
+            ));
+        }
+        self.select_encounter(id)?;
+        if let Some(difficulty) = difficulty {
+            self.difficulty = difficulty;
+        }
+        Ok(())
+    }
     pub fn select_encounter(&mut self, id: u32) -> Result<(), String> {
         let e = self
             .catalog
@@ -274,6 +301,10 @@ impl View {
         }
         self.page = Page::Overview;
         self.visible = true;
+        self.search.clear();
+        self.tier_open = false;
+        self.difficulty_open = false;
+        self.filter_menu = None;
         self.collapsed.clear();
         Ok(())
     }
@@ -397,6 +428,7 @@ impl View {
                     Some("suggested") => Tab::Suggested,
                     _ => return Err("Unknown journal tab".into()),
                 };
+                self.visible = true;
                 if self.tab == Tab::ItemSets && self.spec == 0 {
                     self.spec = self.choose_set_specialization();
                 }

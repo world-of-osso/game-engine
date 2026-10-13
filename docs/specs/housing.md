@@ -36,6 +36,12 @@ Owner House Settings opens the Retail600×550 panel and stages House Access with
 
 Plot Access, Blueprint Export and owner assignment remain disabled/unavailable and are never altered by saving house flags. Source: local Blizzard_HousingHouseSettings.lua HouseAccessFlags, OnAccessTypeSelected, OnSaveClicked and XML three160px columns. Server derives relationships from persisted plot ownership, assigned owner's character friends/guild and current party membership; no client relationship claim. Battle.net social authority remains unavailable. Previous Anyone permissions migrate once without changing storage/layout/ownership. Live acceptance includes staged/closed drafts, saved/relogged selections and denied other-account entry in both skins.
 
+## Shared Catalog search template
+
+Dashboard Catalog and owned storage inherit the same Retail HousingCatalogSearchBoxTemplate. Both use40 Unicode letters,16/20 text gutters,10px source magnifier (RGB0.6 empty/unfocused; white focused/nonempty), source gray placeholder and17px clear button with half-pixel centering. Raw text stays independent per surface; default applied query starts at three Unicode characters. Qualifying new Catalog search resets category/subcategory to All; shortening clears filtering without restoring prior focus. Same-category/subcategory no-ops retain raw text; changed specific focus clears registry text and releases focus; All/Back retains text. Clear explicitly refreshes results and releases focus; Enter/keypad Enter/Escape only release focus and consume the event, never submit/open chat/close the panel. Shared clear artwork follows existing hover/held/release behavior. Browsing cannot mutate confirmed storage/layout/ownership. Locale one-character overrides remain unimplemented, not inferred.
+
+Source: local Blizzard_HousingDashboardCatalog Lua OnSearchTextUpdated/OnCategoryFocusChanged/ClearSearchText, XML SearchBox inherits HousingCatalogSearchBoxTemplate, Blizzard_HousingCatalogFilters Lua/XML and inherited InputBoxTemplates. Native both-skin Catalog acceptance remains separate from storage proofs.
+
 ## Catalog model preview
 
 Catalog selection mounts the authenticated decor model in a transparent, isolated 3D viewport. Dispatch literal ModelType1 to M2 and2 to WMO root/groups through their maintained loaders; do not create an M2 filename for WMO bytes. Any required WMO batch failure makes that preview unavailable instead of hiding missing geometry. Replace the previous actor on selection, clear it when search has no results, and tear down before its UI parent disappears on tab switch, close or logout. Missing/unsupported models or required texture receipts show Retail's Preview unavailable state; never substitute a thumbnail or retain the previous actor. Browsing/drag rotation cannot change owned quantities, placements or gameplay camera. Tile thumbnails remain tile art only. Honor Retail SetPreferModelCollisionBounds(true): use authored collision bounds when present, otherwise the authored model header bounds; never include animation/particle envelopes in catalog framing.
@@ -54,7 +60,13 @@ After landing the server importer, run it with the audit evidence and pinned bui
 
 Local `Blizzard_HousingDashboard/Blizzard_HousingDashboard.xml` defines 814×544 portrait shell, HouseInfo/Catalog/Collection side tabs. `Blizzard_HousingDashboardCatalog.xml` defines categories, search/filter, scrolling catalog and preview. `Blizzard_HousingDashboardCatalog.lua` searches unowned as well as stored entries and previews catalog selections. Audit: `/home/osso/.worktrees/scope-housing.md`; raw local evidence `data/diagnostics/housing-audit-2026-10-11/`.
 
+## Basic selected-target storage visibility
+
+Selecting existing placed decor or starting placement of actually owned stored decor in Basic mode hides both storage panel and expand handle. Cancelling/unselecting restores the saved collapsed/size preference, retained query/category/filters and actual owned results; selection alone never changes storage/layout. Source: HouseEditorBasicDecorMode.OnTargetSelected/OnTargetUnselected invokes HouseEditor.HideHouseStorage (both parts)/ShowHouseStorage (UpdateCollapseState). CatalogEntry.StartPlacingNewDecor explicitly routes the same selected-target-changed handler. Cancel new placement restores storage without spending a copy. Drag/overlay/mouse-up commit semantics remain separate acceptance boundaries.
+
 ## Storage drawer controls
+
+Expanded storage anchors LEFT/y150: UI-down top=(viewport_height−panel_height)/2−150, clamped to the viewport. Preserve fractional source coordinates; logical1080/panel651 yields64.5, logical720/panel651 clamps0. Selection/placement hiding and cancellation restore this same anchor without changing saved dimensions. Native scale applies after computing the logical anchor.
 
 Basic Decor exposes the source collapse handle and replaces the drawer with its open handle when collapsed. Collapsing never resets search/category/filters or changes authority. Cleanup and Expert hide both handles independently of the saved collapsed preference. Account-local `ui_layout.ron` preserves collapsed/width/height while retaining other layouts and window positions; a fresh process restores it.
 
@@ -73,6 +85,24 @@ Source: HouseEditorStorageButtonMixin OnEnter/OnLeave, HousingCatalogEntryMixin 
 Owned storage has independent Dyeable Only and alphabetical ordering controls. Dyeable requires authentic DecorDyeSlot membership, not an item/source guess. Reset clears filtering without changing search, category or selected sort. Browsing cannot mutate confirmed quantities or layout. Collection and first-acquisition filters are absent (`SetCollectionFiltersAvailable(false)`). Date Added remains unavailable without authenticated acquisition timestamps; indoor/outdoor and tag mappings are not invented. Catalog filters and storage filters never share state.
 
 Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Both-skin physical acceptance exercises alphabetical actual tiles, paid nondyeable stacks excluded, hidden/remounted filter retention, reset/search composition, conservation and normal paid-copy replacement. Dropdowns outside the drawer must remain UI input, never world-edit clicks. Cross-process saved filter/CVar persistence remains separate.
+
+## Owned storage search input
+
+The inherited search input limits text to40 Unicode letters, not40 bytes. Native editing and the registry’s EditBoxData carry the same limit. Text and placeholder reserve16px left/20px right; placeholder RGB0.35 uses that inner span. The source10×10 magnifier sits left1/center UI-down+1, RGB0.6 for empty/unfocused and RGB1 when focused or nonempty. These properties survive drawer remount; typing and browsing never alter authoritative quantities/layout. Current SDK RSX lacks limit/inset setters, so the existing registry postsetup stage configures real widget data before native projection, not an independent renderer override.
+
+Source: HousingCatalogSearchBoxTemplate letters40; inherited SearchBoxTemplate and InputBoxInstructionsTemplate XML; InputBoxTemplates.lua SearchBoxTemplate OnLoad/OnTextChanged/focus callbacks. Source audio and locale selection remain separate.
+
+## Owned storage category focus callbacks
+
+Reselecting the same category/subcategory is a no-op, preserving raw short query and focus state. All/Back preserves search. Changed specific category/subcategory clears backing/native search text and releases input focus, restoring gray magnifier/hidden clear. Validate owned category membership before accepting a selection; browsing never changes server quantities/layout or Catalog state.
+
+Source: HousingCatalogCategoriesMixin SetFocus callback only on ID change; HouseEditorStorageFrameMixin OnCategoryFocusChanged/ClearSearchText and SearchBoxTemplate_ClearText.
+
+## Owned storage search focus keys
+
+Focused Enter, keypad Enter and Escape release only search focus and consume the key. They preserve raw/applied query, result and drawer; never submit chat/form, close housing or commit/cancel decor. Nonempty blur retains its bright magnifier/clear control; empty blur restores gray magnifier and hides clear. Other edit boxes keep existing bindings.
+
+Source: inherited SearchBoxTemplate OnEnterPressed/OnEscapePressed `EditBox_ClearFocus`.
 
 ## Owned storage search clear control
 

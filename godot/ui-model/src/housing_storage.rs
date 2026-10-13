@@ -3,8 +3,6 @@ use crate::housing::{ALL_CATEGORY, FEATURED_CATEGORY, HousingAuthority, HousingD
 use game_engine_core::housing::{Category, Decor, Subcategory};
 use std::collections::BTreeSet;
 
-/// Mainline English/default Constants.lua MIN_CHARACTER_SEARCH (locale overrides are separate).
-const STORAGE_MIN_SEARCH_CHARS: usize = 3;
 const PANEL_SLIDE_SECONDS: f64 = 0.2;
 const HANDLE_SLIDE_SECONDS: f64 = 0.15;
 const HANDLE_SLIDE_DISTANCE: f32 = 64.0 * 0.67;
@@ -188,17 +186,7 @@ impl HousingDashboard {
     }
 
     pub fn storage_search_query(&self) -> &str {
-        if self
-            .storage_search
-            .chars()
-            .take(STORAGE_MIN_SEARCH_CHARS)
-            .count()
-            < STORAGE_MIN_SEARCH_CHARS
-        {
-            ""
-        } else {
-            self.storage_search.as_str()
-        }
+        crate::housing::housing_search_query(&self.storage_search)
     }
 
     pub fn set_storage_search(&mut self, search: String) {
@@ -223,7 +211,11 @@ impl HousingDashboard {
             if !available {
                 return Err("Storage category has no confirmed owned entries.".into());
             }
+            if self.storage_category == Some(id) && self.storage_subcategory.is_none() {
+                return Ok(());
+            }
             self.storage_search.clear();
+            self.storage_search_focused = false;
         }
         self.storage_category = id;
         self.storage_subcategory = None;
@@ -247,8 +239,12 @@ impl HousingDashboard {
                 return Err("Storage subcategory is not in the confirmed owned category.".into());
             }
         }
+        if self.storage_subcategory == id {
+            return Ok(());
+        }
         self.storage_subcategory = id;
         self.storage_search.clear();
+        self.storage_search_focused = false;
         Ok(())
     }
 

@@ -280,6 +280,15 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::housing_component::HousingView>()
+        {
+            game_engine_ui_model::housing_component::apply_housing_storage_postsetup(
+                view,
+                &mut self.registry,
+            );
+        }
         if self
             .shared
             .get::<game_engine_ui_model::achievements::AchievementWindow>()

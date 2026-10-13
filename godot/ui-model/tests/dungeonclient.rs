@@ -147,6 +147,79 @@ fn achievements_retail_completed_filters_and_feats_are_not_scope_filters() {
 }
 
 #[test]
+fn achievements_comparison_correlates_target_and_preserves_own_progress_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assets(skin);
+        let mut window = AchievementWindow::default();
+        let requests = window.action("achievement:compare:42");
+        assert!(requests.iter().any(|request| matches!(
+            request,
+            QueryAchievementCatalog::Comparison {
+                target_entity: 42,
+                ..
+            }
+        )));
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![category()],
+            next_id: None,
+        });
+        window.action("achievement:category:14808");
+        let own = achievement();
+        window.apply(AchievementCatalogPage::Category {
+            category_id: 14808,
+            achievements: vec![own.clone()],
+            next_id: None,
+        });
+        let mut other = own.clone();
+        other.earned = true;
+        other.earned_at = Some(1_791_244_800);
+        let reply = |target| AchievementCatalogPage::Comparison {
+            target_entity: target,
+            target_name: "Otherplayer".into(),
+            page: Some(Box::new(AchievementComparisonPage::Category {
+                category_id: 14808,
+                achievements: vec![other.clone()],
+                next_id: None,
+            })),
+            error: None,
+        };
+        window.apply(reply(41));
+        let waiting = achievement_registry(&window, skin);
+        assert_eq!(
+            text(&waiting, "Achievement633ComparisonStatus"),
+            "Loading..."
+        );
+        window.apply(reply(42));
+        assert_eq!(window.pages[&14808].entries[0].earned, own.earned);
+        let registry = achievement_registry(&window, skin);
+        assert_eq!(text(&registry, "AchievementComparisonName"), "Otherplayer");
+        assert_eq!(
+            text(&registry, "Achievement633ComparisonStatus"),
+            "Completed"
+        );
+        window.action("achievement:compare:43");
+        window.action("achievement:category:14808");
+        window.apply(reply(42));
+        let registry = achievement_registry(&window, skin);
+        assert_eq!(
+            text(&registry, "Achievement633ComparisonStatus"),
+            "Loading..."
+        );
+        window.apply(AchievementCatalogPage::Comparison {
+            target_entity: 43,
+            target_name: String::new(),
+            page: None,
+            error: Some("comparison target is not an online player".into()),
+        });
+        let registry = achievement_registry(&window, skin);
+        assert_eq!(
+            text(&registry, "AchievementComparisonError"),
+            "comparison target is not an online player"
+        );
+    }
+}
+
+#[test]
 fn achievements_art_categories_collapse_and_rows_expand_in_place_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         assets(skin);
