@@ -1070,7 +1070,9 @@ impl GameClient {
         );
         match serde_json::to_string(&self.battleground.view.snapshot) {
             Ok(snapshot) => state.set("pvp_snapshot_json", &snapshot.to_variant()),
-            Err(error) => godot_error!("Cannot serialize native PvP diagnostic snapshot: {error}"),
+            Err(error) => {
+                godot_error!("Cannot serialize native PvP diagnostic snapshot: {error}");
+            }
         }
         state.set(
             "local_player_epoch",
