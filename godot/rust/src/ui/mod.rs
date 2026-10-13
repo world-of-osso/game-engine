@@ -19,6 +19,8 @@ mod forevergaps_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+#[cfg(test)]
+mod housing_placed_list_input_tests;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
 #[cfg(test)]
@@ -291,7 +293,7 @@ impl RegistryModel {
             .shared
             .get::<game_engine_ui_model::housing_component::HousingView>()
         {
-            game_engine_ui_model::housing_component::apply_housing_storage_postsetup(
+            game_engine_ui_model::housing_component::apply_housing_postsetup(
                 view,
                 &mut self.registry,
             );
@@ -557,6 +559,19 @@ impl RegistryModel {
                 Some(*at / self.registry.ui_scale),
             ),
             UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::FrameAltClick {
+                id,
+                right,
+                shift,
+                at,
+            } => (
+                self.registry.click_frame(*id)?,
+                Click {
+                    right: *right,
+                    shift: *shift,
+                },
+                Some(*at / self.registry.ui_scale),
+            ),
             UiInput::AltClick { id, right, shift } => {
                 let click = Click {
                     right: *right,
@@ -1773,6 +1788,27 @@ impl RegistryUi {
             game_engine_ui_model::wild_pet_battle::wild_battle_screen,
             ScreenPostsetup::None,
         )
+    }
+
+    pub fn show_follower_dungeons(
+        &mut self,
+        state: game_engine_ui_model::follower_dungeons::View,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::follower_dungeons::follower_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
     }
 
     pub fn show_pvp(
