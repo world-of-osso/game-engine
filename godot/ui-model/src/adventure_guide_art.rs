@@ -287,7 +287,10 @@ pub fn search_box(value: &str) -> Element {
     parts.extend(rsx! {editbox {name:"EncounterJournalSearchBox",text:value,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:40,text_insets:"16,20,0,0",pos_type:"absolute"}});
     let instructions_hidden = !value.is_empty();
     parts.extend(rsx! {fontstring {name:"EncounterJournalSearchBoxInstructions",text:crate::auction_mail::text("SEARCH"),left:596.0,top:32.0,width:174.0,height:20.0,pos_type:"absolute",font_size:12.0,font_color:"0.5,0.5,0.5,1",hidden:instructions_hidden}});
-    parts.extend(rsx! {button {name:"EncounterJournalSearchBoxClearButton",left:770.0,top:33.5,width:17.0,height:17.0,
+    // RSX static float literals truncate fractions; expressions preserve the XML center anchor.
+    // Remove this binding when ui-toolkit-macros preserves numeric literal precision.
+    let clear_top = 32.0 + (20.0 - 17.0) / 2.0;
+    parts.extend(rsx! {button {name:"EncounterJournalSearchBoxClearButton",left:770.0,top:clear_top,width:17.0,height:17.0,
         pos_type:"absolute",button_default_skin:false,onclick:"journal:search-clear",
         texture {name:"EncounterJournalSearchBoxClearIcon",left:3.0,top:3.0,width:10.0,height:10.0,pos_type:"absolute",texture_atlas:"common-search-clearbutton",alpha:0.5}}});
     parts

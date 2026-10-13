@@ -1326,7 +1326,7 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     } else {
         if matches!(
             frame.name.as_deref(),
-            Some("TalentSearchBox" | "TalentLoadoutNameInput")
+            Some("TalentSearchBox" | "TalentLoadoutNameInput" | "EncounterJournalSearchBox")
         ) {
             let submit_pending = pending.clone();
             let mut edit = node.clone();
