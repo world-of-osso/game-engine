@@ -736,3 +736,20 @@ impl WowParticleProbe {
         pool.node().clone().upcast::<Node3D>().to_variant()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn avenging_wrath_refraction_emitter_is_not_in_forward_particles() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let bytes = std::fs::read(data.join("2368644.m2")).unwrap();
+        let skin = std::fs::read(data.join("236864400.skin")).unwrap();
+        let mut model = m2::parse_model(&bytes, &skin).unwrap();
+        let particles = ModelParticles::from_model(2368644, &model).unwrap();
+        assert_eq!(particles.authored_indices().collect::<Vec<_>>(), [0]);
+        model.particle_emitters.remove(0);
+        assert!(ModelParticles::from_model(2368644, &model).is_none());
+    }
+}
