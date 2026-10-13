@@ -389,9 +389,7 @@ impl GameObjects {
         &mut self,
         info: &GameObjectInfo,
     ) -> Result<(Gd<Node3D>, Option<Rc<ModelParticles>>), String> {
-        let path = self
-            .data_root
-            .join("db2/12.1.0.69933/GameObjectDisplayInfo.csv");
+        let path = self.data_root.join("db2/active/GameObjectDisplayInfo.csv");
         let displays = self
             .displays
             .get_or_insert_with(|| {

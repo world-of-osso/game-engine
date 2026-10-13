@@ -1379,7 +1379,7 @@ fn housing_storage_categories_show_owned_roots_then_back_all_and_source_filtered
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
     let mut catalog = HousingCatalog::load(&data.join("cache/housing.sqlite")).unwrap();
     catalog
-        .resolve_icons(&data.join("db2/12.1.0.69933/UiTextureAtlasElement.csv"))
+        .resolve_icons(&data.join("db2/active/UiTextureAtlasElement.csv"))
         .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
@@ -1970,8 +1970,7 @@ fn housing_finder_draws_source_sale_and_real_friend_pins_not_strangers_or_self_b
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
     let maps = Arc::new(
-        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&data.join("db2/12.1.0.69933"))
-            .unwrap(),
+        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&data.join("db2/active")).unwrap(),
     );
     let roles = [
         HousingPlotOwnerType::None,

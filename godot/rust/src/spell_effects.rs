@@ -51,7 +51,7 @@ use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
-const DB2_DIR: &str = "db2/12.1.0.69933";
+const DB2_DIR: &str = "db2/active";
 /// Kit model clips when `SpellVisualKitModelAttach` leaves them unset: Stand plays as
 /// the start, Hold (158) loops while a held kit lasts and Decay (159) plays at its end,
 /// as spell effect models author their emission (e.g. Battle Shout 6194303).

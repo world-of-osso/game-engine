@@ -77,7 +77,7 @@ impl GameClient {
             return Ok(());
         }
         self.load_pet_visuals()?;
-        let path = self.data_root.join("db2/12.1.0.69933/BattlePetSpecies.csv");
+        let path = self.data_root.join("db2/active/BattlePetSpecies.csv");
         let mut icons = std::collections::BTreeMap::new();
         game_engine_core::csv_util::read_numeric_rows(
             &path,

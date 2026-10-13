@@ -12,7 +12,7 @@ fn spell_kit_attach_waits_for_owner_without_restarting_its_timeline() {
     use std::path::Path;
 
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core/data");
-    let catalog = SpellVisualCatalog::build(&data.join("db2/12.1.0.69933")).unwrap();
+    let catalog = SpellVisualCatalog::build(&data.join("db2/active")).unwrap();
     let visual = catalog
         .visual_for_spell(10848, &CasterContext::default())
         .unwrap();

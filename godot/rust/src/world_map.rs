@@ -27,7 +27,7 @@ use crate::{GameClient, ui::RegistryUi};
 
 mod state;
 
-const DB2_DIR: &str = "db2/12.1.0.69933";
+const DB2_DIR: &str = "db2/active";
 
 /// Map navigation and the open frame.
 #[derive(Default)]

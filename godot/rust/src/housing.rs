@@ -12,8 +12,8 @@ use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
 use std::sync::Arc;
 const PURCHASE_POPUP: &str = "HOUSING_BUY_PLOT";
-const ATLAS_ELEMENTS: &str = "db2/12.1.0.69933/UiTextureAtlasElement.csv";
-const TEXTURE_KITS: &str = "db2/12.1.0.69933/UiTextureKit.csv";
+const ATLAS_ELEMENTS: &str = "db2/active/UiTextureAtlasElement.csv";
+const TEXTURE_KITS: &str = "db2/active/UiTextureKit.csv";
 
 #[derive(Default)]
 pub(crate) struct HousingHud {
@@ -59,7 +59,7 @@ impl GameClient {
             let mut model = HousingDashboard::new(Arc::new(catalog));
             model.maps = Some(Arc::new(
                 game_engine_ui_model::ui_map_data::UiMapCatalog::load(
-                    &self.data_root.join("db2/12.1.0.69933"),
+                    &self.data_root.join("db2/active"),
                 )?,
             ));
             self.housing.model = Some(model);

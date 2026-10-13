@@ -18,8 +18,8 @@ fn catalog() -> &'static EntranceCatalog {
     CATALOG.get_or_init(|| {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let dir = [
-            root.join("data/db2/12.1.0.69933"),
-            root.join("../../data/db2/12.1.0.69933"),
+            root.join("data/db2/active"),
+            root.join("../../data/db2/active"),
         ]
         .into_iter()
         .find(|dir| dir.join(JOURNAL_INSTANCE_ENTRANCE_CSV).exists())
