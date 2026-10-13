@@ -75,6 +75,22 @@ fn toyfx20_war_banner_visuals_follow_current_pvp_faction_not_race() {
 }
 
 #[test]
+fn toyfx24_tome_resolves_source_attachment_offsets_and_aura_end() {
+    let visual = catalog().visual_for_spell(187146, &warrior(None)).unwrap();
+    let kits = catalog().kits(visual, VisualEvent::AuraStart);
+    assert_eq!(kits.len(), 1);
+    assert_eq!(kits[0].end, VisualEvent::AuraEnd);
+    assert_eq!(kits[0].models.len(), 1);
+    let model = &kits[0].models[0];
+    assert_eq!(model.model_fdid, 1097945);
+    assert_eq!(model.attachment, Some(17));
+    assert_eq!(model.scale, 1.0);
+    assert_eq!(model.alpha, 1.0);
+    assert_eq!(model.offset, [-0.3, 0.0, 0.3]);
+    assert!(catalog().kits(visual, VisualEvent::Cast).is_empty());
+}
+
+#[test]
 fn toyfx23_fountain_resolves_source_ground_model_scale_and_aura_end() {
     let visual = catalog().visual_for_spell(91743, &warrior(None)).unwrap();
     assert_eq!(visual, 19687);
