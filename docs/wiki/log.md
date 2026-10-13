@@ -1,3 +1,7 @@
+## 2026-10-13 — Adventure Guide navigation lifetime
+
+[Adventure Guide](systems/adventure-guide.md#october-13-navigation-lifetime-proof): encounter links clear stale search/menus; Trading Post Log navigates without closing an already-visible Guide; real ENCOUNTER_START follows source difficulty without auto-opening a closed window. Targeted17/native build/check/fmt pass; nine inspected both-skin private5771 PNGs. Journeys backing, complete model closure/Ozruk effect planes and RPE activation remain open.
+
 ## 2026-10-13 — Pending owned-placement storage implementation
 
 [Housing](systems/housing.md#basic-selected-target-storage-visibility): StartPlacingNewDecor routes the same source selected-target event. Registry/native RED reproduced retained drawer with actual paid2330 pending placement; same presentation now hides it. Both-skin native actual paid2330 click→placing+hidden→Cancel/retainedTesla/exactconservation GREEN, plus selected/collapsed regression. Registry19/nativecheck0warnings/fmt pass; four inspected1280 new-placement PNGs public. No preview-mesh/mouse-up-commit claim.
