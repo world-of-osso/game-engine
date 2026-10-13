@@ -14,6 +14,12 @@ The client reads `data/cache/housing.sqlite` produced by game-server `scripts/im
 
 Further ranks: authentic vendor/quest/achievement/crafting acquisition; visiting/social permissions; charter/create-neighborhood/house finder/bulletin board; room/exterior/dye/blueprint customization; sourced initiatives/favor/levels/upgrades/market cart. Missing reward/grant/progression data stays a gap, never a synthetic substitute.
 
+## Basic editor controls
+
+Basic uses source64px mode controls at bottom center and Snap/Free Place submode buttons above Basic (disabled while semantics remain unavailable). Customize stays disabled, not replaced by a fake editing action. Replace invented bottom Rotate/Remove/Cancel/Done text buttons with right-centered45px instruction rows, source16px labels, source mouse icon/key background,10px label/control spacing and30px right inset. Selected or placing state shows Place/Rotate Left/Rotate Right/Remove/Toggle Grid/Cancel; otherwise Select Decor. Toggle Grid remains visibly disabled. Mode controls retain source default/active/pressed atlas members and additive0.5 hover. Missing bindings show `[UNBOUND]`, never fabricated keys.
+
+Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates.lua/xml` and `Blizzard_HouseEditorModeButtons.xml`. Native visual/physical acceptance remains a separate gate.
+
 ## Housing editor bindings
 
 Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Save/reload preserves exact Retail names; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
