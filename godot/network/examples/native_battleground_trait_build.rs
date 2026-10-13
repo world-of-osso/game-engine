@@ -6,7 +6,10 @@ use game_engine_core::talent_data::{
     rules::{ConfigEntry, Purchase, TraitContext, build_config},
 };
 use shared::protocol::{CommitTraitConfig, TraitEntrySelection};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+};
 
 const PROTECTION_SPELLS: &[u32] = &[871, 12975, 1160, 190456];
 const HOLY_SPELLS: &[u32] = &[2050, 47788, 64843];
@@ -38,6 +41,7 @@ fn order_main_tree_candidates<'a>(
     tree: &'a TraitTree,
     wanted: &[u32],
 ) -> Vec<(&'a TraitNode, &'a TraitNodeEntry)> {
+    let prerequisites = collect_prerequisite_nodes(tree, wanted);
     let mut candidates: Vec<_> = tree
         .nodes
         .iter()
@@ -52,6 +56,7 @@ fn order_main_tree_candidates<'a>(
     candidates.sort_by_key(|(node, entry, index)| {
         (
             !wanted.contains(&entry.spell_id),
+            !prerequisites.contains(&node.id),
             node.pos_y,
             node.pos_x,
             node.id,
@@ -62,6 +67,29 @@ fn order_main_tree_candidates<'a>(
         .into_iter()
         .map(|(node, entry, _)| (node, entry))
         .collect()
+}
+
+fn collect_prerequisite_nodes(tree: &TraitTree, wanted: &[u32]) -> BTreeSet<u32> {
+    let mut pending: Vec<_> = tree
+        .nodes
+        .iter()
+        .filter(|node| {
+            node.entries
+                .iter()
+                .any(|entry| wanted.contains(&entry.spell_id))
+        })
+        .map(|node| node.id)
+        .collect();
+    let mut nodes = BTreeSet::new();
+    while let Some(id) = pending.pop() {
+        if !nodes.insert(id) {
+            continue;
+        }
+        if let Some(node) = tree.node(id) {
+            pending.extend(node.parents.iter().map(|(parent, _)| *parent));
+        }
+    }
+    nodes
 }
 
 fn missing_spells(tree: &TraitTree, config: &[ConfigEntry], wanted: &[u32]) -> Vec<u32> {
