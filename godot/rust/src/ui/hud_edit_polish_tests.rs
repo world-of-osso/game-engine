@@ -482,6 +482,8 @@ fn click_and_apply_manager(
     let state = EditModePanelState {
         layout_name: layout.name.clone(),
         name_draft: name.into(),
+        layout_menu_open: draft.layout_menu_open,
+        name_dialog: draft.name_dialog,
         layout_names: ui_layout_data::layout_names(path).unwrap(),
         pending_delete: draft.pending_delete.clone(),
         preset: ui_layout_data::SYSTEM_PRESETS
@@ -492,11 +494,90 @@ fn click_and_apply_manager(
     };
     let action = click_manager_button(state, button).expect("enabled button emits action");
     assert_eq!(action, expected);
-    if let Some(updated) =
-        crate::hud_edit::apply_manager_action(path, 57, &action, name, layout, draft).unwrap()
-    {
+    let updated =
+        crate::hud_edit::apply_manager_action(path, 57, &action, name, layout, draft).unwrap();
+    if matches!(
+        action.as_str(),
+        ACTION_EDIT_MODE_NAME_NEW | ACTION_EDIT_MODE_NAME_RENAME
+    ) {
+        assert!(updated.is_none());
+        let state = EditModePanelState {
+            layout_name: layout.name.clone(),
+            name_draft: name.into(),
+            name_dialog: draft.name_dialog,
+            layout_names: ui_layout_data::layout_names(path).unwrap(),
+            ..Default::default()
+        };
+        let confirm = click_manager_button(state, "EditModeLayoutDialogAccept")
+            .expect("valid name enables confirmation");
+        assert_eq!(confirm, ACTION_EDIT_MODE_NAME_CONFIRM);
+        *layout = crate::hud_edit::apply_manager_action(path, 57, &confirm, name, layout, draft)
+            .unwrap()
+            .unwrap();
+    } else if let Some(updated) = updated {
         *layout = updated;
     }
+}
+
+#[test]
+fn hud_edit_retail_layout_selection_and_name_dialog_confirm_preserve_persisted_placements() {
+    let path = std::env::temp_dir().join(format!("hud-retail-layout-{}.ron", std::process::id()));
+    let mut layout = ui_layout_data::set_active_layout(&path, 57, "Modern").unwrap();
+    let mut draft = EditDraft::default();
+    draft.enter(&layout);
+    let selected = crate::hud_edit::apply_manager_action(
+        &path,
+        57,
+        "edit_mode_select_layout:Forever",
+        "",
+        &layout,
+        &mut draft,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(selected.name, "Forever");
+    layout = selected;
+    let placement = save_top_left(
+        HudAnchor::Bottom,
+        [104.0, 312.0],
+        [240.0, 60.0],
+        [1920.0, 1080.0],
+    );
+    draft.working.insert("player_frame".into(), placement);
+    assert!(
+        crate::hud_edit::apply_manager_action(
+            &path,
+            57,
+            "edit_mode_name_new",
+            "",
+            &layout,
+            &mut draft
+        )
+        .unwrap()
+        .is_none()
+    );
+    assert_eq!(
+        ui_layout_data::active_layout(&path, 57).unwrap().name,
+        "Forever"
+    );
+    let created = crate::hud_edit::apply_manager_action(
+        &path,
+        57,
+        "edit_mode_name_confirm",
+        "Raid Night",
+        &layout,
+        &mut draft,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(created.name, "Raid Night");
+    assert_eq!(created.elements["player_frame"], placement);
+    assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), created);
+    assert_eq!(
+        ui_layout_data::active_layout(&path, 58).unwrap().name,
+        "Forever"
+    );
+    std::fs::remove_file(path).unwrap();
 }
 
 #[test]
@@ -639,7 +720,7 @@ fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions
             &mut layout,
             &mut draft,
             "EditModeManagerFrameNew",
-            ACTION_EDIT_MODE_NEW,
+            ACTION_EDIT_MODE_NAME_NEW,
             "Polished",
         );
         assert_eq!(layout.name, "Polished");
@@ -652,7 +733,7 @@ fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions
             &mut layout,
             &mut draft,
             "EditModeManagerFrameRename",
-            ACTION_EDIT_MODE_RENAME,
+            ACTION_EDIT_MODE_NAME_RENAME,
             "Renamed",
         );
         assert_eq!(layout.name, "Renamed");
@@ -707,21 +788,23 @@ fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions
                 .elements
                 .is_empty()
         );
+        draft.layout_menu_open = true;
         click_and_apply_manager(
             &path,
             &mut layout,
             &mut draft,
-            "EditModeManagerFrameNext",
-            ACTION_EDIT_MODE_NEXT_LAYOUT,
+            "EditModeLayoutChoice0",
+            "edit_mode_select_layout:Modern",
             "",
         );
         assert_eq!(layout.name, "Modern");
+        draft.layout_menu_open = true;
         click_and_apply_manager(
             &path,
             &mut layout,
             &mut draft,
-            "EditModeManagerFramePrev",
-            ACTION_EDIT_MODE_PREV_LAYOUT,
+            "EditModeLayoutChoice2",
+            "edit_mode_select_layout:Renamed",
             "",
         );
         assert_eq!(layout.name, "Renamed");

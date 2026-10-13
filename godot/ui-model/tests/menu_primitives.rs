@@ -63,6 +63,47 @@ fn mount(skin: ActiveSkin) -> FrameRegistry {
 }
 
 #[test]
+fn edit_mode_uses_source_layout_dropdown_instead_of_paging_and_inline_name_input() {
+    use game_engine_ui_model::hud_edit_component::{EditModePanelState, edit_mode_panel_screen};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = mount(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState {
+            layout_name: "Modern".into(),
+            layout_names: vec!["Modern".into(), "Forever".into(), "Raid Night".into()],
+            ..Default::default()
+        });
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut reg);
+        let dropdown = reg
+            .get(
+                reg.get_by_name("EditModeManagerFrameLayoutDropdown")
+                    .expect("Retail LayoutDropdown"),
+            )
+            .unwrap();
+        assert_eq!(
+            (dropdown.width.value(), dropdown.height.value()),
+            (120.0, 25.0)
+        );
+        assert_eq!(
+            (dropdown.position.left, dropdown.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(25.0),
+                ui_toolkit::layout_values::Val::Px(52.0)
+            )
+        );
+        assert_eq!(dropdown.onclick.as_deref(), Some("edit_mode_layout_menu"));
+        for old in [
+            "EditModeManagerFramePrev",
+            "EditModeManagerFrameNext",
+            "EditModeManagerFrameLayoutName",
+        ] {
+            assert!(reg.get_by_name(old).is_none(), "{old}");
+        }
+    }
+}
+
+#[test]
 fn unit_difficulty_submenu_uses_retail_backdrop_and_keeps_authoritative_radios() {
     use game_engine_ui_model::inworld_unit_frames_component::{
         DifficultyMenuEntry, DifficultyMenuState, InWorldUnitFramesState,
