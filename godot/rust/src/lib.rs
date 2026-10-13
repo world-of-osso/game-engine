@@ -2428,16 +2428,6 @@ impl GameClient {
             };
             let unit = self.replica.unit(server_id).expect("changed entity exists");
             if replicated::is_unit(unit) {
-                if self
-                    .replica
-                    .changed::<shared::components::TransportPassenger>(components)
-                {
-                    godot_print!(
-                        "TRANSPORT_FRAME_APPLIED entity={} frame={:?}",
-                        server_id,
-                        unit.get::<shared::components::TransportPassenger>()
-                    );
-                }
                 self.world.upsert(&mut parent, unit);
                 if self
                     .replica
