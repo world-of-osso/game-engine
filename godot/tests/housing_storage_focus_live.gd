@@ -56,9 +56,7 @@ func run_test() -> void:
 	quit(0)
 
 func chat_input_visible() -> bool:
-	var ui: Node = client.get_node_or_null("ChatFrameUI")
-	if ui == null: return false
-	var input: Control = ui.frame_control("ChatFrame1EditBox")
+	var input: Control = housing_named_control("ChatFrameUI","ChatFrame1EditBox")
 	return input != null and input.is_visible_in_tree()
 
 func search_focus_released(expected: String) -> bool:
