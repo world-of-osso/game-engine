@@ -74,6 +74,24 @@ Owned storage has independent Dyeable Only and alphabetical ordering controls. D
 
 Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault and `Blizzard_HouseEditorStorageFrame.lua` OnStorageTabSelected. Both-skin physical acceptance exercises alphabetical actual tiles, paid nondyeable stacks excluded, hidden/remounted filter retention, reset/search composition, conservation and normal paid-copy replacement. Dropdowns outside the drawer must remain UI input, never world-edit clicks. Cross-process saved filter/CVar persistence remains separate.
 
+## Owned storage search input
+
+The inherited search input limits text to40 Unicode letters, not40 bytes. Native editing and the registry’s EditBoxData carry the same limit. Text and placeholder reserve16px left/20px right; placeholder RGB0.35 uses that inner span. The source10×10 magnifier sits left1/center UI-down+1, RGB0.6 for empty/unfocused and RGB1 when focused or nonempty. These properties survive drawer remount; typing and browsing never alter authoritative quantities/layout. Current SDK RSX lacks limit/inset setters, so the existing registry postsetup stage configures real widget data before native projection, not an independent renderer override.
+
+Source: HousingCatalogSearchBoxTemplate letters40; inherited SearchBoxTemplate and InputBoxInstructionsTemplate XML; InputBoxTemplates.lua SearchBoxTemplate OnLoad/OnTextChanged/focus callbacks. Source audio and locale selection remain separate.
+
+## Owned storage category focus callbacks
+
+Reselecting the same category/subcategory is a no-op, preserving raw short query and focus state. All/Back preserves search. Changed specific category/subcategory clears backing/native search text and releases input focus, restoring gray magnifier/hidden clear. Validate owned category membership before accepting a selection; browsing never changes server quantities/layout or Catalog state.
+
+Source: HousingCatalogCategoriesMixin SetFocus callback only on ID change; HouseEditorStorageFrameMixin OnCategoryFocusChanged/ClearSearchText and SearchBoxTemplate_ClearText.
+
+## Owned storage search focus keys
+
+Focused Enter, keypad Enter and Escape release only search focus and consume the key. They preserve raw/applied query, result and drawer; never submit chat/form, close housing or commit/cancel decor. Nonempty blur retains its bright magnifier/clear control; empty blur restores gray magnifier and hides clear. Other edit boxes keep existing bindings.
+
+Source: inherited SearchBoxTemplate OnEnterPressed/OnEscapePressed `EditBox_ClearFocus`.
+
 ## Owned storage search clear control
 
 Owned-storage search includes the inherited Retail17×17 clear button at right−3, with10×10 `common-search-clearbutton` art inset3 and normal alpha0.5. Nonempty or focused search shows it; empty/unfocused hides it. Clicking empties both native registry edit text and storage search, releases input focus and immediately refreshes results. Catalog search, storage category/filter/sort and authoritative ownership/layout remain unchanged. The clear icon switches alpha0.5→1 on hover and moves its inset3,3→4,4 while pressed, restoring on release; the hit rectangle never moves. The current English/default search applies only after three UTF-8 characters, not bytes. Short raw input remains visible/clearable but uses an empty query and retains category/subcategory focus. A qualifying query clears focus to All; shortening it does not restore old focus. Retail koKR/zhCN/zhTW one-character locale overrides are documented but native locale selection and source click audio remain separate acceptance boundaries.
