@@ -43,6 +43,7 @@ func run_test() -> void:
 	if image == null or image.texture == null:
 		fail("Authentic clear-button atlas did not load")
 		return
+	if not await prove_clear_affordance(clear,icon,scale): return
 	if not await record_storage_tooltip("storage-search-clear-query"): return
 	if not await click_clear(): return
 	if not await wait_housing(func(): return housing_control("HouseEditorStored2330") != null, "clear immediately restores paid stored result"): return
@@ -55,6 +56,36 @@ func run_test() -> void:
 	print("PASS: private5870 owned-storage search clear ",housing_skin)
 	client.free()
 	quit(0)
+
+func prove_clear_affordance(clear: Control, icon: Control, scale: float) -> bool:
+	var art: Control = housing_control("HouseEditorStorageSearchClearArt")
+	if art == null:
+		fail("Clear icon normal-alpha container missing")
+		return false
+	await hover_point(Vector2(1100.0,500.0))
+	if absf(art.modulate.a-0.5)>0.01:
+		fail("Source clear normal alpha must be0.5")
+		return false
+	await hover_point(clear.get_global_rect().get_center())
+	if absf(art.modulate.a-1.0)>0.01:
+		fail("Source clear hover alpha must be1.0, actual="+str(art.modulate.a))
+		return false
+	if not await record_storage_tooltip("storage-search-clear-hover"): return false
+	drawer_mouse_button(clear.get_global_rect().get_center(),true)
+	await frames(4)
+	var pressed_inset: Vector2 = (icon.global_position-clear.global_position)/scale
+	if pressed_inset.distance_to(Vector2(4.0,4.0))>0.2 or absf(art.modulate.a-1.0)>0.01:
+		fail("Source clear pressed inset must be4,4, actual="+str(pressed_inset))
+		return false
+	if not await record_storage_tooltip("storage-search-clear-pressed"): return false
+	await hover_point(Vector2(1100.0,500.0))
+	drawer_mouse_button(Vector2(1100.0,500.0),false)
+	await frames(4)
+	var released_inset: Vector2 = (icon.global_position-clear.global_position)/scale
+	if released_inset.distance_to(Vector2(3.0,3.0))>0.2 or absf(art.modulate.a-0.5)>0.01 or storage_search_text()!="__housing_no_match__":
+		fail("Source clear release outside must restore3,3/alpha0.5 without clicking")
+		return false
+	return true
 
 func clear_visible() -> bool:
 	var clear: Control = housing_control("HouseEditorStorageSearchClearButton")
