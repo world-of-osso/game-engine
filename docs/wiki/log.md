@@ -1,6 +1,6 @@
-## 2026-10-13 — Expert PlacedDecorList model
+## 2026-10-13 — Expert PlacedDecorList native proof
 
-[Housing](systems/housing.md#expert-placeddecorlist): confirmed-instance/name sorting, independent local list/menu state, read-only selection, existing owner-only remove request and stale-target reconciliation; native UI/proof pending. Source budget uses lead-approved unknown “— / —”, never instance-count substitution.
+[Housing](systems/housing.md#expert-placeddecorlist): both-skin actual paid-instance select/deselect, UI/world hover, clamped header drag, released-right source menu at pointer position, authoritative remove and normal re-place; source atlas6654379 lead-published from independently verified local CASC. Behavioral32 model/20 registry/native release1 pass. Unknown budget “— / —”, source lock/audio and full housing completion remain gaps.
 
 ## 2026-10-13 — Native follower Group Finder implementation
 
