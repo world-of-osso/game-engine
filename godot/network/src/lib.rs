@@ -25,6 +25,8 @@ pub mod movement_control;
 mod professions_wire_tests;
 #[cfg(test)]
 mod professions_workflow_wire_tests;
+#[cfg(test)]
+mod renown_wire_tests;
 pub mod replica;
 #[path = "../../core/src/screen_arg_data.rs"]
 pub mod screen_arg_data;
@@ -246,6 +248,7 @@ impl NetworkBridge {
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
             .receive::<protocol::AdventureGuideSnapshot>()
+            .receive::<protocol::RenownSnapshot>()
             .receive::<protocol::TradingPostSnapshot>()
             .receive::<protocol::PartyKeystoneSnapshot>()
             .receive::<protocol::ScenarioProgress>()

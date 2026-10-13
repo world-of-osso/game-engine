@@ -7,7 +7,7 @@
 - [Linked cooking-fire proof](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12) — actual both-skin Little Wickerman/source.25 model/particles, real cooking and Cozy Fire cancellation-refresh; seven-item backend and per-variant boundaries.
 
 - [Native player housing](systems/housing.md) — Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
-- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5413/1800 census (server inventory), remaining producers and source gaps explicit.
+- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5415/1800 census (server inventory), remaining producers and source gaps explicit.
 - [Native arenas](systems/arenas.md) — skirmish/rated/Shuffle lifecycle, source consumers, authoritative live-GO support/walls, Naminze native voice playback and shared exact-copy/origin reconnect; revision-receipted map/skin and query-cost proof tracked in handoff.
 - [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 - [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold pixel fix, published hash census and capture provenance correction: Divine Shield normal-map particles misclassified as colour; general refraction-flag/forward exclusion preserves AW.
@@ -46,7 +46,7 @@
 - [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
-- [Native Mythic Mentor](systems/mythic-mentor.md) — built-in party Keys panel, server bag authority, loading lifetime, icon layering and private5751 both-skin rendered-row/leader/raid/control proof; catalog/teleport expansion active.
+- [Native Mythic Mentor](systems/mythic-mentor.md) — native party Keys panel, authored current-reference summaries/icons, ready-query handshake, shared8h teleport clocks and both-skin private5751 proof; post-fix active-tooltip pixels blocked by local install update.
 
 - [Native Mythic Keystone UI](systems/mythic-plus.md) — Mainline Font, owned-bag slot/start, challenge tracker and completion banner; physical both-skin private proof and explicit numeric/visual boundaries.
 - [Native follower LFG transport](../specs/follower-dungeons.md) — authoritative205 queue/five roles, both-skin follow/combat/first-boss kill proof; source-empty loot and walked-route gates remain open.
