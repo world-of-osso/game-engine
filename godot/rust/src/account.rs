@@ -6,6 +6,31 @@ use std::{
 };
 
 #[cfg(test)]
+mod creature_sound_tests {
+    use super::*;
+
+    #[test]
+    fn arena_cage_sound_delivery_reaches_native_playback() {
+        let mut account = Account::new(PathBuf::new());
+        account.session.screen = SessionScreen::InWorld;
+        let mut events = Vec::new();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(shared::protocol::CreatureTextSound {
+                    speaker: 232750,
+                    sound_kit: 269092,
+                }),
+                &mut events,
+            )
+            .unwrap();
+        assert!(
+            matches!(events.as_slice(), [AccountEvent::CreatureTextSound(sound)]
+            if sound.speaker == 232750 && sound.sound_kit == 269092)
+        );
+    }
+}
+
+#[cfg(test)]
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
 #[cfg(test)]
@@ -214,6 +239,8 @@ pub enum AccountEvent {
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
     Pvp(shared::protocol::PvpStateUpdate),
+    FollowerDungeons(shared::protocol::FollowerDungeons),
+    Lfg(shared::protocol::LfgStateUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     TransmogState(shared::protocol::TransmogState),
@@ -236,6 +263,7 @@ pub enum AccountEvent {
     XpGain(shared::protocol::LogXpGain),
     /// A player's social emote, played on its model.
     Emote(EmoteEvent),
+    CreatureTextSound(shared::protocol::CreatureTextSound),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
     /// `MINIMAP_PING`: another group member pinged the minimap.
@@ -1654,12 +1682,17 @@ impl Account {
             output.push(AccountEvent::Death(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::FollowerDungeons>() {
+            output.push(AccountEvent::FollowerDungeons(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::LfgStateUpdate>() {
             let update: shared::protocol::LfgStateUpdate = decode(message)?;
             if let Some(text) = update.error.as_ref().or(update.message.as_ref()) {
                 output.push(AccountEvent::GroupNotice(text.clone()));
             }
-            self.lfg = Some(update);
+            self.lfg = Some(update.clone());
+            output.push(AccountEvent::Lfg(update));
             return Ok(());
         }
         if message.is::<TradeStateUpdate>() {
@@ -1710,6 +1743,10 @@ impl Account {
         }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::CreatureTextSound>() {
+            output.push(AccountEvent::CreatureTextSound(decode(message)?));
             return Ok(());
         }
         if message.is::<EmoteEvent>() {

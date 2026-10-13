@@ -41,6 +41,66 @@ fn journal_monthly_and_suggested_tabs_open_server_loading_panes() {
 }
 
 #[test]
+fn runtime_encounter_link_uses_authoritative_timewalking_difficulty() {
+    let mut view = journal();
+    view.difficulty = 2;
+    view.select_dungeon_encounter(1058, Some(24)).unwrap();
+    assert_eq!(view.encounter, Some(112));
+    assert_eq!(view.instance, Some(67));
+    assert_eq!(view.difficulty, 24);
+    assert_eq!(view.loot().len(), 8);
+    let before = view.clone();
+    assert!(view.select_dungeon_encounter(1058, Some(999)).is_err());
+    assert_eq!(
+        view, before,
+        "Unsupported realm difficulty cannot change selection"
+    );
+    assert!(view.select_dungeon_encounter(u32::MAX, Some(24)).is_err());
+    assert_eq!(view, before);
+}
+
+#[test]
+fn travelers_log_navigation_opens_closed_or_already_visible_guide() {
+    let mut view = journal();
+    view.search = "Lucifron".into();
+    view.select_encounter(1519).unwrap();
+    for visible in [false, true] {
+        view.visible = visible;
+        view.apply("journal:tab:monthly").unwrap();
+        assert!(view.visible, "Log is navigation, not a visibility toggle");
+        assert_eq!(view.tab, Tab::Monthly);
+        assert!(view.instance.is_none());
+        assert!(view.encounter.is_none());
+        assert!(view.search.is_empty());
+    }
+}
+
+#[test]
+fn encounter_link_replaces_search_and_open_navigation_menus() {
+    let mut view = journal();
+    view.visible = true;
+    view.tab = Tab::Monthly;
+    view.search = "Lucifron".into();
+    view.tier_open = true;
+    view.difficulty_open = true;
+    view.filter_menu = Some(game_engine_ui_model::adventure_guide::LootFilter::Class);
+    view.collapsed.insert(2405);
+    view.select_encounter(112).unwrap();
+    assert_eq!(view.encounter, Some(112));
+    assert_eq!(view.instance, Some(67));
+    assert_eq!(view.tab, Tab::Dungeons);
+    assert!(view.visible);
+    assert!(
+        view.search.is_empty(),
+        "Old search must not cover linked Ozruk"
+    );
+    assert!(!view.tier_open);
+    assert!(!view.difficulty_open);
+    assert!(view.filter_menu.is_none());
+    assert!(view.collapsed.is_empty());
+}
+
+#[test]
 fn owned_keystones_browse_authentic_dungeons_without_active_run() {
     use shared::protocol::KeystoneInfo;
     let mut view = journal();

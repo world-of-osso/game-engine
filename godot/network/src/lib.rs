@@ -257,6 +257,7 @@ impl NetworkBridge {
             .receive_mail()
             // Player trade: one message type, so channel order is kept.
             .receive::<protocol::TradeStateUpdate>()
+            .receive::<protocol::FollowerDungeons>()
             .receive::<protocol::LfgStateUpdate>()
             // Owner-only death state, corpse and graveyard coordinates.
             .receive::<protocol::DeathStateUpdate>()
@@ -345,6 +346,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildCharterReply>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
+            .receive::<protocol::CreatureTextSound>()
             // Players' social emotes, played on their models.
             .receive::<protocol::EmoteEvent>()
             // Party/raid roster, member states, invites and results (group-frames.md).
