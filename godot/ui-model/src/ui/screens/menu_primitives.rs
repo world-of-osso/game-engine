@@ -75,6 +75,7 @@ pub fn dropdown_button(props: DropdownButton<'_>) -> Element {
 
 /// Mainline/MenuTemplates.xml:3,66 and MenuTemplates.xml:4. Callers own menu visibility.
 pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
+    let props = resize_filter_to_text(props, state.style);
     let mut contents = dropdown_art(props, state);
     contents.extend(dropdown_text(props, state));
     contents.extend(reset_button(props, state));
@@ -90,6 +91,23 @@ pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownStat
         onclick, disabled, mouse_enabled: state.enabled, pos_type: "absolute", left: {props.x}, top: {-props.y},
         {contents}
     } }
+}
+
+/// DropdownTextMixin:UpdateText and WowStyle1FilterDropdownTemplate resizeToTextPadding60.
+fn resize_filter_to_text(props: DropdownButton<'_>, style: DropdownStyle) -> DropdownButton<'_> {
+    if style != DropdownStyle::Filter {
+        return props;
+    }
+    let (text_width, _) = ui_toolkit::text_measure::measure_text(
+        props.text,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .expect("Filter template font loaded");
+    DropdownButton {
+        width: text_width + 60.0,
+        ..props
+    }
 }
 
 fn dropdown_art(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
