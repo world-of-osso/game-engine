@@ -46,6 +46,7 @@ fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
                 honor_level: None,
             }],
             honor_reward: None,
+            arena: None,
         }),
     }
 }
@@ -520,6 +521,150 @@ fn receive(view: &mut PvpView, state: PvpSnapshot) {
         error: None,
     });
 }
+#[test]
+fn arena_queue_actions_and_enemy_frames_use_authoritative_units_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = PvpView::default();
+    assert_eq!(view.action("pvp:activity:2v2"), None);
+    assert_eq!(
+        view.action("pvp:queue"),
+        Some(PvpAction::Arena(ArenaQueueMode::Skirmish2v2))
+    );
+    assert_eq!(view.action("pvp:queue"), None);
+    view.receive(PvpStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("refused".into()),
+    });
+    assert_eq!(view.action("pvp:activity:3v3"), None);
+    assert_eq!(
+        view.action("pvp:queue"),
+        Some(PvpAction::Arena(ArenaQueueMode::Skirmish3v3))
+    );
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot(BgPhase::Waiting, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.name = "Ruins of Lordaeron".into();
+        bg.map_id = 572;
+        bg.arena = Some(ArenaMatchSnapshot {
+            mode: ArenaQueueMode::Skirmish2v2,
+            preparation_remaining_secs: Some(59),
+            shadow_sight_available: false,
+            rating_changes: Vec::new(),
+            units: vec![
+                ArenaUnitSnapshot {
+                    character_id: 81,
+                    entity: 81,
+                    name: "Friend".into(),
+                    class: 1,
+                    team: BgTeam::A,
+                    health: 100,
+                    max_health: 100,
+                },
+                ArenaUnitSnapshot {
+                    character_id: 82,
+                    entity: 82,
+                    name: "Enemy".into(),
+                    class: 8,
+                    team: BgTeam::B,
+                    health: 40,
+                    max_health: 100,
+                },
+            ],
+        });
+        let mut view = PvpView::default();
+        receive(&mut view, state);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("WorldStateFlags").is_none());
+        assert!(registry.get_by_name("CompactArenaFrameMember1").is_some());
+        assert!(registry.get_by_name("CompactArenaFrameMember2").is_none());
+        let timer = registry
+            .get(registry.get_by_name("ArenaPreparationTimer").unwrap())
+            .unwrap();
+        let WidgetData::FontString(timer) = timer.widget_data.as_ref().unwrap() else {
+            panic!("preparation label");
+        };
+        assert!(timer.text.contains("59"));
+    }
+}
+
+#[test]
+fn rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_changes() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = PvpView {
+            visible: true,
+            ..Default::default()
+        };
+        view.action("pvp:category:rated");
+        view.action("pvp:rated:3v3");
+        assert_eq!(
+            view.action("pvp:rated:queue"),
+            Some(PvpAction::Rated(PvpBracketSnapshot::Arena3v3))
+        );
+        assert_eq!(view.action("pvp:rated:queue"), None);
+        let mut state = snapshot(BgPhase::Ended, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.players[0].killing_blows = 2;
+        bg.players[0].damage_done = 120;
+        bg.players[0].healing_done = 45;
+        bg.arena = Some(ArenaMatchSnapshot {
+            mode: ArenaQueueMode::Rated2v2,
+            preparation_remaining_secs: Some(0),
+            shadow_sight_available: true,
+            units: Vec::new(),
+            rating_changes: vec![ArenaRatingChange {
+                character_id: 81,
+                rating_before: 0,
+                rating_after: 48,
+                mmr_before: 1500,
+                mmr_after: 1512,
+            }],
+        });
+        receive(&mut view, state);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        assert!(registry.get_by_name("ConquestFrameArena2v2").is_some());
+        assert!(registry.get_by_name("ConquestFrameArena3v3").is_some());
+        let rating = registry
+            .get(registry.get_by_name("PVPMatchPlayer81Rating").unwrap())
+            .unwrap();
+        let WidgetData::FontString(rating) = rating.widget_data.as_ref().unwrap() else {
+            panic!("rating result");
+        };
+        assert!(rating.text.contains("+48"));
+        for (name, value) in [
+            ("PVPMatchPlayer81KB", "2"),
+            ("PVPMatchPlayer81Damage", "120"),
+            ("PVPMatchPlayer81Healing", "45"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let WidgetData::FontString(label) = frame.widget_data.as_ref().unwrap() else {
+                panic!("score label");
+            };
+            assert_eq!(label.text, value);
+        }
+        assert!(registry.get_by_name("PVPMatchPlayer81Captures").is_none());
+    }
+}
+
 #[test]
 fn node_battleground_selection_preserves_queue_identity() {
     for id in [1018, 120, 108, 7] {

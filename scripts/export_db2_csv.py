@@ -72,6 +72,18 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Retail 12.1.0.69933, FDID1360265, WoWDBDefs layout3414CBD7.
+    "BattlemasterList": (
+        0x3414CBD7,
+        [("ID", "id"), ("Name_lang", ("string", 0)),
+         ("GameType_lang", ("string", 1)), ("ShortDescription_lang", ("string", 2)),
+         ("LongDescription_lang", ("string", 3)), ("InstanceType", ("u8", 4)),
+         ("PvpType", 5), ("MinLevel", ("u8", 6)), ("MaxLevel", ("u8", 7)),
+         ("RatedPlayers", ("u8", 8)), ("MinPlayers", ("u8", 9)), ("MaxPlayers", 10),
+         ("GroupsAllowed", ("u8", 11)), ("MaxGroupSize", ("u8", 12)),
+         ("HolidayWorldState", ("u16", 13)), ("Flags", 14),
+         ("IconFileDataID", 15), ("Required_Player_Condition_ID", 16)],
+    ),
     # Retail12.1.0.69933 local CASC, exact WoWDBDefs layout field orders.
     "TransmogSet": (0xC6875C71, [
         ("ID", "id"), ("Name_lang", ("string", 0)), ("ClassMask", 2),

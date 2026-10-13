@@ -13,20 +13,62 @@ use crate::{
 use game_engine_core::csv_util::parse_csv_line;
 use game_engine_network::replica::Unit;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
-use godot::{classes::Node3D, prelude::*};
+use godot::{
+    classes::{Node3D, PhysicsDirectSpaceState3D, PhysicsRayQueryParameters3D, StaticBody3D},
+    prelude::*,
+};
 use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_BUTTON, GAMEOBJECT_TYPE_CHAIR,
     GAMEOBJECT_TYPE_GENERIC, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX,
     GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, GAMEOBJECT_TYPE_SPELL_FOCUS,
-    GameObjectInfo,
+    GameObjectAnimation, GameObjectCollision, GameObjectInfo, GameObjectVisible,
 };
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
+
+/// Separate from baked scenery: only these live meshes follow GO collision state.
+pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
+const COLLISION_BENCH_SAMPLES: usize = 1200;
+const COLLISION_BENCH_WARMUP: usize = 120;
+const COLLISION_BENCH_PLAYERS: usize = 6;
+const COLLISION_BENCH_WALL_LENGTH: f32 = 7.0;
+
+fn measure_live_queries(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    feet: glam::Vec3,
+) -> (Vec<f64>, i64) {
+    let mut samples = Vec::with_capacity(COLLISION_BENCH_SAMPLES);
+    let mut hits = 0_i64;
+    for frame in 0..(COLLISION_BENCH_WARMUP + COLLISION_BENCH_SAMPLES) {
+        let started = std::time::Instant::now();
+        for player in 0..COLLISION_BENCH_PLAYERS {
+            let angle = ((frame + player * 60) as f32).to_radians();
+            let direction = glam::Vec3::new(angle.cos(), 0.0, angle.sin());
+            let point = feet + direction * (player as f32 * 0.25);
+            hits += i64::from(floor_hit(space, point).is_some());
+            hits += i64::from(
+                crate::wmo::collision::wall_hit(
+                    space,
+                    point + glam::Vec3::Y,
+                    direction,
+                    COLLISION_BENCH_WALL_LENGTH,
+                )
+                .is_some(),
+            );
+        }
+        if frame >= COLLISION_BENCH_WARMUP {
+            samples.push(started.elapsed().as_secs_f64() * 1e6);
+        }
+    }
+    samples.sort_by(f64::total_cmp);
+    (samples, hits)
+}
 
 struct ObjectNode {
     /// The display its loaded visual shows.
     display_id: u32,
     node: Gd<Node3D>,
+    animation: Option<GameObjectAnimation>,
     particles: Option<PlacedParticles>,
 }
 pub(crate) struct GameObjects {
@@ -99,7 +141,10 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
 fn game_object_is_renderable(go_type: u8) -> bool {
     matches!(
         go_type,
-        GAMEOBJECT_TYPE_GENERIC | GAMEOBJECT_TYPE_SPELL_FOCUS
+        0 | 6
+            | GAMEOBJECT_TYPE_GENERIC
+            | GAMEOBJECT_TYPE_SPELL_FOCUS
+            | shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR
     ) || game_object_cursor(go_type).is_some()
 }
 
@@ -128,6 +173,43 @@ impl GameObjects {
             pools.set_density(density);
         }
     }
+    /// Measure actual Godot GO-floor and WMO/live-GO wall rays in the loaded arena.
+    /// Synchronous query microbenchmark: six nearby simulated positions, not full frame time.
+    pub(crate) fn benchmark_live_queries(
+        &self,
+        space: &Gd<PhysicsDirectSpaceState3D>,
+        feet: glam::Vec3,
+    ) -> VarDictionary {
+        let (samples, hits) = measure_live_queries(space, feet);
+        let mut result = VarDictionary::new();
+        result.set("query_microbenchmark", true);
+        result.set("warmup_discarded_samples", COLLISION_BENCH_WARMUP as i64);
+        result.set("samples", COLLISION_BENCH_SAMPLES as i64);
+        result.set("players_per_sample", COLLISION_BENCH_PLAYERS as i64);
+        result.set("floor_queries_per_sample", COLLISION_BENCH_PLAYERS as i64);
+        result.set("wall_queries_per_sample", COLLISION_BENCH_PLAYERS as i64);
+        result.set("loaded_objects", self.objects.len() as i64);
+        let bodies = self
+            .objects
+            .values()
+            .filter_map(|object| object.node.get_node_or_null("GameObjectModel/M2Collision"));
+        let active = bodies
+            .filter_map(|body| body.try_cast::<StaticBody3D>().ok())
+            .filter(|body| body.get_collision_layer() & GAME_OBJECT_LAYER != 0)
+            .count();
+        result.set("active_hulls", active as i64);
+        result.set("observed_hits", hits);
+        for (name, index) in [
+            ("p50_us", 600),
+            ("p95_us", 1140),
+            ("p99_us", 1188),
+            ("max_us", 1199),
+        ] {
+            result.set(name, samples[index]);
+        }
+        result
+    }
+
     /// Whether `id` is a shown usable game object.
     pub fn contains(&self, id: u64) -> bool {
         self.objects.contains_key(&id)
@@ -154,11 +236,22 @@ impl GameObjects {
         info: &GameObjectInfo,
     ) -> Result<(), String> {
         let id = unit.server_id;
+        if unit
+            .get::<GameObjectVisible>()
+            .is_some_and(|visible| !visible.0)
+        {
+            self.remove(id);
+            return Ok(());
+        }
         if !game_object_is_renderable(info.go_type) {
             self.remove(id);
             return Ok(());
         }
         let Some(position) = unit.get::<Position>() else {
+            return Ok(());
+        };
+        // Initial component fragments may arrive separately; never infer collision from art.
+        let Some(collision) = unit.get::<GameObjectCollision>() else {
             return Ok(());
         };
         if !info.scale.is_finite() || info.scale <= 0.0 {
@@ -203,6 +296,7 @@ impl GameObjects {
                 ObjectNode {
                     display_id: info.display_id,
                     node,
+                    animation: None,
                     particles,
                 },
             );
@@ -220,6 +314,10 @@ impl GameObjects {
             0.0,
         ));
         object.node.set_scale(Vector3::ONE * info.scale);
+        apply_object_collision(object, collision.0);
+        if let Some(animation) = unit.get::<GameObjectAnimation>() {
+            apply_object_animation(object, *animation)?;
+        }
         Ok(())
     }
     fn place_particles(
@@ -284,6 +382,11 @@ impl GameObjects {
                 "Game object entry {} model {fdid} missing texture FDIDs: {missing:?}",
                 info.entry
             ));
+        }
+        if let Some(shape) =
+            crate::terrain::doodad_collision::collision_shape(parsed.collision.as_ref())
+        {
+            crate::terrain::doodad_collision::attach_collision(&mut model, &shape);
         }
         model.set_name("GameObjectModel");
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
@@ -351,6 +454,63 @@ impl GameObjects {
     }
 }
 
+/// Dedicated authored GO collision, using the same step/search/normal rules as M2 floors.
+pub(crate) fn floor_hit(space: &Gd<PhysicsDirectSpaceState3D>, feet: glam::Vec3) -> Option<f32> {
+    let from =
+        Vector3::from_array((feet + glam::Vec3::Y * shared::ground::STEP_UP_HEIGHT).to_array());
+    let to =
+        Vector3::from_array((feet - glam::Vec3::Y * shared::ground::FLOOR_SEARCH_DEPTH).to_array());
+    let mut query = PhysicsRayQueryParameters3D::create(from, to)
+        .expect("Godot could not allocate game-object floor ray parameters");
+    query.set_collision_mask(GAME_OBJECT_LAYER);
+    let hit = space.clone().intersect_ray(&query);
+    let normal = hit.get("normal")?.to::<Vector3>();
+    if normal.y < shared::ground::min_walkable_normal_y() {
+        return None;
+    }
+    Some(hit.get("position")?.to::<Vector3>().y)
+}
+
+fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
+    if let Some(mut collision) = object
+        .node
+        .get_node_or_null("GameObjectModel/M2Collision")
+        .and_then(|node| node.try_cast::<godot::classes::StaticBody3D>().ok())
+    {
+        let layer = if enabled {
+            crate::terrain::doodad_collision::DOODAD_LAYER | GAME_OBJECT_LAYER
+        } else {
+            0
+        };
+        collision.set_collision_layer(layer);
+    }
+}
+
+fn apply_object_animation(
+    object: &mut ObjectNode,
+    animation: GameObjectAnimation,
+) -> Result<(), String> {
+    if object.animation == Some(animation) {
+        return Ok(());
+    }
+    let mut player = object
+        .node
+        .get_node_or_null("GameObjectModel/M2Animation")
+        .and_then(|node| node.try_cast::<crate::animation::WowAnimationPlayer>().ok())
+        .ok_or_else(|| {
+            format!(
+                "Gameobject display {} has no M2 animation player",
+                object.display_id
+            )
+        })?;
+    player
+        .bind_mut()
+        .play_clip(animation.animation_id, animation.looping)
+        .map_err(|error| format!("Gameobject display {}: {error}", object.display_id))?;
+    object.animation = Some(animation);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,6 +542,14 @@ mod tests {
     /// WoW `(x, y, z)` in engine coordinates (game-server `wow_to_bevy`).
     fn engine(x: f32, y: f32, z: f32) -> Vector3 {
         Vector3::new(x, z, -y)
+    }
+
+    #[test]
+    fn arena_doors_and_shadow_sight_render_without_manual_use_cursor() {
+        for kind in [0, 6, shared::protocol::GAMEOBJECT_TYPE_TRAPDOOR] {
+            assert!(game_object_is_renderable(kind));
+            assert!(game_object_cursor(kind).is_none());
+        }
     }
 
     #[test]
