@@ -1,3 +1,7 @@
+## 2026-10-13 — Native follower Group Finder implementation
+
+[Follower Group Finder](systems/follower-dungeons.md): source LFD follower controls and prepared catalog protocol replace microbutton's PvP-only destination; pending/refusal/match state remains server-authoritative. Catalog/UDP/account/registry RED→GREEN (six engine tests; server22+required-environment companion test), library checks and all fmt pass. New both-skin live UI proof pending. Whole companion/dungeon acceptance remains open.
+
 ## 2026-10-13 — Unrated six-round Shuffle proof
 
 [Native arenas](systems/arenas.md#unrated-solo-shuffle--verified-2026-10-13): both skins complete six real first-kill rounds and all-six returns; source-role admission/spec lock, four-map rotations/gate resets, item cast-time panic and category-isolation RED/GREEN proof. Explicit unrated realm policy and delayed peer snapshot/wall-clock harness boundaries retained; rating/MMR, dampening and named source gaps unchanged.
