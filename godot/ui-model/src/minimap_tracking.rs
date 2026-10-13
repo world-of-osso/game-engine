@@ -201,7 +201,7 @@ pub(super) fn art(filter: TrackingFilter) -> SheetArt {
 }
 
 const MENU_WIDTH: f32 = 224.0;
-const ROW_HEIGHT: f32 = 24.0;
+const ROW_HEIGHT: f32 = 20.0;
 const MENU_PAD: f32 = 8.0;
 
 pub(super) fn menu(state: &TrackingState) -> Element {
@@ -225,11 +225,18 @@ pub(super) fn menu(state: &TrackingState) -> Element {
             visible_count += 1;
         }
     }
-    let height = MENU_PAD * 2.0 + ROW_HEIGHT * visible_count as f32;
+    // MenuStyle1 bottom inset15 (MenuTemplates.xml); row extent20.
+    let height = MENU_PAD + ROW_HEIGHT * visible_count as f32 + 15.0;
+    rows.splice(
+        0..0,
+        crate::selection_list::menu_background(
+            "MinimapTrackingMenuBackground".into(),
+            (MENU_WIDTH, height),
+        ),
+    );
     rsx! { r#frame {
         name: "MinimapTrackingMenu", width: MENU_WIDTH, height,
         strata: FrameStrata::Dialog, mouse_enabled: true,
-        background_color: "0.04,0.04,0.05,0.96",
         pos_type: "absolute", left: 0.0, top: 24.0,
         {rows}
     } }
@@ -242,14 +249,15 @@ fn tracking_choice(index: usize, label: &str, checked: bool) -> Element {
 fn tracking_choice_at(index: usize, row: usize, label: &str, checked: bool) -> Element {
     let action = format!("minimap:tracking:{index}");
     let name = format!("MinimapTrackingChoice{index}");
-    let checkbox = crate::bank_art::checkbox(&name, label, checked, &action, (0.0, 0.0));
     let top = MENU_PAD + ROW_HEIGHT * row as f32;
-    crate::selection_list::row(
-        format!("MinimapTrackingRow{index}"),
-        &action,
+    crate::menu_primitives::menu_element(
+        crate::menu_primitives::ContextMenuItem {
+            name: &name,
+            label,
+            action: &action,
+        },
+        crate::menu_primitives::MenuElementKind::Checkbox { checked },
         true,
         (MENU_PAD, top, MENU_WIDTH - MENU_PAD * 2.0, ROW_HEIGHT),
-        (&crate::selection_list::MENU, false),
-        checkbox,
     )
 }

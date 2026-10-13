@@ -218,8 +218,8 @@ fn transmog_filter_menus_expose_real_source_types_and_completion_in_both_skins()
         items.filters_open = true;
         let registry = build(skin, items);
         assert!(enabled(&registry, "TransmogFilterButton"));
-        assert_eq!(text(&registry, "TransmogFilterSource3Text"), "✓ Vendor");
-        assert_eq!(text(&registry, "TransmogFilterSource4Text"), "✓ World Drop");
+        assert_eq!(text(&registry, "TransmogFilterSource3Text"), "Vendor");
+        assert_eq!(text(&registry, "TransmogFilterSource4Text"), "World Drop");
         let mut sets = book();
         sets.select_illusion(EquipmentSlot::MainHand);
         sets.set_tab(WardrobeTab::Sets);
@@ -227,13 +227,10 @@ fn transmog_filter_menus_expose_real_source_types_and_completion_in_both_skins()
         let registry = build(skin, sets);
         assert!(enabled(&registry, "TransmogFilterButton"));
         assert!(drawn(&registry, "TransmogFilterButton"));
-        assert_eq!(
-            text(&registry, "TransmogFilterCollectedText"),
-            "✓ Collected"
-        );
+        assert_eq!(text(&registry, "TransmogFilterCollectedText"), "Collected");
         assert_eq!(
             text(&registry, "TransmogFilterUncollectedText"),
-            "✓ Not Collected"
+            "Not Collected"
         );
         assert!(!enabled(&registry, "TransmogFilterPve"));
         assert!(!enabled(&registry, "TransmogFilterPvp"));

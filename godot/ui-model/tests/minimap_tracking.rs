@@ -95,16 +95,16 @@ fn minimap_tracking_menu_and_service_art_both_skins() {
         context.insert(state);
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(minimap_cluster_screen).sync(&context, &mut registry);
-        assert!(registry.get_by_name("MinimapTrackingMenu").is_some());
+        let menu = registry
+            .get(registry.get_by_name("MinimapTrackingMenu").unwrap())
+            .unwrap();
+        assert_eq!(menu.height.value(), 8.0 + 9.0 * 20.0 + 15.0);
+        assert!(menu.background_color.is_none());
         let choice = registry
             .get(registry.get_by_name("MinimapTrackingChoice0").unwrap())
             .unwrap();
         assert_eq!(choice.onclick.as_deref(), Some("minimap:tracking:0"));
-        assert!(
-            registry
-                .get_by_name("MinimapTrackingChoice0Check")
-                .is_some()
-        );
+        assert!(registry.get_by_name("MinimapTrackingChoice0Tick").is_some());
         let frame = registry
             .get(registry.get_by_name("MinimapTrackedUnit1").unwrap())
             .unwrap();
