@@ -205,36 +205,6 @@ impl OutfitData {
         Ok(data)
     }
 
-    pub fn resolve_outfit(&self, race: u8, class: u8, sex: u8) -> OutfitResult {
-        let Some(data) = self.loaded() else {
-            return OutfitResult::default();
-        };
-        let Ok(display_ids) = crate::outfit_catalog_db::resolve_cached_outfit_display_ids(
-            &self.data_dir,
-            race,
-            class,
-            sex,
-        ) else {
-            return OutfitResult::default();
-        };
-        if display_ids.is_empty() {
-            return OutfitResult::default();
-        }
-        self.resolve_display_infos(data, display_ids, race, sex)
-    }
-
-    /// Resolve a starter outfit without hiding catalog or cache errors.
-    pub fn try_resolve_outfit(&self, race: u8, class: u8, sex: u8) -> Result<OutfitResult, String> {
-        let data = self.loaded_result()?;
-        let ids = crate::outfit_catalog_db::resolve_cached_outfit_display_ids(
-            &self.data_dir,
-            race,
-            class,
-            sex,
-        )?;
-        self.resolve_display_infos_checked(data, ids, race, sex)
-    }
-
     /// Display `display_id` as race `race`/sex `sex` wears it.
     pub fn try_resolve_display_info(
         &self,
@@ -272,24 +242,6 @@ impl OutfitData {
         let mut result = OutfitResult::default();
         self.merge_display_into_result(&mut result, data, &display, race, sex);
         Ok(Some(result))
-    }
-
-    fn resolve_display_infos_checked(
-        &self,
-        data: &LoadedOutfitData,
-        ids: impl IntoIterator<Item = u32>,
-        race: u8,
-        sex: u8,
-    ) -> Result<OutfitResult, String> {
-        let mut result = OutfitResult::default();
-        for id in ids {
-            let display = self
-                .load_display_info(id)?
-                .ok_or_else(|| format!("outfit display {id} missing"))?;
-            self.check_display_resources(&display)?;
-            self.merge_display_into_result(&mut result, data, &display, race, sex);
-        }
-        Ok(result)
     }
 
     fn check_display_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {

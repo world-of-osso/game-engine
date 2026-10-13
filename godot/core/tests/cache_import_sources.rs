@@ -57,6 +57,32 @@ fn creature_import_follows_active_export_after_patch() {
 }
 
 #[test]
+fn outfit_import_uses_active_gear_without_a_legacy_starter_table() {
+    let fixture = Fixture::new();
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    for name in [
+        "ItemModifiedAppearance",
+        "ItemAppearance",
+        "ItemDisplayInfo",
+        "TextureFileData",
+        "ItemDisplayInfoMaterialRes",
+        "ModelFileData",
+    ] {
+        std::os::unix::fs::symlink(
+            source.join(format!("{name}.csv")).canonicalize().unwrap(),
+            fixture.0.join("db2/active").join(format!("{name}.csv")),
+        )
+        .unwrap();
+    }
+    let path = game_engine_core::outfit_catalog_db::import_outfit_links_cache(&fixture.0).unwrap();
+    let conn = Connection::open(path).unwrap();
+    let display: u32 = conn.query_row("SELECT iam.display_info_id FROM item_modified_appearance_map ima JOIN item_appearance_map iam ON iam.appearance_id=ima.appearance_id WHERE ima.item_id=25", [], |r| r.get(0)).unwrap();
+    assert_eq!(display, 1542);
+    let model: u32 = conn.query_row("SELECT file_data_id FROM model_to_fdid WHERE model_resource_id=16810 ORDER BY model_order LIMIT 1", [], |r| r.get(0)).unwrap();
+    assert_eq!(model, 148132);
+}
+
+#[test]
 fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
     let fixture = Fixture::new();
     let header = "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n";
@@ -67,8 +93,8 @@ fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
     );
     fixture.write(
         "CreatureModelData.csv",
-        "ID,FileDataID,ModelScale\n7,9001,1\n",
-        "ID,FileDataID,ModelScale\n7,9002,1.25\n",
+        "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,9001,1,0\n",
+        "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,9002,1.25,0\n",
     );
     let path = creature_display_cache::import_creature_display_cache(&fixture.0).unwrap();
     let conn = Connection::open(&path).unwrap();
@@ -180,7 +206,6 @@ fn importers_reject_root_only_csvs_without_creating_caches() {
         "CharComponentTextureSections",
         "CharComponentTextureLayouts",
         "ChrModelMaterial",
-        "CharStartOutfit",
         "ItemModifiedAppearance",
         "ItemAppearance",
         "ItemDisplayInfo",
@@ -192,6 +217,7 @@ fn importers_reject_root_only_csvs_without_creating_caches() {
     for importer in [
         customization_cache::import_customization_cache,
         char_texture_cache::import_char_texture_cache,
+        game_engine_core::outfit_catalog_db::import_outfit_links_cache,
     ] {
         let error = importer(&fixture.0).unwrap_err();
         assert!(error.contains("db2/active/"), "{error}");
