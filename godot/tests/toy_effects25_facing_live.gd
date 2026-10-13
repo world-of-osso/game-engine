@@ -17,6 +17,7 @@ func prove_toy(sample: Array) -> void:
 	if remaining_cooldown(item) > 0.0: fail("source recovery already active before facing proof"); return
 	await position_relative_to_target(10.0)
 	if failed: return
+	await record_facing("before-rear-start", item, spell)
 	await click("ToySpellButton1")
 	if not await wait_until(func(): return client.toybox_state().error == "NotInFront", "rear start refusal"): return
 	if int(client.spells_state().casting) == spell or remaining_cooldown(item) > 0.0: fail("rear refusal started cast or spent recovery"); return
@@ -100,3 +101,8 @@ func record_facing(label: String, item: int, spell: int) -> void:
 		"distance3d": offset.length(), "forward_dot": player.basis.z.normalized().dot(offset.normalized()),
 		"cooldown": remaining_cooldown(item), "spells": client.spells_state(), "toys": client.toybox_state()})
 	write_receipts()
+
+func fail(message: String) -> void:
+	if client != null and selected_unit != 0:
+		await record_facing("failure", 0, 0)
+	super.fail(message)
