@@ -26,10 +26,53 @@ fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(skin);
     shared.insert(view);
-    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(follower_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::follower_dungeons::apply_follower_postsetup(&mut registry);
     registry
 }
+#[test]
+fn follower_group_finder_preserves_native_paper_and_disabled_category_art_in_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            View {
+                visible: true,
+                ..Default::default()
+            },
+            skin,
+        );
+        let paper = registry
+            .get(registry.get_by_name("LFDQueueFrameBackground").unwrap())
+            .unwrap();
+        assert_eq!((paper.width.value(), paper.height.value()), (512.0, 256.0));
+        let Some(WidgetData::Texture(texture)) = &paper.widget_data else {
+            panic!("paper texture")
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(337_492));
+        for index in 1..=3 {
+            let name = format!("GroupFinderFrameGroupButton{index}");
+            assert_eq!(
+                button(&registry, &name).0,
+                if index == 1 {
+                    ButtonState::Normal
+                } else {
+                    ButtonState::Disabled
+                }
+            );
+            for part in ["Ring", "Icon"] {
+                let frame = registry
+                    .get(registry.get_by_name(&format!("{name}{part}")).unwrap())
+                    .unwrap();
+                let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                    panic!("category texture")
+                };
+                assert_eq!(texture.desaturated, index != 1);
+            }
+        }
+    }
+}
+
 fn button(registry: &FrameRegistry, name: &str) -> (ButtonState, Option<String>) {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))
