@@ -21,6 +21,8 @@ const FLAG_LOCAL_ORIENTATION: u32 = 0x1000;
 const FLAG_RANDOM_CELL: u32 = 0x1_0000;
 const FLAG_HEAD: u32 = 0x2_0000;
 const FLAG_SCALE_VARY_2D: u32 = 0x8_0000;
+/// Non-multitexture screen-space displacement (WWV particle type 3 / shaderId5).
+const FLAG_REFRACTION: u32 = 0x0010_0000;
 /// Emission ignores the particle-density setting (Bevy `PARTICLE_FLAG_NO_GLOBAL_SCALE`).
 pub const FLAG_NO_GLOBAL_SCALE: u32 = 0x0200_0000;
 const FLAG_MULTITEXTURE: u32 = 0x1000_0000;
@@ -140,12 +142,18 @@ pub enum PixelShader {
     TwoColorThreeAlpha,
     /// colour x textures 0, 1 and 2.
     ThreeColorThreeAlpha,
+    /// Screen-space displacement, not a colour combiner in the forward pass.
+    Refraction,
 }
 
-/// `ParticleEmitter::selectShaderId` for emitters without a TXAC value.
+/// `ParticleEmitter::selectShaderId` (`particleEmitter.cpp:217-248`).
 pub fn pixel_shader(emitter: &ParticleEmitter) -> PixelShader {
     if emitter.flags & FLAG_MULTITEXTURE == 0 {
-        PixelShader::Mod
+        if emitter.flags & FLAG_REFRACTION != 0 {
+            PixelShader::Refraction
+        } else {
+            PixelShader::Mod
+        }
     } else if emitter.flags & FLAG_THREE_COLOR != 0 {
         PixelShader::ThreeColorThreeAlpha
     } else {

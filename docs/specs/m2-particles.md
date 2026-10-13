@@ -20,6 +20,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ### Rendering
 - [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); only 0/1 write depth; alpha test -1 / 0.502 / 1/255.
 - [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
+- [x] Select Refraction for non-multitexture flag0x100000 and omit those emitters from the forward pass while no refraction pass exists, matching WebWowViewerCpp; never draw displacement textures as ordinary colour. Multitexture classification takes priority; AW's colour/UV emitters remain drawable.
 - [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
 - [x] Update and draw only the emitters of doodads that are drawn (scenery distance, WMO group portal cull) and whose box is in the view frustum; fade their particles with the doodad's scenery fade.
 - [x] Creature display models draw their emitters (WebWowViewerCpp `animationManager.cpp` `calcParticleEmitters` runs for every M2 object), pooled per (model FDID, emitter) like doodads, updated while the unit is shown and its model box is in the view frustum, at the Options density captured when the visual attaches.
@@ -47,7 +48,8 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 
 ## Tests asserting this spec
 
-- `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test.
+- `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test; real1127086 refraction selection and AW colour/UV preservation.
+- `godot/rust/src/particles.rs::tests` — real1127086 admits exactly0..4,7..9 and a refraction-only model creates no forward particles. Matched both-skin process/pixel proof: [rainbow investigation](../wiki/investigations/avenging-wrath-material-time.md#actual-source-capture-and-root-cause).
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint, fade, and half legacy fog for Alpha (toward the fog colour) and Add (toward black). RED/GREEN `data/diagnostics/worldvis-2026-10-01/particle-fog-{red,green}.log`.
 - `godot/tests/world_particle_fog_flow.gd` — real client, Northshire: every doodad pool carries the terrain's fog uniforms (`pfog.log`, 207 pools).
 - `godot/tests/world_unit_particles_flow.gd` — real client, Stormwind (-8708, 845): 9 creatures (Ethereals 123799/123791 and others) place 114 emitters in 46 pools, 529 particles drawn facing them (`unitp-sw.log`, `unitp-sw/*.png`).
@@ -58,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Tail quads (0x40000), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC shader variants, alpha-cutoff discard and lit particles (no 0x1 flag).
+- [ ] Tail quads (0x40000), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 - [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
 
