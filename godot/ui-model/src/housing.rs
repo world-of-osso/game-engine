@@ -236,7 +236,7 @@ impl HousingDashboard {
         let Some(state) = &authority.state else {
             return Vec::new();
         };
-        let search = self.storage_search.trim().to_lowercase();
+        let search = self.storage_search_query().trim().to_lowercase();
         let mut entries: Vec<_> = state
             .stored
             .iter()
