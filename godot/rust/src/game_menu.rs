@@ -82,7 +82,8 @@ impl GameClient {
         let camera = policy::camera_draft_from_file(&file.camera);
         let hud = policy::hud_draft_from_file(&file.hud);
         Ok(OptionsModel {
-            logged_in: self.base().get_node_or_null("SkyboxDebug").is_none(),
+            logged_in: self.account.session.screen == SessionScreen::InWorld
+                && self.account.session.gameplay_input_allowed(),
             view: GameMenuView::MainMenu,
             category: OptionsCategory::Sound,
             search: String::new(),
