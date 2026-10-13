@@ -290,7 +290,7 @@ fn choice_row(
             open: menu.is_some(),
             enabled: !choices.is_empty(),
             reset_action: None,
-            resize_to_text: false,
+            resize_to_text: true,
         },
     );
     let popup = menu
