@@ -29,6 +29,7 @@ mod damage_meter_types;
 mod dungeonclient;
 mod extra_action_bars;
 mod focus_frame;
+mod follower_dungeons;
 mod forever_action_bars;
 mod forever_bank_bags;
 mod forever_character_frame;
