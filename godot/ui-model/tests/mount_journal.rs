@@ -289,6 +289,10 @@ fn mount_search_keeps_query_when_filter_rebuilds_and_renders_search_template() {
         .get(registry.get_by_name("MountJournalSearchClear").unwrap())
         .unwrap();
     assert_eq!(clear.onclick.as_deref(), Some("mount:search-clear"));
+    let title = registry
+        .get(registry.get_by_name("MountJournalFilter3").unwrap())
+        .unwrap();
+    assert_eq!(title.position.top, ui_toolkit::layout_values::Val::Px(78.0));
 }
 
 #[test]

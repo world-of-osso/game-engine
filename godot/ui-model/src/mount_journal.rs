@@ -532,6 +532,8 @@ fn filter_menu(view: &MountJournalView) -> Element {
         );
         entries.push(("mount:sources".into(), "Sources".into(), Kind::Submenu));
     }
+    // MenuTemplates.CreateSpacer() defaults to ten pixels before Mount Type.
+    let spacer = if view.submenu.is_none() { 10.0 } else { 0.0 };
     let children: Element = entries
         .iter()
         .enumerate()
@@ -545,11 +547,16 @@ fn filter_menu(view: &MountJournalView) -> Element {
                 },
                 *kind,
                 true,
-                (8.0, 8.0 + index as f32 * 20.0, 184.0, 20.0),
+                (
+                    8.0,
+                    8.0 + index as f32 * 20.0 + if index >= 3 { spacer } else { 0.0 },
+                    184.0,
+                    20.0,
+                ),
             )
         })
         .collect();
-    let height = 23.0 + entries.len() as f32 * 20.0;
+    let height = 23.0 + entries.len() as f32 * 20.0 + spacer;
     let background = crate::selection_list::menu_background(
         "MountJournalFilterMenuBackground".into(),
         (200.0, height),
