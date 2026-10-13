@@ -92,7 +92,13 @@ impl GameClient {
             self.close_trading_post();
             return Ok(());
         }
-        if let Some(snapshot) = &self.account.trading_post {
+        // The vendor waits for a whole catalog; a Log balance alone has no rows.
+        if let Some(snapshot) = self
+            .account
+            .trading_post
+            .as_ref()
+            .filter(|snapshot| snapshot.catalog_complete)
+        {
             let current = self.trading_post.view.snapshot.as_ref();
             if !current.is_some_and(|current| std::sync::Arc::ptr_eq(current, snapshot)) {
                 self.trading_post.view.receive(snapshot.clone());

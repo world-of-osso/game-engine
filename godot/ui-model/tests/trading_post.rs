@@ -57,6 +57,7 @@ fn snapshot() -> TradingPostSnapshot {
             .collect(),
         source_gaps: vec!["Refund duration unsourced: disabled.".into()],
         error: None,
+        catalog_complete: true,
     }
 }
 fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
