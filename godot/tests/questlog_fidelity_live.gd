@@ -79,6 +79,8 @@ func check_quest_log_fidelity() -> bool:
 
 # Optional independent slice: real item4401 learning, owned selection/equip, slot model.
 func check_pet_loadout_models() -> bool:
+	if not await wait_frames(func(): return client.merchant_state().item_catalog_loaded, "Retail item catalog before learning", 120000):
+		return false
 	if not admin(["grant-item", character_name(), "4401", "1"]):
 		return false
 	var backpack := client.find_child("MainMenuBarBackpackButton", true, false) as Control
@@ -93,6 +95,7 @@ func check_pet_loadout_models() -> bool:
 		fail("Mechanical Squirrel Box missing from real bags")
 		return false
 	# Actual item use is a right-click, not a staged journal snapshot.
+	print("PET_LEARN_INPUT slot=", slot_name, " bags=", client.merchant_state().bags)
 	var item_control := client.find_child(slot_name, true, false) as Control
 	await click(item_control.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	await frames(5)
