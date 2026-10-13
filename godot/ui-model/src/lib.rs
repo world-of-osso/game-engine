@@ -355,7 +355,6 @@ pub mod item_tooltip;
 // Native GameTooltip content and placement (docs/specs/unit-tooltip.md).
 pub mod game_tooltip;
 pub mod merchant;
-pub mod trading_post;
 #[path = "game/merchant_data.rs"]
 pub mod merchant_data;
 pub mod paths;
@@ -363,6 +362,7 @@ pub mod paths;
 pub mod stack_split;
 #[path = "ui/screens/tooltip_presentation.rs"]
 pub mod tooltip_presentation;
+pub mod trading_post;
 #[path = "window_manager/mod.rs"]
 pub mod window_manager;
 #[path = "rendering/ui/wow_cursor_data.rs"]
