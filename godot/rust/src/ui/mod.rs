@@ -282,6 +282,13 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::apply_button_art(view, &mut self.registry);
+            self.icon_masks.apply(&mut self.registry);
+        }
         if self
             .shared
             .get::<game_engine_ui_model::mythic_mentor::MentorView>()
