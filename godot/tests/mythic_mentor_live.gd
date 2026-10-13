@@ -54,15 +54,24 @@ func run_test() -> void:
 		if str(command.get("op", "")) == "quit":
 			return
 		write_state("state.json")
-		var file := FileAccess.open(shots + "result.json", FileAccess.WRITE)
-		file.store_string(JSON.stringify({"id": last_command, "result": result}))
-		file.close()
+		write_json_atomic("result.json", {"id": last_command, "result": result})
 	fail("Mentor fixture command deadline")
 
 func write_state(filename: String) -> void:
-	var file := FileAccess.open(shots + filename, FileAccess.WRITE)
-	file.store_string(JSON.stringify({"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect()}))
+	write_json_atomic(filename, {"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect()})
+
+func write_json_atomic(filename: String, data: Dictionary) -> void:
+	var destination := shots + filename
+	var temporary := destination + ".writing"
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		fail("Cannot open fixture output " + temporary)
+		return
+	file.store_string(JSON.stringify(data))
 	file.close()
+	var error := DirAccess.rename_absolute(temporary, destination)
+	if error != OK:
+		fail("Cannot publish fixture output " + destination + ": " + str(error))
 
 func panel_rect() -> Array:
 	var panel := control("MythicMentorUI", "MythicMentorPanel")
