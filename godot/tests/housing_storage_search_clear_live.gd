@@ -79,7 +79,11 @@ func prove_clear_affordance(clear: Control, icon: Control, scale: float) -> bool
 		return false
 	if not await record_storage_tooltip("storage-search-clear-pressed"): return false
 	await hover_point(Vector2(1100.0,500.0))
-	drawer_mouse_button(Vector2(1100.0,500.0),false)
+	var held_outside_inset: Vector2 = (icon.global_position-clear.global_position)/scale
+	if held_outside_inset.distance_to(Vector2(4.0,4.0))>0.2 or absf(art.modulate.a-0.5)>0.01:
+		fail("Source clear stays inset4,4 but alpha0.5 while held outside")
+		return false
+	await drawer_mouse_button(Vector2(1100.0,500.0),false)
 	await frames(4)
 	var released_inset: Vector2 = (icon.global_position-clear.global_position)/scale
 	if released_inset.distance_to(Vector2(3.0,3.0))>0.2 or absf(art.modulate.a-0.5)>0.01 or storage_search_text()!="__housing_no_match__":
