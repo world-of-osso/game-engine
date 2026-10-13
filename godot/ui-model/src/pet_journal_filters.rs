@@ -54,6 +54,12 @@ impl PetFilters {
             return false;
         }
         if let Some(meta) = view.species_filters.get(&row.species) {
+            // TrinityCore a352b1fa BattlePetSpeciesFlags: HideFromJournal and HideUntilLearned.
+            let owned = matches!(row.key, super::PetRowKey::Owned(_));
+            let hidden = meta.flags & 0x20 != 0 || (!owned && meta.flags & 0x4000 != 0);
+            if hidden {
+                return false;
+            }
             // TrinityCore DBCEnums.h BattlePetSpeciesFlags::CantBattle = 0x80.
             let combat = meta.flags & 0x80 == 0;
             let category = if combat { self.battle } else { self.non_combat };
