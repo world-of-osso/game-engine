@@ -6,6 +6,7 @@ use game_engine_ui_model::compact_unit_frame_component::{
     CompactDebuffView, CompactUnitView, PartyAuraView, UnitStatus,
 };
 use game_engine_ui_model::group_frames_component::{GroupFramesState, group_frames_screen};
+use game_engine_ui_model::options_dropdown::OptionsDropdownState;
 use game_engine_ui_model::options_menu_component::{LayoutOptionsView, LayoutSystem};
 use game_engine_ui_model::options_menu_data::{
     LayoutSlider, SliderField, apply_layout_action, apply_layout_slider, parse_layout_action,
@@ -53,22 +54,44 @@ fn party4_both_skin_panels_emit_checkbox_slider_and_dropdown_actions() {
             assert_eq!(action, format!("options_toggle:{key}"));
             apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
         }
+        let mut dropdown = OptionsDropdownState::default();
         for (key, index) in [("party_sort", 0), ("party_aura", 2)] {
             shared.insert(options_preview::options_view(layout.clone()));
             screen.sync(&shared, &mut registry);
-            let id = registry
-                .get_by_name(&format!("PartyDropdownButton{key}"))
-                .unwrap();
+            let id = registry.get_by_name(&format!("Choice{key}")).unwrap();
             let action = registry.click_frame(id).expect("dropdown opens");
-            apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
-            shared.insert(options_preview::options_view(layout.clone()));
+            assert_eq!(action, format!("options_dropdown:{key}"));
+            // RegistryUi owns ephemeral popup state separately from saved layout settings.
+            dropdown.toggle(
+                action.strip_prefix("options_dropdown:").unwrap(),
+                [320.0, 180.0],
+            );
+            shared.insert(dropdown.clone());
             screen.sync(&shared, &mut registry);
-            let id = registry
-                .get_by_name(&format!("PartyChoice{key}{index}"))
+            let popup = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("OptionsChoicePopup{key}"))
+                        .unwrap(),
+                )
                 .unwrap();
+            assert_eq!(popup.parent_id, registry.get_by_name("OptionsRoot"));
+            let choice = format!("Choice{key}{index}Hit");
+            let id = registry.get_by_name(&choice).unwrap();
             let action = registry.click_frame(id).expect("dropdown choice clickable");
+            assert_eq!(action, format!("options_toggle:{key}:{index}"));
+            // Native routing retains the choice action before closing and rebuilding its popup.
+            assert!(dropdown.close());
+            shared.insert(dropdown.clone());
+            screen.sync(&shared, &mut registry);
+            assert!(registry.get_by_name(&choice).is_none());
+            assert!(
+                registry
+                    .get_by_name(&format!("OptionsChoicePopup{key}"))
+                    .is_none()
+            );
             apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
-            assert!(layout.party_dropdown.is_none());
+            assert!(dropdown.menu.is_none());
         }
         shared.insert(options_preview::options_view(layout.clone()));
         screen.sync(&shared, &mut registry);
