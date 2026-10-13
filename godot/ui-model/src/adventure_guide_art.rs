@@ -38,6 +38,7 @@ pub fn reset_changed_scrolls(
 
 pub fn apply_postsetup(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_button_art(view, registry);
+    crate::adventure_guide_sections::sync_header_art(view, registry);
     apply_text_layout(registry);
 }
 fn apply_text_layout(registry: &mut ui_toolkit::registry::FrameRegistry) {
@@ -288,7 +289,7 @@ pub fn grid_background(view: &View) -> Element {
     named_atlas_texture(
         "EncounterJournalInstanceSelectBackground".into(),
         atlas,
-        (7., 63., 786., 425.),
+        (3., 1., 786., 425.),
     )
 }
 
@@ -474,20 +475,19 @@ pub fn instance_lore(instance: &Instance) -> Element {
         "EncounterJournalInstanceLoreArt".into(),
         instance.lore,
         "0,0.7617187,0,0.65625",
-        (405., 73., 390., 330.),
+        (3., 9., 390., 330.),
     );
     out.extend(art(
         "EncounterJournalInstanceTitleBG".into(),
         Art::DungeonName,
-        (469., 111., 256., 64.),
+        (67., 47., 256., 64.),
     ));
     out.extend(label(
         "EncounterJournalInstanceTitle".into(),
         &instance.name,
-        (437., 112., 320., 35.),
+        (35., 48., 320., 35.),
         (24., GOLD, "CENTER"),
     ));
-
     out
 }
 
@@ -527,23 +527,23 @@ pub fn model_art(instance: &Instance, name: &str) -> Element {
         "EncounterJournalInstanceBackground".into(),
         instance.background,
         "0.76953125,0,0,0.830078125",
-        (399., 65., 394., 425.),
+        (0., 0., 394., 425.),
     );
     out.extend(cropped(
         "EncounterJournalModelPaper".into(),
         527690,
         "0.767578125,0,0,0.828125",
-        (399., 64., 393., 424.),
+        (0., -1., 393., 424.),
     ));
     out.extend(art(
         "EncounterJournalModelTitleBG".into(),
         Art::BossName,
-        (396.5, 427., 395., 63.),
+        (-2.5, 362., 395., 63.),
     ));
     out.extend(label(
         "EncounterJournalModelTitle".into(),
         name,
-        (404., 472., 380., 10.),
+        (5., 407., 380., 10.),
         (14., GOLD, "CENTER"),
     ));
     out

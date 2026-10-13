@@ -154,15 +154,15 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
         // InstanceFrame390×425; lore390×330 at TOP(3,-9); title320×35 at TOP(0,-48).
         assert_eq!(
             rect(&instance, "EncounterJournalInstanceLoreArt"),
-            [405., 73., 390., 330.]
+            [3., 9., 390., 330.]
         );
         assert_eq!(
             rect(&instance, "EncounterJournalInstanceTitle"),
-            [437., 112., 320., 35.]
+            [35., 48., 320., 35.]
         );
         assert_eq!(
             rect(&instance, "EncounterJournalLore"),
-            [437., 389., 315., 95.]
+            [35., 325., 315., 95.]
         );
         assert!(
             instance.scroll_lists.get("EncounterJournalLore").is_some(),
@@ -281,7 +281,7 @@ fn adventure_guide_tier_backgrounds_use_the_real_catalog_ordering_and_atlas_shee
             );
             assert_eq!(
                 rect(&grid, "EncounterJournalInstanceSelectBackground"),
-                [7., 63., 786., 425.]
+                [3., 1., 786., 425.]
             );
         }
     }

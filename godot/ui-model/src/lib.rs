@@ -43,6 +43,8 @@ pub mod ui {
 pub mod adventure_activities;
 pub mod adventure_guide;
 pub mod adventure_guide_art;
+mod adventure_guide_menus;
+mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
 pub mod assisted_highlight;
