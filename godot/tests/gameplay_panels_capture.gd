@@ -31,6 +31,12 @@ func capture() -> void:
 						return
 				await process_frame
 				await RenderingServer.frame_post_draw
+			if page == "raid":
+				var clipping_error := scrollbar_clipping_error(ui, "RaidInfoScrollBox")
+				if clipping_error != "":
+					push_error(clipping_error)
+					quit(1)
+					return
 			if ui.has_node("CustomerOrdersPreviewPortrait"):
 				var portrait_state = ui.get_node("CustomerOrdersPreviewPortrait").call("portrait_state")
 				if not portrait_state.get("model_shown", false):
@@ -50,3 +56,15 @@ func capture() -> void:
 			await process_frame
 	print("PASS: both-skin gameplay-panel native captures")
 	quit(0)
+
+func scrollbar_clipping_error(ui: Node, list: String) -> String:
+	var thumb = ui.find_child(list + "ScrollThumb", true, false)
+	if not thumb is Control or not thumb.is_visible_in_tree():
+		return list + " thumb is absent or hidden"
+	var rect: Rect2 = thumb.get_global_rect()
+	var ancestor = thumb.get_parent()
+	while ancestor != null:
+		if ancestor is Control and ancestor.clip_contents and not ancestor.get_global_rect().encloses(rect):
+			return list + " thumb clipped by " + ancestor.name + ": " + str(rect)
+		ancestor = ancestor.get_parent()
+	return ""
