@@ -46,6 +46,9 @@ impl GameClient {
             }
             return Ok(false);
         }
+        if self.dispatch_housing_placed_list_action(action)? {
+            return Ok(true);
+        }
         let model = self
             .housing
             .model
@@ -101,6 +104,8 @@ impl GameClient {
         };
         if let Some(mode) = mode {
             model.editor.set_mode(mode);
+            model.close_placed_list();
+            self.housing.placed_list_drag = None;
             self.housing.mouse_pointer = None;
             self.housing.storage_resize = None;
             self.housing.decor.highlight(None);
@@ -141,7 +146,7 @@ impl GameClient {
         Ok(true)
     }
 
-    fn editor_ui_contains(&self, point: Vector2) -> bool {
+    pub(super) fn editor_ui_contains(&self, point: Vector2) -> bool {
         self.housing.ui.as_ref().is_some_and(|ui| {
             [
                 "HouseEditorStorageFrame",
@@ -150,6 +155,12 @@ impl GameClient {
                 "HouseEditorStorageCollapseButton",
                 "HouseEditorStorageExpandButton",
                 "HouseEditorModeBar",
+                "HouseEditorPlacedDecorListButton",
+                "HouseEditorDecorBudget",
+                "HouseEditorPlacedDecorList",
+                "HouseEditorPlacedDecorListDragBar",
+                "HouseEditorPlacedDecorListCloseButton",
+                "HouseEditorPlacedDecorContextMenu",
                 "HouseEditorExpertSubmodeBar",
                 "HouseEditorRotateControl",
                 "HouseEditorScaleControl",
@@ -181,6 +192,9 @@ impl GameClient {
             .is_none_or(|model| model.surface != HousingSurface::Editor)
         {
             return Ok(false);
+        }
+        if self.housing_placed_list_pointer(event)? {
+            return Ok(true);
         }
         if self.housing_storage_pointer(event)? {
             return Ok(true);

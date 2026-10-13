@@ -1,6 +1,6 @@
 extends "res://tests/unitrank_live.gd"
 
-# Real private5811, fb_* account. Opens via ordinary minimap launcher clicks.
+# Real private5751, fb_* account. Opens via ordinary minimap launcher clicks.
 var run_dir := ""
 var last_command := -1
 
@@ -12,8 +12,8 @@ func run_test() -> void:
 	character = OS.get_environment("MENTOR_CHARACTER")
 	var account := OS.get_environment("MENTOR_ACCOUNT")
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
-	if endpoint != "127.0.0.1:5811" or not account.begins_with("fb_") or run_dir.is_empty():
-		fail("Explicit private5811, fb_* account and output directory required")
+	if endpoint != "127.0.0.1:5751" or not account.begins_with("fb_") or run_dir.is_empty():
+		fail("Explicit private5751, fb_* account and output directory required")
 		return
 	DirAccess.make_dir_recursive_absolute(run_dir)
 	client = load("res://scenes/client.tscn").instantiate()
@@ -24,7 +24,13 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	await wait_frames(30)
+	# Initial snapshots are asynchronous; world geometry readiness is not channel readiness.
+	var keys_deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < keys_deadline:
+		var pending = JSON.parse_string(client.party_keystone_state())
+		if pending is Dictionary and not pending.members.is_empty():
+			break
+		await process_frame
 	var initial = JSON.parse_string(client.party_keystone_state())
 	if not initial is Dictionary or initial.members.size() != 1:
 		fail("Initial solo keystone snapshot lost during loading: " + client.party_keystone_state())
@@ -45,15 +51,44 @@ func run_test() -> void:
 			continue
 		last_command = int(command.id)
 		var result := await execute_command(command)
-		var file := FileAccess.open(shots + "result.json", FileAccess.WRITE)
-		file.store_string(JSON.stringify({"id": last_command, "result": result}))
-		file.close()
+		if str(command.get("op", "")) == "quit":
+			return
+		write_state("state.json")
+		write_json_atomic("result.json", {"id": last_command, "result": result})
 	fail("Mentor fixture command deadline")
 
 func write_state(filename: String) -> void:
-	var file := FileAccess.open(shots + filename, FileAccess.WRITE)
-	file.store_string(JSON.stringify({"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null}))
+	write_json_atomic(filename, {"account": client.account_state(), "keys": JSON.parse_string(client.party_keystone_state()), "panel": control("MythicMentorUI", "MythicMentorPanel") != null, "rows": rendered_rows(), "rect": panel_rect()})
+
+func write_json_atomic(filename: String, data: Dictionary) -> void:
+	var destination := shots + filename
+	var temporary := destination + ".writing"
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		fail("Cannot open fixture output " + temporary)
+		return
+	file.store_string(JSON.stringify(data))
 	file.close()
+	var error := DirAccess.rename_absolute(temporary, destination)
+	if error != OK:
+		fail("Cannot publish fixture output " + destination + ": " + str(error))
+
+func panel_rect() -> Array:
+	var panel := control("MythicMentorUI", "MythicMentorPanel")
+	if panel == null:
+		return []
+	var rect := panel.get_global_rect()
+	return [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+
+func rendered_rows() -> Array:
+	var rows := []
+	for index in range(5):
+		var prefix := "MentorRow%d" % index
+		var dungeon := control("MythicMentorUI", prefix + "Dungeon")
+		if dungeon == null:
+			break
+		rows.append({"dungeon": dungeon.text, "player": control("MythicMentorUI", prefix + "Player").text, "level": control("MythicMentorUI", prefix + "Level").text, "timer": control("MythicMentorUI", prefix + "Timer").text, "leader": control("MythicMentorUI", prefix + "Leader") != null})
+	return rows
 
 func execute_command(command: Dictionary) -> String:
 	match str(command.get("op", "")):
@@ -82,6 +117,15 @@ func execute_command(command: Dictionary) -> String:
 			push_key(KEY_ESCAPE, false)
 			await wait_frames(5)
 			return "closed" if client.get_node_or_null("MythicMentorUI") == null else "still open"
+		"accept":
+			push_key(KEY_ENTER, true)
+			await process_frame
+			push_key(KEY_ENTER, false)
+			await wait_frames(5)
+			return "accepted"
+		"chat":
+			await send_chat_line(str(command.text))
+			return "submitted"
 		"drag":
 			var handle := control("MythicMentorUI", "MentorDragHandle")
 			if handle == null:
@@ -109,3 +153,24 @@ func execute_command(command: Dictionary) -> String:
 			quit(0)
 			return "quit"
 	return "unknown operation"
+
+func send_chat_line(text: String) -> void:
+	push_key(KEY_ENTER, true)
+	await process_frame
+	push_key(KEY_ENTER, false)
+	await wait_frames(3)
+	for letter in text:
+		var event := InputEventKey.new()
+		event.keycode = KEY_SLASH if letter == "/" else OS.find_keycode_from_string(letter.to_upper())
+		event.physical_keycode = event.keycode
+		event.unicode = letter.unicode_at(0)
+		event.pressed = true
+		root.push_input(event, true)
+		await process_frame
+		event.pressed = false
+		root.push_input(event, true)
+		await process_frame
+	push_key(KEY_ENTER, true)
+	await process_frame
+	push_key(KEY_ENTER, false)
+	await wait_frames(5)

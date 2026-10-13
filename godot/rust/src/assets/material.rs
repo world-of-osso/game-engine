@@ -328,7 +328,12 @@ fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>),
         .map_err(|_| format!("M2 shader {SHADER_PATH} has wrong resource type"))?
         .get_code()
         .to_string();
-    let shader = shared_shader(&shader_variant(&source, pipeline)?);
+    let authored = shader_variant(&source, pipeline)?;
+    let mut shader = shared_shader(&authored);
+    if let Some(preview) = preview_additive_variant(&authored, pipeline.gx_blend)? {
+        let preview = shared_shader(&preview);
+        shader.set_meta(PREVIEW_ADDITIVE_SHADER_META, &preview.to_variant());
+    }
     let fade = scenery_fade_variant(&source, pipeline)?.map(|fade| shared_shader(&fade));
     BATCH_SHADERS
         .with_borrow_mut(|shaders| shaders.insert(pipeline, (shader.clone(), fade.clone())));
@@ -341,6 +346,9 @@ fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>),
 /// in its transparent pass, so the authored opaque variant writes none and only
 /// fading placements take the blended one (solarityclient `with_runtime_alpha_fade`).
 pub(crate) const SCENERY_FADE_SHADER_META: &str = "scenery_fade_shader";
+/// Additive light writes RGB but no coverage in a transparent preview target.
+/// Its TextureRect must composite the resulting premultiplied RGB/coverage.
+pub(crate) const PREVIEW_ADDITIVE_SHADER_META: &str = "preview_additive_shader";
 
 /// A placed model's batch materials, faded together by retail scenery distance.
 pub(crate) struct SceneryFade {
@@ -415,6 +423,53 @@ impl SceneryFade {
         }
         self.opacity = opacity;
     }
+}
+
+fn preview_additive_variant(source: &str, gx_blend: u8) -> Result<Option<String>, String> {
+    let (alpha, opacity) = match gx_blend {
+        3 => (
+            "ALPHA = color.a * scenery_opacity;",
+            "color.a * scenery_opacity",
+        ),
+        10 => ("ALPHA = 1.0;", "1.0"),
+        _ => return Ok(None),
+    };
+    let output = format!("preview_opacity = {opacity}; ALPHA = 0.0;");
+    replace_shader_fragments(
+        source,
+        &[
+            ("blend_add", "blend_premul_alpha", 1),
+            (
+                "varying vec3 authored_color;",
+                "varying vec3 authored_color;\nvarying float preview_opacity;",
+                1,
+            ),
+            (alpha, &output, 1),
+            (
+                "blend_output(rgb)",
+                "blend_output(rgb) * preview_opacity",
+                2,
+            ),
+        ],
+    )
+    .map(Some)
+}
+
+fn replace_shader_fragments(
+    source: &str,
+    replacements: &[(&str, &str, usize)],
+) -> Result<String, String> {
+    let mut variant = source.to_owned();
+    for (fragment, replacement, expected) in replacements {
+        let count = variant.matches(fragment).count();
+        if count != *expected {
+            return Err(format!(
+                "M2 preview shader expected {expected} occurrences of {fragment:?}, found {count}"
+            ));
+        }
+        variant = variant.replace(fragment, replacement);
+    }
+    Ok(variant)
 }
 
 fn shader_variant(source: &str, pipeline: Pipeline) -> Result<String, String> {
