@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "trading_post_layout_tests.rs"]
+mod trading_post_layout_tests;
+
 use std::collections::HashMap;
 use taffy::prelude::*;
 use ui_toolkit::anchor::AnchorTarget;
