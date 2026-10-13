@@ -38,7 +38,7 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         children.extend(order_list(ctx, view, 30.0, 90.0, 770.0, 410.0));
     }
     // CustomerOrders.xml:67-77: BOTTOMLEFT(20,-28), then LEFT at Browse RIGHT(-10,0).
-    let browse_width = tab_width("Browse Orders");
+    let browse_width = tab_width("Place Order");
     let mine = view
         .orders
         .snapshot
@@ -46,7 +46,7 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
         .is_some_and(|snapshot| snapshot.mine);
     children.extend(tab(
         "CraftingOrdersBrowseTab",
-        "Browse Orders",
+        "Place Order",
         (20.0, 568.0 + 28.0 - 32.0, browse_width),
         !mine,
         if view.orders.pending {
@@ -475,9 +475,9 @@ fn customer_form(ctx: &SharedContext, view: &ProfessionView) -> Element {
     ));
 
     let type_text = match view.orders.kind {
-        CraftingOrderKind::Public => "Public",
-        CraftingOrderKind::Guild => "Guild",
-        CraftingOrderKind::Personal => "Personal",
+        CraftingOrderKind::Public => "Public Order",
+        CraftingOrderKind::Guild => "Guild Order",
+        CraftingOrderKind::Personal => "Personal Order",
     };
     // Form TOPLEFT(5,-60), recipient TOPRIGHT(-10,-11); Form.lua:530 sets width136.
     out.extend(order_dropdown(
@@ -722,19 +722,19 @@ fn form_menu(view: &ProfessionView) -> Element {
             [
                 (
                     "Public",
-                    "Public",
+                    "Public Order",
                     "recipient:public",
                     orders.kind == CraftingOrderKind::Public,
                 ),
                 (
                     "Guild",
-                    "Guild",
+                    "Guild Order",
                     "recipient:guild",
                     orders.kind == CraftingOrderKind::Guild,
                 ),
                 (
                     "Personal",
-                    "Personal",
+                    "Personal Order",
                     "recipient:personal",
                     orders.kind == CraftingOrderKind::Personal,
                 ),

@@ -207,7 +207,7 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
             ui_toolkit::layout_values::Val::Px(352.5)
         );
         assert_eq!(frame(&r, "CraftingOrderDuration").width.value(), 143.0);
-        assert_eq!(text(&r, "CraftingOrdersBrowseTabText"), "Browse Orders");
+        assert_eq!(text(&r, "CraftingOrdersBrowseTabText"), "Place Order");
         assert_eq!(frame(&r, "CraftingOrdersBrowseTab").height.value(), 32.0);
         assert_eq!(
             frame(&r, "CraftingOrdersBrowseTab").position.top,
