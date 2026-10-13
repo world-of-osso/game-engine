@@ -1,3 +1,7 @@
+## 2026-10-12 — Native Trading Post live proof and preview asset closure
+
+[Trading Post](systems/trading-post.md): authentic Tawny gossip opens the full-screen vendor; other layers hide like Retail area `full` and are restored on Leave. Live RED showed an unreadable top Transmog row leaving the previous gryphon on screen; unavailable rows now show no model and failed previews clear. The authenticated local-CASC closure raises complete preview chains from 167 to 1287 of 1309 rows in a private, validated package. Modern/Forever browse and relog PASS with 26 inspected PNGs. Live purchase is blocked because supported activities have no reachable content; server tests prove purchase/collection/refund.
+
 ## 2026-10-12 — Owned storage category rail and registry-text root fix
 
 [Owned categories](systems/housing.md#owned-category-rail): actual stored/placed ownership, independent Back/All/category focus, source64/54px controls and multi-membership joins. Both-skin physical search→category RED exposed renderer-only text clearing; editing backing RegistryModel before projection fixes stale sampling. Current both-skin paid browsing/conservation PASS; UI23/registry12/check clean. Six inspected public PNGs; selected-art animation/paging/filter/collapse/resize authority remain separate.
