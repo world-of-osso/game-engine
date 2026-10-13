@@ -1,30 +1,23 @@
-use std::fmt;
-
-use ui_toolkit::rsx;
-use ui_toolkit::widget_def::Element;
-
+//! Retail Blizzard_Menu templates. Positions retain the original public API:
+//! dropdown y is y-up; context-menu y is y-down. Skin selection belongs to atlas resolution.
+use crate::bank_art::{label, texture};
+use crate::quest_art::named_atlas_texture;
 use crate::ui::strata::FrameStrata;
+use std::fmt;
+use ui_toolkit::{rsx, widget_def::Element};
 
-const MENU_BG: &str = "0.03,0.03,0.03,0.96";
-const MENU_BORDER: &str = "0.68,0.54,0.25,1.0";
-const MENU_TITLE: &str = "1.0,0.82,0.0,1.0";
-const MENU_DIVIDER: &str = "0.25,0.22,0.16,1.0";
-
-const MENU_TITLE_INSET: f32 = 6.0;
-const MENU_TITLE_TOP: f32 = 6.0;
-const MENU_DIVIDER_Y: f32 = 22.0;
-const MENU_BUTTON_X: f32 = 6.0;
-const MENU_BUTTON_START_Y: f32 = 28.0;
-const MENU_BUTTON_GAP: f32 = 3.0;
-const MENU_BUTTON_HEIGHT: f32 = 22.0;
-const MENU_BOTTOM_PADDING: f32 = 6.0;
-
-const DROPDOWN_TEXT_INSET: f32 = 6.0;
-const DROPDOWN_ARROW_WIDTH: f32 = 14.0;
-const DROPDOWN_ARROW_RIGHT: f32 = 4.0;
+const ROW_HEIGHT: f32 = 20.0;
+const MENU_INSET: f32 = 8.0;
+const MENU_BOTTOM: f32 = 15.0;
+const DIVIDER_HEIGHT: f32 = 13.0;
+const NORMAL: &str = "1.0,1.0,1.0,1.0";
+const GOLD: &str = "1.0,0.82,0.0,1.0";
+const DISABLED: &str = "0.5,0.5,0.5,1.0";
+const MENU_HIGHLIGHT: u32 = 136810;
+const MENU_DIVIDER: u32 = 918860;
+const SUBMENU_ARROW: u32 = 130940;
 
 struct DynName(String);
-
 impl fmt::Display for DynName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
@@ -41,10 +34,223 @@ pub struct DropdownButton<'a> {
     pub height: f32,
     pub x: f32,
     pub y: f32,
+    /// Retained for source compatibility; Retail template art replaces flat fills.
     pub background_color: &'a str,
     pub text_color: &'a str,
+    /// Retained for source compatibility; the arrow is now atlas art.
     pub arrow_color: &'a str,
     pub onclick: Option<&'a str>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DropdownStyle {
+    #[default]
+    WowStyle1,
+    Filter,
+    WowStyle2,
+}
+
+#[derive(Clone, Copy)]
+pub struct DropdownState<'a> {
+    pub style: DropdownStyle,
+    /// Retail resizeToText; false preserves an explicit XML/Lua width.
+    pub resize_to_text: bool,
+    pub open: bool,
+    pub enabled: bool,
+    /// UIResetButtonTemplate: hidden unless filters differ from defaults.
+    pub reset_action: Option<&'a str>,
+}
+impl Default for DropdownState<'_> {
+    fn default() -> Self {
+        Self {
+            style: DropdownStyle::WowStyle1,
+            resize_to_text: true,
+            open: false,
+            enabled: true,
+            reset_action: None,
+        }
+    }
+}
+
+pub fn dropdown_button(props: DropdownButton<'_>) -> Element {
+    dropdown_button_with_state(props, DropdownState::default())
+}
+
+/// Mainline/MenuTemplates.xml:3,66 and MenuTemplates.xml:4. Callers own menu visibility.
+pub fn dropdown_button_with_state(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
+    let props = resize_filter_to_text(props, state);
+    let mut contents = dropdown_art(props, state);
+    contents.extend(dropdown_text(props, state));
+    contents.extend(reset_button(props, state));
+    let name = DynName(props.frame_name.into());
+    let disabled = !state.enabled;
+    let onclick = if state.enabled {
+        props.onclick.unwrap_or("")
+    } else {
+        ""
+    };
+    rsx! { button {
+        name, width: {props.width}, height: {props.height}, button_default_skin: false,
+        onclick, disabled, mouse_enabled: state.enabled, pos_type: "absolute", left: {props.x}, top: {-props.y},
+        {contents}
+    } }
+}
+
+/// DropdownTextMixin:UpdateText and WowStyle1FilterDropdownTemplate resizeToTextPadding60.
+fn resize_filter_to_text<'a>(
+    props: DropdownButton<'a>,
+    state: DropdownState<'_>,
+) -> DropdownButton<'a> {
+    if state.style != DropdownStyle::Filter || !state.resize_to_text {
+        return props;
+    }
+    let (text_width, _) = ui_toolkit::text_measure::measure_text(
+        props.text,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .expect("Filter template font loaded");
+    DropdownButton {
+        width: text_width + 60.0,
+        ..props
+    }
+}
+
+fn dropdown_art(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
+    let name = props.frame_name;
+    match state.style {
+        DropdownStyle::WowStyle1 => {
+            let mut out = named_atlas_texture(
+                format!("{name}Background"),
+                "common-dropdown-textholder",
+                (-8.0, -7.0, props.width + 16.0, props.height + 16.0),
+            );
+            out.extend(dropdown_arrow(props, state));
+            out
+        }
+        DropdownStyle::Filter => dropdown_surface(
+            props,
+            state,
+            "common-dropdown-b-button",
+            [-4.0, -4.0, 8.0, 8.0],
+        ),
+        DropdownStyle::WowStyle2 => {
+            let mut out = dropdown_surface(
+                props,
+                state,
+                "common-dropdown-c-button",
+                [-7.0, -7.0, 14.0, 14.0],
+            );
+            out.extend(rsx! { texture {
+                name: {DynName(props.arrow_name.into())}, texture_atlas: "common-dropdown-c-button-hover-arrow",
+                width: 12.0, height: 5.0, left: {(props.width - 12.0) / 2.0}, top: {props.height},
+                pos_type: "absolute", draw_layer: "HIGHLIGHT",
+            } });
+            out
+        }
+    }
+}
+
+fn dropdown_surface(
+    props: DropdownButton<'_>,
+    state: DropdownState<'_>,
+    atlas: &str,
+    [x, y, w, h]: [f32; 4],
+) -> Element {
+    let suffix = if !state.enabled {
+        "-disabled"
+    } else if state.open {
+        "-open"
+    } else {
+        ""
+    };
+    let up = format!("{atlas}{suffix}");
+    let pressed_suffix = if state.style == DropdownStyle::WowStyle2 {
+        "-pressed-1"
+    } else {
+        "-pressed"
+    };
+    let hover_suffix = if state.style == DropdownStyle::WowStyle2 {
+        "-hover-1"
+    } else {
+        "-hover"
+    };
+    let pressed = format!("{atlas}{pressed_suffix}");
+    let hover = format!("{atlas}{hover_suffix}");
+    let disabled = format!("{atlas}-disabled");
+    rsx! { button {
+        name: {DynName(format!("{}Background", props.frame_name))},
+        width: {props.width + w}, height: {props.height + h}, left: x, top: y, pos_type: "absolute",
+        mouse_enabled: false, button_default_skin: false,
+        button_atlas_up: up.as_str(), button_atlas_pressed: pressed.as_str(),
+        button_atlas_highlight: hover.as_str(), button_highlight_alpha: 1.0,
+        button_atlas_disabled: disabled.as_str(),
+    } }
+}
+
+fn dropdown_arrow(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
+    let up = if state.open {
+        "common-dropdown-a-button-open"
+    } else {
+        "common-dropdown-a-button"
+    };
+    let up = if state.enabled {
+        up
+    } else {
+        "common-dropdown-a-button-disabled"
+    };
+    // Arrow RIGHT (+1,-3), atlas 27x27; input belongs to the whole dropdown.
+    rsx! { button {
+        name: {DynName(props.arrow_name.into())}, width: 27.0, height: 27.0,
+        pos_type: "absolute", left: {props.width - 26.0}, top: {(props.height - 27.0) / 2.0 + 3.0},
+        button_default_skin: false, mouse_enabled: false,
+        button_atlas_up: up, button_atlas_pressed: "common-dropdown-a-button-pressed",
+        button_atlas_highlight: "common-dropdown-a-button-hover", button_highlight_alpha: 1.0,
+        button_atlas_disabled: "common-dropdown-a-button-disabled",
+    } }
+}
+
+fn dropdown_text(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
+    let color = if !state.enabled {
+        DISABLED
+    } else if state.style == DropdownStyle::WowStyle1 {
+        NORMAL
+    } else {
+        GOLD
+    };
+    let (rect, justify) = match state.style {
+        DropdownStyle::WowStyle1 => ((8.0, 8.0, props.width - 34.0, 10.0), "LEFT"),
+        DropdownStyle::Filter => ((0.0, 0.0, props.width, 20.0), "CENTER"),
+        DropdownStyle::WowStyle2 => (
+            (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
+            "CENTER",
+        ),
+    };
+    label(
+        props.label_name.into(),
+        props.text,
+        rect,
+        (12.0, color, justify),
+    )
+}
+
+fn reset_button(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element {
+    if state.style == DropdownStyle::WowStyle1 {
+        return Vec::new();
+    }
+    let hidden = state.reset_action.is_none();
+    let onclick = state.reset_action.unwrap_or("");
+    let y = if state.style == DropdownStyle::WowStyle2 {
+        5.0
+    } else {
+        0.0
+    };
+    rsx! { button {
+        name: {DynName(format!("{}ResetButton", props.frame_name))}, width: 23.0, height: 23.0,
+        pos_type: "absolute", left: {props.width - 3.0 - 11.5}, top: {y - 11.5}, hidden, onclick,
+        button_default_skin: false, button_atlas_up: "auctionhouse-ui-filter-redx",
+        button_atlas_highlight: "auctionhouse-ui-filter-redx", button_highlight_alpha: "0.4",
+    } }
 }
 
 #[derive(Clone, Copy)]
@@ -53,7 +259,6 @@ pub struct ContextMenuItem<'a> {
     pub label: &'a str,
     pub action: &'a str,
 }
-
 #[derive(Clone, Copy)]
 pub struct ContextMenu<'a> {
     pub frame_name: &'a str,
@@ -67,288 +272,177 @@ pub struct ContextMenu<'a> {
     pub items: &'a [ContextMenuItem<'a>],
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuElementKind {
+    Button,
+    Checkbox { checked: bool },
+    Radio { checked: bool },
+    Title,
+    Divider,
+    Submenu,
+}
+
+/// MenuVariants.lua and Mainline/MenuVariants.lua: real menu elements, not push-button skins.
+pub fn menu_element(
+    item: ContextMenuItem<'_>,
+    kind: MenuElementKind,
+    enabled: bool,
+    rect: (f32, f32, f32, f32),
+) -> Element {
+    let (x, y, width, height) = rect;
+    if kind == MenuElementKind::Divider {
+        return texture(item.name.into(), MENU_DIVIDER, rect, NORMAL);
+    }
+    let mut contents = menu_element_contents(item, kind, enabled, width);
+    if kind != MenuElementKind::Title {
+        contents.extend(rsx! { texture {
+            name: {DynName(format!("{}Highlight", item.name))}, width, height,
+            texture_fdid: MENU_HIGHLIGHT, draw_layer: "HIGHLIGHT", blend_mode: "ADD",
+            pos_type: "absolute", left: 0.0, top: 0.0,
+        } });
+    }
+    if kind == MenuElementKind::Title {
+        return place_title(item.name, contents, rect);
+    }
+    let name = DynName(item.name.into());
+    let onclick = if enabled { item.action } else { "" };
+    let disabled = !enabled;
+    rsx! { button {
+        name, width, height, pos_type: "absolute", left: x, top: y, onclick,
+        disabled, mouse_enabled: enabled, button_default_skin: false,
+        button_highlight_alpha: 1.0, {contents}
+    } }
+}
+
+fn place_title(
+    name: &str,
+    contents: Element,
+    (x, y, width, height): (f32, f32, f32, f32),
+) -> Element {
+    rsx! { r#frame { name: {DynName(name.into())}, width, height, left: x, top: y, pos_type: "absolute", {contents} } }
+}
+
+fn menu_element_contents(
+    item: ContextMenuItem<'_>,
+    kind: MenuElementKind,
+    enabled: bool,
+    width: f32,
+) -> Element {
+    let (inset, mut contents) = menu_tick(item.name, kind);
+    let color = if !enabled {
+        DISABLED
+    } else if kind == MenuElementKind::Title {
+        GOLD
+    } else {
+        NORMAL
+    };
+    contents.extend(label(
+        format!("{}Text", item.name),
+        item.label,
+        (inset, 0.0, width - inset, ROW_HEIGHT),
+        (12.0, color, "LEFT"),
+    ));
+    if kind == MenuElementKind::Submenu {
+        contents.extend(texture(
+            format!("{}SubmenuArrow", item.name),
+            SUBMENU_ARROW,
+            (width - 16.0, 2.0, 16.0, 16.0),
+            NORMAL,
+        ));
+    }
+    contents
+}
+
+fn menu_tick(name: &str, kind: MenuElementKind) -> (f32, Element) {
+    let (box_art, tick_art, checked, box_rect, tick_rect, inset) = match kind {
+        MenuElementKind::Checkbox { checked } => (
+            "common-dropdown-ticksquare",
+            "common-dropdown-icon-checkmark-yellow",
+            checked,
+            (0.0, 4.0, 12.0, 12.0),
+            (0.5, 2.0, 15.0, 14.0),
+            19.0,
+        ),
+        MenuElementKind::Radio { checked } => (
+            "common-dropdown-tickradial",
+            "common-dropdown-icon-radialtick-yellow",
+            checked,
+            (-3.0, 1.0, 18.0, 18.0),
+            (-3.0, 1.0, 18.0, 18.0),
+            16.0,
+        ),
+        _ => return (0.0, Vec::new()),
+    };
+    let mut contents = named_atlas_texture(format!("{name}Box"), box_art, box_rect);
+    if checked {
+        contents.extend(named_atlas_texture(
+            format!("{name}Tick"),
+            tick_art,
+            tick_rect,
+        ));
+    }
+    (inset, contents)
+}
+
 pub fn menu_height_for_items(item_count: usize) -> f32 {
-    context_menu_height(item_count)
+    MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
 }
 
-pub fn dropdown_button(props: DropdownButton<'_>) -> Element {
-    let frame_name = DynName(props.frame_name.into());
-    let content = dropdown_button_content(props);
-    dropdown_button_frame(frame_name, props, content)
-}
-
-fn dropdown_button_frame(
-    frame_name: DynName,
-    props: DropdownButton<'_>,
-    content: Element,
-) -> Element {
-    if let Some(onclick) = props.onclick {
-        return dropdown_button_frame_clickable(frame_name, props, content, onclick);
-    }
-    dropdown_button_frame_plain(frame_name, props, content)
-}
-
-fn dropdown_button_frame_clickable(
-    frame_name: DynName,
-    props: DropdownButton<'_>,
-    content: Element,
-    onclick: &str,
-) -> Element {
-    rsx! { r#frame {
-        name: frame_name, width: {props.width}, height: {props.height}, background_color: props.background_color, onclick,
-        pos_type: "absolute",
-        left: {props.x},
-        top: {-(props.y)},
-        {content}
-    } }
-}
-
-fn dropdown_button_frame_plain(
-    frame_name: DynName,
-    props: DropdownButton<'_>,
-    content: Element,
-) -> Element {
-    rsx! { r#frame {
-        name: frame_name, width: {props.width}, height: {props.height}, background_color: props.background_color,
-        pos_type: "absolute",
-        left: {props.x},
-        top: {-(props.y)},
-        {content}
-    } }
-}
-
-fn dropdown_button_content(props: DropdownButton<'_>) -> Element {
-    let label_name = DynName(props.label_name.into());
-    let arrow_name = DynName(props.arrow_name.into());
-    rsx! {
-        {dropdown_label(label_name, props)}
-        {dropdown_arrow(arrow_name, props)}
-    }
-}
-
-fn dropdown_label(name: DynName, props: DropdownButton<'_>) -> Element {
-    rsx! {
-        fontstring {
-            name,
-            width: {props.width - (DROPDOWN_ARROW_WIDTH + DROPDOWN_TEXT_INSET + DROPDOWN_ARROW_RIGHT)},
-            height: {props.height},
-            text: props.text,
-            font_size: 10.0,
-            font_color: props.text_color,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {DROPDOWN_TEXT_INSET},
-            top: -0.0,
-        }
-    }
-}
-
-fn dropdown_arrow(name: DynName, props: DropdownButton<'_>) -> Element {
-    rsx! {
-        fontstring {
-            name,
-            width: {DROPDOWN_ARROW_WIDTH},
-            height: {props.height},
-            text: "▼",
-            font_size: 9.0,
-            font_color: props.arrow_color,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            right: {-(-DROPDOWN_ARROW_RIGHT)},
-            top: -0.0,
-        }
-    }
+/// MenuTemplates/MenuVariants title, divider and 20px entry layout.
+/// Keep custom radio/checkbox rows at the same inset and pitch as normal entries.
+pub fn menu_row_rect(width: f32, index: usize) -> (f32, f32, f32, f32) {
+    (
+        MENU_INSET,
+        MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
+        width - 2.0 * MENU_INSET,
+        ROW_HEIGHT,
+    )
 }
 
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
-    let height = menu_height_for_items(props.items.len());
-    let frame_name = DynName(props.frame_name.into());
-    let contents = context_menu_content(props, height);
-    rsx! {
-        r#frame {
-            name: frame_name,
-            width: {props.width},
-            height: {height},
-            hidden: props.hidden,
-            strata: FrameStrata::Dialog,
-            frame_level: 60.0,
-            background_color: MENU_BG,
-            pos_type: "absolute",
-            left: {props.x},
-            top: {-(-props.y)},
-            {contents}
-        }
-    }
-}
-
-fn context_menu_content(props: ContextMenu<'_>, height: f32) -> Element {
-    let button_width = props.width - 2.0 * MENU_BUTTON_X;
-    let title = context_menu_title(props);
-    let divider = context_menu_divider(props);
-    let items = context_menu_items(props.items, button_width);
-    let borders = context_menu_borders(props.frame_name, props.width, height);
-    rsx! {
-        {borders}
-        {title}
-        {divider}
-        {items}
-    }
-}
-
-fn context_menu_title(props: ContextMenu<'_>) -> Element {
-    let title_name = DynName(props.title_name.into());
-    rsx! {
-        fontstring {
-            name: title_name,
-            width: {props.width - 2.0 * MENU_TITLE_INSET},
-            height: 14.0,
-            text: props.title,
-            font_size: 10.0,
-            font_color: MENU_TITLE,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {MENU_TITLE_INSET},
-            top: {-(-MENU_TITLE_TOP)},
-        }
-    }
-}
-
-fn context_menu_divider(props: ContextMenu<'_>) -> Element {
-    let divider_name = DynName(props.divider_name.into());
-    rsx! {
-        r#frame {
-            name: divider_name,
-            width: {props.width - 2.0 * MENU_TITLE_INSET},
-            height: 1.0,
-            background_color: MENU_DIVIDER,
-            pos_type: "absolute",
-            left: {MENU_TITLE_INSET},
-            top: {-(-MENU_DIVIDER_Y)},
-        }
-    }
-}
-
-fn context_menu_items(items: &[ContextMenuItem<'_>], button_width: f32) -> Element {
-    items
+    let rows: Element = props
+        .items
         .iter()
         .enumerate()
-        .flat_map(|(index, item)| context_menu_button(index, button_width, item))
-        .collect()
+        .flat_map(|(index, item)| {
+            menu_element(
+                *item,
+                MenuElementKind::Button,
+                true,
+                menu_row_rect(props.width, index),
+            )
+        })
+        .collect();
+    context_menu_with_rows(props, rows)
 }
 
-fn context_menu_borders(prefix: &str, width: f32, height: f32) -> Element {
-    [
-        BorderSpec::top(prefix, width),
-        BorderSpec::bottom(prefix, width),
-        BorderSpec::left(prefix, height),
-        BorderSpec::right(prefix, height),
-    ]
-    .into_iter()
-    .flat_map(menu_border)
-    .collect()
-}
-
-fn menu_border(spec: BorderSpec<'_>) -> Element {
-    rsx! {
-        r#frame {
-            name: DynName(format!("{}Border{}", spec.prefix, spec.suffix)),
-            width: {spec.width},
-            height: {spec.height},
-            background_color: MENU_BORDER,
-            pos_type: "absolute",
-            left: spec.left,
-            right: spec.right,
-            top: spec.top,
-            bottom: spec.bottom,
-        }
-    }
-}
-
-struct BorderSpec<'a> {
-    prefix: &'a str,
-    suffix: &'a str,
-    width: f32,
-    height: f32,
-    left: &'static str,
-    right: &'static str,
-    top: &'static str,
-    bottom: &'static str,
-}
-
-impl<'a> BorderSpec<'a> {
-    fn top(prefix: &'a str, width: f32) -> Self {
-        Self {
-            prefix,
-            suffix: "Top",
-            width,
-            height: 1.0,
-            left: "0",
-            right: "auto",
-            top: "0",
-            bottom: "auto",
-        }
-    }
-
-    fn bottom(prefix: &'a str, width: f32) -> Self {
-        Self {
-            prefix,
-            suffix: "Bottom",
-            width,
-            height: 1.0,
-            left: "0",
-            right: "auto",
-            top: "auto",
-            bottom: "0",
-        }
-    }
-
-    fn left(prefix: &'a str, height: f32) -> Self {
-        Self {
-            prefix,
-            suffix: "Left",
-            width: 1.0,
-            height,
-            left: "0",
-            right: "auto",
-            top: "0",
-            bottom: "auto",
-        }
-    }
-
-    fn right(prefix: &'a str, height: f32) -> Self {
-        Self {
-            prefix,
-            suffix: "Right",
-            width: 1.0,
-            height,
-            left: "auto",
-            right: "0",
-            top: "0",
-            bottom: "auto",
-        }
-    }
-}
-
-fn context_menu_button(index: usize, width: f32, item: &ContextMenuItem<'_>) -> Element {
-    let y = -(MENU_BUTTON_START_Y + index as f32 * (MENU_BUTTON_HEIGHT + MENU_BUTTON_GAP));
-    rsx! {
-        button {
-            name: DynName(item.name.into()),
-            width: {width},
-            height: {MENU_BUTTON_HEIGHT},
-            text: item.label,
-            font_size: 10.0,
-            onclick: item.action,
-            pos_type: "absolute",
-            left: {MENU_BUTTON_X},
-            top: {-(y)},
-        }
-    }
-}
-
-fn context_menu_height(item_count: usize) -> f32 {
-    MENU_BUTTON_START_Y
-        + item_count as f32 * MENU_BUTTON_HEIGHT
-        + item_count.saturating_sub(1) as f32 * MENU_BUTTON_GAP
-        + MENU_BOTTOM_PADDING
+/// Compose menu_element rows without changing the shared frame/backdrop/layout.
+pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element {
+    let height = menu_height_for_items(props.items.len());
+    let mut contents = crate::selection_list::menu_background(
+        format!("{}Background", props.frame_name),
+        (props.width, height),
+    );
+    contents.extend(label(
+        props.title_name.into(),
+        props.title,
+        (MENU_INSET, MENU_INSET, props.width - 16.0, ROW_HEIGHT),
+        (12.0, GOLD, "LEFT"),
+    ));
+    contents.extend(texture(
+        props.divider_name.into(),
+        MENU_DIVIDER,
+        (
+            MENU_INSET,
+            MENU_INSET + ROW_HEIGHT,
+            props.width - 16.0,
+            DIVIDER_HEIGHT,
+        ),
+        NORMAL,
+    ));
+    contents.extend(rows);
+    rsx! { r#frame {
+        name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
+        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
+    } }
 }

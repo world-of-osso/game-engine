@@ -156,6 +156,7 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
             .map(|map| map.name.clone())
             .unwrap_or_default(),
         breadcrumbs: breadcrumbs(catalog, map_id),
+        nav_overflow_open: false,
         tiles: tiles(catalog, map_id),
         highlight: request
             .hovered

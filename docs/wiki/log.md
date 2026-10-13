@@ -1,6 +1,9 @@
 ## 2026-10-13 — Battleground cast and travel boundaries
 
 [Battlegrounds](systems/battlegrounds.md#cast-and-travel-proof-boundaries--verified-2026-10-13): distinguish authored carry, natural-drop receipts and near-teleport score diagnostics; retain native partial captures rather than victory. Record epoch-stop and idle-owner UDP RED/GREEN, measured transport/apply timing and open travel rollback. Update the stale transport-blocked index entry; publication remains lead-owned.
+## 2026-10-13 — Glue/menu template fidelity
+
+[Glue/menu fidelity](investigations/glue-menu-fidelity.md): five native Retail-template frames retain selection/category/paging/delete actions in both skins. Exact pinned DB2 slice margins replace stretched borders; shared Options radio popups retain one-open/select/Escape/outside behavior. Native RED distinguishes actionless dropdown Background interception and subpixel shadow crops expanding to full atlas art. Offline source geometry/input/pixel fixtures gate these boundaries; authenticated deletion and server-side campsite persistence are not claimed.
 
 ## 2026-10-13 — CASC installed-build following
 
@@ -3633,3 +3636,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Central source tooltips extended to owned-storage cards and House Chest handle, native missing-route RED→both-skin actual text/count/right-anchor/leave/unmount/conservation GREEN; four inspected PNGs. Existing Catalog presentation reused.
 
 - 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
+
+- 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).
