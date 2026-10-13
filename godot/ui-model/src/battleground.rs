@@ -302,9 +302,6 @@ fn specific_choices() -> Vec<shared::battleground::BgTemplate> {
     shared::battleground::all_templates()
         .into_iter()
         .filter(|template| shared::battleground::has_implemented_objectives(template.map_id))
-        // Seething source starts are ship-relative; retire only after authored
-        // transport spawns, transforms and attachment/collision are implemented.
-        .filter(|template| template.map_id != 1803)
         .collect()
 }
 
@@ -675,7 +672,7 @@ fn objective_hud(bg: &BattlegroundSnapshot) -> Element {
     if bg.map_id == 2656 {
         return deephaul_hud(bg);
     }
-    if matches!(bg.map_id, 30 | 1803) {
+    if matches!(bg.map_id, 30 | 628 | 1803) {
         // Reinforcements/resource race: no unrelated team-flag cells.
         return vec![];
     }

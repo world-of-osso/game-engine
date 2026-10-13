@@ -128,6 +128,12 @@ Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered pl
 
 Source: cached `Blizzard_HouseEditorCleanupMode.lua/.xml` OnShow hides storage, target-selected calls RemoveSelectedDecor, hover shows name/removal errors and XML provides left-click instructions; `HousingCleanupModeUIDocumentation.lua` defines hovered info and selected-target events. Unavailable exterior assembly/locks remain separate source gaps; do not infer new removal policy.
 
+## Owned storage entry tiles
+
+Use Retail BaseHousingCatalogEntryTemplate's97×97 tiles,87×87 thumbnail inset5 on every edge and count anchored BOTTOMRIGHT−9/+7 with20px height and GameFontHighlightLarge16/shadow1,−1. Remove invented under-tile name/count labels; authenticated names remain in source tooltips. Sequence spacing5 horizontally/10 vertically yields102×107 pitches. Header68/options offset5/category offset28 place the first normal storage tile at85,101. Existing storage filters and positive server-confirmed counts define entries, never catalog membership alone.
+
+Background and additive0.75 hover artwork use the same source default/active/pressed member; mouse-down switches both to pressed, release restores the source selection/default state. Invalid authority disables placement and uses source desaturated/half-alpha icon and gray count without changing ownership. Both skins keep identical geometry/controls. New-placement hides storage; tile selection must not expose a second drawer. Source Lua UpdateBackground/OnMouseDown/OnMouseUp and XML BaseHousingCatalogEntryTemplate/ScrollingHousingCatalogTemplate define this contract. Drag-release placement is a separate Basic input capability.
+
 ## Expert PlacedDecorList
 
 Retail exposes PlacedDecorList only in Expert mode. Its36px state-atlas toggle anchors20px left of the placement-budget element; the400×400 movable/clamped list starts TOPRIGHT−50/−150. Keep the source budget icon/anchors but show explicit unknown “— / —” (lead decision2026-10-13); spent/max budget is not number of instances, and no limit/enforcement is inferred.
