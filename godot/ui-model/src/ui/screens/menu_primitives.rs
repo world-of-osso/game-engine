@@ -388,7 +388,36 @@ pub fn menu_height_for_items(item_count: usize) -> f32 {
     MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
 }
 
+/// MenuTemplates/MenuVariants title, divider and 20px entry layout.
+/// Keep custom radio/checkbox rows at the same inset and pitch as normal entries.
+pub fn menu_row_rect(width: f32, index: usize) -> (f32, f32, f32, f32) {
+    (
+        MENU_INSET,
+        MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
+        width - 2.0 * MENU_INSET,
+        ROW_HEIGHT,
+    )
+}
+
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
+    let rows: Element = props
+        .items
+        .iter()
+        .enumerate()
+        .flat_map(|(index, item)| {
+            menu_element(
+                *item,
+                MenuElementKind::Button,
+                true,
+                menu_row_rect(props.width, index),
+            )
+        })
+        .collect();
+    context_menu_with_rows(props, rows)
+}
+
+/// Compose menu_element rows without changing the shared frame/backdrop/layout.
+pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element {
     let height = menu_height_for_items(props.items.len());
     let mut contents = crate::selection_list::menu_background(
         format!("{}Background", props.frame_name),
@@ -411,19 +440,7 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
         ),
         NORMAL,
     ));
-    contents.extend(props.items.iter().enumerate().flat_map(|(index, item)| {
-        menu_element(
-            *item,
-            MenuElementKind::Button,
-            true,
-            (
-                MENU_INSET,
-                MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
-                props.width - 16.0,
-                ROW_HEIGHT,
-            ),
-        )
-    }));
+    contents.extend(rows);
     rsx! { r#frame {
         name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
         strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
