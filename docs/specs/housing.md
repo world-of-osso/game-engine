@@ -128,6 +128,14 @@ Retail Cleanup is a distinct editor mode: hide storage, highlight the hovered pl
 
 Source: cached `Blizzard_HouseEditorCleanupMode.lua/.xml` OnShow hides storage, target-selected calls RemoveSelectedDecor, hover shows name/removal errors and XML provides left-click instructions; `HousingCleanupModeUIDocumentation.lua` defines hovered info and selected-target events. Unavailable exterior assembly/locks remain separate source gaps; do not infer new removal policy.
 
+## Expert PlacedDecorList
+
+Retail exposes PlacedDecorList only in Expert mode. Its36px state-atlas toggle anchors20px left of the placement-budget element; the400×400 movable/clamped list starts TOPRIGHT−50/−150. Keep the source budget icon/anchors but show explicit unknown “— / —” (lead decision2026-10-13); spent/max budget is not number of instances, and no limit/enforcement is inferred.
+
+List only confirmed placed instances, sorted case-insensitively by authenticated decor name, with20px rows/10px vertical spacing, source selected/hover styling and retained native scroll position. Left-click toggles that actual instance selection without editing; right-click opens source Remove Decor context menu. Removal revalidates current authoritative instance/access and sends the existing owner-only removal command; no optimistic quantities/layout. Source lock/removability metadata beyond current server authority remains unavailable. Hover/selection never creates ownership. Close/mode exit hides list and menu; layout updates remove stale entries/selection/context. Drag header moves the clamped local panel, not decor.
+
+Source: Blizzard_HouseEditorPlacedDecorList Lua/XML, Expert OnShow/OnHide and XML anchors, HouseEditorDecorCountMixin.GetSpentPlacementBudget/GetMaxPlacementBudget, local GlobalStrings56353/56355/53038/53269. Backend budget/grants remain separate named gaps.
+
 ## Expert transforms
 
 Expert uses the same owned decor and server conservation rules as Basic. Retail Expert Translate/Rotate/Scale submodes stage complete transforms; commit saves once, cancel restores the confirmed layout, rotation axis cycles X→Y→Z, and WMO scaling is refused. Both skins share the64px mode/submode controls and expert's hidden storage drawer. Initial placement uses authenticated HouseDecor InitialRotation/InitialScale, not identity defaults. Persistence migration and finite/positive constraints are in the server contract. Native bindings/rates are documented input tuning rather than certified Retail defaults:1/2/3 choose submode, arrows/PageUp/PageDown translate, Q/E increment rotation/scale, X cycles axis, Enter commits, Esc cancels. Native3D manipulator identity and Shift snapping remain source gaps; sourced unsnapped mouse controls are specified below. Outdoor bounds and default grants remain unsourced.
