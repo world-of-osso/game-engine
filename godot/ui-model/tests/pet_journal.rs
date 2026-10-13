@@ -112,6 +112,41 @@ fn pet_filters_toggle_ownership_families_and_reset_without_changing_authority() 
 }
 
 #[test]
+fn pet_source_menu_omits_no_source_sentinel_in_real_catalog_metadata() {
+    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = view();
+    view.filters.open = true;
+    view.filters.submenu = Some("sources".into());
+    view.species_filters.insert(
+        39,
+        PetSpeciesFilter {
+            flags: 2,
+            source: 3,
+        },
+    );
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 2,
+            source: -1,
+        },
+    );
+    let mut context = SharedContext::new();
+    context.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(pet_journal_screen).sync(&context, &mut registry);
+    let source = registry
+        .get(registry.get_by_name("PetJournalFilter2").unwrap())
+        .unwrap();
+    assert_eq!(source.onclick.as_deref(), Some("pet:source:3"));
+    assert!(registry.get_by_name("PetJournalFilter3").is_none());
+}
+
+#[test]
 fn pet_filters_use_species_source_combat_flags_and_owned_sort_values() {
     use game_engine_ui_model::pet_journal::PetSpeciesFilter;
     let mut view = view();
