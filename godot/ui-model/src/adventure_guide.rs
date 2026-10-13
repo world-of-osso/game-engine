@@ -243,7 +243,7 @@ impl View {
             })
             .collect()
     }
-    fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
+    pub(crate) fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
         let Some(instance) = self.catalog.instance(instance) else {
             return Vec::new();
         };
