@@ -91,9 +91,11 @@ mod housing_storage_component;
 mod housing_storage_tiles;
 #[cfg(test)]
 mod housing_tests;
+pub mod menu_template_art;
 pub mod mount_journal;
 mod mount_source;
 pub mod mythic_mentor;
+pub mod navigation_bar;
 pub mod pet_journal;
 pub mod pet_stable;
 #[path = "ui/screens/pet_stable_component.rs"]
