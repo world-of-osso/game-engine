@@ -64,7 +64,9 @@ The source XML initial size is600×651; resize clamps width415–827 and height6
 
 Stored decor cards use the existing source DecorEntry tooltip: authenticated name/category joins and confirmed total-owned/placed/storage breakdown, anchored right of the actual card. The open storage handle shows source GlobalStrings54006 `House Chest` at ANCHOR_RIGHT; no close-handle tooltip is invented. Leaving, collapsing, changing mode or closing removes stale tooltips through the central tooltip lifecycle. Hover changes no ownership/layout. Both skins share behavior; native physical text/count/anchor/lifetime proof is required.
 
-Source: HouseEditorStorageButtonMixin OnEnter/OnLeave and HousingCatalogEntryMixin OnEnter/OnLeave/AddTooltipLines.
+Category/subcategory icon tooltips use authenticated display names from their actual catalog rows. BaseHousingCatalogCategoryTemplate sets ANCHOR_RIGHT withx=-12/y=-12 in WoW coordinates; the client carries explicit[-12,+12] UI offsets on the real owner rectangle and clamps only after translation. Ordinary zero-offset tooltips remain unchanged. No tooltip policy is inferred from category ownership or icon names.
+
+Source: HouseEditorStorageButtonMixin OnEnter/OnLeave, HousingCatalogEntryMixin OnEnter/OnLeave/AddTooltipLines and BaseHousingCatalogCategoryTemplate/BaseHousingActionButtonMixin.
 
 ## Owned storage filters
 
