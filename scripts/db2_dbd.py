@@ -18,6 +18,7 @@ CSV_NAMES = {
                  'Eligibility_world_state_ID': 'EligibilityWorldStateID',
                  'Eligibility_world_state_value': 'EligibilityWorldStateValue'},
     'JournalInstanceEntrance': {'Position': 'Pos'},
+    'WarbandScenePlacementOption': {'ID': 'OptionID', 'Field_11_1_0_58221_005': 'LayoutKey'},
     'TraitTreeXTraitCurrency': {'Index': '_Index'},
     'TraitNodeGroupXTraitNode': {'Index': '_Index'},
     'TraitNodeXTraitNodeEntry': {'Index': '_Index'},
@@ -144,4 +145,6 @@ def export(data, definition, output, fixed_reader, sparse_reader=None):
         writer = csv.writer(stream)
         writer.writerow(names)
         writer.writerows(rows)
-    return {'layout': f'{layout:08X}', 'rows': len(rows), 'unreadable_records': max(0, dropped)}
+    id_column = next(name for name, _, tags, _, _ in fields if 'id' in tags)
+    return {'layout': f'{layout:08X}', 'rows': len(rows), 'unreadable_records': max(0, dropped),
+            'id_column': id_column}
