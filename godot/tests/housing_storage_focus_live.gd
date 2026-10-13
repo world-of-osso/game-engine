@@ -29,12 +29,18 @@ func run_test() -> void:
 		if not await type_storage_search("tEs"): return
 		await tap(code)
 		if not await wait_housing(func(): return search_focus_released("tEs") and housing_control("HouseEditorStored2330") != null, "source key releases focus without clearing/closing: "+str(code)): return
+		if chat_input_visible():
+			fail("Storage search focus key opened chat input")
+			return
 		if not await prove_paid_thumbnail_visible(): return
 		print("STORAGE_FOCUS key=",code," raw=",storage_search_text()," drawer_mounted=true")
 	if not await record_storage_tooltip("storage-search-focus-retained"): return
 	if not await type_storage_search(""): return
 	await tap(KEY_KP_ENTER)
 	if not await wait_housing(func(): return search_focus_released("") and not clear_visible() and housing_control("HouseEditorStored2330") != null, "empty keypadEnter focus release/clear hidden"): return
+	if chat_input_visible():
+		fail("Empty storage keypadEnter opened chat input")
+		return
 	var glyph: Control = housing_control("HouseEditorStorageSearchGlyph")
 	var image: TextureRect = glyph.get_node_or_null("Parts/Part0") as TextureRect
 	if not magnifier_color_matches(image.self_modulate,0.6):
@@ -48,6 +54,12 @@ func run_test() -> void:
 	print("PASS: private5870 owned-storage focus keys ",housing_skin)
 	client.free()
 	quit(0)
+
+func chat_input_visible() -> bool:
+	var ui: Node = client.get_node_or_null("ChatFrameUI")
+	if ui == null: return false
+	var input: Control = ui.frame_control("ChatFrame1EditBox")
+	return input != null and input.is_visible_in_tree()
 
 func search_focus_released(expected: String) -> bool:
 	var input: LineEdit = housing_control("HouseEditorStorageSearchBox") as LineEdit
