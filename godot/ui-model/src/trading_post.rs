@@ -372,7 +372,7 @@ fn sort_headers(view: &View) -> Element {
         view,
         (
             price_x,
-            header_bottom - price_height,
+            header_bottom - time_height / 2. - price_height / 2.,
             price_width,
             price_height,
         ),
@@ -392,7 +392,12 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
             (0., (height - 16.) / 2., 15., 16.),
         )
     } else {
-        vec![]
+        label(
+            format!("PerksProgram{kind}SortLabel"),
+            text,
+            (0., 2.5, width - 5., height - 5.),
+            (12., "1,0.82,0,1", "LEFT"),
+        )
     };
     if view.sort == sort {
         let region = ui_toolkit::atlas::get_region("auctionhouse-ui-sortarrow")
@@ -407,7 +412,7 @@ fn sort_header(sort: Sort, view: &View, (x, y, width, height): (f32, f32, f32, f
     }
     let disabled = sort == Sort::Time;
     let action = if disabled { "" } else { action };
-    rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",text,font_size:12.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,{art}}}
+    rsx! {button{name:{DynName(format!("PerksProgram{kind}SortButton"))},left:x,top:y,width,height,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,{art}}}
 }
 
 fn product_row(row: &TradingPostItem, top: f32, selected: bool) -> Element {
@@ -491,7 +496,10 @@ fn frozen_row(snapshot: &TradingPostSnapshot, selected: Option<u32>) -> Element 
     };
     children.extend(label(
         "PerksProgramFrozenLabel".into(),
-        frozen.map_or("Drag an item here to freeze it", |row| row.name.as_str()),
+        frozen.map_or(
+            "Drag an item here to freeze it and prevent it from expiring",
+            |row| row.name.as_str(),
+        ),
         (72., (84. - label_height) / 2., label_width, label_height),
         (16., WHITE, "LEFT"),
     ));
@@ -692,13 +700,7 @@ fn category_menu(snapshot: &TradingPostSnapshot) -> Element {
 
 // PerksProgramFooterFrame: BOTTOMLEFT/BOTTOMRIGHT, height100; buttons BOTTOM+20.
 fn footer(view: &View) -> Element {
-    let mut children = perks_button(
-        "PerksProgramLeaveButton",
-        "Leave",
-        "perks:close",
-        true,
-        CONTAINER_X,
-    );
+    let mut children = leave_button();
     if let Some(row) = view.selected_item() {
         let x = WIDTH - 46. - 180.;
         if row.refund_seconds > 0 {
@@ -714,6 +716,37 @@ fn footer(view: &View) -> Element {
         }
     }
     rsx! {r#frame{name:"PerksProgramFooterFrame",left:0.0,top:{HEIGHT-100.0},width:WIDTH,height:100.0,pos_type:"absolute",frame_level:1000.0,{children}}}
+}
+
+fn leave_button() -> Element {
+    use ui_toolkit::{
+        text_measure::measure_text, widget_def::WidgetChild, widgets::font_string::GameFont,
+    };
+    let (text_width, text_height) =
+        measure_text(" Leave", GameFont::FrizQuadrata, 16.).expect("Leave font");
+    let left = (180. - 8. - text_width) / 2.;
+    let mut out = perks_button(
+        "PerksProgramLeaveButton",
+        "",
+        "perks:close",
+        true,
+        CONTAINER_X,
+    );
+    let WidgetChild::Widget(button) = &mut out[0] else {
+        unreachable!("Leave button");
+    };
+    button.children.extend(named_atlas_texture(
+        "PerksProgramLeaveArrow".into(),
+        "perks-backarrow",
+        (left, (46. - 13.) / 2., 8., 13.),
+    ));
+    button.children.extend(label(
+        "PerksProgramLeaveText".into(),
+        " Leave",
+        (left + 8., (46. - text_height) / 2., text_width, text_height),
+        (16., "1,0.82,0,1", "LEFT"),
+    ));
+    out
 }
 
 fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {

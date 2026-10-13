@@ -450,3 +450,66 @@ fn trading_post_confirmation_uses_sourced_prompt_item_and_dialog_geometry() {
         );
     }
 }
+
+#[test]
+fn trading_post_header_labels_center_price_and_follow_hover_colors() {
+    let mut registry = render(
+        ActiveSkin::Modern,
+        View {
+            visible: true,
+            snapshot: Some(Arc::new(snapshot())),
+            selected: Some(4),
+            ..Default::default()
+        },
+    );
+    assert_eq!(text(&registry, "PerksProgramNameSortLabel"), "Name");
+    let time = rect(&registry, "PerksProgramTimeSortButton");
+    let price = rect(&registry, "PerksProgramPriceSortButton");
+    assert_eq!(time[1] + time[3] / 2., price[1] + price[3] / 2.);
+    let name = registry.get_by_name("PerksProgramNameSortButton").unwrap();
+    let label = registry.get_by_name("PerksProgramNameSortLabel").unwrap();
+    for (hovered, expected) in [
+        (false, [1., 0.82, 0., 1.]),
+        (true, [1.; 4]),
+        (false, [1., 0.82, 0., 1.]),
+    ] {
+        let Some(WidgetData::Button(button)) = &mut registry.get_mut(name).unwrap().widget_data
+        else {
+            panic!("button");
+        };
+        button.hovered = hovered;
+        game_engine_ui_model::menu_template_art::sync_template_art(&mut registry);
+        let Some(WidgetData::FontString(font)) = &registry.get(label).unwrap().widget_data else {
+            panic!("font");
+        };
+        assert_eq!(font.color, expected);
+    }
+    let Some(WidgetData::Texture(icon)) = &registry
+        .get(registry.get_by_name("PerksProgramTimeSortIcon").unwrap())
+        .unwrap()
+        .widget_data
+    else {
+        panic!("icon");
+    };
+    assert_eq!(icon.vertex_color, [1., 0.82, 0., 1.]);
+}
+
+#[test]
+fn trading_post_empty_freeze_slot_and_leave_use_sourced_text_and_arrow() {
+    let mut source = snapshot();
+    source.frozen_item_id = None;
+    let registry = render(
+        ActiveSkin::Modern,
+        View {
+            visible: true,
+            snapshot: Some(Arc::new(source)),
+            selected: Some(4),
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        text(&registry, "PerksProgramFrozenLabel"),
+        "Drag an item here to freeze it and prevent it from expiring"
+    );
+    assert_eq!(rect(&registry, "PerksProgramLeaveArrow")[2..], [8., 13.]);
+}

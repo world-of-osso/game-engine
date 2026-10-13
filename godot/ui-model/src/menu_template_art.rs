@@ -37,23 +37,32 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
     apply_atlas_slices(registry);
     apply_dropdown_text_displacement(registry);
     apply_menu_disabled_art(registry);
-    apply_dialog_button_colors(registry);
+    apply_button_child_colors(registry);
 }
 
-fn apply_dialog_button_colors(registry: &mut FrameRegistry) {
+fn apply_button_child_colors(registry: &mut FrameRegistry) {
     let updates: Vec<_> = registry
         .frames_iter()
         .filter_map(|frame| {
-            if !frame.name.as_deref()?.ends_with("DialogButtonText") {
+            let name = frame.name.as_deref()?;
+            let dialog_text = name.ends_with("DialogButtonText");
+            let perks_header = matches!(
+                name,
+                "PerksProgramNameSortLabel"
+                    | "PerksProgramPriceSortLabel"
+                    | "PerksProgramTimeSortIcon"
+            );
+            if !dialog_text && !perks_header {
                 return None;
             }
             let owner = registry.get(frame.parent_id?)?;
             let Some(WidgetData::Button(button)) = &owner.widget_data else {
                 return None;
             };
-            let color = if button.state == ButtonState::Disabled {
+            let disabled = !button.enabled || button.state == ButtonState::Disabled;
+            let color = if dialog_text && disabled {
                 [0.5, 0.5, 0.5, 1.0]
-            } else if button.hovered {
+            } else if !disabled && button.hovered {
                 [1.0; 4]
             } else {
                 [1.0, 0.82, 0.0, 1.0]
@@ -62,11 +71,13 @@ fn apply_dialog_button_colors(registry: &mut FrameRegistry) {
         })
         .collect();
     for (id, color) in updates {
-        if let Some(WidgetData::FontString(text)) = registry
+        match registry
             .get_mut(id)
             .and_then(|frame| frame.widget_data.as_mut())
         {
-            text.color = color;
+            Some(WidgetData::FontString(text)) => text.color = color,
+            Some(WidgetData::Texture(icon)) => icon.vertex_color = color,
+            _ => unreachable!("template label/icon"),
         }
     }
 }

@@ -24,7 +24,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 
 ## Fidelity rework — October13
 
-Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay passes are not Retail-fidelity acceptance. Current-build `12.1.5.70391` art is staged privately for lead publication. Shared GameDialog item confirmation supplies source prompts, 128×21 dialog-box state art, item icon/name frame, source border and half-black full-screen cover; defaultbutton art is not used for Trading Post confirmation.
+Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay passes are not Retail-fidelity acceptance. Current-build `12.1.5.70391` art is staged privately for lead publication. Shared GameDialog item confirmation supplies source prompts, 128×21 dialog-box state art, item icon/name frame, source border and half-black full-screen cover; defaultbutton art is not used for Trading Post confirmation. Header labels/icons are LEFT-anchored with source normal/hover colors, Price is centered to Time, and freeze instructions/Leave arrow use the complete sourced text/markup dimensions. Projected and live fidelity gates remain open until D1–D6 re-verification.
 
 ## Retail continuation — October13
 
