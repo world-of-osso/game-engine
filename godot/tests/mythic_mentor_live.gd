@@ -33,7 +33,7 @@ func run_test() -> void:
 		await process_frame
 	var initial = JSON.parse_string(client.party_keystone_state())
 	if not initial is Dictionary or initial.members.size() != 1:
-		fail("Initial solo keystone snapshot lost during loading: " + client.party_keystone_state())
+		fail("Initial solo keystone snapshot lost during loading: " + client.party_keystone_state() + " challenge=" + client.challenge_state())
 		return
 	if int(initial.members[0].key.level) != 8:
 		fail("Expected authored owner key +8")
