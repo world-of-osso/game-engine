@@ -69,7 +69,7 @@ fn clear_search_button(view: &HousingView) -> Element {
         "common-search-clearbutton",
         (3.0, 3.0, 10.0, 10.0),
     );
-    rsx! {button {name:"HouseEditorStorageSearchClearButton",width:17.0,height:17.0,pos_type:"absolute",left,top:26.5,hidden,onclick:"housing:storage:search:clear",button_default_skin:false,
+    rsx! {button {name:"HouseEditorStorageSearchClearButton",width:17.0,height:17.0,pos_type:"absolute",left,top:"26.5",hidden,onclick:"housing:storage:search:clear",button_default_skin:false,
         r#frame {name:"HouseEditorStorageSearchClearArt",width:17.0,height:17.0,alpha:"0.5",mouse_enabled:false,{icon}}
     }}
 }
