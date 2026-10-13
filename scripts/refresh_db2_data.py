@@ -17,6 +17,7 @@ import sys
 import apply_db2_install
 import db2_census
 import refresh_db2_install
+from refresh_db2_translations import regenerate_translations
 
 
 def run(argv, log):
@@ -144,6 +145,15 @@ def prepare_manifest(args, receipt, root):
         if not source.resolve().is_relative_to((root / 'cache').resolve()):
             raise ValueError(f'cache output outside private cache root: {source}')
         add(source, args.canonical_engine / 'data/cache' / source.name)
+    for source in sorted((args.output / 'translations' / build).glob('*.translation')):
+        add(source, args.canonical_engine / 'data' / source.name)
+    asset_receipt = args.output / 'asset-receipts.json'
+    if asset_receipt.exists():
+        for asset in json.loads(asset_receipt.read_text()):
+            source = Path(asset['source'])
+            if asset['build'] != build or apply_db2_install.fingerprint(source) != asset['sha256']:
+                raise ValueError(f'asset receipt drift: {source}')
+            add(source, args.canonical_engine / 'data/textures' / source.name)
     links = []
     for repository in (args.canonical_engine, args.canonical_server):
         path = repository / 'data/db2/active'
@@ -161,14 +171,21 @@ def main():
     for name in ('engine', 'server', 'definitions', 'output', 'resolver', 'resolver-cache',
                  'baseline', 'world', 'canonical-engine', 'canonical-server', 'cache-importer'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--godot', type=Path, default=Path.home() / '.cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546')
     parser.add_argument('--schema-commit', default=refresh_db2_install.DBD_COMMIT)
     parser.add_argument('--install', type=Path, default=Path('/syncthing/World of Warcraft'))
     args = parser.parse_args()
     args.output = args.output.resolve()
+    for repository in (args.canonical_engine, args.canonical_server):
+        if args.output.is_relative_to((repository / 'data').resolve()):
+            raise ValueError(f'output must be private, not canonical {repository / "data"}')
     receipt = refresh_db2_install.export_tables(args)
     root = prepare_cache_root(args, receipt)
     regenerate_caches(args, receipt, root)
     prepare_housing_cache(args, receipt, root)
+    sources = [source for source in root.glob('*.csv') if source.stem in receipt['tables']
+               and (args.canonical_engine / 'data' / source.name).exists()]
+    regenerate_translations(sources, args.output / 'translations' / receipt['identity']['build'], args.godot)
     census_output = args.output / 'census'
     census_output.mkdir(exist_ok=True)
     db2_census.census(argparse.Namespace(old=args.baseline, new=args.output / 'db2' / receipt['identity']['build'],
