@@ -255,6 +255,9 @@ impl GameClient {
             && model.tab == DashboardTab::Catalog
             && host.frame_control(SEARCH_FIELD).is_some()
         {
+            model.search_focused = host
+                .frame_control(SEARCH_FIELD)
+                .is_some_and(|control| control.has_focus());
             let search = host.frame_text(SEARCH_FIELD.into()).to_string();
             if model.search != search {
                 model.set_search(search, &self.housing.authority);
@@ -321,6 +324,49 @@ impl GameClient {
         Ok(())
     }
 
+    fn dispatch_housing_catalog_focus_action(&mut self, action: &str) -> Result<bool, String> {
+        let model = self
+            .housing
+            .model
+            .as_mut()
+            .ok_or("Housing Catalog model unavailable.")?;
+        let focus_before = (model.category, model.subcategory);
+        let clearing = action == "housing:search:clear";
+        match action {
+            "housing:search:clear" => {
+                model.set_search(String::new(), &self.housing.authority);
+                model.search_focused = false;
+            }
+            "housing:category:back" => model.set_category(None, &self.housing.authority),
+            "housing:subcategory:all" => model.set_subcategory(None, &self.housing.authority),
+            value
+                if value.starts_with("housing:category:")
+                    || value.starts_with("housing:subcategory:") =>
+            {
+                apply_catalog_action(model, &self.housing.authority, value)?;
+            }
+            _ => return Ok(false),
+        }
+        let focus_changed = focus_before != (model.category, model.subcategory);
+        if clearing || (focus_changed && model.category.is_some()) {
+            self.clear_housing_search_input(SEARCH_FIELD)?;
+        }
+        Ok(true)
+    }
+
+    fn clear_housing_search_input(&mut self, field: &str) -> Result<(), String> {
+        if let Some(ui) = &mut self.housing.ui {
+            let mut host = ui.bind_mut();
+            if host.frame_control(field).is_some() {
+                host.clear_editbox_named(field)?;
+                if let Some(mut control) = host.frame_control(field) {
+                    control.release_focus();
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn dispatch_housing_storage_action(&mut self, action: &str) -> Result<bool, String> {
         if self.dispatch_housing_drawer_action(action)? {
             return Ok(true);
@@ -343,14 +389,8 @@ impl GameClient {
         }
         let focus_changed = focus_before != (model.storage_category, model.storage_subcategory);
         let clear_search = clearing_search || (focus_changed && model.storage_category.is_some());
-        if clear_search && let Some(ui) = &mut self.housing.ui {
-            let mut host = ui.bind_mut();
-            if host.frame_control(STORAGE_SEARCH_FIELD).is_some() {
-                host.clear_editbox_named(STORAGE_SEARCH_FIELD)?;
-                if let Some(mut control) = host.frame_control(STORAGE_SEARCH_FIELD) {
-                    control.release_focus();
-                }
-            }
+        if clear_search {
+            self.clear_housing_search_input(STORAGE_SEARCH_FIELD)?;
         }
         Ok(true)
     }
@@ -377,6 +417,9 @@ impl GameClient {
             return Ok(true);
         }
         if self.dispatch_housing_storage_action(action)? {
+            return Ok(true);
+        }
+        if self.dispatch_housing_catalog_focus_action(action)? {
             return Ok(true);
         }
         if self.dispatch_housing_editor_action(action)? {
@@ -413,8 +456,6 @@ impl GameClient {
             "housing:catalog" => model.tab = DashboardTab::Catalog,
             "housing:collection" => model.tab = DashboardTab::Collection,
             "housing:filters" => model.filters_open = !model.filters_open,
-            "housing:category:back" => model.set_category(None, authority),
-            "housing:subcategory:all" => model.set_subcategory(None, authority),
             "housing:filter:dyeable" => model.toggle_dyeable(authority),
             "housing:filter:collection:all" => {
                 model.set_collection(CollectionFilter::All, authority)
