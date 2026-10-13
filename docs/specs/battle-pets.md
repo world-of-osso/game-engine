@@ -16,7 +16,7 @@ Retail CollectionsJournal 703×606, 260px left list, upper-right card, three dis
 ## Data
 Maintained local exporter `scripts/export_db2_csv.py` supports the BattlePet tables and Creature. `scripts/export_pet_catalog.py <csv-dir> <output.json>` joins species to local Creature names/displays for server runtime. Exported assets are uncommitted data, never downloaded from Wago/Wowhead.
 
-`scripts/export_pet_model_scenes.py --db2 <private-local-extraction> --definitions <matching-WoWDBDefs> --build <installed-build> --species data/db2/12.1.0.69933/BattlePetSpecies.csv --output data/battle-pet-model-scenes.json` exports journal-only scene cameras and actor transforms, with byte/schema hashes in a provenance sidecar. Missing scene/actor/display data fails explicitly; no paperdoll-fit fallback. Native default ModelScene FOV is not in these tables/XML and remains an unverified projection boundary.
+`scripts/export_pet_model_scenes.py --db2 <private-local-extraction> --definitions <matching-WoWDBDefs> --build <installed-build> --species data/db2/12.1.0.69933/BattlePetSpecies.csv --output data/battle-pet-model-scenes.json` exports journal-only scene cameras and actor transforms, with byte/schema hashes in a provenance sidecar. Missing scene/actor/display data fails explicitly; no paperdoll-fit fallback. **ModelScene default FOV unsourced**: these tables/XML do not define it. Retain existing engine projection; do not claim projection parity.
 
 ## Verification
 UI-model owned/unowned/search/pending/action tests in both skins, protocol journal/64-bit request round trips, and private-server native captures of both journals plus follower. Captures/proof status recorded in the Phase 1 handoff; code alone does not establish visual acceptance.

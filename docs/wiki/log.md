@@ -1,3 +1,7 @@
+## 2026-10-13 — Collections filters, source cameras and eight-frame capture
+
+[Journal source slice](systems/battle-pets.md#journal-filters-and-authored-scenes--2026-10-13): shared Retail filters/search,40 authored DB2 pet scenes, source normalization/camera transforms and scoped tests. Eight inspected1920×1080 offline frames fix scaled audit clipping; empty journals do not prove owned-model camera appearance. ModelScene default FOV unsourced; existing projection retained. Health/ability payload and persistence decision remain open.
+
 ## 2026-10-13 — WorldMap quest dock and dialog ordering
 
 [Quest dock](systems/quest-ui.md#native-quest-dock--2026-10-13): both-skin native L/list/details/Back/server track/non-shareable notice/POI/maximize/confirmed Abandon GREEN. StaticPopup canvas Dialog ordering/raise and pointer-transparent full-screen wrapper correct the actual map-over-confirmation failure. Real rendered source geometry asserted; relog detail cache and full Share-button eligibility remain gaps.
