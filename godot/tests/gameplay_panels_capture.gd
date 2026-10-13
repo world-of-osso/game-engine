@@ -11,6 +11,8 @@ func capture() -> void:
 		return
 	for skin in ["modern", "forever"]:
 		var pages := ["recipient", "duration"] if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ["meter", "tracking", "transmog", "difficulty"]
+		if not OS.get_environment("GAMEPLAY_PAGE").is_empty():
+			pages = [OS.get_environment("GAMEPLAY_PAGE")]
 		for page in pages:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
