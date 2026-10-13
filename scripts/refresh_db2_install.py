@@ -14,6 +14,7 @@ import re
 import subprocess
 import struct
 import sys
+import sqlite3
 
 import db2_dbd
 import export_db2_csv as wdc
@@ -44,6 +45,11 @@ def consumed_tables(engine, server, definitions):
                 continue
             tokens = set(re.findall(r'''["']([A-Z][A-Za-z0-9]+)(?:\.csv)?["']''', path.read_text()))
             consumed.update(names & tokens)
+    catalog = engine / 'data/cache/housing.sqlite'
+    if catalog.exists():
+        with sqlite3.connect(f'file:{catalog}?mode=ro', uri=True) as connection:
+            consumed.update(row[0] for row in connection.execute(
+                'SELECT DISTINCT table_name FROM housing_catalog_source'))
     return sorted(consumed)
 
 
