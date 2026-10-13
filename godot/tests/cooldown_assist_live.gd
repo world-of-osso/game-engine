@@ -356,7 +356,7 @@ func configure_options() -> void:
 	await click("CooldownSettingsClose")
 	await click("OptionsCloseButton")
 	await process_frame
-	# Done returns to the menu; Escape closes its remaining owner.
+	# Close returns to the menu; Escape closes its remaining owner.
 	if control("MenuBtnResume") != null:
 		await click("MenuBtnResume")
 

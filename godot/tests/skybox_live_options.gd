@@ -51,7 +51,7 @@ func run_test() -> void:
 		return
 	if not await edit_camera_values(BASELINE_FOV, BASELINE_SENSITIVITY):
 		return
-	if not await close_options_with_done():
+	if not await close_options_with_close():
 		return
 	if not await expect_saved_orbit():
 		return
@@ -239,7 +239,7 @@ func close_options_with_escape() -> bool:
 	return await expect_menu_closed()
 
 
-func close_options_with_done() -> bool:
+func close_options_with_close() -> bool:
 	if not await click_authored("OptionsCloseButton"):
 		return false
 	return await expect_menu_closed()

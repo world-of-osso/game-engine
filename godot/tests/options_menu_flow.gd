@@ -115,7 +115,7 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 	await click_option(client, "KeybindingButtonmove_forward")
 	await click_option(client, "OptionsCloseButton")
 	if not option_control(client, "OptionsCloseButton") or not binding_value(client).contains("Mouse"):
-		fail("Captured mouse click fell through to Done or failed binding")
+		fail("Captured mouse click fell through to Close or failed binding")
 		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame

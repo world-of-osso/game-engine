@@ -56,7 +56,7 @@ func run_test() -> void:
 		return
 	var done := menu.find_child("OptionsCloseButton", true, false) as Control
 	if done == null:
-		fail("Authored Options Done missing")
+		fail("Authored Options Close missing")
 		return
 	await click(done)
 	if client.get_node_or_null("GameMenuUI") != null:
