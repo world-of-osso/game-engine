@@ -26,14 +26,14 @@ fn fixture() -> (HousingDashboard, HousingAuthority) {
                 can_edit: true,
                 decor: vec![
                     PlacedDecor {
-                        instance_id: 41,
-                        decor_id: 2330,
+                        instance_id: 26,
+                        decor_id: 1693,
                         transform,
                         dyes: vec![],
                     },
                     PlacedDecor {
-                        instance_id: 26,
-                        decor_id: 1693,
+                        instance_id: 41,
+                        decor_id: 2330,
                         transform,
                         dyes: vec![],
                     },
@@ -57,7 +57,7 @@ fn housing_placed_list_sorts_real_layout_and_keeps_selection_menu_and_authority_
             .iter()
             .map(|(placed, _)| placed.instance_id)
             .collect::<Vec<_>>(),
-        vec![26, 41]
+        vec![41, 26]
     );
     model.toggle_placed_list().unwrap();
     assert!(model.placed_list.open);
