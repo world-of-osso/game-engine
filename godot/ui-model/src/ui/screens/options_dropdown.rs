@@ -76,7 +76,7 @@ pub fn radio_popup(
                     checked: *value == selected,
                 },
                 true,
-                (8.0, 41.0 + index as f32 * 20.0, width - 16.0, 20.0),
+                menu_primitives::menu_row_rect(width, index),
             )
         })
         .collect();

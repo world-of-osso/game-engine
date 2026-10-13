@@ -382,6 +382,17 @@ pub fn menu_height_for_items(item_count: usize) -> f32 {
     MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
 }
 
+/// MenuTemplates/MenuVariants title, divider and 20px entry layout.
+/// Keep custom radio/checkbox rows at the same inset and pitch as normal entries.
+pub fn menu_row_rect(width: f32, index: usize) -> (f32, f32, f32, f32) {
+    (
+        MENU_INSET,
+        MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
+        width - 2.0 * MENU_INSET,
+        ROW_HEIGHT,
+    )
+}
+
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
     let rows: Element = props
         .items
@@ -392,12 +403,7 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
                 *item,
                 MenuElementKind::Button,
                 true,
-                (
-                    MENU_INSET,
-                    MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
-                    props.width - 16.0,
-                    ROW_HEIGHT,
-                ),
+                menu_row_rect(props.width, index),
             )
         })
         .collect();
