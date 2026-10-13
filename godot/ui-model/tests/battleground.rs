@@ -555,6 +555,7 @@ fn arena_queue_actions_and_enemy_frames_use_authoritative_units_in_both_skins() 
             preparation_remaining_secs: Some(59),
             shadow_sight_available: false,
             rating_changes: Vec::new(),
+            shuffle: None,
             units: vec![
                 ArenaUnitSnapshot {
                     character_id: 81,
@@ -598,6 +599,58 @@ fn arena_queue_actions_and_enemy_frames_use_authoritative_units_in_both_skins() 
 }
 
 #[test]
+fn solo_shuffle_both_skins_queue_unrated_and_show_character_round_wins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = PvpView::default();
+    assert_eq!(view.action("pvp:rated:shuffle"), None);
+    assert_eq!(
+        view.action("pvp:rated:queue"),
+        Some(PvpAction::Arena(ArenaQueueMode::SoloShuffle))
+    );
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot(BgPhase::Ended, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.map_id = 2547;
+        bg.outcome = Some(BgOutcome::Draw);
+        bg.arena = Some(ArenaMatchSnapshot {
+            mode: ArenaQueueMode::SoloShuffle,
+            preparation_remaining_secs: None,
+            shadow_sight_available: false,
+            units: Vec::new(),
+            rating_changes: Vec::new(),
+            shuffle: Some(SoloShuffleSnapshot {
+                round: 6,
+                total_rounds: 6,
+                rounds_won: vec![(81, 4)],
+            }),
+        });
+        let mut view = PvpView::default();
+        receive(&mut view, state);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen = Screen::new(pvp_screen);
+        screen.sync(&context, &mut registry);
+        let label = |name| {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let WidgetData::FontString(data) = frame.widget_data.as_ref().unwrap() else {
+                panic!("label")
+            };
+            data.text.clone()
+        };
+        assert_eq!(label("PVPMatchPlayer81RoundsWon"), "4");
+        assert_eq!(label("PVPMatchCategory7"), "Rounds Won");
+        assert_eq!(label("PVPMatchOutcome"), "Solo Shuffle complete");
+        assert!(registry.get_by_name("PVPMatchPlayer81Rating").is_none());
+    }
+}
+
+#[test]
 fn rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_changes() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -626,6 +679,7 @@ fn rated_arena_ui_sends_selected_bracket_and_shows_only_played_match_rating_chan
             preparation_remaining_secs: Some(0),
             shadow_sight_available: true,
             units: Vec::new(),
+            shuffle: None,
             rating_changes: vec![ArenaRatingChange {
                 character_id: 81,
                 rating_before: 0,
