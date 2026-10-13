@@ -46,6 +46,7 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
         .collect();
     let background = collections_background();
     let filters = filter_menu(model);
+    let filter_button = filter_dropdown(model);
     let context = context_menu(model);
     let progress = progress_bar(model);
     let search = search_box(model);
@@ -56,8 +57,7 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                 r#frame { name: "ToyBox", width: 703.0, height: 606.0, pos_type: "absolute", left: 0.0, top: 0.0,
                     {progress}
                     {search}
-                    button { name: "ToyBoxFilterDropdown", text: "Filter", width: 90.0, height: 22.0,
-                        pos_type: "absolute", left: 601.0, top: 35.0, onclick: "toy_filters" }
+                    {filter_button}
                     {background}
                     {tiles}
                     fontstring { name: "ToyBoxEmpty", text: "No toys match these filters.", hidden: {!empty},
@@ -232,13 +232,57 @@ fn menu_button(
     top: f32,
     checked: Option<bool>,
 ) -> Element {
-    let label = checked.map_or_else(
-        || title.into(),
-        |value| format!("{} {title}", if value { "[x]" } else { "[ ]" }),
-    );
-    rsx! { button { name: {DynName(name)}, text: {label.as_str()}, onclick: action,
-    width: 210.0, height: 22.0, pos_type: "absolute", left: 4.0, top, font_size: 11.0 } }
+    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
+    let (title, kind) = if let Some(checked) = checked {
+        (title, MenuElementKind::Checkbox { checked })
+    } else if let Some(title) = title.strip_suffix(" >") {
+        (title, MenuElementKind::Submenu)
+    } else {
+        (title, MenuElementKind::Button)
+    };
+    menu_element(
+        ContextMenuItem {
+            name: &name,
+            label: title,
+            action,
+        },
+        kind,
+        true,
+        (8.0, top, 202.0, 20.0),
+    )
 }
+fn filter_dropdown(model: &ToyBox) -> Element {
+    use crate::menu_primitives::*;
+    let changed = !model.filters.collected
+        || !model.filters.uncollected
+        || model.filters.usable_only
+        || model.filters.sources.is_some()
+        || model.filters.expansions.is_some();
+    dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "ToyBoxFilterDropdown",
+            label_name: "ToyBoxFilterText",
+            arrow_name: "ToyBoxFilterArrow",
+            text: "Filter",
+            width: 90.0,
+            height: 22.0,
+            x: 601.0,
+            y: -35.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some("toy_filters"),
+        },
+        DropdownState {
+            style: DropdownStyle::Filter,
+            resize_to_text: false,
+            open: model.filters_open,
+            reset_action: changed.then_some("toy_filter:reset"),
+            ..Default::default()
+        },
+    )
+}
+
 fn filter_menu(model: &ToyBox) -> Element {
     if !model.filters_open {
         return vec![];
@@ -253,14 +297,19 @@ fn filter_menu(model: &ToyBox) -> Element {
                 format!("ToyFilter{i}"),
                 &title,
                 &action,
-                4.0 + i as f32 * 22.0,
+                8.0 + i as f32 * 20.0,
                 checked,
             )
         })
         .collect();
-    rsx! { r#frame { name: "ToyBoxFilterMenu", width: 218.0, height: {8.0 + count as f32 * 22.0},
-    pos_type: "absolute", left: 480.0, top: 40.0, strata: FrameStrata::Dialog,
-    mouse_enabled: true, background_color: "0.05,0.04,0.03,1.0", {children} } }
+    let height = 23.0 + count as f32 * 20.0;
+    let background = crate::selection_list::menu_background(
+        "ToyBoxFilterMenuBackground".into(),
+        (218.0, height),
+    );
+    rsx! { r#frame { name: "ToyBoxFilterMenu", width: 218.0, height,
+    pos_type: "absolute", left: 601.0, top: 57.0, strata: FrameStrata::Dialog,
+    mouse_enabled: true, {background} {children} } }
 }
 fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
     if let Some(kind) = &model.filter_submenu {
@@ -312,7 +361,6 @@ fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
         ),
         ("Sources >".into(), "toy_filter:sources".into(), None),
         ("Expansion >".into(), "toy_filter:expansions".into(), None),
-        ("Reset Filters".into(), "toy_filter:reset".into(), None),
     ]
 }
 fn filter_label(kind: &str, id: i32) -> String {
@@ -362,8 +410,10 @@ fn context_menu(model: &ToyBox) -> Element {
         "Set Favorite"
     };
     let action = format!("{}{}", toybox::FAVOURITE_PREFIX, toy.item_id);
-    let button = menu_button("ToyBoxFavouriteToggle".into(), title, &action, 4.0, None);
-    rsx! { r#frame { name: "ToyBoxContextMenu", width: 218.0, height: 30.0,
+    let button = menu_button("ToyBoxFavouriteToggle".into(), title, &action, 8.0, None);
+    let background =
+        crate::selection_list::menu_background("ToyBoxContextMenuBackground".into(), (218.0, 43.0));
+    rsx! { r#frame { name: "ToyBoxContextMenu", width: 218.0, height: 43.0,
     pos_type: "absolute", left: 400.0, top: 440.0, strata: FrameStrata::Dialog,
-    mouse_enabled: true, background_color: "0.05,0.04,0.03,1.0", {button} } }
+    mouse_enabled: true, {background} {button} } }
 }
