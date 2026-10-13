@@ -313,7 +313,9 @@ impl GameClient {
             if released_left {
                 self.commit_housing_basic_release(point)?;
             }
-            return Ok(true);
+            // Native GUI must finish any captured button/drag release, including outside UI.
+            // World placement is already committed here; its overlay has no click action.
+            return Ok(false);
         }
         if button.get_button_index() == MouseButton::RIGHT {
             self.dispatch_housing_editor_action("housing:cancel")?;
