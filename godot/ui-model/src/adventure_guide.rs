@@ -952,12 +952,14 @@ fn paragraph_height(value: &str, columns: f32) -> f32 {
         + 12.
 }
 fn paper_text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
-    label(
-        name.into(),
-        value,
-        rect,
-        (12., crate::adventure_guide_art::INK, "LEFT"),
-    )
+    let (left, top, width, height) = rect;
+    let color = if name == "EncounterJournalInstanceLore" {
+        crate::adventure_guide_art::INK
+    } else {
+        "0.25,0.1484375,0.02,1"
+    };
+    // GameFontBlack inherits unshadowed SystemFont_Med1, unlike gold header fonts.
+    rsx! {fontstring {name:{DynName(name.into())},text:value,left,top,width,height,pos_type:"absolute",font_size:12.0,font_color:color,justify_h:"LEFT"}}
 }
 fn section_row(section: &Section, title: &str, rect: (f32, f32, f32, f32)) -> Element {
     let name = format!("JournalSection{}", section.id);
