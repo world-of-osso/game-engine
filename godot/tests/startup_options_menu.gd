@@ -25,7 +25,7 @@ func run_test() -> void:
 	if not await wait_for_startup_menu(client):
 		return
 	await process_frame
-	var done := option_control(client, "OptionsDoneButton")
+	var done := option_control(client, "OptionsCloseButton")
 	if done == null or not done.is_visible_in_tree():
 		fail("--screen optionsmenu did not open the Options panel")
 		return
@@ -60,7 +60,7 @@ func run_test() -> void:
 	if not saved_fps_overlay(path):
 		fail("FPS overlay toggle did not persist to " + path)
 		return
-	if not await click_named(client, "OptionsDoneButton"):
+	if not await click_named(client, "OptionsCloseButton"):
 		return
 	if not await wait_menu_closed(client, null):
 		return

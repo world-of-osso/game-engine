@@ -54,7 +54,7 @@ func run_test() -> void:
 	if not FileAccess.get_file_as_string(options).replace(" ", "").contains("particleDensity:10"):
 		fail("Real slider did not persist density 10: " + FileAccess.get_file_as_string(options))
 		return
-	var done := menu.find_child("OptionsDoneButton", true, false) as Control
+	var done := menu.find_child("OptionsCloseButton", true, false) as Control
 	if done == null:
 		fail("Authored Options Done missing")
 		return

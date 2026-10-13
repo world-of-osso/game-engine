@@ -99,7 +99,7 @@ func set_marker(client: Node, enabled: bool) -> bool:
 	var expected := "show_target_marker:true" if enabled else "show_target_marker:false"
 	if not saved.contains(expected):
 		return reject("Authored marker edit did not persist %s before closing Options" % expected)
-	if not await click_option(client, "OptionsDoneButton"):
+	if not await click_option(client, "OptionsCloseButton"):
 		return false
 	if client.get_node_or_null("GameMenuUI") != null:
 		if not await click_option(client, "MenuBtnResume"):

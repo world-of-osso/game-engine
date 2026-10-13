@@ -278,7 +278,7 @@ func reset_merchant_options(client: Node, vendor: Dictionary, config: String) ->
 	if layout.contains('"17"') or not other_character_unchanged(layout) or not options.contains("modal_offset:Some((80.0,-32.0))"):
 		fail("Merchant reset changed other character or Options modal: " + layout + " / " + options)
 		return false
-	await click(menu.find_child("OptionsDoneButton", true, false) as Control)
+	await click(menu.find_child("OptionsCloseButton", true, false) as Control)
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")
 	return true

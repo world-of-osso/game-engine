@@ -100,7 +100,7 @@ func open_options(client: Node) -> bool:
 	await click_menu_action(client, "MenuBtnOptions")
 	for frame in range(4):
 		await process_frame
-	if option_control(client, "OptionsDoneButton") == null:
+	if option_control(client, "OptionsCloseButton") == null:
 		fail("Authored Options did not open")
 		return false
 	return true
