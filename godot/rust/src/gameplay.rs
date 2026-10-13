@@ -81,6 +81,8 @@ pub(crate) struct PlayerMovement {
     /// Facing of the newest reported input (or of the first idle frame); a turn in place
     /// reports the new facing (`CMSG_MOVE_SET_FACING`, TC MovementHandler).
     reported_yaw: Option<f32>,
+    /// Epoch of the newest input (or first idle frame); adoption must report intent again.
+    reported_epoch: Option<u32>,
 }
 
 /// Where the player steers a skyriding mount.
@@ -136,6 +138,7 @@ impl Default for PlayerMovement {
             reported_speed: RUN_SPEED,
             reported_motion: false,
             reported_yaw: None,
+            reported_epoch: None,
         }
     }
 }
@@ -604,11 +607,17 @@ impl PlayerMovement {
         } = motion;
         let moving = direction != [0.0; 3] || jumping || moving_vertically;
         let turned = self.reported_yaw.is_some_and(|reported| reported != yaw);
-        if !moving && !self.reported_motion && !turned {
+        let teleported = self
+            .reported_epoch
+            .is_some_and(|reported| reported != epoch);
+        let report_changed = self.reported_motion || turned || teleported;
+        if !moving && !report_changed {
             self.reported_yaw.get_or_insert(yaw);
+            self.reported_epoch.get_or_insert(epoch);
             return None;
         }
         self.reported_yaw = Some(yaw);
+        self.reported_epoch = Some(epoch);
         self.reported_motion = moving;
         self.reported_speed = self.unmodified_speed();
         Some(PlayerInput {
@@ -1066,6 +1075,26 @@ mod tests {
             movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
             assert!(movement.network_input(0.0, last, 4).is_none());
         }
+    }
+
+    /// A pre-teleport stop can be discarded by the server's epoch filter. After adopting
+    /// the teleport, report stationary intent once under the new epoch.
+    #[test]
+    fn stationary_input_reports_again_after_teleport_epoch_changes() {
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
+        assert!(movement.network_input(0.0, FEET, 4).is_some());
+        movement.stop();
+        assert!(movement.network_input(0.0, FEET, 4).is_some());
+        let destination = FEET + Vec3::new(10.0, 0.0, 0.0);
+        let stopped = movement.network_input(0.0, destination, 5).unwrap();
+        assert_eq!(stopped.epoch, 5);
+        assert_eq!(stopped.position, destination.to_array());
+        assert_eq!(stopped.direction, [0.0; 3]);
+        assert!(!stopped.jumping);
+        assert!(movement.network_input(0.0, destination, 5).is_none());
     }
 
     /// A modal stops a running player: `stop_input` reports the stop once, and nothing
