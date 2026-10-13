@@ -4,6 +4,7 @@ macro_rules! zeroed_emitter {
     () => {
         M2ParticleEmitter {
             flags: 0,
+            txac: 0,
             position: [0.0; 3],
             bone_index: 0,
             texture_index: 0,

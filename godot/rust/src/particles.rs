@@ -89,7 +89,7 @@ pub(crate) fn particle_material(
         emitter.blend_type,
     )?));
     bind_textures(&mut material, emitter, texture_dir)?;
-    bind_uniforms(&mut material, emitter);
+    bind_uniforms(&mut material, emitter)?;
     Ok(material)
 }
 
@@ -118,12 +118,18 @@ fn bind_textures(
     }
 }
 
-fn bind_uniforms(material: &mut Gd<ShaderMaterial>, emitter: &ParticleEmitter) {
+fn bind_uniforms(
+    material: &mut Gd<ShaderMaterial>,
+    emitter: &ParticleEmitter,
+) -> Result<(), String> {
     let (gx_blend, _) = blend_state(emitter.blend_type);
     let pixel_shader = match m2_particles::pixel_shader(emitter) {
         PixelShader::Mod => 0,
         PixelShader::TwoColorThreeAlpha => 1,
         PixelShader::ThreeColorThreeAlpha => 2,
+        PixelShader::Refraction => {
+            return Err("Refraction particles require a refraction pass".into());
+        }
     };
     let cell = Vector2::new(
         1.0 / f32::from(emitter.tile_cols.max(1)),
@@ -141,6 +147,7 @@ fn bind_uniforms(material: &mut Gd<ShaderMaterial>, emitter: &ParticleEmitter) {
         "alpha_test",
         &m2_particles::alpha_test(emitter.blend_type).to_variant(),
     );
+    Ok(())
 }
 
 pub(crate) fn clear_quad_mesh() {
@@ -310,6 +317,9 @@ impl ModelParticles {
             .particle_emitters
             .iter()
             .enumerate()
+            // Refraction parameters are not colours: WebWowViewerCpp discards
+            // Refraction in its forward shader until a refraction pass exists.
+            .filter(|(_, emitter)| m2_particles::pixel_shader(emitter) != PixelShader::Refraction)
             .filter(|(_, emitter)| m2_particles::shape(emitter).is_some())
             .map(|(index, emitter)| (index, emitter.clone()))
             .collect();

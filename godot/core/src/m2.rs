@@ -369,6 +369,9 @@ pub fn parse_model_with_skeleton(
     let texture_fdids = chunks.txid.map(format::parse_txid).unwrap_or_default();
     let flags = format::parse_model_flags(chunks.md20)?;
     let mut particle_emitters = m2_particle::parse_particle_emitters(chunks.md20);
+    if let Some(txac) = chunks.txac {
+        m2_particle::apply_txac(&mut particle_emitters, txac, materials.len())?;
+    }
     m2_particle::resolve_texture_fdids(&mut particle_emitters, &texture_fdids);
     if let Some(exp2) = chunks.exp2 {
         m2_particle::apply_exp2_z_sources(&mut particle_emitters, exp2);

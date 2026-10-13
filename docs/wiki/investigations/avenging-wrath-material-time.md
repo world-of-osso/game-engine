@@ -42,7 +42,7 @@ Eight inspected1280x720 frontal PNGs and the192px held-feather comparison are in
 
 ## Player-camera rainbow investigation — 2026-10-12
 
-Private UDP5741, owned `fb_wingsrainbow_*` human-male Retribution characters. Player facingPI, camera yaw0/pitch-PI/4/distance9 yards is rear/45° elevation; yawPI/2 and PI provide side/front witnesses. All PNGs are1280x720. Runtime logs identify NVIDIA RTX5060Ti, NVIDIA615.78.08, Vulkan Forward+ on Linux, not Mesa. The user's OS/GPU/equipment remain unknown.
+Private UDP5741, owned `fb_wingsrainbow_*` human-male Retribution characters. Player facingPI, camera yaw0/pitch-PI/4/distance9 yards is rear/45° elevation; yawPI/2 and PI provide side/front witnesses. All PNGs are1280x720. Runtime logs identify NVIDIA RTX5060Ti, NVIDIA615.78.08, Vulkan Forward+ on Linux, not Mesa. The user later identified the launcher-installed Linux 2026-10-11 player (engine f892e38b2) on NVIDIA; exact GPU, equipment and active auras remain unknown.
 
 | Boundary | Observed proof | Remaining limit |
 | --- | --- | --- |
@@ -54,9 +54,19 @@ Private UDP5741, owned `fb_wingsrainbow_*` human-male Retribution characters. Pl
 
 The Retail default loadout922 selects Radiant Glory458359. Its replacement makes `use_spell(31884)` submit462048, which has no visual; those initial captures are rejected as AW proof. Native right-click refunded leaf81549; Burning Crusade92839 used the freed spec point. The server accepted the full-budget manual-AW build before the final captures. Sanctified Wrath53376 was not artificially learned to make an unavailable build appear valid.
 
-The rainbow remains unreproduced and unattributed. No renderer change, texture substitution, clamp, per-spell exception, or fabricated RED/GREEN test was added. Original Windows/runtime visual identity is the next diagnostic boundary, not a proven platform defect.
+At the end of that investigation the rainbow remained unreproduced and unattributed; no renderer change was made. The continuation below investigates a separate source-backed particle shader-selection defect, not a proven platform defect.
 
 Durable diagnostic root: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/wings-rainbow-2026-10-12/`. `full-visual-census.json`, emitter/BLP censuses, `other-kit-effects-census.json`, source-build logs, `published-*` captures and `talent-live/` input/commit/receipt snapshots record exact scopes. Public comparison PNGs: `/syncthing/AgentShared/2026-10-12/wings-rainbow/`; these are reproduction witnesses, not a before/after rainbow-fix claim.
+
+## Published assets and TXAC continuation — 2026-10-12
+
+Manifest version2026-10-11: all115 model textures,4 indirect beam/dissolve textures and16 models are present and SHA256-identical to canonical. These119 textures have BLP paths and no KTX2/transcoded variants in the manifest; native M2 loading decodes BLP directly. Downloads into an isolated runtime verify published bytes against the manifest. The published entry selects extracted-only; launcher downloads before starting the client. There is no normal HTTP-streaming renderer path to test.
+
+The parser dropped TXAC. AW hold2368644 emitter1 and2368645 emitter6 carry257 after their material entries. WebWowViewerCpp `particleEmitter.cpp::selectShaderId` selects Refraction for multitexture+three-colour+nonzero TXAC, and its forward particle shader discards Refraction. Native instead selected the ordinary three-colour combiner. The continuation preserves TXAC, selects Refraction, and excludes it before native pool creation; no spell-specific exception or replacement texture.
+
+Core RED parses real AW assets and catches colour selection; native RED catches two admitted emitters instead of only authored index0. An isolated published2368644 run uses owned diagnostic aliases in the existing particle-debug screen, with only emitter1 enabled: one particle drawn and no missing textures. Its initial user-angle capture did not match the reported rainbow. Original-shot attribution and exact gear/aura/environment identities remain open; a source-backed selection fix is not evidence that the user bug is fixed.
+
+Durable continuation evidence: `data/diagnostics/wings-rainbow2-2026-10-12/` (`manifest-census.json`, `txac-census.json`, download/scene ledgers, RED logs, isolated state and PNG). Isolated aliases never modify canonical assets and are not normal launcher behaviour.
 
 ## Evidence
 
@@ -67,6 +77,8 @@ Durable diagnostic root: `/home/osso/Projects/world-of-osso/game-engine/data/dia
 The local-time defect is established independently. The user's original rainbow quad is not yet reproduced or explained; no claim that this fix resolves it.
 
 ## Sources
+
+- Local WebWowViewerCpp `wowViewerLib/src/engine/geometry/m2Geom.cpp:121-134`, `managers/particles/particleEmitter.cpp:217-248` and `shaders/slang/forwardRendering/m2ParticleShader.frag.slang` — TXAC material/particle ordering, Refraction selection and forward discard.
 
 - `godot/core/src/m2_material.rs`, `godot/rust/src/assets/uv_animation.rs` — sampler and native playback binding.
 - `godot/rust/src/spell_effects/models.rs` — authored Start/Hold/Decay model lifecycle.

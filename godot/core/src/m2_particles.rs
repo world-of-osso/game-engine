@@ -140,12 +140,20 @@ pub enum PixelShader {
     TwoColorThreeAlpha,
     /// colour x textures 0, 1 and 2.
     ThreeColorThreeAlpha,
+    /// TXAC refraction parameters; not a colour combiner in the forward pass.
+    Refraction,
 }
 
-/// `ParticleEmitter::selectShaderId` for emitters without a TXAC value.
+/// `ParticleEmitter::selectShaderId` (`particleEmitter.cpp:217-248`).
 pub fn pixel_shader(emitter: &ParticleEmitter) -> PixelShader {
     if emitter.flags & FLAG_MULTITEXTURE == 0 {
         PixelShader::Mod
+    } else if emitter.txac != 0 {
+        if emitter.flags & FLAG_THREE_COLOR != 0 {
+            PixelShader::Refraction
+        } else {
+            PixelShader::Mod
+        }
     } else if emitter.flags & FLAG_THREE_COLOR != 0 {
         PixelShader::ThreeColorThreeAlpha
     } else {

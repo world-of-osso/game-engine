@@ -1,3 +1,7 @@
+## 2026-10-12 — AW published assets and TXAC particle selection
+
+[Continuation](investigations/avenging-wrath-material-time.md#published-assets-and-txac-continuation--2026-10-12): 119 BLP textures and16 models match published hashes; no AW KTX variants or normal renderer HTTP streaming. Real-asset RED tests expose dropped TXAC and incorrectly admitted Refraction emitters. Parser/selection/forward exclusion follows WebWowViewerCpp; original rainbow attribution remains unproven.
+
 ## 2026-10-12 — Wings rainbow player-camera investigation
 
 [Material time](investigations/avenging-wrath-material-time.md#player-camera-rainbow-investigation--2026-10-12): published online protocol alignment resolved; actual glyph and full-budget Ret/Herald native purchases/casts captured rear45°/9yd in both skins. Named-source model/texture census and beam/dissolve references retained. No rainbow reproduced, no renderer fix claimed; user's platform/runtime visual identity remains unknown.
