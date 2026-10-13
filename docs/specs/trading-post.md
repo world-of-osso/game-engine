@@ -1,0 +1,51 @@
+# Trading Post
+
+Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActivities API documentation define the vendor and Traveler's Log. Forever changes art only. All catalog rows derive from local CASC Retail 12.1.0.69933, with exact layout validation; no invented items, prices, availability or monthly rotations.
+
+## What it must do
+
+- [x] Decode authored categories, vendor items/prices, preview/UI group metadata and interval relations; retain unreadable counts and schema/DB2 provenance. Prepare SQL without writing world.db.
+- [x] Track supported authored activity criteria through real gameplay events, account-wide, without historical login credit; retain unsupported criteria/conditions as named gaps.
+- [x] Reset the Log and monthly Tender award cap at 00:00 UTC on each calendar month's first day, using the injectable server clock. Earn each sourced default group1 threshold once per account/month (lead policy October12). Preserve earned Tender, collection ownership and a frozen item across rollover.
+- [x] Offer all sourced catalog rows unless an authored availability field can be verified; honor authored categories/UI groups. Unknown interval/calendar binding remains a named gap, not a fabricated rotation.
+- [x] Vendor requests require an authentic capital NPC interaction and server-authoritative Tender balance. Purchases grant existing account collections atomically and persist across relog; one frozen vendor item survives rollover.
+- [x] Refund requests are server-authoritative, policy-duration bounded and reverse only grants introduced by that purchase. Default policy duration is zero because no sourced duration exists (lead decision October12); Retail refund UI remains disabled.
+- [x] Shared native full-screen vendor, PerksProgramFilter category dropdown, scrollable authored item list, transmog/mount/pet3D MainModelScene and Retail ToyOverlayFrame icon/details, purchase confirmation, freeze/drag-to-freeze/unfreeze and server-time-controlled refund. Both skins share layout/behaviour. Lead clarified October12: Retail source takes precedence over PLAN's shorthand 'category tabs'/'3D toys'.
+- [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance; vendor Log and Collections buttons close the vendor interaction before opening existing windows. No invented mail awards.
+- [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
+
+## How it works
+
+- [Existing monthly criteria service](../wiki/systems/adventure-guide.md#realm-activities-and-suggestions).
+
+## Implementation inventory
+
+- `scripts/trading_post_import.py`: qualified local DB2 decode and SQL/provenance preparation.
+- `godot/ui-model/src/trading_post.rs`: shared vendor state/actions and source layout.
+- `godot/rust/src/trading_post.rs`: native host, interaction/request lifecycle, detached previews and source-typed TryOn.
+- `godot/network/src/lib.rs`, `godot/rust/src/account.rs`: reply registration/cache and requests.
+- `adventure_guide.rs`, `adventure_activities.rs`: monthly Tender integration.
+- `scripts/stage_trading_post_model_assets.py`: authenticated local-CASC preview asset closure (mount/pet displays, transmog/set item displays) into a private package with an additive receipt fragment; reuses `stage_mount_model_assets.stage_closure`.
+- The open vendor hides every other client CanvasLayer except the tooltip (Retail `UIPanelWindows` area `full` hides UIParent) and restores them on close. Unavailable rows show their source gap instead of a model; a failed preview clears the previous model.
+
+## Tests asserting this spec
+
+- `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
+- `godot/ui-model/tests/trading_post.rs`: both-skin Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state and second-page/search clipping.
+- `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
+- `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
+- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5731 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
+
+## Known gaps (current cycle)
+
+- [ ] Monthly featured catalog/seasonal reward calendar binding; no verified epoch.
+- [ ] Refund duration; server-provided remaining time is documented but no duration sourced.
+- [ ] Unknown PerksVendorItem fields and one unreadable vendor category; never infer semantics.
+- [ ] Live purchase/collection/refund proof: none of the 22 server-supported Traveler's Log activities has reachable content on the private world, so a fresh fb_ account cannot earn Tender through gameplay; spawning unsourced creatures or granting Tender needs a lead decision. Purchase, atomic collection grants, relog and bounded refund are proven by server behavioural tests only.
+- [ ] Preview asset publication: the staged package raises complete authenticated chains from 167 to 1287 of 1309 previewable rows (transmog 60→910/911, mounts 98/98, pets 3→51/52, sets 6→228/248): 43,275 artifacts, 1.87 GB, zero extraction failures. Lead publishes it with `apply_mount_model_assets.py`. The other 22 rows have no sourced preview display (unreadable item or set metadata).
+- [ ] Single-item ranged weapon previews (e.g. Battlefield Lover's Bow) are applied to the player's ranged slot but not clearly visible beside equipped melee weapons; Retail model-scene weapon framing is not reproduced.
+- [ ] Rows whose ItemSparse/Item metadata is unreadable locally (e.g. vendor item for item235674) stay listed as unavailable with no name/icon.
+
+## Out of scope
+
+None of the user-requested Trading Post section is excluded. Source gaps are explicit unavailable cases, not substituted content.

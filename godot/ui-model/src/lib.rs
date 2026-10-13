@@ -362,6 +362,7 @@ pub mod paths;
 pub mod stack_split;
 #[path = "ui/screens/tooltip_presentation.rs"]
 pub mod tooltip_presentation;
+pub mod trading_post;
 #[path = "window_manager/mod.rs"]
 pub mod window_manager;
 #[path = "rendering/ui/wow_cursor_data.rs"]

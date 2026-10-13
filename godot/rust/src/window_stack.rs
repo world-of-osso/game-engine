@@ -176,6 +176,7 @@ impl GameClient {
             closed = true;
         }
         closed |= self.close_adventure_guide();
+        closed |= self.close_trading_post_window()?;
         closed |= self.close_trainer_window()?;
         closed |= self.close_transmog_window()?;
         closed |= self.close_achievements();
