@@ -93,8 +93,10 @@ func run() -> void:
 		stop("Lore wheel did not move wrapped text")
 		return
 	if not await click("EncounterJournalLoreScrollBack"): return
-	if absf(lore.get_global_rect().position.y-before)>1.0:
-		stop("Lore back stepper did not return to start")
+	var current := (client.find_child("EncounterJournalInstanceLore",true,false) as Control).get_global_rect().position.y
+	var stepper := client.find_child("EncounterJournalLoreScrollBack",true,false) as Control
+	if absf(current-before)>1.0:
+		stop("Lore back stepper before=%s current=%s old_node=%s stepper=%s" % [before,current,lore.get_global_rect(),stepper.get_global_rect()])
 		return
 	print("GUIDE_LAYOUT_LORE_SCROLL wheel+back-stepper PASS")
 	if not await click("JournalBoss112"): return
