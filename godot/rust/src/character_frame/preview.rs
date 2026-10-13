@@ -235,6 +235,35 @@ impl Scene {
         self.model = Some(model);
     }
 
+    /// PetJournal camera and actor framing are DB2-authored, not paperdoll bounds fitting.
+    pub(crate) fn replace_pet_model(
+        &mut self,
+        mut model: Gd<Node3D>,
+        authored: &game_engine_core::pet_model_scene::PetModelScene,
+    ) {
+        let bounds = mesh_bounds(&model);
+        let size = glam::Vec3::new(bounds.size.x, bounds.size.y, bounds.size.z);
+        let center = bounds.center();
+        let center = glam::Vec3::new(center.x, center.y, center.z);
+        let scale = authored.actor_scale(size);
+        let rotation = authored.actor_rotation();
+        let rotation = Basis::from_quaternion(Quaternion::new(
+            rotation.x, rotation.y, rotation.z, rotation.w,
+        ));
+        model.set_basis(rotation * model.get_basis().scaled(Vector3::ONE * scale));
+        let origin = authored.actor_origin(center, scale);
+        model.set_position(Vector3::new(origin.x, origin.y, origin.z));
+        self.replace_model(model);
+        let (eye, target, up) = authored.camera_vectors();
+        self.camera
+            .look_at_from_position_ex(
+                Vector3::new(eye.x, eye.y, eye.z),
+                Vector3::new(target.x, target.y, target.z),
+            )
+            .up(Vector3::new(up.x, up.y, up.z))
+            .done();
+    }
+
     /// A weapon's largest two extents belong in the portrait plane, not along its depth.
     pub(crate) fn replace_item_model(&mut self, model: Gd<Node3D>) {
         self.replace_model(model);

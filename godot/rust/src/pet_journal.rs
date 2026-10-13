@@ -14,13 +14,21 @@ pub(crate) struct CompanionJournal {
     ui: Option<Gd<RegistryUi>>,
     icons_loaded: bool,
     previews: [PetPreview; 4],
+    scene_ids: std::collections::BTreeMap<u32, [u32; 2]>,
+    model_scenes: std::collections::BTreeMap<u32, game_engine_core::pet_model_scene::PetModelScene>,
 }
 
 #[derive(Default)]
 struct PetPreview {
     scene: Option<Scene>,
-    pending_model: Option<(u64, u32)>,
-    shown_display: Option<u32>,
+    pending_model: Option<(u64, PetPreviewModel)>,
+    shown_model: Option<PetPreviewModel>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct PetPreviewModel {
+    display_id: u32,
+    scene_id: u32,
 }
 
 const PREVIEW_HOSTS: [&str; 4] = [
@@ -92,10 +100,19 @@ impl GameClient {
         let path = self.data_root.join("db2/12.1.0.69933/BattlePetSpecies.csv");
         let mut icons = std::collections::BTreeMap::new();
         let mut metadata = std::collections::BTreeMap::new();
+        let mut scene_ids = std::collections::BTreeMap::new();
         game_engine_core::csv_util::read_numeric_rows(
             &path,
-            ["ID", "IconFileDataID", "Flags", "SourceTypeEnum"],
-            |[species, fdid, flags, source]| {
+            [
+                "ID",
+                "IconFileDataID",
+                "Flags",
+                "SourceTypeEnum",
+                "CardUIModelSceneID",
+                "LoadoutUIModelSceneID",
+            ],
+            |[species, fdid, flags, source, card, loadout]| {
+                scene_ids.insert(species as u32, [card as u32, loadout as u32]);
                 icons.insert(species as u32, fdid as u32);
                 metadata.insert(
                     species as u32,
@@ -109,6 +126,13 @@ impl GameClient {
         for icon in icons.values_mut() {
             *icon = self.drawable_fdid(*icon);
         }
+        let path = self.data_root.join("battle-pet-model-scenes.json");
+        let scenes: Vec<game_engine_core::pet_model_scene::PetModelScene> = serde_json::from_slice(
+            &std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?,
+        )
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+        self.pet_journal.model_scenes = scenes.into_iter().map(|scene| (scene.id, scene)).collect();
+        self.pet_journal.scene_ids = scene_ids;
         self.pet_journal.view.species_filters = metadata;
         self.pet_journal.view.icons = icons;
         self.pet_journal.icons_loaded = true;
@@ -251,27 +275,65 @@ impl GameClient {
         if let Some(scene) = preview.scene.take() {
             scene.free();
         }
-        preview.shown_display = None;
+        preview.shown_model = None;
     }
 
     fn sync_pet_models(&mut self) -> Result<(), String> {
         let view = &self.pet_journal.view;
-        let card = view.selected_visual().map(|visual| visual.display_id);
-        let slots = view.journal.battle_slots.map(|id| {
-            let pet = view.journal.get(id?)?;
-            view.visuals
-                .get(&pet.species_id)
-                .map(|visual| visual.display_id)
-        });
-        for (index, display) in [card, slots[0], slots[1], slots[2]].into_iter().enumerate() {
-            self.sync_pet_preview(index, display.filter(|id| *id != 0))?;
+        let card_species = view.selected_visual().map(|visual| visual.species_id);
+        let slot_species = view
+            .journal
+            .battle_slots
+            .map(|id| view.journal.get(id?).map(|pet| pet.species_id));
+        let species = [
+            card_species,
+            slot_species[0],
+            slot_species[1],
+            slot_species[2],
+        ];
+        for (index, species) in species.into_iter().enumerate() {
+            let model = self.pet_preview_model(species, index == 0)?;
+            self.sync_pet_preview(index, model)?;
         }
         Ok(())
     }
 
-    fn sync_pet_preview(&mut self, index: usize, display: Option<u32>) -> Result<(), String> {
-        self.request_pet_preview(index, display);
-        if display.is_none() {
+    fn pet_preview_model(
+        &self,
+        species: Option<u32>,
+        card: bool,
+    ) -> Result<Option<PetPreviewModel>, String> {
+        let Some(visual) = species.and_then(|id| self.pet_journal.view.visuals.get(&id)) else {
+            return Ok(None);
+        };
+        if visual.display_id == 0 {
+            return Ok(None);
+        }
+        let scenes = self
+            .pet_journal
+            .scene_ids
+            .get(&visual.species_id)
+            .ok_or_else(|| format!("Pet species {} scene links missing", visual.species_id))?;
+        let scene_id = scenes[usize::from(!card)];
+        if !self.pet_journal.model_scenes.contains_key(&scene_id) {
+            return Err(format!(
+                "Pet species {} authored ModelScene {scene_id} missing",
+                visual.species_id
+            ));
+        }
+        Ok(Some(PetPreviewModel {
+            display_id: visual.display_id,
+            scene_id,
+        }))
+    }
+
+    fn sync_pet_preview(
+        &mut self,
+        index: usize,
+        model: Option<PetPreviewModel>,
+    ) -> Result<(), String> {
+        self.request_pet_preview(index, model);
+        if model.is_none() {
             return Ok(());
         }
         if self.pet_journal.previews[index].scene.is_none() {
@@ -294,29 +356,29 @@ impl GameClient {
         Ok(())
     }
 
-    fn request_pet_preview(&mut self, index: usize, display: Option<u32>) {
+    fn request_pet_preview(&mut self, index: usize, model: Option<PetPreviewModel>) {
         let preview = &self.pet_journal.previews[index];
         let current = preview
             .pending_model
-            .map(|(_, display)| display)
-            .or(preview.shown_display);
-        if display == current {
+            .map(|(_, model)| model)
+            .or(preview.shown_model);
+        if model == current {
             return;
         }
         self.clear_pet_preview(index);
-        if let Some(display_id) = display {
+        if let Some(model) = model {
             let appearance = UnitAppearance::Creature {
-                display_id,
+                display_id: model.display_id,
                 items: Default::default(),
             };
             let id = self.world.request_detached_visual(&appearance);
-            self.pet_journal.previews[index].pending_model = Some((id, display_id));
+            self.pet_journal.previews[index].pending_model = Some((id, model));
         }
     }
 
     fn attach_pet_preview(&mut self, index: usize) -> Result<(), String> {
         let preview = &mut self.pet_journal.previews[index];
-        let Some((id, display)) = preview.pending_model else {
+        let Some((id, key)) = preview.pending_model else {
             return Ok(());
         };
         let Some(loaded) = self.world.take_detached_visual(id) else {
@@ -325,12 +387,17 @@ impl GameClient {
         preview.pending_model = None;
         let model = loaded?;
         bind_sheet_light(&model);
+        let authored = self
+            .pet_journal
+            .model_scenes
+            .get(&key.scene_id)
+            .ok_or_else(|| format!("Pet ModelScene {} missing", key.scene_id))?;
         preview
             .scene
             .as_mut()
             .ok_or("Pet model scene missing")?
-            .replace_model(model);
-        preview.shown_display = Some(display);
+            .replace_pet_model(model, authored);
+        preview.shown_model = Some(key);
         Ok(())
     }
 }
