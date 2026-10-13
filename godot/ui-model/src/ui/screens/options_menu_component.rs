@@ -605,12 +605,12 @@ fn content_header(category: OptionsCategory, searching: bool) -> Element {
 
 /// Pixels the Options content scrolls per stepper click on `model`'s page.
 pub fn options_pan_extent(model: &OptionsViewModel) -> usize {
-    category_body(model, None).pan_extent()
+    filtered_category_body(model, None).pan_extent()
 }
 
 /// Pixels the Options content scrolls per wheel notch on `model`'s page.
 pub fn options_wheel_extent(model: &OptionsViewModel) -> usize {
-    category_body(model, None).wheel_extent()
+    filtered_category_body(model, None).wheel_extent()
 }
 
 fn category_body(
