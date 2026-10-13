@@ -137,8 +137,30 @@ func drawer_conserved(before: Dictionary) -> bool:
 		return false
 	return true
 
+func prove_paid_thumbnail_visible() -> bool:
+	var icon: Control = housing_control("HouseEditorIcon2330")
+	if icon == null: return true # Source filter/collapse intentionally removes the tile.
+	var deadline: int = Time.get_ticks_msec() + 15000
+	while Time.get_ticks_msec() < deadline:
+		await RenderingServer.frame_post_draw
+		var image: Image = root.get_texture().get_image()
+		var rect: Rect2 = icon.get_global_rect()
+		var blue_samples: int = 0
+		for y in range(1, 9):
+			for x in range(1, 9):
+				var point: Vector2 = rect.position + rect.size * Vector2(float(x)/10.0, float(y)/10.0)
+				var color: Color = image.get_pixel(int(point.x), int(point.y))
+				if color.b > 0.3 and color.b > color.r * 1.5: blue_samples += 1
+		if blue_samples >= 4:
+			print("DRAWER_TESLA_PIXELS blue=",blue_samples," rect=",rect)
+			return true
+		await process_frame
+	fail("Actual paid Tesla thumbnail is not rendered after drawer resize")
+	return false
+
 func record_drawer(phase: String) -> bool:
 	await frames(20)
+	if not await prove_paid_thumbnail_visible(): return false
 	if not await record_editor(phase): return false
 	var frame: Control = housing_control("HouseEditorStorageFrame")
 	drawer_receipts.append({"phase":phase, "skin":housing_skin, "frame_rect":str(frame.get_global_rect()) if frame != null else "collapsed", "expand":housing_control("HouseEditorStorageExpandButton") != null, "search":storage_search_text(), "category":housing_text("HouseEditorStorageCategoryPath"), "housing":client.housing_state()})
