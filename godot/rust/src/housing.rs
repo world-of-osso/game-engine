@@ -286,6 +286,7 @@ impl GameClient {
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
         self.configure_housing_storage_cursor();
+        self.sync_housing_search_clear_visuals()?;
         self.sync_housing_catalog_preview()?;
         Ok(())
     }

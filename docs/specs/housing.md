@@ -76,7 +76,7 @@ Source: `Blizzard_HousingCatalogFilters.lua` Initialize/ResetFiltersToDefault an
 
 ## Owned storage search clear control
 
-Owned-storage search includes the inherited Retail17×17 clear button at right−3, with10×10 `common-search-clearbutton` art inset3 and normal alpha0.5. Nonempty or focused search shows it; empty/unfocused hides it. Clicking empties both native registry edit text and storage search, releases input focus and immediately refreshes results. Catalog search, storage category/filter/sort and authoritative ownership/layout remain unchanged. Hover/pressed icon fidelity and minimum-character search semantics remain separate acceptance boundaries.
+Owned-storage search includes the inherited Retail17×17 clear button at right−3, with10×10 `common-search-clearbutton` art inset3 and normal alpha0.5. Nonempty or focused search shows it; empty/unfocused hides it. Clicking empties both native registry edit text and storage search, releases input focus and immediately refreshes results. Catalog search, storage category/filter/sort and authoritative ownership/layout remain unchanged. The clear icon switches alpha0.5→1 on hover and moves its inset3,3→4,4 while pressed, restoring on release; the hit rectangle never moves. Minimum-character search semantics and source click audio remain separate acceptance boundaries.
 
 Source: HousingCatalogSearchBoxMixin OnLoad, SearchBoxTemplate XML and InputBoxTemplates.lua SearchBoxTemplateClearButton_OnClick/ClearText/OnTextChanged.
 
