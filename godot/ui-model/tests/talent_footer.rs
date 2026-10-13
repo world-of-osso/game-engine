@@ -280,10 +280,24 @@ fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_sa
         let search = registry
             .get(registry.get_by_name("TalentSearchBox").unwrap())
             .unwrap();
+        let scale = search.height.value() / 30.0;
+        assert_eq!(dropdown.width.value(), 120.0 * scale);
+        assert_eq!(dropdown.height.value(), 25.0 * scale);
+        let ui_toolkit::layout_values::Val::Px(dropdown_top) = dropdown.position.top else {
+            panic!("dropdown top")
+        };
+        let ui_toolkit::layout_values::Val::Px(search_top) = search.position.top else {
+            panic!("search top")
+        };
         assert_eq!(
-            dropdown.position.top, search.position.top,
-            "Retail LoadSystem and SearchBox share the footer centerline"
+            dropdown_top + dropdown.height.value() / 2.0,
+            search_top + search.height.value() / 2.0
         );
+        let menu = registry
+            .get(registry.get_by_name("TalentLoadoutMenu").unwrap())
+            .unwrap();
+        assert_eq!(menu.height.value(), 83.0 * scale);
+        assert!(menu.background_color.is_none());
         for name in [
             "TalentNewLoadout",
             "TalentImportLoadout",
