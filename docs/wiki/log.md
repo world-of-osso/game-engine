@@ -5,6 +5,10 @@
 ## 2026-10-13 — Arena announcer and shared reconnect proof
 
 [Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures completed, with the original null-snapshot readiness failure retained.
+## 2026-10-13 — Storage source vertical anchor implementation
+
+[Housing](systems/housing.md#basic-drawer-controls-and-preferences): F1 confirmed against LEFT/y150/clamped source. Registry source64.5 versus0 and native logical/nonclamped anchor RED; expanded panel now computes source top before native scaling. Both-skin native720→1080/source-scaled anchor/select/cancel/query+paidconservation GREEN; registry720/1080/651–800expanded+collapsed restores correctly. Currentregistry19/server28+3ignored/protocol4/check/fmt PASS; four inspected≤1280PNG public. Physical pixel coordinates are UI-scale-adjusted, not logical source values.
+
 ## 2026-10-13 — Pending owned-placement storage implementation
 
 [Housing](systems/housing.md#basic-selected-target-storage-visibility): StartPlacingNewDecor routes the same source selected-target event. Registry/native RED reproduced retained drawer with actual paid2330 pending placement; same presentation now hides it. Both-skin native actual paid2330 click→placing+hidden→Cancel/retainedTesla/exactconservation GREEN, plus selected/collapsed regression. Registry19/nativecheck0warnings/fmt pass; four inspected1280 new-placement PNGs public. No preview-mesh/mouse-up-commit claim.
