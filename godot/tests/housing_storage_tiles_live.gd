@@ -38,12 +38,19 @@ func run_test() -> void:
 	push_mouse_motion(Vector2(500,500))
 	if not await wait_housing(func(): return tile_atlas(bg_name)!=null and housing_control(hover_name).modulate.a==0.0, "normal source tile art"): return
 	var normal_region: Rect2 = tile_atlas(bg_name).region
+	if normal_region.size!=Vector2(192,196) or tile_atlas(bg_name).get_image().get_size()!=Vector2i(192,196):
+		fail("Native source atlas member was cropped twice: " + str(normal_region))
+		return
+	print("TILE_SOURCE_NORMAL region=",normal_region," image=",tile_atlas(bg_name).get_image().get_size()," rect=",housing_control(bg_name).get_global_rect()," modulate=",housing_control(bg_name).modulate)
+	tile_atlas(bg_name).get_image().save_png(shots.path_join("tile-source-normal.png"))
 	if not await record_editor("storage-tile-normal"): return
 	push_mouse_motion(tile.get_global_rect().get_center())
 	if not await wait_housing(func(): return absf(housing_control(hover_name).modulate.a-0.75)<0.001, "source additive75percent hover"): return
 	if not await record_editor("storage-tile-hover"): return
 	await tile_mouse_button(tile.get_global_rect().get_center(),true)
 	if not await wait_housing(func(): return tile_atlas(bg_name).region!=normal_region and tile_atlas(bg_name).region==tile_atlas(hover_name).region, "matching source pressed background/hover atlas"): return
+	print("TILE_SOURCE_PRESSED region=",tile_atlas(bg_name).region," rect=",housing_control(bg_name).get_global_rect()," modulate=",housing_control(bg_name).modulate)
+	tile_atlas(bg_name).get_image().save_png(shots.path_join("tile-source-pressed.png"))
 	if not await record_editor("storage-tile-pressed"): return
 	if client.housing_state().stored!=before.stored or client.housing_state().decor!=before.decor:
 		fail("Tile hold changed paid storage/layout")

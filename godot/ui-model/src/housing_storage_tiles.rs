@@ -115,6 +115,17 @@ pub(crate) fn apply_stored_tiles_postsetup(view: &HousingView, registry: &mut Fr
             panic!("Stored tile icon must be a Texture");
         };
         texture.desaturated = disabled;
+        let count = registry
+            .get_by_name(&format!("{prefix}Count"))
+            .expect("Stored tile count exists");
+        let count = registry
+            .get_mut(count)
+            .expect("Stored tile count survived lookup");
+        let Some(WidgetData::FontString(text)) = count.widget_data.as_mut() else {
+            panic!("Stored tile count must be a FontString");
+        };
+        text.shadow_color = Some([0.0, 0.0, 0.0, 1.0]);
+        text.shadow_offset = [1.0, -1.0];
     }
 }
 
@@ -137,6 +148,8 @@ fn update_tile_art(
         panic!("Stored tile art must be a Texture");
     };
     texture.source = TextureSource::Atlas(atlas.into());
+    // Atlas coordinates are member-local; the FDID helper's sheet UVs no longer apply.
+    texture.tex_coords = [0.0, 1.0, 0.0, 1.0];
     texture.blend_mode = if additive {
         BlendMode::Additive
     } else {
