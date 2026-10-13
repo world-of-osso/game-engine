@@ -30,6 +30,13 @@ Reference behavior: local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzar
 
 Targeted importer and UI/layout tests, extension check and format proof. Inspected both-skin PNGs showing dungeon abilities, loot and a raid on private UDP5890 with fb_* accounts; GPU free memory at least 1.5 GiB. No UDP5000 access or full suites. Gaps and exact proof scope recorded in the task handoff.
 
+## October 13 navigation continuation
+
+- Targeted Guide tests17/17, native extension/CLI build, helper extension check and changed-file formatting pass at enginec647e688a/protocolab7f848.
+- Both skins, privateUDP5771/fb_adventure4*: physical encounter-link input clears stale search; actual Tawny gossip/vendor Log navigates from an already-visible Guide model page to Monthly and authoritative Tender0/500/balance0; real Cobrahn start586 selects Journal475/Dungeons at realm difficulty1 instead of the prior2. Forever boss-frame right-click also selects source1; Modern closed-Guide start remains closed.
+- Nine inspected1280PNG images under `/syncthing/AgentShared/2026-10-13/adventure-guide/`; commands/logs/state under `/home/osso/.worktrees/adventure-guide4-proof/`. Controlled private level/health/position setup and admin damage teardown are not natural combat-balance claims. No canonical data writes or production services touched; owned client/server PIDs stopped andUDP5771 clear.
+- Journeys MajorFaction backing, complete boss payload closure, Ozruk opaque effect planes and RPE activation remain in scope. Traveler's Log already reuses the Trading Post activity/balance service; it is not a substitute for Journeys.
+
 ## October 11 continuation acceptance
 
 Private UDP5896/fb_adventure3m and fb_adventure3f, independently selected skins: first-unopened Cobrahn boss-frame right-click selects Journal475/Dungeons and fetches nonempty saved Molten Core9/mask1 data; owned Azure8/timer37:30; compact ItemSets/search/icons and hover membership/bonuses; class-filter scroll reset; Traveler's Log945 source rows, unavailable criteria notices, real Track3 request and relog persistence; eligible Training Grounds852 card with authored texture1523630 and no unsupported activation. Inspected PNGs under `/syncthing/AgentShared/2026-10-11/adventure-guide3/`; proof ledger/logs under canonical `data/diagnostics/adventure-guide3-2026-10-11/`. Live saved credit uses controlled private admin damage against authentic Lucifron/Cobrahn, not a natural combat-balance claim.
