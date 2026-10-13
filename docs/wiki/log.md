@@ -1,3 +1,7 @@
+## 2026-10-13 — Collections binding and pet loadout previews
+
+[Battle-pet journal](systems/battle-pets.md#journal-loadout-previews--2026-10-13): assignable Shift-P, card+three detached loadout models, authoritative move/empty teardown and close/reopen proved through real owned-pet native input in both skins. Hidden bag-tree input corrected in the fixture, not product visibility. Filters and owned-health/ability journal payloads remain open.
+
 ## 2026-10-13 — CASC installed-build following
 
 [Asset pipeline](systems/asset-pipeline.md#installed-build-following--verified-2026-10-13): local extraction/state/tables select active `.build.info`, not authored receipt pins; new receipts retain installed identity and DB2 exports remain69933. Real patch fixture, four root-authenticated live FDIDs (including housing atlases), private1927944-entry cache and UDP5781 native Elwynn entry proven. Canonical regeneration lead-owned; historical receipts retained.
