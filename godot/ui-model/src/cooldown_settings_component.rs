@@ -142,8 +142,8 @@ fn category_scroll(ctx: &SharedContext, state: &CooldownSettingsView) -> Element
     let config = scroll_list_attr(&geometry);
     let bar = MinimalScrollBar {
         list: SCROLL,
-        left: 352.0,
-        top: 0.0,
+        left: 17.0 + 352.0,
+        top: 72.0,
         height: 508.0,
         geometry,
         offset,
@@ -151,7 +151,8 @@ fn category_scroll(ctx: &SharedContext, state: &CooldownSettingsView) -> Element
     };
     rsx! {r#frame {name:{DynName(SCROLL.into())},width:352.0,height:508.0,pos_type:"absolute",left:17.0,top:72.0,mouse_enabled:true,scroll_list:config,
     r#frame {name:"CooldownSettingsContent",width:344.0,height:content_height,pos_type:"absolute",left:0.0,top:{-(offset as f32)},{rows}}
-    {bar.element()}}}
+    }
+    {bar.element()}}
 }
 
 fn category_contents(state: &CooldownSettingsView) -> (Element, f32) {
