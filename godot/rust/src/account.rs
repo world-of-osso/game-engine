@@ -154,6 +154,7 @@ pub struct Account {
     pub challenge: shared::protocol::ChallengeSnapshot,
     pub adventure_guide: Option<std::sync::Arc<shared::protocol::AdventureGuideSnapshot>>,
     pub trading_post: Option<std::sync::Arc<shared::protocol::TradingPostSnapshot>>,
+    pub renown: Option<std::sync::Arc<shared::protocol::RenownSnapshot>>,
     pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
@@ -385,6 +386,7 @@ impl Account {
             challenge: Default::default(),
             adventure_guide: None,
             trading_post: None,
+            renown: None,
             party_keystones: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
@@ -448,6 +450,7 @@ impl Account {
         self.scenario_objectives = Default::default();
         self.adventure_guide = None;
         self.trading_post = None;
+        self.renown = None;
         self.achievements = Default::default();
         self.achievement_requests.clear();
         self.instance_locks.clear();
@@ -777,6 +780,15 @@ impl Account {
     pub fn send_adventure_guide(
         &self,
         request: shared::protocol::AdventureGuideRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InstanceChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_renown(
+        &self,
+        request: shared::protocol::RenownRequest,
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(request)
@@ -1556,6 +1568,7 @@ impl Account {
                 Event::Disconnected(reason) => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.renown = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
@@ -1795,6 +1808,7 @@ impl Account {
             || message.is::<shared::protocol::ChallengeSnapshot>()
             || message.is::<shared::protocol::AdventureGuideSnapshot>()
             || message.is::<shared::protocol::TradingPostSnapshot>()
+            || message.is::<shared::protocol::RenownSnapshot>()
             || message.is::<shared::protocol::PartyKeystoneSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
@@ -1818,6 +1832,10 @@ impl Account {
         }
         if message.is::<shared::protocol::AdventureGuideSnapshot>() {
             self.adventure_guide = Some(std::sync::Arc::new(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::RenownSnapshot>() {
+            self.renown = Some(std::sync::Arc::new(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::PartyKeystoneSnapshot>() {
@@ -2295,6 +2313,7 @@ impl Account {
                 SessionEffect::ResetNetworkWorld => {
                     self.adventure_guide = None;
                     self.trading_post = None;
+                    self.renown = None;
                     self.dungeon_objectives = Default::default();
                     self.scenario_objectives = Default::default();
                     self.achievements = Default::default();
