@@ -123,6 +123,11 @@ fn menu_button(name: &str, text: &str, action: &str) -> Element {
             name: DynName(name.into()), width: BUTTON_W, height: BUTTON_H, text, font_size: 16.0,
             strata: FrameStrata::Fullscreen, frame_level: 20.0, onclick: action, button_default_skin: false,
             {art}
+            fontstring {
+                name: DynName(format!("{name}Label")), text, width: BUTTON_W, height: BUTTON_H,
+                font_size: 16.0, font_color: crate::ui::widgets::font_string::FontColor::new(1.0, 1.0, 1.0, 1.0),
+                frame_level: 100.0, draw_layer: "OVERLAY", pos_type: "absolute", left: 0.0, top: 0.0,
+            }
             texture {
                 name: DynName(format!("{name}Highlight")), texture_atlas: "128-RedButton-Highlight", stretch: true, hidden: true,
             }
@@ -219,4 +224,37 @@ pub fn main_menu_view(logged_in: bool) -> Element {
             }
         }
     }
+}
+
+/// UiTextureAtlasElementSliceData SliceMode0: corners retain source size; middle spans stretch.
+/// Margins passed from the pinned local export, never inferred from image dimensions.
+pub fn sliced_atlas(
+    prefix: &str,
+    atlas: &str,
+    [w, h]: [f32; 2],
+    [l, t, r, b]: [f32; 4],
+) -> Element {
+    let region = ui_toolkit::atlas::get_region(atlas).expect("Glue sliced atlas must exist");
+    let source_x = [0.0, l, region.width - r, region.width];
+    let source_y = [0.0, t, region.height - b, region.height];
+    let target_x = [0.0, l, w - r, w];
+    let target_y = [0.0, t, h - b, h];
+    (0..3)
+        .flat_map(|y| {
+            (0..3).flat_map(move |x| {
+                let left = region.left + (region.right - region.left) * source_x[x] / region.width;
+                let right =
+                    region.left + (region.right - region.left) * source_x[x + 1] / region.width;
+                let top = region.top + (region.bottom - region.top) * source_y[y] / region.height;
+                let bottom =
+                    region.top + (region.bottom - region.top) * source_y[y + 1] / region.height;
+                let tex_coords = format!("{left},{right},{top},{bottom}");
+                rsx! { texture {
+                    name: DynName(format!("{prefix}{y}{x}")), texture_atlas: atlas, tex_coords,
+                    width: {target_x[x+1] - target_x[x]}, height: {target_y[y+1] - target_y[y]},
+                    pos_type: "absolute", left: target_x[x], top: target_y[y],
+                } }
+            })
+        })
+        .collect()
 }

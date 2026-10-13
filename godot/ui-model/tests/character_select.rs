@@ -462,7 +462,15 @@ fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
     let mut model = character_select_model(1280.0, 720.0);
     model.shared.insert(campsites(8, 0));
     model.sync();
-    assert_eq!(listed_campsites(&model), [1, 2, 3, 4]);
+    assert_eq!(
+        frame(&model, "CampsitePanel").width,
+        Dimension::Fixed(703.0)
+    );
+    assert_eq!(
+        frame(&model, "CampsitePanel").height,
+        Dimension::Fixed(595.0)
+    );
+    assert_eq!(listed_campsites(&model), [1, 2, 3, 4, 5, 6]);
     assert_eq!(text(&model, "CampsitePageText"), "Page 1/2");
     assert_eq!(
         action(&model, "CampsitePrevPage"),
@@ -476,7 +484,7 @@ fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
 
     model.shared.insert(campsites(8, 1));
     model.sync();
-    assert_eq!(listed_campsites(&model), [5, 6, 7, 8]);
+    assert_eq!(listed_campsites(&model), [7, 8]);
     assert_eq!(text(&model, "CampsitePageText"), "Page 2/2");
     assert_eq!(
         action(&model, "CampsitePrevPage"),
@@ -488,11 +496,11 @@ fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
         "disabled next stays on the last page"
     );
 
-    model.shared.insert(campsites(5, 7));
+    model.shared.insert(campsites(7, 7));
     model.sync();
     assert_eq!(
         listed_campsites(&model),
-        [5],
+        [7],
         "stale page clamps to the last"
     );
     assert_eq!(text(&model, "CampsitePageText"), "Page 2/2");

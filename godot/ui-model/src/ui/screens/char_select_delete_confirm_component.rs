@@ -107,7 +107,7 @@ pub fn delete_confirmation_modal(state: &DeleteConfirmUiState) -> Element {
             translate_x: "-50%", translate_y: "-50%",
             texture { name: "DeleteCharacterDialogBackground", texture_atlas: "UI-Frame-DialogBox-BackgroundTile",
                 width: "auto", height: "auto", pos_type: "absolute", left: 8.0, right: 8.0, top: 9.0, bottom: 9.0, }
-            texture { name: "DeleteCharacterDialogBorder", texture_atlas: "UI-DiamondDialogBox-Border", stretch: true, }
+            {crate::game_menu_main::sliced_atlas("DeleteCharacterDialogBorder", "UI-DiamondDialogBox-Border", [512.0,256.0], [32.0;4])}
             r#frame {
                 name: "DeleteCharacterDialogText", width: 450.0, height: "auto", layout: "flex-column", gap: 2.0,
                 pos_type: "absolute", left: "50%", top: 23.0, translate_x: "-50%",
