@@ -131,14 +131,20 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
 }
 
 fn top(registry: &FrameRegistry, name: &str) -> f32 {
-    match frame(registry, name)
-        .unwrap_or_else(|| panic!("{name} missing"))
-        .position
-        .top
-    {
-        Val::Px(px) => px,
-        other => panic!("{name}: top {other:?}"),
+    let mut frame = frame(registry, name).unwrap_or_else(|| panic!("{name} missing"));
+    let mut top = 0.0;
+    while frame.name.as_deref() != Some("WorldMapBorderFrame") {
+        top += match frame.position.top {
+            Val::Px(px) => px,
+            Val::Auto => 0.0,
+            other => panic!("{name}: top {other:?}"),
+        };
+        let Some(parent) = frame.parent_id else {
+            break;
+        };
+        frame = registry.get(parent).unwrap();
     }
+    top
 }
 
 fn onclick(registry: &FrameRegistry, name: &str) -> String {
