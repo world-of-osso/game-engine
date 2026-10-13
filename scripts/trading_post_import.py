@@ -8,9 +8,9 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import struct
 from pathlib import Path
-
-BUILD = '12.1.0.69933'
+from db2_source import source_identity
 TABLES = {
     'PerksVendorCategory': ('perks_vendor_category', 4281310, 0x00ECA515),
     'PerksVendorItem': ('perks_vendor_item', 4281311, 0x96A2B1EB),
@@ -31,6 +31,7 @@ def decode_catalog(db2, definitions):
         binary = db2 / f'{fdid}.db2'
         definition = definitions / f'{name}.dbd'
         columns, rows, dropped = read_table(name, binary, definition)
+        layout = struct.unpack_from('<I', binary.read_bytes(), 156)[0]
         sources[table] = {
             'name': name, 'fdid': fdid, 'layout': f'{layout:08X}',
             'db2_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
@@ -45,9 +46,9 @@ def quote_sql(value):
     return "'" + value.replace("'", "''") + "'"
 
 
-def prepare_sql(sources):
+def prepare_sql(sources, build):
     sql = ['BEGIN TRANSACTION;', 'CREATE TABLE IF NOT EXISTS trading_post_source (name TEXT PRIMARY KEY,build TEXT NOT NULL,fdid INTEGER NOT NULL,layout TEXT NOT NULL,readable INTEGER NOT NULL,unreadable INTEGER NOT NULL,db2_sha256 TEXT NOT NULL,schema_sha256 TEXT NOT NULL);', 'DELETE FROM trading_post_source;']
-    report = {'build': BUILD, 'sources': {}, 'gaps': [
+    report = {'build': build, 'sources': {}, 'gaps': [
         'Monthly featured rotation: PerksVendorItemXInterval has no verified calendar epoch.',
         'Unknown vendor fields retained verbatim; no availability/discount meaning inferred.',
         'Seasonal activity threshold group/calendar binding unavailable; Osso uses sourced group 1 by explicit policy.',
@@ -60,7 +61,7 @@ def prepare_sql(sources):
         sql.extend([f'DROP TABLE IF EXISTS {table};', f'CREATE TABLE {table} (ID INTEGER PRIMARY KEY,payload TEXT NOT NULL);'])
         for row in rows:
             sql.append(f'INSERT INTO {table} VALUES({row["ID"]},{quote_sql(json.dumps(row, ensure_ascii=False, separators=(",", ":")))});')
-        values = [quote_sql(source['name']), quote_sql(BUILD), str(source['fdid']), quote_sql(source['layout']), str(len(rows)), str(source['unreadable']), quote_sql(source['db2_sha256']), quote_sql(source['schema_sha256'])]
+        values = [quote_sql(source['name']), quote_sql(build), str(source['fdid']), quote_sql(source['layout']), str(len(rows)), str(source['unreadable']), quote_sql(source['db2_sha256']), quote_sql(source['schema_sha256'])]
         sql.append('INSERT INTO trading_post_source VALUES(' + ','.join(values) + ');')
     sql.append('COMMIT;')
     return '\n'.join(sql) + '\n', report
@@ -71,7 +72,7 @@ def main():
     for flag in ('db2', 'definitions', 'output-sql', 'report'):
         parser.add_argument('--' + flag, type=Path, required=True)
     args = parser.parse_args()
-    sql, report = prepare_sql(decode_catalog(args.db2, args.definitions))
+    sql, report = prepare_sql(decode_catalog(args.db2, args.definitions), source_identity(args.db2)['build'])
     args.output_sql.parent.mkdir(parents=True, exist_ok=True)
     args.output_sql.write_text(sql)
     args.report.write_text(json.dumps(report, indent=2) + '\n')

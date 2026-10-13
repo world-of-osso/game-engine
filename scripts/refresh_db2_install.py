@@ -122,6 +122,7 @@ def export_tables(args):
             receipt['unavailable'][table] = {'fdid': fdid, 'reason': str(error)}
             print(f'{table}: {error}', file=sys.stderr, flush=True)
     (directory / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    (raw / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     (output / 'active-build.json').write_text(json.dumps(identity, indent=2) + '\n')
     print(f'exported {len(receipt["tables"])}; unavailable {len(receipt["unavailable"])}')
     return receipt

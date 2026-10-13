@@ -19,7 +19,7 @@ from import_forever_skyborne import validate_magic
 from import_model_asset_chains import create_asset_receipt, write_asset_files
 from apply_mount_model_assets import index_hashes, sha
 
-METADATA_BUILD = '12.1.0.69933'
+from db2_source import active_directory, source_identity
 SUPPORTED = {'m2', 'skin', 'skel', 'anim', 'bone', 'phys', 'blp'}
 
 
@@ -190,7 +190,8 @@ def stage_closure(data, package, install, extract, seed, scope, fragment_name, p
             asset['actual_build'] = record['build_key'] if record else None
             return path
 
-    graph = AuthenticatedClosure(data, paths, 'wow', METADATA_BUILD, runtime_paths=runtime_paths)
+    metadata_build = source_identity(active_directory(data))['build']
+    graph = AuthenticatedClosure(data, paths, 'wow', metadata_build, runtime_paths=runtime_paths)
     graph.seeds = {'scope': scope}
     summarize = seed(graph, Catalogs(graph))
     graph.run()
