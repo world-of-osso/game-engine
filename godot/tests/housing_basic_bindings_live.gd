@@ -34,6 +34,7 @@ func run_test() -> void:
 	if not await wait_housing(func(): return absf(client.housing_state().decor[0].yaw-before.decor[0].yaw)<0.001 and not client.housing_state().get("pending",true),"assigned F5 restores actual yaw"): return
 	await press_escape()
 	if not await wait_housing(func(): return int(client.housing_state().get("selected",0))==0,"Escape cancels selected editing"): return
+	if not await prove_preview_rotation(before): return
 	if not await clear_housing_bindings(): return
 	if not await select_saved_decor(): return
 	if housing_text("HouseEditorRotateRightInstructionControlText")!="[UNBOUND]" or housing_text("HouseEditorRotateLeftInstructionControlText")!="[UNBOUND]":
@@ -49,6 +50,28 @@ func run_test() -> void:
 	print("PASS: private5870 assigned Retail housing bindings native UI/input ",housing_skin)
 	client.free()
 	quit(0)
+
+func prove_preview_rotation(before: Dictionary) -> bool:
+	if not await click_exposed_control(housing_control("HouseEditorStored2330")): return false
+	push_mouse_motion(ground_point(7.0))
+	if not await wait_housing(func(): return client.get_node_or_null("HousingDecorPreview")!=null,"actual owned Tesla preview"): return false
+	var preview: Node3D = client.get_node("HousingDecorPreview") as Node3D
+	var yaw: float = preview.rotation.y
+	await source_key(KEY_F6)
+	await frames(20)
+	preview = client.get_node_or_null("HousingDecorPreview") as Node3D
+	if preview==null or absf(preview.rotation.y-yaw)<0.05:
+		await press_escape()
+		await clear_housing_bindings()
+		fail("Assigned source Rotate Right did not rotate owned placement preview")
+		return false
+	if client.housing_state().stored!=before.stored or client.housing_state().decor!=before.decor:
+		fail("Preview rotation mutated confirmed paid copies")
+		return false
+	if not await record_editor("basic-bound-preview-rotated"): return false
+	await source_key(KEY_F5)
+	await press_escape()
+	return await wait_housing(func(): return int(client.housing_state().get("placing",0))==0 and housing_control("HouseEditorStored2330")!=null,"preview Escape restores exact owned tile")
 
 func source_key(code: Key) -> void:
 	var event := InputEventKey.new()
