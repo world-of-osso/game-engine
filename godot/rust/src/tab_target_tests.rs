@@ -82,7 +82,7 @@ fn northshire(only_friends: bool) -> (Replica, HashMap<u64, f32>) {
 
 fn tab_cycle(replica: &Replica, distances: &HashMap<u64, f32>) -> Vec<u64> {
     let templates = parse_faction_template_csv(TEMPLATES).unwrap();
-    enemies_nearest_first(replica, HUNTER, &templates, |id| {
+    enemies_nearest_first(replica, HUNTER, &templates, None, |id| {
         distances.get(&id).copied()
     })
 }
@@ -123,4 +123,94 @@ fn an_undrawn_enemy_is_not_in_the_cycle() {
     distances.remove(&KOBOLD);
     let cycle = tab_cycle(&replica, &distances);
     assert_eq!(cycle, [WORG, YOUNG_WOLF]);
+}
+
+#[test]
+fn arena_native_attacks_same_race_enemies_and_their_pets_only_after_preparation() {
+    use crate::auto_attack::player_can_attack;
+    use shared::battleground::BgPhase;
+    use shared::components::UnitFlags;
+    let (mut replica, _) = northshire(true);
+    unit(&mut replica, WORG, "Rival", 1, 100.0);
+    replica.insert(
+        WORG,
+        Player {
+            name: "Rival".into(),
+            race: 1,
+            class: 3,
+            appearance: Default::default(),
+        },
+    );
+    unit(&mut replica, KOBOLD, "Rival pet", 1, 100.0);
+    replica.insert(KOBOLD, UnitSummonedBy(WORG));
+    let templates = parse_faction_template_csv(TEMPLATES).unwrap();
+    let mut bg: shared::protocol::BattlegroundSnapshot = serde_json::from_value(serde_json::json!({
+        "match_id":1,"battleground_id":8,"name":"Ruins of Lordaeron","map_id":572,
+        "team":"A","phase":"Waiting","accepted":true,"invitation_time_left_secs":null,
+        "score_a":0,"score_b":0,"flags":{"flag_a":"AtBase","flag_b":"AtBase"},
+        "outcome":null,"players":[],"honor_reward":null,"world_states":[],
+        "arena":{"mode":"Skirmish2v2","preparation_remaining_secs":60,
+            "shadow_sight_available":false,"rating_changes":[],"units":[
+                {"character_id":57,"entity":57,"name":"Petlive","class":3,"team":"A","health":100,"max_health":100},
+                {"character_id":42,"entity":42,"name":"Rival","class":3,"team":"B","health":100,"max_health":100}
+            ]}
+    })).unwrap();
+    assert!(!player_can_attack(
+        &replica,
+        HUNTER,
+        WORG,
+        &templates,
+        Some(&bg)
+    ));
+    bg.phase = BgPhase::InProgress;
+    assert!(player_can_attack(
+        &replica,
+        HUNTER,
+        WORG,
+        &templates,
+        Some(&bg)
+    ));
+    assert!(player_can_attack(
+        &replica,
+        HUNTER,
+        KOBOLD,
+        &templates,
+        Some(&bg)
+    ));
+    assert!(!player_can_attack(
+        &replica,
+        HUNTER,
+        PET,
+        &templates,
+        Some(&bg)
+    ));
+    assert!(!player_can_attack(
+        &replica,
+        HUNTER,
+        GUARD,
+        &templates,
+        Some(&bg)
+    ));
+    replica.insert(WORG, UnitFlags(UnitFlags::NON_ATTACKABLE_2));
+    assert!(!player_can_attack(
+        &replica,
+        HUNTER,
+        WORG,
+        &templates,
+        Some(&bg)
+    ));
+    replica.insert(
+        KOBOLD,
+        Health {
+            current: 0.0,
+            max: 100.0,
+        },
+    );
+    assert!(!player_can_attack(
+        &replica,
+        HUNTER,
+        KOBOLD,
+        &templates,
+        Some(&bg)
+    ));
 }

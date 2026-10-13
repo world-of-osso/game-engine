@@ -261,7 +261,7 @@ fn native_bridge_sends_set_specialization_on_the_talent_channel() {
 
 #[test]
 fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
-    use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
+    use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectCollision, GameObjectInfo};
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8221);
     await_connected(&mut server, &mut host);
@@ -285,12 +285,14 @@ fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
                 y: 0.7,
                 z: 0.0,
             },
+            GameObjectCollision(true),
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
     let id = object.to_bits();
     await_unit(&mut server, &mut host, id, "mailbox replication", |unit| {
         unit.has::<GameObjectInfo>()
+            && unit.get::<GameObjectCollision>() == Some(&GameObjectCollision(true))
     });
     let unit = host.unit(id).unwrap();
     assert!(!unit.has::<Npc>() && !unit.has::<Player>());
@@ -313,6 +315,13 @@ fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
             z: 0.0
         })
     );
+    server
+        .world_mut()
+        .entity_mut(object)
+        .insert(GameObjectCollision(false));
+    await_unit(&mut server, &mut host, id, "collision opened", |unit| {
+        unit.get::<GameObjectCollision>() == Some(&GameObjectCollision(false))
+    });
     server.world_mut().entity_mut(object).insert(Position {
         x: 6.0,
         y: 3.0,
