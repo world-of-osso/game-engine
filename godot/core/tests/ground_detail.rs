@@ -259,8 +259,8 @@ fn northshire_chunk_scatters_its_layers_elwynn_detail_models() {
     .unwrap();
     let tex = adt::parse_tex(&tex_bytes, wdt::MphdFlags { raw: 0x4 }, &root).unwrap();
     let effects = GroundEffects::parse(
-        &String::from_utf8(cached("db2/12.1.0.69933/GroundEffectTexture.csv")).unwrap(),
-        &String::from_utf8(cached("db2/12.1.0.69933/GroundEffectDoodad.csv")).unwrap(),
+        &String::from_utf8(cached("db2/active/GroundEffectTexture.csv")).unwrap(),
+        &String::from_utf8(cached("db2/active/GroundEffectDoodad.csv")).unwrap(),
     )
     .unwrap();
     let elwynn_grass = effects.texture(757).unwrap();
@@ -313,8 +313,8 @@ fn placements_stand_on_the_rendered_terrain() {
     .unwrap();
     let tex = adt::parse_tex(&tex_bytes, wdt::MphdFlags { raw: 0x4 }, &root).unwrap();
     let effects = GroundEffects::parse(
-        &String::from_utf8(cached("db2/12.1.0.69933/GroundEffectTexture.csv")).unwrap(),
-        &String::from_utf8(cached("db2/12.1.0.69933/GroundEffectDoodad.csv")).unwrap(),
+        &String::from_utf8(cached("db2/active/GroundEffectTexture.csv")).unwrap(),
+        &String::from_utf8(cached("db2/active/GroundEffectDoodad.csv")).unwrap(),
     )
     .unwrap();
     let mut total = 0;

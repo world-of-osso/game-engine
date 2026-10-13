@@ -25,7 +25,7 @@ impl Drop for LightingFixture {
 }
 
 fn copy_retail_fixture(source: &Path, root: &Path) {
-    fs::create_dir_all(root.join("db2/12.1.0.69933")).unwrap();
+    fs::create_dir_all(root.join("db2/active")).unwrap();
     fs::create_dir_all(root.join("db2/1.60.1.70205")).unwrap();
     for directory in ["models", "textures"] {
         std::os::unix::fs::symlink(source.join(directory), root.join(directory)).unwrap();
@@ -38,7 +38,7 @@ fn copy_retail_fixture(source: &Path, root: &Path) {
         .unwrap();
     }
     for table in ["LightParams", "LightSkybox", "Map"] {
-        let relative = format!("db2/12.1.0.69933/{table}.csv");
+        let relative = format!("db2/active/{table}.csv");
         fs::copy(source.join(&relative), root.join(&relative)).unwrap();
     }
 }

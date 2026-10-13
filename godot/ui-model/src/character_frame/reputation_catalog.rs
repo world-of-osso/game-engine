@@ -29,7 +29,7 @@ pub fn enrich_reputation_rows(
     class: u8,
 ) -> Result<(), String> {
     let data = FACTIONS
-        .get_or_init(|| read_factions(&crate::paths::resolve_data_path("db2/12.1.0.69933")))
+        .get_or_init(|| read_factions(&crate::paths::resolve_data_path("db2/active")))
         .as_ref()
         .map_err(Clone::clone)?;
     let race_mask = data

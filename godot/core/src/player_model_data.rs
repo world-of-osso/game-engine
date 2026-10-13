@@ -12,7 +12,7 @@ use crate::csv_util::read_numeric_rows;
 pub(crate) const FOREVER_RACES: [u8; 2] = [95, 96];
 pub(crate) const FOREVER_DB2_DIR: &str = "db2/1.60.1.70205";
 /// Authoritative Retail CSV export used by client cache importers and runtime catalogs.
-pub const RETAIL_DB2_DIR: &str = "db2/12.1.0.69933";
+pub const RETAIL_DB2_DIR: &str = "db2/active";
 
 /// Uses the same source-selected race overlay as the body/customization catalogs.
 pub fn player_asset_product(race: u8) -> crate::asset_product::AssetProduct {
@@ -184,7 +184,7 @@ mod tests {
     /// Alliance one's.
     #[test]
     fn every_race_reaches_its_chr_model_body() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
         let models = player_model_fdids(&dir).unwrap();
         for (race, sex, fdid) in [
             (1, 0, 1_011_653),

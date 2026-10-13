@@ -82,7 +82,7 @@ pub(crate) struct WaterLight {
 
 impl LightingCatalog {
     pub fn read(data_root: &Path) -> Result<Self, String> {
-        let db2 = data_root.join("db2/12.1.0.69933");
+        let db2 = data_root.join("db2/active");
         let mut catalog = Self::read_tables(data_root, data_root, &db2)?;
         catalog.forever_maps = read_forever_map_ids(data_root)?;
         if !catalog.forever_maps.is_empty() {
@@ -287,7 +287,7 @@ fn read_keyframes(path: &Path) -> Result<(LightKeyframes, FogKeyframes), String>
 }
 
 fn read_forever_map_ids(data_root: &Path) -> Result<HashSet<u32>, String> {
-    let retail = read_text(&data_root.join("db2/12.1.0.69933/Map.csv"))?;
+    let retail = read_text(&data_root.join("db2/active/Map.csv"))?;
     let forever = read_text(&data_root.join("db2/1.60.1.70205/Map.csv"))?;
     forever_only_map_ids(&retail, &forever)
 }

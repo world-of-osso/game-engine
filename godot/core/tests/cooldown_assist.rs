@@ -106,7 +106,7 @@ fn cooldown_assist_unknown_effective_cost_blocks_instead_of_guessing() {
 
 #[test]
 fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let ids = [34465, 47453].into_iter().collect();
     let conditions = CooldownConditions::load(&dir, &ids).unwrap();
     let mut actor = ConditionActor {
@@ -125,7 +125,7 @@ fn cooldown_assist_player_conditions_follow_real_race_mask_not_skin() {
 
 #[test]
 fn cooldown_assist_modifier_trees_follow_authored_spell_and_aura_gates() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let conditions =
         CooldownConditions::load(&dir, &[160516, 161780].into_iter().collect()).unwrap();
     let empty = BTreeMap::new();
@@ -155,7 +155,7 @@ fn cooldown_assist_modifier_trees_follow_authored_spell_and_aura_gates() {
 
 #[test]
 fn cooldown_assist_full_referenced_condition_load_handles_signed_mask_words() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let data = catalog();
     let conditions = CooldownConditions::load(&dir, &data.player_condition_ids()).unwrap();
     let auras = BTreeMap::new();
@@ -173,7 +173,7 @@ fn cooldown_assist_full_referenced_condition_load_handles_signed_mask_words() {
 
 #[test]
 fn cooldown_assist_race_only_condition_accepts_inactive_content_tuning_flag() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let conditions = CooldownConditions::load(&dir, &[104496].into_iter().collect()).unwrap();
     let auras = BTreeMap::new();
     let mut actor = ConditionActor {
@@ -191,7 +191,7 @@ fn cooldown_assist_race_only_condition_accepts_inactive_content_tuning_flag() {
 }
 
 fn catalog() -> CooldownAssistCatalog {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     CooldownAssistCatalog::load(&dir).expect("authentic exported Retail tables")
 }
 
@@ -323,7 +323,7 @@ fn cooldown_assist_numeric_rules_never_guess_unverified_equality_boundaries() {
 
 #[test]
 fn cooldown_assist_all_forty_specs_preserve_exact_source_identities_and_order() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     // These tables contain only integer cells; decode the external CSV contract
     // independently of the catalog's join/ordering implementation.
     let read = |table: &str| -> Vec<Vec<i64>> {
@@ -434,7 +434,7 @@ fn cooldown_assist_all_forty_specs_preserve_authored_category_coverage() {
             "spec{spec}: authored rotation absent"
         );
     }
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let conditions = CooldownConditions::load(&dir, &data.player_condition_ids()).unwrap();
     let actor = ConditionActor {
         race_bit: 0,

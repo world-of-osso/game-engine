@@ -28,7 +28,7 @@ fn source_fixture(name: &str) -> PathBuf {
         std::fs::remove_dir_all(&root).unwrap();
     }
     let forever = root.join("db2/1.60.1.70205");
-    let retail = root.join("db2/12.1.0.69933");
+    let retail = root.join("db2/active");
     std::fs::create_dir_all(forever.join("items")).unwrap();
     std::fs::create_dir_all(&retail).unwrap();
     let write = |dir: &Path, name: &str, text: &str| {
@@ -382,7 +382,7 @@ fn owned_item_requires_paired_definition_source_but_display_only_remains_legacy(
 fn owned_retail_missing_material_never_borrows_forever_group() {
     let root = source_fixture("missing-retail-material");
     std::fs::write(
-        root.join("db2/12.1.0.69933/TextureFileData.csv"),
+        root.join("db2/active/TextureFileData.csv"),
         "FileDataID,UsageType,MaterialResourcesID\n",
     )
     .unwrap();

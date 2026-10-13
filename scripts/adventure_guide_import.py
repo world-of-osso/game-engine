@@ -75,9 +75,10 @@ def decode_value(data, offset, descriptor, raw, kind, width, element):
 
 
 def read_table(table, path, definition):
-    _, layout = TABLES[table]
+    import db2_dbd
     data = path.read_bytes()
-    fields = layout_fields(definition, layout)
+    layout = struct.unpack_from('<I', data, 156)[0]
+    fields = db2_dbd.layout_fields(definition, layout)
     inline = [field for field in fields if 'noninline' not in field[2]]
     id_field = next((i for i, field in enumerate(inline) if 'id' in field[2]), 0)
     records, dropped, descriptors, _ = WDC.read_wdc5(data, layout, id_field)

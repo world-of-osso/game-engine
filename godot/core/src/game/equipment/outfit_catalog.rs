@@ -198,7 +198,7 @@ impl OutfitData {
             display_info_cache: Mutex::new(HashMap::new()),
             material_textures_cache: Mutex::new(HashMap::new()),
             model_to_fdids_cache: Mutex::new(HashMap::new()),
-            components: ComponentFileData::load(&data_dir.join("db2/12.1.0.69933"))?,
+            components: ComponentFileData::load(&data_dir.join("db2/active"))?,
             model_materials: load_model_materials(data_dir)?,
             helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
         };

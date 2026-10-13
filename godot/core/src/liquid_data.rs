@@ -172,7 +172,7 @@ pub struct MapLiquidCatalog {
 
 impl MapLiquidCatalog {
     pub fn read(data: &Path) -> Result<Self, String> {
-        let retail_dir = data.join("db2/12.1.0.69933");
+        let retail_dir = data.join("db2/active");
         let forever_dir = data.join("db2/1.60.1.70205");
         let retail_text = std::fs::read_to_string(retail_dir.join("Map.csv"))
             .map_err(|error| format!("Retail Map.csv: {error}"))?;

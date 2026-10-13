@@ -39,8 +39,8 @@ fn split_distance(a: &[Transform3D], b: &[Transform3D], upper: &[bool]) -> (f32,
 
 /// `AnimationData.Fallback` of the pinned 12.1.0.69933 export.
 fn fallbacks() -> HashMap<u16, u16> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../data/db2/12.1.0.69933/AnimationData.csv");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active/AnimationData.csv");
     fs::read_to_string(path)
         .expect("AnimationData export")
         .lines()
