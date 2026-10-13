@@ -300,10 +300,10 @@ func check_abandon() -> bool:
 	if not await wait_quest(func(s): return s.log_open, "quest log"):
 		return false
 	await frames(3)
-	await click_control(quest_control("QuestLogUI", "QuestLogTitle%dText" % NEXT_QUEST))
+	await click_control(quest_control("WorldMapUI", "QuestLogTitle%dText" % NEXT_QUEST))
 	await frames(3)
 	await capture("10-quest-log.png")
-	await click_control(quest_control("QuestLogUI", "QuestLogAbandonButton"))
+	await click_control(quest_control("WorldMapUI", "QuestMapFrameAbandonButton"))
 	await frames(3)
 	var yes := quest_control("StaticPopupUI", "StaticPopup1Button1")
 	if yes == null or not yes.is_visible_in_tree():

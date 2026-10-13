@@ -1512,7 +1512,7 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for one quest window (`QuestFrame`,
-    /// `QuestLogFrame`) with the portrait `metal_frame` border their chrome uses.
+    /// quest giver dialogs) with the portrait `metal_frame` border their chrome uses.
     pub fn show_quest_window<T: 'static>(
         &mut self,
         state: T,
@@ -2455,17 +2455,21 @@ impl RegistryUi {
             return Ok(());
         }
         if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::quest_log_frame_component::QuestLogFrameState>(
+            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
         ) {
-            use game_engine_ui_model::quest_log_frame_component::{
-                QUEST_LOG_DETAILS_SCROLL, QuestLogFrameState,
-            };
+            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
+            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
             let previous = model
                 .shared
-                .get::<QuestLogFrameState>()
-                .and_then(|state| state.details.as_ref())
+                .get::<WorldMapFrameState>()
+                .and_then(|state| state.quest_panel.as_ref())
+                .and_then(|panel| panel.log.details.as_ref())
                 .map(|details| details.quest_id);
-            let selected = next.details.as_ref().map(|details| details.quest_id);
+            let selected = next
+                .quest_panel
+                .as_ref()
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
             if previous != selected {
                 model
                     .registry

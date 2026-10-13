@@ -82,7 +82,7 @@ func run_case(forever: bool, page: String, long_text: bool) -> void:
 		require(count.text == "Quests: 1/35")
 		require(title.text.contains("Wine Shop Advert"))
 	var list: String = {
-		"log": "QuestLogDetailsScrollFrame", "detail": "QuestDetailScrollFrame",
+		"log": "QuestMapDetailsScrollFrame", "detail": "QuestDetailScrollFrame",
 		"progress": "QuestProgressScrollFrame", "reward": "QuestRewardScrollFrame"
 	}[page]
 	var child: String = list.replace("ScrollFrame", "ScrollChildFrame")
