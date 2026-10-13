@@ -12,7 +12,17 @@ Retail Mainline's `LFDMicroButton` opens the native follower-mode `PVEFrame`/`LF
 
 ## Proof boundary
 
-Targeted RED reproduces missing catalog response, default-bridge UDP catalog delivery and unhandled native account catalog; both-skin registry tests reproduce missing controls/selection/match handling. Engine0746dbca5 passes six targeted registry/UDP/account tests and the helper's library checks; server2d62a2dc passes the new catalog loopback and existing companion/LFG tests (22 plus the Mythic Mentor companion test with its required read-only database environment). All three format checks pass. New both-skin live UI proof remains pending. Earlier CLI/first-boss evidence does not establish this new UI or complete dungeon navigation.
+Targeted RED reproduces missing catalog response, default-bridge UDP catalog delivery and unhandled native account catalog; both-skin registry tests reproduce missing controls/selection/match handling. Engine0746dbca5 passes six targeted registry/UDP/account tests and the helper's library checks; server2d62a2dc passes the new catalog loopback and existing companion/LFG tests (22 plus the Mythic Mentor companion test with its required read-only database environment). All three format checks pass. Both-skin native admission proof is bounded below; full dungeon and class/gear acceptance remain open. Earlier CLI/first-boss evidence does not establish this new UI or complete dungeon navigation.
+
+## Both-skin native admission — 2026-10-13
+
+Live engine75d55239a/servera58abcc5/protocol8c6d4a2, matching helper-built extension/CLI/server/admin. Private UDP5761, fresh redb, consistent read-only world snapshot, `fb_follower_dungeons`; Human Mage12 characters30Follmodern/31Follforever, un-geared native stats. Owned Modern/Forever layout files select their skins and expose the existing micro menu.
+
+Actual native JS input opens `LFDMicroButton`, selects follower type, Damage role and Ruby2436, then clicks Find Group. Authoritative replies list the player plus Garrick Tank, Crenna Healer and Shuja/Meredy Damage; all five online and map2521 terrain9/9 loaded. Both runs physically move14m to1400.2/-169.7; all four NPCs follow to1395.3/-169.7. No admin teleport, HP priming or combat buffs were used. This proves admission and bounded follow, not combat/navigation/full-instance completion.
+
+Three inspected1280px PNGs: `/syncthing/AgentShared/2026-10-13/follower-dungeons/{modern-group-finder,forever-group-finder,forever-follower-admission}.png`. Private logs/rosters/terrain/UI/argv/process identities: `/home/osso/.worktrees/follower-dungeons-2026-10-13/{modern,forever}/`. The admission PNG proves UI/roster only: camera/geometry presentation is poor, and two model receipts, one texture receipt plus belt/shoulder Bone[0] bindings remain real world/gear render gaps. Do not promote it to full companion/world pixel proof.
+
+Initial private appearance snapshot lacked current `uses_display_geosets`; refreshing only private SQLite from current authenticated source fixed schema drift without guessed defaults or runtime bypass. The first wait targeted hidden portrait-party frames; the observed active `CompactPartyFrameMember1` corrected the private script. All owned clients/server stopped after captures; no canonical data writes or shared-realm operations. Post-master CPU proof is server22/22 and engine19/19 plus checks/fmt; no full suite.
 
 ## Sources
 
