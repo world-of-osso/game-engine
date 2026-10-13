@@ -75,6 +75,11 @@ fn apply_button_state(
     };
     if let Some(id) = registry.get_by_name(&format!("{name}ButtonHighlight")) {
         registry.set_hidden(id, !hovered);
+        if let Some(WidgetData::Texture(texture)) =
+            registry.get_mut(id).and_then(|f| f.widget_data.as_mut())
+        {
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+        }
     }
     let Some(id) = registry.get_by_name(&format!("{name}ButtonArt")) else {
         return;
@@ -188,14 +193,22 @@ pub fn grid_background(view: &View) -> Element {
         .iter()
         .find(|t| t.id == view.tier)
         .map(|t| t.expansion);
+    // JournalTier.Expansion is an authored ordering value (100..1200; Current Season9000).
     let atlas = match expansion {
-        Some(0) => "UI-EJ-Classic",
-        Some(1) => "UI-EJ-BurningCrusade",
-        Some(2) => "UI-EJ-WrathoftheLichKing",
-        Some(3) => "UI-EJ-Cataclysm",
-        Some(4) => "UI-EJ-MistsofPandaria",
-        Some(5) => "UI-EJ-WarlordsofDraenor",
-        // Later expansion atlas definitions are absent from the pinned atlas catalog.
+        Some(100) => "UI-EJ-Classic",
+        Some(200) => "UI-EJ-BurningCrusade",
+        Some(300) => "UI-EJ-WrathoftheLichKing",
+        Some(400) => "UI-EJ-Cataclysm",
+        Some(500) => "UI-EJ-MistsofPandaria",
+        Some(600) => "UI-EJ-WarlordsofDraenor",
+        Some(700) => "ui-ej-legion",
+        Some(800) => "ui-ej-battleforazeroth",
+        Some(900) => "ui-ej-shadowlands",
+        Some(1000) => "ui-ej-dragonflight",
+        Some(1100) => "ui-ej-thewarwithin",
+        Some(1200) => "ui-ej-midnight",
+        // EJ_ContentTab_Select: no GetEJTierData entry -> evergreenBg.
+        Some(9000) => "activities-background",
         _ => return vec![],
     };
     named_atlas_texture(
@@ -203,6 +216,15 @@ pub fn grid_background(view: &View) -> Element {
         atlas,
         (7., 63., 786., 425.),
     )
+}
+
+/// EJInstanceSelect_UpdateTitle: only Journeys overrides ADVENTURE_JOURNAL.
+pub fn content_title(tab: Tab) -> &'static str {
+    if tab == Tab::Journeys {
+        "Journeys"
+    } else {
+        "Adventure Guide"
+    }
 }
 
 pub fn portrait(view: &View) -> Element {
@@ -221,32 +243,46 @@ pub fn navigation(view: &View) -> Element {
         "0,1,0.1875,0.25390625",
         (0., 0., 500., 34.),
     );
+    let home_width = (navigation_text_width("Home") + 50.).min(128.);
     children.extend(nav_link(
         "EncounterJournalBack",
-        "Adventure Guide",
+        "Home",
         "journal:back",
-        (0., 2., 128., 30.),
+        (0., 2., home_width, 30.),
         true,
     ));
     if let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) {
+        let instance_left = home_width - 15.;
+        let instance_width = navigation_text_width(&instance.name) + 53.;
         children.extend(nav_link(
             "EncounterJournalNavInstance",
             &instance.name,
             &format!("journal:instance:{}", instance.id),
-            (113., 2., 180., 30.),
+            (instance_left, 2., instance_width, 30.),
             false,
         ));
         if let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) {
+            let left = instance_left + instance_width;
+            let width = (navigation_text_width(&encounter.name) + 53.).min(500. - left);
             children.extend(nav_link(
                 "EncounterJournalNavEncounter",
                 &encounter.name,
                 &format!("journal:encounter:{}", encounter.id),
-                (293., 2., 186., 30.),
+                (left, 2., width, 30.),
                 false,
             ));
         }
     }
     rsx! {r#frame {name:"EncounterJournalNavBar",left:61.0,top:22.0,width:500.0,height:34.0,pos_type:"absolute",{children}}}
+}
+fn navigation_text_width(value: &str) -> f32 {
+    ui_toolkit::text_measure::measure_text(
+        value,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.,
+    )
+    .expect("Retail navigation font is loaded")
+    .0
 }
 fn nav_link(
     name: &str,
@@ -348,8 +384,8 @@ fn bottom_tab(
     parts.extend(label(
         format!("{name}Text"),
         title,
-        (0., 3., width, 24.),
-        (12., color, "CENTER"),
+        (0., 9., width, 10.),
+        (10., color, "CENTER"),
     ));
     let action = format!("journal:tab:{action}");
     rsx! {button {name:{DynName(name)},left,top:494.0,width,height:32.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
@@ -405,6 +441,22 @@ pub fn boss_row(view: &View, encounter: &Encounter, index: usize) -> Element {
     let top = 10. + index as f32 * 70.;
     let action = format!("journal:encounter:{}", encounter.id);
     rsx! {button {name:{DynName(name)},left:0.0,top,width:325.0,height:55.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
+}
+
+pub fn instance_button(instance: &Instance) -> Element {
+    let mut parts = cropped(
+        "EncounterJournalInstanceButtonIcon".into(),
+        instance.button,
+        "0,0.68359375,0,0.7421875",
+        (12., 10.5, 40., 40.),
+    );
+    parts.extend(art(
+        "EncounterJournalInstanceButtonRing".into(),
+        Art::InstanceRing,
+        (0., 0., 64., 61.),
+    ));
+    let action = format!("journal:instance:{}", instance.id);
+    rsx! {button {name:"EncounterJournalInstanceButton",left:7.0,top:67.0,width:64.0,height:61.0,pos_type:"absolute",onclick:{action.as_str()},button_default_skin:false,{parts}}}
 }
 
 pub fn instance_lore(instance: &Instance) -> Element {

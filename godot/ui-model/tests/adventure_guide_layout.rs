@@ -67,6 +67,10 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
         assert_eq!(rect(&grid, "EncounterJournalNavBar"), [61., 22., 500., 34.]);
         // InstanceSelect.ScrollBox TOPLEFT(14,-50),748×367 relative to Inset+0,-2.
         assert_eq!(
+            rect(&grid, "EncounterJournalContentScrollBar"),
+            [778., 118., 8., 365.]
+        );
+        assert_eq!(
             rect(&grid, "EncounterJournalContent"),
             [18., 112., 748., 367.]
         );
@@ -129,6 +133,10 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             rect(&instance, "EncounterJournalBosses"),
             [32., 106., 338., 382.]
         );
+        assert_eq!(
+            rect(&instance, "EncounterJournalBossesScrollBar"),
+            [375., 111., 8., 372.]
+        );
         // InstanceFrame390×425; lore390×330 at TOP(3,-9); title320×35 at TOP(0,-48).
         assert_eq!(
             rect(&instance, "EncounterJournalInstanceLoreArt"),
@@ -151,6 +159,54 @@ fn adventure_guide_frame_geometry_matches_retail_xml_in_both_skins() {
             assert_eq!(
                 rect(&model, &format!("EncounterJournalPage{page}")),
                 [780., y, 63., 57.]
+            );
+        }
+    }
+}
+
+#[test]
+fn adventure_guide_tier_backgrounds_use_the_real_catalog_ordering_and_atlas_sheets() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    let catalog = Arc::new(Catalog::load(&root.join("cache/adventure_guide.sqlite")).unwrap());
+    let tiers = [
+        (68, 2175177),
+        (70, 2175177),
+        (72, 2175180),
+        (73, 2175180),
+        (74, 2175183),
+        (124, 2175183),
+        (395, 2175186),
+        (396, 2175186),
+        (499, 2175186),
+        (503, 2175186),
+        (514, 6022839),
+        (516, 6022839),
+        (505, 4499236),
+    ];
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (tier, sheet) in tiers {
+            let view = View {
+                visible: true,
+                catalog: catalog.clone(),
+                tier,
+                ..Default::default()
+            };
+            let grid = render(&view, skin);
+            let frame = grid
+                .get(
+                    grid.get_by_name("EncounterJournalInstanceSelectBackground")
+                        .expect("Retail background"),
+                )
+                .unwrap();
+            assert!(
+                matches!(&frame.widget_data,Some(WidgetData::Texture(texture)) if texture.source==TextureSource::FileDataId(sheet)),
+                "tier{tier}, {skin:?}: {:?}",
+                frame.widget_data
+            );
+            assert_eq!(
+                rect(&grid, "EncounterJournalInstanceSelectBackground"),
+                [7., 63., 786., 425.]
             );
         }
     }

@@ -9,8 +9,9 @@ use ui_toolkit::{
     screen::{Screen, SharedContext},
 };
 fn journal() -> View {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../data/cache/adventure_guide.sqlite");
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    let path = root.join("cache/adventure_guide.sqlite");
     View {
         catalog: Arc::new(
             Catalog::load(&path).expect("Import pinned local journal cache before testing"),

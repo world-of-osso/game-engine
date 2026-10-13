@@ -584,7 +584,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     let mut body = portrait_border(
         "EncounterJournal",
         (800., 496.),
-        "Adventure Guide",
+        crate::adventure_guide_art::content_title(view.tab),
         "journal:close",
     );
     body.extend(crate::adventure_guide_art::portrait(view));
@@ -760,17 +760,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         Art::LeftHeader,
         (7., 75., 386., 39.),
     ));
-    out.extend(crate::bank_art::cropped(
-        "EncounterJournalInstanceButtonIcon".into(),
-        instance.button,
-        "0,0.68359375,0,0.7421875",
-        (19., 77.5, 40., 40.),
-    ));
-    out.extend(art(
-        "EncounterJournalInstanceButtonRing".into(),
-        Art::InstanceRing,
-        (7., 67., 64., 61.),
-    ));
+    out.extend(crate::adventure_guide_art::instance_button(instance));
     out.extend(label(
         "EncounterJournalLeftTitle".into(),
         &instance.name,
@@ -1420,21 +1410,31 @@ pub(crate) fn scroll_in(
     list: &'static str,
 ) -> Element {
     let (left, top, width, height) = rect;
-    let geometry = pixel_geometry(height, content_height, height);
+    // XML InstanceSelect.ScrollBar +12,-6 / +12,-4; BossesScrollBar +5,-5 / +5,+5.
+    let (bar_left, bar_top, bar_height, child_width) = if list == "EncounterJournalBosses" {
+        (left + width + 5., top + 5., height - 10., width)
+    } else if list == LIST && width == 748. {
+        (left + width + 12., top + 6., height - 2., width)
+    } else {
+        (left + width - 14., top, height, width - 18.)
+    };
+    let geometry = pixel_geometry(height, content_height, bar_height);
     let offset = geometry.clamp(ctx.scroll_first_row(list));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
     let bar = MinimalScrollBar {
         list,
-        left: width - 14.,
-        top: 0.,
-        height,
+        left: bar_left,
+        top: bar_top,
+        height: bar_height,
         geometry,
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
-    let child_width = width - 18.0;
     let list_name = DynName(list.into());
     let child_name = DynName(format!("{list}Child"));
-    rsx! {r#frame {name:{list_name},left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,r#frame {name:{child_name},left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}{bar.element()}}}
+    let mut out = rsx! {r#frame {name:{list_name},left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,
+    r#frame {name:{child_name},left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}}};
+    out.extend(bar.element());
+    out
 }
