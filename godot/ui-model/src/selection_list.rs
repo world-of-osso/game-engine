@@ -249,11 +249,26 @@ pub const AUTHORED: RowTemplate = RowTemplate {
     selected: None,
 };
 
-const TEMPLATES: [&RowTemplate; 14] = [
+/// PVPUI.xml:647/730 casual/rated activity selected and hover art (ADD, all points).
+/// Normal/pushed art is on the button, not a static normal child.
+pub const PVP_RATED_ACTIVITY: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(fill(Art::Atlas("pvpqueue-button-highlight"), true)),
+    selected: Some(fill(Art::Atlas("pvpqueue-button-selected"), true)),
+};
+pub const PVP_CASUAL_ACTIVITY: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(fill(Art::Atlas("pvpqueue-button-casual-highlight"), true)),
+    selected: Some(fill(Art::Atlas("pvpqueue-button-casual-selected"), true)),
+};
+
+const TEMPLATES: [&RowTemplate; 16] = [
     &SEARCH,
     &RAID_INSTANCE,
     &PVP_INSTANCE,
     &PVP_CATEGORY,
+    &PVP_RATED_ACTIVITY,
+    &PVP_CASUAL_ACTIVITY,
     &MENU,
     &AUCTION_ROW,
     &AUCTION_CATEGORY,
