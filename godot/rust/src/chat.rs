@@ -353,11 +353,13 @@ impl crate::GameClient {
             return Ok(());
         }
         self.attach_chat_ui()?;
+        // The full-screen Trading Post hides UIParent, chat included.
+        let shown = !self.trading_post.view.visible;
         self.chat
             .ui
             .as_mut()
             .expect("chat UI attached")
-            .set_visible(true);
+            .set_visible(shown);
         self.absorb_combat_log();
         self.apply_chat_clicks()?;
         if self.chat.model.state.input_open {

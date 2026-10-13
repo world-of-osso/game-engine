@@ -102,33 +102,56 @@ def census(links, mounts, displays, models, assets, receipts, failures):
             'distinct_models': len({row['model_fdid'] for row in rows} - {0}), 'display_links': rows}
 
 
+def seed_mounts(graph, catalogs):
+    links = catalogs.rows('MountXDisplay')
+    mounts = catalogs.index('Mount')
+    displays, models = catalogs.index('CreatureDisplayInfo'), catalogs.index('CreatureModelData')
+    seed_displays(graph, catalogs, [int(row['CreatureDisplayInfoID']) for row in links])
+    return lambda assets, receipts, failures: census(links, mounts, displays, models, assets, receipts, failures)
+
+
 def stage(data, package, install, extract):
+    return stage_closure(data, package, install, extract, seed_mounts,
+                         'every MountXDisplay row, all alternative displays; pinned Retail 69933',
+                         'model-asset-index-mount-model-assets-20261012.json')
+
+
+def read_existing(data, packages):
+    """Receipts already published in data, or staged by other unpublished packages."""
+    existing = {}
+    for root in [data, *packages]:
+        names = index_hashes(data) if root == data else sorted(path.name for path in (root / 'cache').glob('model-asset-index-*.json'))
+        for name in names:
+            for receipt in json.loads((root / 'cache' / name).read_text())['assets']:
+                if receipt['product'] == 'wow':
+                    existing[receipt['fdid'], receipt['kind']] = (receipt, root)
+    return existing
+
+
+def stage_closure(data, package, install, extract, seed, scope, fragment_name, packages=()):
+    """`seed(graph, catalogs)` adds roots and returns `summarize(assets, receipts, failures)`."""
     package.mkdir(parents=True, exist_ok=True)
     proof = package / '_proof'
     proof.mkdir(exist_ok=True)
     before_hashes = index_hashes(data)
     (proof / 'before-index-hashes.json').write_text(json.dumps(before_hashes, indent=2))
-    existing = {}
-    for name in before_hashes:
-        for receipt in json.loads((data / 'cache' / name).read_text())['assets']:
-            if receipt['product'] == 'wow':
-                existing[receipt['fdid'], receipt['kind']] = receipt
+    existing = read_existing(data, packages)
     identity, roots = authenticate_install(install)
     (proof / 'source-identity.json').write_text(json.dumps(identity, indent=2))
     paths, runtime_paths = audit.read_listfile(data / 'community-listfile.csv')
     verified, new, failures, checked = {}, {}, {}, {}
 
-    class MountClosure(audit.Closure):
+    class AuthenticatedClosure(audit.Closure):
         def inspect(self, asset):
             key = asset['fdid'], asset['type']
             if key in checked:
                 path = checked[key]
             else:
                 path = None
-                receipt = existing.get(key)
+                receipt, receipt_root = existing.get(key, (None, None))
                 candidates = [package / r['path'] for r in [new[key]] if key in new] if key in new else []
                 if receipt:
-                    candidates.append(data / receipt['path'])
+                    candidates.append(receipt_root / receipt['path'])
                 candidates.extend(data / name for name in sorted(asset['locations']))
                 expected = roots.get(key[0])
                 for candidate in candidates:
@@ -163,16 +186,12 @@ def stage(data, package, install, extract):
             asset['actual_build'] = BUILD_KEY if path else None
             return path
 
-    graph = MountClosure(data, paths, 'wow', BUILD, runtime_paths=runtime_paths)
-    graph.seeds = {'scope': 'every MountXDisplay row, all alternative displays; pinned Retail 69933'}
-    catalogs = Catalogs(graph)
-    links = catalogs.rows('MountXDisplay')
-    mounts = catalogs.index('Mount')
-    displays, models = catalogs.index('CreatureDisplayInfo'), catalogs.index('CreatureModelData')
-    seed_displays(graph, catalogs, [int(row['CreatureDisplayInfoID']) for row in links])
+    graph = AuthenticatedClosure(data, paths, 'wow', BUILD, runtime_paths=runtime_paths)
+    graph.seeds = {'scope': scope}
+    summarize = seed(graph, Catalogs(graph))
     graph.run()
     before_receipts = {key: receipt for key, receipt in verified.items() if key in existing}
-    initial = census(links, mounts, displays, models, graph.assets, before_receipts, failures)
+    initial = summarize(graph.assets, before_receipts, failures)
     (proof / 'census-before.json').write_text(json.dumps(initial, indent=2))
     print('BEFORE', {key: value for key, value in initial.items() if key != 'display_links'}, flush=True)
     for roundno in range(1, 16):
@@ -211,7 +230,7 @@ def stage(data, package, install, extract):
             print('EXTRACT', roundno, offset, 'new', len(new), 'failures', len(failures), flush=True)
         graph.run()
     else:
-        raise ValueError('mount closure failed to converge')
+        raise ValueError('asset closure failed to converge')
     final_graph = graph.run()
     final_graph['summary']['unverified_identity'] = sum(asset['identity_status'] != 'authenticated_local_root' for asset in final_graph['assets'])
     aliases = []
@@ -219,13 +238,13 @@ def stage(data, package, install, extract):
         receipt = verified.get(key)
         if not receipt:
             continue
-        source = package / receipt['path'] if key in new else data / receipt['path']
+        source = package / receipt['path'] if key in new else existing[key][1] / receipt['path']
         for location in sorted(asset['locations']):
             if location == f'{"textures" if key[1] == "blp" else "models"}/{key[0]}.{key[1]}':
                 continue
             alias = {**receipt, 'path': f'products/wow/{BUILD_KEY}/{location}'}
-            target = data / alias['path']
-            if target.exists():
+            target = next((root / alias['path'] for root in [data, *packages] if (root / alias['path']).exists()), None)
+            if target:
                 if sha(target) != receipt['sha256']:
                     raise ValueError(f'alias conflicts: {target}')
             else:
@@ -249,8 +268,8 @@ def stage(data, package, install, extract):
                 'chains': [{**identity, 'scope': graph.seeds, 'metadata': list(graph.inputs.values())}]}
     cache = package / 'cache'
     cache.mkdir(exist_ok=True)
-    (cache / 'model-asset-index-mount-model-assets-20261012.json').write_text(json.dumps(fragment, indent=2) + '\n')
-    final = census(links, mounts, displays, models, graph.assets, verified, failures)
+    (cache / fragment_name).write_text(json.dumps(fragment, indent=2) + '\n')
+    final = summarize(graph.assets, verified, failures)
     (proof / 'census-after.json').write_text(json.dumps(final, indent=2))
     (proof / 'asset-graph.json').write_text(json.dumps(final_graph, indent=2))
     (proof / 'failures.json').write_text(json.dumps([{'fdid': key[0], 'kind': key[1], 'reason': reason} for key, reason in sorted(failures.items())], indent=2))
