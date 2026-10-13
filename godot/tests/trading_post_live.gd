@@ -16,7 +16,7 @@ func _initialize() -> void:
 func run_fixture() -> void:
 	root.size = Vector2i(1280, 720)
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5731" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["browse", "relog"]:
+	if server != "127.0.0.1:5731" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["browse", "relog", "purchase", "refund"]:
 		fail("Explicit private 127.0.0.1:5731, fb_* account, phase and evidence paths required")
 		return
 	client = load("res://scenes/client.tscn").instantiate()
@@ -35,10 +35,11 @@ func run_fixture() -> void:
 	await wait_frames(120)
 	if not await travelers_log(): return
 	if not await open_vendor(): return
-	if phase == "relog":
-		await relog_checks()
-	else:
-		await browse()
+	match phase:
+		"relog": await relog_checks()
+		"purchase": await purchase_each_collection()
+		"refund": await refund_after_relog()
+		_: await browse()
 
 func browse() -> void:
 	var state: Dictionary = client.trading_post_state()
@@ -96,6 +97,83 @@ func relog_checks() -> void:
 	await capture("relog-vendor")
 	finish("relog")
 
+# Vendor category, label and the client collection receipt each purchase must change.
+const PURCHASES := [[1, "transmog", "appearance"], [2, "mount", "mounts"], [3, "pet", "pets"], [5, "toy", "toys"]]
+
+func purchase_each_collection() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if tender < 2000: fail("Admin Tender setup missing: %d" % tender); return
+	var bought := []
+	for entry in PURCHASES:
+		if not await choose_category(entry[0]): return
+		if not await select_first_available(tender): return
+		var state: Dictionary = client.trading_post_state()
+		if state.purchased or state.collected: fail("Fresh account already owns " + str(state)); return
+		var before := await collection_count(entry[2], int(state.item_id))
+		await click("PerksProgramPurchaseButton")
+		if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, entry[1] + " purchase confirmation"): return
+		if int(client.trading_post_state().tender) != tender: fail("Confirmation debited locally"); return
+		await capture("confirm-" + entry[1])
+		await click("PerksProgramConfirmButton")
+		var price := int(state.price)
+		if not await wait_until(func(): return client.trading_post_state().purchased and client.trading_post_state().collected and int(client.trading_post_state().tender) == tender - price, entry[1] + " authoritative purchase"): return
+		if not await wait_until_count(entry[2], int(state.item_id), before + 1, entry[1] + " client collection receipt"): return
+		if int(client.trading_post_state().refund_seconds) <= 0 or not control_enabled("PerksProgramRefundButton"): fail("Admin refund window not offered"); return
+		tender -= price
+		await capture("purchased-" + entry[1])
+		bought.append({"category": entry[0], "kind": entry[2], "vendor": int(state.selected), "item_id": int(state.item_id), "price": price, "count": before + 1})
+	var file := FileAccess.open(receipts.path_join(skin + "-purchases.json"), FileAccess.WRITE)
+	file.store_string(JSON.stringify({"tender": tender, "bought": bought}, "\t"))
+	file.close()
+	finish("purchased")
+
+func refund_after_relog() -> void:
+	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(receipts.path_join(skin + "-purchases.json")))
+	var tender := int(client.trading_post_state().tender)
+	if tender != int(saved.tender): fail("Tender changed across relog: %d != %d" % [tender, int(saved.tender)]); return
+	for row in saved.bought:
+		if not await choose_category(int(row.category)): return
+		await click("PerksProgramProduct%d" % int(row.vendor))
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == int(row.vendor), "select purchased row"): return
+		var state: Dictionary = client.trading_post_state()
+		if not state.purchased or not state.collected: fail("Purchase/collection lost across relog: " + str(state)); return
+		if not await wait_until_count(row.kind, int(row.item_id), int(row.count), str(row.kind) + " collection after relog"): return
+		await capture("relog-owned-" + str(row.kind))
+		await click("PerksProgramRefundButton")
+		if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "refund confirmation"): return
+		await capture("refund-confirm-" + str(row.kind))
+		await click("PerksProgramConfirmButton")
+		tender += int(row.price)
+		if not await wait_until(func(): return not client.trading_post_state().purchased and not client.trading_post_state().collected and int(client.trading_post_state().tender) == tender, str(row.kind) + " authoritative refund"): return
+		if not await wait_until_count(row.kind, int(row.item_id), int(row.count) - 1, str(row.kind) + " collection revoked"): return
+		await capture("refunded-" + str(row.kind))
+	finish("refunded")
+
+func collection_count(kind: String, item_id: int) -> int:
+	match kind:
+		"mounts": return client.mount_journal_state().collected.size()
+		"toys":
+			for toy in client.toybox_state().learned:
+				if int(toy.item_id) == item_id: return 1
+			return 0
+		"pets":
+			var text := await ipc(["collection", "pets"])
+			return 0 if text.strip_edges().is_empty() else text.strip_edges().split("\n").size()
+	# Appearances: the server computes `collected` from the account appearance store.
+	return 1 if client.trading_post_state().collected else 0
+
+func wait_until_count(kind: String, item_id: int, expected: int, label: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < deadline:
+		if await collection_count(kind, item_id) == expected: return true
+		await wait_frames(30)
+	fail("timeout: %s (expected %d, have %d)" % [label, expected, await collection_count(kind, item_id)])
+	return false
+
+func control_enabled(name: String) -> bool:
+	var node := control(name)
+	return node != null and not (node is BaseButton and node.disabled)
+
 func travelers_log() -> bool:
 	await click("MinimapLauncherButton")
 	if not await wait_until(func(): return control("LauncherEntryEJMicroButton") != null, "Adventure Guide launcher entry"): return false
@@ -122,13 +200,15 @@ func choose_category(id: int) -> bool:
 	await click("PerksProgramCategory%d" % id)
 	return await wait_until(func(): return int(client.trading_post_state().category) == id, "category %d" % id)
 
-func select_first_available() -> bool:
+# First listed row with a bound grant (and, given `budget`, a price within it).
+func select_first_available(budget: int = -1) -> bool:
 	for row in client.trading_post_state().rows:
 		var parts: PackedStringArray = row.split("|")
-		if parts[1] == "1":
-			await click("PerksProgramProduct" + parts[0])
-			return await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0])
-	fail("No available row in category %d" % int(client.trading_post_state().category))
+		if parts[1] != "1": continue
+		await click("PerksProgramProduct" + parts[0])
+		if not await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0]): return false
+		if budget < 0 or int(client.trading_post_state().price) <= budget: return true
+	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
 
 func rotate_model() -> bool:

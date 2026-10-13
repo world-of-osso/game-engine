@@ -41,7 +41,7 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [ ] Monthly featured catalog/seasonal reward calendar binding; no verified epoch.
 - [ ] Refund duration; server-provided remaining time is documented but no duration sourced.
 - [ ] Unknown PerksVendorItem fields and one unreadable vendor category; never infer semantics.
-- [ ] Live purchase/collection/refund proof: none of the 22 server-supported Traveler's Log activities has reachable content on the private world, so a fresh fb_ account cannot earn Tender through gameplay; spawning unsourced creatures or granting Tender needs a lead decision. Purchase, atomic collection grants, relog and bounded refund are proven by server behavioural tests only.
+- [x] Live purchase/collection/relog/refund proof in both skins; Tender comes from the server admin-socket test grant because no supported activity has reachable private-world content (lead decision October12).
 - [ ] Preview asset publication: the staged package raises complete authenticated chains from 167 to 1287 of 1309 previewable rows (transmog 60→910/911, mounts 98/98, pets 3→51/52, sets 6→228/248): 43,275 artifacts, 1.87 GB, zero extraction failures. Lead publishes it with `apply_mount_model_assets.py`. The other 22 rows have no sourced preview display (unreadable item or set metadata).
 - [ ] Single-item ranged weapon previews (e.g. Battlefield Lover's Bow) are applied to the player's ranged slot but not clearly visible beside equipped melee weapons; Retail model-scene weapon framing is not reproduced.
 - [ ] Rows whose ItemSparse/Item metadata is unreadable locally (e.g. vendor item for item235674) stay listed as unavailable with no name/icon.
