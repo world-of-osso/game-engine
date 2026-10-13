@@ -631,39 +631,98 @@ fn effectiveness_badge(attack: u8, defender: u8) -> Option<u32> {
     }
 }
 fn swap_panel(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
-    let mut out = Vec::new();
-    if state.initial_selection_required {
-        out.extend(label(
-            "PetBattleSelectPetInstruction".into(),
-            "Select a pet!",
-            (
-                view.viewport[0] / 2.0 - 285.0,
-                view.viewport[1] - 245.0,
-                570.0,
-                28.0,
-            ),
-            (18.0, WHITE, "CENTER"),
+    // PetSelectionFrame BOTTOM at BottomFrame TOP+20; Lua587 width(192+10)*count+30.
+    let width = 202.0 * state.teams[0].len() as f32 + 30.0;
+    let left = view.viewport[0] / 2.0 - width / 2.0 + 20.0;
+    let top = view.viewport[1] - 100.0 - 20.0 - 200.0;
+    state.teams[0]
+        .iter()
+        .enumerate()
+        .flat_map(|(index, pet)| {
+            let selected = index == usize::from(state.active[0]);
+            let enabled =
+                pet.health > 0 && (state.initial_selection_required || !selected) && !view.pending;
+            selection_button(
+                index,
+                pet,
+                enabled,
+                selected,
+                (left + index as f32 * 202.0, top),
+            )
+        })
+        .collect()
+}
+fn selection_button(
+    index: usize,
+    pet: &BattlePetSnapshot,
+    enabled: bool,
+    selected: bool,
+    (left, top): (f32, f32),
+) -> Element {
+    let name = format!("PetBattleSwapPet{}", index + 1);
+    let action = format!("pb:swap:{}", index + 1);
+    let mut contents = cropped(
+        format!("{name}Framing"),
+        HUD_TEXTURE,
+        "0.37402344,0.56152344,0.55273438,0.72070313",
+        (0.0, 114.0, 192.0, 86.0),
+    );
+    contents.extend(selection_information(&name, pet));
+    // Source species model host; native actor/camera population is a separate rendering boundary.
+    contents.extend(rsx! { r#frame { name: {DynName(format!("{name}ModelScene"))}, width: 250.0, height: 210.0, left: -40.0, top: -20.0, pos_type: "absolute", mouse_enabled: false, frame_level: 0,
+        texture { name: {DynName(format!("{name}Shadow"))}, texture_fdid: HUD_TEXTURE, tex_coords: "0.77734375,0.87792969,0.67382813,0.87695313", width: 330.0, height: 290.0, left: -40.0, top: -40.0, pos_type: "absolute", alpha: "0.8", draw_layer: "BACKGROUND" }
+    } });
+    if pet.health == 0 {
+        contents.extend(rsx! { r#frame { name: {DynName(format!("{name}DeadOverlay"))}, width: 171.0, height: 42.0, left: {11.5}, top: 151.0, pos_type: "absolute", background_color: "0,0,0,0.5", draw_layer: "OVERLAY" } });
+        contents.extend(texture(
+            format!("{name}BorderDead"),
+            629739,
+            (17.5, 156.5, 32.0, 32.0),
+            WHITE,
         ));
     }
-    for (index, pet) in state.teams[0].iter().enumerate() {
-        let enabled = pet.health > 0
-            && (state.initial_selection_required || index != usize::from(state.active[0]))
-            && !view.pending;
-        out.extend(panel_button(
-            format!("PetBattleSwapPet{}", index + 1),
-            &format!("{} {} / {}", pet.name, pet.health, pet.max_health),
-            &format!("pb:swap:{}", index + 1),
-            enabled,
-            (
-                view.viewport[0] / 2.0 - 285.0 + index as f32 * 192.0,
-                view.viewport[1] - 215.0,
-                182.0,
-                80.0,
-            ),
-        ));
-    }
+    crate::selection_list::row(
+        name,
+        &action,
+        enabled,
+        (left, top, 192.0, 200.0),
+        (&crate::selection_list::PET_BATTLE_SELECTION, selected),
+        contents,
+    )
+}
+
+fn selection_information(name: &str, pet: &BattlePetSnapshot) -> Element {
+    // PetSelectionButton XML Icon BOTTOMLEFT(19,13); bar at Icon BOTTOMRIGHT; name TOPRIGHT(0,-3).
+    let mut out = rsx! { texture { name: {DynName(format!("{name}Icon"))}, texture_fdid: {pet.icon}, tex_coords: "1,0,0,1", width: 29.0, height: 29.0, left: 19.0, top: 158.0, pos_type: "absolute" }
+        r#frame { name: {DynName(format!("{name}HealthBarBG"))}, width: 128.0, height: 10.0, left: 48.0, top: 177.0, pos_type: "absolute", background_color: "0,0,0,1" }
+        r#frame { name: {DynName(format!("{name}HealthDivider"))}, width: 128.0, height: 2.0, left: 48.0, top: 175.0, pos_type: "absolute", background_color: "0.25,0.25,0.25,1", draw_layer: "OVERLAY" }
+        fontstring { name: {DynName(format!("{name}Name"))}, text: {pet.name.as_str()}, width: 130.0, height: 12.0, left: 48.0, top: 161.0, pos_type: "absolute", font_size: 10.0, font_color: "1,0.82,0,1", shadow_color: "0,0,0,1", shadow_offset: "1,-1" }
+        fontstring { name: {DynName(format!("{name}Level"))}, text: {pet.level.to_string()}, width: 29.0, height: 14.0, left: 17.0, top: 175.0, pos_type: "absolute", font: ui_toolkit::widgets::font_string::GameFont::ArialNarrow, font_size: 14.0, font_color: "1,0.82,0,1", outline: "NORMAL", justify_h: "CENTER" }
+    };
+    let health_width = 128.0 * pet.health.max(0) as f32 / pet.max_health as f32;
+    out.extend(texture(
+        format!("{name}ActualHealthBar"),
+        423821,
+        (48.0, 177.0, health_width, 10.0),
+        "0,1,0,1",
+    ));
+    let health = format!("{} / {}", pet.health, pet.max_health);
+    let text_width = ui_toolkit::text_measure::measure_text(
+        &health,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        10.0,
+    )
+    .expect("pet health font loaded")
+    .0;
+    out.extend(label(
+        format!("{name}HealthText"),
+        &health,
+        (112.0 - text_width / 2.0, 176.0, text_width, 10.0),
+        (10.0, WHITE, "LEFT"),
+    ));
     out
 }
+
 fn forfeit_popup(width: f32, height: f32) -> Element {
     let mut out = label(
         "PetBattleForfeitPrompt".into(),
