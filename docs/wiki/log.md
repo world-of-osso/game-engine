@@ -2,6 +2,13 @@
 
 [Adventure Guide](systems/adventure-guide.md#october-13-navigation-lifetime-proof): encounter links clear stale search/menus; Trading Post Log navigates without closing an already-visible Guide; real ENCOUNTER_START follows source difficulty without auto-opening a closed window. Targeted17/native build/check/fmt pass; nine inspected both-skin private5771 PNGs. Journeys backing, complete model closure/Ozruk effect planes and RPE activation remain open.
 
+## 2026-10-13 — Unrated six-round Shuffle proof
+
+[Native arenas](systems/arenas.md#unrated-solo-shuffle--verified-2026-10-13): both skins complete six real first-kill rounds and all-six returns; source-role admission/spec lock, four-map rotations/gate resets, item cast-time panic and category-isolation RED/GREEN proof. Explicit unrated realm policy and delayed peer snapshot/wall-clock harness boundaries retained; rating/MMR, dampening and named source gaps unchanged.
+
+## 2026-10-13 — Arena announcer and shared reconnect proof
+
+[Native arenas](systems/arenas.md#cage-announcer-audio--active-2026-10-12): female BroadcastText overrides select authentic Naminze voice kits; both-skin source-trigger/native stream playback and real two-kill/all-player return proof, with audible-host boundary explicit. [Reconnect](systems/arenas.md#pvp-reconnect--verified-2026-10-13): real UDP/new native process restores a surviving match; durable missing-match/expiry and shared Warsong tests pass. Native warning-exit capacity error reproduced and fixed at reserved-copy lookup;32-case map/skin recaptures completed, with the original null-snapshot readiness failure retained.
 ## 2026-10-13 — Pending owned-placement storage implementation
 
 [Housing](systems/housing.md#basic-selected-target-storage-visibility): StartPlacingNewDecor routes the same source selected-target event. Registry/native RED reproduced retained drawer with actual paid2330 pending placement; same presentation now hides it. Both-skin native actual paid2330 click→placing+hidden→Cancel/retainedTesla/exactconservation GREEN, plus selected/collapsed regression. Registry19/nativecheck0warnings/fmt pass; four inspected1280 new-placement PNGs public. No preview-mesh/mouse-up-commit claim.
