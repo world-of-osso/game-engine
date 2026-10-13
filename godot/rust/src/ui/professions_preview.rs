@@ -23,7 +23,12 @@ impl RegistryUi {
         self.show_professions_preview_skin(ActiveSkin::Forever)
     }
     #[func]
-    fn show_customer_orders_preview(&mut self, forever: bool, duration: bool) -> GString {
+    fn show_customer_orders_preview(
+        &mut self,
+        forever: bool,
+        duration: bool,
+        personal: bool,
+    ) -> GString {
         let skin = if forever {
             ActiveSkin::Forever
         } else {
@@ -32,7 +37,12 @@ impl RegistryUi {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
             self.set_ui_scale(1.0)?;
-            self.show_professions(customer_orders_view(duration))
+            let mut view = customer_orders_view(duration);
+            if personal {
+                view.orders.kind = shared::protocol::CraftingOrderKind::Personal;
+                view.orders.menu = None;
+            }
+            self.show_professions(view)
         });
         if result.is_ok() {
             crate::unit_portraits::attach_customer_orders_preview(self.to_gd());

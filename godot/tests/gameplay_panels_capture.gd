@@ -10,13 +10,13 @@ func capture() -> void:
 		quit(1)
 		return
 	for skin in ["modern", "forever"]:
-		var pages := ["recipient", "duration"] if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ["meter", "tracking", "transmog", "difficulty"]
+		var pages := ["recipient", "duration", "personal"] if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ["meter", "tracking", "transmog", "difficulty"]
 		if not OS.get_environment("GAMEPLAY_PAGE").is_empty():
 			pages = [OS.get_environment("GAMEPLAY_PAGE")]
 		for page in pages:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
-			var error = ui.call("show_customer_orders_preview", skin == "forever", page == "duration") if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ui.call("show_gameplay_panels_preview", skin == "forever", page)
+			var error = ui.call("show_customer_orders_preview", skin == "forever", page == "duration", page == "personal") if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ui.call("show_gameplay_panels_preview", skin == "forever", page)
 			if error != "":
 				push_error(error)
 				quit(1)
