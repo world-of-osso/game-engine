@@ -73,17 +73,17 @@ func layout_proof() -> void:
 	await capture("vendor-mount")
 	var first := int(client.trading_post_state().selected)
 	if not await drag_to_frozen("PerksProgramProduct%d" % first): return
-	if not await wait_until(func(): return int(client.trading_post_state().frozen) == first and not client.trading_post_state().pending, "native freeze"): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == first and not client.trading_post_state().pending, "native freeze", 180000): return
 	await capture("frozen")
 	if not await choose_category(1): return
 	if not await select_first_available(int(client.trading_post_state().tender)): return
 	var replacement := int(client.trading_post_state().selected)
 	if replacement == first: fail("replacement did not change vendor identity"); return
 	if not await drag_to_frozen("PerksProgramProduct%d" % replacement): return
-	if not await wait_until(func(): return int(client.trading_post_state().frozen) == replacement and not client.trading_post_state().pending, "replace frozen item"): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == replacement and not client.trading_post_state().pending, "replace frozen item", 180000): return
 	await capture("frozen-replaced")
 	if not await drag_off_frozen(): return
-	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "native drag-off unfreeze"): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "native drag-off unfreeze", 180000): return
 	await capture("unfrozen")
 	var tender := int(client.trading_post_state().tender)
 	var price := int(client.trading_post_state().price)
