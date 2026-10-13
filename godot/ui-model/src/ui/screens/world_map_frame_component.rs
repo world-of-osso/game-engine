@@ -7,7 +7,6 @@
 //! returns. The host owns navigation and supplies data in [`WorldMapFrameState`];
 //! positions on the canvas are normalized map UVs.
 
-use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -72,8 +71,7 @@ const SCREEN_BORDER: f32 = 30.0;
 /// (Blizzard_UIParentPanelManager/Shared/UIPanelLayoutFrame.lua:3-4).
 pub const PANEL_SLOT: [f32; 2] = [16.0, 116.0];
 /// NavBar TOPLEFT on the spacer: +64 windowed, +8 maximized, y -25 (Blizzard_WorldMap.lua:44,59);
-/// BOTTOMRIGHT y +9 and x `NAVBAR_X_OFFSET` (Blizzard_WorldMap.lua:316; Retail -4,
-/// Forever Camelot/Blizzard_WorldMapConstants.lua:3 -50).
+/// BOTTOMRIGHT y +9 and x `NAVBAR_X_OFFSET` -4 (Blizzard_WorldMap.lua:316).
 const NAV_LEFT_WINDOWED: f32 = 64.0;
 const NAV_LEFT_MAXIMIZED: f32 = 8.0;
 const NAV_TOP: f32 = 25.0;
