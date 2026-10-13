@@ -13,7 +13,7 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
         .frames_iter()
         .filter_map(|frame| {
             let name = frame.name.as_deref()?;
-            let owner = registry.get(frame.parent?)?;
+            let owner = registry.get(frame.parent_id?)?;
             let Some(WidgetData::Button(button)) = &owner.widget_data else {
                 return None;
             };
