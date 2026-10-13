@@ -52,7 +52,7 @@ def source_candidates(repos, tables):
                for t, d in tables.items()}
     result = []
     for repo in repos:
-        for root in ('scripts', 'godot', 'tools', 'src', 'tests'):
+        for root in ('scripts', 'godot', 'tools', 'src', 'crates', 'tests'):
             for path in (repo / root).rglob('*'):
                 if path.suffix not in ('.rs', '.py', '.gd', '.js', '.sql', '.json') or 'target' in path.parts:
                     continue
