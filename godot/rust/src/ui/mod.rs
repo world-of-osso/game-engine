@@ -796,7 +796,9 @@ impl ICanvasLayer for RegistryUi {
                 return;
             }
             Ok(false) => {}
-            Err(error) => godot_error!("Options dropdown input: {error}"),
+            Err(error) => {
+                godot_error!("Options dropdown input: {error}");
+            }
         }
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);

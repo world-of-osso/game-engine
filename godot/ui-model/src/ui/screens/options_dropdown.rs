@@ -66,37 +66,34 @@ pub fn radio_popup(
             .0 + 32.0
         })
         .fold(220.0, f32::max);
-    let mut popup = menu_primitives::context_menu(ContextMenu {
-        frame_name: &format!("OptionsChoicePopup{key}"),
-        title_name: &format!("OptionsChoiceTitle{key}"),
-        divider_name: &format!("OptionsChoiceDivider{key}"),
-        hidden: false,
-        title: label,
-        width,
-        x: position[0],
-        y: position[1],
-        items: &items,
-    });
-    let Some(WidgetChild::Widget(frame)) = popup.first_mut() else {
-        unreachable!("context_menu emits a frame")
-    };
-    for (index, (value, _)) in choices.iter().enumerate() {
-        let replacement = menu_primitives::menu_element(
-            items[index],
-            MenuElementKind::Radio {
-                checked: *value == selected,
-            },
-            true,
-            (8.0, 41.0 + index as f32 * 20.0, width - 16.0, 20.0),
-        );
-        let child = frame.children.iter_mut().find(|child| matches!(child,WidgetChild::Widget(widget) if widget.name.as_deref() == Some(names[index].as_str())))
-            .expect("shared context-menu row exists");
-        *child = replacement
-            .into_iter()
-            .next()
-            .expect("radio element emits a widget");
-    }
-    popup
+    let rows: Element = choices
+        .iter()
+        .enumerate()
+        .flat_map(|(index, (value, _))| {
+            menu_primitives::menu_element(
+                items[index],
+                MenuElementKind::Radio {
+                    checked: *value == selected,
+                },
+                true,
+                (8.0, 41.0 + index as f32 * 20.0, width - 16.0, 20.0),
+            )
+        })
+        .collect();
+    menu_primitives::context_menu_with_rows(
+        ContextMenu {
+            frame_name: &format!("OptionsChoicePopup{key}"),
+            title_name: &format!("OptionsChoiceTitle{key}"),
+            divider_name: &format!("OptionsChoiceDivider{key}"),
+            hidden: false,
+            title: label,
+            width,
+            x: position[0],
+            y: position[1],
+            items: &items,
+        },
+        rows,
+    )
 }
 
 /// Popup children must be attached to OptionsRoot, not clipped by a Settings ScrollBox.
@@ -109,8 +106,10 @@ pub fn detach_popup(elements: &mut Element) -> Element {
             popups.push(elements.remove(index));
             continue;
         }
-        if let WidgetChild::Widget(widget) = &mut elements[index] {
-            popups.extend(detach_popup(&mut widget.children));
+        match &mut elements[index] {
+            WidgetChild::Widget(widget) => popups.extend(detach_popup(&mut widget.children)),
+            WidgetChild::Fragment(children) => popups.extend(detach_popup(children)),
+            WidgetChild::Dynamic => {}
         }
         index += 1;
     }
