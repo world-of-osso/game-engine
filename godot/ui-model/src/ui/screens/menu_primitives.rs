@@ -116,11 +116,11 @@ fn dropdown_art(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element 
                 "common-dropdown-c-button",
                 [-7.0, -7.0, 14.0, 14.0],
             );
-            out.extend(named_atlas_texture(
-                props.arrow_name.into(),
-                "common-dropdown-c-button-hover-arrow",
-                ((props.width - 12.0) / 2.0, props.height, 12.0, 5.0),
-            ));
+            out.extend(rsx! { texture {
+                name: {DynName(props.arrow_name.into())}, texture_atlas: "common-dropdown-c-button-hover-arrow",
+                width: 12.0, height: 5.0, left: {(props.width - 12.0) / 2.0}, top: {props.height},
+                pos_type: "absolute", draw_layer: "HIGHLIGHT",
+            } });
             out
         }
     }
@@ -278,7 +278,7 @@ pub fn menu_element(
         return place_title(item.name, contents, rect);
     }
     let name = DynName(item.name.into());
-    let onclick = item.action;
+    let onclick = if enabled { item.action } else { "" };
     rsx! { button {
         name, width, height, pos_type: "absolute", left: x, top: y, onclick,
         mouse_enabled: enabled, button_default_skin: false,
