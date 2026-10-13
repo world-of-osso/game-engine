@@ -204,6 +204,7 @@ fn companion_loadout_and_card_follow_retail_xml_in_both_skins() {
         let mut state = view();
         state.select(PetRowKey::Owned(1));
         state.journal.battle_slots[0] = Some(1);
+        state.icons.insert(39, 656559); // inv_pet_mechanicalsquirrel.blp, local listfile.
         let mut context = SharedContext::new();
         context.insert(state);
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
