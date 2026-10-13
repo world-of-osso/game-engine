@@ -13,7 +13,7 @@ use crate::asset::read_bytes::read_m2_array_header;
 /// MD20 header offset for ribbon emitter count + offset.
 pub(crate) const MD20_RIBBON_EMITTERS_COUNT_OFFSET: usize = 0x120;
 
-/// Stride of a ribbon emitter entry in the M2 file (legacy layout).
+/// Retail M2Ribbon stride (WebWowViewerCpp M2FileHeader.h).
 const RIBBON_ENTRY_STRIDE: usize = 176;
 
 // Field offsets within a single ribbon emitter entry.
@@ -22,11 +22,12 @@ const RIBBON_BONE_INDEX_OFFSET: usize = 0x04;
 const RIBBON_POSITION_OFFSET: usize = 0x08;
 const RIBBON_TEXTURE_COUNT_OFFSET: usize = 0x14;
 const RIBBON_MATERIAL_COUNT_OFFSET: usize = 0x1C;
-const RIBBON_EDGES_PER_SEC_OFFSET: usize = 0x94;
-const RIBBON_EDGE_LIFETIME_OFFSET: usize = 0x98;
-const RIBBON_GRAVITY_OFFSET: usize = 0x9C;
-const RIBBON_TEXTURE_ROWS_OFFSET: usize = 0xA0;
-const RIBBON_TEXTURE_COLS_OFFSET: usize = 0xA2;
+// Four20-byte M2Tracks follow the two reference arrays, ending at0x74.
+const RIBBON_EDGES_PER_SEC_OFFSET: usize = 0x74;
+const RIBBON_EDGE_LIFETIME_OFFSET: usize = 0x78;
+const RIBBON_GRAVITY_OFFSET: usize = 0x7C;
+const RIBBON_TEXTURE_ROWS_OFFSET: usize = 0x80;
+const RIBBON_TEXTURE_COLS_OFFSET: usize = 0x82;
 
 /// Parsed M2 ribbon emitter definition.
 #[derive(Debug, Clone, PartialEq)]
@@ -34,7 +35,7 @@ pub struct M2RibbonEmitter {
     /// Ribbon emitter ID (used for lookup).
     pub id: u32,
     /// Bone index this ribbon is attached to.
-    pub bone_index: u16,
+    pub bone_index: u32,
     /// Position offset relative to the bone, in WoW coordinates.
     pub position: [f32; 3],
     /// Number of texture references.
@@ -45,7 +46,7 @@ pub struct M2RibbonEmitter {
     pub edges_per_second: f32,
     /// Lifetime of each edge in seconds.
     pub edge_lifetime: f32,
-    /// Gravity applied to ribbon edges.
+    /// Source emission-angle parameter (arcsin gives the angle), not acceleration.
     pub gravity: f32,
     /// Texture tile rows.
     pub texture_rows: u16,
@@ -68,7 +69,7 @@ fn parse_single_ribbon(md20: &[u8], base: usize) -> Option<M2RibbonEmitter> {
         return None;
     }
     let id = read_u32(md20, base + RIBBON_ID_OFFSET).ok()?;
-    let bone_index = read_u16(md20, base + RIBBON_BONE_INDEX_OFFSET).ok()?;
+    let bone_index = read_u32(md20, base + RIBBON_BONE_INDEX_OFFSET).ok()?;
     let px = read_f32(md20, base + RIBBON_POSITION_OFFSET).ok()?;
     let py = read_f32(md20, base + RIBBON_POSITION_OFFSET + 4).ok()?;
     let pz = read_f32(md20, base + RIBBON_POSITION_OFFSET + 8).ok()?;
@@ -213,11 +214,6 @@ mod tests {
         let md20 = vec![0u8; 16]; // too small for header
         let ribbons = parse_ribbon_emitters(&md20);
         assert!(ribbons.is_empty());
-    }
-
-    #[test]
-    fn ribbon_entry_stride_is_176() {
-        assert_eq!(RIBBON_ENTRY_STRIDE, 176);
     }
 
     #[test]
