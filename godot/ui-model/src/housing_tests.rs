@@ -545,15 +545,45 @@ fn housing_search_category_and_selection_follow_catalog_not_starting_quantity() 
     assert_eq!(model.matching(&none).len(), 1);
     assert_eq!(model.visible(&none)[0].name, "Ornate Stonework Fireplace");
     model.set_category(Some(2), &none);
-    assert!(model.visible(&none).is_empty());
-    assert!(model.selected(&none).is_none());
-    model.set_search(String::new(), &none);
+    assert_eq!(model.search, "");
+    assert_eq!(model.visible(&none).len(), 12);
+    assert_eq!(model.selected(&none).unwrap().id, 81);
     assert_eq!(model.matching(&none).len(), 15);
     assert!(!model.select(80, &none));
     assert!(model.select(83, &none));
     assert_eq!(model.selected(&none).unwrap().id, 83);
     model.set_subcategory(Some(21), &none);
     assert!(model.visible(&none).is_empty());
+}
+
+#[test]
+fn housing_catalog_search_uses_utf8_threshold_and_source_focus_callbacks() {
+    let mut model = dashboard();
+    let authority = HousingAuthority::default();
+    model.set_storage_search("Storage independent".into());
+    model.set_category(Some(2), &authority);
+    for raw in ["z", "zz", "éé"] {
+        model.set_search(raw.into(), &authority);
+        assert_eq!(model.category, Some(2));
+        assert_eq!(model.matching(&authority).len(), 15);
+    }
+    model.set_search("Ornate".into(), &authority);
+    assert_eq!(model.category, None);
+    assert_eq!(model.matching(&authority).len(), 1);
+    model.set_category(Some(18), &authority);
+    assert_eq!(model.search, "Ornate"); // All is a no-op, not ClearSearchText.
+    model.set_category(Some(2), &authority);
+    assert_eq!(model.search, "");
+    assert_eq!(model.matching(&authority).len(), 15);
+    model.set_search("zz".into(), &authority);
+    model.set_category(Some(2), &authority);
+    assert_eq!(model.search, "zz"); // Already focused: source early return.
+    model.set_search("ééé".into(), &authority);
+    assert_eq!(model.category, None);
+    assert!(model.matching(&authority).is_empty());
+    model.set_search(String::new(), &authority);
+    assert_eq!(model.matching(&authority).len(), 16);
+    assert_eq!(model.storage_search, "Storage independent");
 }
 
 #[test]
