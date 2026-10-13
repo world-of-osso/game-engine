@@ -81,6 +81,10 @@ Live fresh-login discovery: unlike test fixtures, authenticated player spawn lac
 
 Both-skin private5790 pointer/relog proof and remaining honor-level/XP/tooltip/drag boundaries are recorded once in the [client progression contract](../../specs/pvp-progression.md#bounded-acceptance--2026-10-11).
 
+## Arena integration — verified 2026-10-12
+
+[Arenas](arenas.md) share this transport and view but use elimination, source preparation/gates/orbs, enemy frames and played-match TC-reference rating. Arena combat columns are measured; WSG's existing uninstrumented columns remain dashes. Arena source/runtime/live acceptance is tracked separately, not inferred from the WSG proof.
+
 ## Sources
 
 - [PvP progression contract](../../specs/pvp-progression.md) — wallet, source talents, War Mode proof and unresolved lifetime honor policy.

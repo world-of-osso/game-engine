@@ -170,7 +170,7 @@ mod mesh_data_tests {
                         .geometry
                         .triangle_materials
                         .get((start + index * 3) / 3)
-                        .is_none_or(|m| m.material_id != 0xff)
+                        .is_none_or(|m| m.material_id.is_some())
                 })
                 .flat_map(|(_, triangle)| triangle.iter())
                 .map(|&i| {

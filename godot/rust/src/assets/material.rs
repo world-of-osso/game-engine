@@ -173,7 +173,7 @@ pub(super) fn load_material(
     material.set_shader_parameter("gx_blend", &i32::from(pipeline.gx_blend).to_variant());
     apply_sample(
         &mut material,
-        &m2_material::sample_material(tracks, &binding, 0),
+        &m2_material::sample_material(tracks, &binding, m2_material::MaterialTime::default()),
         None,
     );
     Ok((material, binding))

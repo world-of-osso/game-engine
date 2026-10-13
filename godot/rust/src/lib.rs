@@ -118,6 +118,7 @@ mod tooltips;
 mod toybox;
 mod toybox_snapshot;
 mod trade;
+mod trading_post;
 mod trainer;
 mod trainer_preview;
 mod transmog;
@@ -320,6 +321,7 @@ pub struct GameClient {
     professions: professions::Professions,
     pet_journal: pet_journal::CompanionJournal,
     adventure_guide: adventure_guide::AdventureGuide,
+    trading_post: trading_post::TradingPost,
     battleground: battleground::BattlegroundUi,
     wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
@@ -466,6 +468,7 @@ impl INode3D for GameClient {
             professions: professions::Professions::default(),
             pet_journal: pet_journal::CompanionJournal::default(),
             adventure_guide: adventure_guide::AdventureGuide::default(),
+            trading_post: trading_post::TradingPost::default(),
             battleground: battleground::BattlegroundUi::default(),
             wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
@@ -550,6 +553,7 @@ impl INode3D for GameClient {
             || self.achievement_pointer(&event)
             || self.battleground_pointer(&event)
             || self.adventure_guide_pointer(&event)
+            || self.trading_post_pointer(&event)
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
@@ -876,6 +880,26 @@ impl GameClient {
         }
     }
 
+    /// Explicit arena proof measurement; never runs during normal gameplay.
+    #[func]
+    fn benchmark_arena_collision(&self) -> VarDictionary {
+        let mut error = VarDictionary::new();
+        let Some(transform) = self.world.local_player_transform() else {
+            error.set("error", "No local player for arena collision measurement");
+            return error;
+        };
+        let Some(space) = self
+            .base()
+            .get_world_3d()
+            .and_then(|world| world.get_direct_space_state())
+        else {
+            error.set("error", "No physics space for arena collision measurement");
+            return error;
+        };
+        let feet = glam::Vec3::from_array(transform.origin.to_array());
+        self.game_objects.benchmark_live_queries(&space, feet)
+    }
+
     /// Main-thread time of the last `process`, in milliseconds.
     #[func]
     fn process_ms(&self) -> f64 {
@@ -1148,7 +1172,12 @@ impl GameClient {
         self.character_frame_snapshot()
     }
 
-    /// Read-only Transmogrifier book state for automation; requests come from frame input.
+    /// Read-only Trading Post state; purchase/freeze requests come from native frame input.
+    #[func]
+    fn trading_post_state(&self) -> VarDictionary {
+        self.trading_post_snapshot()
+    }
+
     #[func]
     fn transmog_state(&self) -> VarDictionary {
         self.transmog_snapshot()
@@ -1496,6 +1525,7 @@ impl GameClient {
         self.pet_journal.visit_uis(&mut visit)?;
         self.mount_journal.visit_uis(&mut visit)?;
         self.adventure_guide.visit_uis(&mut visit)?;
+        self.trading_post.visit_uis(&mut visit)?;
         self.battleground.visit_uis(&mut visit)?;
         self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
@@ -2051,6 +2081,7 @@ impl GameClient {
             ("Pet Journal", |c, _| c.update_pet_journal()),
             ("Mount Journal", |c, _| c.update_mount_journal()),
             ("Adventure Guide", |c, _| c.update_adventure_guide()),
+            ("Trading Post", |c, _| c.update_trading_post()),
             ("Battleground", |c, _| c.update_battleground()),
             ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
@@ -2213,6 +2244,8 @@ impl GameClient {
                 self.pet_journal = Default::default();
                 self.close_adventure_guide();
                 self.adventure_guide = Default::default();
+                self.close_trading_post();
+                self.trading_post = Default::default();
                 if let Some(ui) = self.battleground.ui.take() {
                     ui.free();
                 }

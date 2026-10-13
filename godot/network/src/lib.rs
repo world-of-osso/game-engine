@@ -28,6 +28,8 @@ mod professions_workflow_wire_tests;
 pub mod replica;
 #[path = "../../core/src/screen_arg_data.rs"]
 pub mod screen_arg_data;
+#[cfg(test)]
+mod trading_post_wire_tests;
 
 use std::{
     any::Any,
@@ -244,6 +246,7 @@ impl NetworkBridge {
             .receive::<protocol::DungeonProgress>()
             .receive::<protocol::ChallengeSnapshot>()
             .receive::<protocol::AdventureGuideSnapshot>()
+            .receive::<protocol::TradingPostSnapshot>()
             .receive::<protocol::PartyKeystoneSnapshot>()
             .receive::<protocol::ScenarioProgress>()
             .receive_encounters()
