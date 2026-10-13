@@ -242,6 +242,22 @@ fn dump(registry: &FrameRegistry, name: &str, out: &mut String) {
 }
 
 #[test]
+fn retail_damage_meter_radio_menu_preserves_choices_without_text_bullets() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = canvas(skin, meter_view(), damage_meter_screen);
+        let menu = frame(&registry, "DamageMeterSessionMenu");
+        assert!(menu.background_color.is_none());
+        assert_eq!(menu.height.value(), 63.0);
+        assert_eq!(
+            font(&registry, "DamageMeterSessionMenuOption1Text").text,
+            "Current Segment"
+        );
+        assert!(frame(&registry, "DamageMeterSessionMenuOption1Tick").visible);
+        assert!(!frame(&registry, "DamageMeterSessionMenuOption2Tick").visible);
+    }
+}
+
+#[test]
 fn modern_chat_and_meter_are_byte_identical_to_base() {
     let mut tree = String::new();
     for tab in ChatTab::ALL {
@@ -896,7 +912,7 @@ fn the_type_menu_lists_every_type_in_both_skins() {
             .map(|index| {
                 (
                     click(registry, &format!("DamageMeterTypeMenuOption{index}")),
-                    font(registry, &format!("DamageMeterTypeMenuText{index}"))
+                    font(registry, &format!("DamageMeterTypeMenuOption{index}Text"))
                         .text
                         .trim_start_matches(['\u{2022}', ' '])
                         .to_string(),
@@ -933,16 +949,8 @@ fn the_type_menu_lists_every_type_in_both_skins() {
     assert_eq!(font(&modern, "DamageMeterTypeName").text, "Interrupts");
     assert_eq!(options(&modern), expected);
     // The selected type is the marked one.
-    assert!(
-        font(&modern, "DamageMeterTypeMenuText3")
-            .text
-            .starts_with('\u{2022}')
-    );
-    assert!(
-        !font(&modern, "DamageMeterTypeMenuText1")
-            .text
-            .starts_with('\u{2022}')
-    );
+    assert!(frame(&modern, "DamageMeterTypeMenuOption3Tick").visible);
+    assert!(!frame(&modern, "DamageMeterTypeMenuOption1Tick").visible);
     assert!(modern.get_by_name("DamageMeterSessionMenu").is_none());
     // The menu is drawn over the row it covers: a higher strata.
     let strata = |name: &str| format!("{:?}", frame(&modern, name).strata);
