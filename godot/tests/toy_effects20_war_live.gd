@@ -36,7 +36,7 @@ func run_fixture() -> void:
 		await prove_toy(sample)
 		if failed: return
 	write_receipts()
-	print("PASS toy-effects14 actual War Banner faction/model/combat ", skin)
+	print("PASS toy-effects14 actual native cases ", JSON.stringify(proof_cases()), " ", skin)
 	client.free()
 	quit(0)
 
