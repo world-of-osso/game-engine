@@ -112,7 +112,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Trading Post](systems/trading-post.md) — native Mainline PerksProgram vendor, source category dropdown, creature/player previews over an authenticated asset closure, HUD hiding, freeze, and Traveler's Log Tender; both-skin live proof and purchase-proof boundary.
 
-- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal/sets, owned keys, monthly account contributions and conservative suggestions; both-skin pages and explicit source/proof boundaries.
+- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal/sets, owned keys and shared Traveler's Log; both-skin encounter-link/search, vendor Log navigation and authoritative ENCOUNTER_START difficulty proof; Journeys/model closure remain open.
 
 - [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
