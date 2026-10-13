@@ -17,6 +17,41 @@ fn model(fdid: u32) -> m2::Model {
     m2::parse_model(&read(format!("{fdid}.m2")), &read(format!("{fdid}00.skin"))).unwrap()
 }
 
+/// WWV selectShaderId's non-multitexture 0x100000 path is shaderId5;
+/// particleMaterialShader maps it to fragment Refraction, not Particle_Mod.
+#[test]
+fn divine_shield_refraction_uses_displacement_not_colour() {
+    const REFRACTION: u32 = 0x0010_0000;
+    const MULTITEXTURE: u32 = 0x1000_0000;
+    let emitters = model(1127086).particle_emitters;
+    assert_eq!(emitters.len(), 10);
+    for index in [5, 6] {
+        let emitter = &emitters[index];
+        assert_eq!(emitter.texture_fdid, Some(1127156));
+        assert_eq!(m2_particles::pixel_shader(emitter), PixelShader::Refraction);
+        let mut colour = emitter.clone();
+        colour.flags &= !REFRACTION;
+        assert_eq!(m2_particles::pixel_shader(&colour), PixelShader::Mod);
+        let mut multitexture = emitter.clone();
+        multitexture.flags |= MULTITEXTURE;
+        assert_eq!(
+            m2_particles::pixel_shader(&multitexture),
+            PixelShader::ThreeColorThreeAlpha
+        );
+    }
+}
+
+#[test]
+fn avenging_wrath_colour_uv_emitters_are_not_refraction() {
+    for (fdid, index) in [(2368644, 1), (2368645, 6)] {
+        let emitters = model(fdid).particle_emitters;
+        assert_eq!(
+            m2_particles::pixel_shader(&emitters[index]),
+            PixelShader::ThreeColorThreeAlpha
+        );
+    }
+}
+
 fn portal() -> Vec<ParticleEmitter> {
     model(197007).particle_emitters
 }
@@ -113,7 +148,7 @@ fn portal_emitters_are_spheres_with_their_authored_pixel_shaders() {
             .all(|e| m2_particles::shape(e) == Some(ParticleShape::Sphere))
     );
     let shaders: Vec<PixelShader> = emitters.iter().map(m2_particles::pixel_shader).collect();
-    use PixelShader::{Mod, ThreeColorThreeAlpha};
+    use PixelShader::{Mod, Refraction, ThreeColorThreeAlpha};
     assert_eq!(
         shaders,
         [
@@ -122,7 +157,7 @@ fn portal_emitters_are_spheres_with_their_authored_pixel_shaders() {
             Mod,
             ThreeColorThreeAlpha,
             ThreeColorThreeAlpha,
-            Mod
+            Refraction
         ]
     );
 }
