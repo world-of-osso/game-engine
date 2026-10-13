@@ -76,6 +76,9 @@ pub struct View {
     pub pending: bool,
     pub state: Option<LfgStateUpdate>,
     pub type_open: bool,
+    /// Binding follower-mode policy: solo guide remains visible but disabled.
+    pub group_leader: bool,
+    pub volunteer_leader: bool,
 }
 
 impl Default for View {
@@ -89,6 +92,8 @@ impl Default for View {
             pending: false,
             state: None,
             type_open: false,
+            group_leader: false,
+            volunteer_leader: false,
         }
     }
 }
@@ -100,6 +105,9 @@ impl View {
         }
         if self.update_window_controls(action) || self.pending || self.matched() {
             return None;
+        }
+        if action == "follower:leader" && self.group_leader {
+            self.volunteer_leader = !self.volunteer_leader;
         }
         self.select_role_and_dungeon(action);
         if action != "follower:queue" || !self.can_queue() {

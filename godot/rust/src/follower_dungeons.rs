@@ -111,6 +111,12 @@ impl GameClient {
             .get_visible_rect()
             .size;
         self.follower_dungeons.view.viewport = [size.x / scale, size.y / scale];
+        let local_name = self.account.session.selected_character_name.as_deref().unwrap_or("");
+        let group_leader = self.account.group.in_group() && self.account.group.is_leader(local_name);
+        self.follower_dungeons.view.group_leader = group_leader;
+        if !group_leader {
+            self.follower_dungeons.view.volunteer_leader = false;
+        }
         let view = self.follower_dungeons.view.clone();
         self.extract_art(&crate::quests::screen_texture_fdids(
             view.clone(),

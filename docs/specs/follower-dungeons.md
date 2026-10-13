@@ -17,6 +17,8 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - Source left inset, blue frame texture crops and the right inset remain native geometry. `UI-LFG-BACKGROUND-QUESTPAPER`337492 is512×256, BOTTOMLEFT6,26, clipped to the right inset; never stretched wall art337489.
 - The type chooser uses shared Retail WowStyle1 dropdown/menu primitives in both skins. `LFDFrame.lua` creates a checked follower radio, without a menu title/divider; the one supported follower option must preserve that shape.
 
+- Combat roles inherit centered80×80 background atlases behind their48×48 icons. Leader uses the base role template at DPS RIGHT+32 (274,46), with source disabled leader art and hidden checkbox when unavailable. Binding follower-mode policy keeps the solo guide visible but disabled; an actual group leader can toggle its guide check without changing the queued combat role. This differs from Retail Shared/LFGFrame.lua:457's solo-enable branch. Solo admission remains server-authoritative; guide preference is not a new wire field.
+
 ## Tests
 
 - `godot/tests/follower_layout_capture.gd` — native rendered Control rectangles from XML/Lua, all three tab anchors and parent clipping;1920×1080 Modern/Forever closed/open dropdown PNGs. `GODOT_FOLLOWER_LAYOUT_ASSERT=1` enables the geometry gate.
