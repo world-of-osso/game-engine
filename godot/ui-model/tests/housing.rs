@@ -115,10 +115,15 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
             registry
         };
         let registry = render(&view);
+        let collapse = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageCollapseButton")
+                    .unwrap(),
+            )
+            .unwrap();
         assert!(
-            registry
-                .get_by_name("HouseEditorStorageCollapseButton")
-                .is_some()
+            matches!(&collapse.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-close-drawer-button".into())) && button.highlight_alpha == 0.5)
         );
         assert!(
             registry
@@ -156,10 +161,15 @@ fn housing_storage_drawer_collapse_expand_and_resize_reflow_keep_both_skins_equi
         view.model.storage_panel.collapsed = true;
         let registry = render(&view);
         assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
+        let expand = registry
+            .get(
+                registry
+                    .get_by_name("HouseEditorStorageExpandButton")
+                    .unwrap(),
+            )
+            .unwrap();
         assert!(
-            registry
-                .get_by_name("HouseEditorStorageExpandButton")
-                .is_some()
+            matches!(&expand.widget_data, Some(WidgetData::Button(button)) if button.highlight_texture == Some(ui_toolkit::widgets::texture::TextureSource::Atlas("house-chest-open-drawer-button".into())) && button.highlight_alpha == 0.5)
         );
         view.model
             .editor
