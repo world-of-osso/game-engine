@@ -3645,3 +3645,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
 
 - 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).
+
+- 2026-10-13: [Follower Group Finder](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) restores source combat-role backgrounds and visible leadership-controlled guide; both-skin1920×1080 role capture and14 targeted cases pass. Full dungeon proof remains open.
