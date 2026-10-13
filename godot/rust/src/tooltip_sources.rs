@@ -60,6 +60,22 @@ fn indexed(frame: &Frame, prefix: &str) -> Option<usize> {
     name_of(frame)?.strip_prefix(prefix)?.parse().ok()
 }
 
+enum HousingTooltipTarget {
+    Decor(u32),
+    Chest,
+}
+
+fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
+    let name = name_of(frame)?;
+    if name == "HouseEditorStorageExpandButton" {
+        return Some(HousingTooltipTarget::Chest);
+    }
+    let id = name
+        .strip_prefix("HousingCatalogEntry")
+        .or_else(|| name.strip_prefix("HouseEditorStored"))?;
+    id.parse().ok().map(HousingTooltipTarget::Decor)
+}
+
 impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
@@ -99,25 +115,13 @@ impl GameClient {
 
     /// Catalog/stored decor and the source open-storage handle use `ANCHOR_RIGHT`.
     fn housing_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
-        enum Target {
-            Decor(u32),
-            Chest,
-        }
         let ui = hit.ui.bind();
-        let (owner, target) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            let name = name_of(frame)?;
-            if name == "HouseEditorStorageExpandButton" {
-                return Some(Target::Chest);
-            }
-            let id = name
-                .strip_prefix("HousingCatalogEntry")
-                .or_else(|| name.strip_prefix("HouseEditorStored"))?;
-            id.parse().ok().map(Target::Decor)
-        })?;
+        let (owner, target) =
+            named_ancestor(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
         drop(ui);
         let tooltip = match target {
-            Target::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
-            Target::Decor(id) => {
+            HousingTooltipTarget::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
+            HousingTooltipTarget::Decor(id) => {
                 let model = self.housing.model.as_ref()?;
                 let decor = model.catalog.decor.iter().find(|decor| decor.id == id)?;
                 game_engine_ui_model::housing::decor_entry_tooltip(
