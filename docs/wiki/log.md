@@ -5,10 +5,32 @@
 ## 2026-10-12 — Avenging Wrath local material playback
 
 [Material time](investigations/avenging-wrath-material-time.md): source2368645 local alpha and native Hold158 rendering prove material tracks incorrectly looped Stand on application age. Local sampling now receives owning-model playback; globals retain their shared clock. Seven actual private source casts cover both skins; published candidate assets/cache/shaders match local hashes. Hold GREEN and the original rainbow reproduction remain open at this commit; Positioner59 enum semantics remain unsourced.
+## 2026-10-12 — Owned storage category rail and registry-text root fix
+
+[Owned categories](systems/housing.md#owned-category-rail): actual stored/placed ownership, independent Back/All/category focus, source64/54px controls and multi-membership joins. Both-skin physical search→category RED exposed renderer-only text clearing; editing backing RegistryModel before projection fixes stale sampling. Current both-skin paid browsing/conservation PASS; UI23/registry12/check clean. Six inspected public PNGs; selected-art animation/paging/filter/collapse/resize authority remain separate.
+
+## 2026-10-12 — Native owned-storage search and thumbnail recovery
+
+[Storage search](systems/housing.md#basic-owned-storage-search): independent case-insensitive stored-only input, hidden Cleanup/remount retention, unowned empty result and clear restoration. Actual native blank-thumbnail RED exposed unsupported RSX file_data_id; texture_fdid fixes real image resolution without re-extraction/cache mutation. Both-skin physical paid1693/2330 proof and six inspected filtered/empty/cleared PNGs; initial Forever image projection lag retained privately. Full drawer browsing/categories/paging/Market/Blueprint parity stays separate.
+
+## 2026-10-12 — Epic source rules and AV channel boundary
+
+[Epic continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12): AV1/Isle30,10–40/team, levels20–90,700/400reinforcements. AV15node/four-minute/tower75/captain100/general/mine45s pure proof;20-account channel source-entry/eight-second cancellableOpening/actual NPC death/return proof. Native/live and Isle runtime remain pending.
+
+## 2026-10-12 — Retire redundant client-publication gate
+
+[Queues708/1110](systems/battlegrounds.md#silvershard-private-prerequisites--active-2026-10-12) compile into the new client and ship with canonical assets/cache in the same bundle. Lead retired708's gate;1110 stays visible,894 transport gate remains. No server admission change.
 ## 2026-10-12 — Retail Cleanup mode both-skin native proof
 
 [Cleanup](systems/housing.md#cleanup-editor-input): source mode entry/storage hidden, visible-mesh hover highlight/name, exact-target single-click owned removal, visitor refusal, quantity conservation and real relog/re-place in both skins. Model21/registry11 and two focused server conservation/paid-variant tests pass; eight inspected PNGs. Highlight styling is native feedback, not certified Retail shader art. Evidence core9; independent gate lead-owned; broader housing remains open.
 
+## 2026-10-12 — All13 representative class gate
+
+[Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): rebuilt DH162243 damage/Fury and Evoker431443 Fire/Arcane repeat close all13 representative both-skin gates, with26 inspected requested PNGs. Private processes stopped, cache/products links restored. Full spell/talent goal remains open; this is not every legal build, coefficient or rotation.
+
+## 2026-10-12 — Class completeness continuation
+
+[Class live proof](investigations/class-spell-live-proof.md#class-completeness-continuation--2026-10-12): private both-skin spell receipts for nine additional classes; DH startup exposed authored133320→29124→display0 being dropped, then a nonexistent-display lookup. Native RED/GREEN preserves occupied no-visual slots without weakening missing/invalid metadata errors; targeted core6/shared renderer1 pass. DH/Evoker rebuilt native gates and full13/all40 goal remain open.
 ## 2026-10-12 — Housing atomic dye backend (not native feature)
 
 [Dye authority](systems/housing.md#dye-authority-without-native-recoloring): source slot/item binding and any-category rule, transient player-scoped preview/cancel, atomic per-changed-slot owned dye commit, real bag-placement rollback, preserved dyed variants through remove/store/reopen/re-place, and schema3 nonzero undyed count preservation. Native recoloring/variant controls and live acquisition remain explicitly unavailable; no user-visible feature claim.
@@ -3473,3 +3495,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: [Toy Box](systems/toy-box.md#source-warning-sign-batches-2026-10-12): front-facing actual-use sign captures/natural expiry in both skins; carving/148628/shared-visibility remains explicitly uncertified.
 
 - 2026-10-12: [Cooking-focus toys](systems/toy-box.md#cooking-focus-and-replicated-object-fire-2026-10-12): source cooking authority and actual both-skin fire emitter/recipe proof; linked traps remain excluded.
+
+- 2026-10-12: Owned-storage Dyeable/alphabetical filters, reset/search independence and submenu world-input RED→both-skin native GREEN; six inspected PNGs. Date/location/tag/persistent-CVar gaps remain explicit.

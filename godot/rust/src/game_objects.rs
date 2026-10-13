@@ -16,9 +16,10 @@ use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::{classes::Node3D, prelude::*};
 use shared::components::{Position, Rotation};
 use shared::protocol::{
-    GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC,
-    GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE,
-    GAMEOBJECT_TYPE_RITUAL, GAMEOBJECT_TYPE_SPELL_FOCUS, GameObjectInfo,
+    GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_BUTTON, GAMEOBJECT_TYPE_CHAIR,
+    GAMEOBJECT_TYPE_GENERIC, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX,
+    GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, GAMEOBJECT_TYPE_SPELL_FOCUS,
+    GameObjectInfo,
 };
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
@@ -79,6 +80,7 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
         GAMEOBJECT_TYPE_MAILBOX => Some(ActiveWowCursor::Mail),
         shared::protocol::GAMEOBJECT_TYPE_GATHERING_NODE => Some(ActiveWowCursor::Interact),
         GAMEOBJECT_TYPE_GUILD_BANK
+        | GAMEOBJECT_TYPE_BUTTON
         | GAMEOBJECT_TYPE_CHAIR
         | GAMEOBJECT_TYPE_MEETINGSTONE
         | GAMEOBJECT_TYPE_RITUAL
@@ -387,6 +389,25 @@ mod tests {
         let flag = shared::protocol::GAMEOBJECT_TYPE_BATTLEGROUND_FLAG;
         assert!(game_object_is_renderable(flag));
         assert_eq!(game_object_cursor(flag), Some(ActiveWowCursor::Interact));
+    }
+
+    #[test]
+    fn alterac_source_buttons_and_neutral_goober_render_and_offer_object_use() {
+        for (entry, kind, display, name) in [
+            (178946, 1, 5652, "Horde Banner"),
+            (180418, 10, 6211, "Snowfall Banner"),
+        ] {
+            let banner = GameObjectInfo {
+                entry,
+                go_type: kind,
+                display_id: display,
+                name: name.into(),
+                scale: 1.0,
+            };
+            assert!(banner.is_usable());
+            assert!(game_object_is_renderable(kind));
+            assert_eq!(game_object_cursor(kind), Some(ActiveWowCursor::Interact));
+        }
     }
 
     #[test]
