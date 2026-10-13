@@ -70,11 +70,11 @@ func run_test() -> void:
 	quit(0)
 
 func placed_row_color(name: String) -> Color:
-	var control: Control = housing_control(name)
-	if control == null: return Color.TRANSPARENT
-	var labels: Array = control.find_children("*", "Label", true, false)
-	if labels.is_empty(): return Color.TRANSPARENT
-	return labels[0].get_theme_color("font_color")
+	var label: Label = housing_control(name) as Label
+	if label == null:
+		fail("Placed-row FontString is not its native Label: " + name)
+		return Color.TRANSPARENT
+	return label.get_theme_color("font_color")
 
 func drag_placed_list_panel() -> bool:
 	var before: Rect2 = housing_control("HouseEditorPlacedDecorList").get_global_rect()
