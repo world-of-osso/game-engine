@@ -121,9 +121,10 @@ pub fn campsite_panel(state: &CampsiteState) -> Element {
     }
 }
 fn page_button(name: &str, fdid: u32, page: usize, x: f32) -> Element {
-    rsx! { button { name: DynName(name.into()), width: 32.0, height: 32.0, button_default_skin: false,
+    let disabled = matches!(fdid, 130867 | 130864);
+    rsx! { button { name: DynName(name.into()), width: 32.0, height: 32.0, button_default_skin: false, disabled,
         onclick: CharSelectAction::CampsitePage(page), pos_type: "absolute", left: x, top: 0.0,
-        texture { name: DynName(format!("{name}Icon")), width: 32.0, height: 32.0, texture_fdid: fdid, }
+
     } }
 }
 
@@ -142,6 +143,27 @@ pub fn sync_campsite_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
     for (id, hovered) in cards {
         if let Some(frame) = registry.get_by_name(&format!("CampsiteHover_{id}")) {
             registry.set_hidden(frame, !hovered);
+        }
+    }
+    for (name, up, down, disabled) in [
+        ("CampsitePrevPage", 130869, 130868, 130867),
+        ("CampsiteNextPage", 130866, 130865, 130864),
+    ] {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Button(button)) = frame.widget_data.as_mut()
+        {
+            button.normal_texture =
+                Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(up));
+            button.pushed_texture = Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                down,
+            ));
+            button.disabled_texture = Some(
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(disabled),
+            );
+            button.highlight_texture = Some(
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(130757),
+            );
         }
     }
     if let Some(id) = registry.get_by_name("CampsiteBackgroundTile")

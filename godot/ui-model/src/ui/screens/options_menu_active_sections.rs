@@ -4,7 +4,6 @@ use std::fmt;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::slider::{SliderWidget, slider_widget};
-use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
 use super::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
@@ -40,13 +39,6 @@ const OPTIONS_TRACK_W: f32 = OPTIONS_ROW_W - OPTIONS_SLIDER_X - OPTIONS_VALUE_W 
 const OPTIONS_TRACK_H: f32 = 15.0;
 const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
-const OPTIONS_TOGGLE_W: f32 = 170.0;
-const OPTIONS_TOGGLE_H: f32 = 28.0;
-const OPTIONS_TOGGLE_BG: &str = "0.10,0.09,0.08,1.0";
-const OPTIONS_TOGGLE_FILL: &str = "0.43,0.31,0.10,0.92";
-const OPTIONS_TOGGLE_BORDER: &str = "1px solid 0.32,0.24,0.10,0.75";
-const OPTIONS_TOGGLE_TEXT_IDLE: &str = "0.70,0.66,0.56,1.0";
-const OPTIONS_TOGGLE_TEXT_ACTIVE: &str = "0.95,0.90,0.74,1.0";
 const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
 const UI_SCALE_MIN: f32 = 0.75;
@@ -383,11 +375,13 @@ pub fn hud_body(
                 "nameplate_health_thickness",
                 "Nameplate Health Thickness",
                 hud.nameplate_style.health_preset(),
+                open,
             ),
             thickness_row(
                 "nameplate_spellbar_thickness",
                 "Nameplate Spellbar Thickness",
                 hud.nameplate_style.cast_preset(),
+                open,
             ),
             toggle_row("show_health_bars", "Show Health Bars", hud.show_health_bars),
             toggle_row(
@@ -755,17 +749,14 @@ fn thickness_row(
     key: &str,
     label: &str,
     thickness: super::options_menu_component::NameplateBarThickness,
+    open: Option<&OptionsDropdownMenu>,
 ) -> Element {
-    let thick = thickness == super::options_menu_component::NameplateBarThickness::Thick;
-    rsx! {
-        r#frame {
-            name: {DynName(format!("ThicknessRow{key}"))},
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: 44.0,
-            {row_label(&format!("ThicknessLabel{key}"), label)}
-            {segmented_choice(key, thick, "Thin", "Thick")}
-        }
-    }
+    let selected = if thickness == super::options_menu_component::NameplateBarThickness::Thick {
+        1
+    } else {
+        0
+    };
+    choice_row(key, label, &[(0, "Thin"), (1, "Thick")], selected, open)
 }
 
 fn segmented_toggle(key: &str, enabled: bool) -> Element {
@@ -783,26 +774,6 @@ fn segmented_toggle(key: &str, enabled: bool) -> Element {
         texture { name: DynName(format!("ToggleSwitch{key}Checked")), texture_atlas: "checkmark-minimal", hidden: hide_check,
             width: check_art.width, height: check_art.height, pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", }
     } }
-}
-
-fn segmented_choice(key: &str, enabled: bool, left_label: &str, right_label: &str) -> Element {
-    let action = toggle_action(key);
-    let name = format!("ToggleSwitch{key}");
-    toggle_widget(ToggleWidget {
-        name: &name,
-        action: &action,
-        right_selected: enabled,
-        width: OPTIONS_TOGGLE_W,
-        height: OPTIONS_TOGGLE_H,
-        left_label,
-        right_label,
-        background_color: OPTIONS_TOGGLE_BG,
-        active_color: OPTIONS_TOGGLE_FILL,
-        border: OPTIONS_TOGGLE_BORDER,
-        active_text_color: OPTIONS_TOGGLE_TEXT_ACTIVE,
-        idle_text_color: OPTIONS_TOGGLE_TEXT_IDLE,
-        x: "-8",
-    })
 }
 
 fn slider_value_text(key: &str, text: &str) -> Element {
