@@ -18,6 +18,7 @@ func run_test() -> void:
 	root.add_child(client)
 	if not await connect_housing_account(): return
 	if not await open_editor_home(): return
+	if not await editor_configure_bindings(false): return
 	if OS.get_environment("HOUSING_EDITOR_RESUME_PLACED") == "1":
 		if not await wait_housing(func(): return placed_node() != null, "previous authenticated placement node"): return
 		if stored_bookcases() != 0 or client.housing_state().decor.size() != 1 or int(client.housing_state().decor[0].decor_id) != 1693:
@@ -33,7 +34,7 @@ func run_test() -> void:
 	await click(moved_point, MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.housing_state().decor.size() == 1 and client.housing_state().decor[0].position.distance_to(before.decor[0].position) > 0.5, "authoritative decor movement"): return
 	if not await record_editor("moved"): return
-	await click_control(housing_control("HouseEditorRotateRight"), MOUSE_BUTTON_LEFT)
+	await editor_key(KEY_F6)
 	if not await wait_housing(func(): return absf(client.housing_state().decor[0].yaw - before.decor[0].yaw) > 0.05, "authoritative decor rotation"): return
 	if not await record_editor("rotated"): return
 	var saved: Dictionary = client.housing_state()
@@ -51,11 +52,12 @@ func run_test() -> void:
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null, "editor after relog"): return
 	if not await select_saved_decor(): return
-	await click_control(housing_control("HouseEditorRemove"), MOUSE_BUTTON_LEFT)
+	await editor_key(KEY_F7)
 	if not await wait_housing(func(): return client.housing_state().decor.is_empty() and stored_bookcases() == 1, "remove returns the exact owned copy"): return
 	if not await record_editor("removed"): return
 	if OS.get_environment("HOUSING_EDITOR_KEEP_PLACED") == "1":
 		if not await place_owned_bookcase(): return
+	if not await editor_configure_bindings(true): return
 	print("PASS: private5870 real owned bookcase place/move/rotate/remove and persisted layout ", housing_skin)
 	client.free()
 	quit(0)
@@ -150,6 +152,56 @@ func record_editor(phase: String) -> bool:
 	file.store_string(JSON.stringify(editor_receipts,"\t"))
 	file.close()
 	return await capture_housing(phase)
+
+func editor_key(code: Key) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.pressed = true
+	Input.parse_input_event(event)
+	await frames(3)
+	event.pressed = false
+	Input.parse_input_event(event)
+	await frames(3)
+
+func press_editor_escape() -> void:
+	await editor_key(KEY_ESCAPE)
+
+# Explicit fixture assignments, not Retail default keys. Restore unbound on exit.
+func editor_configure_bindings(clear: bool) -> bool:
+	if not OS.get_environment("XDG_CONFIG_HOME").begins_with("/home/osso/.worktrees/"):
+		fail("Housing binding fixtures require an owned private config directory")
+		return false
+	if int(client.housing_state().get("selected",0))!=0 or int(client.housing_state().get("placing",0))!=0:
+		await press_editor_escape()
+	if client.get_node_or_null("HousingDashboardUI")!=null:
+		await press_editor_escape()
+		if not await wait_housing(func(): return client.get_node_or_null("HousingDashboardUI")==null,"editor fixture closes housing before Options"): return false
+	await press_editor_escape()
+	if not await wait_housing(func(): return housing_named_control("GameMenuUI","MenuBtnOptions")!=null,"editor fixture game menu"): return false
+	await click_control(housing_named_control("GameMenuUI","MenuBtnOptions"),MOUSE_BUTTON_LEFT)
+	await click_control(housing_named_control("GameMenuUI","OptionsTabkeybindings"),MOUSE_BUTTON_LEFT)
+	await click_control(housing_named_control("GameMenuUI","KeybindingSectionhousingButton"),MOUSE_BUTTON_LEFT)
+	for binding in [["HOUSING_BASICDECOR_ROTATERIGHT",KEY_F6],["HOUSING_REMOVEDECOR",KEY_F7]]:
+		var action: String = binding[0]
+		var control: Control = housing_named_control("GameMenuUI","KeybindingButton"+action)
+		if control==null:
+			fail("Missing source housing binding action: "+action)
+			return false
+		if clear:
+			await click_control(control,MOUSE_BUTTON_RIGHT)
+		else:
+			if str(client.get_node("GameMenuUI").frame_text("KeybindingButtonText"+action))!="Not Bound":
+				fail("Fixture cannot overwrite an existing player housing assignment")
+				return false
+			await click_control(control,MOUSE_BUTTON_LEFT)
+			await editor_key(binding[1])
+	await click_control(housing_named_control("GameMenuUI","OptionsDoneButton"),MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return client.get_node_or_null("GameMenuUI")==null,"editor fixture Options Done"): return false
+	await click_control(housing_named_control("MicroMenuUI","HousingMicroButton"),MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return housing_control("HousingDecorateButton")!=null and not client.housing_state().get("pending",true),"editor fixture confirmed visited layout"): return false
+	await click_control(housing_control("HousingDecorateButton"),MOUSE_BUTTON_LEFT)
+	return await wait_housing(func(): return housing_control("HouseEditorBasicDecorModeButton")!=null,"editor fixture Basic mode restored")
 
 # Retail discovery comes from the server's actual persisted friend relationship.
 func friend_plot_control(house: int) -> Control:
