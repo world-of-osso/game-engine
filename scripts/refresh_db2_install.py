@@ -121,6 +121,10 @@ def export_tables(args):
         except (ValueError, IndexError, KeyError, struct.error) as error:
             receipt['unavailable'][table] = {'fdid': fdid, 'reason': str(error)}
             print(f'{table}: {error}', file=sys.stderr, flush=True)
+    from closure_casc import installed_products
+    active = [row for row in installed_products(args.install) if row['Product'] == 'wow']
+    if len(active) != 1 or active[0]['Build Key'] != identity['build_key'] or active[0]['Version'] != identity['build']:
+        raise ValueError('active install changed during DB2 export; private outputs have no valid receipt')
     (directory / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     (raw / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
     (output / 'active-build.json').write_text(json.dumps(identity, indent=2) + '\n')
