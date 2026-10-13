@@ -234,19 +234,25 @@ fn interface_status_text_row_offers_the_four_retail_choices() {
     view.options.category = OptionsCategory::Interface;
     view.options.hud.status_text_display = StatusTextDisplay::Both;
     shared.insert(view);
+    shared.insert(popup_state("status_text_display"));
     Screen::new(game_menu_screen).sync(&shared, &mut registry);
     assert_eq!(
         label(&registry, "ChoiceLabelstatus_text_display"),
         "Status Text"
     );
     let labels: Vec<String> = (1..=4)
-        .map(|value| label(&registry, &format!("Choicestatus_text_display{value}Label")))
+        .map(|value| {
+            label(
+                &registry,
+                &format!("Choicestatus_text_display{value}HitText"),
+            )
+        })
         .collect();
     assert_eq!(labels, ["Numeric Value", "Percentage", "Both", "None"]);
     assert!(
         registry
-            .get_by_name("Choicestatus_text_display3Hit")
-            .is_none()
+            .get_by_name("Choicestatus_text_display3HitTick")
+            .is_some()
     );
     let hit = registry
         .get_by_name("Choicestatus_text_display2Hit")
@@ -257,13 +263,22 @@ fn interface_status_text_row_offers_the_four_retail_choices() {
     );
 }
 
-fn hud_registry(layout: &LayoutOptionsView) -> FrameRegistry {
+fn popup_state(key: &str) -> game_engine_ui_model::options_dropdown::OptionsDropdownState {
+    let mut state = game_engine_ui_model::options_dropdown::OptionsDropdownState::default();
+    state.toggle(key, [320.0, 180.0]);
+    state
+}
+
+fn hud_registry(layout: &LayoutOptionsView, open_key: Option<&str>) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     let mut view = model();
     view.options.category = OptionsCategory::Hud;
     view.options.layout = layout.clone();
     shared.insert(view);
+    if let Some(key) = open_key {
+        shared.insert(popup_state(key));
+    }
     Screen::new(game_menu_screen).sync(&shared, &mut registry);
     registry
 }
@@ -285,13 +300,13 @@ fn hud_layout_row_offers_the_presets_and_the_player_layouts() {
             .to_vec(),
         ..Default::default()
     };
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, Some("ui_layout"));
     assert_eq!(label(&registry, "ChoiceLabelui_layout"), "Layout");
     let labels: Vec<String> = (0..4)
-        .map(|value| label(&registry, &format!("Choiceui_layout{value}Label")))
+        .map(|value| label(&registry, &format!("Choiceui_layout{value}HitText")))
         .collect();
     assert_eq!(labels, layout.names);
-    assert!(registry.get_by_name("Choiceui_layout2Hit").is_none());
+    assert!(registry.get_by_name("Choiceui_layout2HitTick").is_some());
     for (index, name) in [(0, "Modern"), (1, "Forever"), (3, "Layout 2")] {
         let action = click(&mut registry, &format!("Choiceui_layout{index}Hit"));
         assert_eq!(
@@ -309,7 +324,7 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
     for skin in [LayoutSkin::Modern, LayoutSkin::Forever] {
         layout.skin = skin;
         for side in ["Right", "Left"] {
-            let mut registry = hud_registry(&layout);
+            let mut registry = hud_registry(&layout, None);
             assert_eq!(
                 layout.settings.show_micro_menu.unwrap_or(false),
                 side == "Left"
@@ -330,13 +345,13 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
 #[test]
 fn hud_layout_settings_controls_edit_the_selected_system() {
     let mut layout = LayoutOptionsView::default();
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, Some("layout_system"));
     assert_eq!(
         label(&registry, "ChoiceLabellayout_system"),
         "Layout Settings"
     );
     let systems: Vec<String> = (0..6)
-        .map(|value| label(&registry, &format!("Choicelayout_system{value}Label")))
+        .map(|value| label(&registry, &format!("Choicelayout_system{value}HitText")))
         .collect();
     assert_eq!(
         systems,
@@ -349,7 +364,7 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     );
     assert_eq!(label(&registry, "SliderValuelayout_frame_size"), "100%");
     assert_eq!(label(&registry, "SliderValuelayout_text_size"), "100%");
-    assert_eq!(label(&registry, "Choicelayout_font0Label"), "Friz Quadrata");
+    assert_eq!(label(&registry, "Choicelayout_fontText"), "Friz Quadrata");
     assert!(registry.get_by_name("Choicelayout_font0Hit").is_none());
     assert!(registry.get_by_name("Sliderlayout_chat_width").is_none());
 
@@ -357,7 +372,7 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     let action = click(&mut registry, "Choicelayout_system1Hit");
     apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
     assert_eq!(layout.system, LayoutSystem::TargetFrame);
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, Some("layout_font"));
     for (slider, value) in [
         ("Sliderlayout_frame_size", 148.0),
         ("Sliderlayout_text_size", 126.0),
@@ -380,14 +395,14 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
         ..Default::default()
     };
     assert_eq!(layout.settings, expected);
-    let registry = hud_registry(&layout);
+    let registry = hud_registry(&layout, None);
     assert_eq!(label(&registry, "SliderValuelayout_frame_size"), "150%");
     assert_eq!(label(&registry, "SliderValuelayout_text_size"), "130%");
-    assert!(registry.get_by_name("Choicelayout_font1Hit").is_none());
+    assert_eq!(label(&registry, "Choicelayout_fontText"), "Arial Narrow");
     // The player frame still shows its own, unchanged values.
     layout.system = LayoutSystem::PlayerFrame;
     assert_eq!(
-        label(&hud_registry(&layout), "SliderValuelayout_frame_size"),
+        label(&hud_registry(&layout, None), "SliderValuelayout_frame_size"),
         "100%"
     );
 
@@ -405,12 +420,12 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
         ),
     ] {
         layout.system = system;
-        let mut registry = hud_registry(&layout);
+        let mut registry = hud_registry(&layout, None);
         let preset = label(&registry, &format!("SliderValuelayout_{}", keys[0]));
         layout.skin = LayoutSkin::Forever;
         assert_ne!(
             label(
-                &hud_registry(&layout),
+                &hud_registry(&layout, None),
                 &format!("SliderValuelayout_{}", keys[0])
             ),
             preset
@@ -425,7 +440,10 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
             };
             apply_layout_slider(slider, size, &mut layout);
             assert_eq!(
-                label(&hud_registry(&layout), &format!("SliderValuelayout_{key}")),
+                label(
+                    &hud_registry(&layout, None),
+                    &format!("SliderValuelayout_{key}")
+                ),
                 format!("{size:.0}")
             );
         }
@@ -437,7 +455,7 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     assert_eq!(layout.settings.target_frame, target);
 
     // "Reset to Preset" clears every setting and keeps the shown system.
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, None);
     assert_eq!(
         label(&registry, "RowLabelreset_layout_settings"),
         "Reset to Preset"
