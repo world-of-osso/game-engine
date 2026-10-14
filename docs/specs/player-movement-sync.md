@@ -12,7 +12,8 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [ ] Live: under a snare or speed aura the server's position stays with the client's.
 
 ### Stop input
-- [x] The first idle frame after a moving or jumping input sends exactly one `PlayerInput` with no direction, no jump, the final predicted position and the adopted epoch; later idle frames send nothing.
+- [x] The first idle frame after a moving or jumping input sends exactly one `PlayerInput` with no direction, no jump, the final predicted position and the adopted epoch; later idle frames in that epoch send nothing.
+- [x] Adopting a new teleport epoch reports current movement intent once even while stationary; a stop reported under the previous epoch cannot establish the new epoch's stopped state.
 - [x] A game menu that halts movement sends that one stop too, without resending airborne state.
 - [x] Every release in the native input fixture (walk, run, backpedal, strafe, swim, jump landing, menu return) sends exactly one stop.
 - [x] Live: after a backpedal release the server replicates the unmodified speed (only a stop input makes it recompute; 2.833 stayed before) and its position matches the client's.
@@ -40,7 +41,7 @@ The Godot client predicts the local player's movement and reports each moved pos
 
 - `godot/rust/src/animation/remote_player_tests.rs`: replicated ledge walk-off, mid-crossfade touchdown, unchanged jump sequence and directional/swim selection; `godot/network/src/wire_tests.rs`: `native_bridge_receives_remote_player_motion_changes` transports jump origin, unjumped fall and stop over UDP.
 
-- `godot/rust/src/gameplay.rs` tests: `replicated_snare_scales_run_walk_backward_strafe_and_swim_speeds`, `swimming_predicts_at_swim_speed`, `replicated_speed_is_read_against_the_newest_reported_input`, `replicated_root_stops_prediction`, `snared_run_predicts_the_server_distance`, `release_sends_exactly_one_stop_input_with_final_position_and_epoch`, `stop_input_reports_a_modal_stop_once`
+- `godot/rust/src/gameplay.rs` tests: `replicated_snare_scales_run_walk_backward_strafe_and_swim_speeds`, `swimming_predicts_at_swim_speed`, `replicated_speed_is_read_against_the_newest_reported_input`, `replicated_root_stops_prediction`, `snared_run_predicts_the_server_distance`, `release_sends_exactly_one_stop_input_with_final_position_and_epoch`, `stationary_input_reports_again_after_teleport_epoch_changes`, `stop_input_reports_a_modal_stop_once`
 - `godot/network/src/lib.rs` `unit_snapshot_owns_server_identity_and_component_values`
 - `godot/network/examples/native_input_fixture.rs` (`inworld`, `swimming`, `menu`)
 - `godot/tests/world_speed_walk.gd` (live dev or private server; `SPEED_FRAME_MS` for a slow client)

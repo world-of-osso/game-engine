@@ -159,6 +159,7 @@ impl CooldownSettingsFixture {
         if !self.error.is_empty() {
             return Err(self.error.clone());
         }
+        self.hud.read_settings_search();
         let mut ui = self.hud.ui.clone().ok_or("Cooldown fixture UI missing")?;
         let action = self
             .hud
