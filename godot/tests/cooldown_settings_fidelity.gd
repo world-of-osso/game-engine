@@ -67,6 +67,7 @@ func verify_settings() -> void:
 		await settle()
 		assert(fixture.call("frame_rect", "CooldownSettingsItem26").size == Vector2.ZERO, "Search filters Colossus Smash")
 		await click_frame("CooldownSettingsSearchClearButton")
+		assert(fixture.call("frame_rect", "CooldownSettingsSearchClearButton").size == Vector2.ZERO, "Retail clear releases SearchBox focus and hides itself")
 		assert(fixture.call("frame_rect", "CooldownSettingsItem26").size.x > 0, "Clear restores the source category entries")
 		await click_frame("CooldownSettingsItem26")
 		assert(fixture.call("picked") == 26, "Left release begins Retail order change")

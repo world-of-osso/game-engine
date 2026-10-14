@@ -417,6 +417,21 @@ impl CooldownHud {
             .is_some_and(|control| control.has_focus());
     }
 
+    fn clear_settings_search(&mut self) -> Result<(), String> {
+        use game_engine_ui_model::cooldown_settings_component::SEARCH;
+        let mut ui = self.ui.clone().ok_or("Cooldown settings UI missing")?;
+        let mut control = {
+            let mut host = ui.bind_mut();
+            host.set_editbox_text(SEARCH, "")?;
+            host.frame_control(SEARCH)
+                .ok_or("Cooldown search control missing")?
+        };
+        control.release_focus();
+        self.settings.query.clear();
+        self.settings.search_focused = false;
+        Ok(())
+    }
+
     fn settings_pointer(
         &mut self,
         event: &Gd<godot::classes::InputEvent>,
@@ -474,16 +489,7 @@ impl CooldownHud {
     ) -> Result<(), String> {
         let hud = self;
         if action == "cooldown_search_clear" {
-            hud.ui
-                .as_mut()
-                .ok_or("Cooldown settings UI missing")?
-                .bind_mut()
-                .set_editbox_text(
-                    game_engine_ui_model::cooldown_settings_component::SEARCH,
-                    "",
-                )?;
-            hud.settings.query.clear();
-            return Ok(());
+            return hud.clear_settings_search();
         }
         if action == "cooldown_close" {
             hud.settings.open = false;
