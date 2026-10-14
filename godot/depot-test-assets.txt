@@ -3031,6 +3031,8 @@ textures/135690.blp
 textures/135726.blp
 textures/135728.blp
 textures/135729.blp
+textures/135411.blp
+textures/2957417.blp
 textures/135730.blp
 textures/135731.blp
 textures/135732.blp
