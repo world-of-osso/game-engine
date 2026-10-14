@@ -62,13 +62,16 @@ fn threat_within_details() -> QuestGiverQuestDetails {
 
 #[test]
 fn relogged_owned_quest_shows_authoritative_story_and_rewards_without_giver_cache() {
-    let mut wire = serde_json::to_value(entry(783, "A Threat Within", 9)).unwrap();
-    wire["description"] = serde_json::json!("Welcome, $n.$B$BSpeak with Marshal McBride.");
-    wire["rewards"] = serde_json::json!({ "money": 2000, "items": [], "choice_items": [] });
-    wire["pushable"] = serde_json::json!(true);
+    let mut owned = entry(783, "A Threat Within", 9);
+    owned.description = "Welcome, $n.$B$BSpeak with Marshal McBride.".into();
+    owned.rewards = QuestRewards {
+        money: 2000,
+        ..Default::default()
+    };
+    owned.pushable = true;
     let mut runtime = QuestRuntime::default();
     runtime.apply_snapshot(QuestLogSnapshot {
-        entries: vec![serde_json::from_value(wire).unwrap()],
+        entries: vec![owned],
         watched_quest_ids: vec![783],
     });
     let state = quest_log_state(
