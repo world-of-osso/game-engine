@@ -73,6 +73,7 @@ pub mod group_loot_component;
 pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
+pub mod guild_tabards;
 pub mod housing;
 pub mod housing_basic_component;
 pub mod housing_bulletin_component;
