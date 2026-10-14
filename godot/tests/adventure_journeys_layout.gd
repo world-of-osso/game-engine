@@ -62,6 +62,66 @@ func wheel(name: String, button: int) -> bool:
 	await settle()
 	return true
 
+func pointer_button(point: Vector2, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.position = point
+	event.global_position = point
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	root.push_input(event, true)
+	await process_frame
+
+func held_arrow() -> bool:
+	if not await move_to("JourneyLevelNext"):
+		return false
+	var start := control("JourneyRenownLevel2").get_global_rect().position.x
+	await pointer_button(control("JourneyLevelNext").get_global_rect().get_center(), true)
+	await create_timer(0.8).timeout
+	var moving := control("JourneyRenownLevel2").get_global_rect().position.x
+	if moving >= start - 0.1:
+		stop("Held arrow did not slide before release start=%s moving=%s" % [start, moving])
+		return false
+	if not await shot("journeys-held-arrow"):
+		return false
+	# Release outside the arrow: physical release must stop scrolling everywhere.
+	await pointer_button(Vector2(5,5), false)
+	await settle()
+	var selected: int = client.adventure_guide_state().journey_level
+	if selected < 3:
+		stop("Right release did not snap forward")
+		return false
+	await create_timer(0.8).timeout
+	if client.adventure_guide_state().journey_level != selected:
+		stop("Renown sliding continued after release")
+		return false
+	print("JOURNEYS_HOLD_PASS start=%s moving=%s released=%s" % [start,moving,selected])
+	return await click("JourneyRenownLevel2")
+
+func trace_open(sequence: int, action: String) -> void:
+	print("RENOWN_REPRO utc=%s ticks_usec=%s event_id=%s action=%s request_type=RenownRequest::Query reply_type=RenownSnapshot state=%s" % [Time.get_datetime_string_from_system(true), Time.get_ticks_usec(), sequence, action, client.adventure_guide_state().renown_faction_count])
+
+func journal_key() -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = KEY_J
+		event.physical_keycode = KEY_J
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+
+func snapshot_repro() -> void:
+	for sequence in range(1,5):
+		trace_open(sequence, "before-open")
+		await journal_key()
+		trace_open(sequence, "after-open")
+		await create_timer(20.).timeout
+		trace_open(sequence, "after20s-before-close")
+		await journal_key()
+		trace_open(sequence, "after-close")
+		await create_timer(1.).timeout
+	print("RENOWN_REPRO_DONE event_ids=1..4 local-observation-only; protocol-has-no-request-id")
+	quit(0)
+
 func label_text(name: String) -> String:
 	var node := client.find_child(name, true, false)
 	return node.text if node != null and "text" in node else ""
@@ -127,16 +187,16 @@ func run() -> void:
 		return
 	if not await wait_screen("InWorld"):
 		return
-	for pressed in [true, false]:
-		var event := InputEventKey.new()
-		event.keycode = KEY_J
-		event.physical_keycode = KEY_J
-		event.pressed = pressed
-		root.push_input(event, true)
-		await process_frame
+	if OS.get_environment("ADVENTURE_GUIDE_REPRO_LOOP") == "1":
+		await snapshot_repro()
+		return
+	trace_open(1, "before-first-open")
+	await journal_key()
+	trace_open(1, "after-first-open")
 	deadline = Time.get_ticks_msec() + 90000
 	while (not client.adventure_guide_state().loaded or client.adventure_guide_state().renown_faction_count < 0) and Time.get_ticks_msec() < deadline:
 		await process_frame
+	trace_open(1, "snapshot-wait-complete")
 	if client.adventure_guide_state().renown_faction_count != 29:
 		stop("Pinned realm renown catalog did not arrive")
 		return
@@ -175,6 +235,8 @@ func run() -> void:
 	if not await shot("journeys-reward-tooltip"):
 		return
 	if not await move_to("JourneyProgressName") or not await shot("journeys-renown-progress"):
+		return
+	if not await held_arrow():
 		return
 	if not await wheel("JourneyRenownTrackClip", MOUSE_BUTTON_WHEEL_DOWN):
 		return
