@@ -3721,3 +3721,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
 
 - 2026-10-13 — [Group-private owner/UDP fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13): source doll/gong identity and natural-lifetime fixtures; execution gates pending.
+
+- 2026-10-13 — [Guardian scenery/pet identity](systems/toy-box.md#guardian-scenery-is-not-a-pet-2026-10-13): actual both-skin Gong-as-pet failure and selector RED; authoritative existing PetSpells identity replaces the flags heuristic.
