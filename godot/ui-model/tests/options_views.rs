@@ -27,6 +27,8 @@ fn model() -> GameMenuViewModel {
         view: GameMenuView::Options,
         options: OptionsViewModel {
             category: OptionsCategory::Sound,
+            search: String::new(),
+            addons_tab: false,
             position: [0.0, 0.0],
             graphics: GraphicsOptionsView {
                 particle_density: 75.0,
@@ -134,13 +136,17 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
     assert_eq!(categories.len(), OptionsCategory::ALL.len());
     for (category, body_label) in categories {
         view.options.category = category;
+        view.options.addons_tab = category == OptionsCategory::SocialAddons;
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         assert_eq!(label(&registry, "OptionsSectionTitle"), category.title());
         assert!(registry.frames_iter().any(|frame| {
             matches!(&frame.widget_data, Some(WidgetData::FontString(data)) if data.text == body_label)
         }), "Missing {category:?} content: {body_label}");
-        for tab in OptionsCategory::ALL {
+        for tab in OptionsCategory::ALL
+            .into_iter()
+            .filter(|tab| (*tab == OptionsCategory::SocialAddons) == view.options.addons_tab)
+        {
             let id = registry
                 .get_by_name(&format!("OptionsTab{}", tab.key()))
                 .unwrap();
@@ -173,7 +179,7 @@ fn ssao_graphics_row_discloses_restart_and_emits_toggle_action() {
     );
     let on = native
         .registry
-        .get_by_name("ToggleSwitchssao_enabledRightHit")
+        .get_by_name("ToggleSwitchssao_enabled")
         .unwrap();
     assert_eq!(
         native.registry.click_frame(on).as_deref(),
@@ -192,14 +198,11 @@ fn native_game_menu_model_projects_authored_options_and_reactive_slider_values()
         Some(WidgetData::Slider(_))
     ));
     assert_eq!(label(&native.registry, "SliderValuemaster_volume"), "0.80");
-    assert!(
-        native
-            .registry
-            .get(native.registry.get_by_name("OptionsTabPanel").unwrap())
-            .unwrap()
-            .nine_slice
-            .is_some()
-    );
+    let category = native
+        .registry
+        .get(native.registry.get_by_name("OptionsTabsound").unwrap())
+        .unwrap();
+    assert_eq!(category.width, ui_toolkit::frame::Dimension::Fixed(175.0));
     view.options.sound.master_volume = 0.25;
     native.shared.insert(view);
     native.sync();
@@ -237,19 +240,25 @@ fn interface_status_text_row_offers_the_four_retail_choices() {
     view.options.category = OptionsCategory::Interface;
     view.options.hud.status_text_display = StatusTextDisplay::Both;
     shared.insert(view);
+    shared.insert(popup_state("status_text_display"));
     Screen::new(game_menu_screen).sync(&shared, &mut registry);
     assert_eq!(
         label(&registry, "ChoiceLabelstatus_text_display"),
         "Status Text"
     );
     let labels: Vec<String> = (1..=4)
-        .map(|value| label(&registry, &format!("Choicestatus_text_display{value}Label")))
+        .map(|value| {
+            label(
+                &registry,
+                &format!("Choicestatus_text_display{value}HitText"),
+            )
+        })
         .collect();
     assert_eq!(labels, ["Numeric Value", "Percentage", "Both", "None"]);
     assert!(
         registry
-            .get_by_name("Choicestatus_text_display3Hit")
-            .is_none()
+            .get_by_name("Choicestatus_text_display3HitTick")
+            .is_some()
     );
     let hit = registry
         .get_by_name("Choicestatus_text_display2Hit")
@@ -260,13 +269,22 @@ fn interface_status_text_row_offers_the_four_retail_choices() {
     );
 }
 
-fn hud_registry(layout: &LayoutOptionsView) -> FrameRegistry {
+fn popup_state(key: &str) -> game_engine_ui_model::options_dropdown::OptionsDropdownState {
+    let mut state = game_engine_ui_model::options_dropdown::OptionsDropdownState::default();
+    state.toggle(key, [320.0, 180.0]);
+    state
+}
+
+fn hud_registry(layout: &LayoutOptionsView, open_key: Option<&str>) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     let mut view = model();
     view.options.category = OptionsCategory::Hud;
     view.options.layout = layout.clone();
     shared.insert(view);
+    if let Some(key) = open_key {
+        shared.insert(popup_state(key));
+    }
     Screen::new(game_menu_screen).sync(&shared, &mut registry);
     registry
 }
@@ -288,13 +306,13 @@ fn hud_layout_row_offers_the_presets_and_the_player_layouts() {
             .to_vec(),
         ..Default::default()
     };
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, Some("ui_layout"));
     assert_eq!(label(&registry, "ChoiceLabelui_layout"), "Layout");
     let labels: Vec<String> = (0..4)
-        .map(|value| label(&registry, &format!("Choiceui_layout{value}Label")))
+        .map(|value| label(&registry, &format!("Choiceui_layout{value}HitText")))
         .collect();
     assert_eq!(labels, layout.names);
-    assert!(registry.get_by_name("Choiceui_layout2Hit").is_none());
+    assert!(registry.get_by_name("Choiceui_layout2HitTick").is_some());
     for (index, name) in [(0, "Modern"), (1, "Forever"), (3, "Layout 2")] {
         let action = click(&mut registry, &format!("Choiceui_layout{index}Hit"));
         assert_eq!(
@@ -312,7 +330,7 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
     for skin in [LayoutSkin::Modern, LayoutSkin::Forever] {
         layout.skin = skin;
         for side in ["Right", "Left"] {
-            let mut registry = hud_registry(&layout);
+            let mut registry = hud_registry(&layout, None);
             assert_eq!(
                 layout.settings.show_micro_menu.unwrap_or(false),
                 side == "Left"
@@ -321,10 +339,7 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
                 label(&registry, "ToggleLabellayout_show_micro_menu"),
                 "Show Micro Menu"
             );
-            let action = click(
-                &mut registry,
-                &format!("ToggleSwitchlayout_show_micro_menu{side}Hit"),
-            );
+            let action = click(&mut registry, "ToggleSwitchlayout_show_micro_menu");
             let parsed = parse_layout_action(&action).expect("layout toggle action");
             apply_layout_action(parsed, &mut layout);
         }
@@ -336,13 +351,13 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
 #[test]
 fn hud_layout_settings_controls_edit_the_selected_system() {
     let mut layout = LayoutOptionsView::default();
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, Some("layout_system"));
     assert_eq!(
         label(&registry, "ChoiceLabellayout_system"),
         "Layout Settings"
     );
     let systems: Vec<String> = (0..6)
-        .map(|value| label(&registry, &format!("Choicelayout_system{value}Label")))
+        .map(|value| label(&registry, &format!("Choicelayout_system{value}HitText")))
         .collect();
     assert_eq!(
         systems,
@@ -355,7 +370,7 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     );
     assert_eq!(label(&registry, "SliderValuelayout_frame_size"), "100%");
     assert_eq!(label(&registry, "SliderValuelayout_text_size"), "100%");
-    assert_eq!(label(&registry, "Choicelayout_font0Label"), "Friz Quadrata");
+    assert_eq!(label(&registry, "Choicelayout_fontText"), "Friz Quadrata");
     assert!(registry.get_by_name("Choicelayout_font0Hit").is_none());
     assert!(registry.get_by_name("Sliderlayout_chat_width").is_none());
 
@@ -363,7 +378,7 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     let action = click(&mut registry, "Choicelayout_system1Hit");
     apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
     assert_eq!(layout.system, LayoutSystem::TargetFrame);
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, Some("layout_font"));
     for (slider, value) in [
         ("Sliderlayout_frame_size", 148.0),
         ("Sliderlayout_text_size", 126.0),
@@ -386,14 +401,14 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
         ..Default::default()
     };
     assert_eq!(layout.settings, expected);
-    let registry = hud_registry(&layout);
+    let registry = hud_registry(&layout, None);
     assert_eq!(label(&registry, "SliderValuelayout_frame_size"), "150%");
     assert_eq!(label(&registry, "SliderValuelayout_text_size"), "130%");
-    assert!(registry.get_by_name("Choicelayout_font1Hit").is_none());
+    assert_eq!(label(&registry, "Choicelayout_fontText"), "Arial Narrow");
     // The player frame still shows its own, unchanged values.
     layout.system = LayoutSystem::PlayerFrame;
     assert_eq!(
-        label(&hud_registry(&layout), "SliderValuelayout_frame_size"),
+        label(&hud_registry(&layout, None), "SliderValuelayout_frame_size"),
         "100%"
     );
 
@@ -411,12 +426,12 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
         ),
     ] {
         layout.system = system;
-        let mut registry = hud_registry(&layout);
+        let mut registry = hud_registry(&layout, None);
         let preset = label(&registry, &format!("SliderValuelayout_{}", keys[0]));
         layout.skin = LayoutSkin::Forever;
         assert_ne!(
             label(
-                &hud_registry(&layout),
+                &hud_registry(&layout, None),
                 &format!("SliderValuelayout_{}", keys[0])
             ),
             preset
@@ -431,7 +446,10 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
             };
             apply_layout_slider(slider, size, &mut layout);
             assert_eq!(
-                label(&hud_registry(&layout), &format!("SliderValuelayout_{key}")),
+                label(
+                    &hud_registry(&layout, None),
+                    &format!("SliderValuelayout_{key}")
+                ),
                 format!("{size:.0}")
             );
         }
@@ -443,7 +461,7 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     assert_eq!(layout.settings.target_frame, target);
 
     // "Reset to Preset" clears every setting and keeps the shown system.
-    let mut registry = hud_registry(&layout);
+    let mut registry = hud_registry(&layout, None);
     assert_eq!(
         label(&registry, "RowLabelreset_layout_settings"),
         "Reset to Preset"
@@ -491,31 +509,242 @@ fn nameplates_page_offers_show_health_value_off_by_default() {
         label(&registry, "ToggleLabelnameplate_show_health_value"),
         "Show Health Value"
     );
-    assert!(
-        registry
-            .get_by_name("ToggleSwitchnameplate_show_health_valueLeftHit")
-            .is_none()
-    );
     assert_eq!(
-        click(
-            &mut registry,
-            "ToggleSwitchnameplate_show_health_valueRightHit"
-        ),
+        click(&mut registry, "ToggleSwitchnameplate_show_health_value"),
         "options_toggle:nameplate_show_health_value"
     );
+    let checked = registry
+        .get_by_name("ToggleSwitchnameplate_show_health_valueChecked")
+        .unwrap();
+    assert!(registry.get(checked).unwrap().hidden);
     view.options.hud.nameplate_style.show_health_value = true;
     shared.insert(view);
     screen.sync(&shared, &mut registry);
+    let checked = registry
+        .get_by_name("ToggleSwitchnameplate_show_health_valueChecked")
+        .unwrap();
+    assert!(!registry.get(checked).unwrap().hidden);
+    assert_eq!(
+        click(&mut registry, "ToggleSwitchnameplate_show_health_value"),
+        "options_toggle:nameplate_show_health_value"
+    );
+}
+
+#[test]
+fn settings_panel_and_category_rows_match_retail_xml() {
+    let mut menu = GameMenuModel::from_view(1280.0, 720.0, model());
+    menu.sync();
+    let root = menu
+        .registry
+        .get(menu.registry.get_by_name("OptionsRoot").unwrap())
+        .unwrap();
+    assert_eq!(
+        (root.width, root.height),
+        (
+            ui_toolkit::frame::Dimension::Fixed(920.0),
+            ui_toolkit::frame::Dimension::Fixed(724.0)
+        )
+    );
+    for name in ["OptionsGameTab", "OptionsAddOnsTab", "OptionsSearchBox"] {
+        assert!(menu.registry.get_by_name(name).is_some(), "{name} missing");
+    }
+    for category in OptionsCategory::ALL
+        .into_iter()
+        .filter(|category| *category != OptionsCategory::SocialAddons)
+    {
+        let row = menu
+            .registry
+            .get(
+                menu.registry
+                    .get_by_name(&format!("OptionsTab{}", category.key()))
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (row.width, row.height),
+            (
+                ui_toolkit::frame::Dimension::Fixed(175.0),
+                ui_toolkit::frame::Dimension::Fixed(20.0)
+            )
+        );
+        assert_eq!(
+            row.onclick.as_deref(),
+            Some(format!("options_category:{}", category.key()).as_str())
+        );
+    }
+}
+
+#[test]
+fn settings_header_geometry_matches_settings_panel_xml_in_both_skins() {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+        layout_values::Val,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut menu = GameMenuModel::from_view(1920.0, 1080.0, model());
+        menu.sync();
+        let frame = |name: &str| {
+            menu.registry
+                .get(menu.registry.get_by_name(name).unwrap())
+                .unwrap()
+        };
+        let game = frame("OptionsGameTab");
+        let addons = frame("OptionsAddOnsTab");
+        assert_eq!(game.position.left, Val::Px(32.0));
+        assert_eq!(game.position.top, Val::Px(27.0));
+        assert_eq!(game.height, Dimension::Fixed(37.0));
+        let Dimension::Fixed(game_width) = game.width else {
+            panic!("fixed tab width")
+        };
+        assert_eq!(addons.position.left, Val::Px(32.0 + game_width + 5.0));
+        assert_eq!(addons.position.top, Val::Px(27.0));
+        assert_eq!(addons.height, Dimension::Fixed(37.0));
+        let search = frame("OptionsSearchBox");
+        assert_eq!(
+            (search.width, search.height),
+            (Dimension::Fixed(350.0), Dimension::Fixed(22.0))
+        );
+        assert_eq!(
+            (search.position.left, search.position.top),
+            (Val::Px(552.0), Val::Px(34.0))
+        );
+        // Container right920-22; SearchBox BOTTOMRIGHT relative TOPRIGHT +(4,20).
+        assert_eq!(552.0 + 350.0, 920.0 - 22.0 + 4.0);
+        assert_eq!(34.0 + 22.0, 76.0 - 20.0);
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn settings_search_filters_categories_and_setting_rows_case_insensitively() {
+    let mut view = model();
+    view.options.search = "mUsIc".into();
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view.clone());
+    menu.sync();
+    assert!(menu.registry.get_by_name("OptionsTabsound").is_some());
+    assert!(menu.registry.get_by_name("OptionsTabcamera").is_none());
     assert!(
-        registry
-            .get_by_name("ToggleSwitchnameplate_show_health_valueRightHit")
+        menu.registry
+            .frames_iter()
+            .any(|frame| matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "Music Volume"))
+    );
+    assert!(
+        !menu
+            .registry
+            .frames_iter()
+            .any(|frame| matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "Master Volume"))
+    );
+    view.options.search = "no settings match this".into();
+    let mut empty = GameMenuModel::from_view(1920.0, 1080.0, view);
+    empty.sync();
+    assert!(empty.registry.get_by_name("OptionsNoResults").is_some());
+    assert!(empty.registry.get_by_name("OptionsTabsound").is_none());
+}
+
+#[test]
+fn settings_search_shared_controls_are_not_duplicated_across_categories() {
+    let mut view = model();
+    view.options.search = "UI Scale".into();
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view);
+    menu.sync();
+    let count = menu
+        .registry
+        .frames_iter()
+        .filter(|frame| {
+            matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "UI Scale")
+        })
+        .count();
+    assert_eq!(
+        count, 1,
+        "one shared setting appears once in search results"
+    );
+}
+
+#[test]
+fn settings_addons_tab_contains_only_addon_categories() {
+    let mut view = model();
+    view.options.addons_tab = true;
+    view.options.category = OptionsCategory::SocialAddons;
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view);
+    menu.sync();
+    assert!(
+        menu.registry
+            .get_by_name("OptionsTabsocialaddons")
+            .is_some()
+    );
+    assert!(menu.registry.get_by_name("OptionsTabsound").is_none());
+    let id = menu.registry.get_by_name("OptionsGameTabControl").unwrap();
+    assert_eq!(
+        menu.registry.click_frame(id).as_deref(),
+        Some("options_tab:game")
+    );
+}
+
+#[test]
+fn options_choice_is_one_dropdown_and_unclipped_radio_popup() {
+    use game_engine_ui_model::options_dropdown::OptionsDropdownState;
+    let mut view = model();
+    view.options.category = OptionsCategory::Interface;
+    let mut menu = GameMenuModel::from_view(1600.0, 900.0, view);
+    menu.sync();
+    let button = menu
+        .registry
+        .get_by_name("Choicestatus_text_display")
+        .unwrap();
+    assert_eq!(
+        menu.registry.click_frame(button).as_deref(),
+        Some("options_dropdown:status_text_display")
+    );
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupstatus_text_display")
             .is_none()
     );
+    let mut state = OptionsDropdownState::default();
+    state.toggle("status_text_display", [320.0, 180.0]);
+    menu.shared.insert(state.clone());
+    menu.sync();
+    let popup = menu
+        .registry
+        .get(
+            menu.registry
+                .get_by_name("OptionsChoicePopupstatus_text_display")
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(popup.parent_id, menu.registry.get_by_name("OptionsRoot"));
+    let radio = menu
+        .registry
+        .get_by_name("Choicestatus_text_display2Hit")
+        .unwrap();
     assert_eq!(
-        click(
-            &mut registry,
-            "ToggleSwitchnameplate_show_health_valueLeftHit"
-        ),
-        "options_toggle:nameplate_show_health_value"
+        menu.registry.click_frame(radio).as_deref(),
+        Some("options_toggle:status_text_display:2")
+    );
+    state.toggle("encounter_view", [300.0, 200.0]);
+    menu.shared.insert(state.clone());
+    menu.sync();
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupstatus_text_display")
+            .is_none()
+    );
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupencounter_view")
+            .is_some()
+    );
+    assert!(state.close());
+    menu.shared.insert(state);
+    menu.sync();
+    assert!(
+        menu.registry
+            .get_by_name("OptionsChoicePopupencounter_view")
+            .is_none()
     );
 }

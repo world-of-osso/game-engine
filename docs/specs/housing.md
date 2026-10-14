@@ -4,7 +4,7 @@ Retail Mainline defines controls/layout/behavior; Forever only changes art. No c
 
 ## Static catalog boundary
 
-The client reads `data/cache/housing.sqlite` produced by game-server `scripts/import_housing.py`. Require Retail 12.1.0.69933 / dcfc90fffd79ba00406ae46f5f657592; read-only loading must reject other builds or malformed records. Preserve authored names, item/model/thumbnail IDs and category joins. Record missing/encrypted data separately. Missing cache must report an error, not fabricate entries.
+The client reads `data/cache/housing.sqlite` produced by game-server `scripts/import_housing.py`. Canonical DB2/assets must follow the installed Retail build (12.1.5.70340 as of2026-10-13), not a frozen resolver pin. Read-only loading must reject malformed/unqualified records. Preserve authored names, item/model/thumbnail IDs and category joins; unavailable data stays explicit. Missing cache must report an error, not fabricate entries. Existing69933-qualified housing-cache code/data migration remains open; it is not proof that canonical build-following is complete.
 
 ## Required feature goal (completion remains open)
 
@@ -13,6 +13,30 @@ The client reads `data/cache/housing.sqlite` produced by game-server `scripts/im
 3. Owned decor storage, basic/expert place/move/rotate/scale/remove inside and outside, durable layouts and visitor replication. StartingQuantity alone is not a grant contract.
 
 Further ranks: authentic vendor/quest/achievement/crafting acquisition; visiting/social permissions; charter/create-neighborhood/house finder/bulletin board; room/exterior/dye/blueprint customization; sourced initiatives/favor/levels/upgrades/market cart. Missing reward/grant/progression data stays a gap, never a synthetic substitute.
+
+## Basic placement release contract
+
+Normal owned-storage click starts placement but its original release does not place decor; the next visible move-overlay click commits on release, not press. Owned-storage drag starts placement armed for the first global left release. Selected placed decor moves only after an armed overlay release. Native GUI still receives the actual mouse release after world commit, so a captured mode button released outside restores its source artwork without switching modes. Invalid authored ground retains editing state with an explicit error. Cancel clears release capture. Assigned rotate actions update a new owned decor preview locally and include that yaw only in the eventual placement command; no persisted instance is fabricated for preview rotation. All commands preserve confirmed counts/layout until authority replies; visitors and absent-owned copies cannot start drag placement. Preview/market placement remains unavailable.
+
+Source: `HousingCatalogDecorEntryMixin:TypeSpecificOnInteract` sets `commitNewDecorOnMouseUp=isDrag`; Basic `GLOBAL_MOUSE_UP` and `DecorMoveOverlay.OnMouseUp` finish placement/commit movement.
+
+## Basic editor controls
+
+Basic uses source64px mode controls at bottom center and Snap/Free Place submode buttons above Basic (disabled while semantics remain unavailable). Customize stays disabled, not replaced by a fake editing action. Replace invented bottom Rotate/Remove/Cancel/Done text buttons with right-centered45px instruction rows, source16px labels, source mouse icon/key background,10px label/control spacing and30px right inset. Selected or placing state shows Place/Rotate Left/Rotate Right/Remove/Toggle Grid/Cancel; otherwise Select Decor. Toggle Grid remains visibly disabled. Mode controls retain source default/active/pressed atlas members and additive0.5 hover, tiled bar/bookends/divider and the source800×260 half-alpha radial gradient. Instruction labels use Friz16/black shadow1,−1; key controls use source ArialNarrow16 and measured text width+26. Missing bindings show `[UNBOUND]`, never fabricated keys.
+
+Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates.lua/xml` and `Blizzard_HouseEditorModeButtons.xml`. Native visual/physical acceptance remains a separate gate.
+
+Named gap: installed70340 hotkey atlas bytes are repacked relative to current atlas-member metadata. Hotkey visual acceptance is withheld; `db2-follow-install` (agent_5615) owns70340 `UiTextureAtlasMember` re-export. F3 functional placement, user bindings/unbind, preview rotation and visitor/refusal/relog are landable without that visual gate. Do not publish/use69933 hotkey payloads, pin the resolver or guess replacement UV coordinates.
+
+## Housing editor bindings
+
+Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Save/reload preserves exact Retail names; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels only active selection/placement; otherwise it leaves normal menu handling intact. An open native Options menu owns pointer/key capture ahead of housing world editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
+
+## Expert editor actions — continuation
+
+Retail Expert submode switching, six translation increments, rotate-left/right, scale-up/down and next rotation axis use their `HOUSING_EXPERTDECOR*` action identities in native Housing bindings. No unsourced default keys: arrows/PageUp/PageDown/Q/E/1–3/X cannot substitute for actual assignments. Increment bindings follow native down/up held lifecycle; leaving the mode or cancelling clears holds. Transform staging/cancel/explicit commit and visitor authority remain unchanged.
+
+Native dispatch reads player-assigned bindings, with distinct held rotate and scale actions; key/modifier release, unbind, menu entry, mouse takeover, mode change and cancel stop increments. No invented Enter commit: use the existing sourced world click. Native instruction/live acceptance remains separate from registration and dispatch. Installed-build GlobalStrings localization is a dependency; raw source action identities stay literal until that data is available. Do not invent labels/rates/snap geometry. Hotkey visual acceptance remains the db2-follow-install gap above.
 
 ## Authoritative storage boundary
 

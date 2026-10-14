@@ -8,8 +8,7 @@ use crate::ui::screens::options_menu_component::{
 };
 use crate::ui::strata::FrameStrata;
 
-#[path = "game_menu_main.rs"]
-mod main;
+use crate::game_menu_main as main;
 use main::main_menu_view;
 pub use main::{
     ACTION_ADDONS, ACTION_EXIT, ACTION_LOGOUT, ACTION_OPTIONS, ACTION_RESUME, ACTION_SUPPORT,
@@ -32,9 +31,15 @@ pub struct GameMenuViewModel {
 impl GameMenuViewModel {
     /// What the Options content area shows: the view, the category and, on Keybindings, the
     /// section.
-    pub fn options_page(&self) -> (GameMenuView, OptionsCategory, BindingSection) {
+    pub fn options_page(&self) -> (GameMenuView, OptionsCategory, BindingSection, &str, bool) {
         let options = &self.options;
-        (self.view, options.category, options.bindings.section)
+        (
+            self.view,
+            options.category,
+            options.bindings.section,
+            &options.search,
+            options.addons_tab,
+        )
     }
 }
 
@@ -47,12 +52,19 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
         GameMenuView::Options => options_menu_overlay(
             &model.options,
             shared.scroll_first_row(OPTIONS_CONTENT_SCROLL),
+            shared
+                .get::<crate::options_dropdown::OptionsDropdownState>()
+                .and_then(|state| state.menu.as_ref()),
         ),
     }
 }
 
-fn options_menu_overlay(options: &OptionsViewModel, offset: usize) -> Element {
-    let options = options_view(options, offset);
+fn options_menu_overlay(
+    options: &OptionsViewModel,
+    offset: usize,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> Element {
+    let options = options_view(options, offset, open);
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,

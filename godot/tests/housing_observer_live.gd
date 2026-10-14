@@ -38,6 +38,7 @@ func run_test() -> void:
 
 func run_owner() -> bool:
 	if not await open_editor_home(): return false
+	if not await editor_configure_bindings(false): return false
 	if client.housing_state().decor.size() != 1 or int(client.housing_state().decor[0].decor_id) != 1693 or stored_bookcases() != 0:
 		fail("Owner needs exactly its previously placed paid bookcase: " + str(client.housing_state()))
 		return false
@@ -48,15 +49,16 @@ func run_owner() -> bool:
 	await click(ground_point(7.0), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return client.housing_state().decor.size() == 1 and client.housing_state().decor[0].position.distance_to(before.decor[0].position) > 0.5, "owner move"): return false
 	if not await owner_step("moved"): return false
-	await click_control(housing_control("HouseEditorRotateRight"), MOUSE_BUTTON_LEFT)
+	await editor_key(KEY_F6)
 	if not await wait_housing(func(): return absf(client.housing_state().decor[0].yaw - before.decor[0].yaw) > 0.05, "owner rotation"): return false
 	if not await owner_step("rotated"): return false
-	await click_control(housing_control("HouseEditorRemove"), MOUSE_BUTTON_LEFT)
+	await editor_key(KEY_F7)
 	if not await wait_housing(func(): return client.housing_state().decor.is_empty() and stored_bookcases() == 1, "owner removal"): return false
 	if not await owner_step("removed"): return false
 	# Re-place the same owned copy so the house keeps its retained bookcase.
 	if not await place_owned_bookcase(): return false
-	return await owner_step("replaced")
+	if not await owner_step("replaced"): return false
+	return await editor_configure_bindings(true)
 
 func owner_step(phase: String) -> bool:
 	if not await record_editor("owner-" + phase): return false

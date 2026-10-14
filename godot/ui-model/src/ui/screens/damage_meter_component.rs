@@ -103,7 +103,7 @@ fn flare_skin_rect((width, height): (f32, f32)) -> (f32, f32, f32, f32) {
 /// Session menu under the session dropdown: one radio row per session type.
 const MENU_W: f32 = 150.0;
 const MENU_ROW_H: f32 = 20.0;
-const MENU_PAD: f32 = 6.0;
+const MENU_PAD: f32 = 8.0;
 /// Between Forever's type and session menus.
 const MENU_GAP: f32 = 4.0;
 
@@ -750,51 +750,45 @@ fn type_menu(selected: MeterType, at: (f32, f32)) -> Element {
 }
 
 fn menu_height(count: usize) -> f32 {
-    MENU_PAD * 2.0 + MENU_ROW_H * count as f32
+    MENU_PAD + MENU_ROW_H * count as f32 + 15.0
 }
 
 /// A dark panel of `count` radio rows under the header, drawn over the rows it covers.
 fn menu(name: &str, (left, top): (f32, f32), count: usize, rows: Element) -> Element {
     let height = menu_height(count);
+    let backdrop =
+        crate::selection_list::menu_background(format!("{name}Background"), (MENU_W, height));
     rsx! {
         r#frame {
             name: {DynName(name.to_owned())},
             width: MENU_W,
             height,
             strata: FrameStrata::Dialog,
-            background_color: "0.05,0.05,0.05,0.92",
             pos_type: "absolute",
             left,
             top,
+            {backdrop}
             {rows}
         }
     }
 }
 
 fn menu_row(menu: &str, index: usize, label: &str, action: &str, checked: bool) -> Element {
-    let mark = if checked { "\u{2022} " } else { "   " };
-    let label = format!("{mark}{label}");
-    let color = if checked { WHITE } else { GOLD };
-    let text = text(
-        &format!("{menu}Text{}", index + 1),
-        &label,
-        [8.0, 0.0, MENU_W - 16.0, MENU_ROW_H],
-        color,
-        JustifyH::Left,
-    );
-    rsx! {
-        button {
-            name: {DynName(format!("{menu}Option{}", index + 1))},
-            width: MENU_W,
-            height: MENU_ROW_H,
-            onclick: action,
-            button_default_skin: false,
-            pos_type: "absolute",
-            left: 0.0,
-            top: {MENU_PAD + MENU_ROW_H * index as f32},
-            {text}
-        }
-    }
+    crate::menu_primitives::menu_element(
+        crate::menu_primitives::ContextMenuItem {
+            name: &format!("{menu}Option{}", index + 1),
+            label,
+            action,
+        },
+        crate::menu_primitives::MenuElementKind::Radio { checked },
+        true,
+        (
+            MENU_PAD,
+            MENU_PAD + MENU_ROW_H * index as f32,
+            MENU_W - MENU_PAD * 2.0,
+            MENU_ROW_H,
+        ),
+    )
 }
 
 /// One `DamageMeterSourceEntryTemplate` in the Default style.

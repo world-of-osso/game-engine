@@ -2,6 +2,7 @@ use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::faction_reaction::Reaction;
 use crate::hud_layout::{HudAnchor, hud_layout};
@@ -69,14 +70,7 @@ pub const ACTION_UNIT_MENU_DUNGEON_DIFFICULTY: &str = "unit_menu_dungeon_difficu
 pub const ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX: &str = "unit_menu_dungeon_difficulty:";
 pub const DIFFICULTY_MENU_W: f32 = 120.0;
 const DIFFICULTY_ROW_H: f32 = 20.0;
-const DIFFICULTY_MENU_TOP: f32 = 26.0;
-/// `common-dropdown-tickradial` / `common-dropdown-icon-radialtick-yellow` on
-/// UiTextureAtlas 2634 (FDID 5390329, 512x256), 18x18.
-const RADIO_SHEET_FDID: u32 = 5_390_329;
-const RADIO_EMPTY_COORDS: &str = "0.138671875,0.173828125,0.52734375,0.59765625";
-const RADIO_CHECKED_COORDS: &str = "0.138671875,0.173828125,0.44921875,0.51953125";
-const MENU_TEXT_ENABLED: &str = "1.0,1.0,1.0,1.0";
-const MENU_TEXT_DISABLED: &str = "0.5,0.5,0.5,1.0";
+const DIFFICULTY_MENU_TOP: f32 = 28.0;
 pub const UNIT_MENU_W: f32 = 140.0;
 const UNIT_MENU_CLOSE: ContextMenuItem<'static> = ContextMenuItem {
     name: "UnitFrameContextMenuClose",
@@ -252,7 +246,7 @@ pub struct DifficultyMenuEntry {
 
 /// Height of the Dungeon Difficulty submenu with `rows` entries.
 pub fn difficulty_menu_height(rows: usize) -> f32 {
-    DIFFICULTY_MENU_TOP + rows as f32 * DIFFICULTY_ROW_H + 6.0
+    DIFFICULTY_MENU_TOP + rows as f32 * DIFFICULTY_ROW_H + 15.0
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -949,6 +943,29 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
         &DIFFICULTY_MENU_ROWS
     };
     let (x, y) = state.map_or((0.0, 0.0), |menu| (menu.x, menu.y));
+    // MenuDescription computes extent from text; preserve title and radio insets, not a fixed120px crop.
+    let measure = |text: &str| {
+        ui_toolkit::text_measure::measure_text(text, GameFont::FrizQuadrata, 12.0)
+            .expect("menu font loaded")
+            .0
+    };
+    let title_width = measure(title) + 16.0;
+    let row_width = state.map_or(0.0, |menu| {
+        menu.entries
+            .iter()
+            .map(|entry| measure(&entry.label) + 36.0)
+            .fold(0.0, f32::max)
+    });
+    let legacy_width = if raid {
+        measure("Legacy Raid Size") + 16.0
+    } else {
+        0.0
+    };
+    let width = DIFFICULTY_MENU_W
+        .max(title_width)
+        .max(row_width)
+        .max(legacy_width)
+        .ceil();
     let height = difficulty_menu_height(ids.len()) + if raid { 20.0 } else { 0.0 };
     let rows: Element = ids
         .iter()
@@ -967,95 +984,69 @@ fn render_difficulty_menu(state: Option<&DifficultyMenuState>, raid: bool) -> El
                     checked: false,
                     enabled: false,
                 });
-            difficulty_row(index, &entry, raid, prefix)
+            difficulty_row(index, &entry, raid, prefix, width)
         })
         .collect();
+    let backdrop =
+        crate::selection_list::menu_background(format!("{prefix}Background"), (width, height));
+    let heading = crate::menu_primitives::menu_element(
+        ContextMenuItem {
+            name: &format!("{prefix}Title"),
+            label: title,
+            action: "",
+        },
+        crate::menu_primitives::MenuElementKind::Title,
+        true,
+        (8.0, 8.0, width - 16.0, 20.0),
+    );
     rsx! {
         r#frame {
             name: {dyn_name(prefix.into())},
-            width: {DIFFICULTY_MENU_W},
+            width,
             height: {height},
             hidden: hidden,
             strata: FrameStrata::Dialog,
             frame_level: 61.0,
-            background_color: "0.03,0.03,0.03,0.96",
             pos_type: "absolute",
             left: {x},
             top: {y},
-            fontstring {
-                name: {dyn_name(format!("{prefix}Title"))},
-                width: {DIFFICULTY_MENU_W - 12.0},
-                height: 14.0,
-                text: title,
-                font_size: 10.0,
-                font_color: "1.0,0.82,0.0,1.0",
-                justify_h: "LEFT",
-                pos_type: "absolute",
-                left: 6.0,
-                top: 6.0,
-            }
+            {backdrop}
+            {heading}
             {rows}
-            {if raid { rsx! { fontstring { name:"UnitFrameRaidDifficultyLegacyTitle",text:"Legacy Raid Size",width:108.0,height:20.0,font_size:10.0,font_color:"1,0.82,0,1",pos_type:"absolute",left:6.0,top:86.0 } } } else { Vec::new() }}
+            {if raid { crate::menu_primitives::menu_element(ContextMenuItem { name: "UnitFrameRaidDifficultyLegacyTitle", label: "Legacy Raid Size", action: "" }, crate::menu_primitives::MenuElementKind::Title, true, (8.0, 88.0, width - 16.0, 20.0)) } else { Vec::new() }}
         }
     }
 }
 
-fn difficulty_row(index: usize, entry: &DifficultyMenuEntry, raid: bool, prefix: &str) -> Element {
-    let row_name = dyn_name(format!("{prefix}{}", entry.difficulty_id));
-    let radio_name = dyn_name(format!("{prefix}{}Radio", entry.difficulty_id));
-    let text_name = dyn_name(format!("{prefix}{}Text", entry.difficulty_id));
+fn difficulty_row(
+    index: usize,
+    entry: &DifficultyMenuEntry,
+    raid: bool,
+    prefix: &str,
+    width: f32,
+) -> Element {
+    let row_name = format!("{prefix}{}", entry.difficulty_id);
     let top = DIFFICULTY_MENU_TOP
         + index as f32 * DIFFICULTY_ROW_H
         + if raid && index >= 3 { 20.0 } else { 0.0 };
-    let coords = if entry.checked {
-        RADIO_CHECKED_COORDS
-    } else {
-        RADIO_EMPTY_COORDS
-    };
-    let color = if entry.enabled {
-        MENU_TEXT_ENABLED
-    } else {
-        MENU_TEXT_DISABLED
-    };
     let action_prefix = if raid {
         "unit_menu_raid_difficulty:"
     } else {
         ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX
     };
     let action = format!("{action_prefix}{}", entry.difficulty_id);
-    rsx! {
-        r#frame {
-            name: row_name,
-            width: {DIFFICULTY_MENU_W - 12.0},
-            height: {DIFFICULTY_ROW_H},
-            onclick: action.as_str(),
-            pos_type: "absolute",
-            left: 6.0,
-            top: {top},
-            texture {
-                name: radio_name,
-                width: 18.0,
-                height: 18.0,
-                texture_fdid: RADIO_SHEET_FDID,
-                tex_coords: coords,
-                pos_type: "absolute",
-                left: 0.0,
-                top: 1.0,
-            }
-            fontstring {
-                name: text_name,
-                width: {DIFFICULTY_MENU_W - 32.0},
-                height: 20.0,
-                text: entry.label.as_str(),
-                font_size: 10.0,
-                font_color: color,
-                justify_h: "LEFT",
-                pos_type: "absolute",
-                left: 19.0,
-                top: 0.0,
-            }
-        }
-    }
+    crate::menu_primitives::menu_element(
+        ContextMenuItem {
+            name: &row_name,
+            label: &entry.label,
+            action: &action,
+        },
+        crate::menu_primitives::MenuElementKind::Radio {
+            checked: entry.checked,
+        },
+        entry.enabled,
+        (8.0, top, width - 16.0, DIFFICULTY_ROW_H),
+    )
 }
 
 #[cfg(test)]
