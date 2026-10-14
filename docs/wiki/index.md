@@ -5,6 +5,8 @@
 - [Native source Toy area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13) — actual both-skin journal rejection, permitted activation and exit removal with retained cooldown.
 
 - [War Banner faction/combat rendering](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13) — replicated team condition, both faction models in both skins, physical source combat removes native back attachments; no cloth certification.
+- [Owned pet combat details](systems/battle-pets.md#owned-combat-details--2026-10-13) — persisted injuries/choices, owner-only native snapshots and acknowledged Retail ability flyout; focused tests and inspected both-skin native flyout/ack/reopen proof.
+
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
 
 - [Native follower dungeon Group Finder](systems/follower-dungeons.md) — source role/type/checkbox list, authoritative catalog and both-skin private native admission/five roles/14m follow; combat, camera/geometry/gear and whole-dungeon acceptance remain open.
@@ -122,7 +124,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Trading Post](systems/trading-post.md) — native Mainline PerksProgram vendor, source category dropdown, creature/player previews over an authenticated asset closure, HUD hiding, freeze, and Traveler's Log Tender; both-skin live proof and purchase-proof boundary.
 
-- [Native Adventure Guide](systems/adventure-guide.md) — ten-defect layout correction, shared Retail shell/rows/tabs/navbar, Guide41/shared6 tests and inspected receipt-bound both-skin full-HD input/clip/paint proof; broader feature and extra-test gaps explicit.
+- [Native Adventure Guide](systems/adventure-guide.md) — ten-defect layout correction and bounded Journeys Retail cards/track/reward-tooltip/wheel/jump/Home, receipt-bound both-skin full-HD proof; unsourced faction presentation metadata and broader feature/extra-test gaps explicit.
 
 - [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
