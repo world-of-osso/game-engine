@@ -143,7 +143,7 @@ fn place_ribbon(
                 load_ribbon_material(model, source.priority_plane, texture, material, texture_dir)?;
             Ok((material, transform))
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, String>>()?;
     let geometry = ArrayMesh::new_gd();
     let meshes = materials
         .iter()
