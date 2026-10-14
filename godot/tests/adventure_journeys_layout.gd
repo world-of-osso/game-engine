@@ -75,6 +75,24 @@ func shot(label: String) -> bool:
 	print("JOURNEYS_LAYOUT_SHOT " + path)
 	return true
 
+func masked_icon(name: String, inset: bool) -> bool:
+	var node := client.find_child(name, true, false) as TextureRect
+	if node == null or node.texture == null:
+		stop("Missing masked icon " + name)
+		return false
+	var image := node.texture.get_image()
+	if image.is_compressed() and image.decompress() != OK:
+		stop("Cannot decode mask proof " + name)
+		return false
+	if image.get_pixel(0,0).a > 0.01 or image.get_pixel(image.get_width()/2,image.get_height()/2).a < 0.7:
+		stop("Mask corner/centre wrong " + name)
+		return false
+	if inset and image.get_pixel(0,image.get_height()/2).a > 0.01:
+		stop("40px choice mask must be inset inside45px reward icon")
+		return false
+	print("JOURNEYS_MASK_PASS " + name)
+	return true
+
 func wait_screen(screen: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 180000
 	while Time.get_ticks_msec() < deadline:
@@ -127,6 +145,8 @@ func run() -> void:
 		return
 	if client.adventure_guide_state().journey != 12 or client.adventure_guide_state().journey_level != 2:
 		stop("Physical faction/level selection did not resolve Maruuk2")
+		return
+	if not masked_icon("JourneyRenownLevel2*Icon", false) or not masked_icon("JourneyReward622Icon", true):
 		return
 	var notice := control("JourneyProgressUnlock")
 	var pane := control("JourneyProgress")
