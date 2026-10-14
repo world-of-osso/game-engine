@@ -169,7 +169,7 @@ impl View {
             return Ok(());
         }
         if let Some(id) = action.strip_prefix("perks:cart:select:") {
-            let id = id.parse().map_err(|_| "Invalid Trading Post cart item")?;
+            let id: u32 = id.parse().map_err(|_| "Invalid Trading Post cart item")?;
             if let Some(item_id) = self
                 .cart_items()
                 .iter()
