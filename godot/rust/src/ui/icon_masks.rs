@@ -84,6 +84,24 @@ impl IconMasks {
         {
             texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
         }
+        // Cart IconVignette is a black66% texture clipped by the same56px alpha mask.
+        let vignettes: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| {
+                frame.name.as_deref().is_some_and(|name| {
+                    name.starts_with("PerksProgramCart") && name.ends_with("Vignette")
+                })
+            })
+            .map(|frame| frame.id)
+            .collect();
+        for id in vignettes {
+            if let Some(WidgetData::Texture(texture)) = registry
+                .get_mut(id)
+                .and_then(|frame| frame.widget_data.as_mut())
+            {
+                texture.vertex_color = [0., 0., 0., 0.66];
+            }
+        }
         // ToyDetails.xml justifyV=TOP; move into RSX when it exposes vertical justification.
         if let Some(id) = registry.get_by_name("PerksProgramToyDescription")
             && let Some(frame) = registry.get_mut(id)

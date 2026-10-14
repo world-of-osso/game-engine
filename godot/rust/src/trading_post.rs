@@ -215,6 +215,19 @@ impl GameClient {
                     })
                     .then_some(row.id)
             });
+        self.trading_post.view.cart_item_hover =
+            ui.bind().hovered_button().and_then(|(name, _)| {
+                if let Some(ids) = name.strip_prefix("PerksProgramCartSubItem") {
+                    return ids.split_once('_')?.1.parse().ok();
+                }
+                let vendor: u32 = name.strip_prefix("PerksProgramCartItem")?.parse().ok()?;
+                self.trading_post
+                    .view
+                    .cart_items()
+                    .iter()
+                    .find(|row| row.id == vendor)
+                    .map(|row| row.item_id)
+            });
         if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
             if let Some((name, _)) = ui.bind().hovered_button() {
                 match name.as_str() {
