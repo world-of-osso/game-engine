@@ -18,7 +18,7 @@ impl RibbonMaterialFixture {
     fn add_strip(&mut self, blend: i32, priority: i32, color: Color, depth: f32) -> GString {
         match self.spawn_strip(blend, priority, color, depth) {
             Ok(()) => GString::new(),
-            Err(error) => error.into(),
+            Err(error) => error.as_str().into(),
         }
     }
 }
