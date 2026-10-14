@@ -19,6 +19,7 @@ pub const VIEWER_NAMES: [&str; 4] = [
 ];
 
 pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
+    let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
     let state = ctx
         .get::<CooldownViewerView>()
         .expect("CooldownViewerView in SharedContext");
@@ -29,6 +30,7 @@ pub fn cooldown_viewer_screen(ctx: &SharedContext) -> Element {
         .flat_map(|(category, icons)| viewer(category, icons, state.enabled))
         .collect();
     rows.extend(crate::cooldown_settings_component::settings_panel(
+        ctx,
         &state.settings,
     ));
     rows

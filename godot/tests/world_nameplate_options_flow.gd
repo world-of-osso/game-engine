@@ -37,7 +37,7 @@ func run_test() -> void:
 	# read from the bars' Numeric Value text.
 	await open_options(client, "interface")
 	await click_option(client, "Choicestatus_text_display1Hit")
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	for attempt in range(8):
 		if client.target_state().target == id:
 			break
@@ -58,7 +58,7 @@ func run_test() -> void:
 	var fill_color: Color = client.nameplate_state()[id].color
 	await open_options(client, "hud")
 	await click_option(client, "ToggleSwitchshow_health_barsLeftHit")
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	if not await expect_target_frame(client, id, false):
 		return
@@ -68,7 +68,7 @@ func run_test() -> void:
 		return
 	await open_options(client, "accessibility")
 	await click_option(client, "ToggleSwitchcolorblind_modeRightHit")
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	if not await expect_plate(client, id, false, Color(1.0, 0.92, 0.35)):
 		return
@@ -77,13 +77,13 @@ func run_test() -> void:
 		return
 	await open_options(client, "accessibility")
 	await click_option(client, "ToggleSwitchcolorblind_modeLeftHit")
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	if not await expect_plate(client, id, false, Color.WHITE):
 		return
 	await open_options(client, "hud")
 	await click_option(client, "ToggleSwitchshow_health_barsRightHit")
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	if not await expect_target_frame(client, id, true):
 		return
@@ -100,7 +100,7 @@ func run_test() -> void:
 		return
 	await open_options(client, "hud")
 	await set_distance(client, 80.0)
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	if not await turn_until_plate(client, id):
 		return
@@ -108,13 +108,13 @@ func run_test() -> void:
 		return
 	await open_options(client, "hud")
 	await set_distance(client, 40.0)
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	if not await expect_distance(client, id, 40.0):
 		return
 	await open_options(client, "hud")
 	await set_distance(client, 20.0)
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	await tap(KEY_TAB)
 	# Selection bypasses the HUD fade even past its 20 yd boundary.
 	if not await expect_distance(client, id, 20.0):

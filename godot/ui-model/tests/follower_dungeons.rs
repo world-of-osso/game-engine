@@ -26,10 +26,182 @@ fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(skin);
     shared.insert(view);
-    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(follower_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::follower_dungeons::apply_follower_postsetup(&mut registry);
     registry
 }
+#[test]
+fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgrounds() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            View {
+                visible: true,
+                ..Default::default()
+            },
+            skin,
+        );
+        let leader = registry
+            .get(
+                registry
+                    .get_by_name("LFDQueueFrameRoleButtonLeader")
+                    .expect("solo leader remains visible"),
+            )
+            .unwrap();
+        assert_eq!((leader.width.value(), leader.height.value()), (48.0, 48.0));
+        assert_eq!(
+            button(&registry, "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Normal
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox")
+                .is_some()
+        );
+        for role in ["Tank", "Healer", "DPS"] {
+            let background = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("LFDQueueFrameRoleButton{role}Background"))
+                        .expect("inherited role background"),
+                )
+                .unwrap();
+            assert_eq!(
+                (background.width.value(), background.height.value()),
+                (80.0, 80.0)
+            );
+            assert_eq!(
+                background.draw_layer,
+                ui_toolkit::strata::DrawLayer::Background
+            );
+        }
+    }
+}
+
+#[test]
+fn follower_group_finder_leader_selection_tracks_leadership_without_changing_combat_role() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            ..Default::default()
+        };
+        view.action("follower:leader");
+        assert!(view.volunteer_leader, "solo guide selection follows Retail");
+        view.leader_available = false;
+        view.volunteer_leader = false;
+        assert_eq!(
+            button(&render(view.clone(), skin), "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Disabled
+        );
+        view.action("follower:leader");
+        assert!(
+            !view.volunteer_leader,
+            "grouped non-leader cannot volunteer"
+        );
+        view.leader_available = true;
+        let registry = render(view.clone(), skin);
+        assert_eq!(
+            button(&registry, "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Normal
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox")
+                .is_some()
+        );
+        view.action("follower:leader");
+        assert!(view.volunteer_leader);
+        assert_eq!(view.role, GroupRoleSnapshot::Damage);
+        assert!(
+            render(view.clone(), skin)
+                .get_by_name("LFDQueueFrameRoleButtonLeaderCheck")
+                .is_some()
+        );
+        view.pending = true;
+        view.action("follower:leader");
+        assert!(view.volunteer_leader);
+        assert_eq!(
+            button(&render(view, skin), "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Disabled
+        );
+    }
+}
+
+#[test]
+fn follower_group_finder_preserves_native_paper_and_disabled_category_art_in_both_skins() {
+    use ui_toolkit::widgets::texture::TextureSource;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            View {
+                visible: true,
+                ..Default::default()
+            },
+            skin,
+        );
+        let paper = registry
+            .get(registry.get_by_name("LFDQueueFrameBackground").unwrap())
+            .unwrap();
+        assert_eq!((paper.width.value(), paper.height.value()), (512.0, 256.0));
+        let Some(WidgetData::Texture(texture)) = &paper.widget_data else {
+            panic!("paper texture")
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(337_492));
+        for index in 1..=3 {
+            let name = format!("GroupFinderFrameGroupButton{index}");
+            assert_eq!(
+                button(&registry, &name).0,
+                if index == 1 {
+                    ButtonState::Normal
+                } else {
+                    ButtonState::Disabled
+                }
+            );
+            for part in ["Ring", "Icon"] {
+                let frame = registry
+                    .get(registry.get_by_name(&format!("{name}{part}")).unwrap())
+                    .unwrap();
+                let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                    panic!("category texture")
+                };
+                assert_eq!(texture.desaturated, index != 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn follower_group_finder_type_menu_is_a_checked_radio_without_invented_heading() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(
+            View {
+                visible: true,
+                type_open: true,
+                ..Default::default()
+            },
+            skin,
+        );
+        assert!(registry.get_by_name("LFDQueueFrameTypeTitle").is_none());
+        assert!(registry.get_by_name("LFDQueueFrameTypeDivider").is_none());
+        let menu = registry
+            .get(
+                registry
+                    .get_by_name("LFDQueueFrameTypeDropdownMenu")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(menu.height.value(), 43.0);
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameTypeFollowerTick")
+                .is_some()
+        );
+        assert_eq!(
+            button(&registry, "LFDQueueFrameTypeFollower").1.as_deref(),
+            Some("follower:type:follower")
+        );
+    }
+}
+
 fn button(registry: &FrameRegistry, name: &str) -> (ButtonState, Option<String>) {
     let frame = registry
         .get(registry.get_by_name(name).expect(name))

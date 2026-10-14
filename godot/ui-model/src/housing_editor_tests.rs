@@ -312,3 +312,97 @@ fn housing_expert_stages_xyz_rotation_scale_and_cancel_without_storage_mutation(
     editor.select(&visitor, 7).unwrap();
     assert!(editor.commit_expert(&visitor).is_err());
 }
+
+#[test]
+fn housing_basic_catalog_click_ignores_initial_release_then_commits_overlay_release() {
+    let auth = authority(true);
+    let saved = auth.state.clone();
+    let mut editor = EditorInteraction::default();
+    editor.begin_place(&auth, &bookcase(1693)).unwrap();
+    assert_eq!(
+        editor
+            .basic_pointer_release(&auth, Some([4.0, 2.0, 8.0]))
+            .unwrap(),
+        None
+    );
+    assert_eq!(editor.placing, Some(1693));
+    assert!(editor.arm_move_overlay());
+    assert_eq!(editor.placing, Some(1693));
+    assert!(
+        matches!(editor.basic_pointer_release(&auth,Some([4.0,2.0,8.0])).unwrap(), Some(HousingCommand::PlaceDecor {decor_id:1693,transform,..}) if transform.position==[4.0,2.0,8.0])
+    );
+    assert_eq!(auth.state, saved);
+}
+
+#[test]
+fn housing_basic_owned_preview_rotation_stays_local_until_real_placement_commit() {
+    let auth = authority(true);
+    let saved = auth.state.clone();
+    let mut editor = EditorInteraction::default();
+    editor.begin_place(&auth, &bookcase(1693)).unwrap();
+    editor.rotate_placement(&auth, 0.25).unwrap();
+    assert_eq!(
+        editor.placement_transform([4.0, 2.0, 8.0]).unwrap().yaw,
+        0.25
+    );
+    assert_eq!(auth.state, saved);
+    assert!(editor.rotate_placement(&auth, f32::INFINITY).is_err());
+    assert!(editor.rotate_placement(&authority(false), 0.25).is_err());
+    assert!(
+        matches!(editor.commit_at(&auth,[4.0,2.0,8.0]).unwrap(),HousingCommand::PlaceDecor {decor_id:1693,transform,..} if transform.yaw==0.25)
+    );
+    assert!(editor.rotate_placement(&auth, 0.25).is_err());
+}
+
+#[test]
+fn housing_basic_owned_catalog_drag_commits_first_release_and_cancellation_clears_capture() {
+    let auth = authority(true);
+    let saved = auth.state.clone();
+    let mut editor = EditorInteraction::default();
+    editor.begin_place_drag(&auth, &bookcase(1693)).unwrap();
+    assert!(
+        matches!(editor.basic_pointer_release(&auth,Some([8.0,2.0,4.0])).unwrap(),Some(HousingCommand::PlaceDecor {decor_id:1693,transform,..}) if transform.position==[8.0,2.0,4.0])
+    );
+    assert_eq!(auth.state, saved);
+    editor.begin_place_drag(&auth, &bookcase(1693)).unwrap();
+    editor.cancel();
+    assert_eq!(
+        editor
+            .basic_pointer_release(&auth, Some([8.0, 2.0, 4.0]))
+            .unwrap(),
+        None
+    );
+    assert!(
+        editor
+            .begin_place_drag(&authority(false), &bookcase(1693))
+            .is_err()
+    );
+    assert!(editor.begin_place_drag(&auth, &bookcase(999)).is_err());
+}
+
+#[test]
+fn housing_basic_move_commits_only_armed_overlay_release_and_keeps_invalid_preview() {
+    let auth = authority(true);
+    let mut editor = EditorInteraction::default();
+    editor.select(&auth, 7).unwrap();
+    assert_eq!(
+        editor
+            .basic_pointer_release(&auth, Some([2.0, 2.0, 3.0]))
+            .unwrap(),
+        None
+    );
+    assert!(editor.arm_move_overlay());
+    assert!(editor.basic_pointer_release(&auth, None).is_err());
+    assert_eq!(editor.selected, Some(7));
+    assert!(editor.arm_move_overlay());
+    assert_eq!(
+        editor
+            .basic_pointer_release(&auth, Some([9.0, 2.0, 8.0]))
+            .unwrap(),
+        Some(HousingCommand::MoveDecor {
+            house_id: 41,
+            instance_id: 7,
+            position: [9.0, 2.0, 8.0]
+        })
+    );
+}
