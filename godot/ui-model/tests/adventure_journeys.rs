@@ -119,6 +119,45 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
+    let mut view = data_view();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(1);
+    view.journeys.advance_scroll(0.5, 25);
+    assert_eq!(view.journeys.level, 2);
+    assert_eq!(rect(&render(&view), "JourneyRenownLevel2")[0], 257.5);
+    view.journeys.advance_scroll(0.2, 25);
+    let moving_left = rect(&render(&view), "JourneyRenownLevel2")[0];
+    assert!((moving_left - 256.1).abs() < 0.01);
+    view.apply("journal:journey-select-level:9").unwrap();
+    assert_eq!(view.journeys.level, 2, "Clicks cannot interfere while held");
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 3);
+    assert_eq!(rect(&render(&view), "JourneyRenownLevel3")[0], 257.5);
+    view.journeys.advance_scroll(3., 25);
+    assert_eq!(view.journeys.level, 3, "Release stops movement");
+}
+
+#[test]
+fn journeys_short_hold_steps_once_and_boundary_stops() {
+    let mut view = data_view();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.1, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 1);
+    view.journeys.start_scroll(1);
+    view.journeys.advance_scroll(100., 25);
+    assert_eq!(view.journeys.level, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 25);
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.7, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 24, "Left release rounds down");
+}
+
+#[test]
 fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
     let mut view = data_view();
     let mut catalog = snapshot();
