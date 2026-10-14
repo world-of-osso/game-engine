@@ -405,21 +405,25 @@ mod tests {
         }
     }
 
+    fn dynamic_icon_pixels(registry: &FrameRegistry, name: &str) -> RgbaImage {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
+            panic!("icon");
+        };
+        let TextureSource::Dynamic(id) = icon.source else {
+            panic!("{name} must use its authored mask");
+        };
+        let pixels = registry.dynamic_texture(id).unwrap();
+        RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap()
+    }
+
     fn assert_perks_mask_alpha(
         registry: &FrameRegistry,
         name: &str,
         fdid: u32,
         skin: ui_toolkit::atlas::ActiveSkin,
     ) {
-        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
-        let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
-            panic!("icon");
-        };
-        let TextureSource::Dynamic(id) = icon.source else {
-            panic!("Trading Post icon must use its authored mask");
-        };
-        let pixels = registry.dynamic_texture(id).unwrap();
-        let rgba = RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap();
+        let rgba = dynamic_icon_pixels(registry, name);
         use image::imageops::{FilterType, crop_imm, resize};
         // Elements.xml: centred48×48 MaskTexture over32×32 Icon.
         // Compare visible output pixels, not generic corner opacity.
@@ -453,6 +457,41 @@ mod tests {
             rendered.get_pixel(16, 16)[3] > 200,
             "opaque centre {skin:?}"
         );
+    }
+
+    #[test]
+    fn trading_post_mask_change_keeps_round_class_and_bag_pixels_unchanged() {
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let round = mask_alpha(&texture(PORTRAIT_MASK_FDID));
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture { name:"Class_1_Icon",texture_fdid:626008,width:67.0,height:67.0 }
+                texture { name:"CharacterBag0SlotIconTexture",texture_fdid:133633,width:24.0,height:24.0,
+                    tex_coords:"0.06666667,0.8666667,0.06666667,0.8666667" }
+            }).sync(&SharedContext::new(), &mut registry);
+            IconMasks::default().apply(&mut registry);
+            let class = compose_masked_icon(texture(626008), &round);
+            assert_eq!(
+                dynamic_icon_pixels(&registry, "Class_1_Icon"),
+                class,
+                "{skin:?} class baseline"
+            );
+            // CircularItemButtonTemplate:30px owner, TL+2/BR-4 =>24px cropped icon.
+            let bag =
+                super::crop_normalized(texture(133633), [2. / 30., 26. / 30., 2. / 30., 26. / 30.]);
+            let bag = compose_masked_icon(bag, &round);
+            assert_eq!(
+                dynamic_icon_pixels(&registry, "CharacterBag0SlotIconTexture"),
+                bag,
+                "{skin:?} bag baseline"
+            );
+        }
     }
 
     #[test]
