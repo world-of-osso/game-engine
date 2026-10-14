@@ -69,6 +69,14 @@ Example chain for Human Male HD face texture: ChrModelID=1 → Option 10 (Face) 
 
 Item-driven textures (worn equipment) come from `ItemDisplayInfo.ModelMaterialResourcesID_*` → `TextureFileData` → FDID. This chain is distinct from the M2 TXID chunk textures. Auto-extraction is not fully reliable for all paths; manual `casc-local` extraction may be needed.
 
+## Installed CSV column order and signed selections
+
+Verified 2026-10-14 against canonical `data/db2/active` (12.1.5.70391) and root exports. Column positions are not a table contract: `WarbandScenePlacementOption` now starts `Position_0,Position_1,Position_2,OptionID,WarbandScenePlacementID,Orientation,Scale,LayoutKey`. Its former positional parser dropped every option after an integer parse failure. [Authored scene loader](../../../godot/core/src/warband_scene_data.rs) now resolves names and rejects malformed rows with file/physical-line diagnostics. [Import contract](../../specs/cache-import-sources.md#csv-parsing-contract).
+
+`ChrCustomizationGeoset` row213, `ChrCustomizationSkinnedModel` rows497/614 and `CharHairGeosets` row8594 contain signed `GeosetID=-1`. Raw customization caches retain it; v5 replaces v4, which silently stored zero. `CustomizationDb.unresolved_geoset_rows` and startup diagnostics name unprojectable rows; unsigned render selections never receive a remapped zero. Nonnegative geosets retain their authored values. [Creation contract](../../specs/character-creation.md).
+
+Meaning remains unknown. Local wow.export c2fd7bde36a712be78a5da896c995b84fbfa2545 `src/js/db/caches/DBCharacterCustomization.js:219-222` concatenates ordinary geosets: type17/id-1 becomes `Number("17-1")` (NaN). Its collection join at289-290 computes type14/id-1 as1399, and `modules/tab_characters.js:851-859` matches that number to submesh IDs. Neither states sentinel semantics; these joins do not justify replacing -1 with0 or inventing visibility behavior.
+
 ## NPC authored appearance import
 
 `python3 scripts/import_npc_appearance.py` uses stdlib only and reads existing local files; it does not extract assets or alter the renderer. [Importer contract](../../specs/npc-appearance-importer.md).
@@ -103,6 +111,8 @@ Every selected display has a `display_coverage` row. `requires_appearance` is `1
 Targeted tests: `python3 -m unittest discover -s scripts -p test_import_npc_appearance.py`.
 
 ## Sources
+
+- [Header-aware CSV helpers](../../../godot/core/src/csv_util.rs), [customization cache](../../../godot/core/src/rendering/character/customization_cache.rs) and [projection](../../../godot/core/src/rendering/character/customization_catalog.rs) — canonical-data regressions and named signed-selection gaps.
 
 - [NPC importer](../../../scripts/import_npc_appearance.py) and [behavioral fixtures](../../../scripts/test_import_npc_appearance.py)
 

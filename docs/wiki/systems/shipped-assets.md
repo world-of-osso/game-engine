@@ -70,9 +70,14 @@ behavior remains unchanged; that environmental failure is not suppressed.
 Evidence lives under
 `data/diagnostics/shippedassets-p1-2026-10-09/` in the canonical checkout.
 
+## Publication staging — 2026-10-14
+
+Separate from P1/CASC policy: hard-linking a mutable SQLite catalog lets later source writes alter staged upload bytes. The [bundle staging contract](../../specs/player-bundle.md) now copies mutable catalogs independently while extracted immutable payloads retain shared storage. Manifest generation hashes the staged directory; its verifier rechecks staged size/SHA256 before the first upload. Real SQLite mutation and actual verifier CLI cases reproduced RED2→GREEN8, including same-size corruption, incorrect size and missing files. This is packaging integrity proof, not full asset closure or publication acceptance.
+
 ## Sources
 
 - [Shipped-assets contract](../../specs/shipped-assets.md)
+- [Bundle staging contract](../../specs/player-bundle.md), [assembler/verifier](../../../scripts/player_bundle.py) and [behavioral tests](../../../scripts/tests/test_player_bundle.py)
 - [Startup boundary and cold-worker regressions](../../../godot/rust/src/asset_startup.rs)
 - [Detached completion state](../../../godot/core/src/asset_loader.rs)
 - [Ground-detail worker](../../../godot/rust/src/terrain/ground_detail.rs)

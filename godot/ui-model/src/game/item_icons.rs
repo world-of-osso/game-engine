@@ -76,15 +76,14 @@ fn read_columns(path: &Path, columns: [&str; 3]) -> Result<Vec<[u32; 3]>, String
         header_index(&headers, columns[2], path)?,
     ];
     let mut rows = Vec::new();
-    for line in lines {
+    for (line_number, line) in lines.enumerate() {
         let line = line.map_err(|err| format!("read {}: {err}", path.display()))?;
         let fields = parse_csv_line(&line);
-        let value = |index: usize| fields.get(index).and_then(|v| v.parse::<u32>().ok());
-        if let (Some(a), Some(b), Some(c)) =
-            (value(indexes[0]), value(indexes[1]), value(indexes[2]))
-        {
-            rows.push([a, b, c]);
-        }
+        let value = |index| {
+            game_engine_core::csv_util::parse_field::<u32>(&fields, index)
+                .map_err(|error| format!("{}:{}: {error}", path.display(), line_number + 2))
+        };
+        rows.push([value(indexes[0])?, value(indexes[1])?, value(indexes[2])?]);
     }
     Ok(rows)
 }
@@ -124,6 +123,26 @@ mod tests {
         assert_eq!(
             crate::item_catalog::wait_for_item_catalog().icon_fdid(2589),
             Some(132_889)
+        );
+    }
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_item_icons_reject_invalid_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("ItemAppearance", Some("ID"));
+        let error = read_columns(&fixture.0, ["ID", "DefaultIconFileDataID", "ID"]).unwrap_err();
+        assert!(error.contains("ItemAppearance.csv:2:"), "{error}");
+    }
+    #[test]
+    fn db2_header_item_icons_read_canonical_count() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("ItemAppearance", None);
+        let rows = read_columns(&fixture.0, ["ID", "DefaultIconFileDataID", "ID"]).unwrap();
+        assert_eq!(
+            rows.len(),
+            std::fs::read_to_string(&fixture.0).unwrap().lines().count() - 1
         );
     }
 }

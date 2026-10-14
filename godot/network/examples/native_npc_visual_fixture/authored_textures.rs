@@ -30,7 +30,7 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     let data = project.root.join("data");
     for name in [
         "npc_appearance.sqlite",
-        "customization-v4.sqlite",
+        "customization-v5.sqlite",
         "char_texture-v2.sqlite",
         "creature_display.sqlite",
     ] {
