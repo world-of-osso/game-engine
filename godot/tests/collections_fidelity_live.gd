@@ -112,6 +112,8 @@ func check_mount_controls() -> bool:
 	if not await wait_frames(func(): return control("MountJournalContextMenu") != null, "shared mount context menu"):
 		return false
 	if control("MountJournalContextMenu").global_position.distance_to(at) > 1.0:
+		print("CONTEXT_GEOMETRY expected=", at, " viewport_mouse=", root.get_mouse_position(), " menu=", control("MountJournalContextMenu").global_position)
+		await capture("mounts-context-failure.png")
 		fail("Mount context did not open at cursor")
 		return false
 	await capture("mounts-context.png")
@@ -197,6 +199,8 @@ func check_toy_controls() -> bool:
 	if not await wait_frames(func(): return control("ToyBoxContextMenu") != null, "shared toy context"):
 		return false
 	if control("ToyBoxContextMenu").global_position.distance_to(at) > 1.0:
+		print("CONTEXT_GEOMETRY expected=", at, " viewport_mouse=", root.get_mouse_position(), " menu=", control("ToyBoxContextMenu").global_position)
+		await capture("toys-context-failure.png")
 		fail("Toy context did not open at cursor")
 		return false
 	await capture("toys-context.png")
