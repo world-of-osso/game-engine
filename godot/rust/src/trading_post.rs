@@ -83,7 +83,10 @@ impl GameClient {
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
-        if self.trading_post.view.confirm.take().is_some() {
+        if self.trading_post.view.confirm.is_some() {
+            if !self.trading_post.view.pending {
+                self.trading_post.view.confirm = None;
+            }
             return Ok(true);
         }
         if self.trading_post.view.dropdown {

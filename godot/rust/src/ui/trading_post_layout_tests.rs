@@ -85,6 +85,148 @@ fn assert_rect(
 }
 
 #[test]
+fn trading_post_pending_checkout_keeps_source_overlay_and_centred_spinner_bounds() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = View {
+            visible: true,
+            selected: Some(4),
+            cart: vec![4],
+            snapshot: Some(Arc::new(vendor())),
+            ..Default::default()
+        };
+        view.click("perks:cart:checkout").unwrap();
+        view.click("perks:confirm").unwrap();
+        let (registry, bounds) = render(view);
+        let dialog = rect(&registry, &bounds, "PerksProgramConfirmDialog");
+        assert_rect(&registry, &bounds, "PerksProgramConfirmDarkOverlay", dialog);
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramConfirmSpinner",
+            [
+                dialog[0] + (dialog[2] - 60.) / 2.,
+                dialog[1] + (dialog[3] - 60.) / 2.,
+                60.,
+                60.,
+            ],
+        );
+        for name in [
+            "PerksProgramConfirmSpinnerRing",
+            "PerksProgramConfirmSpinnerSparks",
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("source spinner texture");
+            };
+            let ui_toolkit::widgets::texture::TextureSource::FileDataId(fdid) = texture.source
+            else {
+                panic!("source atlas FDID");
+            };
+            let bytes = std::fs::read(game_engine_ui_model::paths::resolve_data_path(format!(
+                "textures/{fdid}.blp"
+            )))
+            .unwrap();
+            let decoded = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+            let [left, right, top, bottom] = texture.tex_coords;
+            let image =
+                image::RgbaImage::from_raw(decoded.width, decoded.height, decoded.pixels).unwrap();
+            let region = image::imageops::crop_imm(
+                &image,
+                (left * image.width() as f32).round() as u32,
+                (top * image.height() as f32).round() as u32,
+                ((right - left) * image.width() as f32).round() as u32,
+                ((bottom - top) * image.height() as f32).round() as u32,
+            )
+            .to_image();
+            assert!(
+                region.pixels().any(|pixel| pixel[3] > 0),
+                "Source spinner region must contain visible pixels"
+            );
+        }
+    }
+}
+
+#[test]
+fn trading_post_cart_projected_padding_rows_and_second_page_follow_retail() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut data = vendor();
+        data.items = (4..14)
+            .map(|id| {
+                let mut row = data.items[0].clone();
+                row.id = id;
+                row
+            })
+            .collect();
+        let view = View {
+            visible: true,
+            selected: Some(4),
+            cart: (4..14).collect(),
+            cart_visible: true,
+            snapshot: Some(Arc::new(data)),
+            ..Default::default()
+        };
+        let mut shared = SharedContext::new();
+        shared.insert(view);
+        shared.insert(skin);
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        let mut screen = Screen::new(trading_post_screen);
+        screen.sync(&shared, &mut registry);
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        let panel = rect(&registry, &bounds, "PerksProgramShoppingCartFrame");
+        assert_eq!(panel, [1474., 115., 400., 900.]);
+        let list = rect(&registry, &bounds, "PerksProgramCartItemList");
+        assert!((list[0] - panel[0] - 42.).abs() <= 0.51);
+        assert_eq!(list[2], 322.);
+        let scroll = rect(&registry, &bounds, "PerksProgramCartScrollBox");
+        assert_eq!(scroll[2], 314.);
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramCartItem4",
+            [scroll[0] + 12., scroll[1] + 4., 290., 84.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramCartItem5",
+            [scroll[0] + 12., scroll[1] + 4. + 92., 290., 84.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramCartItem4Icon",
+            [scroll[0] + 12. + 16., scroll[1] + 4. + 14., 56., 56.],
+        );
+        registry
+            .scroll_lists
+            .scroll_to("PerksProgramCartScrollBox", usize::MAX);
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("PerksProgramCartItem13").is_some());
+        assert!(registry.get_by_name("PerksProgramCartItem4").is_none());
+        assert!(
+            registry
+                .scroll_lists
+                .get("PerksProgramCartScrollBox")
+                .unwrap()
+                .first_row
+                > 0
+        );
+    }
+}
+
+#[test]
 fn trading_post_projected_global_rects_follow_effective_retail_anchors_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
