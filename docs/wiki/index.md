@@ -3,7 +3,16 @@
 - [Collections source layout](systems/collections-ui.md) — shared PortraitFrame/Filter/context menus, source pet decoration and ToyBox composition; inspected both-skin1920×1080 native controls/models,52 focused regressions and explicit projection boundary.
 
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
+- [Watched reputation status bar](systems/reputation-status-bar.md) — independent authoritative login/progress, Retail container priority and approved relative XP preset; four inspected both-skin full-HD restoration/hover captures.
+
+- [Journeys watch and held-left boundary](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14) — persisted authority/refusal, fractional-left regression and explicit current native delivery blocker.
+
+- [Journeys held arrows and native masks](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14) — fractional held scrolling, outside-arrow release/stop, both-skin icon alpha and fourteen inspected full-HD captures; snapshot latency separated from presentation proof.
 - [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
+- [Forever Seething70 functional victory](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14) —15 gathers/1500, normal return ACK/save, frozen persisted row and no-reset native relog; natural departure/full-body framing open; pressure excludes timing acceptance.
+
+- [Seething disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14) — actual native packet timeout reproduced with25.173s server/41.647s native pauses and severe host memory pressure; system/process attribution pending.
+
 - [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins/order replace filename rejection; real7321940 RED→GREEN30, both-skin equipped-player and HUD-portrait pixels; Forever bronze bars retained, old shared-menu golden drift reported.
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
 
@@ -167,7 +176,7 @@ Engine subsystems and how they work.
 
 - [meeting-stones](systems/meeting-stones.md) — native stone/ritual picking and shared summon popup lifecycle; contract owns current proof and gaps.
 
-- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/authored addon timeline and rendered warning text, clickable compact boss frames, managed tracker/audio/Edit Mode; private both-skin two-encounter proof, native-input data gaps.
+- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/authored addon timeline and rendered warning text, source timer-bar background/fill/spark, clickable compact boss frames, managed tracker/audio/Edit Mode; private both-skin two-encounter proof, native-input/default timer-color data gaps.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; replicated remote corpse/ghost presentation and Dead status labels; stable viewer-relative taps and both-skin health greying.
 - [forever-data](systems/forever-data.md) — [Readable-section correction](systems/forever-data.md#readable-section-correction-2026-10-09): all seven previously missing Extras are readable; encrypted option/geoset parent ownership remains unknown, no deactivation authorized after corrected audit. [Local NPC source/cape investigation](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08): CDI-membership catalog separation and required cape binding; offline source/asset error table, native batches blocked by local data. [Retained native checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.
