@@ -42,7 +42,7 @@ func run_test() -> void:
 	if graphics == null or not graphics.is_visible_in_tree():
 		fail("Scaled Graphics tab did not switch category")
 		return
-	await click_control(menu, "OptionsDoneButton")
+	await click_control(menu, "OptionsCloseButton")
 	if client.get_node_or_null("GameMenuUI") != null:
 		fail("Scaled Done button did not close Options")
 		return

@@ -1,6 +1,7 @@
 //! HUD edit mode: per-element selection boxes and the layout manager panel
 //! (Retail `EditModeManagerFrame`-like).
 
+pub use crate::hud_edit::LayoutNameOperation;
 use std::collections::BTreeMap;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -14,8 +15,12 @@ pub const EDIT_MODE_OVERLAY_ROOT: FrameName = FrameName("EditModeOverlay");
 pub const EDIT_MODE_PANEL: FrameName = FrameName("EditModeManagerFrame");
 pub const EDIT_MODE_NAME_INPUT: FrameName = FrameName("EditModeManagerFrameLayoutName");
 
-pub const ACTION_EDIT_MODE_PREV_LAYOUT: &str = "edit_mode_prev_layout";
-pub const ACTION_EDIT_MODE_NEXT_LAYOUT: &str = "edit_mode_next_layout";
+pub const ACTION_EDIT_MODE_LAYOUT_MENU: &str = "edit_mode_layout_menu";
+pub const ACTION_EDIT_MODE_SELECT_LAYOUT_PREFIX: &str = "edit_mode_select_layout:";
+pub const ACTION_EDIT_MODE_NAME_NEW: &str = "edit_mode_name_new";
+pub const ACTION_EDIT_MODE_NAME_RENAME: &str = "edit_mode_name_rename";
+pub const ACTION_EDIT_MODE_NAME_CONFIRM: &str = "edit_mode_name_confirm";
+pub const ACTION_EDIT_MODE_NAME_CANCEL: &str = "edit_mode_name_cancel";
 pub const ACTION_EDIT_MODE_NEW: &str = "edit_mode_new";
 pub const ACTION_EDIT_MODE_RENAME: &str = "edit_mode_rename";
 pub const ACTION_EDIT_MODE_DELETE: &str = "edit_mode_delete";
@@ -105,6 +110,8 @@ pub struct EditModePanelState {
     pub show_systems: BTreeMap<String, bool>,
     pub layout_name: String,
     pub name_draft: String,
+    pub layout_menu_open: bool,
+    pub name_dialog: Option<LayoutNameOperation>,
     pub layout_names: Vec<String>,
     pub pending_delete: Option<String>,
     /// The active layout is the preset: rename/delete are disabled, save copies it.
@@ -243,20 +250,8 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<EditModePanelState>()
         .expect("EditModePanelState must be in SharedContext");
-    let layout_line = if state.dirty {
-        format!("Layout: {} (unsaved)", state.layout_name)
-    } else {
-        format!("Layout: {}", state.layout_name)
-    };
-    let interactive = state.pending_delete.is_none();
+    let interactive = state.pending_delete.is_none() && state.name_dialog.is_none();
     let user_layout = !state.preset && interactive;
-    let name = state.name_draft.trim();
-    let new_enabled = interactive
-        && !name.is_empty()
-        && !game_engine_core::ui_layout_data::SYSTEM_PRESETS
-            .iter()
-            .any(|(preset, _)| *preset == name)
-        && !state.layout_names.iter().any(|existing| existing == name);
     let left = state
         .position
         .map_or_else(|| "50%".to_string(), |at| at[0].to_string());
@@ -304,12 +299,10 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
                 top: 0.0,
             }
             {panel_text("EditModeManagerFrameTitle", "Edit Mode", 16.0, COLOR_TITLE, 14.0)}
-            {panel_text("EditModeManagerFrameLayout", &layout_line, 13.0, COLOR_LABEL, 40.0)}
-            {panel_button("EditModeManagerFramePrev", "<", ACTION_EDIT_MODE_PREV_LAYOUT, 20.0, 36.0, 30.0, interactive)}
-            {panel_button("EditModeManagerFrameNext", ">", ACTION_EDIT_MODE_NEXT_LAYOUT, PANEL_W - 50.0, 36.0, 30.0, interactive)}
-            {name_input(state)}
-            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, BUTTON_SIDE_INSET, 188.0, action_width, new_enabled)}
-            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, BUTTON_SIDE_INSET + action_step, 188.0, action_width, user_layout)}
+            {layout_dropdown(state, interactive)}
+            {layout_menu(state)}
+            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NAME_NEW, BUTTON_SIDE_INSET, 188.0, action_width, interactive)}
+            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_NAME_RENAME, BUTTON_SIDE_INSET + action_step, 188.0, action_width, user_layout)}
             {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, BUTTON_SIDE_INSET + 2.0 * action_step, 188.0, action_width, user_layout)}
             {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, BUTTON_SIDE_INSET, footer_top, footer_width, state.dirty && interactive)}
             {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, BUTTON_SIDE_INSET + footer_step, footer_top, footer_width, state.dirty && interactive)}
@@ -325,6 +318,7 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             {system_checkboxes(state, interactive)}
         }
         {delete_confirmation(state.pending_delete.as_deref())}
+        {name_dialog(state)}
     }
 }
 
@@ -481,26 +475,145 @@ fn panel_text(name: &'static str, text: &str, size: f32, color: FontColor, top: 
     }
 }
 
-fn name_input(state: &EditModePanelState) -> Element {
-    rsx! {
-        editbox {
-            name: EDIT_MODE_NAME_INPUT,
-            width: 240.0,
-            height: 28.0,
-            text: state.name_draft.clone(),
-            font: GameFont::ArialNarrow,
-            font_size: 14.0,
-            font_color: COLOR_TEXT,
-            max_letters: 32,
-            text_insets: "8,4,6,6",
-            background_color: "0.10,0.08,0.06,0.8",
-            strata: FrameStrata::FullscreenDialog,
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: 62.0,
+fn layout_dropdown(state: &EditModePanelState, enabled: bool) -> Element {
+    use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
+    fullscreen_dialog_elements(dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "EditModeManagerFrameLayoutDropdown",
+            label_name: "EditModeLayoutDropdownText",
+            arrow_name: "EditModeLayoutDropdownArrow",
+            text: &state.layout_name,
+            width: 120.0,
+            height: 25.0,
+            x: 25.0,
+            y: -52.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some(ACTION_EDIT_MODE_LAYOUT_MENU),
+        },
+        DropdownState {
+            open: state.layout_menu_open,
+            enabled,
+            ..Default::default()
+        },
+    ))
+}
+
+fn layout_menu(state: &EditModePanelState) -> Element {
+    if !state.layout_menu_open {
+        return Vec::new();
+    }
+    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
+    let width = state
+        .layout_names
+        .iter()
+        .map(|name| {
+            ui_toolkit::text_measure::measure_text(name, GameFont::FrizQuadrata, 12.0)
+                .expect("layout menu font loaded")
+                .0
+                + 36.0
+        })
+        .fold(120.0, f32::max)
+        .ceil();
+    let height = 8.0 + state.layout_names.len() as f32 * 20.0 + 15.0;
+    let mut rows = crate::selection_list::menu_background(
+        "EditModeLayoutMenuBackground".into(),
+        (width, height),
+    );
+    for (index, name) in state.layout_names.iter().enumerate() {
+        rows.extend(fullscreen_dialog_elements(menu_element(
+            ContextMenuItem {
+                name: &format!("EditModeLayoutChoice{index}"),
+                label: name,
+                action: &format!("{ACTION_EDIT_MODE_SELECT_LAYOUT_PREFIX}{name}"),
+            },
+            MenuElementKind::Radio {
+                checked: *name == state.layout_name,
+            },
+            true,
+            (8.0, 8.0 + index as f32 * 20.0, width - 16.0, 20.0),
+        )));
+    }
+    rsx! { r#frame { name: "EditModeLayoutMenu", width, height, left: 25.0, top: 77.0, pos_type: "absolute", strata: FrameStrata::FullscreenDialog, frame_level: 90, {rows} } }
+}
+
+fn fullscreen_dialog_elements(mut elements: Element) -> Element {
+    for child in &mut elements {
+        if let ui_toolkit::widget_def::WidgetChild::Widget(widget) = child {
+            widget.attrs.push(ui_toolkit::widget_def::Attr::new_static(
+                "strata",
+                "FULLSCREEN_DIALOG".into(),
+            ));
         }
     }
+    elements
+}
+
+fn name_dialog(state: &EditModePanelState) -> Element {
+    let Some(operation) = state.name_dialog else {
+        return Vec::new();
+    };
+    let name = state.name_draft.trim();
+    let same_name = operation == LayoutNameOperation::Rename && name == state.layout_name;
+    let unique = same_name || !state.layout_names.iter().any(|existing| existing == name);
+    let enabled = !name.is_empty() && unique;
+    let title = if operation == LayoutNameOperation::New {
+        "New Layout"
+    } else {
+        "Rename Layout"
+    };
+    let mut contents = name_input(state);
+    contents.extend(crate::bank_art::label(
+        "EditModeLayoutDialogTitle".into(),
+        title,
+        (35.0, 20.0, 250.0, 12.0),
+        (12.0, "1,1,1,1", "CENTER"),
+    ));
+    contents.extend(crate::quest_art::panel_button(
+        "EditModeLayoutDialogAccept".into(),
+        "Save",
+        ACTION_EDIT_MODE_NAME_CONFIRM,
+        enabled,
+        (25.0, 103.0, 130.0, 22.0),
+    ));
+    contents.extend(crate::quest_art::panel_button(
+        "EditModeLayoutDialogCancel".into(),
+        "Cancel",
+        ACTION_EDIT_MODE_NAME_CANCEL,
+        true,
+        (165.0, 103.0, 130.0, 22.0),
+    ));
+    rsx! { r#frame { name: "EditModeLayoutDialogBlocker", stretch: true, mouse_enabled: true, strata: FrameStrata::FullscreenDialog, frame_level: 100 }
+        r#frame { name: "EditModeLayoutDialog", width: 320.0, height: 150.0, left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::FullscreenDialog, frame_level: 101, style: PANEL_STYLE,
+            texture { name: "EditModeLayoutDialogBackground", texture_fdid: 4190639, width: 306.0, height: 136.0, left: 7.0, top: 7.0, pos_type: "absolute", horiz_tile: true, vert_tile: true, draw_layer: "BACKGROUND" }
+            {contents}
+        }
+    }
+}
+
+fn name_input(state: &EditModePanelState) -> Element {
+    let mut input = crate::bank_art::edit_box(EDIT_MODE_NAME_INPUT.0, (30.0, 40.0, 260.0, 32.0));
+    let widget = input
+        .iter_mut()
+        .find_map(|child| match child {
+            ui_toolkit::widget_def::WidgetChild::Widget(widget)
+                if widget.name.as_deref() == Some(EDIT_MODE_NAME_INPUT.0) =>
+            {
+                Some(widget)
+            }
+            _ => None,
+        })
+        .expect("InputBoxTemplate contains name input");
+    widget.attrs.push(ui_toolkit::widget_def::Attr::new_dynamic(
+        "text",
+        state.name_draft.clone(),
+    ));
+    widget.attrs.push(ui_toolkit::widget_def::Attr::new_static(
+        "max_letters",
+        "30".into(),
+    ));
+    fullscreen_dialog_elements(input)
 }
 
 fn panel_button(

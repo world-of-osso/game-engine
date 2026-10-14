@@ -299,6 +299,7 @@ pub enum InputAction {
     ToggleTalents,
     ToggleSpecialization,
     ToggleEncounterJournal,
+    ToggleCollections,
     ToggleSocial,
     ToggleLootRules,
     ToggleQuestLog,
@@ -312,6 +313,26 @@ pub enum InputAction {
     ToggleBag2,
     ToggleBag3,
     ToggleBag4,
+    HousingBasicMode,
+    HousingExpertMode,
+    HousingCleanupMode,
+    HousingRotateLeft,
+    HousingRotateRight,
+    HousingRemoveDecor,
+    HousingExpertTranslate,
+    HousingExpertRotate,
+    HousingExpertScale,
+    HousingExpertLeft,
+    HousingExpertRight,
+    HousingExpertForward,
+    HousingExpertBack,
+    HousingExpertUp,
+    HousingExpertDown,
+    HousingExpertScaleUp,
+    HousingExpertScaleDown,
+    HousingExpertRotateLeft,
+    HousingExpertRotateRight,
+    HousingExpertNextAxis,
 }
 
 impl InputAction {
@@ -407,7 +428,32 @@ impl InputAction {
         Self::MultiActionBar4Button12,
     ];
 
-    pub const ALL: [Self; 120] = [
+    /// Retail Bindings_Standard.xml, HousingEditor/BasicAndExpert/Basic contexts.
+    /// Default key data is unavailable locally; these remain unbound, assignable.
+    pub const HOUSING_ACTIONS: [Self; 20] = [
+        Self::HousingBasicMode,
+        Self::HousingExpertMode,
+        Self::HousingCleanupMode,
+        Self::HousingRotateLeft,
+        Self::HousingRotateRight,
+        Self::HousingRemoveDecor,
+        Self::HousingExpertTranslate,
+        Self::HousingExpertRotate,
+        Self::HousingExpertScale,
+        Self::HousingExpertLeft,
+        Self::HousingExpertRight,
+        Self::HousingExpertForward,
+        Self::HousingExpertBack,
+        Self::HousingExpertUp,
+        Self::HousingExpertDown,
+        Self::HousingExpertScaleUp,
+        Self::HousingExpertScaleDown,
+        Self::HousingExpertRotateLeft,
+        Self::HousingExpertRotateRight,
+        Self::HousingExpertNextAxis,
+    ];
+
+    pub const ALL: [Self; 141] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -515,6 +561,7 @@ impl InputAction {
         Self::ToggleTalents,
         Self::ToggleSpecialization,
         Self::ToggleEncounterJournal,
+        Self::ToggleCollections,
         Self::ToggleSocial,
         Self::ToggleLootRules,
         Self::ToggleQuestLog,
@@ -528,6 +575,26 @@ impl InputAction {
         Self::ToggleBag2,
         Self::ToggleBag3,
         Self::ToggleBag4,
+        Self::HousingBasicMode,
+        Self::HousingExpertMode,
+        Self::HousingCleanupMode,
+        Self::HousingRotateLeft,
+        Self::HousingRotateRight,
+        Self::HousingRemoveDecor,
+        Self::HousingExpertTranslate,
+        Self::HousingExpertRotate,
+        Self::HousingExpertScale,
+        Self::HousingExpertLeft,
+        Self::HousingExpertRight,
+        Self::HousingExpertForward,
+        Self::HousingExpertBack,
+        Self::HousingExpertUp,
+        Self::HousingExpertDown,
+        Self::HousingExpertScaleUp,
+        Self::HousingExpertScaleDown,
+        Self::HousingExpertRotateLeft,
+        Self::HousingExpertRotateRight,
+        Self::HousingExpertNextAxis,
     ];
 
     pub fn key(self) -> &'static str {
@@ -544,6 +611,11 @@ impl InputAction {
             .or_else(|| audio_action_from_key(key))
             .or_else(|| interface_action_from_key(key))
             .or_else(|| bag_action_from_key(key))
+            .or_else(|| {
+                Self::HOUSING_ACTIONS
+                    .into_iter()
+                    .find(|action| action.key() == key)
+            })
     }
 
     pub fn label(self) -> &'static str {
@@ -568,6 +640,25 @@ impl InputAction {
             Self::RaidTargetNone => 0,
             _ => return None,
         })
+    }
+
+    pub const EXPERT_INCREMENT_ACTIONS: [Self; 10] = [
+        Self::HousingExpertLeft,
+        Self::HousingExpertRight,
+        Self::HousingExpertForward,
+        Self::HousingExpertBack,
+        Self::HousingExpertUp,
+        Self::HousingExpertDown,
+        Self::HousingExpertRotateLeft,
+        Self::HousingExpertRotateRight,
+        Self::HousingExpertScaleUp,
+        Self::HousingExpertScaleDown,
+    ];
+
+    pub fn expert_increment_index(self) -> Option<usize> {
+        Self::EXPERT_INCREMENT_ACTIONS
+            .iter()
+            .position(|action| *action == self)
     }
 
     pub fn default_binding(self) -> Option<InputBinding> {
@@ -597,7 +688,45 @@ impl InputAction {
         if let Some(meta) = self.bag_meta() {
             return meta;
         }
+        if let Some(meta) = self.housing_meta() {
+            return meta;
+        }
         self.non_action_slot_meta()
+    }
+
+    fn housing_meta(self) -> Option<InputActionMeta> {
+        let (key, label) = match self {
+            Self::HousingBasicMode => ("HOUSING_TOGGLEBASICDECORMODE", "Decorate Mode"),
+            Self::HousingExpertMode => ("HOUSING_TOGGLEEXPERTDECORMODE", "Advanced Mode"),
+            Self::HousingCleanupMode => ("HOUSING_TOGGLECLEANUPMODE", "Cleanup Mode"),
+            Self::HousingRotateLeft => ("HOUSING_BASICDECOR_ROTATELEFT", "Rotate Decor Left"),
+            Self::HousingRotateRight => ("HOUSING_BASICDECOR_ROTATERIGHT", "Rotate Decor Right"),
+            Self::HousingRemoveDecor => ("HOUSING_REMOVEDECOR", "Remove Decor"),
+            _ => return self.housing_expert_meta(),
+        };
+        Some(input_action_meta(key, label, BindingSection::Housing, None))
+    }
+
+    fn housing_expert_meta(self) -> Option<InputActionMeta> {
+        let key = match self {
+            Self::HousingExpertTranslate => "HOUSING_EXPERTDECORTRANSLATESUBMODE",
+            Self::HousingExpertRotate => "HOUSING_EXPERTDECORROTATESUBMODE",
+            Self::HousingExpertScale => "HOUSING_EXPERTDECORSCALESUBMODE",
+            Self::HousingExpertLeft => "HOUSING_EXPERTDECORINCREMENT_LEFT",
+            Self::HousingExpertRight => "HOUSING_EXPERTDECORINCREMENT_RIGHT",
+            Self::HousingExpertForward => "HOUSING_EXPERTDECORINCREMENT_FORWARD",
+            Self::HousingExpertBack => "HOUSING_EXPERTDECORINCREMENT_BACK",
+            Self::HousingExpertUp => "HOUSING_EXPERTDECORINCREMENT_UP",
+            Self::HousingExpertDown => "HOUSING_EXPERTDECORINCREMENT_DOWN",
+            Self::HousingExpertScaleUp => "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
+            Self::HousingExpertScaleDown => "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
+            Self::HousingExpertRotateLeft => "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
+            Self::HousingExpertRotateRight => "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
+            Self::HousingExpertNextAxis => "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
+            _ => return None,
+        };
+        // Action identity stays literal until installed GlobalStrings supplies localized labels.
+        Some(input_action_meta(key, key, BindingSection::Housing, None))
     }
 
     fn interface_meta(self) -> Option<InputActionMeta> {
@@ -638,6 +767,12 @@ impl InputAction {
                 "toggle_encounter_journal",
                 "Adventure Guide",
                 Some(keyboard(BindingKey::KeyJ)),
+            ),
+            // Retail TOGGLECOLLECTIONS (Bindings_Standard.xml:1326-1330), Shift+P.
+            Self::ToggleCollections => (
+                "toggle_collections",
+                "Warband Collections",
+                Some(InputBinding::ShiftKeyboard(BindingKey::KeyP)),
             ),
             Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(BindingKey::KeyO))),
             Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", None),
@@ -785,6 +920,7 @@ impl InputAction {
             | Self::ToggleTalents
             | Self::ToggleSpecialization
             | Self::ToggleEncounterJournal
+            | Self::ToggleCollections
             | Self::ToggleSocial
             | Self::ToggleLootRules
             | Self::ToggleQuestLog
@@ -792,6 +928,28 @@ impl InputAction {
             | Self::ToggleFramerate
             | Self::MinimapZoomIn
             | Self::MinimapZoomOut => unreachable!("panel toggles handled by interface_meta"),
+            Self::HousingBasicMode
+            | Self::HousingExpertMode
+            | Self::HousingCleanupMode
+            | Self::HousingRotateLeft
+            | Self::HousingRotateRight
+            | Self::HousingRemoveDecor
+            | Self::HousingExpertTranslate
+            | Self::HousingExpertRotate
+            | Self::HousingExpertScale
+            | Self::HousingExpertLeft
+            | Self::HousingExpertRight
+            | Self::HousingExpertForward
+            | Self::HousingExpertBack
+            | Self::HousingExpertUp
+            | Self::HousingExpertDown
+            | Self::HousingExpertScaleUp
+            | Self::HousingExpertScaleDown
+            | Self::HousingExpertRotateLeft
+            | Self::HousingExpertRotateRight
+            | Self::HousingExpertNextAxis => {
+                unreachable!("housing actions handled by housing_meta")
+            }
             Self::OpenAllBags
             | Self::ToggleBackpack
             | Self::ToggleBag1
@@ -1067,10 +1225,11 @@ pub enum BindingSection {
     Audio,
     Interface,
     Bags,
+    Housing,
 }
 
 impl BindingSection {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Movement,
         Self::Camera,
         Self::Targeting,
@@ -1082,6 +1241,7 @@ impl BindingSection {
         Self::Audio,
         Self::Interface,
         Self::Bags,
+        Self::Housing,
     ];
 
     pub fn key(self) -> &'static str {
@@ -1097,6 +1257,7 @@ impl BindingSection {
             Self::Audio => "audio",
             Self::Interface => "interface",
             Self::Bags => "bags",
+            Self::Housing => "housing",
         }
     }
 
@@ -1113,6 +1274,7 @@ impl BindingSection {
             "audio" => Self::Audio,
             "interface" => Self::Interface,
             "bags" => Self::Bags,
+            "housing" => Self::Housing,
             _ => return None,
         })
     }
@@ -1130,6 +1292,7 @@ impl BindingSection {
             Self::Audio => "Audio",
             Self::Interface => "Interface",
             Self::Bags => "Bags",
+            Self::Housing => "Housing",
         }
     }
 }
@@ -1293,6 +1456,11 @@ impl Default for InputBindingsData {
 impl InputBindingsData {
     pub fn binding(&self, action: InputAction) -> Option<InputBinding> {
         self.bindings.get(&action).copied().flatten()
+    }
+
+    /// Retail precision increments remain active only while their assigned input is held.
+    pub fn expert_increment_state(&self, state: &impl InputState) -> [bool; 10] {
+        InputAction::EXPERT_INCREMENT_ACTIONS.map(|action| self.is_pressed(action, state))
     }
 
     pub fn is_pressed(&self, action: InputAction, state: &impl InputState) -> bool {
@@ -1501,6 +1669,7 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
         "toggle_talents" => InputAction::ToggleTalents,
         "toggle_specialization" => InputAction::ToggleSpecialization,
         "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
+        "toggle_collections" => InputAction::ToggleCollections,
         "toggle_social" => InputAction::ToggleSocial,
         "toggle_loot_rules" => InputAction::ToggleLootRules,
         "toggle_quest_log" => InputAction::ToggleQuestLog,
@@ -1558,6 +1727,7 @@ pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
         BindingSection::Audio => audio_section_actions(),
         BindingSection::Interface => interface_section_actions(),
         BindingSection::Bags => bag_section_actions(),
+        BindingSection::Housing => &InputAction::HOUSING_ACTIONS,
     }
 }
 
@@ -1656,6 +1826,7 @@ fn interface_section_actions() -> &'static [InputAction] {
         InputAction::ToggleTalents,
         InputAction::ToggleSpecialization,
         InputAction::ToggleEncounterJournal,
+        InputAction::ToggleCollections,
         InputAction::ToggleSocial,
         InputAction::ToggleLootRules,
         InputAction::ToggleQuestLog,

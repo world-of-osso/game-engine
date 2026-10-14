@@ -68,7 +68,7 @@ func capture_binding(client: Node, key: Key, before: String, after: String, toke
 		return false
 	if not expect_no_selection(client, "during authored capture"):
 		return false
-	if not await click_binding_control(client, "OptionsDoneButton"):
+	if not await click_binding_control(client, "OptionsCloseButton"):
 		return false
 	if client.get_node_or_null("GameMenuUI") != null:
 		if not await click_binding_control(client, "MenuBtnResume"):

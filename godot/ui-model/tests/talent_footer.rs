@@ -245,11 +245,28 @@ fn talent_loadout_new_opens_a_retail_name_dialog() {
     editor.action(view, 80, "talent:loadout_new").unwrap();
     view.editor = editor;
     let mut shared = SharedContext::new();
+    state.viewport = [1920.0, 1080.0];
     shared.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
     assert!(registry.get_by_name("TalentLoadoutNameInput").is_some());
     assert!(registry.get_by_name("TalentLoadoutSave").is_some());
+    let dialog = registry
+        .get(registry.get_by_name("TalentLoadoutDialog").unwrap())
+        .unwrap();
+    // StaticPopup_SetUpPosition: special popup TOP UIParent TOP(0,-135).
+    assert_eq!(
+        dialog.position.top,
+        ui_toolkit::layout_values::Val::Px(135.0)
+    );
+    assert_eq!(
+        dialog.position.left,
+        ui_toolkit::layout_values::Val::Px(730.0)
+    );
+    assert_eq!(
+        (dialog.width.value(), dialog.height.value()),
+        (460.0, 150.0)
+    );
 }
 
 #[test]
@@ -280,10 +297,24 @@ fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_sa
         let search = registry
             .get(registry.get_by_name("TalentSearchBox").unwrap())
             .unwrap();
+        let scale = search.height.value() / 30.0;
+        assert_eq!(dropdown.width.value(), 120.0 * scale);
+        assert_eq!(dropdown.height.value(), 25.0 * scale);
+        let ui_toolkit::layout_values::Val::Px(dropdown_top) = dropdown.position.top else {
+            panic!("dropdown top")
+        };
+        let ui_toolkit::layout_values::Val::Px(search_top) = search.position.top else {
+            panic!("search top")
+        };
         assert_eq!(
-            dropdown.position.top, search.position.top,
-            "Retail LoadSystem and SearchBox share the footer centerline"
+            dropdown_top + dropdown.height.value() / 2.0,
+            search_top + search.height.value() / 2.0
         );
+        let menu = registry
+            .get(registry.get_by_name("TalentLoadoutMenu").unwrap())
+            .unwrap();
+        assert_eq!(menu.height.value(), 83.0 * scale);
+        assert!(menu.background_color.is_none());
         for name in [
             "TalentNewLoadout",
             "TalentImportLoadout",

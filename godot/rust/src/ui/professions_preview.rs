@@ -22,6 +22,34 @@ impl RegistryUi {
     fn show_forever_professions_preview(&mut self) -> GString {
         self.show_professions_preview_skin(ActiveSkin::Forever)
     }
+    #[func]
+    fn show_customer_orders_preview(
+        &mut self,
+        forever: bool,
+        duration: bool,
+        personal: bool,
+    ) -> GString {
+        let skin = if forever {
+            ActiveSkin::Forever
+        } else {
+            ActiveSkin::Modern
+        };
+        let result = party_preview::load_data_root().and_then(|()| {
+            set_thread_skin(skin);
+            self.set_ui_scale(1.0)?;
+            let mut view = customer_orders_view(duration);
+            if personal {
+                view.orders.kind = shared::protocol::CraftingOrderKind::Personal;
+                view.orders.menu = None;
+            }
+            self.show_professions(view)
+        });
+        if result.is_ok() {
+            crate::unit_portraits::attach_customer_orders_preview(self.to_gd());
+        }
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     fn show_professions_preview_skin(&mut self, skin: ActiveSkin) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
@@ -33,6 +61,42 @@ impl RegistryUi {
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }
+}
+
+fn customer_orders_view(duration: bool) -> ProfessionView {
+    use game_engine_ui_model::{
+        professions_frame::ProfessionPage,
+        professions_orders::{CraftingOrders, OrderMenu},
+    };
+    use shared::protocol::{CraftingOrderRecipeSnapshot, CraftingOrdersSnapshot};
+    let mut view = preview_view();
+    view.page = ProfessionPage::Orders;
+    view.orders = CraftingOrders {
+        customer: true,
+        creating: true,
+        recipe: Some(7623),
+        menu: Some(if duration {
+            OrderMenu::Duration
+        } else {
+            OrderMenu::Recipient
+        }),
+        snapshot: Some(CraftingOrdersSnapshot {
+            skill_line: 2540,
+            recipes: vec![CraftingOrderRecipeSnapshot {
+                spell_id: 7623,
+                skill_line: 2540,
+                item_id: 6241,
+                count: 1,
+                name: "Brown Linen Robe".into(),
+                reagents: vec![],
+            }],
+            kind: shared::protocol::CraftingOrderKind::Public,
+            mine: false,
+            orders: vec![],
+        }),
+        ..Default::default()
+    };
+    view
 }
 
 fn cache_preview_art(view: &ProfessionView) -> Result<(), String> {

@@ -5,8 +5,9 @@ use game_engine_ui_model::quest_frame_component::{
 };
 use game_engine_ui_model::quest_log_frame_component::{
     QuestDifficulty, QuestLogDetails, QuestLogFrameState, QuestLogGroup, QuestLogObjectiveLine,
-    QuestLogRow, quest_log_frame_screen,
+    QuestLogRow,
 };
+use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
 use godot::classes::Node;
 use godot::prelude::*;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
@@ -45,6 +46,45 @@ impl INode for UiAuditProbe {
 
 #[godot_api]
 impl UiAuditProbe {
+    #[func]
+    fn mount_collections(&mut self, forever: bool, journal: GString) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let size = self
+            .base()
+            .get_viewport()
+            .expect("audit viewport")
+            .get_visible_rect()
+            .size;
+        let viewport = [size.x, size.y];
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CollectionsAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let result = match journal.to_string().as_str() {
+            "mounts" => ui.bind_mut().show_mount_journal(
+                game_engine_ui_model::mount_journal::MountJournalView {
+                    visible: true,
+                    viewport,
+                    ..Default::default()
+                },
+            ),
+            "pets" => {
+                ui.bind_mut()
+                    .show_pet_journal(game_engine_ui_model::pet_journal::PetJournalView {
+                        visible: true,
+                        viewport,
+                        ..Default::default()
+                    })
+            }
+            other => return format!("Unknown audit journal {other}").as_str().into(),
+        };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
     #[func]
     fn mount_mail(&mut self, forever: bool) -> GString {
         use game_engine_ui_model::mail::NativeMailView;
@@ -97,39 +137,45 @@ impl UiAuditProbe {
         ui.set_name("QuestOverflowUI");
         self.base_mut().add_child(&ui);
         let result = if page.to_string() == "log" {
-            ui.bind_mut().show_quest_window(
-                QuestLogFrameState {
-                    visible: true,
-                    quest_count: 1,
-                    max_quests: 35,
-                    groups: vec![QuestLogGroup {
-                        sort_id: 1519,
-                        name: "Stormwind City".into(),
-                        collapsed: false,
-                        quests: vec![QuestLogRow {
+            ui.bind_mut().show_world_map(
+                WorldMapFrameState {
+                    viewport: [1920.0, 1080.0],
+                    ..Default::default()
+                }
+                .with_quest_panel(
+                    QuestLogFrameState {
+                        visible: true,
+                        quest_count: 1,
+                        max_quests: 35,
+                        groups: vec![QuestLogGroup {
+                            sort_id: 1519,
+                            name: "Stormwind City".into(),
+                            collapsed: false,
+                            quests: vec![QuestLogRow {
+                                quest_id: 332,
+                                title: "Wine Shop Advert".into(),
+                                level: 1,
+                                difficulty: QuestDifficulty::Trivial,
+                                complete: true,
+                                watched: false,
+                                selected: true,
+                            }],
+                        }],
+                        details: Some(QuestLogDetails {
                             quest_id: 332,
                             title: "Wine Shop Advert".into(),
-                            level: 1,
-                            difficulty: QuestDifficulty::Trivial,
-                            complete: true,
+                            objectives_text: "Bring Suzetta Gallina the Wine Ticket.".into(),
+                            objectives: vec![QuestLogObjectiveLine {
+                                text: "1/1 Wine Ticket".into(),
+                                done: true,
+                            }],
+                            description: Some(text),
+                            rewards: Some(rewards),
                             watched: false,
-                            selected: true,
-                        }],
-                    }],
-                    details: Some(QuestLogDetails {
-                        quest_id: 332,
-                        title: "Wine Shop Advert".into(),
-                        objectives_text: "Bring Suzetta Gallina the Wine Ticket.".into(),
-                        objectives: vec![QuestLogObjectiveLine {
-                            text: "1/1 Wine Ticket".into(),
-                            done: true,
-                        }],
-                        description: Some(text),
-                        rewards: Some(rewards),
-                        watched: false,
-                    }),
-                },
-                quest_log_frame_screen,
+                        }),
+                    },
+                    true,
+                ),
             )
         } else {
             let title = "Wine Shop Advert".into();
@@ -208,9 +254,13 @@ impl UiAuditProbe {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("QuestAuditUI");
         self.base_mut().add_child(&ui);
-        let result = ui
-            .bind_mut()
-            .show_quest_window(state, quest_log_frame_screen);
+        let result = ui.bind_mut().show_world_map(
+            WorldMapFrameState {
+                viewport: [1920.0, 1080.0],
+                ..Default::default()
+            }
+            .with_quest_panel(state, true),
+        );
         result.err().unwrap_or_default().as_str().into()
     }
 }

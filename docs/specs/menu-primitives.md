@@ -6,7 +6,7 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 
 - [x] Shared WowStyle1 dropdown uses the XML text-holder, 27px arrow and text anchors while preserving existing callback names and caller dimensions.
 - [x] Filter and WowStyle2 variants expose open/disabled state and the 23px reset control; Filter follows measured-text+60 source resizing.
-- [x] Context menus use MenuStyle1 backdrop/insets and sourced button, checkbox, radio, title, divider and submenu elements; disabled entries lose responders and selection-art saturation.
+- [x] Context menus use MenuStyle1 backdrop/insets and sourced button, checkbox, radio, title, divider and submenu elements; disabled entries lose responders and selection-art saturation. An empty title omits title/divider rows. Uniform radio root descriptions, including the follower dungeon type selector, retain their selected radio marker rather than using a push-button row.
 - [x] Shared NavBar exposes home, measured breadcrumbs and overflow; world map consumes it.
 - [x] Both skins retain identical geometry/actions; native captures match source XML.
 

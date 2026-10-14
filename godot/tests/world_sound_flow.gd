@@ -65,7 +65,7 @@ func run_test() -> void:
 		fail("Sound UI did not persist music toggle/mute in isolated options: " + saved)
 		return
 	print("FIXTURE SOUND_OPTIONS")
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	if client.get_node_or_null("GameMenuUI") == null:
 		push_key(KEY_ESCAPE, true)
 		await process_frame
