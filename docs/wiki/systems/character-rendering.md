@@ -291,3 +291,86 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - [[rendering-pipeline]] — M2 material assembly, blend modes
 - [[animation]] — bone animation, HD skeleton loading
 - [[asset-pipeline]] — CASC extraction for BLP textures, DB2 chains
+
+## FDID-only equipped component binding — implementation2026-10-14
+
+`ItemDisplayInfo.ModelResourcesID` → `ModelFileData` supplies candidate FDIDs;
+`ComponentModelFileData` selects wearer race/gender and shoulder position. Canonical
+`data/db2/12.1.0.69933/ComponentModelFileData.csv` exists; no db2-follow table dependency.
+A missing community-listfile name must not reject a selected component. Runtime
+appearance records source model order: the first model of an attachment slot keeps
+its slot attachment; additional models and body-slot models bind to character joints.
+Mesh filtering follows that binding, not a `collections/` filename.
+
+Reference: local `~/Repos/wow.export`, commit `c2fd7bd`,
+`src/js/db/caches/DBItemModels.js:64-79,165-230,257-300` (FDID joins/filtering) and
+`src/js/modules/tab_characters.js:669-678,681-745` (attachment then collection).
+The earlier WebWowViewerCpp pointer was incorrect; it contains no item-display code.
+This is code semantics evidence, not a gameplay-data source.
+
+Actual current70391 head7321940/skin7530107 reproduces the old attach rejection:
+`Equipment Head FDID 7321940 has no authored path`. Source display730376 resolves
+this helm for human male; regression exercises its own skeleton, attachment11 and
+retained mesh2702 without a listfile name. RED is recorded under
+`data/diagnostics/bg-coverage-2026-10-12/head-7321940-red-binding.log`.
+Current Rust scope3091d049c passes30 filtered equipment tests, warning-free native
+extension build/check and scoped formatting. Fixture d38f1e4f5 observes real animation
+identity, camera and rendered mesh/portrait state without changing it.
+
+Native Modern58/Forever59 both show the equipped player and unnamed helm, matching
+extension SHA256 `a934eee8a6658863e0f94ee3d1a05ad4f0be8a0a02975bcd7199b2e534780817`.
+Both original1920×1080 PNGs under `AgentShared/2026-10-12/bg-coverage/` were inspected;
+player preparation and visual attachment succeed, actual animation is Stand0, and
+no player/texture errors remain after privately authenticating missing70391 particle
+textures7553227/7553230/7553231 and UI3058483. Source guard approach20280471 and normal
+movement are recorded; camera collision produces a close torso/head view, not a
+full-body or battleground-layout acceptance claim. Shutdown hardkills server4100134;
+UDP5712 is freed and the fixture's source origin is restored by admin receipt.
+
+Modern's actual `PlayerPortrait` is visible with loaded mask4682541, equipped-player
+appearance, model shown and no pending load. The pre-fix Forever FlareUI HUD had no `PlayerPortrait` node; this was a missing
+HUD slot, not an asset/binding failure. Its micro portrait is hidden at0×0 and must
+not be called pixel proof. Lead decision2026-10-14 authorizes Retail's portrait slot
+in Forever. `flare_player_frame` retains the original240×60 bronze bar group and
+reserves portrait(24,19,60,60); the health LEFT85 from Mainline PlayerFrame.xml gives
+the group offset81 after its original4px inset. Outer321×79 bounds enclose both;
+bar widths/heights, percentages, power, aura content and other unit frames stay
+unchanged. Missing-node RED→GREEN passes, together with12 other scoped Flare cases;
+one old Modern tree golden fails solely on shared context/difficulty-menu subtree
+drift, outside the portrait change. Its actual diff is retained rather than silently
+refreshing the fixture. Native build/check and three changed-file formatter checks
+pass without warnings.
+
+Inspected native Modern61/Forever62 originals1920×1080 show the equipped player and
+its rendered portrait in both skins. Both report loaded mask4682541, visible60×60
+viewport, model shown, equipped appearance and pendingfalse. Forever portrait right554
+is left of health/mana LEFT555; original232×38 health and232×14 power remain visible.
+The source XML portrait rectangle and bar LEFT85 match the resulting native slot
+geometry. Owned client stops without hardkill; server198278 requires SIGKILL, UDP5712
+is freed and the fixture origin-restoration receipt succeeds. This proves this
+player/head/portrait boundary, not full battleground gameplay or natural transport
+lifecycle. Whole battleground coverage remains open.
+Contract: [item definition sources](../../specs/item-definition-sources.md).
+
+### FDID companion loading — active2026-10-14
+
+Lead rejects the numbered732194000.skin publication. The observed parser/cache
+still rewrote SFID7530107 to that alias, and SKID to a model-named skeleton. Both
+are now addressed by their actual FDIDs inside the same product/build directory;
+required SKID files cannot silently select embedded bones. Scene export reads the
+actual SFID path instead of reporting a guessed alias. The portable test manifest
+lists the two verified FDID files and index only. An isolated extracted-only process
+containing7321940.m2 +7530107.skin reproduces missing-alias RED before the change;
+then both head cases pass, with forbidden-CASC count0. Seven product/companion
+regressions pass. The old item-material fixture is updated to use normal
+source-qualified model loading; its missing current cloak receipt is privately
+recovered as an authenticated20-asset70391 fixture closure, with no aliases.
+The prior29 equipment passes plus the recovered material case cover that30-case
+scope; portable publication of the new fixture remains lead-owned.
+
+Warning-free native build/check and changed-file formatting pass. After removing
+the private732194000.skin alias, inspected native Modern64/Forever65 originals show
+the equipped player and loaded/visible60×60 portrait in both skins; the alias is
+not recreated and no player/texture errors occur. The source-origin restoration
+receipt succeeds; client stops without hardkill, server393293 requires SIGKILL,
+UDP5712 is freed. No canonical bytes are changed.

@@ -68,6 +68,15 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = game_engine_ui_model::char_select_component::CHARACTER_LIST_PAN;
         return (pan * 2, pan);
     }
+    if list == game_engine_ui_model::guild_communities::SCROLL_BOX {
+        // CommunitiesMemberListEntryTemplate is20px; ScrollBoxListView wheel=two pan extents.
+        let pan = game_engine_ui_model::guild_communities::ROW_HEIGHT as usize;
+        return (pan * 2, pan);
+    }
+    if list == "GuildControlBankScrollBox" {
+        // GuildControlUI_BankFrame_OnLoad sets ScrollFrame.stepSize=8 (Lua:606).
+        return (8, 8);
+    }
     if list == game_engine_ui_model::guild_bank_frame_component::LOG_LIST {
         let row = game_engine_ui_model::guild_bank_frame_component::LOG_LINE_HEIGHT as usize;
         return (row, row);

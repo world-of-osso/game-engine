@@ -377,7 +377,7 @@ fn load_player_body(
 fn player_model_fdid(data_root: &Path, race: u8, sex: u8) -> Result<Option<u32>, String> {
     static MODELS: OnceLock<Result<HashMap<(u8, u8), u32>, String>> = OnceLock::new();
     let models = MODELS
-        .get_or_init(|| player_model_fdids(&data_root.join("db2/12.1.0.69933")))
+        .get_or_init(|| player_model_fdids(&data_root.join("db2/active")))
         .as_ref()
         .map_err(Clone::clone)?;
     Ok(models.get(&(race, sex)).copied())

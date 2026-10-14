@@ -51,10 +51,28 @@ tabs; only `tab_names` entries are mounted or accepted for editing.
 Control methods return `GuildRankRequest` without editing cached state;
 only `apply` replaces it. Gold input converts whole gold to copper. The model validates
 GM-only editing, immutable rank zero, occupied deletion and member hierarchy.
-`guild_rank_frame.rs` renders the communities roster and its Guild Settings button,
-then the rank list, permissions, gold and purchased-tab controls. Shared panel chrome
-resolves the active Modern/Forever metal family. Disabled editors render read-only
-values; disabled buttons emit no actions. Guild Master limits display Unlimited.
+`guild_rank_frame.rs` mounts CommunitiesFrame; `guild_communities.rs` renders the
+Mainline814×426 shell, right-edge icon tabs and expanded20px roster rows. Scroll
+positions belong to the registry, not a session page. Name/rank sorting reorders
+references for painting without changing authoritative member/rank state. Optional
+GuildSnapshot metadata fills level/class/last-online fields; officer notes are never
+painted into the public Note column. Settings and Invite share the source footer
+anchor but appear in Roster and Chat respectively. Unsupported Communities services
+remain [named contract gaps](../../specs/guild-ranks.md#communities-presentation).
+The Communities portrait renders the [source no-design branch](../../specs/gameplay-panel-fidelity.md#communities-guild-portrait)
+until guild appearance is authoritative. `guild_no_design_portrait.gd` proves loaded
+native textures, source colors and64px emblem/60px background anchors in both skins;
+inspected1920×1080 PNGs are `after-review/{modern,forever}-communities-no-design.png`
+under AgentShared/2026-10-13/ui-gameplay-panels (verified2026-10-14). This is offline
+source/render proof, not vendor registration or live appearance replication.
+`guild_control.rs` switches
+Mainline's 338×444 GuildControlUI between order, permission and bank panes. Its
+159px navigation and180px rank dropdowns use shared Retail menus; rank zero is
+excluded from editable rank menus. `guild_control_art.rs` projects the source
+TranslucentFrameTemplate,20px permission checks and26px square buttons in both skins.
+Checkbox IDs map explicitly to pinned TC masks, not to bit offsets. id22 checks
+either officer-chat bit and toggles only both chat bits; independent MOTD/info/note
+rights remain in server state and source bullet lines, without invented controls.
 Member menu actions use the same hierarchy checks as request generation; roster
 paging keeps members inside the window. A query or mutation disables writes until
 `apply` receives authoritative state, preventing consecutive permission clicks from
@@ -64,7 +82,11 @@ wait. Selected rank data is never edited optimistically.
 `godot/rust/src/guild_ranks.rs` owns the native canvas and polls its action queue.
 `account.rs` sends `GuildRankRequest` on ordered-reliable `GuildChannel`; the network
 bridge receives `GuildRanksState` and account dispatch forwards it to the session.
-Refusals also go to `UIErrorsFrame`. Escape closes the canvas. Loading preserves early guild/invitation state; logout resets it.
+Refusals also go to `UIErrorsFrame`. Enter/focus loss saves changed rank/gold/stack
+fields; field Escape restores text before Blur and sends no write. Outside a field,
+Escape closes the canvas. Native bank scrolling routes through the production
+ScrollBox controller with Lua stepSize8 and74px rows plus4px gap. Loading preserves
+early guild/invitation state; logout resets it.
 The Guild micro button opens this entry point (previously unavailable).
 Offline capture methods feed a concrete snapshot into the same production screen.
 

@@ -55,8 +55,7 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
     let catalog =
-        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&root.join("db2/12.1.0.69933"))
-            .unwrap();
+        game_engine_ui_model::ui_map_data::UiMapCatalog::load(&root.join("db2/active")).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut runtime = QuestRuntime::default();
@@ -91,6 +90,9 @@ fn world_quests_clock_tooltip_progress_and_expiry_both_skins() {
                 level: -1,
                 sort_id: 4922,
                 objectives_text: String::new(),
+                description: String::new(),
+                rewards: shared::protocol::QuestRewards::default(),
+                pushable: false,
                 completion_text: String::new(),
                 watched: true,
                 pois: vec![],

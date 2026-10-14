@@ -188,6 +188,9 @@ mod tests {
             level: 1,
             sort_id: 6170,
             objectives_text: String::new(),
+            description: String::new(),
+            rewards: shared::protocol::QuestRewards::default(),
+            pushable: false,
             completion_text: String::new(),
             watched: true,
             pois: Vec::new(),
@@ -204,7 +207,7 @@ mod tests {
     }
     fn runtime(completed: bool) -> crate::quest_runtime::QuestRuntime {
         let catalog = QuestPoiCatalog::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
         )
         .unwrap();
         let mut runtime = crate::quest_runtime::QuestRuntime::default();
@@ -234,7 +237,7 @@ mod tests {
     #[test]
     fn server_only_kobold_camp_cleanup_keeps_its_authored_geometry() {
         let catalog = QuestPoiCatalog::load(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
         )
         .unwrap();
         let mut quest = worg_quest(false);
@@ -279,7 +282,7 @@ mod tests {
 
     #[test]
     fn local_beating_them_back_has_the_authored_seven_point_area_and_turnin() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
         let catalog = QuestPoiCatalog::load(&dir).unwrap();
         let pois = catalog.quests.get(&28766).expect("local quest 28766");
         let area = pois.iter().find(|p| p.objective_index == 0).unwrap();

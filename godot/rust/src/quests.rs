@@ -28,7 +28,7 @@ use game_engine_ui_model::quest_runtime::{
     quest_marker_model,
 };
 use game_engine_ui_model::quest_view::{
-    QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
+    frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
 };
 use game_engine_ui_model::window_manager::{WindowId, WindowManager};
 use godot::classes::{InputEvent, Node3D};
@@ -61,7 +61,6 @@ pub(crate) struct QuestHud {
     pub(crate) ui: QuestUiState,
     windows: WindowManager,
     /// Story text and rewards the givers showed this session, for the log.
-    details: QuestDetailsCache,
     zone_names: HashMap<i32, String>,
     frame_ui: Option<Gd<RegistryUi>>,
     toast_ui: Option<Gd<RegistryUi>>,
@@ -321,7 +320,6 @@ impl GameClient {
             self.poll_quest_actions()?;
         }
         self.sync_quest_giver_window()?;
-        self.remember_quest_details();
         self.sync_quest_windows()?;
         self.sync_quest_markers()?;
         Ok(())
@@ -348,7 +346,7 @@ impl GameClient {
     fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
         if self.quests.poi_catalog.is_none() {
             let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
-                &self.data_root.join("db2/12.1.0.69933"),
+                &self.data_root.join("db2/active"),
             )?;
             for error in &catalog.unresolved {
                 godot_warn!("{error}");
@@ -533,7 +531,7 @@ impl GameClient {
         if quests.frame_ui.as_ref() == Some(ui) {
             frame_reward_item(self.account.quests.dialog.as_ref(), n).cloned()
         } else if self.world_map.ui.as_ref() == Some(ui) {
-            log_reward_item(&self.account.quests, &quests.ui, &quests.details, n).cloned()
+            log_reward_item(&self.account.quests, &quests.ui, n).cloned()
         } else {
             None
         }
@@ -559,22 +557,6 @@ impl GameClient {
             windows.set_open(WindowId::QuestGiver, open);
         }
         Ok(())
-    }
-
-    /// Bevy `remember_quest_details`: the log shows story text and rewards seen here.
-    fn remember_quest_details(&mut self) {
-        if let Some(QuestDialogPage::Detail(details)) = self
-            .account
-            .quests
-            .dialog
-            .as_ref()
-            .map(|dialog| &dialog.page)
-            && self.quests.details.get(&details.quest_id) != Some(details)
-        {
-            self.quests
-                .details
-                .insert(details.quest_id, details.clone());
-        }
     }
 
     fn quest_text_tokens(&self) -> QuestTextTokens {
@@ -623,7 +605,7 @@ impl GameClient {
         let log = quest_log_state(
             &self.account.quests,
             &self.quests.ui,
-            &self.quests.details,
+            self.account.group.in_group(),
             &tokens,
             &mut |sort_id| names.get(&sort_id).cloned().unwrap_or_default(),
             self.player_level().map_or(1, i32::from),

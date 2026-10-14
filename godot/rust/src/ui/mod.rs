@@ -13,6 +13,8 @@ mod buttonfit_preview;
 mod auction_preview;
 pub(crate) mod castbar_fx;
 mod castbar_preview;
+#[cfg(debug_assertions)]
+mod db2_atlas_preview;
 mod dungeon_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
@@ -671,6 +673,32 @@ impl RegistryModel {
             }
             _ => {}
         }
+        if matches!(self.postsetup, ScreenPostsetup::Guild) {
+            game_engine_ui_model::guild_control::refresh_button_art(&mut self.registry);
+        }
+    }
+
+    fn guild_saved_text(&self, id: u64) -> Option<String> {
+        let state = self
+            .shared
+            .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()?;
+        let name = self.registry.get(id)?.name.as_deref()?;
+        state.saved_input_text(name)
+    }
+
+    fn guild_field_action(&self, id: u64) -> Option<String> {
+        let state = self
+            .shared
+            .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()?;
+        let frame = self.registry.get(id)?;
+        let name = frame.name.as_deref()?;
+        let Some(WidgetData::EditBox(edit)) = &frame.widget_data else {
+            return None;
+        };
+        if state.saved_input_text(name).as_deref() == Some(edit.text.as_str()) {
+            return None;
+        }
+        game_engine_ui_model::guild_control::input_action(name)
     }
 
     fn set_button(
@@ -737,6 +765,14 @@ impl RegistryModel {
                 actions.push_back("talent:loadout_save".into());
             }
             ScreenPostsetup::Guild => {
+                if let Some(action) = self
+                    .registry
+                    .focused_frame
+                    .and_then(|id| self.guild_field_action(id))
+                {
+                    actions.push_back(action);
+                    return;
+                }
                 use game_engine_ui_model::guild_ranks::{GuildProfileField, GuildRanksSession};
                 if self.registry.focused_frame
                     == self
@@ -808,9 +844,24 @@ impl RegistryModel {
     }
 
     fn edit_text(&mut self, id: u64, text: String) {
+        let original = matches!(self.postsetup, ScreenPostsetup::Guild)
+            .then(|| self.guild_saved_text(id))
+            .flatten();
         if let Some(frame) = self.registry.get_mut(id)
             && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
         {
+            let text = if matches!(self.postsetup, ScreenPostsetup::Guild) && edit.numeric {
+                text.chars().filter(char::is_ascii_digit).collect()
+            } else {
+                text
+            };
+            if let Some(original) = original {
+                edit.text_color = if text == original {
+                    [1.0; 4]
+                } else {
+                    [0.0, 1.0, 0.0, 1.0]
+                };
+            }
             edit.cursor_position = text.len();
             edit.text = text;
         }
@@ -2916,6 +2967,37 @@ impl RegistryUi {
                     self.pointer_clicks += 1;
                 }
             }
+            UiInput::CancelEdit(id) if matches!(model.postsetup, ScreenPostsetup::Guild) => {
+                let original = model
+                    .registry
+                    .get(id)
+                    .and_then(|frame| frame.name.as_deref())
+                    .and_then(|name| {
+                        model
+                            .shared
+                            .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()
+                            .and_then(|session| session.saved_input_text(name))
+                    });
+                if let Some(text) = original {
+                    model.edit_text(id, text);
+                }
+            }
+            UiInput::Blur(id)
+                if matches!(model.postsetup, ScreenPostsetup::Guild)
+                    && model.guild_saved_text(id).is_some() =>
+            {
+                if let Some(WidgetData::EditBox(edit)) = model
+                    .registry
+                    .get_mut(id)
+                    .and_then(|frame| frame.widget_data.as_mut())
+                {
+                    edit.text_color = [1.0; 4];
+                }
+                if let Some(action) = model.guild_field_action(id) {
+                    self.actions.push_back(action);
+                }
+                model.update_input_widgets(UiInput::Blur(id), &mut self.slider_events);
+            }
             UiInput::Submit => model.submit(&mut self.actions),
             UiInput::SearchPreviewStep(step) => {
                 self.actions.push_back(format!("talent:search_move:{step}"))
@@ -3337,6 +3419,12 @@ mod modern_panel_snapshot_tests;
 mod skin_sync_tests;
 
 fn register_guild_panel_styles(registry: &mut FrameRegistry) -> Result<(), String> {
+    // CommunitiesFrame uses ButtonFrameTemplateMinimizable's portrait border;
+    // invitation/profile dialogs retain their source plain borders.
+    register_metal_frame_style(
+        registry,
+        game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+    )?;
     register_metal_frame_style(
         registry,
         game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
