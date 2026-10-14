@@ -194,11 +194,24 @@ impl GameClient {
                 return Ok(());
             }
         }
-        self.trading_post.view.cart_hover = ui.bind().hovered_button().and_then(|(name, _)| {
-            name.strip_prefix("PerksProgramCartItem")
-                .map(|id| id.strip_suffix("Remove").unwrap_or(id))
-                .and_then(|id| id.parse().ok())
-        });
+        let pointer = self
+            .base()
+            .get_viewport()
+            .ok_or("Trading Post viewport missing")?
+            .get_mouse_position();
+        self.trading_post.view.cart_hover =
+            self.trading_post.view.cart_items().iter().find_map(|row| {
+                let template = if row.category_id == 8 { "Set" } else { "Item" };
+                let name = format!("PerksProgramCart{template}{}", row.id);
+                [name.clone(), format!("{name}Remove")]
+                    .iter()
+                    .any(|name| {
+                        ui.bind()
+                            .frame_viewport_rect(name)
+                            .is_some_and(|rect| contains_pointer(rect, pointer))
+                    })
+                    .then_some(row.id)
+            });
         if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
             if let Some((name, _)) = ui.bind().hovered_button() {
                 match name.as_str() {
