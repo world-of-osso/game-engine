@@ -106,16 +106,17 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
         (CART_WIDTH - 16. - 24., 16., 24., 24.),
     ));
     // PurchaseCartButton stretches from ClearCartButton.RIGHT+8 to divider.RIGHT.
-    let total = view
-        .cart_items()
-        .iter()
-        .map(|row| u64::from(row.price))
-        .sum::<u64>();
+    let total = view.cart_price();
+    let can_afford = view
+        .snapshot
+        .as_ref()
+        .is_some_and(|snapshot| total <= u64::from(snapshot.tender));
+    let price_color = if can_afford { WHITE } else { "0.5,0.5,0.5,1" };
     let price = label(
         "PerksProgramCartPriceText".into(),
         &total.to_string(),
         (0., 0., 44., 24.),
-        (20., WHITE, "RIGHT"),
+        (20., price_color, "RIGHT"),
     );
     let icon = texture(
         "PerksProgramCartPriceIcon".into(),
@@ -123,7 +124,9 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
         (52., 0., 24., 24.),
         WHITE,
     );
-    let button = rsx! {button{name:"PerksProgramCartPurchaseButton",left:102.0,top:{CART_HEIGHT-100.0+27.0},width:268.0,height:64.0,pos_type:"absolute",button_default_skin:false,disabled:true,
+    let disabled = !view.can_checkout();
+    let action = if disabled { "" } else { "perks:cart:checkout" };
+    let button = rsx! {button{name:"PerksProgramCartPurchaseButton",left:102.0,top:{CART_HEIGHT-100.0+27.0},width:268.0,height:64.0,pos_type:"absolute",button_default_skin:false,disabled,onclick:action,
         r#frame{name:"PerksProgramCartPurchaseTextContainer",left:{(268.0-76.0)/2.0},top:20.0,width:76.0,height:24.0,pos_type:"absolute",{price}{icon}}
     }};
     children.extend(button);

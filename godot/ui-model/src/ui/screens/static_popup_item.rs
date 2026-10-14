@@ -1,4 +1,6 @@
-//! GameDialog.xml / GameDialog.lua item confirmation: Text → ItemFrame → Buttons.
+//! GameDialog.xml / GameDialog.lua confirmation: optional ItemFrame and currency markup.
+#[path = "static_popup_prompt.rs"]
+mod prompt_layout;
 use crate::bank_art::{WHITE, label, texture};
 use crate::quest_art::DynName;
 use crate::ui::strata::FrameStrata;
@@ -83,6 +85,9 @@ fn confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
     let (after_width, _) =
         measure_text(props.prompt.1, GameFont::FrizQuadrata, TEXT_SIZE).expect("dialog font");
     let prompt_width = before_width + 4. + 16. + 4. + after_width;
+    if prompt_width > 290. {
+        return prompt_layout::wrapped_currency_prompt(props.name, props.prompt, currency_icon);
+    }
     let prompt_x = (WIDTH - prompt_width) / 2.;
     let prefix = props.name;
     let mut contents = label(

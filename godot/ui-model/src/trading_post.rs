@@ -280,6 +280,19 @@ impl View {
             self.confirm = None;
             return Ok(None);
         }
+        if self.confirm.as_deref() == Some("cart-checkout") {
+            if !self.can_checkout() {
+                return Ok(None);
+            }
+            let request = TradingPostRequest::Checkout {
+                vendor_item_ids: self.cart.clone(),
+            };
+            // Retail clears the local cart when acceptance enqueues checkout, not at receipt.
+            self.clear_cart();
+            self.confirm = None;
+            self.pending = true;
+            return Ok(Some(Action::Request(request)));
+        }
         let Some(id) = self.selected else {
             return Ok(None);
         };
@@ -1010,6 +1023,21 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
 }
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if kind == "cart-checkout" {
+        let count = view.cart.len();
+        let noun = if count == 1 { "item" } else { "items" };
+        let before = format!("Are you sure you want to exchange {}", view.cart_price());
+        let after = format!("for {count} {noun}?");
+        return item_confirmation(ItemConfirmation {
+            name: "PerksProgramConfirm",
+            prompt: (&before, &after),
+            currency_icon: Some(TENDER_ICON),
+            item: None,
+            accept: ("Purchase", "perks:confirm"),
+            cancel_action: "perks:cancel",
+            screen: (WIDTH, HEIGHT),
+        });
+    }
     if kind == "clear-cart" {
         let count = view.cart.len();
         let noun = if count == 1 { "item" } else { "items" };
