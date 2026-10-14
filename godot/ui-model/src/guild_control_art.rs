@@ -62,9 +62,9 @@ pub fn navigation_x() -> f32 {
 
 pub fn shell() -> Element {
     let mut out = rsx! { texture { name: "GuildControlUIBg", width: 318.0, height: 424.0,
-    left: 10.0, top: 10.0, pos_type: "absolute", vertex_color: "0,0,0,0.9" }
+    left: 10.0, top: 10.0, pos_type: "absolute", draw_layer: "BACKGROUND", background_color: "0,0,0,0.9" }
     texture { name: "GuildControlUITopBg", texture_fdid: 374155, horiz_tile: true, vert_tile: true,
-    width: 314.0, height: 40.0, left: 12.0, top: 12.0, pos_type: "absolute" } };
+    width: 314.0, height: 40.0, left: 12.0, top: 12.0, pos_type: "absolute", draw_layer: "BACKGROUND" } };
     for (name, coords, x, y) in [
         ("TopLeft", "0,0.5,0,0.5", 0.0, 0.0),
         ("TopRight", "0.5,1,0,0.5", 306.0, 0.0),
@@ -91,9 +91,9 @@ pub fn shell() -> Element {
         (12.0, NORMAL_FONT_COLOR, "LEFT"),
     ));
     // UIPanelCloseButton normal/pushed/highlight source atlases shared by native panels.
-    out.extend(rsx! { button { name: "GuildControlUICloseButton", width: 32.0, height: 32.0, left: 299.0, top: 7.0, pos_type: "absolute",
+    out.extend(rsx! { button { name: "GuildControlUICloseButton", width: 24.0, height: 24.0, left: 307.0, top: 7.0, pos_type: "absolute",
         onclick: "guild:settings_close", button_default_skin: false,
-        button_atlas_up: "uitools-closebutton", button_atlas_pressed: "uitools-closebutton-down", button_atlas_highlight: "uitools-closebutton-highlight" } });
+        frame_level: 510.0, button_atlas_up: "RedButton-Exit", button_atlas_pressed: "RedButton-exit-pressed", button_atlas_highlight: "RedButton-Highlight", button_atlas_disabled: "RedButton-Exit-Disabled" } });
     out.extend(horizontal_bar());
     out
 }
@@ -132,7 +132,7 @@ fn horizontal_bar() -> Element {
 
 pub fn panel(name: &str, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, width, height) = rect;
-    rsx! { texture { name: {DynName(name.into())}, width, height, left: x, top: y, pos_type: "absolute", vertex_color: "0.95,0.95,1,0.09" } }
+    rsx! { texture { name: {DynName(name.into())}, width, height, left: x, top: y, pos_type: "absolute", draw_layer: "BACKGROUND", background_color: "0.95,0.95,1,0.09" } }
 }
 
 /// GuildPermissionCheckboxTemplate: 20x20; label LEFT to RIGHT +(1,1).
@@ -186,9 +186,6 @@ pub fn checkbox(
 }
 
 pub fn input(name: &str, text: &str, enabled: bool, rect: (f32, f32, f32, f32)) -> Element {
-    if !enabled {
-        return label(name.into(), text, rect, (12.0, "0.65,0.65,0.65,1", "LEFT"));
-    }
     const TEMPLATE: &str = "GuildControlField";
     let mut children = crate::bank_art::edit_box(TEMPLATE, rect);
     for child in &mut children {
@@ -197,6 +194,16 @@ pub fn input(name: &str, text: &str, enabled: bool, rect: (f32, f32, f32, f32)) 
                 *original = original.replace(TEMPLATE, name);
             }
         }
+    }
+    if !enabled {
+        children.pop();
+        children.extend(label(
+            name.into(),
+            text,
+            rect,
+            (14.0, "0.65,0.65,0.65,1", "LEFT"),
+        ));
+        return children;
     }
     let input = children.last_mut().expect("InputBoxTemplate editbox");
     if let ui_toolkit::widget_def::WidgetChild::Widget(widget) = input {

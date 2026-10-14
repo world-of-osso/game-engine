@@ -17,6 +17,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Occupied ranks cannot be removed; reordered members retain their rank identity.
 - [x] Requests leave selected-rank data unchanged until the authoritative reply arrives.
 - [x] Mutating controls wait for authoritative state before sending another write; queued clicks cannot overwrite a prior permission edit using stale flags.
+- [x] Source rank/gold/tab inputs save changed values on Enter/focus loss without extra Save controls; Escape restores text before focus-loss dispatch and sends no write. Bank scrolling uses Lua stepSize8 and XML74px rows plus4px gaps.
 
 ### Invitation and guild profile
 - [x] `/ginvite` / `/guildinvite`, `/gquit` / `/guildquit`, `/gremove` / `/guildremove` send authoritative guild actions, not help.

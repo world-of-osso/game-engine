@@ -2937,6 +2937,21 @@ impl RegistryUi {
                     self.pointer_clicks += 1;
                 }
             }
+            UiInput::CancelEdit(id) if matches!(model.postsetup, ScreenPostsetup::Guild) => {
+                let original = model
+                    .registry
+                    .get(id)
+                    .and_then(|frame| frame.name.as_deref())
+                    .and_then(|name| {
+                        model
+                            .shared
+                            .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()
+                            .and_then(|session| session.saved_input_text(name))
+                    });
+                if let Some(text) = original {
+                    model.edit_text(id, text);
+                }
+            }
             UiInput::Blur(id) if matches!(model.postsetup, ScreenPostsetup::Guild) => {
                 if let Some(action) = model.guild_field_action(id) {
                     self.actions.push_back(action);
