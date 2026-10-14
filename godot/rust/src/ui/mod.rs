@@ -586,7 +586,11 @@ impl RegistryModel {
         if disabled {
             return None;
         }
-        let action = self.registry.click_frame(id)?;
+        // Passive held controls have empty callbacks; pop_action reserves empty for queue-end.
+        let action = self
+            .registry
+            .click_frame(id)
+            .filter(|action| !action.is_empty())?;
         let clear_search = search_for_clear_action(&action);
         if let Some(name) = clear_search {
             let search = self.registry.get_by_name(name)?;
