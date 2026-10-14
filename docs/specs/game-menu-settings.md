@@ -9,8 +9,8 @@ Native menus implement Retail `Blizzard_GameMenu/Shared/GameMenuFrame.lua:139-21
 - [x] Settings exposes Game/AddOns category sets through shared Retail tabs; search filters category and setting text case-insensitively, groups matching rows by category, and shows an honest empty result.
 - [x] Header geometry follows SettingsPanel.xml: GameTab TOPLEFT(32,27), height37; AddOnsTab follows GameTab +5; SearchBox350x22 at Container TOPRIGHT +(4,20). Both skins retain these anchors.
 
-- [ ] Footer uses Retail Apply/Close96x22 controls: Close BOTTOMRIGHT(-16,16), Apply RIGHT→Close LEFT-2. Apply is enabled/visible only for unapplied draft setting values; applying commits them without closing Options.
-- [ ] Defaults retains the existing category-reset action at SettingsList Header TOPRIGHT(-36,-16),96x22, hidden during search; it is not a footer control.
+- [x] Footer uses Retail Apply/Close96x22 controls: Close BOTTOMRIGHT(-16,16), Apply RIGHT→Close LEFT-2. Apply is enabled/visible only for unapplied draft setting values; applying commits them without closing Options.
+- [x] Defaults retains the existing category-reset action at SettingsList Header TOPRIGHT(-36,-16),96x22, hidden during search; it is not a footer control.
 - [ ] Existing immediate setting updates and menu-close behavior remain unchanged; this follow-up does not introduce deferred settings or Retail's discard-confirmation workflow.
 
 ## How it works
