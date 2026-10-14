@@ -30,6 +30,8 @@ pub mod canvas;
 mod chrome;
 #[path = "world_map_frame_component/rewards.rs"]
 mod rewards;
+#[path = "world_map_frame_component/rewards_content.rs"]
+mod rewards_content;
 
 use canvas::canvas;
 use chrome::{border, close_button, maximize_button, nav_bar, title};

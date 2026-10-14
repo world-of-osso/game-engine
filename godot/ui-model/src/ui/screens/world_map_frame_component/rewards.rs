@@ -4,7 +4,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 use crate::quest_art::named_atlas_texture;
-use crate::quest_frame_component::{Column, RewardView, reward_contents};
+use crate::quest_frame_component::RewardView;
 use crate::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
 use crate::quest_scroll::QuestScrollExtent;
 
@@ -35,22 +35,11 @@ impl Rewards {
                 content: Vec::new(),
             };
         };
-        let mut content_height = 0.0;
-        let content = reward_contents(
-            rewards,
-            false,
-            Column {
-                x: 0.0,
-                width: CONTENT_WIDTH,
-            },
-            &mut content_height,
-        );
+        let content = super::rewards_content::build(rewards);
         Self {
-            height: content_height + HEIGHT_PADDING,
-            rows: rewards.choices.len().div_ceil(2)
-                + rewards.items.len().div_ceil(2)
-                + usize::from(rewards.money > 0),
-            content,
+            height: content.height + HEIGHT_PADDING,
+            rows: content.rows,
+            content: content.elements,
         }
     }
 

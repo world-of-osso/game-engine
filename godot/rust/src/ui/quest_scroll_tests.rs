@@ -290,6 +290,9 @@ fn questoverflow_rewards_stay_fixed_while_long_story_scrolls_in_both_skins() {
         let rewards = rect(&model, "QuestMapRewardsFrameContainer")
             .expect("Retail bottom reward container must be visible");
         assert_eq!(rewards.width, 307.0);
+        assert_eq!(money.width, 92.0);
+        let icon = rect(&model, "QuestInfoMoneyIconTexture").unwrap();
+        assert_eq!([icon.width, icon.height], [30.0, 30.0]);
         assert!(
             inside(&money, &rewards),
             "{skin:?}: {money:?} outside {rewards:?}"
