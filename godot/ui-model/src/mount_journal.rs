@@ -577,33 +577,32 @@ fn context_menu(view: &MountJournalView) -> Element {
     } else {
         "Set Favorite"
     };
-    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
-    let mut children = crate::selection_list::menu_background(
-        "MountJournalContextMenuBackground".into(),
-        (190.0, 63.0),
-    );
-    children.extend(menu_element(
-        ContextMenuItem {
-            name: "MountJournalContextSummon",
-            label: mount_text,
-            action: "mount:summon",
-        },
-        MenuElementKind::Button,
-        mount.active || mount.usable,
-        (8.0, 8.0, 174.0, 20.0),
-    ));
-    children.extend(menu_element(
-        ContextMenuItem {
-            name: "MountJournalFavoriteToggle",
-            label: favourite_text,
-            action: "mount:favourite",
-        },
-        MenuElementKind::Button,
-        mount.collected,
-        (8.0, 28.0, 174.0, 20.0),
-    ));
-    rsx! { r#frame { name: "MountJournalContextMenu",width: 190.0,height: 63.0,left,top,pos_type: "absolute",
-    strata: crate::ui::strata::FrameStrata::Dialog,mouse_enabled: true,{children} } }
+    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
+    context_menu_description(
+        "MountJournalContextMenu",
+        (left, top),
+        0.0,
+        &[
+            (
+                ContextMenuItem {
+                    name: "MountJournalContextSummon",
+                    label: mount_text,
+                    action: "mount:summon",
+                },
+                MenuElementKind::Button,
+                mount.active || mount.usable,
+            ),
+            (
+                ContextMenuItem {
+                    name: "MountJournalFavoriteToggle",
+                    label: favourite_text,
+                    action: "mount:favourite",
+                },
+                MenuElementKind::Button,
+                mount.collected,
+            ),
+        ],
+    )
 }
 
 fn source_name(source: i32) -> &'static str {

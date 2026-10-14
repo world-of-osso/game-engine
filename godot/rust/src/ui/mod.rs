@@ -2428,6 +2428,25 @@ impl RegistryUi {
         Some([rect.x, rect.y, rect.width, rect.height].map(|value| value * registry.ui_scale))
     }
 
+    /// MenuUtil.CreateContextMenu opens at the cursor, expressed in the owner's UI units.
+    pub fn read_cursor_relative_to_frame(&self, name: &str) -> Result<[f32; 2], String> {
+        let rect = self
+            .frame_viewport_rect(name)
+            .ok_or_else(|| format!("Context owner {name} bounds missing"))?;
+        let scale = self
+            .model
+            .as_ref()
+            .ok_or("Context UI model missing")?
+            .registry
+            .ui_scale;
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Context viewport missing")?;
+        let cursor = viewport.get_mouse_position();
+        Ok([(cursor.x - rect[0]) / scale, (cursor.y - rect[1]) / scale])
+    }
+
     /// Initialize a dedicated RegistryUi instance for the retail mirror timer bars.
     pub fn show_mirror_timers(&mut self) -> Result<(), String> {
         if self.model.is_some() {
