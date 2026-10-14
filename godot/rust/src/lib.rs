@@ -557,6 +557,7 @@ impl INode3D for GameClient {
             || self.mentor_pointer(&event)
             || self.merchant_pointer(&event)
             || self.guild_bank_pointer(&event)
+            || self.guild_ranks_pointer(&event)
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
             || self.battleground_pointer(&event)

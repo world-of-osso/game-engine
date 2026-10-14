@@ -6,7 +6,6 @@ use crate::ui::strata::FrameStrata;
 use shared::protocol::*;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
-pub const NAME_BOX: &str = "GuildRankName";
 pub const GOLD_BOX: &str = "GuildRankGold";
 pub const INVITE_BOX: &str = "GuildInviteMemberName";
 pub const PROFILE_BOX: &str = "GuildProfileEditText";
@@ -398,7 +397,16 @@ pub fn preview() -> GuildRanksSession {
                     | GUILD_RIGHT_CHAT_SPEAK
                     | GUILD_RIGHT_INVITE
                     | GUILD_RIGHT_WITHDRAW_GOLD
-                    | GUILD_RIGHT_WITHDRAW_REPAIR,
+                    | GUILD_RIGHT_WITHDRAW_REPAIR
+                    | if *name == "Raider" {
+                        GUILD_RIGHT_OFFICER_LISTEN
+                            | GUILD_RIGHT_EDIT_MOTD
+                            | GUILD_RIGHT_EDIT_INFO
+                            | GUILD_RIGHT_VIEW_OFFICER_NOTE
+                            | GUILD_RIGHT_EDIT_OFFICER_NOTE
+                    } else {
+                        0
+                    },
                 gold_per_day: 500_000,
                 tabs: tabs.clone(),
             })

@@ -245,10 +245,6 @@ impl GuildRanksSession {
                 self.control_menu_open = false;
                 None
             }
-            "guild:rename" => self.rename_rank(input(crate::guild_rank_frame::NAME_BOX)),
-            "guild:remove" => self.remove_rank(),
-            "guild:up" => self.move_rank(true),
-            "guild:down" => self.move_rank(false),
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
