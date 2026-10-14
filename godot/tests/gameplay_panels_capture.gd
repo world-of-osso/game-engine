@@ -53,6 +53,7 @@ func capture() -> void:
 				quit(1)
 				return
 			if page == "arena-quick":
+				ui.call("enable_gameplay_preview_scroll_input")
 				var list := ui.find_child("HonorFrameSpecificScrollBox", true, false) as Control
 				assert(list != null)
 				for step in range(20):
@@ -66,7 +67,7 @@ func capture() -> void:
 						await process_frame
 				await RenderingServer.frame_post_draw
 				var skirmish := ui.find_child("HonorFrameArena3v3Button", true, false) as Control
-				assert(skirmish != null and list.get_global_rect().encloses(skirmish.get_global_rect()), "Wheel reveals final source skirmish row")
+				assert(skirmish != null and list.get_global_rect().encloses(skirmish.get_global_rect()), "Wheel reveals final source skirmish row: list=" + str(list.get_global_rect()) + " row=" + str(skirmish.get_global_rect() if skirmish != null else Rect2()))
 				var bar_error := scrollbar_clipping_error(ui, "HonorFrameSpecificScrollBox")
 				assert(bar_error == "", bar_error)
 				assert(root.get_texture().get_image().save_png(directory.path_join(skin + "-menus-arena-skirmish.png")) == OK)
