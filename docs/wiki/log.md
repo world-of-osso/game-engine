@@ -1,6 +1,6 @@
 ## 2026-10-14 — Unnamed equipped component attachment
 
-[Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins and source model order replace the authored-filename gate. Actual70391 helm7321940 reproduces attach RED; corrected source reference is wow.export, not WebWowViewerCpp. Native player/portrait acceptance remains pending.
+[Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and Modern HUD-portrait originals inspected; Forever's existing no-portrait FlareUI layout requires a decision. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
 ## 2026-10-13 — Journeys unknown-unlock notice native proof
 
 [Notice proof](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): actual clipped-bounds RED corrected with source LockedStateFrame anchoring, centered16px text and authored cursor-right requirement tooltip. Both-skin native dee707137 PASS; UI10/10,12 revision-directory full-HD captures with hashed receipt. Unknown never becomes fabricated locked/unlocked; no extra renown grant or runtime remains.70391 presentation metadata publication remains separate pending scope.

@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins and model order replace filename rejection; actual70391 helm7321940 RED, both-skin pixels pending.
+- [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins/order replace filename rejection; real7321940 RED→GREEN30, both-skin equipped-player pixels and Modern portrait, Forever HUD-portrait layout decision open.
 - [Owned pet combat details](systems/battle-pets.md#owned-combat-details--2026-10-13) — persisted injuries/choices, owner-only native snapshots and acknowledged Retail ability flyout; focused tests and inspected both-skin native flyout/ack/reopen proof.
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
