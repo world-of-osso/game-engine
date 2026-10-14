@@ -32,8 +32,9 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
 	var error: String = client.connect_account(server, account, OS.get_environment("TP_PASSWORD"), false)
 	if error != "": fail(error); return
-	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "character select", 120000): return
+	if not await wait_until(func(): return control("CharCard_0") != null and control("CharCard_0").is_visible_in_tree(), "character select reveal", 180000): return
 	await click("CharCard_0")
+	if not await wait_until(func(): return control("EnterWorld") != null and control("EnterWorld").is_visible_in_tree(), "selected character ready", 180000): return
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("MinimapLauncherButton") != null, "world", 180000): return
 	var expected := "Modern" if skin == "modern" else "Forever"
