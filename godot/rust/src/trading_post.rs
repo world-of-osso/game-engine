@@ -123,6 +123,7 @@ impl GameClient {
         if !self.trading_post.view.visible {
             return Ok(());
         }
+        self.trading_post.view.horde = self.player_is_horde();
         self.poll_trading_inputs()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
