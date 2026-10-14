@@ -628,6 +628,8 @@ impl GameClient {
             view.journeys.selected.map(i64::from).unwrap_or(-1),
         );
         state.set("journey_level", view.journeys.level);
+        state.set("journey_track_offset", view.journeys.track_offset());
+        state.set("journey_scrolling", view.journeys.is_scrolling());
         state.set("activity_snapshot_received", view.activities.is_some());
         if let Some(snapshot) = &view.activities {
             state.set("activity_count", snapshot.activities.len() as i64);
