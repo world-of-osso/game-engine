@@ -618,39 +618,14 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
         (move |mut receivers: Query<&mut MessageReceiver<M>>| {
             for mut receiver in &mut receivers {
                 for message in receiver.receive() {
-                    let message = ProtocolMessage(Box::new(message));
-                    toy26_trace_receipt(&message);
                     events
-                        .send(Event::Message(message))
+                        .send(Event::Message(ProtocolMessage(Box::new(message))))
                         .expect("host event receiver closed");
                 }
             }
         })
         .run_if(protocol_not_rejected),
     );
-}
-
-fn toy26_trace_receipt(message: &ProtocolMessage) {
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    if let Some(update) = message.0.downcast_ref::<protocol::ToyCollectionUpdate>() {
-        eprintln!(
-            "TOY26_WORKER_CATALOG time={timestamp} count={} bauble={:?}",
-            update.toys.len(),
-            update
-                .toys
-                .iter()
-                .find(|toy| toy.item_id == 140309)
-                .map(|toy| toy.learned)
-        );
-    }
-    if let Some(update) = message.0.downcast_ref::<SpellCooldownUpdate>() {
-        if update.spell_id == 223143 {
-            eprintln!("TOY26_WORKER_CD time={timestamp} update={update:?}");
-        }
-    }
 }
 
 /// One relay preserves the server's config lifecycle across typed receiver buffers.
