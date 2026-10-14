@@ -8,6 +8,7 @@ ARG SERVER_CACHE
 ARG JOBS=8
 ARG RELEASE=false
 ARG BINARY
+ARG FEATURES
 ENV CARGO_TARGET_DIR=/build-target \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold -C link-arg=-Wl,--thread-count=4"
@@ -31,6 +32,7 @@ RUN --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/carg
     esac && \
     profile=debug && \
     if [ "$RELEASE" = true ]; then profile=release; set -- "$@" --release; fi && \
+    if [ -n "$FEATURES" ]; then set -- "$@" --features "$FEATURES"; fi && \
     cargo build --locked -j "$JOBS" "$@" && \
     mkdir -p /out && \
     for binary in $binaries; do \
