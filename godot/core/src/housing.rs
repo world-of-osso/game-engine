@@ -450,7 +450,9 @@ fn read_sources(
         })?;
         let source = DecorSource::Encounter {
             encounter: encounter.clone(),
-            instance: named(&instances, *instance, "JournalInstance")?,
+            // Installed 12.1.5.70391 JournalEncounter rows (e.g. 131) use 0
+            // for no instance; Retail EncounterJournal also excludes instanceID 0.
+            instance: optional_name(&instances, *instance, "JournalInstance")?.unwrap_or_default(),
             difficulty: optional_name(
                 &difficulties,
                 number(&fields, "DifficultyID")?,
