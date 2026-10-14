@@ -1,3 +1,7 @@
+#[path = "static_popup_item.rs"]
+mod item_confirmation_template;
+pub use item_confirmation_template::{ItemConfirmation, item_confirmation};
+
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
