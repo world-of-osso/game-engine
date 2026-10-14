@@ -1,3 +1,7 @@
+## 2026-10-13 — Settings Apply/Close footer
+
+[Footer follow-up](investigations/glue-menu-fidelity.md#applyclose-follow-up--2026-10-13): actual draft-backed Apply visibility/commit, Close96×22 source anchors and Defaults moved to the Retail header; native hidden-hit/Apply/Close clicks and ten inspected1920×1080 both-skin PNGs. Post-master HUD/scroll/menu/options filters70+68 pass (diagnostic1 ignored). Older gm71 HUD failures not reproduced; no speculative HUD patch or deferred-settings redesign.
+
 ## 2026-10-13 — Game Menu controls and Settings header follow-up
 
 [Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Actual registry-scroll/production-wheel Graphics proof passes in both skins, all13 targeted native scroll cases pass; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
