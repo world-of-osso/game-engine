@@ -24,7 +24,7 @@ fn battle_slot(view: &PetJournalView, slot: usize) -> Element {
         [-3.0, 0.0],
     );
     if let Some(pet) = pet {
-        children.extend(owned_slot(view, &name, pet));
+        children.extend(owned_slot(view, slot, &name, pet));
     } else {
         children.extend(label(
             format!("{name}EmptySlot"),
@@ -52,7 +52,7 @@ fn battle_slot(view: &PetJournalView, slot: usize) -> Element {
     } }
 }
 
-fn owned_slot(view: &PetJournalView, name: &str, pet: &OwnedPet) -> Element {
+fn owned_slot(view: &PetJournalView, slot: usize, name: &str, pet: &OwnedPet) -> Element {
     let species = &view.catalog[&pet.species_id];
     let mut out = label(
         format!("{name}Name"),
@@ -94,7 +94,7 @@ fn owned_slot(view: &PetJournalView, name: &str, pet: &OwnedPet) -> Element {
         ),
         (11.0, NORMAL_FONT_COLOR, "CENTER"),
     ));
-    // OwnedPet carries no health/selected ability snapshot. Do not fabricate template defaults (99/100).
+    out.extend(super::combat::slot_stats(view, slot, name, pet));
     out
 }
 

@@ -7,9 +7,7 @@ use crate::{
     world_models::UnitAppearance,
 };
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::trading_post::{
-    Action, HEIGHT, MODEL, SEARCH, View, WIDTH, trading_post_screen,
-};
+use game_engine_ui_model::trading_post::{Action, FilterSubmenu, HEIGHT, MODEL, View, WIDTH};
 use godot::classes::CanvasLayer;
 use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
@@ -17,6 +15,13 @@ use shared::protocol::{EquipmentSlot, TradingPostRequest};
 
 fn contains_pointer([x, y, width, height]: [f32; 4], point: Vector2) -> bool {
     Rect2::new(Vector2::new(x, y), Vector2::new(width, height)).contains_point(point)
+}
+
+struct ProductDrag {
+    id: u32,
+    origin: Vector2,
+    active: bool,
+    from_frozen: bool,
 }
 
 #[derive(Default)]
@@ -28,7 +33,7 @@ pub(crate) struct TradingPost {
     shown: Option<UnitAppearance>,
     yaw: f32,
     rotating: bool,
-    dragged: Option<(u32, Vector2, bool)>,
+    dragged: Option<ProductDrag>,
     /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
     hidden_layers: Vec<Gd<CanvasLayer>>,
     preview_failed: bool,
@@ -74,6 +79,14 @@ impl GameClient {
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
+        if self.trading_post.view.confirm.take().is_some() {
+            return Ok(true);
+        }
+        if self.trading_post.view.dropdown {
+            self.trading_post.view.dropdown = false;
+            self.trading_post.view.submenu = None;
+            return Ok(true);
+        }
         if self.trading_post.view.visible {
             if let Some(npc) = self
                 .trading_post
@@ -110,6 +123,7 @@ impl GameClient {
         if !self.trading_post.view.visible {
             return Ok(());
         }
+        self.trading_post.view.horde = self.player_is_horde();
         self.poll_trading_inputs()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
@@ -157,18 +171,34 @@ impl GameClient {
         let Some(mut ui) = self.trading_post.ui.clone() else {
             return Ok(());
         };
-        let search = ui.bind_mut().frame_text(SEARCH.into()).to_string();
-        if search != self.trading_post.view.search {
-            self.trading_post.view.search = search;
-            self.trading_post.view.reselect();
-        }
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
                 break;
             }
             let action = self.trading_post.view.click(&action)?;
+            let closes_vendor = matches!(&action, Some(Action::Close));
             self.apply_trading_action(action)?;
+            // Leave frees this RegistryUi; do not poll that input owner again.
+            if closes_vendor {
+                return Ok(());
+            }
+        }
+        if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
+            if let Some((name, _)) = ui.bind().hovered_button() {
+                match name.as_str() {
+                    "PerksProgramFilterTypes" => {
+                        self.trading_post.view.submenu = Some(FilterSubmenu::Types)
+                    }
+                    "PerksProgramFilterSort" => {
+                        self.trading_post.view.submenu = Some(FilterSubmenu::Sort)
+                    }
+                    "PerksProgramFilterCollected"
+                    | "PerksProgramFilterUncollected"
+                    | "PerksProgramFilterUsable" => self.trading_post.view.submenu = None,
+                    _ => {}
+                }
+            }
         }
         Ok(())
     }
@@ -184,16 +214,6 @@ impl GameClient {
                 self.close_trading_post_window()
                     .map_err(|error| error.to_string())?;
             }
-            Some(Action::Log) => {
-                self.close_trading_post_window()
-                    .map_err(|error| error.to_string())?;
-                self.open_adventure_monthly()?;
-            }
-            Some(Action::Collections) => {
-                self.close_trading_post_window()
-                    .map_err(|error| error.to_string())?;
-                self.toggle_collections();
-            }
             None => {}
         }
         Ok(())
@@ -207,10 +227,6 @@ impl GameClient {
             .size;
         let scale = (size.x / WIDTH).min(size.y / HEIGHT).min(0.75);
         let view = self.trading_post.view.clone();
-        self.extract_art(&crate::quests::screen_texture_fdids(
-            view.clone(),
-            trading_post_screen,
-        ));
         if let Some(ui) = &mut self.trading_post.ui {
             ui.bind_mut().set_ui_scale(scale)?;
             return ui.bind_mut().set_state(view);
@@ -359,6 +375,7 @@ impl GameClient {
         if !self.trading_post.view.visible {
             return false;
         }
+        self.close_trading_filter_on_outside_press(event);
         if let Some(ui) = &mut self.trading_post.ui {
             let scrolled = ui.bind_mut().scroll_list_input(event);
             match scrolled {
@@ -375,6 +392,40 @@ impl GameClient {
         }
         self.trading_product_pointer(event) || self.trading_model_pointer(event)
     }
+    fn close_trading_filter_on_outside_press(&mut self, event: &Gd<godot::classes::InputEvent>) {
+        if !self.trading_post.view.dropdown || self.trading_post.view.confirm.is_some() {
+            return;
+        }
+        let Ok(button) = event
+            .clone()
+            .try_cast::<godot::classes::InputEventMouseButton>()
+        else {
+            return;
+        };
+        if !button.is_pressed() {
+            return;
+        }
+        let inside = self.trading_post.ui.as_ref().is_some_and(|ui| {
+            [
+                "PerksProgramFilter",
+                "PerksProgramFilterResetButton",
+                "PerksProgramFilterMenu",
+                "PerksProgramTypeMenu",
+                "PerksProgramSortMenu",
+            ]
+            .iter()
+            .any(|name| {
+                ui.bind()
+                    .frame_viewport_rect(name)
+                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
+            })
+        });
+        if !inside {
+            self.trading_post.view.dropdown = false;
+            self.trading_post.view.submenu = None;
+        }
+    }
+
     fn trading_product_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         if self.trading_post.view.confirm.is_some() || self.trading_post.view.pending {
             self.trading_post.dragged = None;
@@ -384,9 +435,9 @@ impl GameClient {
             .clone()
             .try_cast::<godot::classes::InputEventMouseMotion>()
         {
-            if let Some((_, origin, dragging)) = &mut self.trading_post.dragged {
-                *dragging |= origin.distance_squared_to(motion.get_position()) > 16.;
-                return *dragging;
+            if let Some(drag) = &mut self.trading_post.dragged {
+                drag.active |= drag.origin.distance_squared_to(motion.get_position()) > 16.;
+                return drag.active;
             }
             return false;
         }
@@ -403,6 +454,25 @@ impl GameClient {
             return false;
         };
         if button.is_pressed() {
+            if let Some(id) = self
+                .trading_post
+                .view
+                .snapshot
+                .as_ref()
+                .and_then(|snapshot| snapshot.frozen_item_id)
+                && ui
+                    .bind()
+                    .frame_viewport_rect("PerksProgramFrozenSlot")
+                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
+            {
+                self.trading_post.dragged = Some(ProductDrag {
+                    id,
+                    origin: button.get_position(),
+                    active: false,
+                    from_frozen: true,
+                });
+                return false;
+            }
             for row in self.trading_post.view.rows() {
                 if row.grant_unavailable.is_none()
                     && ui
@@ -410,28 +480,33 @@ impl GameClient {
                         .frame_viewport_rect(&format!("PerksProgramProduct{}", row.id))
                         .is_some_and(|rect| contains_pointer(rect, button.get_position()))
                 {
-                    self.trading_post.dragged = Some((row.id, button.get_position(), false));
+                    self.trading_post.dragged = Some(ProductDrag {
+                        id: row.id,
+                        origin: button.get_position(),
+                        active: false,
+                        from_frozen: false,
+                    });
                     break;
                 }
             }
             return false;
         }
-        let Some((id, _, dragging)) = self.trading_post.dragged.take() else {
+        let Some(drag) = self.trading_post.dragged.take() else {
             return false;
         };
-        if !dragging {
+        if !drag.active {
             return false;
         }
         let dropped = ui
             .bind()
             .frame_viewport_rect("PerksProgramFrozenSlot")
             .is_some_and(|rect| contains_pointer(rect, button.get_position()));
-        if dropped {
-            self.trading_post.view.selected = Some(id);
-            self.trading_post.view.pending = true;
-            if let Err(error) = self.account.send_trading_post(TradingPostRequest::Freeze {
-                vendor_item_id: Some(id),
-            }) {
+        if let Some(Action::Request(request)) =
+            self.trading_post
+                .view
+                .drop_item(drag.id, drag.from_frozen, dropped)
+        {
+            if let Err(error) = self.account.send_trading_post(request) {
                 self.trading_post.view.pending = false;
                 self.trading_post.view.error = error.to_string();
             }
@@ -470,6 +545,28 @@ impl GameClient {
             .ui
             .as_ref()
             .and_then(|ui| ui.bind().frame_viewport_rect(MODEL));
+        let over_ui = self.trading_post.ui.as_ref().is_some_and(|ui| {
+            [
+                "PerksProgramProductsScrollBoxContainer",
+                "PerksProgramFilter",
+                "PerksProgramFilterResetButton",
+                "PerksProgramFilterMenu",
+                "PerksProgramTypeMenu",
+                "PerksProgramSortMenu",
+                "PerksProgramCurrencyFrame",
+                "PerksProgramProductDetailsContainerFrame",
+                "PerksProgramFooterFrame",
+            ]
+            .iter()
+            .any(|name| {
+                ui.bind()
+                    .frame_viewport_rect(name)
+                    .is_some_and(|rect| contains_pointer(rect, button.get_position()))
+            })
+        });
+        if over_ui {
+            return false;
+        }
         if let Some([x, y, width, height]) = bounds {
             if Rect2::new(Vector2::new(x, y), Vector2::new(width, height))
                 .contains_point(button.get_position())
@@ -485,7 +582,46 @@ impl GameClient {
         let mut state = VarDictionary::new();
         state.set("open", view.visible);
         state.set("selected", view.selected.map_or(-1, i64::from));
-        state.set("category", i64::from(view.category));
+        let enabled_types: Vec<_> = view
+            .snapshot
+            .iter()
+            .flat_map(|snapshot| &snapshot.categories)
+            .filter(|category| !view.filters.excluded_types.contains(&category.id))
+            .map(|category| category.id)
+            .collect();
+        state.set(
+            "category",
+            if enabled_types.len() == 1 {
+                i64::from(enabled_types[0])
+            } else {
+                0
+            },
+        );
+        let types: PackedStringArray = view
+            .snapshot
+            .iter()
+            .flat_map(|snapshot| &snapshot.categories)
+            .map(|category| {
+                GString::from(&format!(
+                    "{}|{}",
+                    category.id,
+                    u8::from(!view.filters.excluded_types.contains(&category.id))
+                ))
+            })
+            .collect();
+        state.set("types", &types);
+        state.set("filter_collected", view.filters.collected);
+        state.set("filter_uncollected", view.filters.uncollected);
+        state.set("filter_usable", view.filters.usable_only);
+        state.set(
+            "sort",
+            match view.sort {
+                game_engine_ui_model::trading_post::Sort::Name => "name",
+                game_engine_ui_model::trading_post::Sort::Time => "time",
+                game_engine_ui_model::trading_post::Sort::Price => "price",
+            },
+        );
+        state.set("ascending", view.ascending);
         state.set("preview_ready", self.trading_post.shown.is_some());
         state.set(
             "preview_kind",

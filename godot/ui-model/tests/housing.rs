@@ -2235,6 +2235,166 @@ fn housing_storage_tiles_match_source_geometry_counts_and_background_states_both
 }
 
 #[test]
+fn housing_expert_source_instruction_states_and_assigned_controls_both_skins() {
+    use game_engine_core::input_bindings_data::{BindingKey, InputAction, InputBinding};
+    use game_engine_ui_model::housing::{HousingAuthority, HousingSurface};
+    use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+    use shared::protocol::{DecorTransform, HouseLayout, HousingState, PlacedDecor};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for submode in [
+            PrecisionSubmode::Translate,
+            PrecisionSubmode::Rotate,
+            PrecisionSubmode::Scale,
+        ] {
+            for state in 0..3 {
+                let authority = HousingAuthority {
+                    state: Some(HousingState {
+                        build_key: game_engine_core::housing::RETAIL_BUILD_KEY.into(),
+                        layout: Some(HouseLayout {
+                            house_id: 1,
+                            can_edit: true,
+                            decor: vec![PlacedDecor {
+                                instance_id: 23,
+                                decor_id: 1693,
+                                transform: DecorTransform {
+                                    position: [1.0, 2.0, 3.0],
+                                    yaw: 0.0,
+                                    pitch: 0.0,
+                                    roll: 0.0,
+                                    scale: 1.0,
+                                },
+                                dyes: vec![],
+                            }],
+                        }),
+                        ..Default::default()
+                    }),
+                    error: None,
+                };
+                let mut model = HousingDashboard::new(Arc::new(HousingCatalog::default()));
+                model.surface = HousingSurface::Editor;
+                model.editor.set_mode(EditorMode::Expert);
+                if state != 0 {
+                    model.editor.select(&authority, 23).unwrap();
+                }
+                model.editor.scale_allowed = true;
+                model.editor.set_submode(submode);
+                if state == 2 {
+                    model.editor.begin_mouse_drag(&authority).unwrap();
+                }
+                model.editor_bindings.assign(
+                    InputAction::HousingExpertRotateRight,
+                    InputBinding::Keyboard(BindingKey::F6),
+                );
+                let view = HousingView {
+                    model,
+                    authority,
+                    viewport: [1280.0, 720.0],
+                    money: None,
+                    missing_thumbnails: Default::default(),
+                    vendor_names: Default::default(),
+                };
+                let mut context = SharedContext::new();
+                context.insert(view.clone());
+                let mut registry = FrameRegistry::new(1280.0, 720.0);
+                Screen::new(housing_screen).sync(&context, &mut registry);
+                assert_eq!(
+                    registry
+                        .get_by_name("HouseEditorSelectInstruction")
+                        .is_some(),
+                    state == 0
+                );
+                for (name, mode) in [
+                    ("MoveForward", PrecisionSubmode::Translate),
+                    ("RotateRight", PrecisionSubmode::Rotate),
+                    ("ScaleUp", PrecisionSubmode::Scale),
+                ] {
+                    assert_eq!(
+                        registry
+                            .get_by_name(&format!("HouseEditor{name}Instruction"))
+                            .is_some(),
+                        state == 1 && submode == mode
+                    );
+                }
+                assert_eq!(
+                    registry
+                        .get_by_name("HouseEditorCancelInstruction")
+                        .is_some(),
+                    state != 0
+                );
+                assert_eq!(
+                    registry
+                        .get_by_name("HouseEditorRotateSnapInstruction")
+                        .is_some(),
+                    state != 0 && submode == PrecisionSubmode::Rotate
+                );
+                assert_eq!(
+                    registry
+                        .get_by_name("HouseEditorScaleSnapInstruction")
+                        .is_some(),
+                    state != 0 && submode == PrecisionSubmode::Scale
+                );
+                let container = registry
+                    .get(registry.get_by_name("HouseEditorInstructions").unwrap())
+                    .unwrap();
+                assert_eq!(
+                    container.position.left,
+                    ui_toolkit::layout_values::Val::Px(1250.0 - container.width.value())
+                );
+                if state == 1 && submode == PrecisionSubmode::Rotate {
+                    let row = registry
+                        .get(
+                            registry
+                                .get_by_name("HouseEditorRotateRightInstruction")
+                                .unwrap(),
+                        )
+                        .unwrap();
+                    assert_eq!(row.height, Dimension::Fixed(45.0));
+                    let label = registry
+                        .get(
+                            registry
+                                .get_by_name("HouseEditorRotateRightInstructionText")
+                                .unwrap(),
+                        )
+                        .unwrap();
+                    assert!(
+                        matches!(&label.widget_data,Some(WidgetData::FontString(font)) if font.text=="Rotate Right" && font.font_size==16.0)
+                    );
+                    let control = registry
+                        .get(
+                            registry
+                                .get_by_name("HouseEditorRotateRightInstructionControlText")
+                                .unwrap(),
+                        )
+                        .unwrap();
+                    assert!(
+                        matches!(&control.widget_data,Some(WidgetData::FontString(font)) if font.text=="F6")
+                    );
+                }
+                let modes = registry
+                    .get(registry.get_by_name("HouseEditorModeBar").unwrap())
+                    .unwrap();
+                assert_eq!(modes.width, Dimension::Fixed(266.0));
+                assert!(
+                    registry
+                        .get_by_name("HouseEditorCustomizeModeButton")
+                        .is_some()
+                );
+                let bar = registry
+                    .get(registry.get_by_name("HouseEditorExpertSubmodeBar").unwrap())
+                    .unwrap();
+                assert_eq!(bar.width, Dimension::Fixed(168.0));
+                assert_eq!(bar.position.top, ui_toolkit::layout_values::Val::Px(586.0));
+            }
+        }
+    }
+}
+
+#[test]
 fn housing_basic_source_controls_and_unbound_instruction_rows_both_skins() {
     use game_engine_ui_model::housing::HousingSurface;
     game_engine_ui_model::paths::set_data_root(

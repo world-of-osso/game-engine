@@ -14,11 +14,19 @@ func _initialize() -> void:
 	call_deferred("run_fixture")
 
 func run_fixture() -> void:
-	root.size = Vector2i(1280, 720)
-	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5731" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["browse", "relog", "purchase", "refund"]:
-		fail("Explicit private 127.0.0.1:5731, fb_* account, phase and evidence paths required")
+	root.size = Vector2i(1920, 1080)
+	if DisplayServer.screen_get_size() != Vector2i(1920, 1080):
+		fail("Private compositor must expose 1920x1080 output")
 		return
+	var account := OS.get_environment("TP_ACCOUNT")
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund"]:
+		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
+		return
+	for directory in [shots, receipts]:
+		if DirAccess.make_dir_recursive_absolute(directory) != OK:
+			push_error("Cannot create Trading Post evidence directory: " + directory)
+			quit(1)
+			return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
@@ -31,15 +39,128 @@ func run_fixture() -> void:
 	var expected := "Modern" if skin == "modern" else "Forever"
 	if client.account_state().ui_skin != expected:
 		fail("Active skin %s, expected %s" % [client.account_state().ui_skin, expected]); return
+	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not await travelers_log(): return
+	if not phase in ["layout", "layout-proof"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	match phase:
+		"layout":
+			await capture("vendor-all")
+			await click("PerksProgramFilter")
+			if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
+			await capture("category-dropdown")
+			await choose_category(1)
+			await capture("vendor-transmog")
+			finish("layout")
+		"layout-proof": await layout_proof()
 		"relog": await relog_checks()
 		"purchase": await purchase_each_collection()
 		"refund": await refund_after_relog()
 		_: await browse()
+
+func layout_proof() -> void:
+	print("TP_LAYOUT_INITIAL footer=", control("PerksProgramFooterFrame").get_global_rect(), " purchase=", control("PerksProgramPurchaseButton").get_global_rect(), " filter=", control("PerksProgramFilter").get_global_rect())
+	if control("PerksProgramFilterBackground").mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		fail("Decorative WowStyle2 Button intercepted owner input")
+		return
+	if not assert_vendor_rects(): return
+	if not await assert_header_hover(): return
+	await capture("vendor-all")
+	await click("PerksProgramPriceSortButton")
+	if not await wait_until(func(): return client.trading_post_state().ascending, "ascending price header"): return
+	await capture("price-ascending")
+	await click("PerksProgramNameSortButton")
+	if not await wait_until(func(): return client.trading_post_state().sort == "name", "name header"): return
+	await click("PerksProgramFilter")
+	if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
+	await capture("filter-description")
+	if not await assert_filter_interactions(): return
+	if not await choose_category(2): return
+	if not await select_first_available(int(client.trading_post_state().tender)): return
+	if not assert_masked_icon("PerksProgramIcon%d" % int(client.trading_post_state().selected)): return
+	await capture("vendor-mount")
+	var first := int(client.trading_post_state().selected)
+	if not await drag_to_frozen("PerksProgramProduct%d" % first): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == first and not client.trading_post_state().pending, "native freeze", 180000): return
+	if not assert_masked_icon("PerksProgramFrozenIcon"): return
+	await capture("frozen")
+	if not await choose_category(1): return
+	if not await select_first_available(int(client.trading_post_state().tender)): return
+	var replacement := int(client.trading_post_state().selected)
+	if replacement == first: fail("replacement did not change vendor identity"); return
+	if not await drag_to_frozen("PerksProgramProduct%d" % replacement): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == replacement and not client.trading_post_state().pending, "replace frozen item", 180000): return
+	await capture("frozen-replaced")
+	if not await drag_off_frozen(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "native drag-off unfreeze", 180000): return
+	await capture("unfrozen")
+	var tender := int(client.trading_post_state().tender)
+	var price := int(client.trading_post_state().price)
+	var footer := control("PerksProgramFooterFrame")
+	print("TP_LAYOUT_FOOTER ", footer.get_global_rect() if footer != null else "no projected control", " button=", control("PerksProgramPurchaseButton").get_global_rect(), " model=", control("PerksProgramMainModelScene").get_global_rect(), " enabled=", control_enabled("PerksProgramPurchaseButton"))
+	await click("PerksProgramPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "source popup"): return
+	if not await wait_until(func(): return texture_ready("PerksProgramConfirmItem") and texture_ready("PerksProgramConfirmButtonNormalArt") and texture_ready("PerksProgramConfirmBorder"), "decoded StaticPopup source art"): return
+	if not assert_dialog_rects_and_art(): return
+	await capture("purchase-confirm")
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null and client.trading_post_state().open, "Escape cancels popup without leaving vendor"): return
+	if int(client.trading_post_state().tender) != tender: fail("cancel changed Tender"); return
+	await click("PerksProgramPurchaseButton")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().purchased and int(client.trading_post_state().tender) == tender-price, "authoritative purchase"): return
+	await capture("purchased")
+	await click("PerksProgramRefundButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "refund popup"): return
+	await capture("refund-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().purchased and int(client.trading_post_state().tender) == tender, "authoritative refund"): return
+	await capture("refunded")
+	finish("layout-proof")
+
+func assert_filter_interactions() -> bool:
+	await click("PerksProgramFilterCollected")
+	if not await wait_until(func(): return not client.trading_post_state().filter_collected, "Collected checkbox"): return false
+	await click("PerksProgramFilterUncollected")
+	if not await wait_until(func(): return not client.trading_post_state().filter_uncollected and client.trading_post_state().rows.is_empty(), "both collection flags exclude all rows"): return false
+	await capture("filter-empty")
+	await click("PerksProgramFilterResetButton")
+	if not await wait_until(func(): return client.trading_post_state().filter_collected and client.trading_post_state().filter_uncollected and not client.trading_post_state().rows.is_empty(), "Reset restores source filter flags"): return false
+	if control("PerksProgramFilterMenu") == null: await click("PerksProgramFilter")
+	await click("PerksProgramFilterUsable")
+	if not await wait_until(func(): return client.trading_post_state().filter_usable, "Useable Only checkbox"): return false
+	await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "Sort By hover submenu"): return false
+	if control_enabled("PerksProgramFilterSortTime"):
+		fail("Unsourced per-item remaining time became enabled"); return false
+	await capture("filter-sort")
+	await click("PerksProgramFilterSortPrice")
+	if not await wait_until(func(): return client.trading_post_state().sort == "price" and not client.trading_post_state().ascending, "Price radio"): return false
+	await click("PerksProgramFilterAscending")
+	if not await wait_until(func(): return client.trading_post_state().ascending, "Ascending checkbox"): return false
+	await click("PerksProgramFilterResetButton")
+	if not await wait_until(func(): return not client.trading_post_state().filter_usable and client.trading_post_state().sort == "price" and client.trading_post_state().ascending, "Reset preserves independent sort state"): return false
+	if control("PerksProgramFilterMenu") == null: await click("PerksProgramFilter")
+	await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "Sort By after Reset"): return false
+	await click("PerksProgramFilterSortName")
+	if not await wait_until(func(): return client.trading_post_state().sort == "name", "Name radio"): return false
+	await click("PerksProgramFilter")
+	return true
+
+func drag_off_frozen() -> bool:
+	var slot := control("PerksProgramFrozenSlot")
+	var model := control("PerksProgramMainModelScene")
+	if slot == null or model == null: fail("Missing frozen slot/model canvas"); return false
+	var from := slot.get_global_rect().get_center()
+	var to := model.get_global_rect().get_center()
+	await motion(from, false)
+	await button_event(from, MOUSE_BUTTON_LEFT, true)
+	for step in range(1, 11):
+		await motion(from.lerp(to, step / 10.0), true, (to-from)/10.0)
+	await button_event(to, MOUSE_BUTTON_LEFT, false)
+	return true
 
 func browse() -> void:
 	var state: Dictionary = client.trading_post_state()
@@ -47,8 +168,8 @@ func browse() -> void:
 	if not await wait_until(func(): return client.trading_post_state().preview_ready, "default selection preview", 120000): return
 	await capture("vendor-all")
 	await click("PerksProgramFilter")
-	if not await wait_until(func(): return control("PerksProgramCategoryMenu") != null, "category dropdown"): return
-	await capture("category-dropdown")
+	if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
+	await capture("filter-description")
 	for category in [[1, "transmog", "player"], [8, "transmog-set", "player"], [3, "pet", "creature"], [2, "mount", "creature"]]:
 		if not await choose_category(category[0]): return
 		var first: PackedStringArray = str(client.trading_post_state().rows[0]).split("|")
@@ -192,13 +313,21 @@ func open_vendor() -> bool:
 	if not await wait_until(func(): return client.trading_post_state().open or control("GossipOption0Text") != null, "Tawny greeting or vendor"): return false
 	if not client.trading_post_state().open:
 		await click("GossipOption0Text")
-	return await wait_until(func(): return client.trading_post_state().open and int(client.trading_post_state().get("items", 0)) > 0, "authoritative Trading Post snapshot", 60000)
+	return await wait_until(func(): return client.trading_post_state().open and int(client.trading_post_state().get("items", 0)) > 0, "authoritative Trading Post snapshot", 180000)
 
 func choose_category(id: int) -> bool:
-	if control("PerksProgramCategoryMenu") == null:
+	if control("PerksProgramFilterMenu") == null:
 		await click("PerksProgramFilter")
-	await click("PerksProgramCategory%d" % id)
-	return await wait_until(func(): return int(client.trading_post_state().category) == id, "category %d" % id)
+	await motion(control("PerksProgramFilterTypes").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control("PerksProgramTypeMenu") != null, "source Type submenu on hover"): return false
+	for row in client.trading_post_state().types:
+		var parts: PackedStringArray = str(row).split("|")
+		var checked := parts[1] == "1"
+		if checked != (int(parts[0]) == id):
+			await click("PerksProgramFilterType" + parts[0])
+	await capture("filter-type-%d" % id)
+	await click("PerksProgramFilter")
+	return await wait_until(func(): return int(client.trading_post_state().category) == id and control("PerksProgramFilterMenu") == null, "only source type %d checked" % id)
 
 # First listed row with a bound grant (and, given `budget`, a price within it).
 func select_first_available(budget: int = -1) -> bool:
@@ -207,7 +336,9 @@ func select_first_available(budget: int = -1) -> bool:
 		if parts[1] != "1": continue
 		await click("PerksProgramProduct" + parts[0])
 		if not await wait_until(func(): return str(client.trading_post_state().selected) == parts[0], "select available row " + parts[0]): return false
-		if budget < 0 or int(client.trading_post_state().price) <= budget: return true
+		var state: Dictionary = client.trading_post_state()
+		if budget < 0: return true
+		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
 
@@ -236,6 +367,102 @@ func drag_to_frozen(name: String) -> bool:
 	for step in range(1, 11):
 		await motion(from.lerp(to, step / 10.0), true, (to - from) / 10.0)
 	await button_event(to, MOUSE_BUTTON_LEFT, false)
+	return true
+
+func assert_native_rect(name: String, expected: Rect2) -> bool:
+	var node := control(name)
+	if node == null: fail("Missing projected control " + name); return false
+	var actual := node.get_global_rect()
+	for delta in [actual.position.x-expected.position.x, actual.position.y-expected.position.y, actual.size.x-expected.size.x, actual.size.y-expected.size.y]:
+		if absf(delta) > 0.51:
+			fail("Source projected rect %s: %s != %s" % [name,actual,expected]); return false
+	return true
+
+func assert_vendor_rects() -> bool:
+	for row in [
+		["PerksProgramProductsScrollBoxContainer", Rect2(46,142.5,527,751)],
+		["PerksProgramScrollBox", Rect2(46,200.5,503,573)],
+		["PerksProgramHoldFrame", Rect2(46,773.5,527,120)],
+		["PerksProgramFrozenSlot", Rect2(46,791.5,527,84)],
+		["PerksProgramFilter", Rect2(55,95.5,145,25)],
+		["PerksProgramFooterFrame", Rect2(0,980,1920,100)],
+		["PerksProgramLeaveButton", Rect2(46,1014,180,46)],
+		["PerksProgramPurchaseButton", Rect2(1694,1014,180,46)],
+		["PerksProgramLeftGradient", Rect2(0,0,950,1080)],
+		["PerksProgramRightGradient", Rect2(1320,0,600,1080)],
+	]:
+		if not assert_native_rect(row[0],row[1]): return false
+	var price := control("PerksProgramPriceSortButton").get_global_rect()
+	var time := control("PerksProgramTimeSortButton").get_global_rect()
+	if absf(price.get_center().y-time.get_center().y) > 0.51 or absf(price.end.x+48-time.position.x) > 0.51:
+		fail("Price RIGHT-to-Time.LEFT centering diverged"); return false
+	return true
+
+func assert_header_hover() -> bool:
+	await motion(control("PerksProgramMainModelScene").get_global_rect().get_center(),false)
+	await wait_frames(5)
+	if not assert_header_color(Color(1,0.82,0,1), "normal"): return false
+	var before := await pixels("PerksProgramNameSortLabel")
+	await motion(control("PerksProgramNameSortButton").get_global_rect().get_center(),false)
+	await wait_frames(5)
+	if not assert_header_color(Color.WHITE, "hover"): return false
+	if before == await pixels("PerksProgramNameSortLabel"):
+		fail("Header hover did not change rendered pixels"); return false
+	await capture("headers-hover")
+	await motion(control("PerksProgramMainModelScene").get_global_rect().get_center(),false)
+	await wait_frames(5)
+	if not assert_header_color(Color(1,0.82,0,1), "leave"): return false
+	return true
+
+func assert_header_color(expected: Color, boundary: String) -> bool:
+	# Async snapshots can rebuild the projection while the fixture yields.
+	var label := control("PerksProgramNameSortLabel")
+	if label == null:
+		fail("Missing projected header after " + boundary); return false
+	if not label.get_theme_color("font_color").is_equal_approx(expected):
+		fail("Header color diverged at " + boundary); return false
+	return true
+
+func texture_ready(name: String) -> bool:
+	var node := control(name)
+	if node == null: return false
+	var part := node.get_node_or_null("Parts/Part0") as TextureRect
+	return part != null and part.texture != null
+
+func assert_texture_pixels(name: String) -> bool:
+	var node := control(name)
+	var part := node.get_node_or_null("Parts/Part0") as TextureRect if node != null else null
+	if part == null or part.texture == null:
+		fail("Source art is absent on " + name); return false
+	var image := part.texture.get_image()
+	if image == null or image.is_empty(): fail("Source image is empty on " + name); return false
+	var covered := 0
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			if image.get_pixel(x,y).a > 0.1: covered += 1
+	if covered == 0: fail("Source image has no visible pixels on " + name); return false
+	return true
+
+func assert_masked_icon(name: String) -> bool:
+	if not assert_texture_pixels(name): return false
+	var image: Image = control(name).get_node("Parts/Part0").texture.get_image()
+	if image.get_pixel(0,0).a > 0.01 or image.get_pixel(floori(image.get_width()*0.5),floori(image.get_height()*0.5)).a < 0.75:
+		fail("Authored mask did not cut corners/preserve icon on " + name); return false
+	# Exact48:32 sampling is gated by native RGBA comparisons against each
+	# decoded source icon; mount icons can have authored transparent borders.
+	return true
+
+func assert_dialog_rects_and_art() -> bool:
+	var item := control("PerksProgramConfirmItem").get_global_rect()
+	var text := control("PerksProgramConfirmItemText").get_global_rect()
+	var button := control("PerksProgramConfirmButton").get_global_rect()
+	if item.size != Vector2(37,37) or text.size != Vector2(103,38) or button.size != Vector2(128,21):
+		fail("StaticPopup ItemFrame/button dimensions differ from source"); return false
+	if absf(item.end.x+10-text.position.x)>0.51:
+		fail("StaticPopup item is not RIGHT-to-text.LEFT-10"); return false
+	if not assert_native_rect("PerksProgramConfirmCover", Rect2(0,0,1920,1080)): return false
+	for name in ["PerksProgramConfirmItem", "PerksProgramConfirmItemNameFrame", "PerksProgramConfirmButtonNormalArt", "PerksProgramConfirmBorder"]:
+		if not assert_texture_pixels(name): return false
 	return true
 
 func pixels(name: String) -> PackedByteArray:
@@ -322,8 +549,14 @@ func capture(label: String) -> void:
 	await wait_frames(30)
 	await RenderingServer.frame_post_draw
 	var stem := skin + "-" + phase + "-" + label
-	root.get_texture().get_image().save_png(shots.path_join(stem + ".png"))
+	var image_path := shots.path_join(stem + ".png")
+	if root.get_texture().get_image().save_png(image_path) != OK:
+		fail("Cannot save Trading Post evidence PNG: " + image_path)
+		return
 	var file := FileAccess.open(receipts.path_join(stem + ".json"), FileAccess.WRITE)
+	if file == null:
+		fail("Cannot save Trading Post evidence receipt: " + stem)
+		return
 	file.store_string(JSON.stringify({"trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 	file.close()
 	print("TP_CAPTURE ", stem)

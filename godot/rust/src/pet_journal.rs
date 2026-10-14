@@ -61,6 +61,7 @@ impl GameClient {
     pub(super) fn close_pet_journal(&mut self) -> bool {
         let shown = self.pet_journal.view.visible;
         self.pet_journal.view.visible = false;
+        self.pet_journal.view.ability_selection = None;
         self.clear_pet_models();
         if let Some(ui) = self.pet_journal.ui.take() {
             ui.free();
@@ -179,7 +180,25 @@ impl GameClient {
         if self.pet_journal.view.apply_filter(action) {
             return Ok(());
         }
-        if let Some(slot) = action.strip_prefix("pet:equip:") {
+        if let Some(selection) = action.strip_prefix("pet:ability-open:") {
+            let (loadout, slot) = selection
+                .split_once(':')
+                .ok_or_else(|| format!("Invalid ability action: {action}"))?;
+            let loadout = loadout
+                .parse()
+                .map_err(|_| format!("Invalid loadout: {action}"))?;
+            let slot = slot
+                .parse()
+                .map_err(|_| format!("Invalid ability slot: {action}"))?;
+            self.pet_journal.view.open_ability_choices(loadout, slot);
+        } else if let Some(ability) = action.strip_prefix("pet:ability:") {
+            let ability = ability
+                .parse()
+                .map_err(|_| format!("Invalid ability: {action}"))?;
+            if let Some(request) = self.pet_journal.view.choose_ability(ability) {
+                self.account.send_pet_ability(request)?;
+            }
+        } else if let Some(slot) = action.strip_prefix("pet:equip:") {
             let slot = slot
                 .parse()
                 .map_err(|_| format!("Invalid loadout action: {action}"))?;

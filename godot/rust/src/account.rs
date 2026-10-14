@@ -239,6 +239,7 @@ pub enum AccountEvent {
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
+    PetJournalDetails(shared::protocol::PetJournalDetailsUpdate),
     Pvp(shared::protocol::PvpStateUpdate),
     FollowerDungeons(shared::protocol::FollowerDungeons),
     Lfg(shared::protocol::LfgStateUpdate),
@@ -920,6 +921,14 @@ impl Account {
     pub fn send_pet_queue(
         &self,
         request: shared::protocol::PetBattleQueueRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(request)
+            .map_err(SessionError)
+    }
+    pub fn send_pet_ability(
+        &self,
+        request: shared::protocol::SetBattlePetAbility,
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, shared::protocol::CollectionChannel>(request)
@@ -1657,6 +1666,10 @@ impl Account {
         }
         if message.is::<shared::protocol::PvpStateUpdate>() {
             output.push(AccountEvent::Pvp(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::PetJournalDetailsUpdate>() {
+            output.push(AccountEvent::PetJournalDetails(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::PetBattleQueueUpdate>() {

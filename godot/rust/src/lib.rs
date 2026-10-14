@@ -1441,6 +1441,14 @@ impl GameClient {
             self.mark_viewport_input_handled();
             return true;
         }
+        let housing_key_used = self.housing_key_input(event).unwrap_or_else(|error| {
+            self.handle_frame_error("House editor key", error.into());
+            true
+        });
+        if housing_key_used {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         let edit_used = self.hud_edit_key(event).unwrap_or_else(|error| {
             self.handle_frame_error("HUD edit key", error.into());
             true
@@ -2340,6 +2348,9 @@ impl GameClient {
             AccountEvent::MountJournal(update) => self.receive_mount_journal(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::PetJournalDetails(update) => {
+                self.pet_journal.view.receive_details(update)
+            }
             AccountEvent::FollowerDungeons(catalog) => {
                 self.follower_dungeons.view.receive_catalog(catalog)
             }
