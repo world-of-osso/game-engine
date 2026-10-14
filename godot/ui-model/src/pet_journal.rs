@@ -3,6 +3,8 @@ use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button};
 use shared::pet_battle::PetJournal;
+#[path = "pet_journal_combat.rs"]
+mod combat;
 #[path = "pet_journal_filters.rs"]
 mod filters;
 #[path = "pet_journal_loadout.rs"]
@@ -76,6 +78,10 @@ pub struct PetJournalView {
     pub error: String,
     pub queue: shared::protocol::PetBattleQueueState,
     pub queue_pending: bool,
+    pub combat: BTreeMap<u64, shared::protocol::OwnedPetBattleSnapshot>,
+    pub battle_locked: bool,
+    pub ability_selection: Option<(usize, u8)>,
+    pub ability_pending: bool,
 }
 impl Default for PetJournalView {
     fn default() -> Self {
@@ -95,6 +101,10 @@ impl Default for PetJournalView {
             error: String::new(),
             queue: shared::protocol::PetBattleQueueState::Idle,
             queue_pending: false,
+            combat: BTreeMap::new(),
+            battle_locked: false,
+            ability_selection: None,
+            ability_pending: false,
         }
     }
 }
@@ -139,6 +149,7 @@ impl PetJournalView {
         Some(request)
     }
     pub fn receive_queue(&mut self, update: shared::protocol::PetBattleQueueUpdate) {
+        self.ability_selection = None;
         self.queue = update.state;
         self.queue_pending = false;
         self.error = update.error.unwrap_or_default();
@@ -307,6 +318,7 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(battle_slots(view));
     children.extend(journal_buttons(view));
     children.extend(filters::controls(view));
+    children.extend(combat::spell_select(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
     left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
     let mut out = crate::collections_component::collections_shell(view.viewport, 1, body);
@@ -409,7 +421,7 @@ fn pet_card(view: &PetJournalView) -> Element {
         out.extend(label(
             "PetJournalPetCardDetails".into(),
             &row.detail,
-            (510.0, 110.0, 176.0, 50.0),
+            (342.0, 96.0, 280.0, 12.0),
             (12.0, WHITE, "LEFT"),
         ));
         if let Some(icon) = view.icons.get(&row.species) {
@@ -433,10 +445,11 @@ fn pet_card(view: &PetJournalView) -> Element {
         rsx! { r#frame { name: "PetJournalPetCardModelScene", width: 173.0, height: 135.0,
         left: 337.0, top: 81.0, pos_type: "absolute", mouse_enabled: true } },
     );
+    out.extend(combat::card_stats(view));
     out.extend(label(
         "PetJournalStatus".into(),
         &view.error,
-        (298.0, 185.0, 390.0, 36.0),
+        (298.0, 229.0, 390.0, 22.0),
         (12.0, "1,0.1,0.1,1", "LEFT"),
     ));
     out
