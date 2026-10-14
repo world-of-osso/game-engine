@@ -1,3 +1,7 @@
+## 2026-10-14 — Assigned housing icon keys
+
+[Bound icon control text](systems/housing.md#bound-icon-control-text--implementation2026-10-14): source mode/submode font strings now show assigned abbreviated keys and disappear on unbind. Missing-label behavioral RED; both-skin binding lifecycle plus housing registry GREEN24. Native Options/render acceptance, tooltips and active-glow remain open.
+
 ## 2026-10-14 — Housing installed-source qualification
 
 [Housing source boundary](systems/housing.md#catalog-and-actual-acquisition): published70391 cache/GlobalStrings/atlas metadata are available; fourteen Expert enUS binding labels match. Private housing catalog/world snapshots refreshed without changing paid property state. Earlier source/runtime proof remains historical; both-skin installed-source native and hotkey pixel acceptance still pending. No export request or obsolete payload publication.
