@@ -97,6 +97,57 @@ func held_arrow() -> bool:
 	print("JOURNEYS_HOLD_PASS start=%s moving=%s released=%s" % [start,moving,selected])
 	return await click("JourneyRenownLevel2")
 
+func held_left_fractional() -> bool:
+	if not await move_to("JourneyLevelPrev"):
+		return false
+	await pointer_button(control("JourneyLevelPrev").get_global_rect().get_center(), true)
+	var deadline := Time.get_ticks_msec() + 10000
+	while client.adventure_guide_state().journey_track_offset >= 53. and Time.get_ticks_msec() < deadline:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var state: Dictionary = client.adventure_guide_state()
+	var arrow := control("JourneyLevelPrev") as BaseButton
+	if not state.journey_scrolling or state.journey_level != 1 or state.journey_track_offset <= 0 or arrow == null or arrow.disabled:
+		stop("Left arrow disabled before zero offset=%s level=%s" % [state.journey_track_offset, state.journey_level])
+		return false
+	if not await shot("journeys-held-left"):
+		return false
+	await pointer_button(Vector2(5,5), false)
+	await settle()
+	if client.adventure_guide_state().journey_level != 1 or client.adventure_guide_state().journey_scrolling:
+		stop("Left release did not snap1 and stop")
+		return false
+	if not await click("JourneyLevelNext"):
+		return false
+	await create_timer(0.8).timeout
+	if client.adventure_guide_state().journey_level != 2 or client.adventure_guide_state().journey_scrolling:
+		stop("Short right press must step exactly once")
+		return false
+	print("JOURNEYS_LEFT_HOLD_PASS fractional=%s arrow-enabled/release1/short2" % state.journey_track_offset)
+	return true
+
+func held_boundary() -> bool:
+	if not await click("JourneyRenownLevel24") or not await move_to("JourneyLevelNext"):
+		return false
+	await pointer_button(control("JourneyLevelNext").get_global_rect().get_center(), true)
+	var deadline := Time.get_ticks_msec() + 15000
+	while client.adventure_guide_state().journey_level != 25 and Time.get_ticks_msec() < deadline:
+		await process_frame
+	await settle()
+	var arrow := control("JourneyLevelNext") as BaseButton
+	if client.adventure_guide_state().journey_level != 25 or client.adventure_guide_state().journey_scrolling or arrow == null or not arrow.disabled:
+		stop("Right boundary must disable and stop while held")
+		return false
+	if not await shot("journeys-held-boundary"):
+		return false
+	await pointer_button(Vector2(5,5), false)
+	await create_timer(0.8).timeout
+	if client.adventure_guide_state().journey_level != 25:
+		stop("Boundary release stepped beyond25")
+		return false
+	print("JOURNEYS_BOUNDARY_PASS held-stop25/release25")
+	return true
+
 func trace_open(sequence: int, action: String) -> void:
 	print("RENOWN_REPRO utc=%s ticks_usec=%s event_id=%s action=%s request_type=RenownRequest::Query reply_type=RenownSnapshot state=%s" % [Time.get_datetime_string_from_system(true), Time.get_ticks_usec(), sequence, action, client.adventure_guide_state().renown_faction_count])
 
@@ -206,6 +257,11 @@ func run() -> void:
 		return
 	if not await click("JournalJourneysExpansion9") or not await shot("journeys-dragonflight"):
 		return
+	if not await move_to("JourneyCard12"):
+		return
+	if control("JourneyCard12WatchCheckbox") != null:
+		stop("Unevaluated Maruuk gate exposed a watched-faction toggle")
+		return
 	if not await click("JourneyCard12") or not await click("JourneyRenownLevel2"):
 		return
 	if client.adventure_guide_state().journey != 12 or client.adventure_guide_state().journey_level != 2:
@@ -236,7 +292,7 @@ func run() -> void:
 		return
 	if not await move_to("JourneyProgressName") or not await shot("journeys-renown-progress"):
 		return
-	if not await held_arrow():
+	if not await held_arrow() or not await held_left_fractional():
 		return
 	if not await wheel("JourneyRenownTrackClip", MOUSE_BUTTON_WHEEL_DOWN):
 		return
@@ -253,7 +309,7 @@ func run() -> void:
 	if client.adventure_guide_state().journey_level != 25:
 		stop("Jump-right did not select authoritative Maruuk maximum25")
 		return
-	if not await click("EncounterJournalBack"):
+	if not await held_boundary() or not await click("EncounterJournalBack"):
 		return
 	var card := control("JourneyCard12")
 	var scale := control("EncounterJournal").get_global_rect().size / Vector2(800,496)
