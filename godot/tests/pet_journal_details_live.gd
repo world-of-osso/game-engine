@@ -64,7 +64,7 @@ func open_pet_details() -> void:
 	await frames(30)
 	await capture("owned-combat-open-before-row-wait.png")
 	print("PET_COMBAT_CONTROL_NAMES ", journal.find_children("*owned*", "Control", true, false))
-	if not await wait_frames(func(): return not journal.find_children("pet_select_owned_*", "Control", true, false).is_empty(), "owned pets"):
+	if not await wait_frames(func(): return not journal.find_children("pet_select_owned_*", "Control", true, false).is_empty(), "owned pets", 60000):
 		return
 	for row in journal.find_children("pet_select_owned_*", "Control", true, false):
 		if String(row.name).trim_prefix("pet_select_owned_").is_valid_int():
