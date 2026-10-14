@@ -26,6 +26,13 @@
 ## 2026-10-14 — Mutable player-bundle snapshots
 
 [Publication staging](systems/shipped-assets.md#publication-staging--2026-10-14): independent catalog copies prevent later source SQLite writes from changing staged bytes. Manifest hashes staged files; verifier checks size/SHA256 before upload. Two new regressions RED; packaging suite GREEN8/8. No production publication or full asset-closure claim.
+## 2026-10-14 — Forever Seething functional victory
+
+[Seething70](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14):15 normal gathers/1500, Winner B, automatic results and ten normal return ACKs before save; lead accepts functional evidence. Frozen redb row and normal native relog verify the identical map0 return position with no baseline reset or position command. Natural departure (`drop_proof:false`) and full-body framing remain open. PSI maxima exclude timing acceptance; the run used actual ADD after the offered window expired. Canonical `7184c3dd` supplies all175746 item definitions; private table matches exactly and derived-row preparation is removed.
+
+## 2026-10-14 — Seething disconnect boundary
+
+[Disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14): run60 peer reports `ConnectionTimedOut`; last native incoming socket batch08:32:13.043UTC, outgoing worker Pings continue through08:32:22.978, server max frame13.139s reported08:32:26.284. Run67 reproduces the actual native `ConnectionTimedOut` event after10 gathers/1000, alongside25.173s server/41.647s native pauses and memory-full PSI86.38%; system/process attribution remains open. Run69 reports297.768s server/284.237s native pauses, memory-full PSIavg60=90.85 and rising faults across unrelated compiler/verifier/server processes; a sustainable native window is required. No timeout/guard change. Published equipment closure verified20/20; portable manifest now uses the lead's two published indexes. Obsolete Forever no-portrait fixture follows the decided Retail60×60 player slot; Modern shared-menu golden remains untouched.
 
 ## 2026-10-14 — Unnamed equipped component attachment
 
@@ -3761,3 +3768,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [[collections-ui]] records source shared menus/cursor positioning and pet decoration, preserving already-source shell/inset/card/ToyBox layout. Both-skin native controls/models pass;26 inspected1920×1080 PNGs and52 focused regressions. Initial synthetic-cursor failures rejected as product RED evidence; Input ingestion corrected. Default ModelScene FOV remains unsourced.
 
 - 2026-10-14: [[collections-ui#Mount selected/hover compositing follow-up]] corrects shared Mount/Pet highlight ADD→source BLEND. Both-skin native source-region/pixel proof restores blue rim over yellow selection; no opaque white centre reproduced. Mount14/Pet18 pass, expanded command34pass/1 unrelated guild-fixture failure retained; build/check/fmt pass.
+
+- 2026-10-14: [[boss-encounters#Source timer-bar art — 2026-10-14]] ports textured background/fill/additive spark and source runtime320×387/300px-row geometry. Missing-art and placeholder-size REDs→four model tests GREEN; both-skin1920×1080 full/half/empty native proof inspected, build/check/fmt pass. Initial placeholder-sized captures rejected; no scheduler or default-color parity claim.
