@@ -80,18 +80,12 @@ fn record_source_files(
     Ok(())
 }
 
-fn parse_u32(fields: &[String], index: usize) -> u32 {
-    fields
-        .get(index)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0)
+fn parse_u32(fields: &[String], index: usize) -> Result<u32, String> {
+    crate::csv_util::parse_field(fields, index)
 }
 
-fn parse_i64(fields: &[String], index: usize) -> i64 {
-    fields
-        .get(index)
-        .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(0)
+fn parse_i64(fields: &[String], index: usize) -> Result<i64, String> {
+    crate::csv_util::parse_field(fields, index)
 }
 
 fn insert_simple_rows<T, F>(
@@ -114,6 +108,7 @@ where
         .prepare(sql)
         .map_err(|err| format!("prepare insert for {}: {err}", path.display()))?;
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -123,8 +118,10 @@ where
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let params = row_builder(&headers, &fields, path)?;
+        let params = row_builder(&headers, &fields, path)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         insert
             .execute(params)
             .map_err(|err| format!("insert row for {}: {err}", path.display()))?;
@@ -192,21 +189,21 @@ fn populate_layers(conn: &Connection, path: &Path) -> Result<(), String> {
         path,
         |headers, fields, path| {
             Ok((
-                parse_u32(fields, header_index(headers, "TextureType", path)?),
-                parse_u32(fields, header_index(headers, "Layer", path)?),
-                parse_u32(fields, header_index(headers, "BlendMode", path)?),
+                parse_u32(fields, header_index(headers, "TextureType", path)?)?,
+                parse_u32(fields, header_index(headers, "Layer", path)?)?,
+                parse_u32(fields, header_index(headers, "BlendMode", path)?)?,
                 parse_i64(
                     fields,
                     header_index(headers, "TextureSectionTypeBitMask", path)?,
-                ),
+                )?,
                 parse_u32(
                     fields,
                     header_index(headers, "ChrModelTextureTargetID_0", path)?,
-                ) as u16,
+                )? as u16,
                 parse_u32(
                     fields,
                     header_index(headers, "CharComponentTextureLayoutsID", path)?,
-                ),
+                )?,
             ))
         },
     )
@@ -222,12 +219,12 @@ fn populate_sections(conn: &Connection, path: &Path) -> Result<(), String> {
                 parse_u32(
                     fields,
                     header_index(headers, "CharComponentTextureLayoutID", path)?,
-                ),
-                parse_u32(fields, header_index(headers, "SectionType", path)?),
-                parse_u32(fields, header_index(headers, "X", path)?),
-                parse_u32(fields, header_index(headers, "Y", path)?),
-                parse_u32(fields, header_index(headers, "Width", path)?),
-                parse_u32(fields, header_index(headers, "Height", path)?),
+                )?,
+                parse_u32(fields, header_index(headers, "SectionType", path)?)?,
+                parse_u32(fields, header_index(headers, "X", path)?)?,
+                parse_u32(fields, header_index(headers, "Y", path)?)?,
+                parse_u32(fields, header_index(headers, "Width", path)?)?,
+                parse_u32(fields, header_index(headers, "Height", path)?)?,
             ))
         },
     )
@@ -240,9 +237,9 @@ fn populate_layouts(conn: &Connection, path: &Path) -> Result<(), String> {
         path,
         |headers, fields, path| {
             Ok((
-                parse_u32(fields, header_index(headers, "ID", path)?),
-                parse_u32(fields, header_index(headers, "Width", path)?),
-                parse_u32(fields, header_index(headers, "Height", path)?),
+                parse_u32(fields, header_index(headers, "ID", path)?)?,
+                parse_u32(fields, header_index(headers, "Width", path)?)?,
+                parse_u32(fields, header_index(headers, "Height", path)?)?,
             ))
         },
     )
@@ -259,10 +256,10 @@ fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String
                 parse_u32(
                     fields,
                     header_index(headers, "CharComponentTextureLayoutsID", path)?,
-                ),
-                parse_u32(fields, header_index(headers, "TextureType", path)?),
-                parse_u32(fields, header_index(headers, "Width", path)?),
-                parse_u32(fields, header_index(headers, "Height", path)?),
+                )?,
+                parse_u32(fields, header_index(headers, "TextureType", path)?)?,
+                parse_u32(fields, header_index(headers, "Width", path)?)?,
+                parse_u32(fields, header_index(headers, "Height", path)?)?,
             ))
         },
     )
@@ -472,5 +469,95 @@ mod tests {
             .expect("reused char texture cache mtime");
         assert_eq!(cache_path, reused_path);
         assert_eq!(before, after);
+    }
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_texture_rejects_invalid_canonical_row() {
+        let fixture =
+            crate::db2_test_support::ExportFixture::copy("CharComponentTextureLayouts", Some("ID"));
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        let error = populate_layouts(&conn, &fixture.0).unwrap_err();
+        assert!(
+            error.contains("CharComponentTextureLayouts.csv:2:"),
+            "{error}"
+        );
+    }
+    #[test]
+    fn db2_header_texture_imports_every_canonical_layout() {
+        let fixture =
+            crate::db2_test_support::ExportFixture::copy("CharComponentTextureLayouts", None);
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        populate_layouts(&conn, &fixture.0).unwrap();
+        let count: usize = conn
+            .query_row("SELECT COUNT(*) FROM layouts", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            count,
+            std::fs::read_to_string(&fixture.0).unwrap().lines().count() - 1
+        );
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_textures_read_all_installed_tables() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        for (file, table, populate) in [
+            (
+                "ChrModelTextureLayer",
+                "layers",
+                populate_layers as fn(&Connection, &Path) -> Result<(), String>,
+            ),
+            (
+                "CharComponentTextureSections",
+                "sections",
+                populate_sections,
+            ),
+            ("CharComponentTextureLayouts", "layouts", populate_layouts),
+            (
+                "ChrModelMaterial",
+                "model_materials",
+                populate_model_materials,
+            ),
+        ] {
+            let path = source.join(format!("{file}.csv"));
+            populate(&conn, &path).unwrap();
+            let count: usize = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let records =
+                crate::csv_util::parse_csv_records(&std::fs::read_to_string(path).unwrap());
+            let expected = if file == "ChrModelMaterial" {
+                // The catalog keys canvases by (layout, texture type); authored duplicates replace earlier rows.
+                let layout = records[0]
+                    .iter()
+                    .position(|name| name == "CharComponentTextureLayoutsID")
+                    .unwrap();
+                let kind = records[0]
+                    .iter()
+                    .position(|name| name == "TextureType")
+                    .unwrap();
+                records[1..]
+                    .iter()
+                    .map(|row| (&row[layout], &row[kind]))
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+            } else {
+                records.len() - 1
+            };
+            assert_eq!(count, expected, "{file}");
+        }
     }
 }

@@ -7,11 +7,12 @@ use crate::customization_data::{
     RawOption, RawSkinnedModel,
 };
 
-type HairGeosetKey = (u32, u16, u16);
+type HairGeosetKey = (u32, u16, i32);
 
 /// Cache schema; the version is in the file name because checkouts and the two
 /// clients share `data/cache`, and one name made each rebuild over the other's.
-pub(crate) const CACHE_SCHEMA_VERSION: u32 = 4;
+// v5 retains signed GeosetID values; v4 silently stored authored -1 as 0.
+pub(crate) const CACHE_SCHEMA_VERSION: u32 = 5;
 
 pub fn customization_cache_file() -> String {
     format!("customization-v{CACHE_SCHEMA_VERSION}.sqlite")
@@ -207,6 +208,18 @@ fn load_materials(conn: &Connection) -> Result<HashMap<u32, RawMaterial>, String
         .map_err(|err| format!("read materials row: {err}"))
 }
 
+/// Preserve signed sentinels without widening the existing unsigned render-ID range.
+fn read_signed_geoset_id(row: &rusqlite::Row<'_>, column: usize) -> rusqlite::Result<i32> {
+    let value: i32 = row.get(column)?;
+    if value > i32::from(u16::MAX) {
+        return Err(rusqlite::Error::IntegralValueOutOfRange(
+            column,
+            i64::from(value),
+        ));
+    }
+    Ok(value)
+}
+
 fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
     let mut geosets_stmt = conn
         .prepare("SELECT id, geoset_type, geoset_id FROM geosets")
@@ -217,7 +230,7 @@ fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
                 row.get::<_, u32>(0)?,
                 RawGeoset {
                     geoset_type: row.get(1)?,
-                    geoset_id: row.get(2)?,
+                    geoset_id: read_signed_geoset_id(row, 2)?,
                 },
             ))
         })
@@ -239,7 +252,7 @@ fn load_skinned_models(
             RawSkinnedModel {
                 collection_fdid: row.get(1)?,
                 geoset_type: row.get(2)?,
-                geoset_id: row.get(3)?,
+                geoset_id: read_signed_geoset_id(row, 3)?,
             },
         ))
     })
@@ -258,7 +271,7 @@ fn load_hair_geosets(conn: &Connection) -> Result<HashMap<HairGeosetKey, bool>, 
                 (
                     row.get::<_, u32>(0)?,
                     row.get::<_, u16>(1)?,
-                    row.get::<_, u16>(2)?,
+                    read_signed_geoset_id(row, 2)?,
                 ),
                 row.get::<_, bool>(3)?,
             ))

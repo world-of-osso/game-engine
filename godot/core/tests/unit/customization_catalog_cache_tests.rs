@@ -583,20 +583,23 @@ fn catalog_cache_marks_each_unimplemented_element_kind() {
         "ChrCustGeoComponentLinkID",
     ] {
         assert!(
-            has_unsupported_effects(&[column.into()], &["41".into()]),
+            has_unsupported_effects(&[column.into()], &["41".into()]).unwrap(),
             "{column}"
         );
         assert!(
-            !has_unsupported_effects(&[column.into()], &["0".into()]),
+            !has_unsupported_effects(&[column.into()], &["0".into()]).unwrap(),
             "{column}"
         );
     }
-    assert!(!has_unsupported_effects(
-        &[
-            "ChrCustomizationGeosetID".into(),
-            "ChrCustomizationMaterialID".into(),
-            "ChrCustomizationSkinnedModelID".into()
-        ],
-        &["41".into(), "42".into(), "43".into()]
-    ));
+    assert!(
+        !has_unsupported_effects(
+            &[
+                "ChrCustomizationGeosetID".into(),
+                "ChrCustomizationMaterialID".into(),
+                "ChrCustomizationSkinnedModelID".into()
+            ],
+            &["41".into(), "42".into(), "43".into()]
+        )
+        .unwrap()
+    );
 }

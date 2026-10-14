@@ -318,18 +318,33 @@ impl AreaCatalog {
         );
         let (mask, flags) = (column("FactionGroupMask")?, column("Flags_0")?);
         let mut areas = HashMap::new();
-        for line in reader.lines() {
+        for (line_number, line) in reader.lines().enumerate() {
             let line = line.map_err(|err| format!("read {} row: {err}", path.display()))?;
             let fields = parse_csv_line_trimmed(&line);
-            let number = |col: usize| fields.get(col).and_then(|value| value.parse::<u32>().ok());
-            let Some(area_id) = number(id) else { continue };
+            let number = |column| {
+                crate::csv_util::parse_field::<u32>(&fields, column)
+                    .map_err(|error| format!("{}:{}: {error}", path.display(), line_number + 2))
+            };
+            let area_id = number(id)?;
+            // DB2 flags export as signed i32 or unsigned u32 decimal.
+            let area_flags = crate::csv_util::parse_field::<i64>(&fields, flags)
+                .map_err(|error| format!("{}:{}: {error}", path.display(), line_number + 2))?;
+            if !(i64::from(i32::MIN)..=i64::from(u32::MAX)).contains(&area_flags) {
+                return Err(format!(
+                    "{}:{}: Flags_0 outside 32-bit range",
+                    path.display(),
+                    line_number + 2
+                ));
+            }
             areas.insert(
                 area_id,
                 AreaRow {
-                    name: fields.get(name).cloned().unwrap_or_default(),
-                    parent: number(parent).unwrap_or(0),
-                    faction_mask: number(mask).unwrap_or(0),
-                    flags: number(flags).unwrap_or(0),
+                    name: fields.get(name).cloned().ok_or_else(|| {
+                        format!("{}:{}: missing name", path.display(), line_number + 2)
+                    })?,
+                    parent: number(parent)?,
+                    faction_mask: number(mask)?,
+                    flags: area_flags as u32,
                 },
             );
         }
@@ -390,18 +405,19 @@ pub fn parse_race_faction_groups<R: BufRead>(
         header_index(&headers, "Alliance", path)?,
     );
     let mut races = HashMap::new();
-    for line in reader.lines() {
+    for (line_number, line) in reader.lines().enumerate() {
         let line = line.map_err(|err| format!("read {} row: {err}", path.display()))?;
         let fields = parse_csv_line_trimmed(&line);
-        let race = fields.get(id).and_then(|value| value.parse::<u8>().ok());
-        let group = match fields.get(alliance).map(String::as_str) {
-            Some("0") => FACTION_GROUP_ALLIANCE,
-            Some("1") => FACTION_GROUP_HORDE,
+        let race = crate::csv_util::parse_field::<u8>(&fields, id)
+            .map_err(|error| format!("{}:{}: {error}", path.display(), line_number + 2))?;
+        let alliance = crate::csv_util::parse_field::<u8>(&fields, alliance)
+            .map_err(|error| format!("{}:{}: {error}", path.display(), line_number + 2))?;
+        let group = match alliance {
+            0 => FACTION_GROUP_ALLIANCE,
+            1 => FACTION_GROUP_HORDE,
             _ => continue,
         };
-        if let Some(race) = race {
-            races.insert(race, group);
-        }
+        races.insert(race, group);
     }
     Ok(races)
 }
@@ -452,20 +468,48 @@ pub fn parse_vignettes<R: BufRead>(
         header_index(&headers, "Flags", path)?,
     );
     let mut vignettes = HashMap::new();
-    for line in reader.lines() {
+    for (line_number, line) in reader.lines().enumerate() {
         let line = line.map_err(|err| format!("read {} row: {err}", path.display()))?;
         let fields = parse_csv_line_trimmed(&line);
         let parse = |index: usize| {
             fields
                 .get(index)
                 .and_then(|value| value.parse::<u32>().ok())
-                .ok_or_else(|| format!("{}: bad row {line}", path.display()))
+                .ok_or_else(|| format!("{}:{}: bad row {line}", path.display(), line_number + 2))
         };
         let row = VignetteRow {
-            name: fields.get(name).cloned().unwrap_or_default(),
+            name: fields
+                .get(name)
+                .cloned()
+                .ok_or_else(|| format!("{}:{}: missing name", path.display(), line_number + 2))?,
             flags: parse(flags)?,
         };
         vignettes.insert(parse(id)?, row);
     }
     Ok(vignettes)
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_area_rejects_invalid_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("AreaTable", Some("ID"));
+        let result = AreaCatalog::parse(
+            std::io::Cursor::new(std::fs::read(&fixture.0).unwrap()),
+            &fixture.0,
+        );
+        let error = result.err().expect("invalid ID must fail");
+        assert!(error.contains("AreaTable.csv:2:"), "{error}");
+    }
+    #[test]
+    fn db2_header_area_reads_canonical_names() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("AreaTable", None);
+        let catalog = AreaCatalog::parse(
+            std::io::Cursor::new(std::fs::read(&fixture.0).unwrap()),
+            &fixture.0,
+        )
+        .unwrap();
+        assert_eq!(catalog.name(12), Some("Elwynn Forest"));
+    }
 }
