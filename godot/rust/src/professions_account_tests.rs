@@ -27,6 +27,32 @@ fn collection_journal_reaches_native_account_dispatch_during_loading() {
 }
 
 #[test]
+fn pet_combat_details_reach_native_account_during_loading() {
+    let mut account = Account::new(PathBuf::new());
+    account.session.screen = SessionScreen::Loading;
+    let update = shared::protocol::PetJournalDetailsUpdate {
+        pets: vec![shared::protocol::OwnedPetBattleSnapshot {
+            pet_id: u64::MAX - 8,
+            health: 73,
+            max_health: 146,
+            power: 27,
+            speed: 31,
+            next_level_xp: 100,
+            selected_abilities: [384, 0, 0],
+            choices: vec![],
+        }],
+        locked: true,
+        error: None,
+    };
+    let mut events = Vec::new();
+    account
+        .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut events)
+        .unwrap();
+    assert_eq!(events.len(), 1);
+    assert!(matches!(&events[0], AccountEvent::PetJournalDetails(received) if received == &update));
+}
+
+#[test]
 fn professions_account_dispatches_loading_snapshot_and_skill_refresh() {
     let mut account = Account::new(PathBuf::new());
     account.session.screen = SessionScreen::Loading;
