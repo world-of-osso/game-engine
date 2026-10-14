@@ -315,6 +315,15 @@ impl RegistryModel {
         game_engine_ui_model::collections_component::apply_collections_postsetup(
             &mut self.registry,
         );
+        if self
+            .shared
+            .get::<game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen>()
+            .is_some()
+        {
+            game_engine_ui_model::encounter_timeline_component::apply_timeline_bar_art(
+                &mut self.registry,
+            );
+        }
         if self.shared.get::<GameMenuViewModel>().is_some() {
             game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
         }
