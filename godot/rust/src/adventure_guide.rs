@@ -406,7 +406,7 @@ impl GameClient {
             })
             .collect();
     }
-    fn send_journey_watch(&self, action: &str) -> Result<bool, String> {
+    fn send_journey_watch(&mut self, action: &str) -> Result<bool, String> {
         let Some(watch) = action.strip_prefix("journal:journey-watch:") else {
             return Ok(false);
         };
@@ -417,6 +417,10 @@ impl GameClient {
         self.account
             .send_renown(shared::protocol::RenownRequest::SetWatchedFaction { faction_id })
             .map_err(|error| error.to_string())?;
+        let sound = game_engine_ui_model::adventure_journeys::watch_click_sound(faction_id);
+        if let Err(error) = self.play_ui_sound_kit(sound) {
+            self.handle_frame_error("Journeys watch click sound", error.into());
+        }
         Ok(true)
     }
 
