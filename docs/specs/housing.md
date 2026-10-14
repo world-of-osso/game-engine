@@ -26,7 +26,7 @@ Basic uses source64px mode controls at bottom center and Snap/Free Place submode
 
 Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates.lua/xml` and `Blizzard_HouseEditorModeButtons.xml`. Native visual/physical acceptance remains a separate gate.
 
-Named gap: installed70340 hotkey atlas bytes are repacked relative to current atlas-member metadata. Hotkey visual acceptance is withheld; `db2-follow-install` (agent_5615) owns70340 `UiTextureAtlasMember` re-export. F3 functional placement, user bindings/unbind, preview rotation and visitor/refusal/relog are landable without that visual gate. Do not publish/use69933 hotkey payloads, pin the resolver or guess replacement UV coordinates.
+Named gap: hotkey visual acceptance remains withheld until both-skin native proof uses the installed70391 bytes and member metadata now published by `db2-follow-install`. No further export request is needed. F3 functional placement, user bindings/unbind, preview rotation and visitor/refusal/relog remain landable at their recorded runtime revisions without that visual gate. Do not publish/use obsolete hotkey payloads, pin the resolver or guess replacement UV coordinates.
 
 ## Housing editor bindings
 
@@ -40,7 +40,7 @@ Native dispatch reads player-assigned bindings, with distinct held rotate and sc
 
 Both skins physically prove current-canonical source labels/45px right-center rows, real Options assignment/unbind, held release, manipulating instruction changes, actual paid1693/2330 XYZ rotation/translation/M2 scale staging, cancel, an observed empty world-ray click commit and genuine reauthentication. Normal Tesla removal/relog restores its stored copy while preserving the paid bookcase; readonly visitors cannot obtain a draft or mutate owner decor through the same assigned actions. Existing WMO scale refusal has model proof, not a fabricated owned-WMO live fixture.
 
-User explicitly authorizes current canonical GlobalStrings labels pending db2-follow-install re-export from installedRetail12.1.5.70391; that localization gap is recorded, not a claim of70391 qualification. Hotkey visual acceptance remains the db2-follow-install gap above. Matched assigned housing keys run in the active editor context before the global HUD shortcut, while popups, binding capture and other keyboard-owning overlays retain ownership. F10 therefore switches to Scale when the player explicitly binds it there; after unbinding/closing housing it retains the existing HUD Edit Mode toggle. These are context rules, not new default bindings. Numerical source rate/axis/snap parity remains unqualified.
+InstalledRetail12.1.5.70391 GlobalStrings is now published; its fourteen Expert binding labels match the implemented enUS text. The temporary canonical-label authorization is historical. Other locales remain unproved. Hotkey visual acceptance still needs the native gate above. Matched assigned housing keys run in the active editor context before the global HUD shortcut, while popups, binding capture and other keyboard-owning overlays retain ownership. F10 therefore switches to Scale when the player explicitly binds it there; after unbinding/closing housing it retains the existing HUD Edit Mode toggle. These are context rules, not new default bindings. Numerical source rate/axis/snap parity remains unqualified.
 
 ## Authoritative storage boundary
 

@@ -1,3 +1,7 @@
+## 2026-10-14 — Housing installed-source qualification
+
+[Housing source boundary](systems/housing.md#catalog-and-actual-acquisition): published70391 cache/GlobalStrings/atlas metadata are available; fourteen Expert enUS binding labels match. Private housing catalog/world snapshots refreshed without changing paid property state. Earlier source/runtime proof remains historical; both-skin installed-source native and hotkey pixel acceptance still pending. No export request or obsolete payload publication.
+
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
