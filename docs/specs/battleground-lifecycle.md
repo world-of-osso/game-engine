@@ -27,7 +27,7 @@ Retail source geometry: PVPUIFrame 563×428, PVPReadyDialog 306×210 with 115×2
 
 Private peer state files must expose complete JSON receipts throughout publication; concurrent readers may retain the preceding complete snapshot while the next snapshot is written. Publication errors remain explicit. Gameplay, connection deadlines, and cast timers remain unchanged.
 
-The private native fixture's read-only `visuals` action reports actual camera position and local-player mesh transforms/bounds/visibility. It neither changes rendering state nor substitutes those receipts for inspected pixels.
+The private native fixture's read-only `visuals` action reports actual camera position, local-player animation identity and mesh transforms/bounds/visibility. `portrait` reads the existing renderer receipt for a named portrait frame, excluding its image object from JSON. Neither changes rendering state nor substitutes those receipts for inspected pixels.
 
 ## Tests asserting this spec
 
