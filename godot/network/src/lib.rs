@@ -32,6 +32,8 @@ pub mod replica;
 #[path = "../../core/src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 #[cfg(test)]
+mod trading_post_delivery_tests;
+#[cfg(test)]
 mod trading_post_wire_tests;
 
 use std::{
