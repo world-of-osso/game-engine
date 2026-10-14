@@ -3712,3 +3712,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
 
 - 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.
+
+- 2026-10-14: [[quest-ui#Fresh login and real-party eligibility — 2026-10-14]] records both-skin fresh owned story/55-copper fixed reward and real invite/roster-driven Share eligibility. Landed UDP receive queue integrated, no empty-log retry. Fourteen inspected PNGs; stale private schema refreshed read-only. World-model receipt diagnostics and general latency/recipient acceptance remain outside proof.
