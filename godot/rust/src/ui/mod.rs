@@ -183,6 +183,16 @@ enum ScreenPostsetup {
     FollowerDungeons,
 }
 
+fn search_for_clear_action(action: &str) -> Option<&'static str> {
+    match action {
+        game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR => {
+            Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
+        }
+        "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+        _ => None,
+    }
+}
+
 impl RegistryModel {
     /// A view of another Options page shows it from its top, as Retail's settings list
     /// scrolls to the beginning when it gets a category's elements
@@ -291,6 +301,13 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
+            self.icon_masks.apply(&mut self.registry);
+        }
         game_engine_ui_model::collections_component::apply_collections_postsetup(
             &mut self.registry,
         );
@@ -555,10 +572,9 @@ impl RegistryModel {
             return None;
         }
         let action = self.registry.click_frame(id)?;
-        if action == game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR {
-            let search = self
-                .registry
-                .get_by_name(game_engine_ui_model::bag_frame_component::SEARCH_BOX)?;
+        let clear_search = search_for_clear_action(&action);
+        if let Some(name) = clear_search {
+            let search = self.registry.get_by_name(name)?;
             self.edit_text(search, String::new());
             self.blur_frame(search);
             return None;
@@ -2538,6 +2554,18 @@ impl RegistryUi {
                     .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
             }
         }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
+            && let Some(previous) = model
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+                previous,
+                next,
+                &mut model.registry,
+            );
+        }
         model.shared.insert(state);
         self.sync_model()
     }
@@ -2833,7 +2861,6 @@ impl RegistryUi {
     }
 
     fn release_search_clear_focus(&mut self, event: &UiInput) {
-        use game_engine_ui_model::bag_frame_component::{ACTION_SEARCH_CLEAR, SEARCH_BOX};
         let (UiInput::Click(id) | UiInput::FrameClick { id, .. }) = event else {
             return;
         };
@@ -2844,8 +2871,9 @@ impl RegistryUi {
             .registry
             .get(*id)
             .and_then(|frame| frame.onclick.as_deref());
-        if action == Some(ACTION_SEARCH_CLEAR) {
-            self.release_focus_named(SEARCH_BOX);
+        let search = action.and_then(search_for_clear_action);
+        if let Some(name) = search {
+            self.release_focus_named(name);
         }
     }
 
