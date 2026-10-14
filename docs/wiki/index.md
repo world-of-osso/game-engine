@@ -5,7 +5,7 @@
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
 - [Watched reputation status bar](systems/reputation-status-bar.md) — independent authoritative login/progress, Retail container priority and approved relative XP preset; four inspected both-skin full-HD restoration/hover captures.
 
-- [Journeys watch and held-left boundary](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14) — persisted authority/refusal, fractional-left regression and explicit current native delivery blocker.
+- [Journeys player-facing header](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14) — authoritative level/progress replaces developer unlock diagnostics; ordinary-renown source no-fill retained,18 inspected both-skin full-HD recaptures. [Earlier kit/watch checkpoint](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14) adds genuine ungated watch ACK/HUD/query/clear; collection/overview/audio remain gaps.
 
 - [Journeys held arrows and native masks](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14) — fractional held scrolling, outside-arrow release/stop, both-skin icon alpha and fourteen inspected full-HD captures; snapshot latency separated from presentation proof.
 - [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
@@ -63,7 +63,7 @@
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
-- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, source tracked-buff bars/Application anchors with reviewed both-skin full-HD geometry proof, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
 - [Native Mythic Mentor](systems/mythic-mentor.md) — native party Keys panel, authored current-reference summaries/icons, ready-query handshake, shared8h teleport clocks and both-skin private5751 proof; post-fix active-tooltip pixels blocked by local install update.
