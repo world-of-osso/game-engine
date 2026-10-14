@@ -1418,7 +1418,10 @@ pub(crate) fn scroll_in(
 ) -> Element {
     let (left, top, width, height) = rect;
     // XML InstanceSelect.ScrollBar +12,-6 / +12,-4; BossesScrollBar +5,-5 / +5,+5.
-    let (bar_left, bar_top, bar_height, child_width) = if list == "EncounterJournalBosses" {
+    let (bar_left, bar_top, bar_height, child_width) = if list == "EncounterJournalJourneysList" {
+        // JourneysFrameTemplate: ScrollBar LEFT list.RIGHT-20, TOP/BOTTOM10.
+        (left + width - 20., top + 10., height - 20., width)
+    } else if list == "EncounterJournalBosses" {
         (left + width + 5., top + 5., height - 10., width)
     } else if list == LIST && width == 345. {
         (left + width + 5., top + 5., height - 10., width)

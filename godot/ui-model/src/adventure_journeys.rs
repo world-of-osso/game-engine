@@ -1,11 +1,14 @@
 //! Retail Mainline Journeys (Blizzard_Journeys.lua/.xml) over realm renown snapshots.
 //! Renown cards and the reward track only; unsourced journey/encounter categories,
 //! texture kits, claim state and Delves companions are not shown.
-use crate::adventure_guide::{button, scroll, text};
+use crate::adventure_guide::{button, scroll_in, text};
 use crate::auction_mail::text as global_string;
 use crate::bank_art::{WHITE, label, texture};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR};
-use crate::selection_list::MenuTick;
+use crate::menu_primitives::{
+    ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
+    menu_row_rect_with_heading,
+};
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use shared::protocol::{MajorFactionSnapshot, RenownSnapshot, RenownUnlock};
 use std::collections::BTreeSet;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -134,29 +137,17 @@ fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot
         .iter()
         .filter(|faction| faction.expansion == state.expansion)
         .collect();
-    let mut content = label(
-        "JournalJourneysCategory".into(),
-        global_string("JOURNEYS_RENOWN_LABEL"),
-        (0., 0., 400., 20.),
-        (16., WHITE, "LEFT"),
-    );
-    for (index, faction) in factions.iter().enumerate() {
-        let left = (index % 2) as f32 * (CARD.0 + 4.);
-        let top = 26. + (index / 2) as f32 * (CARD.1 + 6.);
-        content.extend(renown_card(faction, left, top));
-    }
-    let height = 26. + factions.len().div_ceil(2) as f32 * (CARD.1 + 6.);
-    let mut body = button(
-        "JournalJourneysExpansion".into(),
+    let contents = list_contents(ctx, &factions);
+    let mut body = rsx! {r#frame {
+        name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
+        pos_type:"absolute",{contents}
+    }};
+    body.extend(crate::adventure_guide_art::dropdown(
+        "JournalJourneysExpansion",
         expansion_name(state.expansion),
         "journal:journey-expansion-menu",
-        (15., 65., 175., 24.),
-    );
-    body.extend(scroll(
-        ctx,
-        content,
-        (15., 96., 770., 387.),
-        height.max(387.),
+        (609., 72., 160., 25.),
+        state.expansion_open,
     ));
     if state.expansion_open {
         body.extend(expansion_menu(state, snapshot));
@@ -164,45 +155,113 @@ fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot
     body
 }
 
+/// JourneysList sequence: category20, padding15/10/14/10, horizontal/vertical gaps5.
+fn list_contents(ctx: &SharedContext, factions: &[&MajorFactionSnapshot]) -> Element {
+    let mut content = label(
+        "JournalJourneysCategory".into(),
+        global_string("JOURNEYS_RENOWN_LABEL"),
+        (14., 15., 765., 20.),
+        (16., WHITE, "LEFT"),
+    );
+    for (index, faction) in factions.iter().enumerate() {
+        let left = 14. + (index % 2) as f32 * (CARD.0 + 5.);
+        let top = 40. + (index / 2) as f32 * (CARD.1 + 5.);
+        content.extend(renown_card(faction, left, top));
+    }
+    let rows_height = factions.len().div_ceil(2) as f32 * (CARD.1 + 5.);
+    let height = 40. + rows_height - 5. + 10.;
+    let mut body = named_atlas_texture(
+        "EncounterJournalInstanceSelectBackground".into(),
+        "ui-journeys-bg",
+        (3., 1., 792., 432.),
+    );
+    body.extend(scroll_in(
+        ctx,
+        content,
+        (0., 0., 789., 429.),
+        height.max(429.),
+        "EncounterJournalJourneysList",
+    ));
+    body
+}
+
 fn expansion_menu(state: &Journeys, snapshot: &RenownSnapshot) -> Element {
     let expansions: BTreeSet<u8> = snapshot.factions.iter().map(|f| f.expansion).collect();
-    expansions
+    let entries: Vec<_> = expansions
         .iter()
         .rev()
-        .enumerate()
-        .flat_map(|(index, expansion)| {
-            crate::selection_list::menu_choice(
+        .map(|expansion| {
+            (
                 format!("JournalJourneysExpansion{expansion}"),
                 expansion_name(*expansion),
-                &format!("journal:journey-expansion:{expansion}"),
-                (MenuTick::Radio, state.expansion == *expansion),
-                (15., 90. + index as f32 * 24., 175., 23.),
+                format!("journal:journey-expansion:{expansion}"),
+                state.expansion == *expansion,
             )
         })
-        .collect()
+        .collect();
+    let items: Vec<_> = entries
+        .iter()
+        .map(|(name, label, action, _)| ContextMenuItem {
+            name,
+            label,
+            action,
+        })
+        .collect();
+    let rows = entries
+        .iter()
+        .zip(&items)
+        .enumerate()
+        .flat_map(|(index, (entry, item))| {
+            menu_element(
+                *item,
+                MenuElementKind::Radio { checked: entry.3 },
+                true,
+                menu_row_rect_with_heading(160., index, false),
+            )
+        })
+        .collect();
+    context_menu_with_rows(
+        ContextMenu {
+            frame_name: "JournalJourneysExpansionMenu",
+            title_name: "JournalJourneysExpansionTitle",
+            divider_name: "JournalJourneysExpansionDivider",
+            hidden: false,
+            title: "",
+            width: 160.,
+            x: 609.,
+            y: 97.,
+            items: &items,
+        },
+        rows,
+    )
 }
 
 fn renown_card(faction: &MajorFactionSnapshot, left: f32, top: f32) -> Element {
     let prefix = format!("JourneyCard{}", faction.id);
-    let mut card = button(
-        prefix.clone(),
-        "",
-        &format!("journal:journey:{}", faction.id),
-        (left, top, CARD.0, CARD.1),
+    let mut parts = named_atlas_texture(
+        format!("{prefix}IconBorder"),
+        "ui-journeys-renown-radial-bar",
+        (20., 26., 60., 60.),
     );
-    card.extend(label(
+    parts.extend(label(
         format!("{prefix}Name"),
         &faction.name,
-        (left + 90., top + 30., 225., 20.),
+        (85., 41., 225., 20.),
         (14., WHITE, "LEFT"),
     ));
-    card.extend(label(
+    parts.extend(label(
         format!("{prefix}Level"),
         &format_numbers(global_string("RENOWN_LEVEL_LABEL"), &[faction.level]),
-        (left + 90., top + 54., 220., 15.),
+        (85., 61., 220., 15.),
         (13., NORMAL_FONT_COLOR, "LEFT"),
     ));
-    card
+    let action = format!("journal:journey:{}", faction.id);
+    rsx! {button {
+        name:{DynName(prefix)},left,top,width:{CARD.0},height:{CARD.1},pos_type:"absolute",
+        onclick:{action.as_str()},button_default_skin:false,
+        button_atlas_up:"ui-journeys-renown-button",button_atlas_pressed:"ui-journeys-renown-button-pressed",
+        {parts}
+    }}
 }
 
 fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {

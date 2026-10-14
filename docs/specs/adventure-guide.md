@@ -12,6 +12,10 @@ Use `Blizzard_EncounterJournal.xml` and its inherited templates, not generic pan
 
 The grid has no extra Owned Keystones button; authoritative key information remains in instance content. Overview and Abilities have no role-filter button row. Bottom tabs use shared merchant tabs with the source selected text offset and disabled selected state; Suggested uses `AJ_SUGGESTED_CONTENT_TAB`. Breadcrumbs use the shared navigation bar, including current-disabled, pressed, hover and overflow state. Tier, difficulty and the two loot dropdowns use the shared WowStyle1 menu primitives. The inherited SearchBoxListTemplate retains SEARCH instructions, clear input,40-letter limit,16/20px text insets and source icon/clear anchors. Section headers use EncounterInfoTemplate paper art; pane textures are children of their clipped XML parents.
 
+## Journeys layout continuation
+
+The renown list uses `RenownCardButtonTemplate`374×112 normal/pressed atlas art,60px radial border, child-relative faction labels, and `JourneysList` sequence padding15/10/14/10 with5px gaps. The list fills the journal inset; its scrollbar anchors10px from top/bottom and20px inside the right edge. Expansion selection uses the shared WowStyle1 dropdown and untitled radio menu at the journal's source anchor. Journeys background stays a clipped child of InstanceSelect. Faction icon texture kits and native list/pane parity remain unverified until authenticated source mapping/payloads and both-skin captures exist; missing icon art is not replaced.
+
 ## Required behavior
 
 - Dungeons/Raids: expansion/tier selector, authored instance buttons/backgrounds, instance overview and boss list. Classify dungeons from pinned Map.InstanceType, not JournalInstance.Flags (Wailing Caverns43 has zero Journal flags).

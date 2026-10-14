@@ -91,6 +91,84 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 
+fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    let px = |value| match value {
+        Val::Px(value) => value,
+        other => panic!("{name} position {other:?}"),
+    };
+    let size = |value| match value {
+        Dimension::Fixed(value) => value,
+        other => panic!("{name} size {other:?}"),
+    };
+    [
+        px(frame.position.left),
+        px(frame.position.top),
+        size(frame.width),
+        size(frame.height),
+    ]
+}
+
+#[test]
+fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
+    let mut view = data_view();
+    let mut catalog = snapshot();
+    catalog.factions = vec![
+        faction(12, "Maruuk Centaur", 9, 2, 1000),
+        faction(13, "Valdrakken Accord", 9, 1, 0),
+        faction(14, "Iskaara Tuskarr", 9, 1, 0),
+    ];
+    view.renown = Some(Arc::new(catalog));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    let registry = render(&view);
+    // JourneysFrame setAllPoints Inset; Lua sequence padding15/10/14/10, gaps5.
+    assert_eq!(
+        rect(&registry, "EncounterJournalJourneysList"),
+        [0., 0., 789., 429.]
+    );
+    assert_eq!(
+        rect(&registry, "JournalJourneysCategory"),
+        [14., 15., 765., 20.]
+    );
+    assert_eq!(rect(&registry, "JourneyCard12"), [14., 40., 374., 112.]);
+    assert_eq!(rect(&registry, "JourneyCard13"), [393., 40., 374., 112.]);
+    assert_eq!(rect(&registry, "JourneyCard14"), [14., 157., 374., 112.]);
+    // XML name LEFT IconFrame.RIGHT+5; level below name, both children of card.
+    assert_eq!(rect(&registry, "JourneyCard12Name"), [85., 41., 225., 20.]);
+    assert_eq!(rect(&registry, "JourneyCard12Level"), [85., 61., 220., 15.]);
+}
+
+#[test]
+fn journeys_expansion_dropdown_uses_the_journal_anchor_and_closes_on_selection() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion-menu").unwrap();
+    let registry = render(&view);
+    assert_eq!(
+        rect(&registry, "JournalJourneysExpansion"),
+        [609., 72., 160., 25.]
+    );
+    assert_eq!(
+        rect(&registry, "JournalJourneysExpansionMenu"),
+        [609., 97., 160., 63.]
+    );
+    assert_eq!(
+        rect(&registry, "JournalJourneysExpansion11"),
+        [8., 8., 144., 20.]
+    );
+    view.apply("journal:journey-expansion:9").unwrap();
+    assert!(
+        render(&view)
+            .get_by_name("JournalJourneysExpansionMenu")
+            .is_none()
+    );
+}
+
 fn data_view() -> View {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -155,7 +233,10 @@ fn journeys_lists_current_expansion_renown_and_filters_by_expansion() {
     );
     view.apply("journal:journey-expansion:9").unwrap();
     let registry = render(&view);
-    assert_eq!(text(&registry, "JournalJourneysExpansion"), "Dragonflight");
+    assert_eq!(
+        text(&registry, "JournalJourneysExpansionText"),
+        "Dragonflight"
+    );
     assert_eq!(text(&registry, "JourneyCard12Level"), "Renown 2");
     assert!(registry.get_by_name("JourneyCard37").is_none());
 }
