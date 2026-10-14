@@ -1,4 +1,5 @@
 //! GuildTabardVendor canvas and real local-player draft preview.
+use crate::replicated::UnitFields;
 use crate::{
     GameClient,
     account::NpcMessage,
@@ -115,7 +116,7 @@ impl GameClient {
         Ok(npc.is_some())
     }
 
-    pub(super) fn update_guild_tabards(&mut self, delta: f64) -> Result<(), FrameError> {
+    pub(super) fn update_guild_tabards(&mut self, delta: f32) -> Result<(), FrameError> {
         if !matches!(
             self.account.session.screen,
             SessionScreen::InWorld | SessionScreen::Loading
@@ -129,6 +130,7 @@ impl GameClient {
             return Ok(());
         }
         self.guild_tabards.view.gold = self
+            .world
             .local_player_id()
             .and_then(|id| self.replica.unit(id)?.gold());
         self.sync_guild_tabard_ui()?;
@@ -186,7 +188,7 @@ impl GameClient {
     }
 
     fn guild_tabard_preview_appearance(&self) -> Option<UnitAppearance> {
-        let unit = self.replica.unit(self.local_player_id()?)?;
+        let unit = self.replica.unit(self.world.local_player_id()?)?;
         let player = unit.get::<Player>()?.clone();
         let mut equipment = unit.get::<EquipmentAppearance>()?.clone();
         let design = self.guild_tabards.view.draft?;
@@ -205,7 +207,7 @@ impl GameClient {
         Some(UnitAppearance::Player(player, equipment, Some(design)))
     }
 
-    fn sync_guild_tabard_preview(&mut self, delta: f64) -> Result<(), String> {
+    fn sync_guild_tabard_preview(&mut self, delta: f32) -> Result<(), String> {
         let Some(appearance) = self.guild_tabard_preview_appearance() else {
             return Ok(());
         };
@@ -214,8 +216,7 @@ impl GameClient {
         let ui = self.guild_tabards.ui.as_ref().ok_or("Tabard UI missing")?;
         let left = held_button(ui, "TabardCharacterModelRotateLeftButton")?;
         let right = held_button(ui, "TabardCharacterModelRotateRightButton")?;
-        self.guild_tabards.yaw =
-            calculate_rotation(self.guild_tabards.yaw, delta as f32, left, right);
+        self.guild_tabards.yaw = calculate_rotation(self.guild_tabards.yaw, delta, left, right);
         if let Some(scene) = &mut self.guild_tabards.scene {
             scene.fit_viewport();
             if let Some(mut model) = scene.model() {
