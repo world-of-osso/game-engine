@@ -6,7 +6,8 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 
 ### Source inputs
 - [ ] Preserve bone-relative position, texture/material references, colour/opacity, width-above/below, texture slot and visibility tracks, density, lifetime and source gravity displacement semantics. Invalid records fail explicitly.
-- [ ] Sample animation/global-sequence tracks and source-defined unauthored defaults: white/opaque, height1, enabled1, slot0. Missing source assets are errors, not substituted textures or models.
+- [x] Sample animation/global-sequence tracks and source-defined unauthored defaults: white/opaque, height1, enabled1, slot0. Missing source assets are errors, not substituted textures or models.
+- [x] When model flag0x20000 enables ribbon UV transforms, each material pass resolves emitter lookup base+pass. A negative lookup selects identity; valid transforms follow local/global playback and transform sampled ribbon UVs.
 
 ### Presentation and lifecycle
 - [x] Emit world-space trailing strips at source-normalized density (ceil) and lifetime (minimum0.25s), following animated bone and object scale. The first update warms one interval plus0.0001s; later long-frame delta clamps to lifetime while interpolating the complete movement segment.
@@ -34,7 +35,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 
 ## Known gaps (current cycle)
 - [ ] Final natural-removal/cleanup and current-revision integration gate.
-- [ ] Animated ribbon UV transforms and nonmatching texture/material reference counts remain explicit unsupported shapes; neither occurs in authenticated1417024.
+- [ ] Nonmatching texture/material reference counts remain an explicit unsupported shape; authenticated1417024 has matching counts.
 
 ## Out of scope
 

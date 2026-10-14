@@ -11,22 +11,25 @@ use std::collections::VecDeque;
 pub fn texture_transform_index(
     model: &crate::m2::Model,
     source: &M2RibbonEmitter,
-    _material_slot: usize,
+    material_slot: usize,
 ) -> Result<Option<usize>, String> {
-    if source.texture_transform_lookup < 0 {
+    const RIBBON_TEXTURE_TRANSFORM_FLAG: u32 = 0x20000;
+    if model.flags & RIBBON_TEXTURE_TRANSFORM_FLAG == 0 || source.texture_transform_lookup < 0 {
         return Ok(None);
     }
-    let lookup = usize::from(source.texture_transform_lookup as u8);
+    // CRibbonEmitter adds the material pass to the emitter's lookup base.
+    let lookup = usize::from(source.texture_transform_lookup as u8) + material_slot;
     let index = *model
         .uv_animation_lookup
         .get(lookup)
         .ok_or_else(|| format!("Ribbon UV lookup{lookup} missing"))?;
-    if index >= 0 {
-        return Err(format!(
-            "Ribbon animated UV transform{index} remains unsupported"
-        ));
+    let Ok(index) = usize::try_from(index) else {
+        return Ok(None); // The authored lookup explicitly selects no transform.
+    };
+    if index >= model.texture_animations.len() {
+        return Err(format!("Ribbon UV transform{index} missing"));
     }
-    Ok(None)
+    Ok(Some(index))
 }
 
 #[derive(Clone, Copy, Debug)]

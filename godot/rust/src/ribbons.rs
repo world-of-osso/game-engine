@@ -3,6 +3,7 @@ use crate::{animation::WowAnimationPlayer, assets::material};
 use game_engine_core::{
     asset::m2_format::m2_ribbon::M2RibbonEmitter,
     m2,
+    m2_material::{self, MaterialTime, MaterialTracks, TextureMatrix},
     m2_ribbons::{self, RibbonFrame, RibbonTrail, RibbonVertex},
 };
 use godot::{
@@ -18,6 +19,7 @@ struct PlacedRibbon {
     source: M2RibbonEmitter,
     trail: RibbonTrail,
     meshes: Vec<Gd<MeshInstance3D>>,
+    materials: Vec<(Gd<ShaderMaterial>, Option<usize>)>,
     geometry: Gd<ArrayMesh>,
 }
 
@@ -27,6 +29,7 @@ pub(crate) struct PlacedRibbons {
     player: Option<Gd<WowAnimationPlayer>>,
     pivots: Vec<Vector3>,
     global_sequences: Vec<u32>,
+    material_tracks: MaterialTracks,
     clock_ms: f64,
 }
 
@@ -61,6 +64,7 @@ impl PlacedRibbons {
                 .map(|bone| wow_vector(bone.pivot))
                 .collect(),
             global_sequences: model.global_sequences.clone(),
+            material_tracks: MaterialTracks::of(model),
             clock_ms: 0.0,
         }))
     }
@@ -84,6 +88,15 @@ impl PlacedRibbons {
             let frame = read_emitter_frame(root, &self.skeleton, &self.pivots, &ribbon.source)?;
             let values = m2_ribbons::sample(&ribbon.source, &time);
             ribbon.trail.advance(delta, frame, values, emitting)?;
+            update_texture_transforms(
+                &mut ribbon.materials,
+                &self.material_tracks,
+                MaterialTime {
+                    sequence,
+                    time_ms,
+                    global_ms: global_ms as u32,
+                },
+            );
             let vertices = ribbon.trail.triangles(fade);
             upload_geometry(&mut ribbon.geometry, &vertices);
             for mesh in &mut ribbon.meshes {
@@ -123,19 +136,24 @@ fn place_ribbon(
         .texture_indices
         .iter()
         .zip(&source.material_indices)
-        .map(|(&texture, &material)| {
-            load_ribbon_material(model, source.priority_plane, texture, material, texture_dir)
+        .enumerate()
+        .map(|(pass, (&texture, &material))| {
+            let transform = m2_ribbons::texture_transform_index(model, source, pass)?;
+            let material =
+                load_ribbon_material(model, source.priority_plane, texture, material, texture_dir)?;
+            Ok((material, transform))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let geometry = ArrayMesh::new_gd();
     let meshes = materials
         .iter()
-        .map(|material| spawn_ribbon_mesh(root, &geometry, material))
+        .map(|(material, _)| spawn_ribbon_mesh(root, &geometry, material))
         .collect();
     Ok(PlacedRibbon {
         source: source.clone(),
         trail,
         meshes,
+        materials,
         geometry,
     })
 }
@@ -178,7 +196,7 @@ fn validate_ribbon_references(model: &m2::Model, source: &M2RibbonEmitter) -> Re
             source.id
         ));
     }
-    validate_texture_transform(model, source)
+    Ok(())
 }
 
 fn spawn_ribbon_mesh(
@@ -198,8 +216,24 @@ fn spawn_ribbon_mesh(
     mesh
 }
 
-fn validate_texture_transform(model: &m2::Model, source: &M2RibbonEmitter) -> Result<(), String> {
-    m2_ribbons::texture_transform_index(model, source, 0).map(|_| ())
+fn update_texture_transforms(
+    materials: &mut [(Gd<ShaderMaterial>, Option<usize>)],
+    tracks: &MaterialTracks,
+    time: MaterialTime,
+) {
+    for (material, index) in materials {
+        let matrix = index.map_or(m2_material::IDENTITY_MATRIX, |index| {
+            m2_material::texture_matrix(&tracks.transforms[index], tracks, time)
+        });
+        apply_texture_transform(material, matrix);
+    }
+}
+
+fn apply_texture_transform(material: &mut Gd<ShaderMaterial>, matrix: TextureMatrix) {
+    let linear = Vector4::new(matrix[0], matrix[1], matrix[2], matrix[3]);
+    let offset = Vector2::new(matrix[4], matrix[5]);
+    material.set_shader_parameter("uv_matrix", &linear.to_variant());
+    material.set_shader_parameter("uv_offset", &offset.to_variant());
 }
 
 fn load_ribbon_material(
