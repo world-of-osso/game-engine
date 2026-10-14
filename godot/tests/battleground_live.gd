@@ -43,6 +43,8 @@ func live_run() -> void:
 					if node.is_visible_in_tree():
 						var rect: Rect2 = node.get_global_rect()
 						result.controls.append({"name": str(node.name), "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "text": str(node.text) if node is Label or node is Button else ""})
+			"visuals":
+				result.visuals = read_local_player_visuals()
 			"units":
 				result.units = []
 				var units := root.find_child("WorldUnits", true, false)
@@ -105,6 +107,25 @@ func live_run() -> void:
 		if finish:
 			quit(0)
 			return
+
+func read_local_player_visuals() -> Dictionary:
+	var camera := root.get_camera_3d()
+	var result := {"models": []}
+	if camera != null:
+		result.camera_position = str(camera.global_position)
+		result.camera_transform = str(camera.global_transform)
+	var player := root.find_child("Bgcovera", true, false) as Node3D
+	if player == null:
+		result.error = "Local character Bgcovera node absent"
+		return result
+	result.player_position = str(player.global_position)
+	for node in player.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		result.models.append({"path": str(mesh.get_path()),
+			"position": str(mesh.global_position), "scale": str(mesh.global_basis.get_scale()),
+			"world_bounds": str(mesh.global_transform * mesh.get_aabb()),
+			"visible": mesh.is_visible_in_tree()})
+	return result
 
 func pointer(point: Vector2, button: MouseButton) -> void:
 	# A private headless compositor has no physical pointer-enter event.

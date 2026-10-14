@@ -27,6 +27,8 @@ Retail source geometry: PVPUIFrame 563×428, PVPReadyDialog 306×210 with 115×2
 
 Private peer state files must expose complete JSON receipts throughout publication; concurrent readers may retain the preceding complete snapshot while the next snapshot is written. Publication errors remain explicit. Gameplay, connection deadlines, and cast timers remain unchanged.
 
+The private native fixture's read-only `visuals` action reports actual camera position and local-player mesh transforms/bounds/visibility. It neither changes rendering state nor substitutes those receipts for inspected pixels.
+
 ## Tests asserting this spec
 
 - `godot/network/examples/native_battleground_peers.rs::tests::peer_snapshot_readers_always_observe_complete_json_during_publication` — real concurrent file reads retain complete receipts across successive publications.
