@@ -9,8 +9,9 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 - [ ] Sample animation/global-sequence tracks and source-defined unauthored defaults: white/opaque, height1, enabled1, slot0. Missing source assets are errors, not substituted textures or models.
 
 ### Presentation and lifecycle
-- [ ] Emit world-space trailing strips at authored edge density; retain each edge only for its authored lifetime while following the model's animated bone and object scale.
-- [ ] Preserve texture tiles, colour/alpha and material blending/culling/depth/fog/light flags.
+- [x] Emit world-space trailing strips at source-normalized density (ceil) and lifetime (minimum0.25s), following animated bone and object scale. The first update warms one interval plus0.0001s; later long-frame delta clamps to lifetime while interpolating the complete movement segment.
+- [x] Current animated texture slot applies to every surviving edge. Preserve colour/alpha and material culling/depth/fog/light flags; source opaque ribbons alpha-blend, matching CRibbonEmitter.
+- [x] Apply authored priority plane to native material draw ordering. Priorities outside Godot's-128..127 range fail explicitly; no clamping or substituted order.
 - [ ] Begin with the ordinary kit; end emission on kit end and remove remaining geometry after its natural tail. No orphan mesh after owner/kit removal.
 - [x] Prismatic Bauble1417024 produces a visible rainbow behind actual player movement in both skins. Loaded model metadata is not rendered acceptance; no body/health replacement or cooldown reset.
 
@@ -26,7 +27,8 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 - `godot/rust/src/spell_effects/models.rs` and `godot/shaders/m2_ribbon.gdshader` — ordinary kit lifecycle and source material state.
 
 ## Tests asserting this spec
-- `godot/core/tests/m2_ribbons.rs` — authenticated1417024 scalar/reference/track values.
+- `godot/core/tests/m2_ribbons.rs` — authenticated1417024 scalar/reference/track values and concrete fractional rate, minimum lifetime, long-frame movement and changing-tile regressions.
+- `godot/tests/m2_ribbon_material_pixels.gd` — production shader/mesh raster: source blend0 with0.25 alpha, farther high-priority green over nearer low-priority red, explicit out-of-range priority refusal.
 - `godot/tests/toy_effects26_rainbow_live.gd` — physical movement and rendered trailing rainbow pixels.
 - `godot/tests/toy_effects26_bauble_live.gd` — native aura/kit/recovery observations and natural removal.
 
