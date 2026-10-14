@@ -11,7 +11,7 @@
 - Escape closes the journal; disconnect clears account journal state.
 
 ## Authoritative combat details
-Owned card/loadout health, maximum health, power, speed, level/XP and next-level XP come from server snapshots. Card lists authored ability options; the loadout uses Retail three ability buttons and a two-choice flyout with level locks. Ability selection sends an owned GUID, one-based slot and authored ability ID; displayed selection changes only after acknowledgement. Refusals preserve authoritative state. Queued/in-battle loadouts cannot change abilities. Unowned species do not receive fabricated combat values.
+Owned card/loadout health, maximum health, power, speed, level/XP and next-level XP come from server snapshots. Card lists authored ability options; the loadout uses Retail three ability buttons and a two-choice flyout with level locks. Ability selection sends an owned GUID, one-based slot and authored ability ID; displayed selection changes only after acknowledgement. Refusals preserve authoritative state. Pending loadout/summon requests and queued/in-battle loadouts cannot change abilities; wait for the current owned loadout acknowledgement before opening a selector. Unowned species do not receive fabricated combat values.
 
 ## Initial phase scope
 Retail CollectionsJournal 703×606, 260px left list, upper-right card, three disabled battle slots and disabled Find Battle. Battles are not implemented in this phase. No Forever-only widgets or behavior.
