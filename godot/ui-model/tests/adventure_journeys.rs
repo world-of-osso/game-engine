@@ -151,7 +151,9 @@ fn journeys_short_hold_steps_once_and_boundary_stops() {
     view.journeys.stop_scroll(25);
     assert_eq!(view.journeys.level, 1);
     view.journeys.start_scroll(1);
-    view.journeys.advance_scroll(100., 25);
+    for _frame in 0..240 {
+        view.journeys.advance_scroll(0.1, 25);
+    }
     assert_eq!(view.journeys.level, 25);
     view.journeys.stop_scroll(25);
     assert_eq!(view.journeys.level, 25);
