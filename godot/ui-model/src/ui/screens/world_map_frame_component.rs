@@ -28,6 +28,7 @@ use crate::ui::strata::FrameStrata;
 pub mod canvas;
 #[path = "world_map_frame_component/chrome.rs"]
 mod chrome;
+#[path = "world_map_frame_component/rewards.rs"]
 mod rewards;
 
 use canvas::canvas;
