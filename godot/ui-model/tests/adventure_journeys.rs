@@ -121,6 +121,57 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = data_view();
+        let mut data = snapshot();
+        data.factions[0].unlock = RenownUnlock::Ungated;
+        data.watched_faction = Some(2503);
+        view.renown = Some(Arc::new(data));
+        view.apply("journal:tab:journeys").unwrap();
+        view.apply("journal:journey-expansion:9").unwrap();
+        view.journeys.hovered = Some(12);
+        let registry = render_skin(&view, skin);
+        assert_eq!(
+            rect(&registry, "JourneyCard12Watch"),
+            [204., 76., 200., 20.]
+        );
+        assert_eq!(
+            rect(&registry, "JourneyCard12WatchCheckbox"),
+            [0., -3., 26., 26.]
+        );
+        let checkbox = registry
+            .get(registry.get_by_name("JourneyCard12WatchCheckbox").unwrap())
+            .unwrap();
+        assert_eq!(
+            checkbox.onclick.as_deref(),
+            Some("journal:journey-watch:12:0")
+        );
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_some()
+        );
+        view.journeys.hovered = None;
+        assert!(
+            render_skin(&view, skin)
+                .get_by_name("JourneyCard12Watch")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn journeys_watch_unevaluated_unlock_never_exposes_a_toggle() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    view.journeys.hovered = Some(12);
+    assert!(render(&view).get_by_name("JourneyCard12Watch").is_none());
+}
+
+#[test]
 fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
