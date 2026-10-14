@@ -145,7 +145,7 @@ fn emblem_overlays(view: &GuildTabards) -> Element {
         ("BottomLeft", textures.lower[1], "0.5,0,0,1", (137.0,176.0,100.0,74.0)),
     ].into_iter().flat_map(|(name, fdid, uv, (left,top,width,height))| {
         rsx! { texture { name: {DynName(format!("TabardFrameEmblem{name}"))}, texture_fdid: fdid, tex_coords: uv,
-            left, top, width, height, pos_type: "absolute", alpha: 0.4, blend_mode: "ADD", draw_layer: "OVERLAY" } }
+            left, top, width, height, pos_type: "absolute", alpha: 0.4, draw_layer: "OVERLAY" } }
     }).collect()
 }
 
