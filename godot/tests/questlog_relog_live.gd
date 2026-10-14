@@ -6,8 +6,26 @@ func check_prepare_relog() -> bool:
 	if in_log(client.quest_state(), QUEST):
 		print("PASS QUEST_RELOG_PREPARED existing owned quest")
 		return true
-	if not await open_quest(GIVER_AT, GIVER, QUEST_TITLE):
+	if not await teleport(GIVER_AT):
 		return false
+	var giver := await locate(GIVER)
+	if giver.is_empty() or not await approach(giver.id, INTERACT_YARDS):
+		return false
+	if not await open_giver(await find_unit(GIVER)):
+		return false
+	var index := Array(client.quest_state().greeting_quests).find(QUEST_TITLE)
+	if index < 0:
+		fail("Fresh Human warrior was not offered the source quest")
+		return false
+	var button := quest_control("QuestFrameUI", "QuestTitleButton%d" % (index + 1)) as BaseButton
+	if not await wait_frames(func(): return button != null and button.is_visible_in_tree() and button.size.x > 0 and button.size.y > 0, "visible quest choice"):
+		return false
+	await frames(3)
+	await capture("quest-relog-source-greeting.png")
+	print("QUEST_RELOG_CHOICE rect=", button.get_global_rect(), " disabled=", button.disabled)
+	button.pressed.connect(func(): print("QUEST_RELOG_CHOICE_PRESSED"))
+	await click_control(button)
+	print("QUEST_RELOG_CHOICE_HOVER ", root.gui_get_hovered_control())
 	if not await wait_quest(func(s): return s.get("page") == "Detail" and s.quest_id == QUEST, "real giver details"):
 		return false
 	await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
