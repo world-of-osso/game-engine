@@ -24,6 +24,7 @@ mod guild_tests;
 mod housing_drag_input_tests;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
+mod hud_edit_controls_fixture;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
 #[cfg(test)]
