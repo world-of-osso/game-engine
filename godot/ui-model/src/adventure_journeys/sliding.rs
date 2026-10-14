@@ -17,6 +17,12 @@ impl Journeys {
         self.scroll.is_some()
     }
 
+    pub fn track_selected_index(&self) -> u32 {
+        self.scroll
+            .as_ref()
+            .map_or(self.level, |scroll| scroll.selected)
+    }
+
     pub fn track_offset(&self) -> f32 {
         self.scroll.as_ref().map_or(
             self.level.saturating_sub(1) as f32 * LEVEL_SPACING,
