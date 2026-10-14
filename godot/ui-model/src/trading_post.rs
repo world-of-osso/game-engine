@@ -6,6 +6,8 @@ mod cart;
 mod cart_ui;
 #[path = "trading_post_filter.rs"]
 mod filter_menu;
+#[path = "trading_post_history.rs"]
+mod history;
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
@@ -779,9 +781,10 @@ fn footer(view: &View) -> Element {
                 view.can_refund(),
                 x,
             ));
-        } else {
+        } else if !row.purchased && !row.collected {
             children.extend(purchase_button(view, row, x));
         }
+        children.extend(history::render(view));
     }
     rsx! {r#frame{name:"PerksProgramFooterFrame",left:0.0,top:{HEIGHT-100.0},width:WIDTH,height:100.0,pos_type:"absolute",frame_level:1000.0,{children}}}
 }
