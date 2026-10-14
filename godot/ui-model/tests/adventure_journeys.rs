@@ -360,8 +360,9 @@ fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
         rect(&registry, "JournalJourneysCategory"),
         [14., 15., 765., 20.]
     );
-    assert_eq!(rect(&registry, "JourneyCard12"), [14., 40., 374., 112.]);
-    assert_eq!(rect(&registry, "JourneyCard13"), [393., 40., 374., 112.]);
+    // Authored priority4 Expedition precedes priority3 Maruuk.
+    assert_eq!(rect(&registry, "JourneyCard13"), [14., 40., 374., 112.]);
+    assert_eq!(rect(&registry, "JourneyCard12"), [393., 40., 374., 112.]);
     assert_eq!(rect(&registry, "JourneyCard14"), [14., 157., 374., 112.]);
     // XML name LEFT IconFrame.RIGHT+5; level below name, both children of card.
     assert_eq!(rect(&registry, "JourneyCard12Name"), [85., 41., 225., 20.]);
@@ -593,7 +594,7 @@ fn data_view() -> View {
 }
 
 #[test]
-fn journeys_cards_use_published_priority_and_centered_texture_kit_icons() {
+fn journeys_cards_use_centered_texture_kit_icons_in_both_skins() {
     use ui_toolkit::{atlas::AtlasSource, widgets::texture::TextureSource};
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = data_view();
@@ -608,13 +609,12 @@ fn journeys_cards_use_published_priority_and_centered_texture_kit_icons() {
         view.apply("journal:tab:journeys").unwrap();
         view.apply("journal:journey-expansion:9").unwrap();
         let registry = render_skin(&view, skin);
-        for (id, kit, position) in [
-            (13, "Expedition", [14., 40.]),
-            (12, "Centaur", [393., 40.]),
-            (14, "Tuskarr", [14., 157.]),
-            (15, "Valdrakken", [393., 157.]),
+        for (id, kit) in [
+            (13, "Expedition"),
+            (12, "Centaur"),
+            (14, "Tuskarr"),
+            (15, "Valdrakken"),
         ] {
-            assert_eq!(rect(&registry, &format!("JourneyCard{id}"))[..2], position);
             let name = format!("JourneyCard{id}Icon");
             assert_eq!(rect(&registry, &name), [30., 36., 40., 40.]);
             let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
