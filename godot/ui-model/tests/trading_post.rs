@@ -90,6 +90,39 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 #[test]
+fn trading_post_cart_total_never_ellipsizes_four_digit_authored_prices() {
+    let mut data = snapshot();
+    data.items[0].price = 6546;
+    data.tender = 10000;
+    let view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        cart: vec![4],
+        cart_visible: true,
+        selected: Some(4),
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        let price = rect(&registry, "PerksProgramCartPriceText");
+        let (width, _) = ui_toolkit::text_measure::measure_text(
+            "6546",
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            20.,
+        )
+        .unwrap();
+        assert!(
+            price[2] >= width,
+            "Retail right-anchored natural text must not be ellipsized: {price:?} versus{width}"
+        );
+        assert!(
+            (price[0] + price[2] - 44.).abs() < 0.01,
+            "PriceContainer44 keeps right edge, not a44px text clip"
+        );
+    }
+}
+
+#[test]
 fn trading_post_cart_hover_shows_source_preview_status_and_dimming_mask() {
     let mut view = View {
         visible: true,

@@ -112,10 +112,19 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
         .as_ref()
         .is_some_and(|snapshot| total <= u64::from(snapshot.tender));
     let price_color = if can_afford { WHITE } else { "0.5,0.5,0.5,1" };
+    let price_text = total.to_string();
+    let price_width = ui_toolkit::text_measure::measure_text(
+        &price_text,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        20.,
+    )
+    .expect("GameFontNormalHuge metrics")
+    .0;
+    // PriceContainer.fixedWidth44 does not constrain its TOPRIGHT-anchored FontString.
     let price = label(
         "PerksProgramCartPriceText".into(),
-        &total.to_string(),
-        (0., 0., 44., 24.),
+        &price_text,
+        (44. - price_width, 0., price_width, 24.),
         (20., price_color, "RIGHT"),
     );
     let icon = texture(
