@@ -322,7 +322,7 @@ impl crate::GameClient {
                 is_local: unit.is_local,
                 skin_path: visual
                     .as_ref()
-                    .map(|(model, _)| primary_skin_path(model))
+                    .map(|(model, _)| read_primary_skin_path(model))
                     .transpose()?,
                 display_scale: visual.as_ref().and_then(|(_, scale)| *scale),
                 model_path: visual.map(|(model, _)| model),
@@ -349,7 +349,7 @@ impl crate::GameClient {
                     .map(|display| display.display_id),
                 skin_path: visual
                     .as_ref()
-                    .map(|(model, _)| primary_skin_path(model))
+                    .map(|(model, _)| read_primary_skin_path(model))
                     .transpose()?,
                 display_scale: visual.as_ref().and_then(|(_, scale)| *scale),
                 model_path: visual.map(|(model, _)| model),
@@ -372,7 +372,7 @@ fn visual_model(visual: Option<&Gd<Node3D>>) -> Result<Option<(String, Option<f3
     Ok(Some((m2_source(&model)?, Some(visual.get_scale().x))))
 }
 
-/// The `{stem}00.skin` the loader reads with an M2 (`assets::read_model_file`).
-fn primary_skin_path(model: &str) -> Result<String, String> {
-    crate::assets::primary_skin_path(model)
+/// Read the M2's SFID skin path, as `assets::read_model_file` does.
+fn read_primary_skin_path(model: &str) -> Result<String, String> {
+    crate::assets::read_primary_skin_path(model)
 }

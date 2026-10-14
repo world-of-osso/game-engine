@@ -2,8 +2,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
-use crate::csv_util::{header_index, parse_csv_records};
-
 use rusqlite::{Connection, OpenFlags, params};
 
 pub const RETAIL_BUILD: &str = "12.1.0.69933";
@@ -149,7 +147,23 @@ impl HousingCatalog {
     pub fn load(path: &Path) -> Result<Self, String> {
         let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|error| format!("Housing catalog {}: {error}", path.display()))?;
-        load_connection(&db, RETAIL_BUILD, RETAIL_BUILD_KEY)
+        let mut statement = db
+            .prepare("SELECT build, build_key FROM housing_catalog_build")
+            .map_err(|error| format!("Housing source identity: {error}"))?;
+        let identities = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|error| format!("Housing source identity rows: {error}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("Housing source identity row: {error}"))?;
+        let [(build, key)] = identities.as_slice() else {
+            return Err(format!(
+                "Housing catalog {} must declare one source build",
+                path.display()
+            ));
+        };
+        load_connection(&db, build, key)
     }
 
     /// Names category icons from UiTextureAtlasElement.csv as Retail
@@ -157,17 +171,11 @@ impl HousingCatalog {
     /// atlas (`category-icons_seating_active`); the key drops that state modifier and the
     /// UI appends the state it draws. Element ID 0 has no icon.
     pub fn resolve_icons(&mut self, elements: &Path) -> Result<(), String> {
-        let text = std::fs::read_to_string(elements)
-            .map_err(|error| format!("read {}: {error}", elements.display()))?;
-        let mut records = parse_csv_records(&text).into_iter();
-        let header = records.next().unwrap_or_default();
-        let (id, name) = (
-            header_index(&header, "ID", elements)?,
-            header_index(&header, "Name", elements)?,
-        );
-        let names: HashMap<u32, String> = records
-            .filter_map(|record| Some((record.get(id)?.parse().ok()?, record.get(name)?.clone())))
-            .collect();
+        let mut names: HashMap<u32, String> = HashMap::new();
+        crate::csv_util::read_db2_rows(elements, |row| {
+            names.insert(row.parse("ID")?, row.field("Name")?.to_string());
+            Ok(())
+        })?;
         let key = |element: u32| -> Result<Option<String>, String> {
             if element == 0 {
                 return Ok(None);
@@ -188,17 +196,11 @@ impl HousingCatalog {
 
     /// Names each neighborhood's texture kit prefix from UiTextureKit.csv.
     pub fn resolve_texture_kits(&mut self, kits: &Path) -> Result<(), String> {
-        let text = std::fs::read_to_string(kits)
-            .map_err(|error| format!("read {}: {error}", kits.display()))?;
-        let mut records = parse_csv_records(&text).into_iter();
-        let header = records.next().unwrap_or_default();
-        let (id, prefix) = (
-            header_index(&header, "ID", kits)?,
-            header_index(&header, "KitPrefix", kits)?,
-        );
-        let prefixes: HashMap<u32, String> = records
-            .filter_map(|record| Some((record.get(id)?.parse().ok()?, record.get(prefix)?.clone())))
-            .collect();
+        let mut prefixes: HashMap<u32, String> = HashMap::new();
+        crate::csv_util::read_db2_rows(kits, |row| {
+            prefixes.insert(row.parse("ID")?, row.field("KitPrefix")?.to_string());
+            Ok(())
+        })?;
         for neighborhood in &mut self.neighborhoods {
             if neighborhood.texture_kit == 0 {
                 continue;
@@ -434,7 +436,9 @@ fn read_sources(
         })?;
         let source = DecorSource::Encounter {
             encounter: encounter.clone(),
-            instance: named(&instances, *instance, "JournalInstance")?,
+            // Installed 12.1.5.70391 JournalEncounter rows (e.g. 131) use 0
+            // for no instance; Retail EncounterJournal also excludes instanceID 0.
+            instance: optional_name(&instances, *instance, "JournalInstance")?.unwrap_or_default(),
             difficulty: optional_name(
                 &difficulties,
                 number(&fields, "DifficultyID")?,

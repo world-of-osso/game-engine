@@ -8,7 +8,7 @@ pub(super) fn stage_authored_catalogs(project: &FixtureProject) -> Result<(), St
     for name in [
         "creature_display.sqlite",
         "npc_appearance.sqlite",
-        "customization-v4.sqlite",
+        "customization-v5.sqlite",
         "char_texture-v2.sqlite",
         "outfit_links-v3.sqlite",
     ] {

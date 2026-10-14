@@ -1,5 +1,10 @@
 # Wiki Index
 
+- [Collections source layout](systems/collections-ui.md) — shared PortraitFrame/Filter/context menus, source pet decoration and ToyBox composition; inspected both-skin1920×1080 native controls/models,52 focused regressions and explicit projection boundary.
+
+- [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
+- [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
+- [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins/order replace filename rejection; real7321940 RED→GREEN30, both-skin equipped-player and HUD-portrait pixels; Forever bronze bars retained, old shared-menu golden drift reported.
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
 
 - [Owned pet combat details](systems/battle-pets.md#owned-combat-details--2026-10-13) — persisted injuries/choices, owner-only native snapshots and acknowledged Retail ability flyout; focused tests and inspected both-skin native flyout/ack/reopen proof.
@@ -146,7 +151,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 - [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
 - [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab; [v2 companion proof](systems/battle-pets.md#collections-integration-correction--2026-10-10) and [bounded wild PvE](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10), both-skin private win/capture with isolated HUD and [Retail HUD v2](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10).
 
-- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
+- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; mutable bundle snapshots and pre-upload staged hash checks are separate packaging proof; complete closure and deployment remain later phases.
 
 - [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
 
@@ -225,7 +230,7 @@ WoW file format specifications as used by the engine.
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
 - [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule, MODF 0x80 MWDS sets and MDDI
-- [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer
+- [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer; [header-order failures and signed geoset gaps](formats/db2-format.md#installed-csv-column-order-and-signed-selections).
 
 ## Design
 
@@ -263,7 +268,7 @@ Architecture decisions and feature designs.
 
 - [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
 - [godot-torch-rendering](investigations/godot-torch-rendering.md) — particledebug torch vs solarity/WebWowViewerCpp: halo quad needed bone billboarding and the flame's M2 point light was never rendered; both added, remaining gaps listed.
-- [world-entry-stalls](investigations/world-entry-stalls.md) — historical synchronous-loading fix and retained integrated run1/run2 failures; readiness predicate GREEN4/4, both nominal settled windows invalid, no retained baseline; catalog waits and character select / Enter World loads moved off the main thread; scene light as global uniforms (settle 488 s → 32 s in Stormwind).
+- [world-entry-stalls](investigations/world-entry-stalls.md) — historical synchronous-loading fix and retained integrated run1/run2 failures; readiness predicate GREEN4/4, both nominal settled windows invalid, no retained baseline; catalog waits and character select / Enter World loads moved off the main thread; scene light as global uniforms (settle 488 s → 32 s in Stormwind); Windows selection uses retained outfit catalogs and opaque loading until real scene drawables attach.
 - [godot-stormwind-fps](investigations/godot-stormwind-fps.md) — Godot Stormwind at 13–20 FPS: per-frame doodad/NPC animation outweighed ~6.4k draws; retail scenery distance, NPC animation LOD and WMO portal culling bring it to ~20–25 FPS and ~4.3–5k draws; drawn-doodad animation remains.
 - [campsite-fog-and-wmo-selection](investigations/campsite-fog-and-wmo-selection.md) — Campsites 7/25 fully fogged by FogEnd-0 LightData read as a linear range; now the reference exponential fog. Cultists' Quay lost its WMO to an origin-distance radius; now selected by extents. Its blue is WMO MFOG fog, not Light/ZoneLight.
 - [native-audio-shutdown-leaks](investigations/native-audio-shutdown-leaks.md) — `741344ca` native audio fixture passes bounded headless playback/state behavior; pure-GDScript timing comparison links shutdown leaks to deferred audio cleanup without proving every native reference owner or supporting a delay.

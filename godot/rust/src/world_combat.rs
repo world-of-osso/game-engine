@@ -220,7 +220,7 @@ pub(super) fn load_fallbacks<'a>(
     data_root: &Path,
 ) -> &'a HashMap<u16, u16> {
     slot.get_or_insert_with(|| {
-        read_animation_fallbacks(&data_root.join("db2/12.1.0.69933")).unwrap_or_else(|error| {
+        read_animation_fallbacks(&data_root.join("db2/active")).unwrap_or_else(|error| {
             godot_error!("Animation fallbacks: {error}");
             HashMap::new()
         })

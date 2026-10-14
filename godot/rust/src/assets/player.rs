@@ -2,8 +2,8 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
-    sync::{Arc, OnceLock},
+    path::{Path, PathBuf},
+    sync::{Arc, LazyLock, Mutex, OnceLock},
 };
 
 use crate::{
@@ -258,6 +258,24 @@ impl PlayerParts {
     }
 }
 
+fn share_player_outfit_catalog(data_root: &Path) -> Arc<OutfitData> {
+    static CATALOGS: LazyLock<Mutex<HashMap<PathBuf, Arc<OutfitData>>>> =
+        LazyLock::new(|| Mutex::new(HashMap::new()));
+    let mut catalogs = CATALOGS.lock().expect("player outfit catalogs");
+    Arc::clone(
+        catalogs
+            .entry(data_root.to_owned())
+            .or_insert_with(|| Arc::new(OutfitData::load(data_root))),
+    )
+}
+
+/// Read the default Retail item namespace from client start, before selection needs it.
+pub(crate) fn warm_player_outfits(data_root: &Path) -> Result<(), String> {
+    let _span = crate::profile::span(|| "player.outfits.prewarm".to_owned());
+    share_player_outfit_catalog(data_root).load_owned_retail()?;
+    Ok(())
+}
+
 /// Worker: everything `build_player_model` needs from files.
 pub(crate) fn prepare_player_parts(
     data_root: &Path,
@@ -266,7 +284,7 @@ pub(crate) fn prepare_player_parts(
     tabard: Option<shared::guild_creation::GuildTabardDesign>,
 ) -> Result<PlayerParts, String> {
     let (resolver, model) = load_player_body(data_root, player)?;
-    let outfit = OutfitData::load(data_root);
+    let outfit = share_player_outfit_catalog(data_root);
     let equipment = if let Some(design) = tabard.filter(|_| {
         equipment
             .entries
@@ -391,7 +409,7 @@ fn load_player_body(
 fn player_model_fdid(data_root: &Path, race: u8, sex: u8) -> Result<Option<u32>, String> {
     static MODELS: OnceLock<Result<HashMap<(u8, u8), u32>, String>> = OnceLock::new();
     let models = MODELS
-        .get_or_init(|| player_model_fdids(&data_root.join("db2/12.1.0.69933")))
+        .get_or_init(|| player_model_fdids(&data_root.join("db2/active")))
         .as_ref()
         .map_err(Clone::clone)?;
     Ok(models.get(&(race, sex)).copied())
@@ -531,6 +549,68 @@ fn compose_separate_texture_types(
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod catalog_lifetime_tests {
+    use super::*;
+    use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
+
+    #[test]
+    #[ignore = "requires WINDOWS_FLOW_PUBLISHED_DATA with the complete published assets"]
+    fn prepared_player_reuses_outfit_rows_after_source_csv_leaves() {
+        let source =
+            std::path::PathBuf::from(std::env::var("WINDOWS_FLOW_PUBLISHED_DATA").unwrap());
+        let retail_dir = Path::new(game_engine_core::player_model_data::RETAIL_DB2_DIR);
+        let root =
+            std::env::temp_dir().join(format!("player-outfit-lifetime-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        for entry in std::fs::read_dir(&source).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_name() != "db2" {
+                std::os::unix::fs::symlink(entry.path(), root.join(entry.file_name())).unwrap();
+            }
+        }
+        std::fs::create_dir_all(root.join(retail_dir)).unwrap();
+        for entry in std::fs::read_dir(source.join("db2")).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_name() != retail_dir.file_name().unwrap() {
+                std::os::unix::fs::symlink(entry.path(), root.join("db2").join(entry.file_name()))
+                    .unwrap();
+            }
+        }
+        for entry in std::fs::read_dir(source.join(retail_dir)).unwrap() {
+            let entry = entry.unwrap();
+            std::os::unix::fs::symlink(entry.path(), root.join(retail_dir).join(entry.file_name()))
+                .unwrap();
+        }
+        let player = Player {
+            name: "CatalogLifetime".into(),
+            race: 1,
+            class: 1,
+            appearance: CharacterAppearance::default(),
+        };
+        let equipment = EquipmentAppearance {
+            entries: vec![EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Chest,
+                item_id: Some(40),
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+                display_info_id: None,
+                inventory_type: 5,
+                hidden: false,
+            }],
+        };
+        let initial = prepare_player_parts(&root, &player, &equipment).unwrap();
+        assert!(!initial.equipment.outfit.item_textures.is_empty());
+        std::fs::remove_file(root.join(retail_dir).join("ItemDisplayInfo.csv")).unwrap();
+        let next = prepare_player_parts(&root, &player, &equipment)
+            .expect("prepared outfit rows must survive in the player catalog");
+        assert_eq!(
+            next.equipment.outfit.item_textures,
+            initial.equipment.outfit.item_textures
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
 
 #[cfg(test)]

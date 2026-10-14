@@ -1,5 +1,4 @@
 use super::outfit_data::{OutfitData, OutfitResult};
-use crate::asset::m2_format::m2_anim::M2Bone;
 use game_engine_core::asset_product::{AssetProduct, AssetTexture};
 use serde::{Deserialize, Serialize};
 use shared::components::{EquipmentAppearance, EquipmentVisualSlot};
@@ -29,6 +28,8 @@ pub struct RuntimeModelAppearance {
     pub slot: EquipmentSlot,
     pub fdid: u32,
     pub product: AssetProduct,
+    /// Body models and models after the slot's attachment model share character joints.
+    pub bind_to_character: bool,
     pub skin_fdids: [u32; 3],
     pub skin_products: [Option<AssetProduct>; 3],
     /// ItemDisplayInfoModelMatRes (M2 texture type, texture FDID) for this model column.
@@ -537,7 +538,8 @@ fn runtime_slot_models(
     let models = runtime_model_columns(outfit_data, display_info_id, slot, race, sex)?;
     models
         .into_iter()
-        .map(|(column, fdid, skin_fdids)| {
+        .enumerate()
+        .map(|(index, (column, fdid, skin_fdids))| {
             let (product, material_product) =
                 outfit_data.load_column_products(display_info_id, column)?;
             let skin_products = runtime_skin_products(
@@ -553,6 +555,7 @@ fn runtime_slot_models(
                 slot,
                 fdid,
                 product,
+                bind_to_character: runtime_model_binds_to_character(slot, index),
                 skin_fdids,
                 skin_products,
                 texture_replacements: outfit_data.load_source_model_textures(
@@ -564,6 +567,21 @@ fn runtime_slot_models(
             })
         })
         .collect()
+}
+
+/// wow.export c2fd7bd `tab_characters.js:669-678`: the slot's first model uses its
+/// attachment; subsequent models (and all body-slot models) share character bones.
+/// FDIDs were already selected by ModelFileData/ComponentModelFileData, not names.
+fn runtime_model_binds_to_character(slot: EquipmentSlot, index: usize) -> bool {
+    index > 0
+        || matches!(
+            slot,
+            EquipmentSlot::Chest
+                | EquipmentSlot::Hands
+                | EquipmentSlot::Wrist
+                | EquipmentSlot::Legs
+                | EquipmentSlot::Feet
+        )
 }
 
 fn runtime_skin_products(
@@ -728,131 +746,6 @@ pub fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
     }
 }
 
-pub fn is_collection_model(path: &Path) -> bool {
-    path.to_string_lossy()
-        .to_ascii_lowercase()
-        .contains("item/objectcomponents/collections/")
-}
-
-/// Body armor and skeletal collections bind to character joints. Attachment
-/// models can also live under `collections/`: an independent non-key skeleton
-/// without the slot's body geosets stays on its authored attachment.
-pub fn slot_uses_bound_joints(
-    slot: EquipmentSlot,
-    m2_path: &Path,
-    bones: &[M2Bone],
-    mesh_parts: impl IntoIterator<Item = u16>,
-) -> bool {
-    let body_slot = matches!(
-        slot,
-        EquipmentSlot::Chest
-            | EquipmentSlot::Hands
-            | EquipmentSlot::Wrist
-            | EquipmentSlot::Legs
-            | EquipmentSlot::Feet
-    );
-    if body_slot {
-        return true;
-    }
-    if is_attachment_local_model(slot, bones, mesh_parts) {
-        return false;
-    }
-    is_collection_model(m2_path)
-}
-
-/// Named shoulders retain their existing collection policy. Unnamed shoulders must
-/// prove attachment-local geometry; an unknown skeletal model needs authored identity.
-pub fn shoulder_uses_bound_joints(
-    slot: EquipmentSlot,
-    model: &game_engine_core::m2::Model,
-    m2_path: Option<&Path>,
-) -> Result<bool, String> {
-    if !matches!(
-        slot,
-        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight
-    ) {
-        return Err(format!(
-            "Shoulder binding requested for non-shoulder slot {slot:?}"
-        ));
-    }
-    if let Some(path) = m2_path {
-        return Ok(slot_uses_bound_joints(
-            slot,
-            path,
-            &model.bones,
-            model.submeshes.iter().map(|part| part.mesh_part_id),
-        ));
-    }
-    if is_attachment_local_shoulder(model) {
-        return Ok(false);
-    }
-    Err(format!(
-        "Unnamed {slot:?} model is not proven attachment-local; skeletal shoulder binding requires an authored model path"
-    ))
-}
-
-fn is_attachment_local_shoulder(model: &game_engine_core::m2::Model) -> bool {
-    let untransformed_root = matches!(
-        model.bones.as_slice(),
-        [M2Bone {
-            key_bone_id: -1,
-            flags: 0,
-            parent_bone_id: -1,
-            ..
-        }]
-    );
-    let base_mesh_only =
-        !model.submeshes.is_empty() && model.submeshes.iter().all(|part| part.mesh_part_id == 0);
-    let root_influence_only =
-        !model.vertices.is_empty() && model.vertices.iter().all(vertex_uses_only_root);
-    let unauthored_pose = matches!(model.bone_tracks.as_slice(), [tracks]
-        if track_is_unauthored(&tracks.translation)
-            && track_is_unauthored(&tracks.rotation)
-            && track_is_unauthored(&tracks.scale));
-    untransformed_root
-        && base_mesh_only
-        && root_influence_only
-        && unauthored_pose
-        && model.skeleton_fdid.is_none()
-}
-
-fn vertex_uses_only_root(vertex: &game_engine_core::m2::Vertex) -> bool {
-    let total_weight: u16 = vertex.bone_weights.iter().copied().map(u16::from).sum();
-    let only_root = vertex
-        .bone_weights
-        .iter()
-        .zip(vertex.bone_indices)
-        .all(|(&weight, bone)| weight == 0 || bone == 0);
-    total_weight == u16::from(u8::MAX) && only_root
-}
-
-fn track_is_unauthored<T>(track: &crate::asset::m2_format::m2_anim::AnimTrack<T>) -> bool {
-    // Missing external animations retain empty per-sequence entries, not an empty
-    // outer array. Reject them too: absence of loaded keys is not absence of tracks.
-    track.global_sequence == -1 && track.sequences.is_empty()
-}
-
-fn is_attachment_local_model(
-    slot: EquipmentSlot,
-    bones: &[M2Bone],
-    mesh_parts: impl IntoIterator<Item = u16>,
-) -> bool {
-    let own_root = matches!(
-        bones.first(),
-        Some(M2Bone {
-            key_bone_id: -1,
-            flags: 0,
-            parent_bone_id: -1,
-            ..
-        })
-    );
-    let own_skeleton = own_root && bones.iter().all(|bone| bone.key_bone_id == -1);
-    let mut parts = mesh_parts.into_iter().peekable();
-    let has_meshes = parts.peek().is_some();
-    let body_geosets = parts.any(|part| collection_mesh_part_in_slot(slot, part));
-    own_skeleton && has_meshes && !body_geosets
-}
-
 /// Whether a collection model's mesh part belongs to `slot`: a collection file is shared
 /// by several slots' items, each showing the geoset groups of its slot (WMVx
 /// `MergedEquipmentGeosetModifier`; body armor keeps the groups it had); all of the
@@ -1015,7 +908,7 @@ mod tests {
     #[test]
     fn baked_appearance_ailee_keeps_boot_geosets_without_unused_body_overlay() {
         let data = data_dir();
-        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
         let armor = gear.display_armor(136968).unwrap();
         let outfits = outfit_data();
         let error = resolve_equipment_appearance(&armor, outfits, 95, 1).unwrap_err();
@@ -1030,7 +923,7 @@ mod tests {
     #[test]
     fn baked_appearance_keeps_original_grove_ranger_models_and_geosets() {
         let data = data_dir();
-        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
         let armor = gear.display_armor(139403).unwrap();
         let outfits = outfit_data();
         let plain = resolve_equipment_appearance(&armor, outfits, 95, 0).unwrap();
@@ -1128,252 +1021,20 @@ mod tests {
     }
 
     #[test]
-    fn authored_attachment_and_bound_joint_selection() {
-        let shield = Path::new("data/item-models/item/objectcomponents/shield/shield.m2");
-        let sword = Path::new("data/item-models/item/objectcomponents/weapon/sword.m2");
-        let collection = Path::new("data/item-models/item/objectcomponents/collections/helm.m2");
-        assert_eq!(model_attachment_id(EquipmentSlot::OffHand, shield), 0);
-        assert_eq!(model_attachment_id(EquipmentSlot::OffHand, sword), 2);
-        assert_eq!(model_attachment_id(EquipmentSlot::MainHand, sword), 1);
-        assert!(slot_uses_bound_joints(
+    fn source_model_order_selects_slot_attachment_before_character_binding() {
+        for slot in [
             EquipmentSlot::Head,
-            collection,
-            &[],
-            [2101]
-        ));
-        assert!(!slot_uses_bound_joints(
-            EquipmentSlot::Head,
-            sword,
-            &[],
-            [0]
-        ));
-        assert!(slot_uses_bound_joints(
-            EquipmentSlot::Chest,
-            sword,
-            &[],
-            [0]
-        ));
-    }
-
-    fn parsed_shoulder(fdid: u32) -> game_engine_core::m2::Model {
-        let root = data_dir().join("models");
-        let bytes = std::fs::read(root.join(format!("{fdid}.m2"))).unwrap();
-        let references = game_engine_core::m2::parse_asset_references(&bytes).unwrap();
-        let skin = std::fs::read(root.join(format!("{}.skin", references.skin_fdids[0]))).unwrap();
-        game_engine_core::m2::parse_model(&bytes, &skin).unwrap()
-    }
-
-    #[test]
-    fn shoulder_policy_original_unnamed_models_use_authored_side_attachments() {
-        for (fdid, slot, attachment) in [
-            (7_579_617, EquipmentSlot::ShoulderLeft, 6),
-            (7_579_618, EquipmentSlot::ShoulderRight, 5),
-        ] {
-            let model = parsed_shoulder(fdid);
-            let bound = shoulder_uses_bound_joints(slot, &model, None).unwrap();
-            assert!(!bound, "original shoulder {fdid} must be attachment-local");
-            assert_eq!(slot_attachment_id(slot), attachment);
-            assert!(
-                model
-                    .submeshes
-                    .iter()
-                    .all(|part| runtime_mesh_part_allowed(slot, part.mesh_part_id))
-            );
-        }
-        // Splitting influence among entries for the same root changes no vertex;
-        // zero-weight indices likewise contribute nothing to the attachment pose.
-        let mut model = parsed_shoulder(7_579_617);
-        model.vertices[0].bone_weights = [128, 127, 0, 0];
-        model.vertices[0].bone_indices = [0, 0, 255, 255];
-        assert_eq!(
-            shoulder_uses_bound_joints(EquipmentSlot::ShoulderLeft, &model, None),
-            Ok(false)
-        );
-    }
-
-    #[test]
-    fn shoulder_policy_rejects_ambiguous_roots_weights_and_parts() {
-        for invalid in 0..14 {
-            let mut model = parsed_shoulder(7_579_617);
-            match invalid {
-                0 => model.bones[0].key_bone_id = 0,
-                1 => model.bones[0].flags = 0x200,
-                2 => model.bones[0].parent_bone_id = 0,
-                3 => model.bones.push(model.bones[0].clone()),
-                4 => model.bones.clear(),
-                5 => {
-                    model.vertices[0].bone_weights = [128, 127, 0, 0];
-                    model.vertices[0].bone_indices[1] = 1;
-                }
-                6 => model.vertices[0].bone_indices[0] = 1,
-                7 => model.vertices[0].bone_weights = [0; 4],
-                8 => model.vertices.clear(),
-                9 => model.submeshes[0].mesh_part_id = 2601,
-                10 => model.submeshes.clear(),
-                11 => model.bone_tracks = Vec::new().into(),
-                12 => model.skeleton_fdid = Some(1),
-                13 => model.vertices[0].bone_weights = [254, 0, 0, 0],
-                _ => unreachable!(),
-            }
-            let error = shoulder_uses_bound_joints(EquipmentSlot::ShoulderLeft, &model, None)
-                .expect_err(&format!(
-                    "ambiguous structure {invalid} must not acquire a mount"
-                ));
-            assert!(
-                error.contains("ShoulderLeft") && error.contains("Unnamed"),
-                "{error}"
-            );
-        }
-    }
-
-    #[test]
-    fn shoulder_policy_rejects_authored_tracks_even_when_constant_or_unloaded() {
-        for component in 0..3 {
-            for unloaded in [false, true] {
-                let mut model = parsed_shoulder(7_579_617);
-                let tracks = std::sync::Arc::make_mut(&mut model.bone_tracks);
-                let timeline = if unloaded { Vec::new() } else { vec![0] };
-                match component {
-                    0 => tracks[0].translation.sequences.push((
-                        timeline,
-                        if unloaded {
-                            vec![]
-                        } else {
-                            vec![[1.0, 0.0, 0.0]]
-                        },
-                    )),
-                    1 => tracks[0].rotation.sequences.push((
-                        timeline,
-                        if unloaded {
-                            vec![]
-                        } else {
-                            vec![[32767, 32767, 32767, -1]]
-                        },
-                    )),
-                    2 => tracks[0]
-                        .scale
-                        .sequences
-                        .push((timeline, if unloaded { vec![] } else { vec![[1.0; 3]] })),
-                    _ => unreachable!(),
-                }
-                assert!(
-                    shoulder_uses_bound_joints(EquipmentSlot::ShoulderRight, &model, None).is_err(),
-                    "component {component}, unloaded {unloaded}"
-                );
-            }
-        }
-        let mut model = parsed_shoulder(7_579_617);
-        std::sync::Arc::make_mut(&mut model.bone_tracks)[0]
-            .translation
-            .global_sequence = 0;
-        assert!(shoulder_uses_bound_joints(EquipmentSlot::ShoulderRight, &model, None).is_err());
-    }
-
-    #[test]
-    fn shoulder_policy_named_skeletal_collection_keeps_existing_binding() {
-        let root = data_dir().join("models");
-        let model = game_engine_core::m2::parse_model(
-            &std::fs::read(root.join("1360753.m2")).unwrap(),
-            &std::fs::read(root.join("136075300.skin")).unwrap(),
-        )
-        .unwrap();
-        assert!(model.bones.len() > 1);
-        let path = Path::new(
-            "item/objectcomponents/collections/collections_leather_raidroguemythic_q_01_hu_m.m2",
-        );
-        for slot in [EquipmentSlot::ShoulderLeft, EquipmentSlot::ShoulderRight] {
-            assert_eq!(
-                shoulder_uses_bound_joints(slot, &model, Some(path)),
-                Ok(true)
-            );
-            assert!(shoulder_uses_bound_joints(slot, &model, None).is_err());
-            assert!(collection_mesh_part_in_slot(slot, 2601));
-            assert!(!collection_mesh_part_in_slot(slot, 0));
-        }
-    }
-
-    #[test]
-    fn shoulder_policy_is_not_a_generic_unnamed_asset_policy() {
-        let model = parsed_shoulder(7_579_617);
-        for path in [None, Some(Path::new("weapon.m2"))] {
-            assert!(shoulder_uses_bound_joints(EquipmentSlot::MainHand, &model, path).is_err());
-        }
-    }
-
-    #[test]
-    fn rigid_waist_base_mesh_uses_authored_attachment_53() {
-        // Zaralda display 138959: FDID 6378872, SKIN part 0; all 1839 vertices
-        // reference this single attachment-local root, not a character joint.
-        let root = rigid_waist_root();
-        let mesh_parts = [0];
-        let path =
-            Path::new("item/objectcomponents/collections/belt_leather_questbloodelf_b_01.m2");
-        let bound = slot_uses_bound_joints(EquipmentSlot::Waist, path, &[root], mesh_parts);
-        let attachment = (!bound).then(|| model_attachment_id(EquipmentSlot::Waist, path));
-        assert_eq!(attachment, Some(53));
-        assert!(runtime_mesh_part_allowed(EquipmentSlot::Waist, 0));
-    }
-
-    fn rigid_waist_root() -> M2Bone {
-        M2Bone {
-            key_bone_id: -1,
-            flags: 0,
-            parent_bone_id: -1,
-            submesh_id: 0,
-            name_crc: 3_962_896_125,
-            pivot: [0.014494737, 0.0, -0.20134047],
-        }
-    }
-
-    #[test]
-    fn skeletal_waist_collections_keep_binding_and_group_18() {
-        let path = Path::new("item/objectcomponents/collections/belt.m2");
-        let root = rigid_waist_root();
-        for parts in [vec![1801], vec![1802], vec![0, 1801], vec![]] {
-            assert!(slot_uses_bound_joints(
-                EquipmentSlot::Waist,
-                path,
-                &[root.clone()],
-                parts
-            ));
-        }
-        for bone in [
-            M2Bone {
-                flags: 0x200,
-                ..root.clone()
-            },
-            M2Bone {
-                parent_bone_id: 0,
-                ..root.clone()
-            },
-            M2Bone {
-                key_bone_id: 0,
-                ..root.clone()
-            },
-        ] {
-            assert!(slot_uses_bound_joints(
-                EquipmentSlot::Waist,
-                path,
-                &[bone],
-                [0]
-            ));
-        }
-        // An independent skeleton may have multiple roots (e.g. shoulder emitters).
-        assert!(!slot_uses_bound_joints(
+            EquipmentSlot::ShoulderLeft,
+            EquipmentSlot::ShoulderRight,
+            EquipmentSlot::Back,
             EquipmentSlot::Waist,
-            path,
-            &[root.clone(), root],
-            [0]
-        ));
-        assert!(slot_uses_bound_joints(EquipmentSlot::Waist, path, &[], [0]));
-        assert!(collection_mesh_part_in_slot(EquipmentSlot::Waist, 1801));
-        assert!(collection_mesh_part_in_slot(EquipmentSlot::Waist, 1802));
-        assert!(!collection_mesh_part_in_slot(EquipmentSlot::Waist, 0));
-    }
-
-    #[test]
-    fn attachment_local_skeleton_keeps_body_slots_bound() {
-        let path = Path::new("item/objectcomponents/collections/belt.m2");
+            EquipmentSlot::MainHand,
+            EquipmentSlot::OffHand,
+            EquipmentSlot::Ranged,
+        ] {
+            assert!(!runtime_model_binds_to_character(slot, 0));
+            assert!(runtime_model_binds_to_character(slot, 1));
+        }
         for slot in [
             EquipmentSlot::Chest,
             EquipmentSlot::Hands,
@@ -1381,28 +1042,7 @@ mod tests {
             EquipmentSlot::Legs,
             EquipmentSlot::Feet,
         ] {
-            assert!(slot_uses_bound_joints(
-                slot,
-                path,
-                &[rigid_waist_root()],
-                [0]
-            ));
-        }
-        for slot in [
-            EquipmentSlot::Head,
-            EquipmentSlot::ShoulderLeft,
-            EquipmentSlot::ShoulderRight,
-            EquipmentSlot::Back,
-            EquipmentSlot::MainHand,
-            EquipmentSlot::OffHand,
-            EquipmentSlot::Ranged,
-        ] {
-            assert!(!slot_uses_bound_joints(
-                slot,
-                path,
-                &[rigid_waist_root()],
-                [0]
-            ));
+            assert!(runtime_model_binds_to_character(slot, 0));
         }
     }
 
@@ -1527,7 +1167,10 @@ mod tests {
                 .unwrap()
                 .runtime_models
         };
-        let belt: Vec<_> = tauren(vec![entry(EquipmentVisualSlot::Waist, 168296)])
+        let belt_models = tauren(vec![entry(EquipmentVisualSlot::Waist, 168296)]);
+        assert!(!belt_models[0].bind_to_character);
+        assert!(belt_models[1].bind_to_character);
+        let belt: Vec<_> = belt_models
             .iter()
             .map(|model| (model.slot, model.fdid))
             .collect();
@@ -1541,25 +1184,7 @@ mod tests {
         let bracer = tauren(vec![entry(EquipmentVisualSlot::Wrist, 190091)]);
         assert_eq!(bracer.len(), 1);
         assert_eq!(bracer[0].slot, EquipmentSlot::Wrist);
-        let collection = Path::new("item/objectcomponents/collections/belt.m2");
-        assert!(slot_uses_bound_joints(
-            EquipmentSlot::Waist,
-            collection,
-            &[],
-            [1801]
-        ));
-        assert!(slot_uses_bound_joints(
-            EquipmentSlot::Back,
-            collection,
-            &[],
-            [1501]
-        ));
-        assert!(!slot_uses_bound_joints(
-            EquipmentSlot::Waist,
-            Path::new("item/objectcomponents/waist/buckle.m2"),
-            &[],
-            [0]
-        ));
+        assert!(bracer[0].bind_to_character);
     }
 
     #[test]

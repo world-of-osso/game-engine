@@ -114,6 +114,149 @@ fn mount_display_follows_retail_inset_allpoints_in_both_skins() {
     }
 }
 
+#[test]
+fn uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row() {
+    use game_engine_ui_model::{mount_journal::mount_journal_screen, selection_list};
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        widgets::button::ButtonState,
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        let mount = state.catalog.get_mut(&18).unwrap();
+        mount.collected = false;
+        mount.usable = false;
+        state.visible = true;
+        state.selected = Some(18);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+        let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let row = frame("MountJournalRow18");
+        let Some(WidgetData::Button(button)) = &row.widget_data else {
+            panic!("mount row");
+        };
+        assert_ne!(
+            button.state,
+            ButtonState::Disabled,
+            "Uncollected mounts remain selectable"
+        );
+        let Some(WidgetData::FontString(name)) = &frame("MountJournalRow18Name").widget_data else {
+            panic!("mount name");
+        };
+        assert_eq!(name.color, [0.5, 0.5, 0.5, 1.0]);
+        for name in ["MountJournalRow18Selected", "MountJournalRow18RowHighlight"] {
+            let frame = frame(name);
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("mount row art");
+            };
+            assert!(
+                !selection_list::is_additive_row_art(frame, texture),
+                "MountListButtonTemplate selectedTexture and HighlightTexture use alpha blending: {name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn mount_context_menu_fits_its_rendered_labels_in_both_skins() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        text_measure::measure_text,
+        widgets::font_string::GameFont,
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.visible = true;
+        state.context = Some((18, [300.0, 100.0]));
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+        let menu = registry
+            .get(registry.get_by_name("MountJournalContextMenu").unwrap())
+            .unwrap();
+        let label = measure_text("Set Favorite", GameFont::FrizQuadrata, 12.0)
+            .unwrap()
+            .0;
+        assert_eq!(
+            menu.width.value(),
+            label.ceil() + 16.0,
+            "Retail context menus fit content instead of reserving a brown push-button column"
+        );
+        for (name, action) in [
+            ("MountJournalContextSummon", "mount:summon"),
+            ("MountJournalFavoriteToggle", "mount:favourite"),
+        ] {
+            let row = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            assert_eq!(row.onclick.as_deref(), Some(action));
+        }
+    }
+}
+
+#[test]
+fn mount_filter_menu_fits_owner_and_keeps_source_spacer_in_both_skins() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+        layout_values::Val,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        text_measure::measure_text,
+        widgets::font_string::GameFont,
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.visible = true;
+        state.filters_open = true;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+        let frame = |name| {
+            registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap()
+        };
+        let widest = measure_text("Not Collected", GameFont::FrizQuadrata, 12.0)
+            .unwrap()
+            .0
+            + 19.0;
+        assert_eq!(
+            frame("MountJournalFilterMenu").width,
+            Dimension::Fixed((widest.ceil() + 16.0).max(90.0))
+        );
+        assert_eq!(frame("MountJournalFilter3").position.top, Val::Px(78.0));
+        assert_eq!(
+            frame("MountJournalFilterMenu").height,
+            Dimension::Fixed(153.0)
+        );
+    }
+}
+
 fn view() -> MountJournalView {
     let mut view = MountJournalView::default();
     let mut horse = mare();

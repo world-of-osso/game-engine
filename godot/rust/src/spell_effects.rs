@@ -51,7 +51,7 @@ use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
-const DB2_DIR: &str = "db2/12.1.0.69933";
+const DB2_DIR: &str = "db2/active";
 /// Kit model clips when `SpellVisualKitModelAttach` leaves them unset: Stand plays as
 /// the start, Hold (158) loops while a held kit lasts and Decay (159) plays at its end,
 /// as spell effect models author their emission (e.g. Battle Shout 6194303).
@@ -275,10 +275,9 @@ pub struct CastSeen {
 /// first cast froze the client through the whole cast (26-30 s on a loaded machine).
 fn load_catalog(data_root: &std::path::Path) -> BackgroundLoad<Result<SpellVisualCatalog, String>> {
     let db2 = data_root.join(DB2_DIR);
-    let cache = data_root
-        .join("cache")
-        .join(SpellVisualCatalog::cache_file_name());
+    let cache_root = data_root.join("cache");
     BackgroundLoad::start("spell-visuals", move || {
+        let cache = cache_root.join(SpellVisualCatalog::cache_file_name(&db2)?);
         SpellVisualCatalog::load(&db2, &cache).map_err(|error| format!("Spell visuals: {error}"))
     })
 }

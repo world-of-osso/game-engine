@@ -17,7 +17,7 @@ use godot::{
 use shared::{components::Player, protocol::CharacterListEntry};
 
 use crate::{
-    assets::player::{PlayerParts, build_player_model, prepare_player_parts},
+    assets::player::{PlayerParts, build_player_model, prepare_player_parts, warm_player_outfits},
     background_load::BackgroundLoad,
     scene_export::{SceneEntry, camera_entry, character_entry},
 };
@@ -168,6 +168,7 @@ pub(crate) struct CharacterPreview {
     data_root: PathBuf,
     /// Race/sex presentations, loaded from client start.
     customization: BackgroundLoad<Result<CustomizationDb, String>>,
+    outfits: BackgroundLoad<Result<(), String>>,
     preview: Option<Preview>,
     loading: Option<CharacterLoad>,
     /// Chosen campsite; `None` shows the first authored scene.
@@ -177,15 +178,27 @@ pub(crate) struct CharacterPreview {
 impl CharacterPreview {
     pub fn new(data_root: PathBuf) -> Self {
         let catalog_root = data_root.clone();
+        let outfit_root = data_root.clone();
         Self {
             data_root,
             customization: BackgroundLoad::start("customization-catalog", move || {
                 load_customization_db(&catalog_root)
             }),
+            outfits: BackgroundLoad::start("player-outfits", move || {
+                warm_player_outfits(&outfit_root)
+            }),
             preview: None,
             loading: None,
             scene_id: None,
         }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.preview.as_ref().is_some_and(|preview| {
+            preview.shown.as_ref().is_some_and(|shown| {
+                preview.selected.as_ref() == Some(&shown.entry) && shown.model.is_visible_in_tree()
+            }) && preview.background.is_ready()
+        })
     }
 
     /// Show campsite `id` from the next sync, rebuilding the scene when it changes.
@@ -246,6 +259,9 @@ impl CharacterPreview {
             self.reset();
             return Ok(());
         };
+        if let Some(Err(error)) = self.outfits.poll() {
+            return Err(format!("Player outfit catalog: {error}"));
+        }
         if self.preview.is_none() {
             let _span = crate::profile::span(|| "preview.load_scene".to_owned());
             self.preview = Some(self.load_scene(parent)?);
