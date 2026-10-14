@@ -42,6 +42,10 @@ Corrected-mask native proofs: Modern `modern-relative-mask-trace.log` at38ebc745
 
 Trading Post requests formerly published a full Guide snapshot before their own reply on the same ordered channel. The production Freeze trace released its Guide and vendor reply together 34.24 seconds after enqueue (`delivery-peer3-wire.log`). Server settlement and Guide publication are now separate: Trading Post retains current monthly progress/threshold settlement without sending the unsolicited Guide. The purchase regression observes both reply types every frame and detects the old extra snapshot; purchase, refund, gameplay credit and rollover tests pass after removal. This removes the explicit ordering dependency, not proof of sub-second native delivery. Separate channels and packet-level latency acceptance remain coordinated transport work.
 
+## Client UDP receive queue — 2026-10-14
+
+Socket evidence (`delivery-peer4-socket-samples.log`, `delivery-peer4-socket-ss.log`) recorded the native client's 212992-byte receive queue and 54,412 dropped datagrams, with zero server drops. The loopback burst regression sends 512 numbered 1200-byte datagrams before the next network drain; upstream retained only 0–91. The shared `lightyear_udp` patch requests a 4 MiB single-peer receive queue and logs effective OS allocation; server listener and wire semantics remain unchanged. OS caps are not overridden or treated as a guaranteed allocation. Burst pacing, separate ordered channels, Windows measurement and sub-second application delivery remain coordinated transport gates; this patch alone does not certify them.
+
 ## Canonical-write boundary
 
 Runtime cache misses write to the source data path (`<checkout>/data/textures`), not `ASSET_RESOLVER_SHARED_DATA_DIR`. With the normal [shared slot links](../../headless-live-run.md) they reach canonical data. This task forbade canonical writes, so its slot replaced the asset directories with per-entry symlink unions that also overlay the unpublished package.
