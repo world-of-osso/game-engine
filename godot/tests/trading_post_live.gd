@@ -462,6 +462,7 @@ func rotate_control_proof() -> void:
 		await button_event(point, MOUSE_BUTTON_LEFT, true)
 		await wait_frames(10)
 		var held := float(client.trading_post_state().model_yaw)
+		if not assert_rotate_icon(name, true): return
 		var sign := -1.0 if direction == "Left" else 1.0
 		if sign * (held - before) < 0.5: fail("Held %s did not continuously rotate sourced direction: %s -> %s" % [direction, before, held]); return
 		await capture("rotate-held-" + direction.to_lower())
@@ -469,6 +470,7 @@ func rotate_control_proof() -> void:
 		await button_event(Vector2(1800, 500), MOUSE_BUTTON_LEFT, false)
 		await wait_frames(3)
 		var released := float(client.trading_post_state().model_yaw)
+		if not assert_rotate_icon(name, false): return
 		await wait_frames(10)
 		if absf(float(client.trading_post_state().model_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
 		await capture("rotate-released-" + direction.to_lower())
@@ -477,6 +479,17 @@ func rotate_control_proof() -> void:
 	if control("PerksProgramRotateLeftButton") != null: fail("Toy retained model-scene rotation controls"); return
 	await capture("toy-no-rotate-controls")
 	await finish("rotate-controls")
+
+func assert_rotate_icon(name: String, pressed: bool) -> bool:
+	var button := control(name)
+	var icon := control(name + "Icon")
+	if button == null or icon == null: fail("Missing sourced rotate icon"); return false
+	var rect: Rect2 = button.get_global_rect()
+	var offset := 1.0 if pressed else 0.0
+	var expected := rect.position + Vector2(11.0 + offset, 11.5 + offset) * rect.size.x / 48.0
+	if icon.get_global_rect().position.distance_to(expected) > 0.51:
+		fail("Rotation pressed icon offset differs from Retail: %s != %s" % [icon.get_global_rect().position, expected]); return false
+	return true
 
 func rotate_model() -> bool:
 	var start := control("PerksProgramMainModelScene").get_global_rect().get_center()
