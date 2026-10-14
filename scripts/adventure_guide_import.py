@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import local Retail 12.1.0.69933 Journal DB2s into the client SQLite cache.
+"""Import source-identified local Retail Journal DB2s into the client SQLite cache.
 
 Extract the FDIDs below with casc-local first. Pass the corresponding WoWDBDefs
 .dbd files in --definitions. The pinned layout hashes, not names, define fields.

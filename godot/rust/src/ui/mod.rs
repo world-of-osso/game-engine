@@ -307,6 +307,12 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::trading_post::View>()
+        {
+            game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::adventure_guide::View>()
         {
             game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
@@ -1578,6 +1584,18 @@ impl RegistryUi {
     /// Initialize a dedicated RegistryUi instance for the objective tracker.
     pub fn show_objective_tracker(&mut self, state: ObjectiveTrackerState) -> Result<(), String> {
         self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
+    }
+
+    /// Retail's watched reputation status-bar canvas, sharing the HUD skin/scale mirror.
+    pub fn show_reputation_status_bar(
+        &mut self,
+        state: game_engine_ui_model::reputation_status_bar::ReputationBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::reputation_status_bar::reputation_bar_screen,
+            ScreenPostsetup::None,
+        )
     }
 
     /// Initialize a dedicated RegistryUi instance for the experience bar.
