@@ -33,6 +33,14 @@ fn toyfx26_real_animated_ribbon_uv_lookup_samples_global_translation() {
         .unwrap()
         .unwrap();
     assert_eq!(index, 1);
+    assert_eq!(
+        m2_ribbons::texture_transform_index(&model, source, 1).unwrap(),
+        None
+    );
+    assert_eq!(
+        m2_ribbons::texture_transform_index(&model, source, 2).unwrap(),
+        Some(0)
+    );
     let tracks = MaterialTracks::of(&model);
     let track = &tracks.transforms[index];
     assert_eq!(track.translation.global_sequence, 1);
