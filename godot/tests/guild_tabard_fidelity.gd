@@ -65,9 +65,7 @@ func check_controls(fixture: Node, ui: Node, directory: String, skin: String) ->
 	assert(fixture.call("show_communities") == "")
 	await settle()
 	var communities := fixture.get_node("CommunitiesUI")
-	var emblem := control(communities, "CommunitiesTabardEmblem")
-	assert(emblem.get_global_rect().size.is_equal_approx(Vector2(56, 64)))
-	assert((emblem.get_node("Parts/Part0") as TextureRect).texture != null)
+	check_designed_portrait(communities)
 	capture_png(directory, skin + "-communities-designed.png")
 	await click(ui, "TabardFrameCancelButton")
 	assert(fixture.call("dispatch") == "Close")
@@ -76,6 +74,21 @@ func check_controls(fixture: Node, ui: Node, directory: String, skin: String) ->
 	assert(fixture.call("initialize", skin == "forever") == "")
 	# Reopen for worn-model tier captures using the saved source IDs.
 	assert(fixture.call("restore_saved_design") == "")
+
+func check_designed_portrait(ui: Node) -> void:
+	# Installed70391 palette columns are Red,Blue,Green, not positional RGB.
+	for spec in [
+		["CommunitiesTabardBackground", Color(177.0 / 255, 0, 46.0 / 255, 1)],
+		["CommunitiesTabardBorder", Color(99.0 / 255, 148.0 / 255, 0, 1)],
+		["CommunitiesTabardEmblem", Color(103.0 / 255, 69.0 / 255, 0, 1)],
+	]:
+		var texture := control(ui, spec[0]).get_node("Parts/Part0") as TextureRect
+		assert(texture.texture != null, spec[0])
+		assert(texture.self_modulate.is_equal_approx(spec[1]), str(texture.self_modulate))
+	var emblem := control(ui, "CommunitiesTabardEmblem")
+	assert(emblem.get_global_rect().size.is_equal_approx(Vector2(56, 64)))
+	var cropped := (emblem.get_node("Parts/Part0") as TextureRect).texture as AtlasTexture
+	assert(cropped != null and cropped.region.is_equal_approx(Rect2(64, 0, 64, 64)), "GuildUtil source large emblem UV")
 
 func ready_models(fixture: Node) -> void:
 	for frame in range(1200):
