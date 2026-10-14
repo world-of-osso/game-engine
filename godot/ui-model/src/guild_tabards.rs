@@ -202,30 +202,51 @@ fn cycle_design(
     if !matches!(direction, -1 | 1) {
         return Err("Tabard variation direction must be -1 or1".into());
     }
-    let (value, ids): (&mut u8, Vec<_>) = match field {
-        1 => (&mut design.icon, catalog.emblems.keys().copied().collect()),
-        2 => (
-            &mut design.icon_color,
-            catalog.emblem_colors.keys().copied().collect(),
-        ),
-        3 => (&mut design.border, catalog.border_styles()),
-        4 => (
-            &mut design.border_color,
-            catalog.border_colors.keys().copied().collect(),
-        ),
-        5 => (
-            &mut design.background_color,
-            catalog.background_colors.keys().copied().collect(),
-        ),
-        _ => return Err("Unknown tabard variation".into()),
-    };
+    let ids = find_selectable_variations(*design, field, catalog)?;
+    let value = design_variation_mut(design, field)?;
     let index = ids
         .iter()
         .position(|id| id == value)
         .ok_or("Current tabard variation is not in source catalog")?;
     let next = (index as i32 + direction).rem_euclid(ids.len() as i32) as usize;
     *value = ids[next];
-    catalog.validate(*design)
+    Ok(())
+}
+
+fn find_selectable_variations(
+    design: GuildTabardDesign,
+    field: u8,
+    catalog: &GuildTabardCatalog,
+) -> Result<Vec<u8>, String> {
+    let ids: Vec<u8> = match field {
+        1 => catalog.emblems.keys().copied().collect(),
+        2 => catalog.emblem_colors.keys().copied().collect(),
+        3 => catalog.border_styles(),
+        4 => catalog.border_colors.keys().copied().collect(),
+        5 => catalog.background_colors.keys().copied().collect(),
+        _ => return Err("Unknown tabard variation".into()),
+    };
+    Ok(ids
+        .into_iter()
+        .filter(|&id| {
+            let mut candidate = design;
+            *design_variation_mut(&mut candidate, field).expect("field matched above") = id;
+            // Installed catalogs contain sparse combinations: offer only complete
+            // designs, keeping the other four fields and every authored texture intact.
+            catalog.validate(candidate).is_ok()
+        })
+        .collect())
+}
+
+fn design_variation_mut(design: &mut GuildTabardDesign, field: u8) -> Result<&mut u8, String> {
+    match field {
+        1 => Ok(&mut design.icon),
+        2 => Ok(&mut design.icon_color),
+        3 => Ok(&mut design.border),
+        4 => Ok(&mut design.border_color),
+        5 => Ok(&mut design.background_color),
+        _ => Err("Unknown tabard variation".into()),
+    }
 }
 
 fn rgb([red, green, blue]: [u8; 3]) -> String {
