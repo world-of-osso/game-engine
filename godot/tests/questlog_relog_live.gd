@@ -6,7 +6,15 @@ func check_prepare_relog() -> bool:
 	if in_log(client.quest_state(), QUEST):
 		print("PASS QUEST_RELOG_PREPARED existing owned quest")
 		return true
-	return await check_pickup()
+	if not await open_quest(GIVER_AT, GIVER, QUEST_TITLE):
+		return false
+	if not await wait_quest(func(s): return s.get("page") == "Detail" and s.quest_id == QUEST, "real giver details"):
+		return false
+	await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
+	if not await wait_quest(func(s): return in_log(s, QUEST) and not s.frame_open, "owned quest accepted"):
+		return false
+	await capture("quest-relog-prepared.png")
+	return true
 
 func check_relog_details() -> bool:
 	if not in_log(client.quest_state(), QUEST):
