@@ -95,6 +95,7 @@ func layout_proof() -> void:
 	print("TP_LAYOUT_FOOTER ", footer.get_global_rect() if footer != null else "no projected control", " button=", control("PerksProgramPurchaseButton").get_global_rect(), " model=", control("PerksProgramMainModelScene").get_global_rect(), " enabled=", control_enabled("PerksProgramPurchaseButton"))
 	await click("PerksProgramPurchaseButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "source popup"): return
+	if not await wait_until(func(): return texture_ready("PerksProgramConfirmItem") and texture_ready("PerksProgramConfirmButtonNormalArt") and texture_ready("PerksProgramConfirmBorder"), "decoded StaticPopup source art"): return
 	if not assert_dialog_rects_and_art(): return
 	await capture("purchase-confirm")
 	await tap(KEY_ESCAPE)
@@ -380,6 +381,12 @@ func assert_header_hover() -> bool:
 	if not label.get_theme_color("font_color").is_equal_approx(Color(1,0.82,0,1)):
 		fail("Header leave did not restore source gold"); return false
 	return true
+
+func texture_ready(name: String) -> bool:
+	var node := control(name)
+	if node == null: return false
+	var part := node.get_node_or_null("Parts/Part0") as TextureRect
+	return part != null and part.texture != null
 
 func assert_texture_pixels(name: String) -> bool:
 	var node := control(name)
