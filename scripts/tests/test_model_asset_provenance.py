@@ -199,6 +199,44 @@ class ModelAssetProvenanceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "stale"):
                     chains.write_asset_fragment(data, old, {"dependencies": {}, "metadata": []}, [first], [], "obsolete")
 
+    def test_new_build_supersedes_companion_alias_in_its_original_index(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            old = {'product': 'wow', 'build_key': '1' * 32, 'build': '12.1.0.69933'}
+            new = {'product': 'wow', 'build_key': '2' * 32, 'build': '12.1.5.70391'}
+            def skin(identity, raw):
+                return chains.create_asset_receipt(identity, 42, 'skin', 'models/42.skin', raw, hashlib.md5(raw).hexdigest()), raw
+            def alias(identity, raw):
+                return chains.create_asset_receipt(identity, 42, 'skin', 'models/10000.skin', raw, hashlib.md5(raw).hexdigest()), raw
+            chains.write_asset_index(data, old, {'dependencies': {}, 'metadata': []}, [skin(old, b'SKINold')], [alias(old, b'SKINold')])
+            chains.write_asset_fragment(data, new, {'dependencies': {}, 'metadata': []}, [skin(new, b'SKINnew')], [alias(new, b'SKINnew')], 'current')
+            aliases = [row for p in (data / 'cache').glob('model-asset-index*.json') for row in json.loads(p.read_text()).get('aliases', [])]
+            self.assertEqual(len(aliases), 1)
+            self.assertEqual(aliases[0]['build_key'], new['build_key'])
+            self.assertEqual((data / aliases[0]['path']).read_bytes(), b'SKINnew')
+
+    def test_fragment_publication_failure_preserves_previous_complete_receipts(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            old = {'product': 'wow', 'build_key': '1' * 32, 'build': '12.1.0.69933'}
+            new = {'product': 'wow', 'build_key': '2' * 32, 'build': '12.1.5.70391'}
+            def asset(identity, fdid):
+                raw = b'BLP2fixture'
+                return chains.create_asset_receipt(identity, fdid, 'blp', f'textures/{fdid}.blp', raw, hashlib.md5(raw).hexdigest()), raw
+            chains.write_asset_index(data, old, {'dependencies': {}, 'metadata': []}, [asset(old, 42)], [])
+            base = data / 'cache/model-asset-index.json'
+            original = base.read_bytes()
+            replace = Path.replace
+            def fail_fragment(source, destination):
+                if Path(destination).name == 'model-asset-index-current.json':
+                    raise OSError('injected publication I/O failure')
+                return replace(source, destination)
+            with patch.object(Path, 'replace', fail_fragment), self.assertRaisesRegex(OSError, 'publication I/O failure'):
+                chains.write_asset_fragment(data, new, {'dependencies': {}, 'metadata': []}, [asset(new, 42), asset(new, 43)], [], 'current')
+            self.assertEqual(base.read_bytes(), original)
+            self.assertFalse((data / 'cache/model-asset-index-current.json').exists())
+
     def test_existing_different_scoped_bytes_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory)
