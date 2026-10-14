@@ -3,6 +3,10 @@ extends "res://tests/toy_effects14_signs_framed_live.gd"
 # separate real-UDP peer evidence; this fixture never substitutes privacy UI.
 func proof_cases() -> Array:
 	return [
-		[112324, 162979, 55916, "Nightmarish Hitching Post", 1.0, 80682, false, 180000],
-		[160751, 273491, 86194, "Dance of the Dead", 1.0, 139204, true, 30000],
+		[130214, 195753, 25017, "Worn Doll", 1.0, 99535, false, 60000],
+		[163745, 280084, 37806, "Witherbark Gong", 1.0, 143703, false, 30000],
 	]
+
+func scenery(title: String) -> Node3D:
+	var actor_title := "Lonely Worn Doll" if title == "Worn Doll" else title
+	return super.scenery(actor_title)
