@@ -43,7 +43,7 @@ def prepare_migration(data, output, identity, roots, extracted):
         key = content.hex()
         relative = Path(row['path']).relative_to(Path('products') / row['product'] / row['build_key'])
         source = data / row['path']
-        if row['content_key'] == key:
+        if row.get('content_key') == key:
             receipt = {**row, **identity, 'path': str(Path('products/wow') / identity['build_key'] / relative)}
             if not alias:
                 report['unchanged_bytes'] += 1
@@ -51,7 +51,8 @@ def prepare_migration(data, output, identity, roots, extracted):
             source = extracted[fdid]
             raw = source.read_bytes()
             validate_magic(raw, kind, key)
-            receipt = create_asset_receipt(identity, fdid, kind, str(relative), raw, key)
+            # Keep alias metadata (owner_model_fdid, reference); the receipt replaces identity and bytes.
+            receipt = {**row, **create_asset_receipt(identity, fdid, kind, str(relative), raw, key)}
             if not alias:
                 report['changed_bytes'] += 1
         add(source, data / receipt['path'], receipt['sha256'], hardlink=True)
@@ -86,12 +87,17 @@ def prepare_migration(data, output, identity, roots, extracted):
     return {'identity': identity, 'files': files, 'links': []}, report
 
 
+def needs_extraction(row, roots):
+    # Rows without a recorded content key (NPC-appearance skin aliases) cannot be proven current.
+    return row['product'] == 'wow' and row['fdid'] in roots and row.get('content_key') != roots[row['fdid']].hex()
+
+
 def prepare_installed_migration(data, output, identity, roots, resolver, resolver_cache, install):
     needed = set()
     for path in index_paths(data):
         document = json.loads(path.read_text())
         for row in [*document['assets'], *document.get('aliases', [])]:
-            if row['product'] == 'wow' and row['fdid'] in roots and row['content_key'] != roots[row['fdid']].hex():
+            if needs_extraction(row, roots):
                 needed.add(row['fdid'])
     raw = output.with_name(output.name + '-raw')
     raw.mkdir(parents=True, exist_ok=False)
