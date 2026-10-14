@@ -81,8 +81,10 @@ fn model_asset_parsed_same_fdid_models_keep_both_product_namespaces() {
     let retail = AssetIdentity::new("wow", RETAIL_KEY).unwrap();
     let forever = AssetIdentity::new("wow_classic_beta", FOREVER_KEY).unwrap();
     for (identity, x) in [(&retail, 1.25), (&forever, 7.5)] {
-        fixture.seed(identity, "models/126278.m2", &model_with_vertex(x));
-        fixture.seed(identity, "models/12627800.skin", &skin);
+        let model = model_with_vertex(x);
+        let skin_fdid = m2::parse_asset_references(&model).unwrap().skin_fdids[0];
+        fixture.seed(identity, "models/126278.m2", &model);
+        fixture.seed(identity, &format!("models/{skin_fdid}.skin"), &skin);
     }
     for (identity, x) in [(&retail, 1.25), (&forever, 7.5), (&retail, 1.25)] {
         let cached = load_model_files(&fixture.resolver(identity), &fixture.0, MODEL_FDID).unwrap();
@@ -111,14 +113,16 @@ fn model_asset_sfid_skid_and_external_animation_acquisition_inherit_the_model_id
         (&forever, b"forever".as_slice()),
     ] {
         fixture.seed(identity, "models/126278.m2", &references);
-        fixture.seed(identity, "models/12627800.skin", receipt);
-        fixture.seed(identity, "models/126278.skel", &skeleton);
+        fixture.seed(identity, "models/1001.skin", receipt);
+        fixture.seed(identity, "models/1002.skel", &skeleton);
         fixture.seed(identity, "models/1003.anim", receipt);
         let path = cache_model_files(&fixture.resolver(identity), &fixture.0, MODEL_FDID).unwrap();
         assert_eq!(path, identity.asset_path(&fixture.0, "models/126278.m2"));
         let dir = path.parent().unwrap();
-        assert_eq!(fs::read(dir.join("12627800.skin")).unwrap(), receipt);
-        assert_eq!(fs::read(dir.join("126278.skel")).unwrap(), skeleton);
+        assert_eq!(fs::read(dir.join("1001.skin")).unwrap(), receipt);
+        assert_eq!(fs::read(dir.join("1002.skel")).unwrap(), skeleton);
+        assert!(!dir.join("12627800.skin").exists());
+        assert!(!dir.join("126278.skel").exists());
         assert_eq!(fs::read(dir.join("1003.anim")).unwrap(), receipt);
     }
 }
