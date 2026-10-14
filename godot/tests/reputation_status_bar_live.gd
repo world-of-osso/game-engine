@@ -112,6 +112,8 @@ func run() -> void:
 	var painted := pixels.get_pixelv(Vector2i(fill.get_global_rect().get_center()))
 	var empty := pixels.get_pixelv(Vector2i(background.get_global_rect().get_center()))
 	if painted.g <= painted.r + 0.03 or painted.to_html() == empty.to_html():
+		await capture("paint-failure")
+		print("REPUTATION_BAR_PAINT_DIAGNOSTIC fill_rect=%s background_rect=%s" % [fill.get_global_rect(),background.get_global_rect()])
 		fail("Real green reputation fill not painted: fill=%s track=%s" % [painted,empty])
 		return
 	if not await capture("restored"):
