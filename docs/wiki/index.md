@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Close-camera observation](systems/character-rendering.md#close-camera-observation--2026-10-14) — actual Goldshire mailbox collision; post-AV dead login prevents standing-body acceptance, no camera/material change.
+
 - [Forever Seething70 functional victory](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14) —15 gathers/1500, normal return ACK/save, frozen persisted row and no-reset native relog; natural departure/full-body framing open; pressure excludes timing acceptance.
 
 - [Seething disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14) — actual native packet timeout reproduced with25.173s server/41.647s native pauses and severe host memory pressure; system/process attribution pending.
