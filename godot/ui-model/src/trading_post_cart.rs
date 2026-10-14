@@ -235,5 +235,6 @@ impl View {
         self.cart_selected.clear();
         self.cart_visible = false;
         self.cart_hover = None;
+        self.cart_item_hover = None;
     }
 }

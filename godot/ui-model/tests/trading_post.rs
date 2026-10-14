@@ -90,6 +90,46 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 #[test]
+fn trading_post_cart_hover_shows_source_preview_status_and_dimming_mask() {
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(snapshot())),
+        selected: Some(4),
+        cart: vec![4],
+        cart_visible: true,
+        cart_hover: Some(4),
+        cart_selected: std::collections::BTreeMap::from([(16, 189869)]),
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4PreviewStatus")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4Vignette")
+                .is_some()
+        );
+        view.cart_hover = None;
+        let registry = render(skin, view.clone());
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4PreviewStatus")
+                .is_none()
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4Vignette")
+                .is_none()
+        );
+        view.cart_hover = Some(4);
+    }
+}
+
+#[test]
 fn trading_post_cart_ensemble_expands_header_members_and_source_list_padding() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();

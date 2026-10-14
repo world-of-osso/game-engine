@@ -185,7 +185,13 @@ fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
     let row = &element.item;
     let prefix = element.name.clone();
     let selected = view.cart_selected.values().any(|id| *id == row.item_id);
-    let border = if selected {
+    let enabled = view
+        .cart_selected
+        .get(&0)
+        .is_none_or(|id| *id == row.item_id);
+    let hovered = view.cart_item_hover == Some(row.item_id)
+        || !element.member && view.cart_hover == Some(row.id);
+    let border = if enabled && selected {
         "perks-border-square-gold"
     } else {
         "perks-border-square-gray"
@@ -201,6 +207,7 @@ fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
         (16., 14., 56., 56.),
         WHITE,
     ));
+    children.extend(cart_preview_status(&prefix, selected, hovered, enabled));
     children.extend(named_atlas_texture(
         format!("{prefix}IconBorder"),
         border,
@@ -267,6 +274,42 @@ fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
     }
     let select = format!("perks:cart:item:{}", row.item_id);
     rsx! {button{name:{DynName(prefix)},left:12.0,top:element.top,width,height:element.height,pos_type:"absolute",button_default_skin:false,onclick:select.as_str(),button_atlas_highlight:"petlist-buttonhighlight",{children}}}
+}
+
+fn cart_preview_status(prefix: &str, selected: bool, hovered: bool, enabled: bool) -> Element {
+    let mut children = vec![];
+    if !enabled || hovered || !selected {
+        children.extend(named_atlas_texture(
+            format!("{prefix}Vignette"),
+            "perks-border-square-gold-mask",
+            (16., 14., 56., 56.),
+        ));
+    }
+    let atlas = if !enabled || !selected && !hovered {
+        Some("perks-previewoff")
+    } else if !selected {
+        Some("Perks-PreviewOn-Gray")
+    } else if hovered {
+        Some("Perks-PreviewOn")
+    } else {
+        None
+    };
+    if let Some(atlas) = atlas {
+        let region =
+            ui_toolkit::atlas::resolve_region(atlas, ui_toolkit::atlas::ActiveSkin::Modern)
+                .expect("Retail preview status atlas");
+        children.extend(named_atlas_texture(
+            format!("{prefix}PreviewStatus"),
+            atlas,
+            (
+                16. + (56. - region.width) / 2.,
+                14. + (56. - region.height) / 2.,
+                region.width,
+                region.height,
+            ),
+        ));
+    }
+    children
 }
 
 fn cart_icon_button(
