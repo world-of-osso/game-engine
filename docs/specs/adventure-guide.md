@@ -42,6 +42,8 @@ Reference behavior: local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzar
 
 ## Acceptance
 
+`godot/tests/adventure_journeys_layout.gd` exercises privateUDP5771/fb_* physical expansion/faction/level selection, shared reward hover, wheel, jump boundaries and Home, with original1920×1080 captures in both skins. It requires explicit `ADVENTURE_GUIDE_SERVER`, `ADVENTURE_GUIDE_ACCOUNT`, `ADVENTURE_GUIDE_PASSWORD` and `ADVENTURE_GUIDE_SHOTS`; it never grants renown. This fixture is a required pending native gate, not evidence of passing until its exact executable revision is receipted.
+
 Targeted importer and UI/layout tests, extension check and format proof. The October13 ten-defect layout gate requires inspected Modern/Forever1920×1080 native captures compared with Retail XML, rendered geometry/control-state tests and native search/menu/clip/model-paint proof on private UDP5771/fb_* accounts. GPU free memory at least1.5GiB; no UDP5000 access or full suites. Gaps and exact source revisions belong in the task proof ledger. Earlier dungeon/raid captures remain historical acceptance evidence, not proof of the corrected layout.
 
 ## October 13 navigation continuation
