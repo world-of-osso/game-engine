@@ -58,6 +58,50 @@ class ModelAssetMigrationTests(unittest.TestCase):
             self.assertEqual((data / by_id[126862]['path']).stat().st_ino, (data / rows[0]['path']).stat().st_ino)
             self.assertTrue((root / 'backup/fingerprint-diff.json').exists())
 
+    def test_alias_without_content_key_is_reextracted_and_keeps_owner_metadata(self):
+        spec = importlib.util.spec_from_file_location('migration', SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data, output = root / 'data', root / 'staged'
+            (data / 'cache').mkdir(parents=True)
+            old = {'product': 'wow', 'build_key': '1' * 32, 'build': '12.1.0.69933'}
+            new = {'product': 'wow', 'build_key': '2' * 32, 'build': '12.1.5.70391'}
+            original, current = b'SKIN-old', b'SKIN-new'
+            path = f'products/wow/{old["build_key"]}/models/11741200.skin'
+            (data / path).parent.mkdir(parents=True, exist_ok=True)
+            (data / path).write_bytes(original)
+            # NPC-appearance alias rows carry sha256 but no CASC content key.
+            alias = {**old, 'fdid': 469942, 'kind': 'skin', 'path': path, 'owner_model_fdid': 117412,
+                     'reference': 'SFID[0]', 'bytes': len(original), 'sha256': hashlib.sha256(original).hexdigest()}
+            (data / 'cache' / 'model-asset-index.json').write_text(
+                json.dumps({'version': 1, 'assets': [], 'aliases': [], 'chains': []}))
+            (data / 'cache' / 'model-asset-index-npc.json').write_text(
+                json.dumps({'version': 1, 'assets': [], 'aliases': [alias], 'chains': []}))
+            raw = root / '469942.dat'
+            raw.write_bytes(current)
+            manifest, _ = module.prepare_migration(data, output, new, {469942: hashlib.md5(current).digest()}, {469942: raw})
+            from apply_db2_install import apply
+            apply_manifest = output / 'apply.json'
+            apply_manifest.write_text(json.dumps(manifest))
+            apply(apply_manifest, root / 'backup')
+            migrated = json.loads((data / 'cache/model-asset-index-npc.json').read_text())['aliases'][0]
+            self.assertEqual(migrated['build_key'], new['build_key'])
+            self.assertEqual(migrated['owner_model_fdid'], 117412)
+            self.assertEqual(migrated['reference'], 'SFID[0]')
+            self.assertEqual(migrated['content_key'], hashlib.md5(current).hexdigest())
+            self.assertEqual((data / migrated['path']).read_bytes(), current)
+
+    def test_installed_migration_treats_missing_content_key_as_needing_extraction(self):
+        spec = importlib.util.spec_from_file_location('migration', SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        row = {'product': 'wow', 'fdid': 469942}
+        self.assertTrue(module.needs_extraction(row, {469942: b'\x01' * 16}))
+        self.assertFalse(module.needs_extraction({**row, 'content_key': '01' * 16}, {469942: b'\x01' * 16}))
+        self.assertFalse(module.needs_extraction(row, {}))
+
 
 if __name__ == '__main__':
     unittest.main()
