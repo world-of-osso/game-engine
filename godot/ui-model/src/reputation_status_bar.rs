@@ -13,6 +13,9 @@ const BAR: (f32, f32) = (565., 11.);
 const INSET: f32 = 1.;
 /// Standard/EditModePresetLayoutConstants.lua: STATUS_BAR_2_ANCHOR_OFFSET_Y.
 const SECONDARY_OFFSET: f32 = 17.;
+const BORDER_OUTSET: f32 = 4.;
+const BORDER_EDGE: f32 = 16.;
+const BORDER_COLOR: &str = "0.8,0.6,0.34,1.0";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReputationBarState {
@@ -35,6 +38,14 @@ pub fn reputation_bar_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
+    place_bar(state, watched, skin)
+}
+
+fn place_bar(
+    state: &ReputationBarState,
+    watched: &WatchedReputationSnapshot,
+    skin: ActiveSkin,
+) -> Element {
     let bottom = if state.xp_visible {
         SECONDARY_OFFSET
     } else {
@@ -93,13 +104,18 @@ fn frame_art(skin: ActiveSkin) -> Element {
     // Same supplied bronze border as the existing Forever XP skin; no new art or geometry.
     let border = flare_border_tinted(
         "ReputationStatusBar",
-        (BAR.0 + 8., BAR.1 + 8.),
-        16.,
-        "0.8,0.6,0.34,1.0",
+        (BAR.0 + 2. * BORDER_OUTSET, BAR.1 + 2. * BORDER_OUTSET),
+        BORDER_EDGE,
+        BORDER_COLOR,
     );
     flare_layer(
         "ReputationStatusBarFrame".into(),
-        (INSET - 4., INSET - 4., BAR.0 + 8., BAR.1 + 8.),
+        (
+            INSET - BORDER_OUTSET,
+            INSET - BORDER_OUTSET,
+            BAR.0 + 2. * BORDER_OUTSET,
+            BAR.1 + 2. * BORDER_OUTSET,
+        ),
         border,
     )
 }
