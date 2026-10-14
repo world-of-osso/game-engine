@@ -62,6 +62,68 @@ pub fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usi
         .ok_or_else(|| format!("{} missing {column} column", path.display()))
 }
 
+/// A DB2 record addressed by its exported column names.
+pub struct Db2Row<'a> {
+    path: &'a Path,
+    line: usize,
+    headers: &'a [String],
+    fields: &'a [String],
+}
+
+impl Db2Row<'_> {
+    pub fn field(&self, column: &str) -> Result<&str, String> {
+        let index = header_index(self.headers, column, self.path)?;
+        self.fields.get(index).map(String::as_str).ok_or_else(|| {
+            format!(
+                "{}:{}: missing {column} value",
+                self.path.display(),
+                self.line
+            )
+        })
+    }
+
+    pub fn parse<T: std::str::FromStr>(&self, column: &str) -> Result<T, String>
+    where
+        T::Err: std::fmt::Display,
+    {
+        let field = self.field(column)?;
+        field.parse().map_err(|error| {
+            format!(
+                "{}:{}: {column}={field:?}: {error}",
+                self.path.display(),
+                self.line
+            )
+        })
+    }
+}
+
+/// Read every exported record, retaining physical line numbers for diagnostics.
+pub fn read_db2_rows(
+    path: &Path,
+    mut consume: impl FnMut(&Db2Row<'_>) -> Result<(), String>,
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| format!("read {}: {error}", path.display()))?;
+    let mut records = parse_csv_records(&text).into_iter();
+    let headers = records
+        .next()
+        .ok_or_else(|| format!("{}:1: missing header", path.display()))?;
+    let mut line = 2;
+    for fields in records {
+        consume(&Db2Row {
+            path,
+            line,
+            headers: &headers,
+            fields: &fields,
+        })?;
+        line += 1 + fields
+            .iter()
+            .map(|field| field.matches('\n').count())
+            .sum::<usize>();
+    }
+    Ok(())
+}
+
 pub fn skip_csv_header<R: BufRead>(reader: &mut R, path: &Path) -> Result<(), String> {
     let mut header = String::new();
     reader
