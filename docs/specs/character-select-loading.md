@@ -4,10 +4,11 @@ Native character selection prepares its campsite and selected character before r
 
 ## What it must do
 
-- [ ] Cover selected-character preparation with the loading screen; never expose a sky-only character-select frame.
+- [x] Cover selected-character preparation with the loading screen; never expose a sky-only character-select frame.
+- [ ] Report Loading to automation while the selected scene is preparing; CharSelect means the scene can be revealed.
 - [ ] Reveal only after the selected model, requested terrain, sky and selected campsite-object drawables are attached. Preparation errors remain visible on the loading screen and are logged; failure never reveals an incomplete scene.
 - [ ] Keep empty-roster creation available; it must not await a nonexistent selected model.
-- [ ] Reuse loaded player outfit catalogs across selection and world entry, with isolated data-root/product namespaces. Prepare the default Retail namespace from client start instead of importing CSV rows on the selection critical path.
+- [x] Reuse loaded player outfit catalogs across selection and world entry, with isolated data-root/product namespaces. Prepare the default Retail namespace from client start instead of importing CSV rows on the selection critical path.
 
 ## How it works
 

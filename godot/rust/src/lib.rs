@@ -2049,6 +2049,7 @@ impl GameClient {
         }
         match self.account.session.screen {
             SessionScreen::Login => GameState::Login,
+            SessionScreen::CharacterSelect if self.character_scene_waiting() => GameState::Loading,
             SessionScreen::CharacterSelect => GameState::CharSelect,
             SessionScreen::CharacterCreate => GameState::CharCreate,
             SessionScreen::Loading => GameState::Loading,
@@ -2941,18 +2942,21 @@ impl GameClient {
         }
     }
 
-    fn sync_character_select_reveal(&mut self, delta: f32) -> Result<(), String> {
-        if self.account.session.screen != SessionScreen::CharacterSelect {
-            return Ok(());
-        }
+    fn character_scene_waiting(&self) -> bool {
         let has_character = self
             .account
             .session
             .selected_index
             .and_then(|index| self.account.session.characters.get(index))
             .is_some();
-        let waiting = has_character && !self.character_preview.is_ready();
-        if waiting {
+        has_character && !self.character_preview.is_ready()
+    }
+
+    fn sync_character_select_reveal(&mut self, delta: f32) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::CharacterSelect {
+            return Ok(());
+        }
+        if self.character_scene_waiting() {
             self.attach_loading_ui()?;
             self.set_account_ui_visibility(SessionScreen::Loading);
             self.loading_ui
