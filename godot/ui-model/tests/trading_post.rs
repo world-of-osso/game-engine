@@ -351,7 +351,7 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
         ] {
             let frame = pending.get(pending.get_by_name(name).unwrap()).unwrap();
             assert!(
-                matches!(&frame.widget_data,Some(WidgetData::Button(button)) if !button.enabled)
+                matches!(&frame.widget_data,Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
             );
         }
         assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
