@@ -21,7 +21,7 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - `godot/ui-model/src/guild_communities.rs`: Communities portrait and shell.
 - `godot/ui-model/src/guild_tabards.rs`: palette loading, five-variation drafts and pending authority.
 - `godot/ui-model/src/guild_tabard_frame.rs`: exact TabardFrame XML art/anchors and source button postsetup.
-- Current RSX macro truncates bare float literals (`ui-toolkit-macros/src/lib.rs:364–371`). Fractional authored attributes use the supported expression form until the lead-owned macro fix lands; no source values are rounded.
+- Fractional authored attributes are preserved. Shared macro fix `645c0b8` on `fix-rsx-fractional-literals` removes literal truncation; lead gates it with this engine branch.
 - `godot/network/src/replica/codec.rs`: authoritative design component decoding.
 - `godot/rust/src/guild_tabards.rs`: vendor lifecycle, pending requests, player draft viewport and held-button rotation.
 - `godot/rust/src/account.rs`, network bridge: typed GuildChannel requests and authoritative reply dispatch.
@@ -35,6 +35,8 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - `godot/tests/guild_no_design_portrait.gd`: native both-skin no-design texture/color/rectangle capture.
 - `godot/ui-model/tests/guild_tabards.rs`: source controls, draft isolation, leader gating and pending replies.
 - Native equipment `guild_tabard_body_layers` fixture: all three source tiers and unchanged ordinary tabards.
+- `godot/tests/guild_tabard_fidelity.gd`: physical controls, pending/failure/save/close boundaries, held rotation, production detached player models for all three tiers, masked Jondor portrait and designed Communities; replies simulated, not live network proof.
+- Shared wire `guild_tabard_character_selection_payload_retains_registered_design` and server `guild_tabard_roster_exposes_durable_design_without_changing_character_appearance`: character-selection design serialization and persisted roster projection.
 
 ## Known gaps (current cycle)
 
