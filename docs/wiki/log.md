@@ -1,3 +1,7 @@
+## 2026-10-13 — Ribbon round-2 bindings and saved material rasters
+
+[Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): real1865728 enabled UV lookup/global-sequence translation reproduces unsupported-transform RED and passes per-pass lookup sampling. Native shader sampling moves a synthetic red/green texture from green at0ms to red at633ms using those real tracks. Rows2/cols1/slot1 reproduces vertical-half RED and now selects the reference horizontal half; scoped core6/6 pass. Alpha/priority PNGs and revisioned sanitized receipts are present in `/syncthing/AgentShared/2026-10-13/toy-ribbons/`; earlier console-only proof did not provide those artifacts. Broader natural-expiry/delivery failures remain open.
+
 ## 2026-10-13 — Source ribbon semantic counterexamples
 
 [Bauble boundary](systems/toy-box.md#prismatic-bauble-rendering-boundary-2026-10-13): rate/lifetime, long-frame movement and animated tiles reproduce3RED→5GREEN. Native production material raster reproduces blend0 opaque and ignored priority, then passes alpha-red0.5333/farther high-priority green. Current moving source trail passes Modern2359/Forever1805 pixels, four bands each; requested PNGs published. Initial catalog/delivery failures and Forever natural-removal gate remain open.
