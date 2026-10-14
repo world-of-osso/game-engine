@@ -1,3 +1,7 @@
+## 2026-10-14 — Journeys held arrows and native masks
+
+[Held-arrow proof](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14): sourced fractional scrolling and directional release;12/12 focused UI tests, both-skin physical hold/outside release/stop plus icon-mask pixels PASS at executablecb706aab3. Fourteen inspected original full-HD captures and hashed receipt. Cross-agent snapshot latency is timestamped separately; no retry/workaround. Claim/watch/overview backing and70391 metadata remain open.
+
 ## 2026-10-13 — Journeys unknown-unlock notice native proof
 
 [Notice proof](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): actual clipped-bounds RED corrected with source LockedStateFrame anchoring, centered16px text and authored cursor-right requirement tooltip. Both-skin native dee707137 PASS; UI10/10,12 revision-directory full-HD captures with hashed receipt. Unknown never becomes fabricated locked/unlocked; no extra renown grant or runtime remains.70391 presentation metadata publication remains separate pending scope.
