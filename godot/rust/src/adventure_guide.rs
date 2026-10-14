@@ -120,6 +120,9 @@ impl GameClient {
             section.body =
                 spells.render_external_text(&section.body, section.spell, &Default::default())?;
         }
+        self.adventure_guide.view.journey_presentation = Arc::new(
+            game_engine_core::adventure_guide::read_journey_presentation(&self.data_root)?,
+        );
         self.adventure_guide.view.catalog = Arc::new(catalog);
         self.adventure_guide.loaded = true;
         Ok(())
