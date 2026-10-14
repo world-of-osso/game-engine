@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 /// ExpectedStat `ExpansionID` whose rows apply to every expansion without its own row
 /// (DB2Manager::EvaluateExpectedStat).
-const DEFAULT_EXPANSION: &str = "-2";
+const DEFAULT_EXPANSION: i32 = -2;
 
 /// ExpectedStat `CreatureHealth` by `Lvl` from the default-expansion rows. The creature's
 /// `HealthScalingExpansion` is not replicated, so the other expansions' rows (levels 26-53
@@ -21,15 +21,12 @@ pub struct CreatureHealthByLevel(HashMap<u8, f32>);
 impl CreatureHealthByLevel {
     pub fn parse_expected_stat_csv(text: &str) -> Result<Self, String> {
         let mut lines = text.lines();
-        let header: Vec<&str> = lines
-            .next()
-            .ok_or("ExpectedStat.csv is empty")?
-            .split(',')
-            .collect();
+        let header =
+            crate::csv_util::parse_csv_line(lines.next().ok_or("ExpectedStat.csv is empty")?);
         let column = |name: &str| {
             header
                 .iter()
-                .position(|column| *column == name)
+                .position(|column| column == name)
                 .ok_or_else(|| format!("ExpectedStat.csv has no {name} column"))
         };
         let (expansion, health, level) = (
@@ -38,19 +35,16 @@ impl CreatureHealthByLevel {
             column("Lvl")?,
         );
         let mut by_level = HashMap::new();
-        for line in lines.filter(|line| !line.is_empty()) {
-            let fields: Vec<&str> = line.split(',').collect();
-            if fields.get(expansion) != Some(&DEFAULT_EXPANSION) {
-                continue;
+        for (line_number, line) in lines.enumerate() {
+            let fields = crate::csv_util::parse_csv_line(line);
+            let context = |error| format!("ExpectedStat.csv:{}: {error}", line_number + 2);
+            let expansion: i32 =
+                crate::csv_util::parse_field(&fields, expansion).map_err(context)?;
+            let level: u8 = crate::csv_util::parse_field(&fields, level).map_err(context)?;
+            let health: f32 = crate::csv_util::parse_field(&fields, health).map_err(context)?;
+            if expansion == DEFAULT_EXPANSION {
+                by_level.insert(level, health);
             }
-            let parse = |index: usize| fields.get(index).map(|field| field.trim());
-            let level: u8 = parse(level)
-                .and_then(|field| field.parse().ok())
-                .ok_or_else(|| format!("ExpectedStat.csv bad Lvl in {line}"))?;
-            let health: f32 = parse(health)
-                .and_then(|field| field.parse().ok())
-                .ok_or_else(|| format!("ExpectedStat.csv bad CreatureHealth in {line}"))?;
-            by_level.insert(level, health);
         }
         Ok(Self(by_level))
     }
@@ -93,5 +87,37 @@ mod tests {
         let table = CreatureHealthByLevel::parse_expected_stat_csv(CSV).unwrap();
         assert_eq!(table.health_multiplier(30, 30), 1.0);
         assert_eq!(table.health_multiplier(30, 55), 1.0);
+    }
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_expected_stat_rejects_invalid_expansion() {
+        let fixture = crate::db2_test_support::ExportFixture::copy(
+            "db2/active/ExpectedStat",
+            Some("ExpansionID"),
+        );
+        let error = CreatureHealthByLevel::parse_expected_stat_csv(
+            &std::fs::read_to_string(&fixture.0).unwrap(),
+        )
+        .unwrap_err();
+        assert!(error.contains("ExpectedStat.csv:2:"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_expected_stat_reads_installed_default_levels() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("db2/active/ExpectedStat", None);
+        let table = CreatureHealthByLevel::parse_expected_stat_csv(
+            &std::fs::read_to_string(&fixture.0).unwrap(),
+        )
+        .unwrap();
+        assert!(table.health_multiplier(30, 10) < 1.0);
+        assert!(table.health_multiplier(30, 10) > 0.0);
     }
 }
