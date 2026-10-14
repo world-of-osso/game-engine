@@ -24,7 +24,8 @@ func check_relog_details() -> bool:
 		return false
 	for step in range(24):
 		await click(scroll.get_global_rect().get_center(), MOUSE_BUTTON_WHEEL_DOWN, 1)
-	if not scroll.get_global_rect().intersects(money.get_global_rect()):
+	print("QUEST_RELOG_SCROLL_RECTS viewport=", scroll.get_global_rect(), " money=", money.get_global_rect())
+	if not scroll.get_global_rect().encloses(money.get_global_rect()):
 		fail("Fresh-login rewards are not reachable by native wheel scrolling")
 		return false
 	await capture("quest-relog-rewards-scrolled.png")
