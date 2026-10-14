@@ -36,7 +36,7 @@ func run_test() -> void:
 		if button==null or not button.disabled:
 			fail("Visitor precision control is not source-disabled: "+name)
 			return
-	for key: Key in [KEY_F9,KEY_F6,KEY_F11,KEY_F12,KEY_F5,KEY_F8,KEY_F7]:
+	for key: Key in [KEY_F9,KEY_F6,KEY_F11,KEY_F10,KEY_F5,KEY_F8,KEY_F7]:
 		await source_key(key)
 		await frames(10)
 		if client.housing_state().has("draft") or client.housing_state().pending or not unchanged_visitor(before):

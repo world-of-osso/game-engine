@@ -173,6 +173,35 @@ impl GameClient {
         Ok(true)
     }
 
+    pub(super) fn housing_key_input(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> Result<bool, String> {
+        let editor_open = self
+            .housing
+            .model
+            .as_ref()
+            .is_some_and(|model| model.surface == HousingSurface::Editor);
+        if self.housing_keyboard_blocked() || !editor_open || !event.is_class("InputEventKey") {
+            return Ok(false);
+        }
+        self.housing.expert_input.capture(event);
+        self.housing_bound_action(event)
+    }
+
+    fn housing_keyboard_blocked(&self) -> bool {
+        let overlay_owns_keyboard = self.game_menu_ui.is_some()
+            || self.hud_editor.draft.active
+            || self.chat.model.state.input_open
+            || self.launcher.view.open;
+        let storage_owns_keyboard = self
+            .housing
+            .model
+            .as_ref()
+            .is_some_and(|model| model.storage_search_focused);
+        overlay_owns_keyboard || storage_owns_keyboard
+    }
+
     fn housing_bound_action(
         &mut self,
         event: &Gd<godot::classes::InputEvent>,
@@ -305,7 +334,8 @@ impl GameClient {
             self.housing.expert_input.clear();
             return Ok(false);
         }
-        if self.housing_bound_action(event)? {
+        // Keyboard bindings already ran in the active context before global HUD shortcuts.
+        if !event.is_class("InputEventKey") && self.housing_bound_action(event)? {
             return Ok(true);
         }
         if self.housing_placed_list_pointer(event)? {
@@ -599,7 +629,11 @@ const EXPERT_INCREMENT_RATE: f32 = 0.5;
 impl GameClient {
     pub(super) fn advance_housing_precision(&mut self) -> Result<(), String> {
         use game_engine_ui_model::housing_editor::{EditorMode, PrecisionSubmode};
+        if self.housing_keyboard_blocked() {
+            self.housing.expert_input.clear();
+        }
         if self.game_menu_ui.is_some()
+            || self.hud_editor.draft.active
             || self
                 .housing
                 .model

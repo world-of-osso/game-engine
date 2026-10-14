@@ -4,7 +4,7 @@ extends "res://tests/housing_basic_bindings_live.gd"
 const EXPERT_BINDINGS: Array = [
 	["HOUSING_EXPERTDECORTRANSLATESUBMODE", KEY_F8],
 	["HOUSING_EXPERTDECORROTATESUBMODE", KEY_F9],
-	["HOUSING_EXPERTDECORSCALESUBMODE", KEY_F12],
+	["HOUSING_EXPERTDECORSCALESUBMODE", KEY_F10],
 	["HOUSING_EXPERTDECORINCREMENT_UP", KEY_F7],
 	["HOUSING_EXPERTDECORINCREMENT_SCALEUP", KEY_F5],
 	["HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT", KEY_F6],
@@ -70,6 +70,12 @@ func run_test() -> void:
 		return
 	await press_escape()
 	if not await record_editor("expert-source-unbound"): return
+	await press_escape()
+	if not await wait_housing(func(): return client.get_node_or_null("HousingDashboardUI")==null,"inactive housing Escape closes editor"): return
+	await source_key(KEY_F10)
+	if not await wait_housing(func(): return client.get_node_or_null("HudEditUI")!=null,"unbound F10 retains global HUD edit shortcut"): return
+	await source_key(KEY_F10)
+	if not await wait_housing(func(): return client.get_node_or_null("HudEditUI")==null,"global F10 closes HUD edit normally"): return
 	print("PASS: private5870 assigned Retail Expert held-release stage/cancel/click-commit/relog/conservation ",housing_skin)
 	client.free()
 	quit(0)
@@ -90,7 +96,7 @@ func stage_assigned_precision() -> bool:
 			return false
 		await source_key(KEY_F11)
 	if not await record_editor("expert-source-rotate"): return false
-	await source_key(KEY_F12)
+	await source_key(KEY_F10)
 	print("EXPERT_SCALE_DISPATCH state=",client.housing_state()," thumb=",housing_control("HouseEditorScaleThumb")," label=",housing_text("HouseEditorScaleUpInstructionText"))
 	if not await record_editor("expert-source-scale-dispatch"): return false
 	if not await wait_housing(func(): return housing_control("HouseEditorScaleThumb")!=null,"assigned Scale submode"): return false
