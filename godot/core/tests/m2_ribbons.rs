@@ -141,7 +141,7 @@ fn toyfx26_ribbon_long_frame_clamps_aging_to_lifetime() {
 }
 
 #[test]
-fn toyfx26_ribbon_animated_slot_updates_existing_strip_uvs() {
+fn toyfx26_ribbon_current_tile_uses_swapped_source_axes() {
     use game_engine_core::m2_ribbons::RibbonTrail;
     let mut source = source_ribbon();
     source.texture_rows = 2;
@@ -155,8 +155,15 @@ fn toyfx26_ribbon_animated_slot_updates_existing_strip_uvs() {
         trail
             .triangles(1.0)
             .iter()
-            .all(|vertex| vertex.uv[1] >= 0.5),
-        "all retained edges switch to the current tile"
+            .all(|vertex| vertex.uv[0] >= 0.5),
+        "authored rows2/cols1/slot1 selects horizontal half for all retained edges"
+    );
+    assert!(
+        trail
+            .triangles(1.0)
+            .iter()
+            .all(|vertex| vertex.uv[1] == 0.0 || vertex.uv[1] == 1.0),
+        "reference swaps authored tile axes, preserving full vertical span"
     );
 }
 

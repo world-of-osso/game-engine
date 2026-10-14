@@ -11,7 +11,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 
 ### Presentation and lifecycle
 - [x] Emit world-space trailing strips at source-normalized density (ceil) and lifetime (minimum0.25s), following animated bone and object scale. The first update warms one interval plus0.0001s; later long-frame delta clamps to lifetime while interpolating the complete movement segment.
-- [x] Current animated texture slot applies to every surviving edge. Preserve colour/alpha and material culling/depth/fog/light flags; source opaque ribbons alpha-blend, matching CRibbonEmitter.
+- [x] Current animated texture slot applies to every surviving edge. Tile axes follow M2Object's Initialize(textureCols, textureRows) call: authored rows2/cols1/slot1 selects the horizontal half, not the vertical half. Preserve colour/alpha and material culling/depth/fog/light flags; source opaque ribbons alpha-blend, matching CRibbonEmitter.
 - [x] Apply authored priority plane to native material draw ordering. Priorities outside Godot's-128..127 range fail explicitly; no clamping or substituted order.
 - [ ] Begin with the ordinary kit; end emission on kit end and remove remaining geometry after its natural tail. No orphan mesh after owner/kit removal.
 - [x] Prismatic Bauble1417024 produces a visible rainbow behind actual player movement in both skins. Loaded model metadata is not rendered acceptance; no body/health replacement or cooldown reset.

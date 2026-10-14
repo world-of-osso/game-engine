@@ -121,8 +121,9 @@ impl RibbonTrail {
             interval,
             lifetime: f64::from(emitter.edge_lifetime.max(0.25)),
             gravity: emitter.gravity,
-            rows: emitter.texture_rows,
-            cols: emitter.texture_cols,
+            // M2Object calls Initialize(textureCols, textureRows), in that order.
+            rows: emitter.texture_cols,
+            cols: emitter.texture_rows,
             clock: 0.0,
             next_edge: interval,
             slot: 0,
