@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn battleground_gunship_displays_name_their_authored_wmo_roots() {
         let text =
-            std::fs::read_to_string(data_root().join("db2/12.1.0.69933/GameObjectDisplayInfo.csv"))
+            std::fs::read_to_string(data_root().join("db2/active/GameObjectDisplayInfo.csv"))
                 .unwrap();
         let displays = parse_displays(&text).unwrap();
         // nd_alliancegunship_bg.wmo and nd_hordegunship_bg.wmo (community listfile).

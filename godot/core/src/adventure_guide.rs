@@ -141,11 +141,11 @@ impl Catalog {
     pub fn load(path: &Path) -> Result<Self, String> {
         let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|e| format!("{}: {e}", path.display()))?;
-        let build: String = db
-            .query_row("SELECT build FROM source LIMIT 1", [], |r| r.get(0))
-            .map_err(|e| e.to_string())?;
-        if build != "12.1.5.70391" {
-            return Err(format!("Adventure Guide unsupported build {build}"));
+        let builds = query(&db, "SELECT DISTINCT build FROM source", |row| {
+            row.get::<_, String>(0)
+        })?;
+        if builds.len() != 1 || builds[0].is_empty() {
+            return Err("Adventure Guide requires one declared source build".into());
         }
         let tiers = query(
             &db,

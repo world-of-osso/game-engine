@@ -179,8 +179,7 @@ fn local_catalog() -> &'static game_engine_core::spell_catalog::SpellCatalogData
 #[test]
 fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
     let catalog = local_catalog();
-    let data =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&data).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
@@ -350,8 +349,7 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
 #[test]
 fn trainer_recipe_uses_crafted_gear_quality_and_item_requirements() {
     let spells = local_catalog();
-    let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
     let recipe = recipes.get(12069).unwrap();
     let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
@@ -386,8 +384,7 @@ fn trainer_recipe_uses_crafted_gear_quality_and_item_requirements() {
 #[test]
 fn trainer_class_spell_that_creates_an_item_keeps_its_spell_tooltip() {
     let spells = local_catalog();
-    let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
     // Rogue SkillLine/category7: creating an item alone does not make this a profession recipe.
     let spell = spells.get(212205).unwrap();
@@ -409,8 +406,7 @@ fn trainer_class_spell_that_creates_an_item_keeps_its_spell_tooltip() {
 #[test]
 fn trainer_secondary_profession_recipe_keeps_item_and_reagents() {
     let spells = local_catalog();
-    let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
     let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
         spell_tooltip(spells.get(7751).unwrap(), &Default::default()),

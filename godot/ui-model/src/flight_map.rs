@@ -218,8 +218,8 @@ mod tests {
     fn flightmap_resolves_current_nodes_continent_not_its_zone() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let dir = [
-            root.join("data/db2/12.1.0.69933"),
-            root.join("../../data/db2/12.1.0.69933"),
+            root.join("data/db2/active"),
+            root.join("../../data/db2/active"),
         ]
         .into_iter()
         .find(|p| p.join("UiMapArtTile.csv").exists())

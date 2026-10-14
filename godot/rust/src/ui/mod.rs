@@ -13,6 +13,8 @@ mod buttonfit_preview;
 mod auction_preview;
 pub(crate) mod castbar_fx;
 mod castbar_preview;
+#[cfg(debug_assertions)]
+mod db2_atlas_preview;
 mod dungeon_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
@@ -3429,6 +3431,12 @@ mod modern_panel_snapshot_tests;
 mod skin_sync_tests;
 
 fn register_guild_panel_styles(registry: &mut FrameRegistry) -> Result<(), String> {
+    // CommunitiesFrame uses ButtonFrameTemplateMinimizable's portrait border;
+    // invitation/profile dialogs retain their source plain borders.
+    register_metal_frame_style(
+        registry,
+        game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+    )?;
     register_metal_frame_style(
         registry,
         game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,

@@ -154,7 +154,7 @@ pub(super) fn place_player_weapons(
 /// The build-pinned DB2 pose and gear rows, read once per process.
 fn gear(data_root: &Path) -> Result<&'static NpcGearData, String> {
     static GEAR: OnceLock<Result<NpcGearData, String>> = OnceLock::new();
-    GEAR.get_or_init(|| NpcGearData::load(&data_root.join("db2/12.1.0.69933")))
+    GEAR.get_or_init(|| NpcGearData::load(&data_root.join("db2/active")))
         .as_ref()
         .map_err(Clone::clone)
 }
