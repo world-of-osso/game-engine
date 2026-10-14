@@ -29,7 +29,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 
 ## Tests asserting this spec
 - `godot/core/tests/m2_ribbons.rs` — authenticated1417024 scalar/reference/track values and concrete fractional rate, minimum lifetime, long-frame movement and changing-tile regressions.
-- `godot/tests/m2_ribbon_material_pixels.gd` — production shader/mesh raster: source blend0 with0.25 alpha, farther high-priority green over nearer low-priority red, explicit out-of-range priority refusal.
+- `godot/tests/m2_ribbon_material_pixels.gd` — production shader/mesh raster: source blend0 with0.25 alpha, farther high-priority green over nearer low-priority red, explicit out-of-range priority refusal. `RIBBON_MATERIAL_OUTPUT` selects the required output directory; the fixture saves `native-ribbon-alpha.png`, `native-ribbon-priority.png`, and sanitized `material-raster-receipts.json` with pixels, inputs, dimensions and `RIBBON_MATERIAL_REVISION`.
 - `godot/tests/toy_effects26_rainbow_live.gd` — physical movement and rendered trailing rainbow pixels.
 - `godot/tests/toy_effects26_bauble_live.gd` — native aura/kit/recovery observations and natural removal.
 

@@ -1,11 +1,17 @@
 extends SceneTree
 # Synthetic material inputs; real production ribbon shader, mesh and draw ordering.
 var failed := false
+var receipts := []
+var output := OS.get_environment("RIBBON_MATERIAL_OUTPUT")
 
 func _initialize() -> void:
 	call_deferred("prove_materials")
 
 func prove_materials() -> void:
+	if output.is_empty() or DirAccess.make_dir_recursive_absolute(output) != OK:
+		push_error("Ribbon raster output directory unavailable")
+		quit(1)
+		return
 	var scene := Node3D.new()
 	root.add_child(scene)
 	var environment := WorldEnvironment.new()
@@ -25,6 +31,7 @@ func prove_materials() -> void:
 	assert_input(strip.add_strip(0, 0, Color(1.0, 0.0, 0.0, 0.25), 0.0))
 	await settle()
 	var alpha_pixel := center_pixel()
+	save_capture("alpha", alpha_pixel, [{"blend": 0, "priority": 0, "rgba": [1.0, 0.0, 0.0, 0.25], "depth": 0.0}])
 	if alpha_pixel.r >= 0.8 or alpha_pixel.r <= 0.1:
 		push_error("Opaque-source ribbon must alpha blend 0.25, got %s" % alpha_pixel)
 		failed = true
@@ -36,6 +43,7 @@ func prove_materials() -> void:
 	assert_input(strip.add_strip(2, 7, Color.GREEN, -0.3))
 	await settle()
 	var ordered_pixel := center_pixel()
+	save_capture("priority", ordered_pixel, [{"blend": 2, "priority": -3, "rgba": [1.0, 0.0, 0.0, 1.0], "depth": 0.3}, {"blend": 2, "priority": 7, "rgba": [0.0, 1.0, 0.0, 1.0], "depth": -0.3}])
 	if ordered_pixel.g < 0.9 or ordered_pixel.r > 0.1:
 		push_error("Higher authored priority must draw farther green over nearer red, got %s" % ordered_pixel)
 		failed = true
@@ -53,6 +61,21 @@ func settle() -> void:
 	for _frame in range(4):
 		await process_frame
 		await RenderingServer.frame_post_draw
+
+func save_capture(phase: String, pixel: Color, inputs: Array) -> void:
+	var image := root.get_texture().get_image()
+	var path := output.path_join("native-ribbon-%s.png" % phase)
+	if image.save_png(path) != OK:
+		push_error("Ribbon PNG save failed: %s" % path)
+		failed = true
+		return
+	receipts.append({"phase": phase, "image": path, "size": [image.get_width(), image.get_height()], "pixel": [pixel.r, pixel.g, pixel.b, pixel.a], "inputs": inputs, "revision": OS.get_environment("RIBBON_MATERIAL_REVISION"), "source": "production ribbon material, shader and mesh path; synthetic material inputs", "unix_time": Time.get_unix_time_from_system()})
+	var file := FileAccess.open(output.path_join("material-raster-receipts.json"), FileAccess.WRITE)
+	if file == null:
+		push_error("Ribbon raster receipts save failed")
+		failed = true
+		return
+	file.store_string(JSON.stringify(receipts, "\t"))
 
 func center_pixel() -> Color:
 	var image := root.get_texture().get_image()
