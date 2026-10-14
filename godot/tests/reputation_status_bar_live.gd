@@ -103,7 +103,12 @@ func run() -> void:
 	var xp := control("ExperienceBar")
 	var has_xp := xp != null and xp.is_visible_in_tree()
 	var offset := 17. if has_xp else 0.
-	if absf(bar.get_global_rect().end.y - (1080. - offset*scale)) > 1.:
+	if client.account_state().ui_skin == "Forever":
+		var first_top := xp.get_global_rect().position.y if has_xp else 6.*scale
+		if absf(bar.get_global_rect().position.y - (first_top + offset*scale)) > 1.:
+			fail("Reputation did not follow the approved top XP container offset")
+			return
+	elif absf(bar.get_global_rect().end.y - (1080. - offset*scale)) > 1.:
 		fail("Reputation did not occupy source main/secondary container")
 		return
 	await move(Vector2(5,5))

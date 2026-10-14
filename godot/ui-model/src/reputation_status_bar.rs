@@ -1,5 +1,6 @@
 //! Retail ReputationBar.lua/Overrides and StatusTrackingBarContainerTemplate.
 //! XP has priority4; reputation1 occupies container2, or container1 without XP.
+use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::quest_art::named_atlas_texture;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_flare::{
     flare_border_tinted, flare_layer,
@@ -38,23 +39,30 @@ pub fn reputation_bar_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
-    place_bar(state, watched, skin)
+    place_bar(state, watched, skin, hud_layout(ctx).xp_bar)
 }
 
 fn place_bar(
     state: &ReputationBarState,
     watched: &WatchedReputationSnapshot,
     skin: ActiveSkin,
+    mut anchor: HudAnchor,
 ) -> Element {
-    let bottom = if state.xp_visible {
-        SECONDARY_OFFSET
-    } else {
-        0.
-    };
+    // Retail containers differ by17px (Standard/EditModePresetLayoutConstants.lua:30).
+    // Approved Forever preset stacks down from its existing top XP anchor, not over action bars.
+    if state.xp_visible {
+        anchor.y += if skin == ActiveSkin::Modern {
+            SECONDARY_OFFSET
+        } else {
+            -SECONDARY_OFFSET
+        };
+    }
+    let at = anchor.place(CONTAINER);
     let mut parts = bar_parts(watched, skin);
     parts.extend(hover_text(watched, state.hovered));
     rsx! {r#frame {name:"ReputationStatusBar",width:{CONTAINER.0},height:{CONTAINER.1},
-        mouse_enabled:true,pos_type:"absolute",left:"50%",margin_left:{-CONTAINER.0/2.},bottom,
+        mouse_enabled:true,pos_type:"absolute",left:{at.left.as_str()},right:{at.right.as_str()},
+        top:{at.top.as_str()},bottom:{at.bottom.as_str()},margin_left:{at.margin_left},margin_top:{at.margin_top},
         {parts}
     }}
 }

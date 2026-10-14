@@ -68,17 +68,19 @@ fn reputation_bar_is_secondary_to_xp_and_promotes_after_xp_cap_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let secondary = render(skin, Some(watched()), true, false);
         assert_eq!(width(&secondary, "ReputationStatusBar"), 571.);
-        assert_eq!(
-            frame(&secondary, "ReputationStatusBar").position.bottom,
-            Val::Px(17.)
-        );
+        let bar = frame(&secondary, "ReputationStatusBar");
+        match skin {
+            ActiveSkin::Modern => assert_eq!(bar.position.bottom, Val::Px(17.)),
+            ActiveSkin::Forever => assert_eq!(bar.position.top, Val::Px(23.)),
+        }
         assert_eq!(width(&secondary, "ReputationStatusBarBackground"), 565.);
         assert_eq!(width(&secondary, "ReputationStatusBarFill"), 226.);
         let main = render(skin, Some(watched()), false, false);
-        assert_eq!(
-            frame(&main, "ReputationStatusBar").position.bottom,
-            Val::Px(0.)
-        );
+        let bar = frame(&main, "ReputationStatusBar");
+        match skin {
+            ActiveSkin::Modern => assert_eq!(bar.position.bottom, Val::Px(0.)),
+            ActiveSkin::Forever => assert_eq!(bar.position.top, Val::Px(6.)),
+        }
         assert_eq!(width(&main, "ReputationStatusBarFill"), 226.);
     }
 }
