@@ -859,10 +859,18 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
             unreachable!("shared button frame");
         };
         // PriceLayoutContainer: HorizontalLayout spacing8, width44+8+20, centered.
+        let price_text = row.price.to_string();
+        let price_width = ui_toolkit::text_measure::measure_text(
+            &price_text,
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            20.,
+        )
+        .expect("GameFontNormalHuge metrics")
+        .0;
         let mut price = label(
             "PerksProgramPurchasePrice".into(),
-            &row.price.to_string(),
-            (0., 0., 44., 20.),
+            &price_text,
+            (44. - price_width, 0., price_width, 20.),
             (20., WHITE, "RIGHT"),
         );
         price.extend(texture(
