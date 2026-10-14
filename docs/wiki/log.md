@@ -1,3 +1,7 @@
+## 2026-10-14 — Journeys input reconciliation and watch cues
+
+[Watch/input](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persistent boundary re-enabling and Home pointer-policy updates pass the complete physical fixture in both skins at exactabbd1b9b6 runtime;18 originals inspected. Later watch ON/OFF cues use authored856/857 gains and the existing567407 clip; core3/UI20/check/fmt pass, without optimistic checked state or a native playback claim. Lead-published faction icon sheets are linked read-only; current kit painting still awaits its window.
+
 ## 2026-10-14 — Journeys presentation source joins
 
 [Guide catalog](systems/adventure-guide.md#catalog-and-native-host): local active Covenant display rows join texture-kit prefixes and signed UI priorities. Realm authority and unknown classification/collection state are unchanged. UI integration/native icon proof remain pending; missing icon sheets are a separate publication dependency.
