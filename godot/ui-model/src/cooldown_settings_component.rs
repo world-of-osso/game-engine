@@ -26,6 +26,7 @@ pub struct CooldownSettingsView {
     pub portrait_fdid: u32,
     pub status: String,
     pub query: String,
+    pub search_focused: bool,
     pub menu: Option<u32>,
     pub menu_position: [f32; 2],
     pub dragging: Option<u32>,
@@ -34,6 +35,7 @@ pub struct CooldownSettingsView {
 
 /// CooldownViewerSettings.xml RevertButton inherits UIPanelButtonTemplate.
 pub fn apply_settings_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    apply_search_insets(registry);
     if ui_toolkit::atlas::thread_skin() != ui_toolkit::atlas::ActiveSkin::Modern {
         return;
     }
@@ -52,6 +54,58 @@ pub fn apply_settings_postsetup(registry: &mut ui_toolkit::registry::FrameRegist
     button.highlight_texture = None;
 }
 
+fn apply_search_insets(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    let Some(id) = registry.get_by_name(SEARCH) else {
+        return;
+    };
+    let Some(ui_toolkit::frame::WidgetData::EditBox(edit)) =
+        &mut registry.get_mut(id).expect("Search box").widget_data
+    else {
+        panic!("Settings search must be an EditBox");
+    };
+    edit.text_insets = [16.0, 20.0, 0.0, 0.0];
+}
+
+/// SearchBoxTemplate XML:206-254; GlobalStrings55224 supplies instructions.
+fn settings_search(state: &CooldownSettingsView) -> Element {
+    let mut children = edit_box(SEARCH, (72.0, 30.0, 184.0, 30.0));
+    children.extend(named_atlas_texture(
+        "CooldownSettingsSearchIcon".into(),
+        "common-search-magnifyingglass",
+        (73.0, 41.0, 10.0, 10.0),
+    ));
+    if state.query.is_empty() {
+        children.extend(label(
+            "CooldownSettingsSearchInstructions".into(),
+            "Enter search text",
+            (88.0, 30.0, 148.0, 30.0),
+            (12.0, "0.35,0.35,0.35,1.0", "LEFT"),
+        ));
+    }
+    if state.search_focused || !state.query.is_empty() {
+        let icon = named_atlas_texture(
+            "CooldownSettingsSearchClearIcon".into(),
+            "common-search-clearbutton",
+            (3.0, 3.0, 10.0, 10.0),
+        );
+        children.extend(rsx! { button { name:"CooldownSettingsSearchClearButton", width:17.0,height:17.0,
+            left:236.0,top:"36.5",pos_type:"absolute",button_default_skin:false,onclick:"cooldown_search_clear",{icon}
+        }});
+    }
+    // Retail settings-menu options have no backing unlearned/reset state yet.
+    let icon = centered_art(
+        "CooldownSettingsOptionsIcon".into(),
+        "questlog-icon-setting",
+        [7.5, 8.0],
+    );
+    children.extend(
+        rsx! { button { name:"CooldownSettingsSettingsDropdown",width:15.0,height:16.0,
+            left:261.0,top:37.0,pos_type:"absolute",button_default_skin:false,disabled:true,{icon}
+        }},
+    );
+    children
+}
+
 pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Element {
     if !state.open {
         return Vec::new();
@@ -67,7 +121,7 @@ pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Elem
         state.portrait_fdid,
     ));
     children.extend(category_tabs(state));
-    children.extend(edit_box(SEARCH, (72.0, 30.0, 184.0, 30.0)));
+    children.extend(settings_search(state));
     children.extend(category_scroll(ctx, state));
     children.extend(item_menu(state));
     children.extend(settings_footer(state));
