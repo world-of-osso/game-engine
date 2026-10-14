@@ -118,9 +118,7 @@ fn reputation_bar_uses_blue_renown_and_reaction_colored_retail_atlases() {
     let Some(WidgetData::Texture(fill)) = &frame(&r, "ReputationStatusBarFill").widget_data else {
         panic!("texture")
     };
-    assert!(
-        matches!(&fill.source,TextureSource::Atlas(name) if name=="UI-HUD-ExperienceBar-Fill-Reputation-Faction-Blue")
-    );
+    assert_source_crop(fill, "UI-HUD-ExperienceBar-Fill-Reputation-Faction-Blue");
     let mut standard = watched();
     standard.is_major_faction = false;
     standard.reaction = Standing::Hostile;
@@ -129,7 +127,17 @@ fn reputation_bar_uses_blue_renown_and_reaction_colored_retail_atlases() {
     let Some(WidgetData::Texture(fill)) = &frame(&r, "ReputationStatusBarFill").widget_data else {
         panic!("texture")
     };
-    assert!(
-        matches!(&fill.source,TextureSource::Atlas(name) if name=="UI-HUD-ExperienceBar-Fill-Reputation-Faction-Red")
+    assert_source_crop(fill, "UI-HUD-ExperienceBar-Fill-Reputation-Faction-Red");
+}
+
+fn assert_source_crop(fill: &ui_toolkit::widgets::texture::TextureData, atlas: &str) {
+    let region = ui_toolkit::atlas::resolve_region(atlas, ActiveSkin::Modern).expect(atlas);
+    let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("DB2 sheet")
+    };
+    assert_eq!(fill.source, TextureSource::FileDataId(fdid));
+    assert_eq!(
+        fill.tex_coords,
+        [region.left, region.right, region.top, region.bottom]
     );
 }
