@@ -39,6 +39,7 @@ fn arcane_mage() -> SpellTextContext {
         caster_power: Some(CasterPower {
             spell_power: 66.0,
             attack_power: 0.0,
+            ranged_attack_power: 0.0,
         }),
         ..SpellTextContext::default()
     }
@@ -112,6 +113,7 @@ fn attack_power_token_reads_the_replicated_attack_power() {
         caster_power: Some(CasterPower {
             spell_power: 0.0,
             attack_power: 250.0,
+            ranged_attack_power: 900.0,
         }),
         ..SpellTextContext::default()
     };
@@ -134,4 +136,34 @@ fn specializations_carry_their_chr_specialization_primary_stat() {
     assert_eq!(primary(268), PrimaryStat::Agility);
     assert_eq!(primary(65), PrimaryStat::Intellect);
     assert_eq!(primary(1451), PrimaryStat::Strength);
+}
+
+#[test]
+fn ranged_spell_tooltip_uses_ranged_power_without_changing_melee_or_ap_tokens() {
+    let ctx = SpellTextContext {
+        caster_power: Some(CasterPower {
+            spell_power: 0.0,
+            attack_power: 100.0,
+            ranged_attack_power: 1000.0,
+        }),
+        ..SpellTextContext::default()
+    };
+    let data = catalog();
+    // Native base-difficulty rows: Aimed Shot19434 DefenseType3,9.72AP;
+    // Slam1464 DefenseType2,3.03484988AP. Distinct inputs expose substitution.
+    let ranged = data.render_description(19434, &ctx).unwrap();
+    assert_eq!(
+        ranged,
+        "A powerful aimed shot that deals 9720 Physical damage."
+    );
+    let melee = data.render_description(1464, &ctx).unwrap();
+    assert!(
+        melee.starts_with("Slams an opponent, causing 303 Physical damage."),
+        "{melee}"
+    );
+    let explicit_ap = data.render_description(NECROTIC_STRIKE, &ctx).unwrap();
+    assert!(
+        explicit_ap.contains("absorbs the next 100 healing"),
+        "{explicit_ap}"
+    );
 }

@@ -482,6 +482,7 @@ impl GameClient {
         Some(CasterPower {
             spell_power: derived.spell_power,
             attack_power: derived.attack_power,
+            ranged_attack_power: derived.ranged_attack_power,
         })
     }
 

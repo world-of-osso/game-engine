@@ -236,6 +236,7 @@ pub struct SpellTextContext {
 pub struct CasterPower {
     pub spell_power: f32,
     pub attack_power: f32,
+    pub ranged_attack_power: f32,
 }
 
 pub struct SpellCatalogPaths {
