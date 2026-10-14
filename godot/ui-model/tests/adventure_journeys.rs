@@ -175,6 +175,18 @@ fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
                 .get_by_name("JourneyCard12WatchCheckboxCheck")
                 .is_none()
         );
+        let mut refused = snapshot();
+        refused.factions[0].unlock = RenownUnlock::Ungated;
+        refused.watched_faction = Some(2503);
+        refused.watch_error = Some("Watched faction write refused.".into());
+        view.renown = Some(Arc::new(refused));
+        let registry = render_skin(&view, skin);
+        assert!(registry.get_by_name("JourneyCard12WatchCheckbox").is_some());
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_some()
+        );
         view.journeys.hovered = None;
         assert!(
             render_skin(&view, skin)

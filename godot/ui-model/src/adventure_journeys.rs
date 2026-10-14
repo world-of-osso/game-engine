@@ -303,7 +303,7 @@ fn watch_toggle(
     snapshot: &RenownSnapshot,
 ) -> Element {
     let eligible = matches!(faction.unlock, RenownUnlock::Ungated);
-    if !eligible || state.hovered != Some(faction.id) || snapshot.watch_error.is_some() {
+    if !eligible || state.hovered != Some(faction.id) {
         return Vec::new();
     }
     let name = format!("JourneyCard{}Watch", faction.id);
