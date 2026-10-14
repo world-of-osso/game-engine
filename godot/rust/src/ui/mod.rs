@@ -3417,6 +3417,12 @@ mod modern_panel_snapshot_tests;
 mod skin_sync_tests;
 
 fn register_guild_panel_styles(registry: &mut FrameRegistry) -> Result<(), String> {
+    // CommunitiesFrame uses ButtonFrameTemplateMinimizable's portrait border;
+    // invitation/profile dialogs retain their source plain borders.
+    register_metal_frame_style(
+        registry,
+        game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+    )?;
     register_metal_frame_style(
         registry,
         game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
