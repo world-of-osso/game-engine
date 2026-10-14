@@ -2,6 +2,13 @@
 
 [Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal15, dispatch1 and server battle17 focused tests GREEN; native payload captures pending.
 
+## 2026-10-13 — Adventure Guide independent-gate corrections
+
+[Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Final shared context shell/row geometry, RGB0.35 instructions and hidden Loot title pass Guide41/shared6 tests and both-skin24 full-HD capture at7d99b7225. Code/binary/PNG receipt and source XML inspection are recorded; extra tooltip-font and inherited Options-wheel test failures remain explicit.
+
+## 2026-10-13 — Retail Adventure Guide frame layout
+
+[Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
 ## 2026-10-13 — Collections filters, source cameras and eight-frame capture
 
 [Journal source slice](systems/battle-pets.md#journal-filters-and-authored-scenes--2026-10-13): shared Retail filters/search,40 authored DB2 pet scenes, source normalization/camera transforms and scoped tests. Eight inspected1920×1080 offline frames fix scaled audit clipping; empty journals do not prove owned-model camera appearance. ModelScene default FOV unsourced; existing projection retained. Health/ability payload and persistence decision remain open.

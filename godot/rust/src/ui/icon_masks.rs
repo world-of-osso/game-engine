@@ -135,6 +135,8 @@ fn is_round_icon(name: &str) -> bool {
                 | "ProfessionsPortrait"
                 | "CooldownSettingsPortrait"
                 | "ProfessionsOutputIcon"
+                | "EncounterJournalPortrait"
+                | "EncounterJournalInstanceButtonIcon"
         );
     let talent = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
     creation || bag || portrait || talent
