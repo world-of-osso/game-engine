@@ -52,12 +52,12 @@ textures/982938.blp
 # Real legacy MWMO/MODF name-index regression, already extracted from local CASC.
 terrain/952203.wdt
 # Retail cooldown categories and assisted rotation: local CASC exact-layout exports.
-db2/12.1.0.69933/CooldownSet.csv
-db2/12.1.0.69933/CooldownSetSpell.csv
-db2/12.1.0.69933/CooldownSetLinkedSpell.csv
-db2/12.1.0.69933/AssistedCombat.csv
-db2/12.1.0.69933/AssistedCombatStep.csv
-db2/12.1.0.69933/AssistedCombatRule.csv
+db2/active/CooldownSet.csv
+db2/active/CooldownSetSpell.csv
+db2/active/CooldownSetLinkedSpell.csv
+db2/active/AssistedCombat.csv
+db2/active/AssistedCombatStep.csv
+db2/active/AssistedCombatRule.csv
 # Mythic Mentor: authentic local Azure dungeon art and addon leader crown.
 textures/4880614.blp
 textures/132062.blp
@@ -79,10 +79,10 @@ products/wow/dcfc90fffd79ba00406ae46f5f657592/models/19257300.skin
 products/wow/dcfc90fffd79ba00406ae46f5f657592/models/165622.m2
 products/wow/dcfc90fffd79ba00406ae46f5f657592/models/16562200.skin
 # Local battle-pet icon lookup contains quoted multiline source/description fields.
-db2/12.1.0.69933/BattlePetSpecies.csv
+db2/active/BattlePetSpecies.csv
 # Passenger seats and Retail leave-button art, exported/extracted from local CASC.
-db2/12.1.0.69933/Vehicle.csv
-db2/12.1.0.69933/VehicleSeat.csv
+db2/active/Vehicle.csv
+db2/active/VehicleSeat.csv
 textures/237700.blp
 textures/237699.blp
 # Local Retail aura312 tables (FDIDs1284817/1301100), not committed in data/.
@@ -97,8 +97,8 @@ textures/311226.blp
 # Tests needing files absent here fail remotely with their own missing-path error.
 
 # Shared tooltip scaling: Retail squish and local CASC FDIDs 1391670, 1980632, 1391643.
-db2/12.1.0.69933/ItemSquishEra.csv
-db2/12.1.0.69933/CurvePoint.csv
+db2/active/ItemSquishEra.csv
+db2/active/CurvePoint.csv
 gametables/combatratingsmultbyilvl.txt
 gametables/staminamultbyilvl.txt
 gametables/itemsocketcostperlevel.txt
@@ -111,7 +111,7 @@ textures/7199025.blp
 
 # Native meeting-stone summon zone names use the minimap catalog (ChrRaces below).
 AreaTable.csv
-db2/12.1.0.69933/Vignette.csv
+db2/active/Vignette.csv
 
 # Authored equipment per-model replaceable textures, extracted from local CASC 4050937.
 ItemDisplayInfoModelMatRes.csv
@@ -299,21 +299,22 @@ Light.csv
 LightData.csv
 ZoneLight.csv
 ZoneLightPoint.csv
-db2/12.1.0.69933/LightParams.csv
+db2/active/LightParams.csv
 cache/customization-v4.sqlite
 cache/char_texture-v2.sqlite
-db2/12.1.0.69933/ChrRaceXChrModel.csv
-db2/12.1.0.69933/ChrRaces.csv
-db2/12.1.0.69933/ChrCustomizationReq.csv
-db2/12.1.0.69933/ChrCustomizationReqChoice.csv
+db2/active/ChrRaceXChrModel.csv
+db2/active/ChrRaces.csv
+db2/active/ChrCustomizationReq.csv
+db2/active/ChrCustomizationReqChoice.csv
 WarbandScene.csv
 WarbandScenePlacement.csv
 WarbandScenePlacementOption.csv
 textures/6375814.blp
-db2/12.1.0.69933/UiTextureKit.csv
-db2/12.1.0.69933/UiTextureAtlasElement.csv
-db2/12.1.0.69933/UiTextureAtlas.csv
-db2/12.1.0.69933/UiTextureAtlasMember.csv
+db2/active/UiTextureKit.csv
+db2/active/UiTextureAtlasElement.csv
+db2/active/UiTextureAtlas.csv
+db2/active/UiTextureAtlasMember.csv
+db2/active/receipt.json
 db2/1.60.1.69913/UiTextureAtlas.csv
 db2/1.60.1.69913/UiTextureAtlasElement.csv
 db2/1.60.1.69913/UiTextureAtlasMember.csv
@@ -329,28 +330,28 @@ textures/4691255.blp
 textures/4708813.blp
 
 # game-engine-core tests/spell_catalog.rs
-db2/12.1.0.69933/SpellName.csv
-db2/12.1.0.69933/Spell.csv
-db2/12.1.0.69933/SpellMisc.csv
-db2/12.1.0.69933/SpellEffect.csv
-db2/12.1.0.69933/SpellPower.csv
-db2/12.1.0.69933/SpellCastTimes.csv
-db2/12.1.0.69933/SpellRange.csv
-db2/12.1.0.69933/SpellDuration.csv
-db2/12.1.0.69933/SpellRadius.csv
-db2/12.1.0.69933/SpellCooldowns.csv
-db2/12.1.0.69933/SpellCategories.csv
-db2/12.1.0.69933/SpellCategory.csv
-db2/12.1.0.69933/SpellAuraOptions.csv
-db2/12.1.0.69933/SpellShapeshiftForm.csv
-db2/12.1.0.69933/SpellDescriptionVariables.csv
-db2/12.1.0.69933/SpellXDescriptionVariables.csv
-db2/12.1.0.69933/SpellLevels.csv
-db2/12.1.0.69933/ChrClasses.csv
-db2/12.1.0.69933/ChrSpecialization.csv
-db2/12.1.0.69933/SpecializationSpells.csv
-db2/12.1.0.69933/SkillLine.csv
-db2/12.1.0.69933/SkillLineAbility.csv
+db2/active/SpellName.csv
+db2/active/Spell.csv
+db2/active/SpellMisc.csv
+db2/active/SpellEffect.csv
+db2/active/SpellPower.csv
+db2/active/SpellCastTimes.csv
+db2/active/SpellRange.csv
+db2/active/SpellDuration.csv
+db2/active/SpellRadius.csv
+db2/active/SpellCooldowns.csv
+db2/active/SpellCategories.csv
+db2/active/SpellCategory.csv
+db2/active/SpellAuraOptions.csv
+db2/active/SpellShapeshiftForm.csv
+db2/active/SpellDescriptionVariables.csv
+db2/active/SpellXDescriptionVariables.csv
+db2/active/SpellLevels.csv
+db2/active/ChrClasses.csv
+db2/active/ChrSpecialization.csv
+db2/active/SpecializationSpells.csv
+db2/active/SkillLine.csv
+db2/active/SkillLineAbility.csv
 
 # Forever product-isolated liquid materials.
 db2/1.60.1.70205/LiquidType.csv
@@ -359,10 +360,10 @@ db2/1.60.1.70205/LiquidMaterial.csv
 db2/1.60.1.70205/LiquidTypeXTexture.csv
 
 # game-engine-core tests/liquid_water.rs
-db2/12.1.0.69933/LiquidType.csv
-db2/12.1.0.69933/LiquidObject.csv
-db2/12.1.0.69933/LiquidMaterial.csv
-db2/12.1.0.69933/LiquidTypeXTexture.csv
+db2/active/LiquidType.csv
+db2/active/LiquidObject.csv
+db2/active/LiquidMaterial.csv
+db2/active/LiquidTypeXTexture.csv
 terrain/778417.adt
 terrain/5493433.adt
 terrain/5493438.adt
@@ -400,40 +401,40 @@ textures/3893149.blp
 terrain/1422588.adt
 
 # game-engine-core tests/spell_visual.rs
-db2/12.1.0.69933/SpellXSpellVisual.csv
-db2/12.1.0.69933/SpellVisual.csv
-db2/12.1.0.69933/SpellVisualEvent.csv
-db2/12.1.0.69933/SpellVisualKitEffect.csv
-db2/12.1.0.69933/SpellVisualKitModelAttach.csv
-db2/12.1.0.69933/SpellVisualEffectName.csv
-db2/12.1.0.69933/SpellVisualAnim.csv
-db2/12.1.0.69933/SpellVisualMissile.csv
-db2/12.1.0.69933/AnimKitSegment.csv
-db2/12.1.0.69933/PlayerCondition.csv
-db2/12.1.0.69933/ModifierTree.csv
+db2/active/SpellXSpellVisual.csv
+db2/active/SpellVisual.csv
+db2/active/SpellVisualEvent.csv
+db2/active/SpellVisualKitEffect.csv
+db2/active/SpellVisualKitModelAttach.csv
+db2/active/SpellVisualEffectName.csv
+db2/active/SpellVisualAnim.csv
+db2/active/SpellVisualMissile.csv
+db2/active/AnimKitSegment.csv
+db2/active/PlayerCondition.csv
+db2/active/ModifierTree.csv
 textures/6992992.blp
-db2/12.1.0.69933/AnimationData.csv
-db2/12.1.0.69933/SoundKit.csv
-db2/12.1.0.69933/SoundKitEntry.csv
-db2/12.1.0.69933/CreatureSoundData.csv
-db2/12.1.0.69933/CreatureDisplayInfo.csv
-db2/12.1.0.69933/CreatureModelData.csv
-db2/12.1.0.69933/ChrModel.csv
+db2/active/AnimationData.csv
+db2/active/SoundKit.csv
+db2/active/SoundKitEntry.csv
+db2/active/CreatureSoundData.csv
+db2/active/CreatureDisplayInfo.csv
+db2/active/CreatureModelData.csv
+db2/active/ChrModel.csv
 
 # game-engine-core --lib
 # customization_cache / char_texture_cache importers: their DB2 CSV sources
-db2/12.1.0.69933/ChrCustomizationOption.csv
-db2/12.1.0.69933/ChrCustomizationChoice.csv
-db2/12.1.0.69933/ChrCustomizationElement.csv
-db2/12.1.0.69933/ChrCustomizationMaterial.csv
-db2/12.1.0.69933/ChrCustomizationGeoset.csv
-db2/12.1.0.69933/CharHairGeosets.csv
-db2/12.1.0.69933/ChrCustomizationCategory.csv
-db2/12.1.0.69933/ChrCustomizationSkinnedModel.csv
-db2/12.1.0.69933/ChrModelTextureLayer.csv
-db2/12.1.0.69933/CharComponentTextureSections.csv
-db2/12.1.0.69933/CharComponentTextureLayouts.csv
-db2/12.1.0.69933/ChrModelMaterial.csv
+db2/active/ChrCustomizationOption.csv
+db2/active/ChrCustomizationChoice.csv
+db2/active/ChrCustomizationElement.csv
+db2/active/ChrCustomizationMaterial.csv
+db2/active/ChrCustomizationGeoset.csv
+db2/active/CharHairGeosets.csv
+db2/active/ChrCustomizationCategory.csv
+db2/active/ChrCustomizationSkinnedModel.csv
+db2/active/ChrModelTextureLayer.csv
+db2/active/CharComponentTextureSections.csv
+db2/active/CharComponentTextureLayouts.csv
+db2/active/ChrModelMaterial.csv
 textures/464811.blp
 textures/1886758.blp
 textures/2022306.blp
@@ -454,8 +455,8 @@ ItemDisplayInfo.csv
 TextureFileData.csv
 ItemDisplayInfoMaterialRes.csv
 ModelFileData.csv
-db2/12.1.0.69933/ComponentTextureFileData.csv
-db2/12.1.0.69933/ComponentModelFileData.csv
+db2/active/ComponentTextureFileData.csv
+db2/active/ComponentModelFileData.csv
 models/skyboxes/11xp_cloudsky01.m2
 models/322057.wmo
 models/623712.m2
@@ -469,47 +470,47 @@ models/1028937.m2
 models/2904370.m2
 
 # game-engine-ui-model
-db2/12.1.0.69933/Item.csv
-db2/12.1.0.69933/ItemSparse.csv
-db2/12.1.0.69933/ItemSubClass.csv
+db2/active/Item.csv
+db2/active/ItemSparse.csv
+db2/active/ItemSubClass.csv
 # game-engine-ui-model item_stats / game_tooltip: armor, damage, stat and faction tables
-db2/12.1.0.69933/ItemArmorQuality.csv
-db2/12.1.0.69933/ItemArmorTotal.csv
-db2/12.1.0.69933/ArmorLocation.csv
-db2/12.1.0.69933/ItemArmorShield.csv
-db2/12.1.0.69933/ItemDamageOneHand.csv
-db2/12.1.0.69933/ItemDamageOneHandCaster.csv
-db2/12.1.0.69933/ItemDamageTwoHand.csv
-db2/12.1.0.69933/ItemDamageTwoHandCaster.csv
-db2/12.1.0.69933/RandPropPoints.csv
-db2/12.1.0.69933/Faction.csv
-db2/12.1.0.69933/JournalInstanceEntrance.csv
-db2/12.1.0.69933/JournalInstance.csv
-db2/12.1.0.69933/Map.csv
-db2/12.1.0.69933/MapDifficulty.csv
-db2/12.1.0.69933/DungeonEncounter.csv
-db2/12.1.0.69933/Difficulty.csv
+db2/active/ItemArmorQuality.csv
+db2/active/ItemArmorTotal.csv
+db2/active/ArmorLocation.csv
+db2/active/ItemArmorShield.csv
+db2/active/ItemDamageOneHand.csv
+db2/active/ItemDamageOneHandCaster.csv
+db2/active/ItemDamageTwoHand.csv
+db2/active/ItemDamageTwoHandCaster.csv
+db2/active/RandPropPoints.csv
+db2/active/Faction.csv
+db2/active/JournalInstanceEntrance.csv
+db2/active/JournalInstance.csv
+db2/active/Map.csv
+db2/active/MapDifficulty.csv
+db2/active/DungeonEncounter.csv
+db2/active/Difficulty.csv
 models/1139464.m2
 models/113946400.skin
-db2/12.1.0.69933/WeaponSwingSounds2.csv
-db2/12.1.0.69933/WeaponImpactSounds.csv
-db2/12.1.0.69933/Material.csv
-db2/12.1.0.69933/ItemDisplayInfo.csv
-db2/12.1.0.69933/UiMap.csv
-db2/12.1.0.69933/UiMapAssignment.csv
-db2/12.1.0.69933/UiMapXMapArt.csv
-db2/12.1.0.69933/UiMapArt.csv
-db2/12.1.0.69933/UiMapArtStyleLayer.csv
-db2/12.1.0.69933/UiMapArtTile.csv
-db2/12.1.0.69933/TaxiNodes.csv
+db2/active/WeaponSwingSounds2.csv
+db2/active/WeaponImpactSounds.csv
+db2/active/Material.csv
+db2/active/ItemDisplayInfo.csv
+db2/active/UiMap.csv
+db2/active/UiMapAssignment.csv
+db2/active/UiMapXMapArt.csv
+db2/active/UiMapArt.csv
+db2/active/UiMapArtStyleLayer.csv
+db2/active/UiMapArtTile.csv
+db2/active/TaxiNodes.csv
 
 # game-engine-godot --lib: every data/ file its tests open, traced (strace openat) from a
 # Depot-built test binary run locally; a run with only these files and no CASC passes.
 # local-listfile-cache.sqlite answers resolver lookups; community-listfile.csv is read by
 # the outfit model-path tests (and makes the resolver build its cache remotely).
-db2/12.1.0.69933/Emotes.csv
-db2/12.1.0.69933/FactionTemplate.csv
-db2/12.1.0.69933/NPCModelItemSlotDisplayInfo.csv
+db2/active/Emotes.csv
+db2/active/FactionTemplate.csv
+db2/active/NPCModelItemSlotDisplayInfo.csv
 dbfilesclient/1284822.db2
 dbfilesclient/1308499.db2
 local-listfile-cache.sqlite
@@ -2228,10 +2229,10 @@ models/18995800.skin
 models/197012.m2
 models/19701200.skin
 # ground_detail: retail GroundEffectTexture / GroundEffectDoodad exports.
-db2/12.1.0.69933/GroundEffectTexture.csv
-db2/12.1.0.69933/GroundEffectDoodad.csv
+db2/active/GroundEffectTexture.csv
+db2/active/GroundEffectDoodad.csv
 # LightingCatalog: LightParams.LightSkyboxID rows.
-db2/12.1.0.69933/LightSkybox.csv
+db2/active/LightSkybox.csv
 # horizon: Azeroth WDL.
 terrain/775970.wdl
 
@@ -2345,40 +2346,40 @@ textures/7734306.blp
 textures/7743357.blp
 
 # Trainer tooltips reuse existing professions recipe metadata.
-db2/12.1.0.69933/SpellReagents.csv
-db2/12.1.0.69933/TradeSkillCategory.csv
-db2/12.1.0.69933/CraftingQuality.csv
-db2/12.1.0.69933/CraftingQualityAtlasSet.csv
+db2/active/SpellReagents.csv
+db2/active/TradeSkillCategory.csv
+db2/active/CraftingQuality.csv
+db2/active/CraftingQualityAtlasSet.csv
 dbfilesclient/4373538.db2
 dbfilesclient/7012110.db2
 dbfilesclient/4545612.db2
 textures/7487371.blp
 
 # Read-only Talents: real Mage Arcane DB2 fixture.
-db2/12.1.0.69933/TraitTree.csv
-db2/12.1.0.69933/TraitNode.csv
-db2/12.1.0.69933/TraitNodeEntry.csv
-db2/12.1.0.69933/TraitDefinition.csv
-db2/12.1.0.69933/TraitEdge.csv
-db2/12.1.0.69933/TraitNodeGroup.csv
-db2/12.1.0.69933/TraitNodeGroupXTraitNode.csv
-db2/12.1.0.69933/TraitNodeGroupXTraitCond.csv
-db2/12.1.0.69933/TraitNodeGroupXTraitCost.csv
-db2/12.1.0.69933/TraitCond.csv
-db2/12.1.0.69933/TraitSubTree.csv
-db2/12.1.0.69933/SkillLineXTraitTree.csv
-db2/12.1.0.69933/TraitTreeLoadout.csv
-db2/12.1.0.69933/TraitTreeLoadoutEntry.csv
-db2/12.1.0.69933/TraitNodeXTraitNodeEntry.csv
-db2/12.1.0.69933/TraitNodeXTraitCond.csv
-db2/12.1.0.69933/TraitNodeEntryXTraitCond.csv
-db2/12.1.0.69933/TraitCost.csv
-db2/12.1.0.69933/TraitNodeXTraitCost.csv
-db2/12.1.0.69933/TraitNodeEntryXTraitCost.csv
-db2/12.1.0.69933/TraitCurrency.csv
-db2/12.1.0.69933/TraitCurrencySource.csv
-db2/12.1.0.69933/TraitTreeXTraitCurrency.csv
-db2/12.1.0.69933/SpecSetMember.csv
+db2/active/TraitTree.csv
+db2/active/TraitNode.csv
+db2/active/TraitNodeEntry.csv
+db2/active/TraitDefinition.csv
+db2/active/TraitEdge.csv
+db2/active/TraitNodeGroup.csv
+db2/active/TraitNodeGroupXTraitNode.csv
+db2/active/TraitNodeGroupXTraitCond.csv
+db2/active/TraitNodeGroupXTraitCost.csv
+db2/active/TraitCond.csv
+db2/active/TraitSubTree.csv
+db2/active/SkillLineXTraitTree.csv
+db2/active/TraitTreeLoadout.csv
+db2/active/TraitTreeLoadoutEntry.csv
+db2/active/TraitNodeXTraitNodeEntry.csv
+db2/active/TraitNodeXTraitCond.csv
+db2/active/TraitNodeEntryXTraitCond.csv
+db2/active/TraitCost.csv
+db2/active/TraitNodeXTraitCost.csv
+db2/active/TraitNodeEntryXTraitCost.csv
+db2/active/TraitCurrency.csv
+db2/active/TraitCurrencySource.csv
+db2/active/TraitTreeXTraitCurrency.csv
+db2/active/SpecSetMember.csv
 # Actual grant icon and the present half of the Mage choice node.
 textures/135991.blp
 textures/135852.blp
@@ -2396,7 +2397,7 @@ textures/4554359.blp
 textures/4554389.blp
 
 # Retail 12.1.0.69933 auction subject and invoice strings/art (local CASC).
-db2/12.1.0.69933/GlobalStrings.csv
+db2/active/GlobalStrings.csv
 textures/136387.blp
 
 # Real local-CASC spellbook icon coverage, classbook-shots receipts (2026-10-09).
@@ -4726,8 +4727,8 @@ textures/8033669.blp
 textures/7289697.blp
 textures/4571485.blp
 # Quest geometry and extracted Retail blue blob / super-track art.
-db2/12.1.0.69933/QuestPOIBlob.csv
-db2/12.1.0.69933/QuestPOIPoint.csv
+db2/active/QuestPOIBlob.csv
+db2/active/QuestPOIPoint.csv
 textures/342529.blp
 textures/342531.blp
 textures/533895.blp

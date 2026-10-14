@@ -448,9 +448,10 @@ class ForeverNpcDisplayTests(unittest.TestCase):
             data = Path(directory)
             staging = data / "staging"
             staging.mkdir()
-            (data / "db2/12.1.0.69933").mkdir(parents=True)
+            (data / "db2/active").mkdir(parents=True)
             (data / "db2" / importer.BUILD).mkdir(parents=True)
-            (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
+            (data / "db2/active/Map.csv").write_text("ID\n0\n")
+            (data / "db2/active/receipt.json").write_text('{"identity":{"product":"wow","build":"12.1.5.70391"}}')
             for name, raw in {
                 "7478487.m2": chunk(b"MD21", b""),
                 "7478494.m2": chunk(b"MD21", b"")

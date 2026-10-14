@@ -1,0 +1,19 @@
+{
+  "identity": {
+    "product": "wow",
+    "build_key": "334a36cf5f3c32a5f7a167405487fa14",
+    "build": "12.1.5.70391",
+    "build_config_sha256": "f30cdd30bcbb613795557606c0015411640ffa4a2710f7419ea75dae345c964d",
+    "root_content_key": "25c68dd1c7597cccd94252085c3367ed",
+    "encoding_content_key": "8d0576391f8e80ce55940381fc3f674a",
+    "extraction_source": "authenticated-local-CASC-content-root"
+  },
+  "schema_commit": "d6f50d4f351193e84226aa62a36faa0f58528afa",
+  "table": {
+    "fdid": 1045411,
+    "content_key": "5ff89512455ce2d5bbede39cae2aa510"
+  },
+  "raw_sha256": "b7ba11a5d3f6bf1770ea5be475b460e509f9c0275df06ae7e37aaf8849bb2522",
+  "definition_sha256": "82401ba8a5bbdec3725e20597e3aa7f7b1eda864f3a1766b4ea3ddc54b22f9da",
+  "note": "Local CASC extraction; 15 encrypted records unreadable (keys CF9022A9913B1B4D, EB00B02AC6ADD077), not used by ID923 regression. Scalar pallet block precedes pallet-array block; ID923 scalar indexes0 refer to authored zero entries."
+}

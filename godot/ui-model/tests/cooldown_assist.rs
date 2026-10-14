@@ -139,7 +139,7 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
 
 fn catalog() -> CooldownAssistCatalog {
     CooldownAssistCatalog::load(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active"),
     )
     .unwrap()
 }

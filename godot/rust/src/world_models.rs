@@ -199,7 +199,7 @@ impl VisualCatalogs {
     fn gear(&self) -> Result<&NpcGearData, String> {
         self.gear
             .get_or_init(|| {
-                let dir = self.data_root.join("db2/12.1.0.69933");
+                let dir = self.data_root.join("db2/active");
                 NpcGearData::load(&dir).map_err(|error| format!("NPC pose and gear: {error}"))
             })
             .as_ref()
@@ -389,7 +389,6 @@ impl WorldModels {
                 if let Err(error) = warm.gear() {
                     godot_error!("{error}");
                 }
-                warm.outfit.resolve_outfit(1, 1, 0);
             },
             Priority::Now,
         );
@@ -414,7 +413,7 @@ impl WorldModels {
 
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
     pub fn player_native_display(&mut self, player: &Player) -> Result<u32, String> {
-        let dir = self.catalogs.data_root.join("db2/12.1.0.69933");
+        let dir = self.catalogs.data_root.join("db2/active");
         let displays = self
             .player_displays
             .get_or_insert_with(|| game_engine_core::spell_visual::player_displays(&dir))

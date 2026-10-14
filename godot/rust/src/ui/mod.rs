@@ -13,6 +13,8 @@ mod buttonfit_preview;
 mod auction_preview;
 pub(crate) mod castbar_fx;
 mod castbar_preview;
+#[cfg(debug_assertions)]
+mod db2_atlas_preview;
 mod dungeon_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
