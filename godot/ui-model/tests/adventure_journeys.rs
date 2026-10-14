@@ -243,6 +243,42 @@ fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
 }
 
 #[test]
+fn journeys_boundary_arrows_reenable_after_selection_moves_inward() {
+    use ui_toolkit::widgets::button::ButtonState;
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    let mut registry = FrameRegistry::new(1280., 720.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    for level in [2, 1, 2, 25, 24, 1, 3] {
+        view.apply(&format!("journal:journey-select-level:{level}"))
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        for (name, disabled) in [
+            ("JourneyLevelPrev", level == 1),
+            ("JourneyLevelFirst", level == 1),
+            ("JourneyLevelNext", level == 25),
+            ("JourneyLevelLast", level == 25),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                panic!("{name} is not a button");
+            };
+            assert_eq!(
+                button.state == ButtonState::Disabled,
+                disabled,
+                "{name} at level {level}"
+            );
+        }
+    }
+}
+
+#[test]
 fn journeys_left_arrow_stays_enabled_until_the_fractional_offset_reaches_zero() {
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
