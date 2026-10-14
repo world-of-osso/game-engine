@@ -196,6 +196,8 @@ class ModelAssetProvenanceTests(unittest.TestCase):
                 self.assertEqual({r["build_key"] for r in rows}, {new["build_key"]})
                 for row in rows:
                     self.assertEqual((data / row["path"]).read_bytes(), raw)
+                with self.assertRaisesRegex(ValueError, "stale"):
+                    chains.write_asset_fragment(data, old, {"dependencies": {}, "metadata": []}, [first], [], "obsolete")
 
     def test_existing_different_scoped_bytes_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:

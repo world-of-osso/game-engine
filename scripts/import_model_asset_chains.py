@@ -147,6 +147,10 @@ def supersede_asset_receipts(data, verified):
             if any(previous[field] != receipt[field] for field in ["path", "bytes", "sha256", "content_key"]):
                 raise ValueError(f"conflicting existing receipt: {key}")
             continue
+        previous_build = int(previous['build'].rsplit('.', 1)[-1])
+        incoming_build = int(receipt['build'].rsplit('.', 1)[-1])
+        if incoming_build <= previous_build:
+            raise ValueError(f'stale asset receipt {key}: {receipt["build"]} cannot supersede {previous["build"]}')
         updates.append((path, position, receipt))
     for path, position, receipt in updates:
         documents[path]["assets"][position] = receipt
