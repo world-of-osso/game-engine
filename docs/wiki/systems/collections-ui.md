@@ -16,11 +16,11 @@ ToyBox fills the703×606 parent; its693×541 inset at4,60 retains the tiled Coll
 
 ## Bounded native proof
 
-`godot/tests/collections_fidelity_live.gd` runs through actual account journals on privateUDP5801. Both skins pass source shell/inset/card/slot/background bounds, Filter checkbox/reset, search, cursor context placement and real visible mount/card/loadout meshes. All26 native1920×1080 PNGs were inspected, including full model views and source-panel crop sheets. Captures: `/syncthing/AgentShared/2026-10-13/ui-questlog-collections/after/collections-fidelity-2026-10-14/native-input-cursor/`.
+`godot/tests/collections_fidelity_live.gd` runs through actual account journals on privateUDP5801. Both skins pass source shell/inset/card/slot/background bounds, Filter checkbox/reset, search, cursor context placement and real visible mount/card/loadout meshes. All26 native1920×1080 PNGs were inspected, including full model views and source-panel crop sheets. Captures: `/syncthing/AgentShared/2026-10-13/ui-questlog-collections/after/collections-fidelity-2026-10-14/native-final-merged/`.
 
 Diagnostics/commands/revisions/image hashes: `data/diagnostics/ui-questlog-collections-camera-2026-10-13/collections-fidelity-2026-10-14/`. Focused integration52 pass; extension build/check and fmt pass. The first cursor failures are **invalid product RED evidence**: inherited Viewport.push_input dispatched controls without updating Godot's cursor. Input.parse_input_event exercises both; existing content-fit/decoration Rust RED→GREEN logs remain valid. A stale server binary's signed SummonProperties panic was resolved by rebuilding already-landed master, not changing authored data.
 
-**ModelScene default FOV unsourced**; existing projection remains. No all-model framing, clipping-overflow, complete menu-action/server-state, or projection-parity claim. Numeric unresolved toy names are the existing source ItemID behavior, not fabricated labels.
+**ModelScene default FOV unsourced**; existing projection remains. No all-model framing, clipping-overflow, complete menu-action/server-state, or projection-parity claim. Numeric unresolved toy names are the existing source ItemID behavior, not fabricated labels. Final merged runs retain one startup character-preview diagnostic per skin: missing skybox companion525143.skin; all requested journal controls and three model hosts still pass. No skybox asset repair is claimed.
 
 ## Sources
 
