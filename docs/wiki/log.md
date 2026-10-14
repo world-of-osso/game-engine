@@ -1,3 +1,7 @@
+## 2026-10-14 — Mutable player-bundle snapshots
+
+[Publication staging](systems/shipped-assets.md#publication-staging--2026-10-14): independent catalog copies prevent later source SQLite writes from changing staged bytes. Manifest hashes staged files; verifier checks size/SHA256 before upload. Two new regressions RED; packaging suite GREEN8/8. No production publication or full asset-closure claim.
+
 ## 2026-10-14 — Unnamed equipped component attachment
 
 [Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
