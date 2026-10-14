@@ -121,6 +121,8 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 #[test]
 fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
     let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
     view.apply("journal:journey:12").unwrap();
     view.journeys.start_scroll(1);
     view.journeys.advance_scroll(0.5, 25);
@@ -141,6 +143,8 @@ fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
 #[test]
 fn journeys_short_hold_steps_once_and_boundary_stops() {
     let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
     view.apply("journal:journey:12").unwrap();
     view.journeys.start_scroll(-1);
     view.journeys.advance_scroll(0.1, 25);
