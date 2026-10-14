@@ -280,7 +280,12 @@ fn mask_of(name: &str) -> Option<Mask> {
         .strip_prefix("PerksProgramCartItem")
         .and_then(|suffix| suffix.strip_suffix("Icon"))
         .is_some_and(|id| id.parse::<u32>().is_ok());
-    if cart_item {
+    let cart_member = name
+        .strip_prefix("PerksProgramCartSubItem")
+        .and_then(|suffix| suffix.strip_suffix("Icon"))
+        .and_then(|ids| ids.split_once('_'))
+        .is_some_and(|(vendor, item)| vendor.parse::<u32>().is_ok() && item.parse::<u32>().is_ok());
+    if cart_item || cart_member {
         return Some(Mask::PerksCartItem);
     }
     let talent_circle = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
