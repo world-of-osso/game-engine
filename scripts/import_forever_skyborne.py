@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sqlite3
+from db2_source import active_directory
 import struct
 import subprocess
 import sys
@@ -334,7 +335,7 @@ def import_tables(data, staging):
             )
             rows, dropped = decode_rows(raw, layout, columns, id_field)
             header_path = (
-                data / "db2/12.1.0.69933" / f"{table}.csv"
+                active_directory(data) / f"{table}.csv"
                 if table in RETAIL_TABLES
                 else data / f"{table}.csv"
             )
@@ -590,7 +591,7 @@ def read_current_asset(path, staging, fdid, ext, content_key):
 def import_assets(data, staging, tables, npc_roots=None, priority_displays=frozenset()):
     textures, collections = customization_assets(tables)
     pending = {(fdid, "blp") for fdid in textures | {8200220, 8199012}}
-    with (data / "db2/12.1.0.69933/Map.csv").open(newline="") as handle:
+    with (active_directory(data) / 'Map.csv').open(newline="") as handle:
         retail_maps = {int(row["ID"]) for row in csv.DictReader(handle)}
     skies = lighting_assets(tables, retail_maps)
     scenes = creation_scene_assets(tables)

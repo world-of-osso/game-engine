@@ -747,7 +747,7 @@ mod tests {
     #[test]
     fn baked_appearance_ailee_keeps_boot_geosets_without_unused_body_overlay() {
         let data = data_dir();
-        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
         let armor = gear.display_armor(136968).unwrap();
         let outfits = outfit_data();
         let error = resolve_equipment_appearance(&armor, outfits, 95, 1).unwrap_err();
@@ -762,7 +762,7 @@ mod tests {
     #[test]
     fn baked_appearance_keeps_original_grove_ranger_models_and_geosets() {
         let data = data_dir();
-        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
         let armor = gear.display_armor(139403).unwrap();
         let outfits = outfit_data();
         let plain = resolve_equipment_appearance(&armor, outfits, 95, 0).unwrap();

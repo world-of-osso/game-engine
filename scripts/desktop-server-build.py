@@ -6,6 +6,7 @@ import argparse
 import fcntl
 import importlib.util
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -49,9 +50,11 @@ def snapshot(root, context):
     )
 
 
-def build(root, host=None, release=False, binary=None):
+def build(root, host=None, release=False, binary=None, features=None):
     if binary is not None and binary not in BINARIES:
         raise ValueError(f"unsupported server binary: {binary!r}")
+    if features is not None and not re.fullmatch(r"[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*", features):
+        raise ValueError(f"invalid cargo feature list: {features!r}")
     binaries = (binary,) if binary else BINARIES
     root = Path(root).resolve()
     host = depot.select_build_host(host)
@@ -71,6 +74,8 @@ def build(root, host=None, release=False, binary=None):
                 arguments.extend(["-p", package])
             for name in binaries:
                 arguments.extend(["--bin", name])
+            if features:
+                arguments.extend(["--features", features])
             with native_slot():
                 source = depot.native_source_root(root, "game-server", ("shared-protocol",))
                 code = run_cargo(root, arguments, source_root=source)
@@ -105,6 +110,8 @@ def build(root, host=None, release=False, binary=None):
                 f"RELEASE={str(release).lower()}",
                 "--build-arg",
                 f"BINARY={binary or ''}",
+                "--build-arg",
+                f"FEATURES={features or ''}",
             ]
             execute(context, output, key, "artifact", arguments, host=host)
             for name in binaries:
@@ -221,6 +228,7 @@ def main():
     parser.add_argument("--save-build-host", choices=depot.HOSTS)
     parser.add_argument("--release", action="store_true")
     parser.add_argument("--bin", choices=BINARIES, dest="binary")
+    parser.add_argument("--features", help="Cargo feature CSV for the server build")
     parser.add_argument(
         "--test",
         action="store_true",
@@ -240,7 +248,13 @@ def main():
             return 0
         if args.test:
             return run_tests(args.root, argv[split:], args.build_host)
-        build(args.root, host=args.build_host, release=args.release, binary=args.binary)
+        build(
+            args.root,
+            host=args.build_host,
+            release=args.release,
+            binary=args.binary,
+            features=args.features,
+        )
     except (OSError, EOFError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Desktop server build failed: {error}", file=sys.stderr)
         return 1

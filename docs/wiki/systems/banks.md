@@ -59,6 +59,12 @@ GuildSnapshot metadata fills level/class/last-online fields; officer notes are n
 painted into the public Note column. Settings and Invite share the source footer
 anchor but appear in Roster and Chat respectively. Unsupported Communities services
 remain [named contract gaps](../../specs/guild-ranks.md#communities-presentation).
+The Communities portrait renders the [source no-design branch](../../specs/gameplay-panel-fidelity.md#communities-guild-portrait)
+until guild appearance is authoritative. `guild_no_design_portrait.gd` proves loaded
+native textures, source colors and64px emblem/60px background anchors in both skins;
+inspected1920×1080 PNGs are `after-review/{modern,forever}-communities-no-design.png`
+under AgentShared/2026-10-13/ui-gameplay-panels (verified2026-10-14). This is offline
+source/render proof, not vendor registration or live appearance replication.
 `guild_control.rs` switches
 Mainline's 338×444 GuildControlUI between order, permission and bank panes. Its
 159px navigation and180px rank dropdowns use shared Retail menus; rank zero is

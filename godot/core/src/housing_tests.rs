@@ -219,6 +219,30 @@ fn housing_joins_authored_collection_sources_without_inventing_vendor_names() {
 }
 
 #[test]
+fn housing_encounter_zero_instance_has_no_name_but_unknown_nonzero_is_an_error() {
+    let db = catalog_connection();
+    import_sources(&db);
+    db.execute("UPDATE housing_catalog_record SET fields_json=json_set(fields_json,'$.JournalInstanceID','0') WHERE table_name='JournalEncounter'", []).unwrap();
+    let catalog = load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    let source = &catalog
+        .decor
+        .iter()
+        .find(|decor| decor.id == 81)
+        .unwrap()
+        .sources[0];
+    assert!(
+        matches!(source, crate::housing::DecorSource::Encounter { instance, .. } if instance.is_empty())
+    );
+    db.execute("UPDATE housing_catalog_record SET fields_json=json_set(fields_json,'$.JournalInstanceID','1296') WHERE table_name='JournalEncounter'", []).unwrap();
+    db.execute(
+        "DELETE FROM housing_catalog_record WHERE table_name='JournalInstance'",
+        [],
+    )
+    .unwrap();
+    assert!(load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").is_err());
+}
+
+#[test]
 fn housing_names_category_icons_by_retail_atlas_key_and_marks_dyeable_decor() {
     let db = catalog_connection();
     insert(
@@ -297,4 +321,14 @@ fn housing_names_neighborhood_art_by_its_authored_texture_kit() {
             .contains("5721")
     );
     std::fs::remove_file(&kits).unwrap();
+}
+
+#[test]
+fn db2_header_housing_rejects_invalid_canonical_atlas_id() {
+    let db = catalog_connection();
+    let mut catalog =
+        load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    let fixture = crate::db2_test_support::ExportFixture::copy("UiTextureAtlasElement", Some("ID"));
+    let error = catalog.resolve_icons(&fixture.0).unwrap_err();
+    assert!(error.contains("UiTextureAtlasElement.csv:2:"), "{error}");
 }

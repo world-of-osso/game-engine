@@ -44,7 +44,7 @@ fn write_required_assets(data: &Path, displays: &rusqlite::Connection) -> Result
     let profiles = rusqlite::Connection::open(data.join("cache/npc_appearance.sqlite"))
         .map_err(|error| error.to_string())?;
     let mut catalogs = game_engine_core::npc_appearance_assets::NpcAppearanceCatalogs::load(data)?;
-    let gear = npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933"))?;
+    let gear = npc_gear_data::NpcGearData::load(&data.join("db2/active"))?;
     let outfit = outfit_data::OutfitData::load(data);
     let mut assets = BTreeSet::new();
     for id in [139403, 139409, 21774] {
@@ -119,8 +119,7 @@ fn add_equipped_player_assets(
     assets: &mut BTreeSet<(&'static str, u32, &'static str)>,
 ) -> Result<(), String> {
     use shared::components::{EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry};
-    let bodies =
-        game_engine_core::player_model_data::player_model_fdids(&data.join("db2/12.1.0.69933"))?;
+    let bodies = game_engine_core::player_model_data::player_model_fdids(&data.join("db2/active"))?;
     let body = *bodies.get(&(1, 0)).ok_or("Human male model absent")?;
     assets.insert(("wow", body, "m2"));
     add_default_player_customization_assets(data, assets)?;

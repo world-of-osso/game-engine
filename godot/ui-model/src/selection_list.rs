@@ -218,12 +218,12 @@ pub const NEIGHBORHOOD: RowTemplate = RowTemplate {
 };
 
 /// Blizzard_MountCollection.xml:80 `MountListButtonTemplate`: the 208x46 list button sits
-/// right of its 42-wide icon button; `PetList-ButtonHighlight` HighlightTexture.
+/// right of its 42-wide icon button; `PetList-ButtonHighlight` uses default BLEND (:183).
 pub const MOUNT: RowTemplate = RowTemplate {
     normal: None,
     hover: Some(RowArt {
         insets: [42.0, 0.0, 0.0, 0.0],
-        ..fill(Art::Atlas("PetList-ButtonHighlight"), true)
+        ..fill(Art::Atlas("PetList-ButtonHighlight"), false)
     }),
     selected: None,
 };
@@ -231,7 +231,7 @@ pub const MOUNT: RowTemplate = RowTemplate {
 /// Shared/Blizzard_PetCollection.xml:7 `CompanionListButtonTemplate`.
 pub const PET: RowTemplate = RowTemplate {
     normal: None,
-    hover: Some(fill(Art::Atlas("PetList-ButtonHighlight"), true)),
+    hover: Some(fill(Art::Atlas("PetList-ButtonHighlight"), false)),
     selected: None,
 };
 

@@ -94,6 +94,7 @@ mod quests;
 mod raid_info;
 mod raid_targets;
 mod replicated;
+mod reputation_status_bar;
 mod scene;
 mod scene_export;
 mod selection_debug;
@@ -260,6 +261,7 @@ pub struct GameClient {
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
     xp_bar: xp_bar::XpBarHud,
+    reputation_bar: Option<Gd<ui::RegistryUi>>,
     group_frames: party_frames::GroupFramesHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
@@ -428,6 +430,7 @@ impl INode3D for GameClient {
             entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
             xp_bar: xp_bar::XpBarHud::default(),
+            reputation_bar: None,
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
             ui_layout: Default::default(),
@@ -1594,6 +1597,9 @@ impl GameClient {
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
         self.xp_bar.visit_uis(&mut visit)?;
+        if let Some(ui) = self.reputation_bar.as_mut() {
+            visit(ui)?;
+        }
         self.group_frames.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
@@ -2049,6 +2055,7 @@ impl GameClient {
         }
         match self.account.session.screen {
             SessionScreen::Login => GameState::Login,
+            SessionScreen::CharacterSelect if self.character_scene_waiting() => GameState::Loading,
             SessionScreen::CharacterSelect => GameState::CharSelect,
             SessionScreen::CharacterCreate => GameState::CharCreate,
             SessionScreen::Loading => GameState::Loading,
@@ -2106,10 +2113,9 @@ impl GameClient {
                 Ok(())
             }),
             ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
-            (
-                "Character preview",
-                |c, _| Ok(c.update_character_preview()?),
-            ),
+            ("Character preview", |c, d| {
+                Ok(c.update_character_preview(d)?)
+            }),
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
             ("Transport motion", |c, d| Ok(c.update_transport_motion(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
@@ -2164,6 +2170,7 @@ impl GameClient {
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
             ("XP bar", |c, _| c.update_xp_bar()),
+            ("Reputation bar", |c, _| c.update_reputation_bar()),
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
@@ -2915,7 +2922,7 @@ impl GameClient {
         self.terrain.reset()
     }
 
-    fn update_character_preview(&mut self) -> Result<(), String> {
+    fn update_character_preview(&mut self, delta: f32) -> Result<(), String> {
         if self.account.session.screen != SessionScreen::CharacterSelect {
             self.character_preview.reset();
             return Ok(());
@@ -2928,8 +2935,46 @@ impl GameClient {
             .cloned();
         let drag = self.account_orbit_drag();
         let mut parent = self.to_gd().upcast::<Node3D>();
-        self.character_preview
+        match self
+            .character_preview
             .sync(&mut parent, selected.as_ref(), self.world_minutes, drag)
+        {
+            Ok(()) => self.sync_character_select_reveal(delta),
+            Err(error) => {
+                if let Some(ui) = self.loading_ui.as_mut() {
+                    ui.bind_mut().advance_loading(0, &error, delta)?;
+                }
+                Err(error)
+            }
+        }
+    }
+
+    fn character_scene_waiting(&self) -> bool {
+        let has_character = self
+            .account
+            .session
+            .selected_index
+            .and_then(|index| self.account.session.characters.get(index))
+            .is_some();
+        has_character && !self.character_preview.is_ready()
+    }
+
+    fn sync_character_select_reveal(&mut self, delta: f32) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::CharacterSelect {
+            return Ok(());
+        }
+        if self.character_scene_waiting() {
+            self.attach_loading_ui()?;
+            self.set_account_ui_visibility(SessionScreen::Loading);
+            self.loading_ui
+                .as_mut()
+                .expect("loading UI attached")
+                .bind_mut()
+                .advance_loading(0, "Preparing character scene...", delta)?;
+        } else {
+            self.set_account_ui_visibility(SessionScreen::CharacterSelect);
+        }
+        Ok(())
     }
 
     /// Original account-scene orbit: left-drag motion scaled by camera sensitivity.
@@ -3013,6 +3058,7 @@ impl GameClient {
         let _span = profile::span(|| "screen.startup_panel".to_owned());
         self.apply_startup_panel(screen)?;
         self.set_account_ui_visibility(screen);
+        self.sync_character_select_reveal(0.0)?;
         let name = GString::from(format!("{screen:?}").as_str());
         self.base_mut()
             .emit_signal("screen_requested", &[name.to_variant()]);

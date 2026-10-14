@@ -50,6 +50,7 @@ fn collect_material_texture_rows(
     let mut preferred: HashMap<u32, Vec<u32>> = HashMap::new();
     let mut fallback = HashMap::new();
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -59,6 +60,7 @@ fn collect_material_texture_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
         record_material_texture_row(
             &fields,
@@ -67,7 +69,8 @@ fn collect_material_texture_rows(
             material_col,
             &mut preferred,
             &mut fallback,
-        );
+        )
+        .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
     }
     for (material_resource_id, file_data_id) in fallback {
         preferred
@@ -84,21 +87,12 @@ fn record_material_texture_row(
     material_col: usize,
     preferred: &mut HashMap<u32, Vec<u32>>,
     fallback: &mut HashMap<u32, u32>,
-) {
-    let file_data_id = fields
-        .get(file_data_col)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0);
-    let usage_type = fields
-        .get(usage_type_col)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0);
-    let material_resource_id = fields
-        .get(material_col)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0);
+) -> Result<(), String> {
+    let file_data_id = crate::csv_util::parse_field::<u32>(&fields, file_data_col)?;
+    let usage_type = crate::csv_util::parse_field::<u32>(&fields, usage_type_col)?;
+    let material_resource_id = crate::csv_util::parse_field::<u32>(&fields, material_col)?;
     if file_data_id == 0 || material_resource_id == 0 {
-        return;
+        return Ok(());
     }
     fallback.entry(material_resource_id).or_insert(file_data_id);
     if usage_type == 0 {
@@ -107,6 +101,7 @@ fn record_material_texture_row(
             .or_default()
             .push(file_data_id);
     }
+    Ok(())
 }
 
 fn load_textured_materials(conn: &Connection) -> Result<HashSet<u32>, String> {
@@ -189,6 +184,7 @@ fn insert_display_material_rows(
 ) -> Result<(), String> {
     let mut seen = HashSet::new();
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -198,19 +194,15 @@ fn insert_display_material_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let display_info_id = fields
-            .get(display_info_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let component_section = fields
-            .get(component_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0) as u8;
-        let material_resource_id = fields
-            .get(material_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let display_info_id = crate::csv_util::parse_field::<u32>(&fields, display_info_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
+        let component_section = crate::csv_util::parse_field::<u32>(&fields, component_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?
+            as u8;
+        let material_resource_id = crate::csv_util::parse_field::<u32>(&fields, material_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if !textured.contains(&material_resource_id) {
             continue;
         }
@@ -221,4 +213,18 @@ fn insert_display_material_rows(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_material_rejects_invalid_canonical_row() {
+        let fixture =
+            crate::db2_test_support::ExportFixture::copy("TextureFileData", Some("FileDataID"));
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE material_textures(material_resource_id INTEGER,file_order INTEGER,texture_fdid INTEGER)").unwrap();
+        let error = populate_material_textures(&conn, &fixture.0).unwrap_err();
+        assert!(error.contains("TextureFileData.csv:2:"), "{error}");
+    }
 }

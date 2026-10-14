@@ -1,4 +1,9 @@
 //! Registry-authoritative login UI model. Rendering and authentication belong to the host.
+#[cfg(test)]
+#[path = "../../core/src/db2_test_support.rs"]
+mod db2_test_support;
+
+pub mod reputation_status_bar;
 
 pub mod ui {
     pub use ui_toolkit::{anchor, strata};
@@ -394,7 +399,7 @@ pub mod wow_cursor_data;
 /// the core spell catalog the aura model reads.
 mod spell_catalog {
     pub(crate) use crate::csv_records;
-    pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
+    pub const SPELL_DB2_BUILD: &str = "active";
     pub(crate) use game_engine_core::spell_catalog::{SpellCatalogData, SpellTextContext};
 }
 
