@@ -1,8 +1,6 @@
 //! Pure view models for the quest screens (objective tracker, quest log, quest giver
 //! frame), built from [`QuestRuntime`]; shared by the Bevy and Godot hosts.
 
-use std::collections::HashMap;
-
 use crate::item_icons::item_icon_fdid;
 use crate::quest_runtime::{
     QuestDialog, QuestDialogPage, QuestRuntime, QuestTextTokens, QuestUiState,
@@ -17,13 +15,8 @@ use crate::ui::screens::quest_log_frame_component::{
     QuestLogRow,
 };
 use shared::protocol::{
-    MAX_QUEST_LOG_SIZE, QuestEntrySnapshot, QuestGiverQuestDetails, QuestGiverQuestState,
-    QuestRewardItem, QuestRewards,
+    MAX_QUEST_LOG_SIZE, QuestEntrySnapshot, QuestGiverQuestState, QuestRewardItem, QuestRewards,
 };
-
-/// Story text and rewards the quest giver showed this session, by quest id; the log
-/// snapshot carries neither.
-pub type QuestDetailsCache = HashMap<u32, QuestGiverQuestDetails>;
 
 pub fn quest_frame_state(
     dialog: Option<&QuestDialog>,
@@ -125,15 +118,13 @@ pub fn frame_reward_item(dialog: Option<&QuestDialog>, n: usize) -> Option<&Ques
     reward_item_at(rewards, n)
 }
 
-/// The item behind the quest log's `QuestInfoItem{n}` for the selected quest
-/// (`GameTooltip:SetQuestLogItem`), from the rewards its giver showed.
+/// The selected owned quest's reward (`GameTooltip:SetQuestLogItem`), including relog.
 pub fn log_reward_item<'a>(
-    runtime: &QuestRuntime,
+    runtime: &'a QuestRuntime,
     ui: &QuestUiState,
-    cache: &'a QuestDetailsCache,
     n: usize,
 ) -> Option<&'a QuestRewardItem> {
-    reward_item_at(&cache.get(&selected_quest(runtime, ui)?)?.rewards, n)
+    reward_item_at(&runtime.entry(selected_quest(runtime, ui)?)?.rewards, n)
 }
 
 /// The selected quest, or the first one when the selection left the log.
@@ -148,7 +139,7 @@ pub fn selected_quest(runtime: &QuestRuntime, ui: &QuestUiState) -> Option<u32> 
 pub fn quest_log_state(
     runtime: &QuestRuntime,
     ui: &QuestUiState,
-    cache: &QuestDetailsCache,
+    in_group: bool,
     tokens: &QuestTextTokens,
     header_name: &mut dyn FnMut(i32) -> String,
     player_level: i32,
@@ -192,17 +183,16 @@ pub fn quest_log_state(
         groups,
         details: selected
             .and_then(|id| runtime.entry(id))
-            .map(|entry| log_details(entry, runtime, cache, tokens)),
+            .map(|entry| log_details(entry, runtime, in_group, tokens)),
     }
 }
 
 fn log_details(
     entry: &QuestEntrySnapshot,
     runtime: &QuestRuntime,
-    cache: &QuestDetailsCache,
+    in_group: bool,
     tokens: &QuestTextTokens,
 ) -> QuestLogDetails {
-    let cached = cache.get(&entry.quest_id);
     QuestLogDetails {
         quest_id: entry.quest_id,
         title: entry.title.clone(),
@@ -218,11 +208,11 @@ fn log_details(
                 done: objective.completed,
             })
             .collect(),
-        description: cached.map(|details| substitute_quest_text(&details.description, tokens)),
-        rewards: cached
-            .map(|details| reward_view(&details.rewards, None))
-            .filter(|rewards| !rewards.is_empty()),
+        description: (!entry.description.is_empty())
+            .then(|| substitute_quest_text(&entry.description, tokens)),
+        rewards: Some(reward_view(&entry.rewards, None)).filter(|rewards| !rewards.is_empty()),
         watched: runtime.is_watched(entry.quest_id),
+        can_share: entry.pushable && in_group,
     }
 }
 

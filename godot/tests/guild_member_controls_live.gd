@@ -40,10 +40,7 @@ func run_test() -> void:
 	quit(0)
 
 func member_text() -> String:
-	var row := control("GuildMember1")
-	if row == null:
+	var rank := control("GuildMember1Rank") as Label
+	if rank == null:
 		return ""
-	for child in row.find_children("*", "Label", true, false):
-		if child.text != "":
-			return child.text
-	return ""
+	return rank.text
