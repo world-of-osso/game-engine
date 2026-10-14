@@ -328,8 +328,13 @@ full-body or battleground-layout acceptance claim. Shutdown hardkills server4100
 UDP5712 is freed and the fixture's source origin is restored by admin receipt.
 
 Modern's actual `PlayerPortrait` is visible with loaded mask4682541, equipped-player
-appearance, model shown and no pending load. Forever's current FlareUI HUD intentionally
-has no `PlayerPortrait` node; both-skin HUD-portrait acceptance therefore remains a
-layout decision, not an asset/binding failure. Its existing micro portrait is hidden
-at0×0 and must not be called pixel proof. Whole battleground coverage remains open.
+appearance, model shown and no pending load. The pre-fix Forever FlareUI HUD had no `PlayerPortrait` node; this was a missing
+HUD slot, not an asset/binding failure. Its micro portrait is hidden at0×0 and must
+not be called pixel proof. Lead decision2026-10-14 authorizes Retail's portrait slot
+in Forever. `flare_player_frame` retains the original240×60 bronze bar group and
+reserves portrait(24,19,60,60); the health LEFT85 from Mainline PlayerFrame.xml gives
+the group offset81 after its original4px inset. Outer321×79 bounds enclose both;
+bar widths/heights, percentages, power, aura content and other unit frames stay
+unchanged. Targeted portrait RED is recorded; GREEN/native pixels remain pending.
+Whole battleground coverage remains open.
 Contract: [item definition sources](../../specs/item-definition-sources.md).
