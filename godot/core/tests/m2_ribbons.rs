@@ -12,6 +12,104 @@ fn source_ribbon() -> game_engine_core::asset::m2_format::m2_ribbon::M2RibbonEmi
     ribbons.into_iter().next().unwrap()
 }
 
+fn frame_at(x: f32) -> game_engine_core::m2_ribbons::RibbonFrame {
+    use glam::Vec3;
+    game_engine_core::m2_ribbons::RibbonFrame {
+        position: Vec3::new(x, 0.0, 0.0),
+        direction: Vec3::X,
+        vertical: Vec3::Y,
+    }
+}
+
+fn source_values() -> game_engine_core::m2_ribbons::RibbonValues {
+    game_engine_core::m2_ribbons::sample(
+        &source_ribbon(),
+        &game_engine_core::m2::AnimTime {
+            sequence: 0,
+            time_ms: 0,
+            global_ms: 0.0,
+            global_sequences: &[],
+        },
+    )
+}
+
+#[test]
+fn toyfx26_ribbon_rounds_fractional_rate_and_clamps_short_lifetime() {
+    use game_engine_core::m2_ribbons::RibbonTrail;
+    let mut source = source_ribbon();
+    source.edges_per_second = 2.5;
+    source.edge_lifetime = 0.1;
+    let mut trail = RibbonTrail::new(&source).unwrap();
+    trail
+        .advance(0.0, frame_at(0.0), source_values(), true)
+        .unwrap();
+    trail
+        .advance(0.15, frame_at(1.0), source_values(), true)
+        .unwrap();
+    assert!(
+        !trail.triangles(1.0).is_empty(),
+        "initial edge survives the source minimum 0.25s lifetime"
+    );
+    source.edge_lifetime = 1.0;
+    let mut trail = RibbonTrail::new(&source).unwrap();
+    trail
+        .advance(0.0, frame_at(0.0), source_values(), true)
+        .unwrap();
+    trail
+        .advance(0.35, frame_at(1.0), source_values(), true)
+        .unwrap();
+    assert_eq!(
+        trail.triangles(1.0).len(),
+        12,
+        "ceil(2.5)=3 emits the next edge by 0.35s"
+    );
+}
+
+#[test]
+fn toyfx26_ribbon_long_frame_clamps_aging_to_lifetime() {
+    use game_engine_core::m2_ribbons::RibbonTrail;
+    let source = source_ribbon();
+    let mut trail = RibbonTrail::new(&source).unwrap();
+    trail
+        .advance(0.0, frame_at(0.0), source_values(), true)
+        .unwrap();
+    trail
+        .advance(0.25, frame_at(1.0), source_values(), true)
+        .unwrap();
+    trail
+        .advance(2.0, frame_at(2.0), source_values(), true)
+        .unwrap();
+    let minimum_x = trail
+        .triangles(1.0)
+        .iter()
+        .map(|vertex| vertex.position[0])
+        .fold(f32::INFINITY, f32::min);
+    assert!(
+        minimum_x < 1.1,
+        "clamped update interpolates surviving samples along the entire 1→2 segment, got {minimum_x}"
+    );
+}
+
+#[test]
+fn toyfx26_ribbon_animated_slot_updates_existing_strip_uvs() {
+    use game_engine_core::m2_ribbons::RibbonTrail;
+    let mut source = source_ribbon();
+    source.texture_rows = 2;
+    let mut trail = RibbonTrail::new(&source).unwrap();
+    let mut values = source_values();
+    trail.advance(0.0, frame_at(0.0), values, true).unwrap();
+    trail.advance(0.1, frame_at(1.0), values, true).unwrap();
+    values.slot = 1;
+    trail.advance(0.01, frame_at(1.1), values, true).unwrap();
+    assert!(
+        trail
+            .triangles(1.0)
+            .iter()
+            .all(|vertex| vertex.uv[1] >= 0.5),
+        "all retained edges switch to the current tile"
+    );
+}
+
 #[test]
 fn toyfx26_rainbow_ribbon_has_source_fifty_edges_and_half_second_lifetime() {
     let ribbon = source_ribbon();
@@ -57,7 +155,7 @@ fn toyfx26_ribbon_world_edges_preserve_source_width_and_expire_after_half_second
     };
     let mut trail = RibbonTrail::new(&source).unwrap();
     trail.advance(0.0, frame(0.0), values, true).unwrap();
-    trail.advance(0.5, frame(3.5), values, true).unwrap();
+    trail.advance(0.48, frame(3.5), values, true).unwrap();
     let vertices = trail.triangles(1.0);
     assert!(!vertices.is_empty());
     let minimum_x = vertices
@@ -76,7 +174,7 @@ fn toyfx26_ribbon_world_edges_preserve_source_width_and_expire_after_half_second
             .all(|v| (v.position[1].abs() - 0.5555556).abs() < 0.0001)
     );
     assert!(vertices.iter().all(|v| v.color == [1.0; 4]));
-    trail.advance(0.01, frame(3.57), values, false).unwrap();
+    trail.advance(0.03, frame(3.57), values, false).unwrap();
     assert!(
         trail.triangles(1.0).iter().all(|v| v.position[0] > 0.01),
         "old world edge expires; remaining edges do not move with their owner"

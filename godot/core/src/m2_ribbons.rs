@@ -54,7 +54,6 @@ struct Edge {
     below: Vec3,
     above: Vec3,
     color: [f32; 4],
-    slot: u16,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -72,6 +71,8 @@ pub struct RibbonTrail {
     cols: u16,
     clock: f64,
     next_edge: f64,
+    slot: u16,
+    updated: bool,
     previous: Option<RibbonFrame>,
     head: Option<Edge>,
     edges: VecDeque<Edge>,
@@ -89,14 +90,18 @@ impl RibbonTrail {
         if emitter.texture_rows == 0 || emitter.texture_cols == 0 {
             return Err(format!("Ribbon{} has empty texture tiles", emitter.id));
         }
+        // CRibbonEmitter::Initialize rounds density and enforces its minimum lifetime.
+        let interval = 1.0 / f64::from(emitter.edges_per_second.ceil());
         Ok(Self {
-            interval: 1.0 / f64::from(emitter.edges_per_second),
-            lifetime: f64::from(emitter.edge_lifetime),
+            interval,
+            lifetime: f64::from(emitter.edge_lifetime.max(0.25)),
             gravity: emitter.gravity,
             rows: emitter.texture_rows,
             cols: emitter.texture_cols,
             clock: 0.0,
-            next_edge: 0.0,
+            next_edge: interval,
+            slot: 0,
+            updated: false,
             previous: None,
             head: None,
             edges: VecDeque::new(),
@@ -116,8 +121,17 @@ impl RibbonTrail {
                 values.slot, self.rows, self.cols
             ));
         }
+        // The first source Update warms one edge; later long frames clamp, not skip.
+        const FIRST_UPDATE_EPSILON: f64 = 0.0001;
+        let delta = if self.updated {
+            f64::from(seconds).max(0.0)
+        } else {
+            self.interval + FIRST_UPDATE_EPSILON
+        };
+        self.updated = true;
+        self.slot = values.slot;
         let start = self.clock;
-        self.clock += f64::from(seconds);
+        self.clock += delta.min(self.lifetime);
         self.expire_edges();
         self.head = None;
         if !emitting || !values.enabled {
@@ -187,8 +201,8 @@ impl RibbonTrail {
         let age = (self.clock - edge.born).max(0.0) as f32;
         // CRibbonEmitter::Update advances world Z by g*(new_age²-old_age²).
         let displacement = Vec3::Y * self.gravity * age * age;
-        let column = edge.slot % self.cols;
-        let row = edge.slot / self.cols;
+        let column = self.slot % self.cols;
+        let row = self.slot / self.cols;
         let u = (f32::from(column) + age / self.lifetime as f32) / f32::from(self.cols);
         let color = [
             edge.color[0],
@@ -230,6 +244,5 @@ fn interpolate_edge(
         below: interpolate(-values.below),
         above: interpolate(values.above),
         color: values.color,
-        slot: values.slot,
     }
 }
