@@ -16,7 +16,7 @@ func fail(message: String) -> void:
 func proof_cases() -> Array:
 	return [
 		[130214, 195753, 25017, "Worn Doll", 1.0, 99535, false, 60000],
-		[163745, 280084, 37806, "Witherbark Gong", 1.0, 143703, false, 30000],
+		[163745, 280084, 37806, "Witherbark Gong", 0.75, 143703, false, 30000],
 	]
 
 func scenery(title: String) -> Node3D:
