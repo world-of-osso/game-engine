@@ -59,3 +59,8 @@ No new qualifying PNG: Ironforge capture is geometry-occluded, actual skin ident
 - [[forever-preset]] — account-scoped skin selection.
 - [Native IPC](../../specs/native-ipc.md) — live combat/resource diagnostic boundary.
 - [Native UI automation](../../specs/native-ui-automation.md) — production startup and input boundary.
+
+
+### Distinct ranged attack power tooltip path (2026-10-14)
+
+Owner DerivedStats carries melee AP and RAP separately. Tooltip context copies both literally; native SpellCategories.DefenseType3 selects RAP for effect coefficient points (TC a352b1fa Unit.cpp6880), while other categories and explicit `$AP` tokens keep melee AP. Catalog format11 includes DefenseType, invalidating older serialized spell rows. No melee-as-RAP fallback. Native AimedShot19434 effect10651 uses9.72AP/DefenseType3; Slam1464 effect462 uses3.03484988AP/DefenseType2. Contrasting100melee/1000ranged inputs reproduced Aimed972 versus required9720 before classifier implementation. Source lookup follows installed `data/db2/active`; backend owner-wire RED omitted RAP43. These CPU proofs do not certify a rendered capture or whole ability.

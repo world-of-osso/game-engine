@@ -115,6 +115,8 @@ pub struct CatalogSpell {
     /// Raw DB value; one row holds -1.
     pub active_icon_fdid: i32,
     pub school_mask: u32,
+    /// SpellCategories.DefenseType: 3 selects native ranged AP coefficients.
+    pub defense_type: u32,
     /// `SpellMisc.Attributes_0 & 0x40`.
     pub passive: bool,
     pub spellbook: SpellbookListing,
