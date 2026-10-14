@@ -2,7 +2,7 @@
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bank::InputTexts;
-use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, INVITE_BOX, NAME_BOX, PROFILE_BOX};
+use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, INVITE_BOX, PROFILE_BOX};
 use game_engine_ui_model::guild_ranks::{GuildCommand, GuildRanksSession};
 use godot::prelude::*;
 use shared::protocol::{GuildRankRequest, GuildRanksState};
@@ -131,6 +131,27 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn guild_ranks_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() || !self.guild_ranks.session.settings_open {
+            return false;
+        }
+        let Some(ui) = self.guild_ranks.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Ok(false) => false,
+            Err(error) => {
+                crate::frame_error::report_once(&format!("Guild Control scroll: {error}"));
+                false
+            }
+        }
+    }
+
     pub(super) fn toggle_guild_ranks(&mut self) -> Result<(), FrameError> {
         if self.guild_ranks.session.visible {
             self.close_guild_ranks();
@@ -247,16 +268,7 @@ impl GameClient {
     }
 }
 fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTexts {
-    let tabs = session.state().map_or(0, |state| state.tab_names.len());
-    let names = [
-        NAME_BOX.to_owned(),
-        GOLD_BOX.to_owned(),
-        INVITE_BOX.to_owned(),
-        PROFILE_BOX.to_owned(),
-    ]
-    .into_iter()
-    .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
-    names
+    guild_input_names(session)
         .map(|name| {
             let text = ui
                 .bind_mut()
@@ -265,6 +277,43 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
             (name, text)
         })
         .collect()
+}
+
+pub(crate) fn read_inputs_for_registry(
+    registry: &ui_toolkit::registry::FrameRegistry,
+    session: &GuildRanksSession,
+) -> InputTexts {
+    use ui_toolkit::frame::WidgetData;
+    guild_input_names(session)
+        .map(|name| {
+            let text = registry
+                .get_by_name(&name)
+                .and_then(|id| registry.get(id))
+                .and_then(|frame| frame.widget_data.as_ref())
+                .map_or_else(String::new, |data| match data {
+                    WidgetData::EditBox(edit) => edit.text.clone(),
+                    WidgetData::FontString(text) => text.text.clone(),
+                    _ => String::new(),
+                });
+            (name, text)
+        })
+        .collect()
+}
+
+fn guild_input_names(session: &GuildRanksSession) -> impl Iterator<Item = String> {
+    let tabs = session.state().map_or(0, |state| state.tab_names.len());
+    let names = [
+        GOLD_BOX.to_owned(),
+        INVITE_BOX.to_owned(),
+        PROFILE_BOX.to_owned(),
+    ]
+    .into_iter()
+    .chain((0..tabs).map(|index| format!("GuildTabItems{index}")))
+    .chain(
+        (0..session.state().map_or(0, |state| state.ranks.len()))
+            .map(|index| format!("GuildRankOrderName{index}")),
+    );
+    names
 }
 
 #[cfg(test)]
