@@ -18,7 +18,7 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         "Guild & Communities",
         "guild:close",
     );
-    children.extend(no_design_portrait());
+    children.extend(guild_portrait(session));
     children.extend(tabs(session.communities_tab));
     children.extend(guild_selector(session));
     match session.communities_tab {
@@ -54,12 +54,15 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
 }
 
 /// CommunitiesFrame.xml328–353 and GuildUtil.lua115–127,180–202.
-/// Guild snapshots currently have no design; do not invent emblem colors or styles.
-fn no_design_portrait() -> Element {
+fn guild_portrait(session: &GuildRanksSession) -> Element {
+    let design = session.profile.as_ref().and_then(|profile| profile.tabard);
+    let art = crate::guild_tabards::load_portrait_art(design)
+        .expect("load authoritative guild portrait art");
+    let emblem_left = 25.0 - art.width / 2.0;
     rsx! { r#frame { name: "CommunitiesPortraitOverlay", width: {FRAME_SIZE.0}, height: {FRAME_SIZE.1}, left: 0.0, top: 0.0, pos_type: "absolute", frame_level: 300.0,
-        texture { name: "CommunitiesTabardBackground", texture_fdid: 410251, tex_coords: "0.63183594,0.69238281,0.61914063,0.74023438", vertex_color: "0.2245,0.2088,0.1794,1", left: -5.0, top: -8.0, width: 60.0, height: 60.0, pos_type: "absolute", draw_layer: "BACKGROUND" }
-        texture { name: "CommunitiesTabardEmblem", texture_fdid: 460904, tex_coords: "0,1,0,1", vertex_color: "1,1,1,1", left: -7.0, top: -9.0, width: 64.0, height: 64.0, pos_type: "absolute", draw_layer: "BACKGROUND" }
-        texture { name: "CommunitiesTabardBorder", texture_fdid: 410251, tex_coords: "0.63183594,0.69238281,0.74414063,0.86523438", vertex_color: "0.2,0.2,0.2,1", left: -5.0, top: -7.0, width: 60.0, height: 59.0, pos_type: "absolute", draw_layer: "BACKGROUND" }
+        texture { name: "CommunitiesTabardBackground", texture_fdid: 410251, tex_coords: "0.63183594,0.69238281,0.61914063,0.74023438", vertex_color: {art.background.as_str()}, left: -5.0, top: -8.0, width: 60.0, height: 60.0, pos_type: "absolute", draw_layer: "BACKGROUND" }
+        texture { name: "CommunitiesTabardEmblem", texture_fdid: {art.fdid}, tex_coords: {art.uv.as_str()}, vertex_color: {art.emblem.as_str()}, left: emblem_left, top: -9.0, width: {art.width}, height: 64.0, pos_type: "absolute", draw_layer: "BACKGROUND" }
+        texture { name: "CommunitiesTabardBorder", texture_fdid: 410251, tex_coords: "0.63183594,0.69238281,0.74414063,0.86523438", vertex_color: {art.border.as_str()}, left: -5.0, top: -7.0, width: 60.0, height: 59.0, pos_type: "absolute", draw_layer: "BACKGROUND" }
     } }
 }
 
