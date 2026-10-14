@@ -63,8 +63,6 @@ pub mod encounter_timeline;
 pub mod encounter_timeline_component;
 pub mod follower_dungeons;
 mod follower_dungeons_component;
-pub mod gameplay_baseline_battleground;
-pub mod gameplay_baseline_raid_info;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;
