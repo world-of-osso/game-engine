@@ -22,6 +22,11 @@ func run_fixture() -> void:
 	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
+	for directory in [shots, receipts]:
+		if DirAccess.make_dir_recursive_absolute(directory) != OK:
+			push_error("Cannot create Trading Post evidence directory: " + directory)
+			quit(1)
+			return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
@@ -506,8 +511,14 @@ func capture(label: String) -> void:
 	await wait_frames(30)
 	await RenderingServer.frame_post_draw
 	var stem := skin + "-" + phase + "-" + label
-	root.get_texture().get_image().save_png(shots.path_join(stem + ".png"))
+	var image_path := shots.path_join(stem + ".png")
+	if root.get_texture().get_image().save_png(image_path) != OK:
+		fail("Cannot save Trading Post evidence PNG: " + image_path)
+		return
 	var file := FileAccess.open(receipts.path_join(stem + ".json"), FileAccess.WRITE)
+	if file == null:
+		fail("Cannot save Trading Post evidence receipt: " + stem)
+		return
 	file.store_string(JSON.stringify({"trading_post": client.trading_post_state(), "journal": client.adventure_guide_state(), "account": client.account_state()}, "\t"))
 	file.close()
 	print("TP_CAPTURE ", stem)
