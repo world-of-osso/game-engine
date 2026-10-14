@@ -399,23 +399,28 @@ func assert_vendor_rects() -> bool:
 	return true
 
 func assert_header_hover() -> bool:
-	var label := control("PerksProgramNameSortLabel")
 	await motion(control("PerksProgramMainModelScene").get_global_rect().get_center(),false)
 	await wait_frames(5)
-	if not label.get_theme_color("font_color").is_equal_approx(Color(1,0.82,0,1)):
-		fail("Header normal color is not source gold"); return false
+	if not assert_header_color(Color(1,0.82,0,1), "normal"): return false
 	var before := await pixels("PerksProgramNameSortLabel")
 	await motion(control("PerksProgramNameSortButton").get_global_rect().get_center(),false)
 	await wait_frames(5)
-	if not label.get_theme_color("font_color").is_equal_approx(Color.WHITE):
-		fail("Header hover did not become source white"); return false
+	if not assert_header_color(Color.WHITE, "hover"): return false
 	if before == await pixels("PerksProgramNameSortLabel"):
 		fail("Header hover did not change rendered pixels"); return false
 	await capture("headers-hover")
 	await motion(control("PerksProgramMainModelScene").get_global_rect().get_center(),false)
 	await wait_frames(5)
-	if not label.get_theme_color("font_color").is_equal_approx(Color(1,0.82,0,1)):
-		fail("Header leave did not restore source gold"); return false
+	if not assert_header_color(Color(1,0.82,0,1), "leave"): return false
+	return true
+
+func assert_header_color(expected: Color, boundary: String) -> bool:
+	# Async snapshots can rebuild the projection while the fixture yields.
+	var label := control("PerksProgramNameSortLabel")
+	if label == null:
+		fail("Missing projected header after " + boundary); return false
+	if not label.get_theme_color("font_color").is_equal_approx(expected):
+		fail("Header color diverged at " + boundary); return false
 	return true
 
 func texture_ready(name: String) -> bool:
