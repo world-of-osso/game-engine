@@ -10,6 +10,7 @@ const ROW_HEIGHT: f32 = 20.0;
 const MENU_INSET: f32 = 8.0;
 const MENU_BOTTOM: f32 = 15.0;
 const DIVIDER_HEIGHT: f32 = 13.0;
+const SPACER_HEIGHT: f32 = 10.0;
 const NORMAL: &str = "1.0,1.0,1.0,1.0";
 const GOLD: &str = "1.0,0.82,0.0,1.0";
 const DISABLED: &str = "0.5,0.5,0.5,1.0";
@@ -391,6 +392,14 @@ fn menu_tick(name: &str, kind: MenuElementKind) -> (f32, Element) {
 /// Menu description elements: item, template kind, enabled state.
 pub type DescribedMenuElement<'a> = (ContextMenuItem<'a>, MenuElementKind, bool);
 
+fn description_row_height(kind: MenuElementKind) -> f32 {
+    match kind {
+        MenuElementKind::Spacer => SPACER_HEIGHT,
+        MenuElementKind::Divider => DIVIDER_HEIGHT,
+        _ => ROW_HEIGHT,
+    }
+}
+
 /// DropdownButton.lua minimum owner width; Menu.lua content-fit compositor;
 /// MenuTemplates.CreateSpacer defaults to10. No synthetic title/divider is inserted.
 pub fn context_menu_description(
@@ -425,23 +434,13 @@ pub fn context_menu_description(
         + MENU_BOTTOM
         + entries
             .iter()
-            .map(|(_, kind, _)| {
-                if *kind == MenuElementKind::Spacer {
-                    10.
-                } else {
-                    ROW_HEIGHT
-                }
-            })
+            .map(|(_, kind, _)| description_row_height(*kind))
             .sum::<f32>();
     let mut contents =
         crate::selection_list::menu_background(format!("{name}Background"), (width, height));
     let mut top = MENU_INSET;
     for (item, kind, enabled) in entries {
-        let row_height = if *kind == MenuElementKind::Spacer {
-            10.
-        } else {
-            ROW_HEIGHT
-        };
+        let row_height = description_row_height(*kind);
         contents.extend(menu_element(
             *item,
             *kind,
