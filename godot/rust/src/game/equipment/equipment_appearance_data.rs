@@ -69,13 +69,56 @@ pub fn visual_slot_to_runtime_slots(slot: EquipmentVisualSlot) -> Vec<EquipmentS
     }
 }
 
+#[derive(Clone, Copy)]
+struct BodyPaint<'a> {
+    race: u8,
+    sex: u8,
+    baked: bool,
+    tabard: Option<(
+        shared::guild_creation::GuildTabardDesign,
+        &'a shared::guild_tabards::GuildTabardCatalog,
+    )>,
+}
+
+pub fn resolve_equipment_with_guild_tabard(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+    tabard: (
+        shared::guild_creation::GuildTabardDesign,
+        &shared::guild_tabards::GuildTabardCatalog,
+    ),
+) -> Result<ResolvedEquipmentAppearance, String> {
+    tabard.1.validate(tabard.0)?;
+    load_equipment_appearance_checked(
+        appearance,
+        outfit_data,
+        BodyPaint {
+            race,
+            sex,
+            baked: false,
+            tabard: Some(tabard),
+        },
+    )
+}
+
 pub fn resolve_equipment_appearance(
     appearance: &EquipmentAppearance,
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
 ) -> Result<ResolvedEquipmentAppearance, String> {
-    load_equipment_appearance_checked(appearance, outfit_data, race, sex, false)
+    load_equipment_appearance_checked(
+        appearance,
+        outfit_data,
+        BodyPaint {
+            race,
+            sex,
+            baked: false,
+            tabard: None,
+        },
+    )
 }
 
 /// An authored NPC bake already paints body armor; retain its models and geosets.
@@ -85,23 +128,29 @@ pub fn load_baked_equipment_appearance(
     race: u8,
     sex: u8,
 ) -> Result<ResolvedEquipmentAppearance, String> {
-    load_equipment_appearance_checked(appearance, outfit_data, race, sex, true)
+    load_equipment_appearance_checked(
+        appearance,
+        outfit_data,
+        BodyPaint {
+            race,
+            sex,
+            baked: true,
+            tabard: None,
+        },
+    )
 }
 
 fn load_equipment_appearance_checked(
     appearance: &EquipmentAppearance,
     outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    baked_body: bool,
+    paint: BodyPaint<'_>,
 ) -> Result<ResolvedEquipmentAppearance, String> {
     let mut failure = None;
-    let resolved =
-        load_equipment_entries(appearance, outfit_data, race, sex, baked_body, |error| {
-            if failure.is_none() {
-                failure = Some(error);
-            }
-        });
+    let resolved = load_equipment_entries(appearance, outfit_data, paint, |error| {
+        if failure.is_none() {
+            failure = Some(error);
+        }
+    });
     match failure {
         Some(error) => Err(error),
         None => Ok(resolved),
@@ -116,15 +165,23 @@ pub fn resolve_equipment_appearance_with_errors(
     sex: u8,
     report_error: impl FnMut(String),
 ) -> ResolvedEquipmentAppearance {
-    load_equipment_entries(appearance, outfit_data, race, sex, false, report_error)
+    load_equipment_entries(
+        appearance,
+        outfit_data,
+        BodyPaint {
+            race,
+            sex,
+            baked: false,
+            tabard: None,
+        },
+        report_error,
+    )
 }
 
 fn load_equipment_entries(
     appearance: &EquipmentAppearance,
     outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    baked_body: bool,
+    paint: BodyPaint<'_>,
     mut report_error: impl FnMut(String),
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
@@ -177,9 +234,8 @@ fn load_equipment_entries(
             entry.slot,
             display_info_id,
             entry_data,
-            race,
-            sex,
-            baked_body,
+            paint,
+            guild_tabard_tier(entry),
         ) {
             Ok(textures) => body.record(entry.slot, display_info_id, entry_data, textures),
             Err(error) => report_error(format!(
@@ -191,6 +247,46 @@ fn load_equipment_entries(
     apply_body_geosets(&mut resolved, &body);
     layer_item_textures(&mut resolved, &body);
     resolved
+}
+
+/// WoWModelViewer WoWItem.cpp / TabardDetails.cpp: the three customizable guild tabards.
+pub fn guild_tabard_tier(entry: &shared::components::EquippedAppearanceEntry) -> Option<u8> {
+    if entry.hidden || entry.slot != EquipmentVisualSlot::Tabard {
+        return None;
+    }
+    match entry.item_id {
+        Some(5976) => Some(0),
+        Some(69209) => Some(1),
+        Some(69210) => Some(2),
+        _ => None,
+    }
+}
+
+fn guild_body_textures(
+    textures: shared::guild_tabards::GuildTabardTextures,
+) -> Vec<(u8, AssetTexture)> {
+    textures
+        .upper
+        .into_iter()
+        .map(|fdid| {
+            (
+                3,
+                AssetTexture {
+                    product: AssetProduct::Retail,
+                    fdid,
+                },
+            )
+        })
+        .chain(textures.lower.into_iter().map(|fdid| {
+            (
+                4,
+                AssetTexture {
+                    product: AssetProduct::Retail,
+                    fdid,
+                },
+            )
+        }))
+        .collect()
 }
 
 /// The displays of the slots whose items paint the body and pick its sleeve, robe and
@@ -345,17 +441,29 @@ fn apply_visible_entry(
     slot: EquipmentVisualSlot,
     display_info_id: u32,
     outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    baked_body: bool,
+    paint: BodyPaint<'_>,
+    tabard_tier: Option<u8>,
 ) -> Result<Vec<(u8, AssetTexture)>, String> {
+    let BodyPaint {
+        race,
+        sex,
+        baked: baked_body,
+        ..
+    } = paint;
     let display = if baked_body {
         outfit_data.try_load_baked_display_info(display_info_id, race, sex)?
     } else {
         outfit_data.try_resolve_display_info(display_info_id, race, sex)?
     };
     let mut display = display.ok_or_else(|| format!("display {display_info_id} missing"))?;
-    let textures = if baked_body {
+    let textures = if let (Some((design, catalog)), Some(tier)) = (paint.tabard, tabard_tier) {
+        let textures = guild_body_textures(catalog.textures(design, tier)?);
+        display.item_textures = textures
+            .iter()
+            .map(|(section, texture)| (*section, texture.fdid))
+            .collect();
+        textures
+    } else if baked_body {
         Vec::new()
     } else {
         outfit_data.load_source_item_textures(display_info_id, race, sex)?
@@ -828,6 +936,59 @@ mod tests {
 
     fn resolve(entries: Vec<EquippedAppearanceEntry>) -> ResolvedEquipmentAppearance {
         resolve_equipment_appearance(&EquipmentAppearance { entries }, outfit_data(), 1, 0).unwrap()
+    }
+
+    #[test]
+    fn guild_tabard_body_layers_follow_all_three_source_tiers_without_repainting_other_tabards() {
+        use shared::{guild_creation::GuildTabardDesign, guild_tabards::GuildTabardCatalog};
+        let catalog = GuildTabardCatalog::load(&data_dir().join("db2/active")).unwrap();
+        let design = GuildTabardDesign {
+            icon: 1,
+            icon_color: 2,
+            border: 3,
+            border_color: 4,
+            background_color: 5,
+        };
+        for (item, tier) in [(5976, 0), (69209, 1), (69210, 2)] {
+            let appearance = EquipmentAppearance {
+                entries: vec![entry(EquipmentVisualSlot::Tabard, item)],
+            };
+            let result = resolve_equipment_with_guild_tabard(
+                &appearance,
+                outfit_data(),
+                1,
+                0,
+                (design, &catalog),
+            )
+            .unwrap();
+            let source = catalog.textures(design, tier).unwrap();
+            let expected: Vec<_> = source
+                .upper
+                .into_iter()
+                .map(|fdid| (3, fdid))
+                .chain(source.lower.into_iter().map(|fdid| (4, fdid)))
+                .collect();
+            assert_eq!(result.outfit.item_textures, expected, "guild tabard{item}");
+            assert!(
+                result
+                    .body_texture_assets
+                    .iter()
+                    .all(|(_, texture)| texture.product == AssetProduct::Retail)
+            );
+            assert!(result.outfit.geoset_overrides.contains(&(12, 2)));
+        }
+        let ordinary = EquipmentAppearance {
+            entries: vec![entry(EquipmentVisualSlot::Tabard, 15197)],
+        };
+        let baseline = resolve_equipment_appearance(&ordinary, outfit_data(), 1, 0).unwrap();
+        let result =
+            resolve_equipment_with_guild_tabard(&ordinary, outfit_data(), 1, 0, (design, &catalog))
+                .unwrap();
+        assert_eq!(result.outfit.item_textures, baseline.outfit.item_textures);
+        assert_eq!(
+            result.outfit.geoset_overrides,
+            baseline.outfit.geoset_overrides
+        );
     }
 
     #[test]

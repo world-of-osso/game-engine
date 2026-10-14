@@ -23,12 +23,15 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - `godot/ui-model/src/guild_tabard_frame.rs`: exact TabardFrame XML art/anchors and source button postsetup.
 - Current RSX macro truncates bare float literals (`ui-toolkit-macros/src/lib.rs:364–371`). Fractional authored attributes use the supported expression form until the lead-owned macro fix lands; no source values are rounded.
 - `godot/network/src/replica/codec.rs`: authoritative design component decoding.
+- `godot/rust/src/game/equipment/equipment_appearance_data.rs`: source guild-tabard tiers and replacement torso layers before clothing-priority compositing.
 - Shared `guild_tabards::GuildTabardCatalog`: installed palette and torso-layer resolution.
 
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_rank_widgets.rs`: no-design and registered Communities appearance.
 - `godot/tests/guild_no_design_portrait.gd`: native both-skin no-design texture/color/rectangle capture.
+- `godot/ui-model/tests/guild_tabards.rs`: source controls, draft isolation, leader gating and pending replies.
+- Native equipment `guild_tabard_body_layers` fixture: all three source tiers and unchanged ordinary tabards.
 
 ## Known gaps (current cycle)
 
