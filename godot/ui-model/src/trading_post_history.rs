@@ -7,14 +7,15 @@ const GOLD: &str = "1,0.82,0,1";
 const REFUND_PREFIX: &str = "Time remaining to refund this item:";
 
 pub(super) fn render(view: &View) -> Element {
-    let Some(row) = view
+    let Some(_row) = view
         .selected_item()
         .filter(|row| row.purchased || row.collected)
     else {
         return vec![];
     };
-    let children = if row.refund_seconds > 0 {
-        refund_status(row.refund_seconds)
+    let seconds = view.remaining_refund_seconds();
+    let children = if seconds > 0 {
+        refund_status(seconds)
     } else {
         owned_status()
     };

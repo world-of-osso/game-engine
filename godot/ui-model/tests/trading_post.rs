@@ -281,6 +281,40 @@ fn trading_post_purchase_history_shows_owned_or_refund_time_instead_of_a_purchas
 }
 
 #[test]
+fn trading_post_refund_history_expires_without_refresh_or_local_refund() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.items[0].purchased = true;
+        data.items[0].collected = true;
+        data.items[0].refund_seconds = 600;
+        let mut view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(data)),
+            refund_elapsed: 541,
+            ..Default::default()
+        };
+        let almost = render(skin, view.clone());
+        assert_eq!(
+            text(&almost, "PerksProgramHistoryRefundTime"),
+            "0m",
+            "source minimum-minute formatter floors the remaining59s"
+        );
+        assert!(view.can_refund());
+        view.refund_elapsed = 600;
+        let expired = render(skin, view.clone());
+        assert!(!view.can_refund());
+        assert!(expired.get_by_name("PerksProgramRefundButton").is_none());
+        assert_eq!(
+            text(&expired, "PerksProgramHistoryPurchasedText"),
+            "You own this item"
+        );
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(view.selected_item().unwrap().purchased && view.selected_item().unwrap().collected);
+    }
+}
+
+#[test]
 fn trading_post_renders_player_faction_gradients_in_both_skins() {
     use ui_toolkit::atlas::{AtlasSource, resolve_region};
     use ui_toolkit::widgets::texture::TextureSource;

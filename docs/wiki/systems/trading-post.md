@@ -54,7 +54,7 @@ Retail `PerksProgramShoppingCartMixin` owns an ordered, duplicate-free list of v
 
 ## Selected-item purchase history
 
-Retail PurchasedHistoryFrame shows selected-item ownership or remaining refund time, not a transaction list. Owned rows hide Purchase and show source `You own this item`/perks-owned-large; refundable rows show Refund plus the sourced prefix and common-icon-undo. Footer time uses two nonzero lowercase day/hour/minute units, floor rounding, minimum minutes and the source3600s red threshold. Font14 and158×39/right-50/Leave-bottom+16 anchors come from XML/FontStyles. Retained refund seconds are aged when partial snapshots advance server time; empty freeze/balance deltas cannot renew an older receipt. Native interpolation/output verification remains a continuation gate.
+Retail PurchasedHistoryFrame shows selected-item ownership or remaining refund time, not a transaction list. Owned rows hide Purchase and show source `You own this item`/perks-owned-large; refundable rows show Refund plus the sourced prefix and common-icon-undo. Footer time uses two nonzero lowercase day/hour/minute units, floor rounding, minimum minutes and the source3600s red threshold. Font14 and158×39/right-50/Leave-bottom+16 anchors come from XML/FontStyles. Retained refund seconds are aged when partial snapshots advance server time; empty freeze/balance deltas cannot renew an older receipt. Native monotonic seconds since snapshot observation interpolate display only; expiry hides Refund without changing Tender, receipts or collections. The server still decides whether a refund succeeds. Native output verification remains a continuation gate.
 
 ## Canonical-write boundary
 

@@ -37,6 +37,7 @@ pub(crate) struct TradingPost {
     /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
     hidden_layers: Vec<Gd<CanvasLayer>>,
     preview_failed: bool,
+    snapshot_observed_at: Option<std::time::Instant>,
 }
 
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
@@ -116,6 +117,7 @@ impl GameClient {
             let current = self.trading_post.view.snapshot.as_ref();
             if !current.is_some_and(|current| std::sync::Arc::ptr_eq(current, snapshot)) {
                 self.trading_post.view.receive(snapshot.clone());
+                self.trading_post.snapshot_observed_at = Some(std::time::Instant::now());
                 if self.trading_post.view.visible && snapshot.npc_net_id.is_none() {
                     self.close_trading_post();
                 }
@@ -123,6 +125,10 @@ impl GameClient {
         }
         if !self.trading_post.view.visible {
             return Ok(());
+        }
+        if let Some(observed_at) = self.trading_post.snapshot_observed_at {
+            self.trading_post.view.refund_elapsed =
+                observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
         }
         self.trading_post.view.horde = self.player_is_horde();
         self.poll_trading_inputs()?;
