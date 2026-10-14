@@ -12,6 +12,10 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 - [x] Item-info IPC requires explicit query source. CLI defaults deliberately to Retail; `--source forever70205` explicitly selects Forever.
 - [ ] Owned Retail equipment resolves per-model replacement texture types from root `ItemDisplayInfoModelMatRes.csv` through Retail texture resources. Forever70205 keeps source-local model skins; it must not borrow Retail replacement rows. A Forever per-model replacement export is not required by this contract.
 
+- [x] Select equipped component models by source-local `ItemDisplayInfo.ModelResourcesID` → `ModelFileData` FDID, filtered by `ComponentModelFileData` wearer/position metadata; a listfile filename is not required to attach a selected model. The first model of an attachment slot uses that slot's attachment; additional models and body-slot models share character joints.
+
+- [x] Modern and Forever mount Retail's player portrait slot (60×60 at24,19) using the same equipped-player renderer. Forever retains its existing bronze bars, percentages and power bar; portrait pixels must not cover bar content. Other unit-frame layouts are unchanged.
+
 ## How it works
 
 - [Forever data](../wiki/systems/forever-data.md)
@@ -32,6 +36,9 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 - `godot/ui-model/src/game/cursor_item_tests.rs`
 - `godot/cli/src/tests/request_actions.rs`
 - `godot/core/src/outfit_data_tests.rs`: owned Retail per-model replacements and Forever isolation.
+- `godot/rust/src/assets/equipment.rs::tests::retail_head_7321940_attaches_without_a_listfile_name`: source display730376, human male, actual70391 model/skin, attachment11 and retained2702 mesh without a listfile name.
+- `godot/rust/src/game/equipment/equipment_appearance_data.rs::tests::belt_keeps_buckle_and_collection_and_bracers_have_models`: source ordered buckle/collection binding and body bracer binding.
+- `godot/ui-model/tests/forever_flare_frames.rs::forever_player_has_retail_portrait_without_covering_flare_bars`: shared portrait slot and retained unobscured Forever bars.
 
 ## Known gaps (current cycle)
 
