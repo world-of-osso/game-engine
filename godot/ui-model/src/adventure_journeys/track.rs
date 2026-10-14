@@ -162,10 +162,10 @@ fn arrow(
         return rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:true,{parts}}};
     }
     if small {
-        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,onclick:{action.as_str()},{parts}}}
+        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:false,onclick:{action.as_str()},{parts}}}
     } else {
         // RewardTrackButtonTemplate is driven by physical down/up, not OnClick.
-        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,{parts}}}
+        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:false,{parts}}}
     }
 }
 
