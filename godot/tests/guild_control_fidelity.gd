@@ -147,23 +147,28 @@ func assert_rect(ui: Node, name: String, expected: Rect2) -> void:
 		quit(1)
 	assert(actual.is_equal_approx(expected), name + " actual=" + str(actual) + " expected=" + str(expected))
 
-# UiTextureAtlasMember25558: source 1x textholder is54x41 in both active sets.
-# Observe the decoded image actually supplied to the native backdrop, not registry construction.
+# The decoded textholder art is41px tall; the native renderer may use any number of slices.
+# Validate sampled bitmap rows and full painted coverage, not one TextureRect/crop construction.
 func assert_dropdown_member_image(ui: Node, name: String) -> void:
 	var target := control(ui, name).get_global_rect()
 	for frame in range(120):
+		var painted_width := 0.0
 		for node in ui.find_children("*", "TextureRect", true, false):
 			var part := node as TextureRect
-			if part.get_global_rect().is_equal_approx(target) and part.texture != null:
+			var rect := part.get_global_rect()
+			var covers_backdrop_row := is_equal_approx(rect.position.y, target.position.y) and is_equal_approx(rect.size.y, target.size.y) and target.encloses(rect)
+			if covers_backdrop_row and part.texture != null:
 				var image: Image = part.texture.get_image()
-				if image.get_size() != Vector2i(54, 41):
-					push_error("Dropdown must use its one source member, not square-button UVs: " + name + " image=" + str(image.get_size()))
+				if image.get_height() != 41:
+					push_error("Dropdown samples unrelated button-sheet rows: " + name + " image=" + str(image.get_size()))
 					quit(1)
-				assert(image.get_size() == Vector2i(54, 41))
-				return
+				assert(image.get_height() == 41)
+				painted_width += rect.size.x
+		if is_equal_approx(painted_width, target.size.x):
+			return
 		await process_frame
 		await RenderingServer.frame_post_draw
-	push_error("Dropdown backdrop image missing after bounded asset wait: " + name)
+	push_error("Dropdown backdrop coverage missing after bounded asset wait: " + name)
 	quit(1)
 
 func capture_png(directory: String, filename: String) -> void:
