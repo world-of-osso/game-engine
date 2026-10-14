@@ -25,6 +25,41 @@ fn set_audit_data_and_skin(forever: bool) -> Result<(), String> {
     Ok(())
 }
 
+fn build_encounter_timer_fixture()
+-> game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen {
+    use game_engine_ui_model::encounter_timeline::EncounterTimeline;
+    use game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen;
+    use shared::protocol::{EncounterTimelineEvent, EncounterTimer};
+    let timers = [0, 5_000, 10_000]
+        .into_iter()
+        .enumerate()
+        .map(|(index, remaining_ms)| EncounterTimer {
+            event_id: index as u32 + 1,
+            spell_id: 20805,
+            remaining_ms,
+            duration_ms: 10_000,
+            conditional: false,
+        })
+        .collect();
+    let mut timeline = EncounterTimeline::default();
+    timeline.receive(
+        EncounterTimelineEvent::Timers {
+            caster: 3669,
+            sample_unix_ms: 0,
+            timers,
+        },
+        0,
+        |_| ("Lightning Bolt".into(), 136048),
+    );
+    EncounterTimelineScreen {
+        timeline,
+        enabled: true,
+        bars: true,
+        warnings: false,
+        preview: false,
+    }
+}
+
 #[derive(GodotClass)]
 #[class(base = Node, init)]
 struct UiAuditProbe {
@@ -82,6 +117,23 @@ impl UiAuditProbe {
             }
             other => return format!("Unknown audit journal {other}").as_str().into(),
         };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn mount_encounter_timer_bars(&mut self, forever: bool) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("EncounterTimerAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let result = ui
+            .bind_mut()
+            .show_encounter_timeline(build_encounter_timer_fixture());
         result.err().unwrap_or_default().as_str().into()
     }
 

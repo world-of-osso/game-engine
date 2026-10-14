@@ -36,4 +36,4 @@ The in-world XP HUD shows the player's progress to the next level and the rested
 
 ## Out of scope
 
-- Reputation, honor and the other status bars; the second container; trial/banked XP; the disabled-XP toggle; gain and level-up animations; the `xpBarText` always-on option; Edit Mode moving or resizing of the bar; the overlay's texcoord crop.
+- [Watched reputation and the second container](reputation-status-bar.md) have a separate contract; honor and the other status bars; trial/banked XP; the disabled-XP toggle; gain and level-up animations; the `xpBarText` always-on option; Edit Mode moving or resizing of the bar; the overlay's texcoord crop.
