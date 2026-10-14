@@ -17,7 +17,7 @@ fn screen(ctx: &SharedContext) -> Element {
     let mut shared = SharedContext::new();
     if baseline.page == "raid" {
         shared.insert(baseline.raid.clone());
-        raid::raid_info_screen(&shared)
+        raid::screen(&shared)
     } else {
         shared.insert(baseline.pvp.clone());
         pvp::pvp_screen(&shared)
