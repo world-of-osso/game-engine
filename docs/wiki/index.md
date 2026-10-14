@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Watched reputation status bar](systems/reputation-status-bar.md) — independent authoritative login/progress, Retail container priority and approved relative XP preset; four inspected both-skin full-HD restoration/hover captures.
+
 - [Journeys watch and held-left boundary](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14) — persisted authority/refusal, fractional-left regression and explicit current native delivery blocker.
 
 - [Journeys held arrows and native masks](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14) — fractional held scrolling, outside-arrow release/stop, both-skin icon alpha and fourteen inspected full-HD captures; snapshot latency separated from presentation proof.
