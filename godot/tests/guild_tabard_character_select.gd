@@ -33,5 +33,5 @@ func capture() -> void:
 		assert(image.save_png(directory.path_join(skin + "-tabard-character-select.png")) == OK)
 		fixture.queue_free()
 		await process_frame
-	print("PASS: both-skin production character-selection roster projection/model/campsite with persisted tabard IDs; offline fixture")
+	print("PASS: both-skin production character-selection roster projection/model/campsite with registered tabard IDs; fabricated offline roster")
 	quit(0)
