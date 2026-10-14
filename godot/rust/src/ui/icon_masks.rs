@@ -231,6 +231,7 @@ fn is_round_icon(name: &str) -> bool {
                 | "OpenMailFramePortrait"
                 | "FlightMapPortrait"
                 | "ProfessionsPortrait"
+                | "CooldownSettingsPortrait"
                 | "ProfessionsOutputIcon"
         );
     let talent = name.starts_with("TalentNode") && name.ends_with("RoundIcon");

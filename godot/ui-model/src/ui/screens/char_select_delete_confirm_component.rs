@@ -12,28 +12,11 @@ pub const DELETE_CONFIRM_INPUT: FrameName = FrameName("DeleteCharacterConfirmInp
 pub const DELETE_CONFIRM_BUTTON: FrameName = FrameName("DeleteCharacterConfirmButton");
 pub const DELETE_CANCEL_BUTTON: FrameName = FrameName("DeleteCharacterCancelButton");
 
-const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
-const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
-const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
-const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
+const BUTTON_ATLAS_UP: &str = "128-redbutton-left";
+const BUTTON_ATLAS_PRESSED: &str = "128-redbutton-left-pressed";
+const BUTTON_ATLAS_HIGHLIGHT: &str = "retail-128-redbutton-highlight";
+const BUTTON_ATLAS_DISABLED: &str = "128-redbutton-left-disabled";
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
-const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
-const DELETE_DIALOG_BG: &str = "0.04,0.03,0.02,0.98";
-const DELETE_DIALOG_OVERLAY: &str = "0.0,0.0,0.0,0.65";
-const DELETE_HELPER: FontColor = FontColor::new(0.96, 0.92, 0.8, 1.0);
-const DELETE_WARNING: FontColor = FontColor::new(0.93, 0.4, 0.35, 1.0);
-const INPUT_BORDER_TEXTURES: [&str; 9] = [
-    "data/ui/Common-Input-Border-TL.blp",
-    "data/ui/Common-Input-Border-T.blp",
-    "data/ui/Common-Input-Border-TR.blp",
-    "data/ui/Common-Input-Border-L.blp",
-    "data/textures/editbox-white-fill.ktx2",
-    "data/ui/Common-Input-Border-R.blp",
-    "data/ui/Common-Input-Border-BL.blp",
-    "data/ui/Common-Input-Border-B.blp",
-    "data/ui/Common-Input-Border-BR.blp",
-];
-
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeleteConfirmUiState {
     pub visible: bool,
@@ -114,198 +97,143 @@ pub fn delete_confirmation_modal(state: &DeleteConfirmUiState) -> Element {
     if !state.visible {
         return Vec::new();
     }
-
+    // GlueDialog.xml Container512x256; GlueDialogMixin uses CENTER and23px text inset.
     rsx! {
+        r#frame { name: "DeleteCharacterOverlay", stretch: true, strata: FrameStrata::Dialog,
+            mouse_enabled: true, background_color: "0,0,0,0.7", }
         r#frame {
-            name: "DeleteCharacterOverlay",
-            stretch: true,
-            strata: FrameStrata::Dialog,
-            mouse_enabled: true,
-            background_color: DELETE_DIALOG_OVERLAY,
-        }
-        r#frame {
-            name: DELETE_CONFIRM_DIALOG,
-            width: 420.0,
-            height: 278.0,
-            strata: FrameStrata::Dialog,
-            mouse_enabled: true,
-            background_color: DELETE_DIALOG_BG,
-            border: "1,0.82,0,0.35",
-            pos_type: "absolute",
-            left: "50%",
-            top: "50%",
-            translate_x: "-50%",
-            translate_y: "-50%",
-            margin_top: {14.0},
-            {dialog_title()}
-            {dialog_warning(state)}
-            {dialog_helper()}
+            name: DELETE_CONFIRM_DIALOG, width: 512.0, height: 256.0, strata: FrameStrata::Dialog,
+            mouse_enabled: true, pos_type: "absolute", left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-50%",
+            texture { name: "DeleteCharacterDialogBackground", texture_atlas: "UI-Frame-DialogBox-BackgroundTile",
+                width: "auto", height: "auto", pos_type: "absolute", left: 8.0, right: 8.0, top: 9.0, bottom: 9.0, }
+            {crate::game_menu_main::sliced_atlas("DeleteCharacterDialogBorder", "UI-DiamondDialogBox-Border", [512.0,256.0], [32.0;4])}
+            r#frame {
+                name: "DeleteCharacterDialogText", width: 450.0, height: "auto", layout: "flex-column", gap: 2.0,
+                pos_type: "absolute", left: "50%", top: 23.0, translate_x: "-50%",
+                {dialog_label("DeleteCharacterDialogTitle", "Delete Character", 18.0)}
+                {dialog_label("DeleteCharacterDialogWarning", &format!("This will permanently delete {}.", state.character_name), 18.0)}
+                {dialog_label("DeleteCharacterDialogCountdown", &state.countdown_text, 12.0)}
+            }
             {delete_confirm_editbox(state)}
-            {dialog_countdown(state)}
-            {delete_cancel_button()}
-            {delete_confirm_button(state)}
+            {modal_button(DELETE_CONFIRM_BUTTON, "Delete Forever", state.confirm_enabled.then_some(CharSelectAction::ConfirmDeleteChar), -206.0)}
+            {modal_button(DELETE_CANCEL_BUTTON, "Cancel", Some(CharSelectAction::CancelDeleteChar), 9.0)}
         }
     }
 }
 
-fn dialog_title() -> Element {
-    rsx! {
-        fontstring {
-            name: "DeleteCharacterDialogTitle",
-            width: 340.0,
-            height: 28.0,
-            text: "Delete Character",
-            font: GameFont::FrizQuadrata,
-            font_size: 22.0,
-            font_color: COLOR_GOLD,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {22.0},
-        }
-    }
-}
-
-fn dialog_warning(state: &DeleteConfirmUiState) -> Element {
-    rsx! {
-        fontstring {
-            name: "DeleteCharacterDialogWarning",
-            width: 340.0,
-            height: 40.0,
-            text: {format!("This will permanently delete {}.", state.character_name)},
-            font: GameFont::FrizQuadrata,
-            font_size: 16.0,
-            font_color: DELETE_WARNING,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {68.0},
-        }
-    }
-}
-
-fn dialog_helper() -> Element {
-    rsx! {
-        fontstring {
-            name: "DeleteCharacterDialogHelper",
-            width: 340.0,
-            height: 22.0,
-            text: "Type DELETE to confirm",
-            font: GameFont::FrizQuadrata,
-            font_size: 14.0,
-            font_color: DELETE_HELPER,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {122.0},
-        }
-    }
+struct DynName(String);
+fn dialog_label(name: &str, text: &str, size: f32) -> Element {
+    rsx! { fontstring { name: DynName(name.into()), width: 450.0, height: "auto", text,
+    font: GameFont::FrizQuadrata, font_size: size, font_color: COLOR_GOLD, } }
 }
 
 fn delete_confirm_editbox(state: &DeleteConfirmUiState) -> Element {
+    // GlueDialog editbox base150x32 CENTER, Instructions BOTTOM->TOP+3.
     rsx! {
         editbox {
-            name: DELETE_CONFIRM_INPUT,
-            width: 240.0,
-            height: 38.0,
-            text: state.typed_text.clone(),
-            font: GameFont::ArialNarrow,
-            font_size: 18.0,
-            font_color: COLOR_GOLD,
-            max_letters: 6,
-            text_insets: "12,5,8,8",
-            background_color: "0.14,0.10,0.07,0.5",
-            nine_slice {
-                edge_size: 8,
-                bg_color: "0.14,0.10,0.07,0.5",
-                border_color: "1.0,0.82,0.0,1.0",
-                textures: {INPUT_BORDER_TEXTURES.map(str::to_string)},
-            }
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {154.0},
+            name: DELETE_CONFIRM_INPUT, width: 150.0, height: 32.0, text: state.typed_text.clone(),
+            font: GameFont::FrizQuadrata, font_size: 15.0, font_color: COLOR_GOLD,
+            max_letters: 6, text_insets: "12,5,0,5", background_color: "0,0,0,0", pos_type: "absolute",
+            left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
+            {tooltip_input_border()}
+            fontstring { name: "DeleteCharacterDialogHelper", width: 150.0, height: "auto", text: "Type DELETE to confirm",
+                font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_GOLD,
+                pos_type: "absolute", left: 0.0, bottom: "100%", margin_bottom: 3.0, }
         }
     }
 }
 
-fn dialog_countdown(state: &DeleteConfirmUiState) -> Element {
-    rsx! {
-        fontstring {
-            name: "DeleteCharacterDialogCountdown",
-            width: 300.0,
-            height: 22.0,
-            text: state.countdown_text.clone(),
-            font: GameFont::FrizQuadrata,
-            font_size: 13.0,
-            font_color: COLOR_SUBTITLE,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {204.0},
-        }
-    }
+fn tooltip_input_border() -> Element {
+    // TooltipDefaultLayout in NineSliceLayouts.lua; source corner7px.
+    use crate::quest_art::named_atlas_texture;
+    const W: f32 = 150.0;
+    const H: f32 = 32.0;
+    const C: f32 = 7.0;
+    [
+        (
+            "Center",
+            "Tooltip-NineSlice-Center",
+            (3.0, 3.0, W - 6.0, H - 6.0),
+        ),
+        (
+            "TopLeft",
+            "Tooltip-NineSlice-CornerTopLeft",
+            (0.0, 0.0, C, C),
+        ),
+        (
+            "TopRight",
+            "Tooltip-NineSlice-CornerTopRight",
+            (W - C, 0.0, C, C),
+        ),
+        (
+            "BottomLeft",
+            "Tooltip-NineSlice-CornerBottomLeft",
+            (0.0, H - C, C, C),
+        ),
+        (
+            "BottomRight",
+            "Tooltip-NineSlice-CornerBottomRight",
+            (W - C, H - C, C, C),
+        ),
+        (
+            "Top",
+            "_Tooltip-NineSlice-EdgeTop",
+            (C, 0.0, W - 2.0 * C, C),
+        ),
+        (
+            "Bottom",
+            "_Tooltip-NineSlice-EdgeBottom",
+            (C, H - C, W - 2.0 * C, C),
+        ),
+        (
+            "Left",
+            "!Tooltip-NineSlice-EdgeLeft",
+            (0.0, C, C, H - 2.0 * C),
+        ),
+        (
+            "Right",
+            "!Tooltip-NineSlice-EdgeRight",
+            (W - C, C, C, H - 2.0 * C),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(part, atlas, rect)| {
+        named_atlas_texture(format!("DeleteCharacterInput{part}"), atlas, rect)
+    })
+    .collect()
 }
 
-fn delete_confirm_button(state: &DeleteConfirmUiState) -> Element {
-    if state.confirm_enabled {
-        modal_button(
-            DELETE_CONFIRM_BUTTON,
-            "Delete Forever",
-            Some(CharSelectAction::ConfirmDeleteChar),
-            true,
-            -12.0,
-        )
-    } else {
-        modal_button(DELETE_CONFIRM_BUTTON, "Delete Forever", None, true, -12.0)
-    }
-}
-
-fn delete_cancel_button() -> Element {
-    modal_button(
-        DELETE_CANCEL_BUTTON,
-        "Cancel",
-        Some(CharSelectAction::CancelDeleteChar),
-        false,
-        12.0,
-    )
-}
-
-fn modal_button(
-    name: FrameName,
-    text: &str,
-    action: Option<CharSelectAction>,
-    align_right: bool,
-    x: f32,
-) -> Element {
-    let translate_x = if align_right { "-100%" } else { "0%" };
+fn modal_button(name: FrameName, text: &str, action: Option<CharSelectAction>, x: f32) -> Element {
     let disabled = action.is_none();
     let onclick = action.map(|action| action.to_string()).unwrap_or_default();
     rsx! {
         button {
-            name,
-            width: 168.0,
-            height: 40.0,
-            text,
-            font_size: 14.0,
-            onclick,
-            disabled: disabled,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            pos_type: "absolute",
-            left: "50%",
-            top: "100%",
-            translate_x,
-            translate_y: "-100%",
-            margin_left: x,
-            margin_top: -18.0,
+            name, width: 200.0, height: 30.0, text, font_size: 15.0, onclick, disabled,
+            button_atlas_up: BUTTON_ATLAS_UP, button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT, button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+            pos_type: "absolute", left: "50%", top: "100%", translate_y: "-100%",
+            margin_left: x, margin_top: -18.0,
+        }
+    }
+}
+
+pub(super) fn sync_glue_dialog_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    for name in [
+        "DeleteCharacterInputCenter",
+        "DeleteCharacterDialogBackground",
+    ] {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
+        {
+            if name == "DeleteCharacterInputCenter" {
+                // TooltipBackdropTemplateMixin: TOOLTIP_DEFAULT_BACKGROUND_COLOR.
+                texture.vertex_color = [0.09, 0.09, 0.188, 1.0];
+            }
+            texture.horiz_tile = true;
+            texture.vert_tile = true;
         }
     }
 }

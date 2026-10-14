@@ -80,6 +80,8 @@ fn options_model() -> OptionsModel {
         logged_in: true,
         view: GameMenuView::Options,
         category: OptionsCategory::Graphics,
+        search: String::new(),
+        addons_tab: false,
         modal_position: [0.0, 0.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
@@ -150,6 +152,7 @@ fn modern_trees() -> String {
     view.view = GameMenuView::Options;
     for category in OptionsCategory::ALL {
         view.options.category = category;
+        view.options.addons_tab = category == OptionsCategory::SocialAddons;
         out += &dump(view.clone(), game_menu_screen, "GameMenuRoot");
     }
     out
@@ -273,15 +276,33 @@ fn graphics_settings_remain_reachable_after_scrolling() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(|ctx: &SharedContext| {
             let (view, offset) = ctx.get::<(OptionsViewModel, usize)>().unwrap();
-            options_view(view, *offset)
+            options_view(view, *offset, None)
         });
         screen.sync(&shared, &mut registry);
-        assert!(registry.get_by_name("SliderRowbloom_intensity").is_none());
-        assert!(registry.get_by_name("SliderRowparticle_density").is_none());
+        // Retail's529px viewport mounts partially clipped rows at the edge.
+        // Prove actual overflow rather than treating row retention as visibility.
+        let list = registry
+            .scroll_lists
+            .get(game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL)
+            .unwrap();
+        let maximum = list.geometry.row_count - list.geometry.visible_rows;
+        assert!(maximum > 0, "Graphics must have a second scroll position");
+        assert_eq!(list.first_row, 0);
 
-        // Scroll to the bottom; the production list clamps this pixel offset.
-        shared.insert((view.options, usize::MAX));
+        // Use the production registry scroll state, not a separately injected offset.
+        let list_name = game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL;
+        assert!(registry.scroll_lists.scroll_by(list_name, maximum as isize));
+        let offset = registry.scroll_lists.get(list_name).unwrap().first_row;
+        shared.insert((view.options, offset));
         screen.sync(&shared, &mut registry);
+        assert_eq!(
+            registry
+                .scroll_lists
+                .get(game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL)
+                .unwrap()
+                .first_row,
+            maximum
+        );
         assert!(registry.get_by_name("SliderRowbloom_intensity").is_some());
         let particles = registry.get_by_name("SliderLabelparticle_density").unwrap();
         assert!(matches!(
@@ -296,7 +317,11 @@ fn graphics_settings_remain_reachable_after_scrolling() {
 fn quest_chrome_preserves_modern_and_resolves_forever() {
     load_tables();
     set_thread_skin(ActiveSkin::Modern);
-    assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
+    let trees = modern_trees();
+    if std::env::var_os("PRINT_MODERN_TREES").is_some() {
+        println!("<<<MODERN_TREES\n{trees}MODERN_TREES>>>");
+    }
+    assert!(trees == fixture::MODERN_TREES, "Modern frame trees changed");
     // Forever draws its own close-button art, not Modern's.
     assert_ne!(
         assert_close_texture(ActiveSkin::Modern),
