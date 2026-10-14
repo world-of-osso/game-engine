@@ -275,6 +275,36 @@ fn long_log() -> QuestLogFrameState {
 }
 
 #[test]
+fn questoverflow_rewards_stay_fixed_while_long_story_scrolls_in_both_skins() {
+    use game_engine_ui_model::world_map_frame_component::{
+        WorldMapFrameState, world_map_frame_screen,
+    };
+    const LIST: &str = "QuestMapDetailsScrollFrame";
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = quest_model(
+            WorldMapFrameState::default().with_quest_panel(long_log(), true),
+            world_map_frame_screen,
+        );
+        let money = rect(&model, "QuestInfoMoneyText").unwrap();
+        let rewards = rect(&model, "QuestMapRewardsFrameContainer")
+            .expect("Retail bottom reward container must be visible");
+        assert_eq!(rewards.width, 307.0);
+        assert!(
+            inside(&money, &rewards),
+            "{skin:?}: {money:?} outside {rewards:?}"
+        );
+        let story_top = top(&model, "QuestLogDetailsDescription");
+        assert!(wheel(&mut model, LIST, false));
+        rebuild(&mut model);
+        assert_eq!(rect(&model, "QuestInfoMoneyText").unwrap(), money);
+        assert_eq!(story_top - top(&model, "QuestLogDetailsDescription"), 30.0);
+        assert!(rect(&model, "QuestMapDetailsBackground").unwrap().height <= 440.0);
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
     use game_engine_ui_model::world_map_frame_component::{
         WorldMapFrameState, world_map_frame_screen,
