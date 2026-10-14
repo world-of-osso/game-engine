@@ -134,24 +134,40 @@ pub(super) fn panel(ctx: &SharedContext, view: &View) -> Element {
 }
 
 fn cart_list(ctx: &SharedContext, view: &View, top: f32, height: f32) -> Element {
-    let rows = view.cart_items();
-    let content_height = (rows.len() as f32 * ITEM_HEIGHT).max(height);
+    let rows = match cart_rows::expand(view) {
+        Ok(rows) => rows,
+        Err(error) => {
+            return label(
+                "PerksProgramCartMetadataError".into(),
+                &error,
+                (42., top, 322., 84.),
+                (14., "1,0.1,0.1,1", "LEFT"),
+            );
+        }
+    };
+    let content_height = rows
+        .last()
+        .map_or(0., |row| row.top + row.height)
+        .max(height);
     let geometry = pixel_geometry(height, content_height, height);
     let offset = geometry.clamp(ctx.scroll_first_row(CART_LIST)) as f32;
-    let width = CART_WIDTH - 42. - 36.;
+    let parent_width = CART_WIDTH - 42. - 36.;
+    let width = parent_width - if content_height > height { 8. } else { 0. };
     let contents: Element = rows
         .iter()
-        .enumerate()
-        .filter(|(index, _)| {
-            let y = *index as f32 * ITEM_HEIGHT;
-            y + ITEM_HEIGHT > offset && y < offset + height
+        .filter(|row| row.top + row.height > offset && row.top < offset + height)
+        .flat_map(|row| {
+            if row.header {
+                cart_rows::header(view, row, width - 24.)
+            } else {
+                cart_row(view, row, width - 24.)
+            }
         })
-        .flat_map(|(index, row)| cart_row(view, row, index as f32 * ITEM_HEIGHT, width))
         .collect();
     let scroll = scroll_list_attr(&geometry);
     let bar = MinimalScrollBar {
         list: CART_LIST,
-        left: width + 12.,
+        left: parent_width + 12.,
         top: 4.,
         height: height - 12.,
         geometry,
@@ -159,14 +175,21 @@ fn cart_list(ctx: &SharedContext, view: &View, top: f32, height: f32) -> Element
         unscrollable: Unscrollable::HideBar,
     };
     let child = rsx! {r#frame{name:"PerksProgramCartScrollChild",left:0.0,top:{-offset},width,height:content_height,pos_type:"absolute",{contents}}};
-    rsx! {r#frame{name:"PerksProgramCartItemList",left:42.0,top,width:{width+12.0},height,pos_type:"absolute",
+    rsx! {r#frame{name:"PerksProgramCartItemList",left:42.0,top,width:parent_width,height,pos_type:"absolute",
         r#frame{name:{DynName(CART_LIST.into())},left:0.0,top:0.0,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:scroll.as_str(),{child}}
         {bar.element()}
     }}
 }
 
-fn cart_row(view: &View, row: &TradingPostItem, top: f32, width: f32) -> Element {
-    let prefix = format!("PerksProgramCartItem{}", row.id);
+fn cart_row(view: &View, element: &cart_rows::Row, width: f32) -> Element {
+    let row = &element.item;
+    let prefix = element.name.clone();
+    let selected = view.cart_selected.values().any(|id| *id == row.item_id);
+    let border = if selected {
+        "perks-border-square-gold"
+    } else {
+        "perks-border-square-gray"
+    };
     let mut children = named_atlas_texture(
         format!("{prefix}Background"),
         "petlist-buttonbackground",
@@ -180,41 +203,70 @@ fn cart_row(view: &View, row: &TradingPostItem, top: f32, width: f32) -> Element
     ));
     children.extend(named_atlas_texture(
         format!("{prefix}IconBorder"),
-        "perks-border-square-gray",
+        border,
         (16., 14., 56., 56.),
+    ));
+    let slot = crate::item_catalog::item_catalog()
+        .and_then(|catalog| catalog.get(row.item_id))
+        .and_then(|item| crate::item_tooltip::inventory_type_label(item.inventory_type))
+        .map(str::to_owned)
+        .or_else(|| {
+            view.snapshot
+                .as_ref()?
+                .categories
+                .iter()
+                .find(|category| category.id == row.category_id)
+                .map(|category| category.name.clone())
+        })
+        .unwrap_or_default();
+    children.extend(label(
+        format!("{prefix}Slot"),
+        &slot,
+        (80., 15., width - 96., 16.),
+        (12., "1,0.82,0,1", "LEFT"),
     ));
     children.extend(label(
         format!("{prefix}Name"),
         &row.name,
-        (80., 32., width - 80. - 16. - 21. - 8. - 44. - 8., 32.),
+        (
+            80.,
+            33.,
+            if element.member {
+                width - 80. - 12.
+            } else {
+                width - 80. - 16. - 21. - 8. - 44. - 8.
+            },
+            32.,
+        ),
         (
             14.,
             crate::merchant_data::quality_color(row.quality),
             "LEFT",
         ),
     ));
-    children.extend(texture(
-        format!("{prefix}PriceIcon"),
-        TENDER_ICON,
-        (width - 16. - 21., (ITEM_HEIGHT - 21.) / 2., 21., 21.),
-        WHITE,
-    ));
-    children.extend(label(
-        format!("{prefix}Price"),
-        &row.price.to_string(),
-        (
-            width - 16. - 21. - 8. - 44.,
-            (ITEM_HEIGHT - 20.) / 2.,
-            44.,
-            20.,
-        ),
-        (16., WHITE, "RIGHT"),
-    ));
-    let action = format!("perks:cart:remove:{}", row.id);
-    let hide_remove = view.cart_hover != Some(row.id);
-    children.extend(rsx! {button{name:{DynName(format!("{prefix}Remove"))},left:{width+4.0-8.0-16.0},top:{8.0-16.0},width:32.0,height:32.0,pos_type:"absolute",button_default_skin:false,hidden:hide_remove,onclick:action.as_str(),button_atlas_up:"auctionhouse-ui-filter-redx",button_atlas_highlight:"auctionhouse-ui-filter-redx"}});
-    let select = format!("perks:cart:select:{}", row.id);
-    rsx! {button{name:{DynName(prefix)},left:0.0,top,width,height:ITEM_HEIGHT,pos_type:"absolute",button_default_skin:false,onclick:select.as_str(),button_atlas_highlight:"petlist-buttonhighlight",{children}}}
+    if !element.member {
+        children.extend(cart_rows::price(
+            &prefix,
+            row.price,
+            width,
+            (ITEM_HEIGHT - 21.) / 2.,
+        ));
+        children.extend(cart_rows::remove(view, row.id, &prefix, width + 4.));
+    } else if element.height > ITEM_HEIGHT {
+        let region = ui_toolkit::atlas::resolve_region(
+            "perks-ensembleframe-bottom",
+            ui_toolkit::atlas::ActiveSkin::Modern,
+        )
+        .expect("Retail ensemble bottom brace");
+        children.extend(cart_rows::brace(
+            &format!("{prefix}Brace"),
+            "perks-ensembleframe-bottom",
+            element.height - 4. - region.height,
+            width,
+        ));
+    }
+    let select = format!("perks:cart:item:{}", row.item_id);
+    rsx! {button{name:{DynName(prefix)},left:12.0,top:element.top,width,height:element.height,pos_type:"absolute",button_default_skin:false,onclick:select.as_str(),button_atlas_highlight:"petlist-buttonhighlight",{children}}}
 }
 
 fn cart_icon_button(

@@ -9,6 +9,11 @@ use ui_toolkit::{
 };
 
 fn snapshot() -> TradingPostSnapshot {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     TradingPostSnapshot {
         npc_net_id: Some(185468),
         tender: 500,
@@ -84,6 +89,40 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         other => panic!("Expected text, got {other:?}"),
     }
 }
+#[test]
+fn trading_post_cart_ensemble_expands_header_members_and_source_list_padding() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.items[0].category_id = 8;
+        data.items[0].preview_item_ids = vec![25, 876];
+        let view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data)),
+            selected: Some(4),
+            cart: vec![4],
+            cart_visible: true,
+            ..Default::default()
+        };
+        let registry = render(skin, view);
+        assert_eq!(rect(&registry, "PerksProgramCartSet4")[3], 56.);
+        assert_eq!(
+            text(&registry, "PerksProgramCartSubItem4_25Name"),
+            "Worn Shortsword"
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramCartSubItem4_876Name"),
+            "Worn Wooden Buckler"
+        );
+        assert_eq!(rect(&registry, "PerksProgramCartItemList")[2], 322.);
+        assert_eq!(rect(&registry, "PerksProgramCartSet4")[..2], [12., 4.]);
+        assert_eq!(
+            rect(&registry, "PerksProgramCartSubItem4_25")[..2],
+            [12., 68.]
+        );
+        assert_eq!(rect(&registry, "PerksProgramCartSubItem4_876")[3], 104.);
+    }
+}
+
 #[test]
 fn trading_post_cart_selects_exclusive_hand_slots_and_deselects_clicked_item() {
     let mut data = snapshot();

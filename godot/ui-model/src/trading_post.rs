@@ -2,6 +2,8 @@
 //! Forever changes atlas art only; ToyOverlayFrame uses the authored item icon/details.
 #[path = "trading_post_cart.rs"]
 mod cart;
+#[path = "trading_post_cart_rows.rs"]
+mod cart_rows;
 #[path = "trading_post_cart_ui.rs"]
 mod cart_ui;
 #[path = "trading_post_filter.rs"]
