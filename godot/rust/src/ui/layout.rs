@@ -404,7 +404,7 @@ mod tests {
                     title: "Wine Shop Advert".into(),
                     objectives_text: "Go to the Gallina Winery, and bring Suzetta Gallina the Wine Ticket for a free bottle of wine.".into(),
                     objectives: vec![QuestLogObjectiveLine { text: "1/1 Wine Ticket".into(), done: true }],
-                    description: None, rewards: None, watched: false,
+                    description: None, rewards: None, watched: false, can_share: false,
                 }),
                 ..Default::default()
             };
