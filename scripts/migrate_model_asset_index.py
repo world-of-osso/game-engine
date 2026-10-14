@@ -23,7 +23,7 @@ def index_paths(data):
 def prepare_migration(data, output, identity, roots, extracted):
     output.mkdir(parents=True, exist_ok=False)
     files, destinations, keys = [], set(), set()
-    report = {'identity': identity, 'unchanged_bytes': 0, 'changed_bytes': 0, 'unavailable': [], 'historical_chains': []}
+    report = {'identity': identity, 'unchanged_bytes': 0, 'changed_bytes': 0, 'unavailable': [], 'unreadable': [], 'historical_chains': []}
 
     def add(source, destination, digest, hardlink=False):
         if destination in destinations:
@@ -50,6 +50,10 @@ def prepare_migration(data, output, identity, roots, extracted):
         else:
             source = extracted[fdid]
             raw = source.read_bytes()
+            if hashlib.md5(raw).hexdigest() != key:
+                # Encrypted content without a key extracts as zeros; never publish it or keep old-build bytes.
+                report['unreadable'].append({'fdid': fdid, 'kind': kind, 'path': row['path']})
+                return None
             validate_magic(raw, kind, key)
             # Keep alias metadata (owner_model_fdid, reference); the receipt replaces identity and bytes.
             receipt = {**row, **create_asset_receipt(identity, fdid, kind, str(relative), raw, key)}

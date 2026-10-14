@@ -103,5 +103,40 @@ class ModelAssetMigrationTests(unittest.TestCase):
         self.assertFalse(module.needs_extraction(row, {}))
 
 
+    def test_unreadable_current_bytes_are_reported_and_dropped_not_published(self):
+        spec = importlib.util.spec_from_file_location('migration', SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data, output = root / 'data', root / 'staged'
+            (data / 'cache').mkdir(parents=True)
+            old = {'product': 'wow', 'build_key': '1' * 32, 'build': '12.1.0.69933'}
+            new = {'product': 'wow', 'build_key': '2' * 32, 'build': '12.1.5.70391'}
+            rows, roots, extracted = [], {}, {}
+            for fdid, kind, original, current in [(3269019, 'skin', b'SKIN-old', b'SKIN-real-current'), (126863, 'blp', b'BLP2old', b'BLP2new')]:
+                path = f'products/wow/{old["build_key"]}/{"models" if kind == "skin" else "textures"}/{fdid}.{kind}'
+                (data / path).parent.mkdir(parents=True, exist_ok=True)
+                (data / path).write_bytes(original)
+                rows.append({**old, 'fdid': fdid, 'kind': kind, 'path': path, 'bytes': len(original),
+                             'sha256': hashlib.sha256(original).hexdigest(), 'content_key': hashlib.md5(original).hexdigest()})
+                roots[fdid] = hashlib.md5(current).digest()
+                raw = root / f'{fdid}.dat'
+                # Encrypted content without a key extracts as zeros, which cannot match the root content key.
+                raw.write_bytes(b'\0' * len(current) if fdid == 3269019 else current)
+                extracted[fdid] = raw
+            (data / 'cache' / 'model-asset-index.json').write_text(
+                json.dumps({'version': 1, 'assets': rows, 'aliases': [], 'chains': []}))
+            manifest, report = module.prepare_migration(data, output, new, roots, extracted)
+            from apply_db2_install import apply
+            apply_manifest = output / 'apply.json'
+            apply_manifest.write_text(json.dumps(manifest))
+            apply(apply_manifest, root / 'backup')
+            published = json.loads((data / 'cache/model-asset-index.json').read_text())['assets']
+            self.assertEqual([row['fdid'] for row in published], [126863])
+            self.assertEqual([row['fdid'] for row in report['unreadable']], [3269019])
+            self.assertFalse((data / f'products/wow/{new["build_key"]}/models/3269019.skin').exists())
+
+
 if __name__ == '__main__':
     unittest.main()
