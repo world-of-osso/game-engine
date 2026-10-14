@@ -103,6 +103,14 @@ mod tests {
     }
 
     #[test]
+    fn journeys_watch_sounds_use_the_authored_on_off_gain_and_existing_clip() {
+        let on = ui_sound_kit(856).unwrap();
+        let off = ui_sound_kit(857).expect("Retail checkbox OFF kit");
+        assert_eq!((on.volume, on.file(0)), (0.251_188_64, 567_407));
+        assert_eq!((off.volume, off.file(0)), (0.5, 567_407));
+    }
+
+    #[test]
     fn merchant_kits_carry_their_soundkit_rows() {
         let open = ui_sound_kit(IG_CHARACTER_INFO_OPEN).unwrap();
         assert_eq!((open.volume, open.file(0)), (0.398_107_17, 567_507));
