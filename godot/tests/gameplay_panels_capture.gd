@@ -52,6 +52,24 @@ func capture() -> void:
 				push_error("Capture write failed")
 				quit(1)
 				return
+			if page == "arena-quick":
+				var list := ui.find_child("HonorFrameSpecificScrollBox", true, false) as Control
+				assert(list != null)
+				for step in range(20):
+					for pressed in [true, false]:
+						var wheel := InputEventMouseButton.new()
+						wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+						wheel.position = list.get_global_rect().get_center()
+						wheel.global_position = wheel.position
+						wheel.pressed = pressed
+						Input.parse_input_event(wheel)
+						await process_frame
+				await RenderingServer.frame_post_draw
+				var skirmish := ui.find_child("HonorFrameArena3v3Button", true, false) as Control
+				assert(skirmish != null and list.get_global_rect().encloses(skirmish.get_global_rect()), "Wheel reveals final source skirmish row")
+				var bar_error := scrollbar_clipping_error(ui, "HonorFrameSpecificScrollBox")
+				assert(bar_error == "", bar_error)
+				assert(root.get_texture().get_image().save_png(directory.path_join(skin + "-menus-arena-skirmish.png")) == OK)
 			ui.queue_free()
 			await process_frame
 	print("PASS: both-skin gameplay-panel native captures")
