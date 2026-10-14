@@ -468,3 +468,193 @@ fn petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+fn combat_details(
+    selected: u32,
+    locked: bool,
+    error: Option<&str>,
+) -> shared::protocol::PetJournalDetailsUpdate {
+    use shared::protocol::{OwnedPetBattleSnapshot, PetJournalAbility, PetJournalDetailsUpdate};
+    PetJournalDetailsUpdate {
+        pets: vec![OwnedPetBattleSnapshot {
+            pet_id: 1,
+            health: 73,
+            max_health: 146,
+            power: 27,
+            speed: 31,
+            next_level_xp: 100,
+            selected_abilities: [selected, 0, 0],
+            choices: vec![
+                PetJournalAbility {
+                    id: 384,
+                    name: "Metal Fist".into(),
+                    icon: 132152,
+                    family: 9,
+                    slot: 1,
+                    required_level: 1,
+                },
+                PetJournalAbility {
+                    id: 202,
+                    name: "Thrash".into(),
+                    icon: 132152,
+                    family: 7,
+                    slot: 1,
+                    required_level: 10,
+                },
+            ],
+        }],
+        locked,
+        error: error.map(str::to_owned),
+    }
+}
+
+#[test]
+fn journal_combat_choices_wait_for_ack_and_refusal_preserves_server_state() {
+    let mut view = view();
+    view.receive_details(combat_details(384, false, None));
+    assert!(view.open_ability_choices(0, 1));
+    assert_eq!(view.choose_ability(202), None); // authored level 10 lock
+    view.journal.pets[0].level = 10;
+    assert_eq!(
+        view.choose_ability(202),
+        Some(shared::protocol::SetBattlePetAbility {
+            pet_id: 1,
+            slot: 1,
+            ability_id: 202
+        })
+    );
+    assert_eq!(view.combat[&1].selected_abilities[0], 384);
+    assert_eq!(view.choose_ability(202), None);
+    view.receive_details(combat_details(384, false, Some("Pet battle is active")));
+    assert_eq!(view.combat[&1].selected_abilities[0], 384);
+    assert_eq!(view.error, "Pet battle is active");
+    assert!(view.open_ability_choices(0, 1));
+    assert!(view.choose_ability(202).is_some());
+    view.receive_details(combat_details(202, false, None));
+    assert_eq!(view.combat[&1].health, 73);
+    assert_eq!(view.combat[&1].selected_abilities[0], 202);
+    view.receive_details(combat_details(202, true, None));
+    assert!(!view.open_ability_choices(0, 1));
+    view.receive_details(combat_details(202, false, None));
+    assert!(!view.open_ability_choices(1, 1));
+    assert!(!view.open_ability_choices(0, 0));
+    view.queue = shared::protocol::PetBattleQueueState::Queued;
+    assert!(!view.open_ability_choices(0, 1));
+}
+
+#[test]
+fn journal_waits_for_loadout_ack_before_opening_an_owned_ability_selector() {
+    let mut view = view();
+    view.receive_details(combat_details(384, false, None));
+    let request = view.equip_selected(2).unwrap();
+    assert_eq!(view.journal.battle_slots, [Some(1), None, None]);
+    assert_eq!(request.slots, [None, None, Some(1)]);
+    assert!(!view.open_ability_choices(0, 1));
+    let mut journal = view.journal.clone();
+    journal.battle_slots = request.slots;
+    view.receive(CollectionStateUpdate {
+        snapshot: None,
+        pet_journal: Some(journal),
+        summoned_pet_id: None,
+        message: None,
+        error: None,
+    });
+    assert!(!view.open_ability_choices(0, 1));
+    assert!(view.open_ability_choices(2, 1));
+    assert_eq!(
+        view.choose_ability(384),
+        Some(shared::protocol::SetBattlePetAbility {
+            pet_id: 1,
+            slot: 1,
+            ability_id: 384,
+        })
+    );
+}
+
+#[test]
+fn journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = view();
+        view.journal.pets[0].xp = 25;
+        view.receive_details(combat_details(384, false, None));
+        assert!(view.open_ability_choices(0, 1));
+        let mut ctx = SharedContext::new();
+        ctx.insert(view);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pet_journal_screen).sync(&ctx, &mut registry);
+        for (name, expected) in [
+            ("PetJournalPetCardHealthValue", "73"),
+            ("PetJournalPetCardPowerValue", "27"),
+            ("PetJournalPetCardSpeedValue", "31"),
+            ("PetJournalBattleSlot0HealthValue", "73/146"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                panic!("stat text");
+            };
+            assert_eq!(text.text, expected);
+        }
+        let health = registry
+            .get(
+                registry
+                    .get_by_name("PetJournalBattleSlot0HealthBarFill")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(health.width, ui_toolkit::frame::Dimension::Fixed(42.0));
+        let xp = registry
+            .get(
+                registry
+                    .get_by_name("PetJournalBattleSlot0XPBarFill")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(xp.width, ui_toolkit::frame::Dimension::Fixed(83.0));
+        let option = registry
+            .get(
+                registry
+                    .get_by_name("PetJournalSpellSelectOption202")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::Button(button)) = &option.widget_data else {
+            panic!("ability button");
+        };
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
+        let requirement = registry
+            .get(
+                registry
+                    .get_by_name("PetJournalSpellSelectOption202LevelRequirement")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &requirement.widget_data else {
+            panic!("locked level");
+        };
+        assert_eq!(text.text, "10");
+        assert_eq!(option.onclick.as_deref(), Some("pet:ability:202"));
+        game_engine_ui_model::collections_component::apply_collections_postsetup(&mut registry);
+        let selected = registry
+            .get(
+                registry
+                    .get_by_name("PetJournalSpellSelectSelected")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &selected.widget_data else {
+            panic!("selected highlight");
+        };
+        assert_eq!(
+            texture.blend_mode,
+            ui_toolkit::widgets::texture::BlendMode::Additive
+        );
+    }
+}
