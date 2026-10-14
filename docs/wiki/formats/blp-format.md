@@ -45,6 +45,8 @@ UI textures are referenced by virtual path (e.g. `Interface/Buttons/...`) and re
 
 ## Sources
 
+- [Core BLP decoder](../../../godot/core/src/blp.rs) and [decoder tests](../../../godot/core/src/blp_tests.rs) — Raw1 palette normalization, exact authenticated180071 texel and CPU/upload parity.
+- [Guild-tabard contract](../../specs/guild-tabards.md) — source appearance and inspected native fixtures.
 - AGENTS.md (`asset/blp.rs` entry) — module description, compositing helpers
 - [docs/hd-skeleton-status.md](../hd-skeleton-status.md) — `blp.rs` changes: `scale_2x`, `blit_region`, atlas compositing
 - [docs/editbox-focus-texture-swap-2026-04-06.md](../editbox-focus-texture-swap-2026-04-06.md) — near-black BLP decode behavior for UI textures
