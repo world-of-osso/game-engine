@@ -272,7 +272,7 @@ func checkout_cart() -> void:
 		bought.append({"category":entry[0],"kind":entry[2],"vendor":int(state.selected),"item_id":int(state.item_id),"price":int(state.price),"count":before + 1})
 		if not await wait_until(func(): return client.trading_post_state().cart.size() == bought.size(), "cart add"): return
 	await click("PerksProgramViewCartButton")
-	if not await wait_until(func(): return client.trading_post_state().cart_visible and control("PerksProgramCartPurchaseButton") != null, "cart preview"): return
+	if not await wait_until(func(): return client.trading_post_state().cart_visible and control("PerksProgramCartPurchaseButton") != null and client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "player", "cart composite preview"): return
 	if int(client.trading_post_state().cart_price) != total: fail("Cart total differs from authored prices"); return
 	await capture("cart-four-products")
 	await click("PerksProgramCartClearButton")
