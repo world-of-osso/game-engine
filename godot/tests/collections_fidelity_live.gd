@@ -179,7 +179,16 @@ func check_mount_row_highlight() -> bool:
 			if minf(pixel.r, minf(pixel.g, pixel.b)) > 0.95:
 				white += 1
 			samples += 1
-	print("MOUNT_ROW_PIXELS skin=", OS.get_environment("QF_SKIN"), " white=", white, " samples=", samples)
+	var blue_rim := 0
+	for y in range(2, 6):
+		for x in range(54, 229):
+			var pixel := image.get_pixelv(Vector2i(row.global_position) + Vector2i(x, y))
+			if pixel.b > pixel.r + 0.05:
+				blue_rim += 1
+	print("MOUNT_ROW_PIXELS skin=", OS.get_environment("QF_SKIN"), " white=", white, " samples=", samples, " source_blue_rim=", blue_rim)
+	if blue_rim == 0:
+		fail("Source blue hover rim was whitened over the yellow selection")
+		return false
 	if white * 2 > samples:
 		fail("MountListButton hover covers selected uncollected row with a white fill")
 		return false
