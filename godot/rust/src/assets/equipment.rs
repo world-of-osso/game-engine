@@ -603,12 +603,14 @@ mod tests {
             let resolved = resolve_equipment_appearance(&appearance, &catalog, race, sex).unwrap();
             assert!(!resolved.runtime_models.is_empty(), "item {item_id}");
             for definition in resolved.runtime_models {
-                let path = data.join(format!("models/{}.m2", definition.fdid));
-                let parsed = super::super::read_model_file(&path).unwrap();
+                let resolver =
+                    authored_model_resolver(&data, definition.product, definition.fdid).unwrap();
+                let cached = load_model_files(&resolver, &data, definition.fdid).unwrap();
+                let parsed = &cached.model;
                 assert!(!parsed.batches.is_empty());
-                check_item_batch_textures(&definition, &parsed, |_| true).unwrap();
+                check_item_batch_textures(&definition, parsed, |_| true).unwrap();
                 for unit in &parsed.batches {
-                    for fdid in item_batch_texture_fdids(&definition, &parsed, unit).unwrap() {
+                    for fdid in item_batch_texture_fdids(&definition, parsed, unit).unwrap() {
                         let fdid = fdid.expect("every sampled texture must be bound");
                         let bytes =
                             std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
