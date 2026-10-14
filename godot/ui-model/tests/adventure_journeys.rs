@@ -64,6 +64,8 @@ fn snapshot() -> RenownSnapshot {
             faction(37, "Amani Tribe", 11, 0, 0),
         ],
         source_error: None,
+        watched_faction: None,
+        watch_error: None,
     }
 }
 
