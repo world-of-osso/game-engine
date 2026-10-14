@@ -188,6 +188,7 @@ impl RegistryUi {
             "scoreboard",
             "talent-menu",
             "talent-dialog",
+            "talent-choice",
         ]
         .contains(&page.as_str())
         {
@@ -213,17 +214,23 @@ impl RegistryUi {
                     &data,
                     game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab::Talents,
                 )?;
-                let editor = &mut state
+                let talents = state
                     .talents
                     .as_mut()
-                    .ok_or("Talent preview missing graph")?
-                    .editor;
+                    .ok_or("Talent preview missing graph")?;
                 if page == "talent-menu" {
-                    editor.loadout_menu = true;
+                    talents.editor.loadout_menu = true;
+                } else if page == "talent-choice" {
+                    let choice = talents
+                        .nodes()
+                        .find(|node| node.node_type != 3 && node.entries.len() > 1)
+                        .ok_or("Authored talent preview has no non-subtree choice")?
+                        .id;
+                    talents.editor.choice_node = Some(choice);
                 } else {
-                    editor.loadout_dialog =
+                    talents.editor.loadout_dialog =
                         Some(game_engine_ui_model::talents::LoadoutDialog::Create);
-                    editor.loadout_name = "Raid Night".into();
+                    talents.editor.loadout_name = "Raid Night".into();
                 }
                 return self.show_spellbook(state);
             }
