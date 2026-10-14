@@ -26,9 +26,8 @@ use super::{
     },
 };
 use crate::equipment_appearance_data::{
-    EquipmentSlot, RuntimeModelAppearance, collection_mesh_part_in_slot, is_collection_model,
-    model_attachment_id, runtime_mesh_part_allowed, shoulder_uses_bound_joints, slot_attachment_id,
-    slot_uses_bound_joints,
+    EquipmentSlot, RuntimeModelAppearance, collection_mesh_part_in_slot, model_attachment_id,
+    runtime_mesh_part_allowed, slot_attachment_id,
 };
 
 #[path = "../../../core/src/asset/m2_format/m2_bone_names.rs"]
@@ -245,11 +244,11 @@ impl EquipmentContext<'_> {
         let authored_path = authored.as_deref().map(Path::new);
         let cached = load_model_files(&resolver, self.data_root, definition.fdid)?;
         let parsed = &cached.model;
-        let bound = choose_equipment_binding(definition, parsed, authored_path)?;
+        let bound = definition.bind_to_character;
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let path = GString::from(cached.path.to_string_lossy().as_ref());
         cache_model_textures(&resolver, self.data_root, &[0; 3], parsed)?;
-        let textures = self.load_item_textures(definition, parsed, authored_path, bound)?;
+        let textures = self.load_item_textures(definition, parsed, bound)?;
         let skin = if bound {
             Some(self.bound_skin(parsed)?)
         } else {
@@ -261,7 +260,7 @@ impl EquipmentContext<'_> {
             &definition.skin_fdids,
             None,
             Some(&textures),
-            |part| equipment_mesh_part_allowed(definition.slot, authored_path, bound, part),
+            |part| equipment_mesh_part_allowed(definition.slot, bound, part),
         )?;
         if !missing.is_empty() {
             item.free();
@@ -287,11 +286,10 @@ impl EquipmentContext<'_> {
         &self,
         definition: &RuntimeModelAppearance,
         model: &m2::Model,
-        authored: Option<&Path>,
         bound: bool,
     ) -> Result<HashMap<u32, Gd<ImageTexture>>, String> {
         check_item_batch_textures(definition, model, |part| {
-            equipment_mesh_part_allowed(definition.slot, authored, bound, part)
+            equipment_mesh_part_allowed(definition.slot, bound, part)
         })?;
         let mut missing = PackedInt32Array::new();
         equipment_texture_replacements(definition)?
@@ -416,46 +414,11 @@ fn check_item_batch_textures(
     Ok(())
 }
 
-fn choose_equipment_binding(
-    definition: &RuntimeModelAppearance,
-    model: &m2::Model,
-    authored: Option<&Path>,
-) -> Result<bool, String> {
-    if matches!(
-        definition.slot,
-        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight
-    ) {
-        return shoulder_uses_bound_joints(definition.slot, model, authored).map_err(|error| {
-            format!(
-                "Equipment {:?} FDID {}: {error}",
-                definition.slot, definition.fdid
-            )
-        });
-    }
-    let path = authored.ok_or_else(|| {
-        format!(
-            "Equipment {:?} FDID {} has no authored path",
-            definition.slot, definition.fdid
-        )
-    })?;
-    Ok(slot_uses_bound_joints(
-        definition.slot,
-        path,
-        &model.bones,
-        model.submeshes.iter().map(|mesh| mesh.mesh_part_id),
-    ))
-}
-
-fn equipment_mesh_part_allowed(
-    slot: EquipmentSlot,
-    authored: Option<&Path>,
-    bound: bool,
-    mesh_part: u16,
-) -> bool {
+fn equipment_mesh_part_allowed(slot: EquipmentSlot, bound: bool, mesh_part: u16) -> bool {
     if slot == EquipmentSlot::Waist && !bound {
         return true;
     }
-    if bound && authored.is_some_and(is_collection_model) {
+    if bound {
         collection_mesh_part_in_slot(slot, mesh_part)
     } else {
         runtime_mesh_part_allowed(slot, mesh_part)
@@ -567,6 +530,48 @@ mod tests {
     }
 
     #[test]
+    fn retail_head_7321940_attaches_without_a_listfile_name() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        use shared::components::{
+            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+        };
+        use shared::item_data::ItemDefinitionSource;
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        let appearance = EquipmentAppearance {
+            entries: vec![EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Head,
+                item_id: None,
+                definition_source: Some(ItemDefinitionSource::Retail),
+                display_info_id: Some(730376),
+                inventory_type: 1,
+                hidden: false,
+            }],
+        };
+        let resolved = crate::equipment_appearance_data::resolve_equipment_appearance(
+            &appearance,
+            &catalog,
+            1,
+            0,
+        )
+        .unwrap();
+        let definition = &resolved.runtime_models[0];
+        assert_eq!(definition.fdid, 7321940);
+        let resolver = authored_model_resolver(&data, definition.product, definition.fdid).unwrap();
+        let cached = load_model_files(&resolver, &data, definition.fdid).unwrap();
+        let bound = definition.bind_to_character;
+        assert!(!bound, "the helm retains its independent item skeleton");
+        assert_eq!(slot_attachment_id(definition.slot), 11);
+        assert!(
+            cached
+                .model
+                .submeshes
+                .iter()
+                .any(|part| part.mesh_part_id == 2702)
+        );
+        assert!(equipment_mesh_part_allowed(definition.slot, bound, 2702));
+    }
+
+    #[test]
     fn equipment_item_materials_resolve_every_sampled_batch_texture() {
         use crate::equipment_appearance_data::resolve_equipment_appearance;
         use shared::components::{
@@ -598,12 +603,14 @@ mod tests {
             let resolved = resolve_equipment_appearance(&appearance, &catalog, race, sex).unwrap();
             assert!(!resolved.runtime_models.is_empty(), "item {item_id}");
             for definition in resolved.runtime_models {
-                let path = data.join(format!("models/{}.m2", definition.fdid));
-                let parsed = super::super::read_model_file(&path).unwrap();
+                let resolver =
+                    authored_model_resolver(&data, definition.product, definition.fdid).unwrap();
+                let cached = load_model_files(&resolver, &data, definition.fdid).unwrap();
+                let parsed = &cached.model;
                 assert!(!parsed.batches.is_empty());
-                check_item_batch_textures(&definition, &parsed, |_| true).unwrap();
+                check_item_batch_textures(&definition, parsed, |_| true).unwrap();
                 for unit in &parsed.batches {
-                    for fdid in item_batch_texture_fdids(&definition, &parsed, unit).unwrap() {
+                    for fdid in item_batch_texture_fdids(&definition, parsed, unit).unwrap() {
                         let fdid = fdid.expect("every sampled texture must be bound");
                         let bytes =
                             std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
@@ -674,44 +681,19 @@ mod tests {
 
     #[test]
     fn native_waist_base_mesh_and_skeletal_collection_keep_their_parts() {
-        let path =
-            Path::new("item/objectcomponents/collections/belt_leather_questbloodelf_b_01.m2");
-        let rigid = [m2::Bone {
-            name_crc: 3_962_896_125,
-            pivot: [0.014494737, 0.0, -0.20134047],
-            ..bone(-1)
-        }];
-        let bound = slot_uses_bound_joints(EquipmentSlot::Waist, path, &rigid, [0]);
-        assert!(!bound);
-        assert_eq!(model_attachment_id(EquipmentSlot::Waist, path), 53);
-        assert!(equipment_mesh_part_allowed(
-            EquipmentSlot::Waist,
-            Some(path),
-            bound,
-            0
-        ));
-
-        // Actual body belt collections retain their 18xx parts, not base mesh0.
-        let skeletal = [m2::Bone {
-            flags: 0x200,
-            ..bone(-1)
-        }];
-        let bound =
-            slot_uses_bound_joints(EquipmentSlot::Waist, path, &skeletal, [1801, 1802, 2201]);
-        assert!(bound);
+        assert_eq!(slot_attachment_id(EquipmentSlot::Waist), 53);
+        assert!(equipment_mesh_part_allowed(EquipmentSlot::Waist, false, 0));
         for part in [1801, 1802] {
             assert!(equipment_mesh_part_allowed(
                 EquipmentSlot::Waist,
-                Some(path),
-                bound,
+                true,
                 part
             ));
         }
         for part in [0, 2201] {
             assert!(!equipment_mesh_part_allowed(
                 EquipmentSlot::Waist,
-                Some(path),
-                bound,
+                true,
                 part
             ));
         }
@@ -719,19 +701,12 @@ mod tests {
 
     #[test]
     fn skeletal_waist_missing_root_joint_remains_an_error() {
-        let path = Path::new("item/objectcomponents/collections/belt.m2");
         let character = [bone(0), bone(6)];
         let item = [m2::Bone {
             flags: 0x200,
             name_crc: 3_962_896_125,
             ..bone(-1)
         }];
-        assert!(slot_uses_bound_joints(
-            EquipmentSlot::Waist,
-            path,
-            &item,
-            [1801]
-        ));
         assert!(
             map_equipment_bones(&character, &item)
                 .unwrap_err()

@@ -73,6 +73,7 @@ pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameReg
             label.color = [0.5, 0.5, 0.5, 1.0];
         }
     }
+    align_pet_loadout_names(registry);
     for (name, horizontal, vertical) in [
         ("CollectionsJournalBg", true, true),
         ("CollectionsJournalTopTileStreaks", true, false),
@@ -95,6 +96,21 @@ pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameReg
             panic!("pet spell highlight must be a texture");
         };
         texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+    }
+}
+
+// CompanionLoadOutTemplate names use BOTTOM; retire when RSX supports justify_v.
+fn align_pet_loadout_names(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    for slot in 0..3 {
+        let name = format!("PetJournalBattleSlot{slot}Name");
+        let Some(id) = registry.get_by_name(&name) else {
+            continue;
+        };
+        let frame = registry.get_mut(id).expect("loadout name");
+        let Some(ui_toolkit::frame::WidgetData::FontString(text)) = &mut frame.widget_data else {
+            panic!("loadout name must be text");
+        };
+        text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Bottom;
     }
 }
 

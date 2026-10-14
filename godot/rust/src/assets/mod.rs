@@ -207,31 +207,41 @@ pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
     read_model_file(Path::new(&global_path(path)))
 }
 
-/// The `{stem}00.skin` read with the M2 at `model_path`.
-pub(crate) fn primary_skin_path(model_path: &str) -> Result<String, String> {
-    let stem = model_path
-        .strip_suffix(".m2")
-        .ok_or_else(|| format!("Expected .m2 path: {model_path}"))?;
-    Ok(format!("{stem}00.skin"))
+/// Read the M2's primary SFID and retain its product/build directory.
+pub(crate) fn read_primary_skin_path(model_path: &str) -> Result<String, String> {
+    let path = Path::new(model_path);
+    let model = fs::read(path).map_err(|error| format!("Cannot read {model_path}: {error}"))?;
+    let references = m2::parse_asset_references(&model)?;
+    Ok(primary_skin_path(path, &references)?
+        .to_string_lossy()
+        .into_owned())
 }
 
-/// Parse the M2 at `model_path` with its `{stem}00.skin`, optional `{stem}.skel` and
-/// external `.anim` files; no engine calls, so a worker thread can run it.
+fn primary_skin_path(
+    model_path: &Path,
+    references: &m2::AssetReferences,
+) -> Result<std::path::PathBuf, String> {
+    let fdid = references
+        .skin_fdids
+        .first()
+        .ok_or_else(|| format!("{}: no primary SFID", model_path.display()))?;
+    Ok(model_path.with_file_name(format!("{fdid}.skin")))
+}
+
+/// Parse an M2 with its SFID skin, optional SKID skeleton and AFID animations.
+/// No engine calls, so a worker thread can run it.
 pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     let read = |path: &Path| {
         let _io = crate::profile::span(|| "phase.asset_io.m2".to_owned());
         fs::read(path).map_err(|err| format!("Cannot read {}: {err}", path.display()))
     };
     let model = read(model_path)?;
-    let base = model_path.to_string_lossy();
-    let stem = base.strip_suffix(".m2").ok_or("Expected .m2 path")?;
-    let skin = read(Path::new(&primary_skin_path(&base)?))?;
-    let skel_path = format!("{stem}.skel");
-    let skeleton = if Path::new(&skel_path).exists() {
-        Some(read(Path::new(&skel_path))?)
-    } else {
-        None
-    };
+    let references = m2::parse_asset_references(&model)?;
+    let skin = read(&primary_skin_path(model_path, &references)?)?;
+    let skeleton = references
+        .skeleton_fdid
+        .map(|fdid| read(&model_path.with_file_name(format!("{fdid}.skel"))))
+        .transpose()?;
     let resolver = model_asset_resolver(model_path)?;
     let _parse = crate::profile::span(|| "phase.m2_parse".to_owned());
     let mut animation_error = None;

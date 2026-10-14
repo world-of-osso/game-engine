@@ -81,6 +81,12 @@ Server telemetry distinguishes actual object receipt, granted-cast acceptance, s
 
 `GameClient.account_state().pvp_snapshot_json` observes received state without generating another query. Public `pvp status` refresh behavior is unchanged. Run35's three source captures measure81–116ms from score mutation to worker relay and74–244ms from relay to native apply; earlier delayed-state hypotheses are not established current behavior. Socket samples bound post-UDP-read batches, not an exact packet-to-status identity. Lightyear's real serialized PvP messages are45–1068bytes; each full1694-entry Mount Journal login update is428389bytes, with CPU cost unmeasured. Evidence: engine-s1 `data/diagnostics/bg-coverage-2026-10-12/seething35-transport-timing.json` and per-run server/native logs; [native diagnostic contract](../../specs/native-ipc.md) documents the opt-in trace.
 
+### Seething disconnect diagnosis — instrumentation 2026-10-14
+
+Forever run60 stopped after11 gathers/1100 when `Event::Disconnected` caused the normal account world reset; the subsequent bridge existed in `PendingConnect`, so bridge existence did not prove an established connection. The saved native PvP snapshot became null. No victory or root transport cause is established by that run.
+
+`BG_NETWORK_TRACE` now records the exact relayed disconnect reason and handshake-timeout marker with Unix milliseconds before account handling, and enables Netcode/connection diagnostics alongside existing socket/message traces. Correlate those with native `performance` and server `frame_stats`; production deadlines, reconnect decisions and gameplay are unchanged. Transport fixes belong to the shared server-tick-perf investigation, not a PvP null guard.
+
 ## PvP progression integration — verified 2026-10-11
 
 The same PvP view owns Quick Match/Rated/Premade categories and authoritative Honor/Conquest wallet text. Unknown season cap/rating are optional fields, not zero/default policy. ClassTalentsFrame contains the separate Mainline three-slot talent tray and War Mode control. Runtime source catalogs are mandatory; the [server progression contract](../../../../game-server/docs/specs/pvp-progression.md#lead-import-checklist) owns import instructions and remaining numeric gaps.
