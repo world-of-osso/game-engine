@@ -16,7 +16,7 @@ Each finished group requires behavior tests, XML-geometry assertions, native1920
 
 `Blizzard_CooldownViewer/CooldownViewerSettings.xml` supplies the399×609 shell, LargeSideTab controls,38×38 icons,317×38 bars, pixel scroll viewport and Revert UIPanelButtonTemplate. Settings preserve per-specialization choices/order and a reopen restore point; the native fixture physically picks/drops, assigns visibility, reloads from disk and reverts in both skins. Modern Revert projects the authored sheet strips; Forever changes art only.
 
-Named gaps: GroupBuffs has no current category data; named layouts, alerts and cross-category assignment have no backing state. Disabled controls do not establish parity. Full visual acceptance remains pending inspected captures after published atlas textures.
+Named gaps: GroupBuffs has no current category data; named layouts, alerts, cross-category assignment and the unlearned/reset settings menu have no backing state. Disabled controls do not establish parity. Published atlas textures now load cleanly. Both-skin physical SearchBox typing/clear plus reorder/assignment/reload/Revert pass; four refreshed1920×1080 open/hidden captures under `AgentShared/2026-10-13/ui-gameplay-panels/after-review/` are inspected. Original pre-assignment baseline and final integration verification remain open.
 
 ## Proof owners
 
