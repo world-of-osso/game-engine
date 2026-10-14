@@ -223,7 +223,7 @@ pub struct OptionsModel {
     pub layout: LayoutOptionsView,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SoundDraft {
     pub muted: bool,
     pub music_enabled: bool,
@@ -233,7 +233,7 @@ pub struct SoundDraft {
     pub effects_volume: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GraphicsDraft {
     pub particle_density: f32,
     pub render_scale: f32,
@@ -247,7 +247,7 @@ pub struct GraphicsDraft {
     pub ssao_enabled: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CameraDraft {
     pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
@@ -259,7 +259,7 @@ pub struct CameraDraft {
     pub max_distance: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HudDraft {
     pub show_minimap: bool,
     pub show_action_bars: bool,
@@ -496,6 +496,15 @@ pub fn apply_settings_navigation(model: &mut OptionsModel, action: &str) -> bool
     true
 }
 
+/// Retail HasUnappliedSettings: Apply reflects draft setting values, not navigation/layout drag.
+pub fn has_pending_settings(model: &OptionsModel) -> bool {
+    model.draft_graphics != model.committed_graphics
+        || model.draft_sound != model.committed_sound
+        || model.draft_camera != model.committed_camera
+        || model.draft_hud != model.committed_hud
+        || model.draft_bindings != model.committed_bindings
+}
+
 pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
     GameMenuViewModel {
         logged_in: model.logged_in,
@@ -504,6 +513,7 @@ pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
             category: model.category,
             search: model.search.clone(),
             addons_tab: model.addons_tab,
+            pending_changes: has_pending_settings(model),
             position: model.modal_position,
             graphics: graphics_to_view(&model.draft_graphics),
             sound: sound_to_view(&model.draft_sound),

@@ -51,7 +51,7 @@ func run_test() -> void:
 		return
 	if not await edit_camera_values(BASELINE_FOV, BASELINE_SENSITIVITY):
 		return
-	if not await close_options_with_done():
+	if not await close_options_with_close():
 		return
 	if not await expect_saved_orbit():
 		return
@@ -151,7 +151,7 @@ func open_main_menu() -> bool:
 func open_camera_options() -> bool:
 	if not await open_main_menu():
 		return false
-	if not await click_authored("MenuBtnOptions") or not await wait_visible_control("OptionsDoneButton"):
+	if not await click_authored("MenuBtnOptions") or not await wait_visible_control("OptionsCloseButton"):
 		return false
 	if not await click_authored("OptionsTabcamera"):
 		return false
@@ -205,7 +205,7 @@ func edit_camera_values(fov: float, mouse: float) -> bool:
 		return false
 	if not await drag_slider("mouse_sensitivity", SENSITIVITY_RANGE, mouse):
 		return false
-	if visible_control("OptionsDoneButton") == null:
+	if visible_control("OptionsCloseButton") == null:
 		return reject("Slider drag closed Options before live-value assertion")
 	return expect_slider_values(fov, mouse)
 
@@ -231,7 +231,7 @@ func drag_slider(key: String, bounds: Vector2, value: float) -> bool:
 
 func close_options_with_escape() -> bool:
 	await tap_escape()
-	if visible_control("OptionsDoneButton") != null or visible_control("MenuBtnResume") == null:
+	if visible_control("OptionsCloseButton") != null or visible_control("MenuBtnResume") == null:
 		return reject("Options Escape did not return to existing main menu")
 	if not expect_live_values(expected_fov, sensitivity):
 		return false
@@ -239,8 +239,8 @@ func close_options_with_escape() -> bool:
 	return await expect_menu_closed()
 
 
-func close_options_with_done() -> bool:
-	if not await click_authored("OptionsDoneButton"):
+func close_options_with_close() -> bool:
+	if not await click_authored("OptionsCloseButton"):
 		return false
 	return await expect_menu_closed()
 

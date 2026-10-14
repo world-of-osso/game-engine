@@ -7,7 +7,7 @@ use game_engine_core::cooldown_assist::{CooldownAssistCatalog, CooldownEntry, Re
 use game_engine_core::cooldown_conditions::{ConditionActor, CooldownConditions};
 use game_engine_ui_model::cooldown_assist::{CooldownViewerModel, CooldownViewerView, SpellSample};
 use game_engine_ui_model::cooldown_settings_component::{
-    CooldownSettingEntry, CooldownSettingsView, SETTINGS_PAGE_SIZE,
+    CooldownSettingEntry, CooldownSettingsView,
 };
 use godot::classes::ProjectSettings;
 use godot::prelude::*;
@@ -15,6 +15,8 @@ use shared::components::Player;
 
 use crate::frame_error::report_once;
 use crate::{GameClient, ui::RegistryUi};
+#[path = "cooldown_settings_fixture.rs"]
+mod settings_fixture;
 
 pub(super) struct ViewerData {
     pub(super) catalog: CooldownAssistCatalog,
@@ -39,6 +41,8 @@ pub(super) struct CooldownHud {
     view: CooldownViewerView,
     settings: CooldownSettingsView,
     loaded_choices: bool,
+    pointer_action: Option<String>,
+    restore_point: Option<(u32, CooldownViewerModel)>,
 }
 
 impl Default for CooldownHud {
@@ -54,6 +58,8 @@ impl Default for CooldownHud {
             view: Default::default(),
             settings: Default::default(),
             loaded_choices: false,
+            pointer_action: None,
+            restore_point: None,
         }
     }
 }
@@ -64,6 +70,8 @@ impl CooldownHud {
             ui.free();
         }
         self.settings.open = false;
+        self.restore_point = None;
+        self.settings.can_undo = false;
         self.view = CooldownViewerView::default();
     }
 
@@ -141,8 +149,32 @@ fn choices_path() -> PathBuf {
 }
 
 impl GameClient {
+    /// Retail OnMouseUp: left begins/completes an order change; right opens assignment choices.
+    pub(crate) fn cooldown_settings_pointer(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> bool {
+        if self.game_menu_ui.is_some() || !self.spells.cooldowns.settings.open {
+            return false;
+        }
+        let scale = self.effective_ui_scale();
+        match self.spells.cooldowns.settings_pointer(event, scale) {
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Ok(false) => false,
+            Err(error) => {
+                report_once(&format!("Cooldown settings pointer: {error}"));
+                false
+            }
+        }
+    }
+
     pub(crate) fn open_cooldown_settings(&mut self) {
         self.spells.cooldowns.settings.open = true;
+        self.spells.cooldowns.restore_point = None;
+        self.spells.cooldowns.settings.can_undo = false;
     }
 
     pub(super) fn update_cooldown_viewer(&mut self) {
@@ -171,8 +203,19 @@ impl GameClient {
             .spec()
             .ok_or("Cooldown Manager: specialization not received")?;
         let entries = self.cooldown_entries(spec)?;
-        self.poll_cooldown_settings(spec, &entries)?;
         self.spells.cooldowns.model.initialize_order(spec, &entries);
+        if self.spells.cooldowns.settings.open
+            && self
+                .spells
+                .cooldowns
+                .restore_point
+                .as_ref()
+                .is_none_or(|(original_spec, _)| *original_spec != spec)
+        {
+            self.spells.cooldowns.restore_point = Some((spec, self.spells.cooldowns.model.clone()));
+            self.spells.cooldowns.settings.can_undo = false;
+        }
+        self.poll_cooldown_settings(spec, &entries)?;
         self.spells.cooldowns.model.highlight_action_bar = options.highlight_action_bar;
         self.spells.cooldowns.model.highlight_viewer =
             options.highlight_viewer && self.assisted_in_combat();
@@ -310,14 +353,24 @@ impl GameClient {
                         id: entry.id,
                         category: entry.category,
                         label: spell.name.to_string(),
+                        icon_fdid: spell.icon_fdid,
                         selected: self.spells.cooldowns.model.selected(spec, entry),
                     })
             })
             .collect::<Vec<_>>();
+        for entry in &mut settings_entries {
+            entry.icon_fdid = self.drawable_fdid(entry.icon_fdid);
+        }
         self.spells
             .cooldowns
             .model
             .sort_settings(spec, &mut settings_entries);
+        let spec_icon = self
+            .spells
+            .catalog()
+            .and_then(|catalog| catalog.tabs.specs.get(&spec))
+            .map_or(0, |spec| spec.icon_fdid);
+        self.spells.cooldowns.settings.portrait_fdid = self.drawable_fdid(spec_icon);
         self.spells.cooldowns.settings.entries = settings_entries;
         self.spells.cooldowns.settings.status = self.spells.cooldowns.assisted_failure.clone();
         view.settings = self.spells.cooldowns.settings.clone();
@@ -331,39 +384,98 @@ impl GameClient {
         let Some(ui) = self.spells.cooldowns.ui.as_mut() else {
             return Ok(());
         };
-        let action = ui.bind_mut().pop_action().to_string();
+        self.spells.cooldowns.settings.query = ui
+            .bind_mut()
+            .frame_text(game_engine_ui_model::cooldown_settings_component::SEARCH.into())
+            .to_string();
+        let action = self
+            .spells
+            .cooldowns
+            .pointer_action
+            .take()
+            .unwrap_or_else(|| ui.bind_mut().pop_action().to_string());
         if action.is_empty() {
             return Ok(());
         }
-        self.apply_cooldown_settings_action(spec, entries, &action)
+        self.spells
+            .cooldowns
+            .apply_settings_action(spec, entries, &action)
+    }
+}
+
+impl CooldownHud {
+    fn settings_pointer(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+        scale: f32,
+    ) -> Result<bool, String> {
+        let Some(ui) = self.ui.as_mut() else {
+            return Ok(false);
+        };
+        if ui.bind_mut().scroll_list_input(event)? {
+            return Ok(true);
+        }
+        let Ok(mouse) = event
+            .clone()
+            .try_cast::<godot::classes::InputEventMouseButton>()
+        else {
+            return Ok(false);
+        };
+        let point = mouse.get_position();
+        if contains_frame(ui, "CooldownSettingsMenu", point)
+            || !contains_frame(ui, "CooldownSettingsScroll", point)
+        {
+            return Ok(false);
+        }
+        if !matches!(
+            mouse.get_button_index(),
+            godot::global::MouseButton::LEFT | godot::global::MouseButton::RIGHT
+        ) {
+            return Ok(false);
+        }
+        let Some(id) = self
+            .settings
+            .entries
+            .iter()
+            .find(|entry| contains_frame(ui, &format!("CooldownSettingsItem{}", entry.id), point))
+            .map(|entry| entry.id)
+        else {
+            return Ok(false);
+        };
+        if !mouse.is_pressed() {
+            if mouse.get_button_index() == godot::global::MouseButton::RIGHT {
+                self.settings.menu = Some(id);
+                self.settings.menu_position = [point.x / scale - 16.0, point.y / scale - 116.0];
+            } else {
+                self.pointer_action = Some(format!("cooldown_pick:{id}"));
+            }
+        }
+        Ok(true)
     }
 
-    fn apply_cooldown_settings_action(
+    fn apply_settings_action(
         &mut self,
         spec: u32,
         entries: &[CooldownEntry],
         action: &str,
     ) -> Result<(), String> {
-        let hud = &mut self.spells.cooldowns;
+        let hud = self;
         if action == "cooldown_close" {
             hud.settings.open = false;
             return Ok(());
         }
-        if action == "cooldown_previous" {
-            hud.settings.page = hud.settings.page.saturating_sub(1);
-            return Ok(());
-        }
-        if action == "cooldown_next" {
-            let count = hud
-                .settings
-                .entries
-                .iter()
-                .filter(|entry| entry.category as usize == hud.settings.category)
-                .count();
-            if (hud.settings.page + 1) * SETTINGS_PAGE_SIZE < count {
-                hud.settings.page += 1;
+        if action == "cooldown_undo" {
+            let (original_spec, model) = hud
+                .restore_point
+                .as_ref()
+                .ok_or("Cooldown restore point missing")?;
+            if *original_spec != spec {
+                return Err("Cooldown restore point spec changed".into());
             }
-            return Ok(());
+            hud.model = model.clone();
+            hud.settings.can_undo = false;
+            hud.settings.dragging = None;
+            return hud.save_choices();
         }
         let (kind, value) = action
             .split_once(':')
@@ -372,11 +484,12 @@ impl GameClient {
             .parse()
             .map_err(|error| format!("Cooldown settings action {action}: {error}"))?;
         if kind == "cooldown_category" {
-            if id > 3 {
+            if !matches!(id, 0 | 2) {
                 return Err(format!("Invalid cooldown category {id}"));
             }
             hud.settings.category = id as usize;
-            hud.settings.page = 0;
+            hud.settings.menu = None;
+            hud.settings.dragging = None;
             return Ok(());
         }
         let entry = entries
@@ -384,33 +497,43 @@ impl GameClient {
             .find(|entry| entry.id == id)
             .ok_or_else(|| format!("Cooldown settings entry {id} not in active spec"))?;
         hud.model.initialize_order(spec, entries);
+        let before = hud.model.clone();
         match kind {
-            "cooldown_select" => hud.model.select(spec, id, !hud.model.selected(spec, entry)),
-            "cooldown_up" | "cooldown_down" => {
-                let ids: Vec<_> = hud
-                    .settings
-                    .entries
-                    .iter()
-                    .filter(|item| item.category == entry.category)
-                    .map(|item| item.id)
-                    .collect();
-                let position = ids
-                    .iter()
-                    .position(|item| *item == id)
-                    .ok_or_else(|| format!("Cooldown settings row {id} absent"))?;
-                if kind == "cooldown_up" {
-                    if let Some(previous) = position.checked_sub(1).map(|index| ids[index]) {
-                        hud.model.move_before(spec, id, previous);
-                    }
-                } else if let Some(next) = ids.get(position + 1) {
-                    hud.model.move_before(spec, *next, id);
-                }
+            "cooldown_select" => {
+                hud.model.select(spec, id, !hud.model.selected(spec, entry));
+                hud.settings.menu = None;
+            }
+            "cooldown_pick" => {
+                hud.settings.menu = None;
+                let Some(picked) = hud.settings.dragging.take() else {
+                    hud.settings.dragging = Some(id);
+                    return Ok(());
+                };
+                hud.model.move_before(spec, picked, id);
             }
             _ => return Err(format!("Unknown cooldown settings action: {action}")),
         }
+        hud.settings.can_undo |= hud.model != before;
         hud.save_choices()
     }
+}
 
+fn contains_frame(ui: &Gd<RegistryUi>, name: &str, point: Vector2) -> bool {
+    let host = ui.bind();
+    let Some(control) = host.frame_control(name) else {
+        return false;
+    };
+    let Some((rect, _)) = host.frame_rect(name) else {
+        return false;
+    };
+    control.is_visible_in_tree()
+        && point.x >= rect[0]
+        && point.y >= rect[1]
+        && point.x < rect[0] + rect[2]
+        && point.y < rect[1] + rect[3]
+}
+
+impl GameClient {
     fn sync_cooldown_viewer(&mut self, view: CooldownViewerView) -> Result<(), String> {
         if self.spells.cooldowns.ui.is_none() {
             let mut ui = RegistryUi::new_alloc();

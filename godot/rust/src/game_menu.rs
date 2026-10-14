@@ -15,8 +15,8 @@ use game_engine_ui_model::{
         ACTION_RESUME, ACTION_SUPPORT,
     },
     options_menu_component::{
-        ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, ACTION_RESET_WINDOW_POSITIONS,
-        OPTIONS_DRAG_HANDLE, OptionsCategory,
+        ACTION_OPTIONS_APPLY, ACTION_OPTIONS_CLOSE, ACTION_OPTIONS_DEFAULTS,
+        ACTION_RESET_WINDOW_POSITIONS, OPTIONS_DRAG_HANDLE, OptionsCategory,
     },
     options_menu_data::{self as policy, BindingCapture, LayoutAction, OptionsModel, SliderField},
 };
@@ -459,6 +459,11 @@ impl GameClient {
     }
 
     fn dispatch_options_action(&mut self, action: &str) -> Result<bool, String> {
+        if action == ACTION_OPTIONS_APPLY {
+            self.commit_game_menu_options()?;
+            self.refresh_game_menu()?;
+            return Ok(true);
+        }
         if action == "cooldown_settings" {
             self.open_cooldown_settings();
             return Ok(true);
@@ -593,7 +598,7 @@ impl GameClient {
                 continue;
             }
             match action.as_str() {
-                ACTION_RESUME | ACTION_OPTIONS_OKAY => {
+                ACTION_RESUME | ACTION_OPTIONS_CLOSE => {
                     self.close_game_menu();
                     break;
                 }

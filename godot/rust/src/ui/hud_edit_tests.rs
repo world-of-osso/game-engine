@@ -332,6 +332,10 @@ fn hudeditmode_side_bar_previews_are_disabled_by_default_in_both_skins() {
 
 #[test]
 fn hudeditmode_manager_border_projects_registered_static_popup_art() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     use game_engine_ui_model::hud_edit_component::{
         EditModePanelState, PANEL_H, PANEL_W, edit_mode_panel_screen,
     };
@@ -501,6 +505,10 @@ fn hudeditmodepolish_idle_labels_are_hidden_and_selected_labels_are_readable() {
 
 #[test]
 fn hudeditmodepolish_default_manager_does_not_cover_error_text() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     use game_engine_ui_model::hud_edit_component::{
         EditModePanelState, PANEL_H, PANEL_W, edit_mode_panel_screen,
     };

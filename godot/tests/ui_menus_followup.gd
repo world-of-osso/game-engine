@@ -12,11 +12,11 @@ func run_cases() -> void:
 		quit(1)
 		return
 	for forever in [false, true]:
-		for case in ["menu", "settings", "addons", "search"]:
+		for case in ["menu", "settings", "addons", "search", "pending"]:
 			if not await capture_case(output, case, forever):
 				quit(1)
 				return
-	print("PASS ui-menus-followup both skins: XML geometry, native clicks, eight1920x1080 captures")
+	print("PASS ui-menus-followup both skins: XML geometry, native clicks, ten1920x1080 captures")
 	quit(0)
 
 func capture_case(output: String, case: String, forever: bool) -> bool:
@@ -25,6 +25,8 @@ func capture_case(output: String, case: String, forever: bool) -> bool:
 	var error: String
 	if case == "menu":
 		error = ui.call("show_buttonfit_service_preview", "menu", forever)
+	elif case == "pending":
+		error = ui.call("show_buttonfit_settings_pending_preview",forever)
 	else:
 		error = ui.call("show_buttonfit_settings_preview", "music" if case == "search" else "", case == "addons", forever)
 	if not error.is_empty():
@@ -39,6 +41,8 @@ func capture_case(output: String, case: String, forever: bool) -> bool:
 		return false
 	if not check_geometry(ui, case):
 		return false
+	if case == "settings" and not await hidden_apply_has_no_action(ui):
+		return false
 	var skin := "forever" if forever else "modern"
 	if image.save_png(output.path_join("%s-%s.png" % [case,skin])) != OK:
 		push_error("Cannot save capture")
@@ -52,7 +56,12 @@ func capture_case(output: String, case: String, forever: bool) -> bool:
 	elif case == "addons":
 		if not await click_action(ui,"OptionsGameTabControl","options_tab:game"):
 			return false
+	elif case == "pending":
+		if not await click_action(ui,"OptionsApplyButton","options_apply"):
+			return false
 	elif not await click_action(ui,"OptionsSearchClear","options_search_clear"):
+		return false
+	if case != "menu" and not await click_action(ui,"OptionsCloseButton","options_close"):
 		return false
 	print("PASS capture ",case," ",skin)
 	ui.queue_free()
@@ -89,7 +98,53 @@ func check_geometry(ui: Node, case: String) -> bool:
 	if search.position != Vector2(552,34) or search.size != Vector2(350,22):
 		push_error("SearchBox XML Container TOPRIGHT +(4,20) mismatch: "+str(search.get_rect()))
 		return false
-	print("GEOMETRY XML ",game.get_rect()," ",addons.get_rect()," ",search.get_rect())
+	var close := ui.find_child("OptionsCloseButton",true,false) as Control
+	var apply := ui.find_child("OptionsApplyButton",true,false) as Control
+	var defaults := ui.find_child("OptionsDefaultsButton",true,false) as Control
+	var content := ui.find_child("OptionsContentPanel",true,false) as Control
+	if close == null or apply == null or defaults == null or content == null:
+		push_error("Retail footer/header controls missing")
+		return false
+	var close_offset := close.get_global_rect().position-panel.get_global_rect().position
+	if close.size != Vector2(96,22) or close_offset != Vector2(808,686):
+		push_error("CloseButton XML BOTTOMRIGHT(-16,16) mismatch: "+str(close_offset))
+		return false
+	if apply.is_visible_in_tree() != (case == "pending"):
+		push_error("Apply must be shown only for actual uncommitted draft values")
+		return false
+	if case == "pending":
+		var apply_offset := apply.get_global_rect().position-panel.get_global_rect().position
+		if apply.size != Vector2(96,22) or apply_offset != Vector2(710,686):
+			push_error("ApplyButton XML RIGHT->Close LEFT-2 mismatch")
+			return false
+	if defaults.is_visible_in_tree() != (case != "search"):
+		push_error("Defaults header must hide during search")
+		return false
+	if defaults.is_visible_in_tree():
+		var defaults_offset := defaults.get_global_rect().position-content.get_global_rect().position
+		if defaults.size != Vector2(96,22) or defaults_offset != Vector2(533,16):
+			push_error("DefaultsButton XML Header TOPRIGHT(-36,-16) mismatch")
+			return false
+	print("GEOMETRY XML ",game.get_rect()," ",addons.get_rect()," ",search.get_rect()," Close=",close_offset," Apply=",apply.is_visible_in_tree())
+	return true
+
+func hidden_apply_has_no_action(ui: Node) -> bool:
+	var panel := ui.find_child("OptionsRoot",true,false) as Control
+	# Hit the authored Apply rectangle, not the registry's unconditional action lookup.
+	var point := panel.get_global_rect().position+Vector2(758,697)
+	for down in [true,false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = down
+		root.push_input(event,true)
+		await process_frame
+	ui.call("sync_input")
+	var action: String = ui.call("pop_action")
+	if not action.is_empty():
+		push_error("Hidden Apply rectangle emitted "+action)
+		return false
+	print("PASS hidden Apply has no native mouse action")
 	return true
 
 func click_action(ui: Node, name: String, expected: String) -> bool:

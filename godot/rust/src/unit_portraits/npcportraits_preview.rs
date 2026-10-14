@@ -118,6 +118,29 @@ pub(crate) fn attach_trainer_preview(ui: Gd<RegistryUi>) -> Result<(), String> {
     Ok(())
 }
 
+/// Customer-orders capture uses the production NPC portrait renderer, with a concrete human fixture.
+pub(crate) fn attach_customer_orders_preview(ui: Gd<RegistryUi>) {
+    let mut preview = NpcPortraitPreview::new_alloc();
+    preview.set_name("CustomerOrdersPreviewPortrait");
+    ui.clone()
+        .upcast::<godot::classes::Node>()
+        .add_child(&preview);
+    let mut host = preview.bind_mut();
+    host.portrait = Some(Portrait::new(
+        game_engine_ui_model::professions_frame::orders::PORTRAIT,
+    ));
+    host.appearance = Some(UnitAppearance::Player(
+        Player {
+            name: "Offline crafting clerk".into(),
+            race: 1,
+            class: 1,
+            appearance: Default::default(),
+        },
+        EquipmentAppearance::default(),
+    ));
+    host.ui = Some(ui);
+}
+
 impl NpcPortraitPreview {
     fn mount_window(&mut self, frame: &str, forever: bool) -> Result<(), String> {
         if self.ui.is_some() {
