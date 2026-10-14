@@ -725,8 +725,25 @@ impl InputAction {
             Self::HousingExpertNextAxis => "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
             _ => return None,
         };
-        // Action identity stays literal until installed GlobalStrings supplies localized labels.
-        Some(input_action_meta(key, key, BindingSection::Housing, None))
+        // Current canonical GlobalStrings is user-authorized pending installed70391 re-export.
+        let label = match self {
+            Self::HousingExpertTranslate => "Advanced Move Submode",
+            Self::HousingExpertRotate => "Advanced Rotate Submode",
+            Self::HousingExpertScale => "Advanced Scale Submode",
+            Self::HousingExpertLeft => "Move Decor Left",
+            Self::HousingExpertRight => "Move Decor Right",
+            Self::HousingExpertForward => "Move Decor Forward",
+            Self::HousingExpertBack => "Move Decor Backward",
+            Self::HousingExpertUp => "Move Decor Up",
+            Self::HousingExpertDown => "Move Decor Down",
+            Self::HousingExpertScaleUp => "Scale Decor Up",
+            Self::HousingExpertScaleDown => "Scale Decor Down",
+            Self::HousingExpertRotateLeft => "Rotate Decor Left",
+            Self::HousingExpertRotateRight => "Rotate Decor Right",
+            Self::HousingExpertNextAxis => "Switch to next rotation axis",
+            _ => return None,
+        };
+        Some(input_action_meta(key, label, BindingSection::Housing, None))
     }
 
     fn interface_meta(self) -> Option<InputActionMeta> {
