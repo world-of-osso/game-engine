@@ -62,7 +62,7 @@ const DECAL_SCALE: f32 = 2.0;
 /// The ring sits 0.08 above the unit origin and projects onto ground within this height.
 const CIRCLE_LIFT: f32 = 0.08;
 const CIRCLE_DEPTH: f32 = 1.0;
-const EXPECTED_STAT_CSV: &str = "db2/12.1.0.69933/ExpectedStat.csv";
+const EXPECTED_STAT_CSV: &str = "db2/active/ExpectedStat.csv";
 
 pub(crate) struct Targeting {
     target: Option<u64>,

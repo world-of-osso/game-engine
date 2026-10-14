@@ -113,60 +113,15 @@ def write_asset_files(data, verified):
 
 
 def write_asset_index(data, identity, staged, verified, aliases):
-    path = data / "cache/model-asset-index.json"
-    existing = json.loads(path.read_text()) if path.exists() else {"version": 1, "assets": [], "aliases": [], "chains": []}
-    if existing["version"] != 1:
-        raise ValueError(f"Unsupported model asset index version {existing['version']}")
-    assets = {(r["product"], r["fdid"], r["kind"]): r for r in existing["assets"]}
-    assets.update({(r["product"], r["fdid"], r["kind"]): r for r, _ in verified})
-    alias_records = {r["path"]: r for r in existing.get("aliases", [])}
-    alias_records.update({r["path"]: r for r, _ in aliases})
-    namespace = (identity["product"], identity["build_key"])
-    chains = existing.get("chains", [])
-    previous = next((c for c in chains if (c["product"], c["build_key"]) == namespace), {})
-    chain = {**identity,
-             "dependencies": {**previous.get("dependencies", {}), **staged["dependencies"]},
-             "metadata": [*previous.get("metadata", []), *staged.get("metadata", [])]}
-    chains = [c for c in chains if (c["product"], c["build_key"]) != namespace]
-    result = {"version": 1, "assets": [assets[key] for key in sorted(assets)],
-              "aliases": [alias_records[key] for key in sorted(alias_records)], "chains": [*chains, chain]}
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".json.importing")
-    temporary.write_text(json.dumps(result, indent=2) + "\n")
-    temporary.replace(path)
-    return result
+    from model_asset_publication import publish_receipts
+    return publish_receipts(data, identity, staged, verified, aliases)
 
 
 def write_asset_fragment(data, identity, staged, verified, aliases, name):
     if not name or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for char in name):
         raise ValueError("Invalid asset index fragment name")
-    existing = {}
-    cache = data / "cache"
-    paths = [cache / "model-asset-index.json", *sorted(cache.glob("model-asset-index-*.json"))]
-    for path in paths:
-        if not path.exists():
-            continue
-        index = json.loads(path.read_text())
-        if index["version"] != 1:
-            raise ValueError(f"Unsupported model asset index version {index['version']}")
-        for row in index["assets"]:
-            existing[row["product"], row["fdid"], row["kind"]] = row
-    assets = []
-    for receipt, _ in verified:
-        key = receipt["product"], receipt["fdid"], receipt["kind"]
-        previous = existing.get(key)
-        if previous is None:
-            assets.append(receipt)
-        elif any(previous[field] != receipt[field] for field in
-                 ["build_key", "path", "bytes", "sha256", "content_key"]):
-            raise ValueError(f"conflicting existing receipt: {key}")
-    result = {"version": 1, "assets": assets, "aliases": [r for r, _ in aliases],
-              "chains": [{**identity, "dependencies": staged["dependencies"],
-                          "metadata": staged.get("metadata", [])}]}
-    relative = f"cache/model-asset-index-{name}.json"
-    raw = (json.dumps(result, indent=2) + "\n").encode()
-    write_asset_files(data, [({"path": relative}, raw)])
-    return result
+    from model_asset_publication import publish_receipts
+    return publish_receipts(data, identity, staged, verified, aliases, name)
 
 
 def read_frozen_identity(staged, product):
@@ -184,7 +139,6 @@ def import_staged_chain(data, product, staged_manifest, resolution_path, fragmen
     identity = read_frozen_identity(staged, product)
     verified = prepare_verified_assets(identity, staged, resolution_path)
     aliases = prepare_companion_aliases(identity, staged["dependencies"], verified)
-    write_asset_files(data, [*verified.values(), *aliases])
     if fragment is not None:
         return write_asset_fragment(data, identity, staged, verified.values(), aliases, fragment)
     return write_asset_index(data, identity, staged, verified.values(), aliases)
@@ -196,7 +150,7 @@ def main():
     parser.add_argument("--product", choices=["wow", "wow_classic_beta"], required=True)
     parser.add_argument("--staged-manifest", type=Path, required=True)
     parser.add_argument("--resolution", type=Path, required=True)
-    parser.add_argument("--fragment", help="Publish an additive, no-clobber receipt index instead of replacing the base index")
+    parser.add_argument("--fragment", help="Publish a receipt fragment; new-build receipts supersede prior-build mappings")
     args = parser.parse_args()
     result = import_staged_chain(args.data, args.product, args.staged_manifest, args.resolution, args.fragment)
     name = f"model-asset-index-{args.fragment}.json" if args.fragment else "model-asset-index.json"

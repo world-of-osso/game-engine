@@ -107,8 +107,7 @@ fn professions_retail_page_tabs_in_both_skins() {
 #[test]
 fn professions_authored_midnight_reagent_quality_overlay_in_both_skins() {
     use game_engine_ui_model::professions_catalog::RecipeCatalog;
-    let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = RecipeCatalog::load(&dir).unwrap();
     let quality = catalog.crafting_quality.get(&244634).unwrap();
     assert_eq!(quality.tier, 2);

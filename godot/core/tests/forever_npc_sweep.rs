@@ -132,7 +132,7 @@ impl Sweep {
             profiles: open(&data.join("cache/npc_appearance.sqlite")),
             displays: open(&data.join("cache/creature_display.sqlite")),
             catalogs: NpcAppearanceCatalogs::load(&data).unwrap(),
-            gear: npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap(),
+            gear: npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap(),
             outfit: outfit_data::OutfitData::load(&data),
             data,
         }
@@ -417,7 +417,7 @@ fn retail_display825_rejects_forever_only_choices_even_for_skyborne_race() {
 #[test]
 fn forever_display136974_binds_its_authored_cape_to_type2() {
     let data = data_root();
-    let gear = npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+    let gear = npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
     let armor = gear.display_armor(136974).unwrap();
     let outfit = outfit_data::OutfitData::load(&data);
     let resolved =

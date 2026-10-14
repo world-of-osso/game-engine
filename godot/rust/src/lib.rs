@@ -2,7 +2,6 @@ mod account;
 mod animation;
 #[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
-pub(crate) use game_engine_core::asset;
 pub use game_engine_core::{customization_data, outfit_data};
 mod achievements;
 mod adventure_guide;

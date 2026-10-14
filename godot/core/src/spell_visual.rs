@@ -27,7 +27,6 @@ mod voice;
 pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
-const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
 const CACHE_FORMAT: u32 = 14;
 
@@ -505,8 +504,9 @@ fn anim_id(value: i64) -> Option<u16> {
 impl SpellVisualCatalog {
     /// The cache file name, per layout: checkouts sharing one data directory can run
     /// different layouts without rebuilding over each other's cache.
-    pub fn cache_file_name() -> String {
-        format!("spell_visuals-{DB2_BUILD}-v{CACHE_FORMAT}.bin")
+    pub fn cache_file_name(db2_dir: &Path) -> Result<String, String> {
+        let build = crate::db2_source::read_build(db2_dir)?;
+        Ok(format!("spell_visuals-{build}-v{CACHE_FORMAT}.bin"))
     }
 
     /// The catalog of `db2_dir`'s CSVs, cached (bincode) at `cache_path`.
@@ -514,7 +514,8 @@ impl SpellVisualCatalog {
         let sources = SOURCE_TABLES
             .iter()
             .map(|table| (table.to_string(), db2_dir.join(format!("{table}.csv"))));
-        let key = CacheKey::new(CACHE_FORMAT, DB2_BUILD, sources)?;
+        let build = crate::db2_source::read_build(db2_dir)?;
+        let key = CacheKey::new(CACHE_FORMAT, &build, sources)?;
         load_or_build(cache_path, &key, || Self::build(db2_dir))
     }
 
