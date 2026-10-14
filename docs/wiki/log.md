@@ -17,6 +17,18 @@
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+## 2026-10-14 — Journeys player-facing progress header
+
+[Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.
+
+## 2026-10-14 — Journeys native kit and positive watch
+
+[Exact71a checkpoint](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14): both skins pass the complete physical kit/track/Home fixture and authentic Covenant55 watch ACK/HUD/query/clear;24 original full-HD PNGs inspected and hashed. PSI/swap recorded, owned runtimes stopped. Headless dummy audio excludes playback proof; collection/overview and the separately observed one-pixel Journeys-list wheel pan remain open.
+
+## 2026-10-14 — Journeys input reconciliation and watch cues
+
+[Watch/input](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persistent boundary re-enabling and Home pointer-policy updates pass the complete physical fixture in both skins at exactabbd1b9b6 runtime;18 originals inspected. Later watch ON/OFF cues use authored856/857 gains and the existing567407 clip; core3/UI20/check/fmt pass, without optimistic checked state or a native playback claim. Lead-published faction icon sheets are linked read-only; the later native kit checkpoint above supersedes the pending-paint status.
+
 ## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
 
 [Cart acceptance](systems/trading-post.md#cart-acceptance--2026-10-14): stable hidden-owner instance identities fix the controlled free→replacement checkout panic. Modern/Forever checkout→new-client relog→individual refunds pass with zero panic/script-error markers, seventy1920×1080 PNGs and memory/swap boundaries.21 UI/8 native and12 server/1 admin gates pass after current-master integration; protocol3 unchanged. Mount player-preview/rotate widgets remain unchecked.
