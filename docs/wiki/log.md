@@ -1,6 +1,10 @@
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
+## 2026-10-14 — Character-selection reveal
+
+[Selection reveal](investigations/world-entry-stalls.md#windows-character-select-reveal--2026-10-14): fresh outfit imports dominated preparation; retain/prewarm owned catalogs and cover asynchronous camp/model construction with loading UI. Published-base process-frame RED→GREEN and inspected1920×1080 Windows camp/world accepted. Covered selection Windows1.706s/Linux2.398s, differing build profiles; current-master process proof pending.
+
 ## 2026-10-14 — Unnamed equipped component attachment
 
 [Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
