@@ -452,7 +452,7 @@ func rotate_control_proof() -> void:
 	if not await wait_until(func(): return client.trading_post_state().preview_ready, "mount preview ready"): return
 	await capture("rotate-default")
 	for direction in ["Left", "Right"]:
-		var name := "PerksProgramRotate" + direction + "Button"
+		var name: String = "PerksProgramRotate" + direction + "Button"
 		var target := control(name)
 		if target == null: fail("Missing Retail rotation button " + name); return
 		var point: Vector2 = target.get_global_rect().get_center()
