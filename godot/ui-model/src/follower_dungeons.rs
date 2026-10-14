@@ -4,6 +4,62 @@ pub use crate::follower_dungeons_component::{FOLLOWER_LIST, ROW_HEIGHT};
 use shared::protocol::{FollowerDungeons, GroupRoleSnapshot, LfgStateUpdate, QueueForLfg};
 use ui_toolkit::{screen::SharedContext, widget_def::Element};
 
+/// PVEFrame.lua GroupFinderFrameButton_SetEnabled: disabled category icon/ring gray.
+pub fn apply_follower_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    apply_follower_background_layers(registry);
+    apply_follower_tab_layers(registry);
+    for index in 2..=3 {
+        for part in ["Icon", "Ring"] {
+            let name = format!("GroupFinderFrameGroupButton{index}{part}");
+            if let Some(id) = registry.get_by_name(&name)
+                && let Some(frame) = registry.get_mut(id)
+                && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
+            {
+                texture.desaturated = true;
+            }
+        }
+    }
+}
+/// PanelTabButtonTemplate places caps in BACKGROUND, below every overlapping tab label.
+fn apply_follower_tab_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    for index in 1..=3 {
+        for part in ["Left", "Middle", "Right"] {
+            let name = format!("PVEFrameTab{index}{part}");
+            if let Some(id) = registry.get_by_name(&name)
+                && let Some(frame) = registry.get_mut(id)
+            {
+                frame.draw_layer = ui_toolkit::strata::DrawLayer::Background;
+            }
+        }
+    }
+}
+/// XML useParentLevel prevents nested native-size background textures covering queue labels.
+fn apply_follower_background_layers(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::strata::DrawLayer;
+    let Some(parent) = registry
+        .get_by_name("LFDParentFrame")
+        .and_then(|id| registry.get(id))
+    else {
+        return;
+    };
+    let level = parent.frame_level;
+    let layers = [
+        ("LFDParentFrameInset", DrawLayer::Background),
+        ("LFDParentFrameInsetBg", DrawLayer::Background),
+        ("LFDQueueFrameBackground", DrawLayer::Border),
+        ("LFDParentFrameRoleBackground", DrawLayer::Background),
+    ];
+    for (name, layer) in layers {
+        if let Some(id) = registry.get_by_name(name)
+            && let Some(frame) = registry.get_mut(id)
+        {
+            frame.frame_level = level;
+            frame.draw_layer = layer;
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
     Queue(QueueForLfg),
@@ -20,6 +76,9 @@ pub struct View {
     pub pending: bool,
     pub state: Option<LfgStateUpdate>,
     pub type_open: bool,
+    /// Retail allows a solo player or the current group leader to volunteer as guide.
+    pub leader_available: bool,
+    pub volunteer_leader: bool,
 }
 
 impl Default for View {
@@ -33,6 +92,8 @@ impl Default for View {
             pending: false,
             state: None,
             type_open: false,
+            leader_available: true,
+            volunteer_leader: false,
         }
     }
 }
@@ -44,6 +105,9 @@ impl View {
         }
         if self.update_window_controls(action) || self.pending || self.matched() {
             return None;
+        }
+        if action == "follower:leader" && self.leader_available {
+            self.volunteer_leader = !self.volunteer_leader;
         }
         self.select_role_and_dungeon(action);
         if action != "follower:queue" || !self.can_queue() {

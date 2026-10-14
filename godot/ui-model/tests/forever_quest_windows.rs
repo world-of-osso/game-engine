@@ -15,9 +15,8 @@ use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_
 use game_engine_ui_model::quest_frame_component::{
     QuestFramePage, QuestFrameState, RewardView, quest_frame_screen,
 };
-use game_engine_ui_model::quest_log_frame_component::{
-    QuestLogFrameState, QuestLogGroup, quest_log_frame_screen,
-};
+use game_engine_ui_model::quest_log_frame_component::{QuestLogFrameState, QuestLogGroup};
+use game_engine_ui_model::world_map_frame_component::{WorldMapFrameState, world_map_frame_screen};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -80,6 +79,8 @@ fn options_model() -> OptionsModel {
         logged_in: true,
         view: GameMenuView::Options,
         category: OptionsCategory::Graphics,
+        search: String::new(),
+        addons_tab: false,
         modal_position: [0.0, 0.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
@@ -134,12 +135,15 @@ fn modern_trees() -> String {
         );
     }
     out += &dump(
-        QuestLogFrameState {
-            visible: true,
-            ..Default::default()
-        },
-        quest_log_frame_screen,
-        "QuestLogFrame",
+        WorldMapFrameState::default().with_quest_panel(
+            QuestLogFrameState {
+                visible: true,
+                ..Default::default()
+            },
+            false,
+        ),
+        world_map_frame_screen,
+        "WorldMapFrame",
     );
     let mut view = build_view_model(&options_model());
     for logged_in in [false, true] {
@@ -150,6 +154,7 @@ fn modern_trees() -> String {
     view.view = GameMenuView::Options;
     for category in OptionsCategory::ALL {
         view.options.category = category;
+        view.options.addons_tab = category == OptionsCategory::SocialAddons;
         out += &dump(view.clone(), game_menu_screen, "GameMenuRoot");
     }
     out
@@ -191,16 +196,20 @@ fn assert_quest_chrome(skin: ActiveSkin) {
     set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
     let log = registry(
-        QuestLogFrameState {
-            groups: vec![QuestLogGroup {
-                sort_id: 12,
-                name: "Elwynn Forest".into(),
-                collapsed: false,
-                quests: vec![],
-            }],
-            ..Default::default()
-        },
-        quest_log_frame_screen,
+        WorldMapFrameState::default().with_quest_panel(
+            QuestLogFrameState {
+                visible: true,
+                groups: vec![QuestLogGroup {
+                    sort_id: 12,
+                    name: "Elwynn Forest".into(),
+                    collapsed: false,
+                    quests: vec![],
+                }],
+                ..Default::default()
+            },
+            false,
+        ),
+        world_map_frame_screen,
     );
     for (registry, name, atlas) in [
         (
@@ -208,40 +217,27 @@ fn assert_quest_chrome(skin: ActiveSkin) {
             "QuestFrameTopTileStreaks",
             "_UI-Frame-TopTileStreaks",
         ),
+        (&dialog, "QuestFrameParchment", "QuestBG-Parchment"),
         (
             &log,
-            "QuestLogFrameTopTileStreaks",
-            "_UI-Frame-TopTileStreaks",
+            "QuestLogHeader12Background",
+            "common-button-list-collapseExpand",
         ),
-        (&dialog, "QuestFrameParchment", "QuestBG-Parchment"),
-        (&log, "QuestLogDetailsBackground", "QuestBG-Parchment"),
-        (&log, "QuestLogHeader12Background", "questlog_divider"),
     ] {
         assert_draws_member(registry, name, atlas, skin);
     }
 }
 
-/// Both quest windows' close buttons draw `RedButton-Exit` under `skin`; returns its file.
+/// QuestFrame uses skin-resolved `RedButton-Exit`; WorldMap retains its own chrome.
 fn assert_close_texture(skin: ActiveSkin) -> u32 {
     set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
-    let log = registry(QuestLogFrameState::default(), quest_log_frame_screen);
-    let fdid = assert_draws_member(
+    assert_draws_member(
         &dialog,
         "QuestFrameCloseButtonNormal",
         "RedButton-Exit",
         skin,
-    );
-    assert_eq!(
-        assert_draws_member(
-            &log,
-            "QuestLogFrameCloseButtonNormal",
-            "RedButton-Exit",
-            skin
-        ),
-        fdid
-    );
-    fdid
+    )
 }
 
 #[test]
@@ -276,12 +272,30 @@ fn graphics_settings_remain_reachable_after_scrolling() {
             options_view(view, *offset, None)
         });
         screen.sync(&shared, &mut registry);
-        assert!(registry.get_by_name("SliderRowbloom_intensity").is_none());
-        assert!(registry.get_by_name("SliderRowparticle_density").is_none());
+        // Retail's529px viewport mounts partially clipped rows at the edge.
+        // Prove actual overflow rather than treating row retention as visibility.
+        let list = registry
+            .scroll_lists
+            .get(game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL)
+            .unwrap();
+        let maximum = list.geometry.row_count - list.geometry.visible_rows;
+        assert!(maximum > 0, "Graphics must have a second scroll position");
+        assert_eq!(list.first_row, 0);
 
-        // Scroll to the bottom; the production list clamps this pixel offset.
-        shared.insert((view.options, usize::MAX));
+        // Use the production registry scroll state, not a separately injected offset.
+        let list_name = game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL;
+        assert!(registry.scroll_lists.scroll_by(list_name, maximum as isize));
+        let offset = registry.scroll_lists.get(list_name).unwrap().first_row;
+        shared.insert((view.options, offset));
         screen.sync(&shared, &mut registry);
+        assert_eq!(
+            registry
+                .scroll_lists
+                .get(game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL)
+                .unwrap()
+                .first_row,
+            maximum
+        );
         assert!(registry.get_by_name("SliderRowbloom_intensity").is_some());
         let particles = registry.get_by_name("SliderLabelparticle_density").unwrap();
         assert!(matches!(
@@ -296,7 +310,11 @@ fn graphics_settings_remain_reachable_after_scrolling() {
 fn quest_chrome_preserves_modern_and_resolves_forever() {
     load_tables();
     set_thread_skin(ActiveSkin::Modern);
-    assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
+    let trees = modern_trees();
+    if std::env::var_os("PRINT_MODERN_TREES").is_some() {
+        println!("<<<MODERN_TREES\n{trees}MODERN_TREES>>>");
+    }
+    assert!(trees == fixture::MODERN_TREES, "Modern frame trees changed");
     // Forever draws its own close-button art, not Modern's.
     assert_ne!(
         assert_close_texture(ActiveSkin::Modern),

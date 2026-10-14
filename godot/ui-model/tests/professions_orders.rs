@@ -20,6 +20,7 @@ fn render(view: ProfessionView, skin: ActiveSkin) -> FrameRegistry {
     shared.insert(view);
     let mut r = FrameRegistry::new(1280.0, 900.0);
     Screen::new(professions_screen).sync(&shared, &mut r);
+    game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(&mut r);
     r
 }
 fn view() -> ProfessionView {
@@ -183,6 +184,35 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
             );
         }
         assert!(frame(&r, "CraftingOrderMenuBackground").visible);
+        // Form.xml TOPRIGHT(-10,-11); Form.lua:530 sets recipient width136.
+        let recipient = frame(&r, "CraftingOrderRecipientDropdown");
+        assert_eq!(
+            (recipient.width.value(), recipient.height.value()),
+            (136.0, 25.0)
+        );
+        assert_eq!(
+            recipient.position.left,
+            ui_toolkit::layout_values::Val::Px(674.0)
+        );
+        assert_eq!(
+            recipient.position.top,
+            ui_toolkit::layout_values::Val::Px(71.0)
+        );
+        assert_eq!(
+            frame(&r, "CraftingOrderDuration").position.left,
+            ui_toolkit::layout_values::Val::Px(620.0)
+        );
+        assert_eq!(
+            frame(&r, "CraftingOrderDuration").position.top,
+            ui_toolkit::layout_values::Val::Px(352.5)
+        );
+        assert_eq!(frame(&r, "CraftingOrderDuration").width.value(), 143.0);
+        assert_eq!(text(&r, "CraftingOrdersBrowseTabText"), "Place Order");
+        assert_eq!(frame(&r, "CraftingOrdersBrowseTab").height.value(), 32.0);
+        assert_eq!(
+            frame(&r, "CraftingOrdersBrowseTab").position.top,
+            ui_toolkit::layout_values::Val::Px(564.0)
+        );
         assert!(r.get_by_name("CraftingOrderRecipes").is_none());
         assert!(r.get_by_name("CraftingOrderGold").is_some());
         v.orders.menu = Some(OrderMenu::Duration);
@@ -198,6 +228,98 @@ fn orders_customer_form_offers_real_recipient_and_duration_menu_choices() {
                     .onclick
                     .as_deref(),
                 Some(format!("profession:order:duration:{hours}").as_str())
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn orders_customer_labels_align_with_source_payment_and_recipient_fields() {
+    use ui_toolkit::layout_values::Val;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.orders.customer = true;
+        v.orders.creating = true;
+        v.orders.kind = CraftingOrderKind::Personal;
+        v.orders.recipe = Some(2153);
+        v.orders.snapshot.as_mut().unwrap().recipes = vec![CraftingOrderRecipeSnapshot {
+            spell_id: 2153,
+            skill_line: 2532,
+            item_id: 2303,
+            count: 1,
+            name: "Handstitched Leather Pants".into(),
+            reagents: vec![],
+        }];
+        let r = render(v, skin);
+        assert_eq!(text(&r, "CraftingOrderRecipientLabel"), "Order To:");
+        for name in [
+            "CraftingOrderCommissionLabel",
+            "CraftingOrderDurationLabel",
+            "CraftingOrderRecipientLabel",
+        ] {
+            let Some(WidgetData::FontString(label)) = &frame(&r, name).widget_data else {
+                panic!("Expected label {name}");
+            };
+            assert_eq!(
+                label.justify_h,
+                ui_toolkit::widgets::font_string::JustifyH::Right,
+                "{name}"
+            );
+        }
+        let recipient_label = frame(&r, "CraftingOrderRecipientLabel");
+        let Val::Px(left) = recipient_label.position.left else {
+            panic!("pixel label");
+        };
+        assert_eq!(left + recipient_label.width.value(), 653.0);
+        for name in ["CraftingOrderCommissionLabel", "CraftingOrderDurationLabel"] {
+            let label = frame(&r, name);
+            let Val::Px(left) = label.position.left else {
+                panic!("pixel label");
+            };
+            assert!(left >= 525.0, "{name} outside right pane");
+            assert_eq!(left + label.width.value(), 620.0);
+        }
+        assert_eq!(
+            frame(&r, "CraftingOrderRecipientLabel").position.top,
+            Val::Px(97.0)
+        );
+        assert_eq!(frame(&r, "CraftingOrderGold").position.top, Val::Px(316.0));
+        for (label_name, input_name) in [
+            ("CraftingOrderCommissionLabel", "CraftingOrderGold"),
+            ("CraftingOrderDurationLabel", "CraftingOrderDuration"),
+            ("CraftingOrderRecipientLabel", "CraftingOrderRecipient"),
+        ] {
+            let label = frame(&r, label_name);
+            let input = frame(&r, input_name);
+            let Val::Px(label_top) = label.position.top else {
+                panic!("pixel label");
+            };
+            let Val::Px(input_top) = input.position.top else {
+                panic!("pixel input");
+            };
+            assert_eq!(
+                label_top + label.height.value() / 2.0,
+                input_top + input.height.value() / 2.0,
+                "{label_name} centerline"
+            );
+        }
+        let portrait = frame(&r, "ProfessionsCustomerOrdersPortrait");
+        assert_eq!(
+            (portrait.width.value(), portrait.height.value()),
+            (62.0, 62.0)
+        );
+        let back = frame(&r, "CraftingOrderFormBack");
+        assert_eq!(back.onclick.as_deref(), Some("profession:order:browse"));
+        let Some(WidgetData::Button(button)) = &back.widget_data else {
+            panic!("Retail UIPanelButton");
+        };
+        if skin == ActiveSkin::Modern {
+            assert_eq!(
+                button.normal_texture,
+                Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                    130828
+                ))
             );
         }
     }

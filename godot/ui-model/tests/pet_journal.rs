@@ -93,6 +93,174 @@ fn uncollected_species_cannot_summon_and_search_filters_names() {
 }
 
 #[test]
+fn pet_filters_toggle_ownership_families_and_reset_without_changing_authority() {
+    let mut view = view();
+    assert!(view.apply_filter("pet:collected"));
+    assert_eq!(
+        view.rows().iter().map(|row| row.key).collect::<Vec<_>>(),
+        vec![PetRowKey::Species(40)]
+    );
+    assert!(view.apply_filter("pet:families:none"));
+    assert!(view.rows().is_empty());
+    assert!(view.apply_filter("pet:families:all"));
+    assert_eq!(view.rows().len(), 1);
+    assert!(view.apply_filter("pet:family:7"));
+    assert!(view.rows().is_empty());
+    assert!(view.apply_filter("pet:reset"));
+    assert_eq!(view.rows().len(), 2);
+    assert_eq!(view.journal.pets.len(), 1);
+}
+
+#[test]
+fn journal_species_flags_hide_debug_rows_and_reveal_learned_only_species() {
+    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    let mut view = view();
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 0x4000,
+            source: 2,
+        },
+    );
+    assert_eq!(view.rows().len(), 1);
+    assert!(view.catalog.contains_key(&40));
+    let id = view
+        .journal
+        .add_with_breed(40, 1, PetQuality::Common, 3)
+        .unwrap();
+    assert!(
+        view.rows()
+            .iter()
+            .any(|row| row.key == PetRowKey::Owned(id))
+    );
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 33840,
+            source: -1,
+        },
+    );
+    assert!(view.rows().iter().all(|row| row.species != 40));
+}
+
+#[test]
+fn pet_source_menu_omits_no_source_sentinel_in_real_catalog_metadata() {
+    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = view();
+    view.filters.open = true;
+    view.filters.submenu = Some("sources".into());
+    view.species_filters.insert(
+        39,
+        PetSpeciesFilter {
+            flags: 2,
+            source: 3,
+        },
+    );
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 2,
+            source: -1,
+        },
+    );
+    let mut context = SharedContext::new();
+    context.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(pet_journal_screen).sync(&context, &mut registry);
+    let source = registry
+        .get(registry.get_by_name("PetJournalFilter2").unwrap())
+        .unwrap();
+    assert_eq!(source.onclick.as_deref(), Some("pet:source:3"));
+    assert!(registry.get_by_name("PetJournalFilter3").is_none());
+}
+
+#[test]
+fn pet_filters_use_species_source_combat_flags_and_owned_sort_values() {
+    use game_engine_ui_model::pet_journal::PetSpeciesFilter;
+    let mut view = view();
+    view.species_filters.insert(
+        39,
+        PetSpeciesFilter {
+            flags: 2,
+            source: 3,
+        },
+    );
+    view.species_filters.insert(
+        40,
+        PetSpeciesFilter {
+            flags: 0x80,
+            source: 2,
+        },
+    );
+    assert!(view.apply_filter("pet:non-combat"));
+    assert_eq!(view.rows().len(), 1);
+    assert!(view.apply_filter("pet:source:3"));
+    assert!(view.rows().is_empty());
+    assert!(view.apply_filter("pet:sources:all"));
+    assert_eq!(view.rows().len(), 1);
+    view.apply_filter("pet:reset");
+    view.journal
+        .add_with_breed(40, 15, PetQuality::Rare, 3)
+        .unwrap();
+    view.apply_filter("pet:sort:level");
+    assert_eq!(view.rows()[0].species, 40);
+    view.apply_filter("pet:sort:rarity");
+    assert_eq!(view.rows()[0].quality, Some(PetQuality::Rare));
+    view.apply_filter("pet:sort:type");
+    assert_eq!(view.rows()[0].species, 40);
+}
+
+#[test]
+fn pet_search_preserves_query_and_exposes_retail_clear_action_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = view();
+        view.set_search("squirrel".into());
+        view.filters.open = true;
+        let mut context = SharedContext::new();
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(pet_journal_screen).sync(&context, &mut registry);
+        let search = registry
+            .get(registry.get_by_name("PetJournalSearchBox").unwrap())
+            .unwrap();
+        let Some(WidgetData::EditBox(edit)) = &search.widget_data else {
+            panic!("search editbox")
+        };
+        assert_eq!(edit.text, "squirrel");
+        assert_eq!(search.width.value(), 145.0);
+        let clear = registry
+            .get(registry.get_by_name("PetJournalSearchClear").unwrap())
+            .unwrap();
+        assert!(!clear.hidden);
+        assert_eq!(clear.onclick.as_deref(), Some("pet:search-clear"));
+        let divider = registry
+            .get(registry.get_by_name("PetJournalFilter2").unwrap())
+            .unwrap();
+        assert_eq!(divider.height.value(), 13.0);
+        let title = registry
+            .get(registry.get_by_name("PetJournalFilter3").unwrap())
+            .unwrap();
+        assert_eq!(title.position.top, ui_toolkit::layout_values::Val::Px(61.0));
+        for suffix in ["Left", "Middle", "Right", "Icon"] {
+            assert!(
+                registry
+                    .get_by_name(&format!("PetJournalSearch{suffix}"))
+                    .is_some()
+            );
+        }
+    }
+}
+
+#[test]
 fn unreadable_species_stays_in_catalog_but_not_blank_list_selection() {
     let mut view = view();
     view.journal = PetJournal::default();
@@ -190,6 +358,48 @@ fn pet_journal_skins_share_retail_layout_and_real_instance_text() {
         }
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn companion_loadout_and_card_follow_retail_xml_in_both_skins() {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.select(PetRowKey::Owned(1));
+        state.journal.battle_slots[0] = Some(1);
+        state.icons.insert(39, 656559); // inv_pet_mechanicalsquirrel.blp, local listfile.
+        let mut context = SharedContext::new();
+        context.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pet_journal_screen).sync(&context, &mut registry);
+        let card = registry
+            .get(registry.get_by_name("PetJournalPetCardBackground").unwrap())
+            .unwrap();
+        assert_eq!(card.height, Dimension::Fixed(166.0));
+        assert_eq!(card.position.left, Val::Px(289.0));
+        assert_eq!(card.position.top, Val::Px(63.0));
+        for slot in 0..3 {
+            let name = format!("PetJournalBattleSlot{slot}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            assert_eq!(frame.width, Dimension::Fixed(399.0));
+            assert_eq!(frame.height, Dimension::Fixed(106.0));
+            assert_eq!(frame.position.left, Val::Px(291.0));
+            assert_eq!(frame.position.top, Val::Px(255.0 + slot as f32 * 107.0));
+            assert_eq!(
+                frame.onclick.as_deref(),
+                Some(format!("pet:equip:{slot}").as_str())
+            );
+            assert!(registry.get_by_name(&format!("{name}Background")).is_some());
+            assert!(registry.get_by_name(&format!("{name}ModelScene")).is_some());
+        }
+        assert!(registry.get_by_name("PetJournalBattleSlot0Icon").is_some());
+        assert!(registry.get_by_name("PetJournalBattleSlot0Level").is_some());
+    }
 }
 
 #[test]

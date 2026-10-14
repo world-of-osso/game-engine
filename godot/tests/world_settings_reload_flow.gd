@@ -78,7 +78,7 @@ func save_camera(client: Node) -> bool:
 	await click(invert)
 	# Original FOV bounds 90..120: midpoint click requests 105, independently.
 	await click(fov)
-	await click_menu_action(client, "OptionsDoneButton")
+	await click_menu_action(client, "OptionsCloseButton")
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")
 	return await wait_menu_closed(client, null)

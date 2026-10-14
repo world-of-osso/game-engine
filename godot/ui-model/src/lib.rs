@@ -71,6 +71,7 @@ pub mod group_state;
 pub mod guild_charter_frame;
 pub mod guild_charters;
 pub mod housing;
+pub mod housing_basic_component;
 pub mod housing_bulletin_component;
 pub mod housing_component;
 pub mod housing_editor;
@@ -189,6 +190,8 @@ pub mod faction_reaction {
 pub mod inworld_unit_frames_component;
 #[path = "ui/screens/menu_primitives.rs"]
 pub mod menu_primitives;
+#[path = "ui/screens/search_box_template.rs"]
+pub mod search_box_template;
 #[path = "status_unit_resource_data.rs"]
 pub mod status;
 
