@@ -28,6 +28,10 @@ fn render(
     xp_visible: bool,
     hovered: bool,
 ) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     ui_toolkit::atlas::set_thread_skin(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
