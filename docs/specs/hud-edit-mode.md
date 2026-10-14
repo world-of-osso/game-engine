@@ -12,7 +12,7 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 - [x] F10 toggles the world-only editor; Escape after popup dismissal exits before window handling. Exit autosaves pending drafts using the existing Save path (user decision 2026-10-09).
 - [x] Mounted, visible registered roots receive labelled selection art, selected art and real pointer dragging. Absent/hidden roots are skipped.
 - [x] Dragged top-left snaps to the 8-unit grid, then screen edges within 8 units, then clamps. Saved anchors/offsets are logical UI units.
-- [x] Existing account layouts and per-character active layout carry mover placements alongside skin/settings; presets remain immutable. Manager supports previous/next, New, Rename, Delete, Revert, Save, Exit and Reset Selected (remove placement; Save persists reset).
+- [x] Existing account layouts and per-character active layout carry mover placements alongside skin/settings; presets remain immutable. Manager supports the Retail LayoutDropdown, New/Rename naming dialogs, Delete, Revert, Save, Exit and Reset Selected (remove placement; Save persists reset).
 - [x] Projection starts from authored rectangles on every sync and translates descendants without mutating authored anchors. Removing offsets restores current preset geometry; UI-scale changes recompute bounds.
 - [x] Modern/Forever share the mover registry and manager. Compact party defaults, Options > HUD Layout party settings, tracker and chat defaults remain unchanged.
 - [x] Ten targeted behavioral tests pass (enter/exit, drag, clamp/snap, saved round-trip, reset, scale, unchanged defaults, every registered root, previews and native selection/panel art).
@@ -22,6 +22,12 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 Acceptance: code `af2be5bd2`, documentation head `bd7addc5a`, Godot `4.7.2-pr123946-pr123546`; `hud_edit_tests.rs` filter `hudeditmode` 10/10 and local helper build/CLI pass; three changed crates' `cargo fmt --check` passes. Canonical evidence `data/diagnostics/hudeditmode-2026-10-07/`: inspected `modern-edit.png`, `forever-edit.png`, `live-edit-mode.png`, `live-saved.png`, `live-reset-draft.png`, `live-relog.png`, `persistence-proof.json`. Character 57 reloads player (688,552) and chat (64,664) after normal logout to Login and re-entry; saved offsets are in `saved-layout.ron`. Four Godot launches total, final launch reuses `capture_ui_screen.gd` offline helper before creating the live client. Exact owned PIDs exited, `agents-hudeditmode.slice` inactive, UDP 5322 free (`cleanup-proof.json`). No fresh-process live relog or general resource-clean Godot shutdown claim; inherited resource/Wayland warnings remain. New/Rename/Delete/previous/next manager click flows are implemented and persistence operations tested, but only Save/Reset/Exit were exercised live.
 
 Code: `godot/rust/src/hud_edit.rs`, `godot/rust/src/ui/hud_edit_layout.rs`, `godot/rust/src/ui/hud_edit_preview.rs`, `godot/ui-model/src/hud_edit*.rs`, `godot/core/src/ui_layout_data/edit_layouts.rs`. The inventory below is historical Bevy implementation.
+
+## Layout selection and naming (verified 2026-10-13)
+
+`Shared/EditModeManager.xml` supplies LayoutDropdown120×25 at(25,52); `Shared/EditModeDialogs.xml` supplies the320×150 naming dialog and Save/Cancel. New/Rename open transient draft state, not immediate persistence. Empty, preset and duplicate names disable confirmation; Cancel retains persisted selection and placements. Radio entries select account layouts using the existing per-character active selection. Character-specific layout scope remains a named unsupported source control, not an invented persistence mode.
+
+`godot/tests/hud_edit_controls_fidelity.gd` physically opens the dropdown, selects a preset, opens New, rejects empty Save, types/saves a name, reloads the file in a new fixture and cancels another draft, in both skins. Inspected1920×1080 captures: `AgentShared/2026-10-13/ui-gameplay-panels/after-review/{modern,forever}-menus-hud-{menu,name}.png`. Native reducer/geometry coverage remains in `hud_edit_tests` and `menu_primitives`; this is offline control proof, not a new live-account claim.
 
 ## Manager system checkboxes (2026-10-09)
 

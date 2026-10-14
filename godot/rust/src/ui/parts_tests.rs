@@ -13,6 +13,56 @@ fn atlas(name: &str) -> Option<TextureSource> {
 }
 
 #[test]
+fn cooldown_revert_projects_retail_panel_strips_for_each_button_state() {
+    use crate::ui::{RegistryModel, ScreenPostsetup};
+    use game_engine_ui_model::cooldown_assist::CooldownViewerView;
+    use game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen;
+    use ui_toolkit::{
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
+    let mut view = CooldownViewerView::default();
+    view.settings.open = true;
+    view.settings.can_undo = true;
+    let mut shared = SharedContext::new();
+    shared.insert(view);
+    let mut model = RegistryModel {
+        screen: Screen::new(cooldown_viewer_screen),
+        shared,
+        registry: FrameRegistry::new(1920.0, 1080.0),
+        icon_masks: Default::default(),
+        postsetup: ScreenPostsetup::None,
+    };
+    model.sync();
+    let id = model.registry.get_by_name("CooldownSettingsUndo").unwrap();
+    for (state, fdid) in [
+        (ButtonState::Normal, 130828),
+        (ButtonState::Pushed, 130825),
+        (ButtonState::Disabled, 130824),
+    ] {
+        let frame = model.registry.get_mut(id).unwrap();
+        let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
+            panic!("Revert button");
+        };
+        button.state = state;
+        let images = project_images(frame, 164.0, 22.0);
+        assert_eq!(images.len(), 3);
+        assert!(
+            images
+                .iter()
+                .all(|image| image.source == Some(TextureSource::FileDataId(fdid)))
+        );
+        assert_eq!(images[0].rect, [0.0, 0.0, 12.0, 22.0]);
+        assert_eq!(images[2].rect, [152.0, 0.0, 12.0, 22.0]);
+    }
+}
+
+#[test]
 fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
     for (state, fdid) in [
         (ButtonState::Normal, 130828),
