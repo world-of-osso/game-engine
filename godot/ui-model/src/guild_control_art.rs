@@ -26,7 +26,7 @@ pub fn refresh_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
             if let Some(WidgetData::Texture(texture)) =
                 &mut registry.get_mut(id).expect("checkbox box").widget_data
             {
-                texture.source = TextureSource::FileDataId(if pushed { 130753 } else { 130755 });
+                texture.source = TextureSource::FileDataId(if pushed { 130752 } else { 130755 });
             }
         }
         if let Some(id) = registry.get_by_name(&format!("{name}Background")) {
@@ -94,12 +94,40 @@ pub fn shell() -> Element {
     out.extend(rsx! { button { name: "GuildControlUICloseButton", width: 32.0, height: 32.0, left: 299.0, top: 7.0, pos_type: "absolute",
         onclick: "guild:settings_close", button_default_skin: false,
         button_atlas_up: "uitools-closebutton", button_atlas_pressed: "uitools-closebutton-down", button_atlas_highlight: "uitools-closebutton-highlight" } });
-    out.extend(crate::quest_art::named_atlas_texture(
-        "GuildControlUIHbar".into(),
-        "_UI-Frame-InnerBotTile",
-        (9.0, 54.0, 320.0, 3.0),
-    ));
+    out.extend(horizontal_bar());
     out
+}
+
+/// HorizontalBarTemplate: four6px corners, top/bottom3px tiles; XML offsets retained.
+fn horizontal_bar() -> Element {
+    let mut children = Vec::new();
+    for (name, atlas, rect) in [
+        (
+            "TopLeft",
+            "UI-Frame-InnerBotLeftCorner",
+            (0.0, -5.0, 6.0, 6.0),
+        ),
+        (
+            "TopRight",
+            "UI-Frame-InnerBotRight",
+            (314.0, -5.0, 6.0, 6.0),
+        ),
+        ("BottomLeft", "UI-Frame-InnerTopLeft", (0.0, 2.0, 6.0, 6.0)),
+        (
+            "BottomRight",
+            "UI-Frame-InnerTopRight",
+            (314.0, 2.0, 6.0, 6.0),
+        ),
+        ("Top", "_UI-Frame-InnerBotTile", (6.0, -2.0, 308.0, 3.0)),
+        ("Bottom", "_UI-Frame-InnerTopTile", (6.0, 2.0, 308.0, 3.0)),
+    ] {
+        children.extend(crate::quest_art::named_atlas_texture(
+            format!("GuildControlUIHbar{name}"),
+            atlas,
+            rect,
+        ));
+    }
+    rsx! {r#frame {name:"GuildControlUIHbar",width:320.0,height:3.0,left:9.0,top:54.0,pos_type:"absolute",{children}}}
 }
 
 pub fn panel(name: &str, rect: (f32, f32, f32, f32)) -> Element {
@@ -125,22 +153,33 @@ pub fn checkbox(
     if checked {
         children.extend(texture(
             format!("{name}Check"),
-            if enabled { 130751 } else { 130752 },
+            if enabled { 130751 } else { 130750 },
             (0.0, 0.0, 20.0, 20.0),
             "1,1,1,1",
         ));
     }
+    let (text_width, text_height) = ui_toolkit::text_measure::measure_text(
+        text,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        10.0,
+    )
+    .expect("GuildPermissionCheckboxTemplate font");
     children.extend(label(
         format!("{name}Text"),
         text,
-        (21.0, 3.0, 128.0, 14.0),
+        (
+            21.0,
+            (20.0 - text_height) / 2.0 - 1.0,
+            text_width,
+            text_height,
+        ),
         (
             10.0,
             if enabled { "1,1,1,1" } else { "0.5,0.5,0.5,1" },
             "LEFT",
         ),
     ));
-    children.extend(rsx! { texture { name: {DynName(format!("{name}Highlight"))}, texture_fdid: 130754, draw_layer: "HIGHLIGHT", blend_mode: "ADD", width: 20.0, height: 20.0, pos_type: "absolute", left: 0.0, top: 0.0 } });
+    children.extend(rsx! { texture { name: {DynName(format!("{name}Highlight"))}, texture_fdid: 130753, draw_layer: "HIGHLIGHT", blend_mode: "ADD", width: 20.0, height: 20.0, pos_type: "absolute", left: 0.0, top: 0.0 } });
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
     rsx! { button { name: {DynName(name.into())}, width: 20.0, height: 20.0, left: x, top: y, pos_type: "absolute", onclick: action, disabled, button_default_skin: false, {children} } }
@@ -189,7 +228,7 @@ pub fn square(
         coords,
         (7.0, 7.0, 12.0, 12.0),
     ));
-    children.extend(rsx! { texture { name: {DynName(format!("{name}Highlight"))}, texture_fdid: 130937, draw_layer: "HIGHLIGHT", blend_mode: "ADD", width: 26.0, height: 26.0, pos_type: "absolute", left: 0.0, top: 0.0 } });
+    children.extend(rsx! { texture { name: {DynName(format!("{name}Highlight"))}, texture_fdid: 130757, draw_layer: "HIGHLIGHT", blend_mode: "ADD", width: 26.0, height: 26.0, pos_type: "absolute", left: 0.0, top: 0.0 } });
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
     let alpha = if enabled { 1.0 } else { 0.5 };

@@ -47,13 +47,17 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 | File | Role |
 |---|---|
 | `godot/ui-model/src/guild_ranks.rs` | Selected server state and exact request values |
-| `godot/ui-model/src/guild_rank_frame.rs` | Native communities entry, rank widgets and member menu |
+| `godot/ui-model/src/guild_rank_frame.rs` | Native communities entry and member menu |
+| `godot/ui-model/src/guild_control.rs`, `guild_control_art.rs` | Mainline GuildControlUI panes, menus, source art and flag IDs |
 | `godot/rust/src/guild_ranks.rs` | Mount, poll clicks, send and apply native state |
 | `godot/network/src/lib.rs`, `godot/rust/src/account.rs` | Receive GuildRanksState; send requests on GuildChannel |
 | `godot/ui-model/src/game/chat_data.rs` | Officer channel styling classification |
 | `godot/ui-model/src/ui/chat_frame.rs` | Officer chat command parsing |
 
 ## Tests asserting this spec
+
+- `godot/tests/guild_control_fidelity.gd`: both-skin1920×1080 native source rectangles, physical menus/rename/id22/gold/tab edits, pending-authority pacing and eighth-tab overflow. Fixture replies only; real authority/persistence are asserted by server tests.
+- Mainline Discord officer bullet GlobalString is absent from the current canonical strings; its text is not fabricated. Tab icon and bank-purchase payloads are absent; those source features remain named gaps.
 
 - `godot/tests/guild_member_controls_live.gd`: native right-click menu is inside the viewport; Promote/Demote alter and restore the authoritative roster label.
 - `godot/tests/guild_profile_live.gd`: private guild master types MOTD, inserts before the final character, accepts and checks the authoritative displayed reply; real Godot input/projection boundary.

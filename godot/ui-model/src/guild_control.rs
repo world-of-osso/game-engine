@@ -69,18 +69,11 @@ pub const OFFICER_CHAT: u32 = GUILD_RIGHT_OFFICER_LISTEN | GUILD_RIGHT_OFFICER_S
 /// Retail GlobalStrings option IDs; these are not TC bit positions.
 pub fn permission_right(id: usize) -> Option<u32> {
     Some(match id {
-        1 => GUILD_RIGHT_CHAT_LISTEN,
         2 => GUILD_RIGHT_CHAT_SPEAK,
-        3 => GUILD_RIGHT_OFFICER_LISTEN,
-        4 => GUILD_RIGHT_OFFICER_SPEAK,
         5 => GUILD_RIGHT_PROMOTE,
         6 => GUILD_RIGHT_DEMOTE,
         7 => GUILD_RIGHT_INVITE,
         8 => GUILD_RIGHT_REMOVE,
-        9 => GUILD_RIGHT_EDIT_MOTD,
-        11 => GUILD_RIGHT_VIEW_OFFICER_NOTE,
-        12 => GUILD_RIGHT_EDIT_OFFICER_NOTE,
-        13 => GUILD_RIGHT_EDIT_INFO,
         15 => GUILD_RIGHT_WITHDRAW_REPAIR,
         16 => GUILD_RIGHT_WITHDRAW_GOLD,
         22 => OFFICER_CHAT,
@@ -150,22 +143,53 @@ fn dropdown(
     )
 }
 
+fn menu_width<'a>(labels: impl Iterator<Item = &'a str>, minimum: f32) -> f32 {
+    // DropdownButton.lua:190-192: button minimum; MenuVariants radio16 + padding8 each side.
+    labels
+        .map(|text| {
+            ui_toolkit::text_measure::measure_text(
+                text,
+                ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+                12.0,
+            )
+            .expect("guild menu font")
+            .0 + 32.0
+        })
+        .fold(minimum, f32::max)
+}
+
 fn navigation_menu(session: &GuildRanksSession) -> Element {
-    let rows = PAGES
+    let width = menu_width(PAGES.iter().copied(), 159.0);
+    let owned: Vec<_> = PAGES
         .iter()
         .enumerate()
-        .flat_map(|(index, text)| {
+        .map(|(index, text)| {
+            (
+                format!("GuildControlPage{index}"),
+                *text,
+                format!("guild:control-page:{index}"),
+            )
+        })
+        .collect();
+    let items: Vec<_> = owned
+        .iter()
+        .map(|(name, label, action)| ContextMenuItem {
+            name,
+            label,
+            action,
+        })
+        .collect();
+    let rows = items
+        .iter()
+        .enumerate()
+        .flat_map(|(index, item)| {
             menu_element(
-                ContextMenuItem {
-                    name: &format!("GuildControlPage{index}"),
-                    label: text,
-                    action: &format!("guild:control-page:{index}"),
-                },
+                *item,
                 MenuElementKind::Radio {
                     checked: index == session.control_page,
                 },
                 true,
-                (8.0, 8.0 + index as f32 * 20.0, 204.0, 20.0),
+                (8.0, 8.0 + index as f32 * 20.0, width - 16.0, 20.0),
             )
         })
         .collect();
@@ -176,10 +200,10 @@ fn navigation_menu(session: &GuildRanksSession) -> Element {
             divider_name: "GuildControlNavigationDivider",
             hidden: false,
             title: "",
-            width: 220.0,
+            width,
             x: crate::guild_control_art::navigation_x(),
             y: 45.5,
-            items: &[],
+            items: &items,
         },
         rows,
     )
@@ -262,7 +286,7 @@ fn rank_dropdown(session: &GuildRanksSession, bank: bool) -> Element {
     let y = if bank { 10.0 } else { 6.0 };
     let mut out = label(
         format!("{prefix}SelectRank"),
-        "Select Rank:",
+        "Rank to modify:",
         (0.0, y + 4.5, 114.0, 12.0),
         (12.0, NORMAL_FONT_COLOR, "RIGHT"),
     );
@@ -278,23 +302,44 @@ fn rank_dropdown(session: &GuildRanksSession, bank: bool) -> Element {
         let Some(state) = session.state() else {
             return out;
         };
-        let rows = state
+        let width = menu_width(
+            state.ranks.iter().skip(1).map(|rank| rank.name.as_str()),
+            180.0,
+        );
+        let owned: Vec<_> = state
             .ranks
             .iter()
             .enumerate()
             .skip(1)
-            .flat_map(|(index, rank)| {
+            .map(|(index, rank)| {
+                (
+                    index,
+                    format!("GuildControlRankChoice{index}"),
+                    rank.name.as_str(),
+                    format!("guild:rank:{index}"),
+                )
+            })
+            .collect();
+        let items: Vec<_> = owned
+            .iter()
+            .map(|(_, name, label, action)| ContextMenuItem {
+                name,
+                label,
+                action,
+            })
+            .collect();
+        let rows = items
+            .iter()
+            .zip(&owned)
+            .enumerate()
+            .flat_map(|(row, (item, (index, _, _, _)))| {
                 menu_element(
-                    ContextMenuItem {
-                        name: &format!("GuildControlRankChoice{index}"),
-                        label: &rank.name,
-                        action: &format!("guild:rank:{index}"),
-                    },
+                    *item,
                     MenuElementKind::Radio {
-                        checked: index == session.selected_index(),
+                        checked: *index == session.selected_index(),
                     },
                     true,
-                    (8.0, 8.0 + (index - 1) as f32 * 20.0, 204.0, 20.0),
+                    (8.0, 8.0 + row as f32 * 20.0, width - 16.0, 20.0),
                 )
             })
             .collect();
@@ -305,10 +350,10 @@ fn rank_dropdown(session: &GuildRanksSession, bank: bool) -> Element {
                 divider_name: "GuildControlRankMenuDivider",
                 hidden: false,
                 title: "",
-                width: 220.0,
+                width,
                 x: 120.0,
                 y: y + 25.0,
-                items: &[],
+                items: &items,
             },
             rows,
         ));
@@ -361,14 +406,14 @@ fn permissions(session: &GuildRanksSession) -> Element {
         (11.0, 35.0),
     ));
     out.extend(permission(session, 22, "Is Officer", (11.0, 61.0)));
-    out.extend(label("GuildControlUIRankSettingsFrameOfficerPermissions".into(),"- Access officer channels\n- Remove people from voice chat\n- Delete other people's chat messages\n- Delete other people's guild events\n- View and edit officer notes\n- Edit public notes\n- Edit Guild Info\n- Edit Message of the Day\n- List in Guild Finder\n- Invite Applicants from Guild Finder\n- Set Discord",(33.0,78.0,268.0,132.0),(10.0,NORMAL_FONT_COLOR,"LEFT")));
+    out.extend(label("GuildControlUIRankSettingsFrameOfficerPermissions".into(),"- Access officer channels\n- Remove people from voice chat\n- Delete other people's chat messages\n- Delete other people's guild events\n- View and edit officer notes\n- Edit public notes\n- Edit Guild Info\n- Edit Message of the Day\n- List in Guild Finder\n- Invite Applicants from Guild Finder",(33.0,78.0,288.0,140.0),(12.0,NORMAL_FONT_COLOR,"LEFT")));
     for (id, text, x, y) in [
         (5, "Promote", 18.0, 226.0),
         (7, "Invite Member", 18.0, 247.0),
         (6, "Demote", 166.0, 226.0),
         (8, "Remove Member", 166.0, 247.0),
         (2, "Guildchat Speak", 18.0, 268.0),
-        (21, "Neighborhood Manager", 166.0, 268.0),
+        (21, "Neighborhood\nManager", 166.0, 268.0),
         (15, "Guild Bank Repair", 18.0, 317.0),
         (19, "Modify Bank Tabs", 166.0, 317.0),
         (16, "Withdraw Gold", 18.0, 336.0),
@@ -392,7 +437,7 @@ fn permissions(session: &GuildRanksSession) -> Element {
         ));
         out.extend(label(
             "GuildControlUIRankSettingsFrameGoldLabel".into(),
-            "Gold / Day",
+            "(gold/day)",
             (222.0, 339.0, 78.0, 14.0),
             (10.0, NORMAL_FONT_COLOR, "LEFT"),
         ));
@@ -425,7 +470,7 @@ fn bank(session: &GuildRanksSession, shared: &ui_toolkit::screen::SharedContext)
             &format!("guild:view:{index}"),
             tab.view,
             editable,
-            (135.0, 3.0),
+            (139.0, 3.0),
         ));
         contents.extend(checkbox(
             &format!("GuildTabDeposit{index}"),
@@ -433,7 +478,7 @@ fn bank(session: &GuildRanksSession, shared: &ui_toolkit::screen::SharedContext)
             &format!("guild:deposit:{index}"),
             tab.deposit,
             editable && tab.view,
-            (135.0, 26.0),
+            (139.0, 26.0),
         ));
         contents.extend(input(
             &format!("GuildTabItems{index}"),
@@ -443,8 +488,8 @@ fn bank(session: &GuildRanksSession, shared: &ui_toolkit::screen::SharedContext)
         ));
         contents.extend(label(
             format!("GuildTabLimitLabel{index}"),
-            "Stacks / Day",
-            (99.0, 55.0, 140.0, 14.0),
+            "Withdraw Items\n(stacks/day):",
+            (99.0, 49.0, 150.0, 24.0),
             (10.0, NORMAL_FONT_COLOR, "LEFT"),
         ));
         rows.extend(rsx! {r#frame {name:{DynName(format!("GuildControlBankTab{}",index+1))},width:254.0,height:74.0,left:0.0,top:y,pos_type:"absolute",{contents}}});
