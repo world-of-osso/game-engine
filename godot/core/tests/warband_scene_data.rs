@@ -136,7 +136,7 @@ fn every_listed_campsite_resolves_its_texture_kit_atlas_art() {
             [217.0, 431.0, 176.0, 349.0],
         ),
         (145, "Razorwind Shores", [433.0, 647.0, 176.0, 349.0]),
-        (146, "Founders Point", [649.0, 863.0, 176.0, 349.0]),
+        (146, "Founder's Point", [649.0, 863.0, 176.0, 349.0]),
     ] {
         let scene = catalog
             .scenes

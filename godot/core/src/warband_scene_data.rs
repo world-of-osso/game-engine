@@ -95,7 +95,14 @@ pub fn read_texture_kit_art(
     let prefixes: HashMap<u32, String> =
         read_columns(&dir.join("UiTextureKit.csv"), &["ID", "KitPrefix"])?
             .into_iter()
-            .filter_map(|row| Some((row[0].parse().ok()?, row[1].to_ascii_lowercase())))
+            .map(|row| {
+                Ok((
+                    crate::csv_util::parse_field(&row, 0)?,
+                    row[1].to_ascii_lowercase(),
+                ))
+            })
+            .collect::<Result<HashMap<u32, String>, String>>()?
+            .into_iter()
             .filter(|(id, _)| kits.contains(id))
             .collect();
     let wanted: HashSet<&str> = prefixes.values().map(String::as_str).collect();
@@ -104,8 +111,8 @@ pub fn read_texture_kit_art(
             .into_iter()
             .map(|row| (row[0].to_ascii_lowercase(), row))
             .filter(|(name, _)| wanted.contains(name.as_str()))
-            .filter_map(|(name, row)| Some((name, row[1].parse().ok()?)))
-            .collect();
+            .map(|(name, row)| Ok((name, crate::csv_util::parse_field(&row, 1)?)))
+            .collect::<Result<_, String>>()?;
     let members = read_base_members(&dir, &elements)?;
     Ok(prefixes
         .into_iter()
@@ -138,8 +145,8 @@ pub fn read_forever_atlas_art(
     )?
     .into_iter()
     .filter(|row| row[1] == FOREVER_ATLAS_SET)
-    .filter_map(|row| row[0].parse().ok())
-    .collect();
+    .map(|row| crate::csv_util::parse_field(&row, 0))
+    .collect::<Result<_, _>>()?;
     read_atlas_art_in(&dir, names, Some(&set_atlases))
 }
 
@@ -155,8 +162,13 @@ fn read_atlas_art_in(
         read_columns(&dir.join("UiTextureAtlasElement.csv"), &["Name", "ID"])?
             .into_iter()
             .filter(|row| wanted.contains(&row[0].to_ascii_lowercase()))
-            .filter_map(|row| Some((row[1].parse().ok()?, row[0].to_ascii_lowercase())))
-            .collect();
+            .map(|row| {
+                Ok((
+                    crate::csv_util::parse_field(&row, 1)?,
+                    row[0].to_ascii_lowercase(),
+                ))
+            })
+            .collect::<Result<_, String>>()?;
     let atlases = read_atlas_sizes(dir)?;
     let columns = [
         "CommittedName",
@@ -171,12 +183,12 @@ fn read_atlas_art_in(
     // Per element: (exact name, member width, art) of the best member so far.
     let mut best: HashMap<u32, (bool, u32, AtlasArt)> = HashMap::new();
     for row in read_columns(&dir.join("UiTextureAtlasMember.csv"), &columns)? {
-        let parsed: Option<Vec<u32>> = row[1..].iter().map(|field| field.parse().ok()).collect();
-        let Some([element, atlas, width, left, right, top, bottom]) =
-            parsed.and_then(|values| <[u32; 7]>::try_from(values).ok())
-        else {
-            continue;
-        };
+        let parsed = row[1..]
+            .iter()
+            .map(|field| field.parse::<u32>().map_err(|error| error.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let [element, atlas, width, left, right, top, bottom] = <[u32; 7]>::try_from(parsed)
+            .map_err(|_| "malformed atlas member columns".to_string())?;
         let Some(name) = elements.get(&element) else {
             continue;
         };
@@ -218,17 +230,17 @@ fn read_atlas_sizes(dir: &Path) -> Result<HashMap<u32, [u32; 3]>, String> {
         &["ID", "FileDataID", "AtlasWidth", "AtlasHeight"],
     )?
     .into_iter()
-    .filter_map(|row| {
-        Some((
-            row[0].parse().ok()?,
+    .map(|row| {
+        Ok((
+            crate::csv_util::parse_field(&row, 0)?,
             [
-                row[1].parse().ok()?,
-                row[2].parse().ok()?,
-                row[3].parse().ok()?,
+                crate::csv_util::parse_field(&row, 1)?,
+                crate::csv_util::parse_field(&row, 2)?,
+                crate::csv_util::parse_field(&row, 3)?,
             ],
         ))
     })
-    .collect())
+    .collect::<Result<_, String>>()?)
 }
 
 /// A member's `[left, right, top, bottom]` pixels normalized by its atlas size.
@@ -273,12 +285,12 @@ fn read_base_members(
         let Some(&element) = elements.get(&row[0].to_ascii_lowercase()) else {
             continue;
         };
-        let parsed: Option<Vec<u32>> = row[1..].iter().map(|field| field.parse().ok()).collect();
-        let Some([member_element, atlas, left, right, top, bottom]) =
-            parsed.and_then(|values| <[u32; 6]>::try_from(values).ok())
-        else {
-            return Err(format!("malformed UiTextureAtlasMember row {row:?}"));
-        };
+        let parsed = row[1..]
+            .iter()
+            .map(|field| field.parse::<u32>().map_err(|error| error.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let [member_element, atlas, left, right, top, bottom] = <[u32; 6]>::try_from(parsed)
+            .map_err(|_| "malformed atlas member columns".to_string())?;
         if member_element != element {
             continue;
         }
@@ -298,15 +310,31 @@ fn read_columns(path: &Path, columns: &[&str]) -> Result<Vec<Vec<String>>, Strin
         .iter()
         .map(|column| header_index(&headers, column, path))
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(lines
-        .map(parse_csv_fields)
-        .map(|fields| {
-            indices
+    lines
+        .enumerate()
+        .map(|(line, text)| {
+            let fields = parse_csv_fields(text);
+            columns
                 .iter()
-                .map(|&index| fields.get(index).cloned().unwrap_or_default())
+                .zip(&indices)
+                .map(|(column, &index)| {
+                    let value = fields.get(index).ok_or_else(|| {
+                        format!("{}:{}: missing {column}", path.display(), line + 2)
+                    })?;
+                    if !matches!(*column, "Name" | "KitPrefix" | "CommittedName") {
+                        value.parse::<u32>().map_err(|error| {
+                            format!(
+                                "{}:{}: {column}={value:?}: {error}",
+                                path.display(),
+                                line + 2
+                            )
+                        })?;
+                    }
+                    Ok(value.clone())
+                })
                 .collect()
         })
-        .collect())
+        .collect()
 }
 
 fn read_rows<T>(
@@ -404,4 +432,15 @@ fn parse_placement_option_line(
         orientation: row.parse("Orientation")?,
         scale: row.parse("Scale")?,
     }))
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_atlas_rejects_invalid_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("UiTextureAtlas", Some("ID"));
+        let error = read_atlas_sizes(fixture.0.parent().unwrap()).unwrap_err();
+        assert!(error.contains("UiTextureAtlas.csv:2:"), "{error}");
+    }
 }
