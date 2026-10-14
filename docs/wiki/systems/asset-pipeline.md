@@ -39,6 +39,14 @@ is explicitly nonauthentic, not accepted asset proof. Evidence:
 Canonical assets/tables/install were not mutated; canonical regeneration remains
 lead-owned. This is extraction/startup proof, not a DB2 re-export or full closure.
 
+## DB2 and live asset-index following — implementation 2026-10-13
+
+[Contract and lead command](../../specs/db2-follow-install.md) own current publication policy. The private refresh follows active Retail70391, exports365 consumed tables against exact pinned DBD layouts, regenerates eight caches/catalogs and native legacy CSV translations, and compares302 tables with former69933 exports. Census:276020 added,1447 removed,159495 changed and201 identity changes; zero newly missing TDB join IDs. Layout-label/width corrections are not automatically gameplay patch changes. TDB1210 is not imported or rewritten.
+
+A new model receipt updates its owning base/fragment index; older staged receipts cannot reverse the refresh. Runtime `ModelAssetIndex` already resolves the receipt's qualified path and its reload test proves the new namespace. Player assembly selects indexed assets/aliases instead of copying historical product directories. The lead migration authenticates the installed root, reuses identical content through new namespace hard links, extracts changed content locally and removes absent current-root mappings. Private metadata census:191253 identical content keys,808 changed,12 absent;1297 non-Retail receipts preserved. This census is not changed-payload extraction or canonical publication proof.
+
+Native atlas acceptance remains pending until inspected authenticated Modern/Forever7508739 captures. First private run exposed `LightSkybox.csv`'s new `Name` column: fixed-position parsing prevented world attachment. Named-column parsing handles quoted names and preserves Flags/FDID; focused RED/GREEN is recorded. A parallel all-table translation import was killed by global OOM at7.5GiB RSS; the importer now uses one CSV per native process, releasing memory between tables. Full serial regeneration is still running.
+
 ## Local Extraction
 
 ```bash
@@ -114,6 +122,8 @@ External tools such as `Frostshake/WDBx` can open DBC/DB2 from CASC and export C
 Some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData` — not from the M2's own TXID chunk. Auto-extraction is not fully reliable for these paths. If a model shows untextured, verify the FDID exists under `data/textures/` and extract it manually.
 
 ## Sources
+
+- [DB2/current-index contract](../../specs/db2-follow-install.md) — exact-layout exports, consumer identity and guarded lead migration
 
 - [casc-architecture.md](../casc-architecture.md) — lookup chain, listfile, FDID chunks, encrypted files
 - [casc-extraction.md](../casc-extraction.md) — casc-local tool, refresh procedure, cascette-rs library

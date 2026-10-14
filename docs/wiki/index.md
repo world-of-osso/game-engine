@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports, census, guarded lead migration and pending native/translation acceptance.
+
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
 
 - [Native follower dungeon Group Finder](systems/follower-dungeons.md) — source role/type/checkbox list, authoritative catalog and both-skin private native admission/five roles/14m follow; combat, camera/geometry/gear and whole-dungeon acceptance remain open.
