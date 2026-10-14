@@ -5,9 +5,9 @@ Native character selection prepares its campsite and selected character before r
 ## What it must do
 
 - [x] Cover selected-character preparation with the loading screen; never expose a sky-only character-select frame.
-- [ ] Report Loading to automation while the selected scene is preparing; CharSelect means the scene can be revealed.
-- [ ] Reveal only after the selected model, requested terrain, sky and selected campsite-object drawables are attached. Preparation errors remain visible on the loading screen and are logged; failure never reveals an incomplete scene.
-- [ ] Keep empty-roster creation available; it must not await a nonexistent selected model.
+- [x] Report Loading to automation while the selected scene is preparing; CharSelect means the scene can be revealed.
+- [x] Reveal only after the selected model, requested terrain, sky and selected campsite-object drawables are attached. Preparation errors remain visible on the loading screen and are logged; failure never reveals an incomplete scene.
+- [x] Keep empty-roster creation available; it must not await a nonexistent selected model.
 - [x] Reuse loaded player outfit catalogs across selection and world entry, with isolated data-root/product namespaces. Prepare the default Retail namespace from client start instead of importing CSV rows on the selection critical path.
 
 ## How it works
@@ -28,7 +28,8 @@ Native character selection prepares its campsite and selected character before r
 
 ## Known gaps (current cycle)
 
-- [ ] Windows and Linux cold/warm preparation timing, gated 1920×1080 Windows login-to-ready sequence and in-world appearance acceptance.
+- [x] Published-base Windows process-frame regression and inspected 1920×1080 login/loading/camp/world captures accepted on 2026-10-14. Covered selection: Windows 1.706 s, Linux 2.398 s; differing release/debug builds do not establish cross-platform speed parity.
+- [ ] Current-master Linux process-frame reveal regression after preserving its SFID/SKID loader changes.
 
 ## Out of scope
 
