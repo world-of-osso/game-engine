@@ -649,13 +649,9 @@ impl GameClient {
         self.targeting.target
     }
 
-    /// The server-declared pet, while its owned unit is replicated.
+    /// The server-designated pet, while its owned unit is replicated.
     pub(super) fn local_pet_id(&self) -> Option<u64> {
-        local_pet(
-            &self.replica,
-            self.world.local_player_id()?,
-            self.account.pet_bar.map(|spells| spells.pet),
-        )
+        local_pet(&self.replica, self.world.local_player_id()?)
     }
 
     /// Select `target`; `SetTarget` follows on the next update.

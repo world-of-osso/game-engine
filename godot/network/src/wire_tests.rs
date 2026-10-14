@@ -1,5 +1,8 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
+#[path = "wire_toy_pet_tests.rs"]
+mod toy_pet;
+
 #[test]
 fn housing_default_bridge_receives_authoritative_storage_over_udp() {
     use shared::protocol::{HousingChannel, HousingReply, HousingState, StoredDecor};
