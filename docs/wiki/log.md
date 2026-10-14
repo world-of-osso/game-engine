@@ -5,6 +5,13 @@
 ## 2026-10-14 — Journeys held arrows and native masks
 
 [Held-arrow proof](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14): sourced fractional scrolling and directional release;12/12 focused UI tests, both-skin physical hold/outside release/stop plus icon-mask pixels PASS at executablecb706aab3. Fourteen inspected original full-HD captures and hashed receipt. Cross-agent snapshot latency is timestamped separately; no retry/workaround. Claim/watch/overview backing and70391 metadata remain open.
+## 2026-10-14 — Client UDP receive queue
+
+[Receive queue](systems/trading-post.md#client-udp-receive-queue--2026-10-14): production socket drops reproduced by a 512-datagram pre-drain burst. Shared UDP transport now requests 4 MiB and reports effective OS allocation. Burst retention RED 92/512 → GREEN 512/512; pacing, Windows and sub-second application delivery remain separate transport gates.
+
+## 2026-10-14 — Trading Post reply ordering
+
+[Guide delivery](systems/trading-post.md#unsolicited-guide-delivery--2026-10-14): monthly settlement no longer sends an unsolicited full Guide before vendor replies. Purchase/no-Guide regression RED→GREEN; monthly credit and rollover retained. Native sub-second delivery remains a transport acceptance gate.
 
 ## 2026-10-13 — Journeys unknown-unlock notice native proof
 
@@ -3708,3 +3715,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13: [Follower Group Finder](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) restores source combat-role backgrounds and visible leadership-controlled guide; both-skin1920×1080 role capture and14 targeted cases pass. Full dungeon proof remains open.
 
 - 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
+
+- 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
+
+- 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.

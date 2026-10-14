@@ -8,7 +8,7 @@ use game_engine_ui_model::quest_runtime::{
     NpcInteractionRequest as R, QuestRuntime, QuestTextTokens, QuestUiState, quest_marker_model,
 };
 use game_engine_ui_model::quest_view::{
-    QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
+    frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
 };
 use game_engine_ui_model::world_map_frame_component::{WorldMapFrameState, world_map_frame_screen};
 use shared::protocol::*;
@@ -59,6 +59,9 @@ fn worgs(current: u32) -> QuestEntrySnapshot {
         level: -1,
         sort_id: 6170,
         objectives_text: "Kill 6 Blackrock Worgs.".into(),
+        description: String::new(),
+        rewards: shared::protocol::QuestRewards::default(),
+        pushable: false,
         completion_text: "Return to Marshal McBride.".into(),
         watched: true,
         pois: Vec::new(),
@@ -95,12 +98,12 @@ fn render_frame(runtime: &QuestRuntime) -> FrameRegistry {
     registry
 }
 
-fn render_log(runtime: &QuestRuntime, ui: &QuestUiState) -> FrameRegistry {
+fn render_log(runtime: &QuestRuntime, ui: &QuestUiState, in_group: bool) -> FrameRegistry {
     configure_assets();
     let state = quest_log_state(
         runtime,
         ui,
-        &QuestDetailsCache::new(),
+        in_group,
         &aldric(),
         &mut |_| "Northshire".into(),
         1,
@@ -117,7 +120,7 @@ fn render_log(runtime: &QuestRuntime, ui: &QuestUiState) -> FrameRegistry {
 fn quest_log_uses_world_map_owner_not_a_standalone_window() {
     let runtime = QuestRuntime::default();
     let ui = QuestUiState::default();
-    let registry = render_log(&runtime, &ui);
+    let registry = render_log(&runtime, &ui, false);
     assert!(registry.get_by_name("WorldMapFrame").is_some());
     assert!(registry.get_by_name("QuestMapFrame").is_some());
     assert!(registry.get_by_name("QuestLogFrame").is_none());
@@ -394,7 +397,7 @@ fn quest_log_lists_objectives_tracks_and_confirms_abandon() {
         notices.iter().map(ToString::to_string).collect::<Vec<_>>(),
         ["Quest accepted: Beating Them Back!"]
     );
-    let log = render_log(&runtime, &ui);
+    let log = render_log(&runtime, &ui, false);
     assert_eq!(runtime.log.len(), 1);
     assert_eq!(
         text(&log, "QuestLogDetailsObjective0"),
@@ -430,11 +433,19 @@ fn quest_log_lists_objectives_tracks_and_confirms_abandon() {
 fn quest_share_popup_and_selected_log_button_use_authoritative_offer() {
     let mut runtime = QuestRuntime::default();
     let mut ui = QuestUiState::default();
+    let owned = QuestEntrySnapshot {
+        quest_id: 62,
+        title: "The Fargodeep Mine".into(),
+        pushable: true,
+        objectives: vec![],
+        objectives_text: "Explore the Fargodeep Mine.".into(),
+        ..worgs(0)
+    };
     runtime.apply_snapshot(QuestLogSnapshot {
-        entries: vec![worgs(2)],
-        watched_quest_ids: vec![BEATING_THEM_BACK],
+        entries: vec![owned],
+        watched_quest_ids: vec![62],
     });
-    let log = render_log(&runtime, &ui);
+    let log = render_log(&runtime, &ui, true);
     assert_eq!(
         sent(click(
             &log,
@@ -442,21 +453,19 @@ fn quest_share_popup_and_selected_log_button_use_authoritative_offer() {
             &mut runtime,
             &mut ui
         )),
-        [R::Share {
-            quest_id: BEATING_THEM_BACK
-        }]
+        [R::Share { quest_id: 62 }]
     );
     let popup =
         game_engine_ui_model::quest_actions::share_popup(&shared::protocol::QuestShareOffer {
             offer_id: 42,
             sender_name: "ShareA".into(),
-            quest_id: BEATING_THEM_BACK,
-            title: "Beating Them Back!".into(),
+            quest_id: 62,
+            title: "The Fargodeep Mine".into(),
         });
     assert_eq!(popup.key, "QUEST_ACCEPT");
     assert_eq!(
         popup.text,
-        "ShareA is starting Beating Them Back!\nWould you like to as well?"
+        "ShareA is starting The Fargodeep Mine\nWould you like to as well?"
     );
     assert_eq!(popup.cancel_label.as_deref(), Some("No"));
 }
@@ -703,32 +712,22 @@ fn reward_buttons_name_the_choices_then_the_fixed_items_their_tooltips_show() {
 }
 
 #[test]
-fn log_reward_tooltips_come_from_the_rewards_the_giver_showed() {
+fn log_reward_tooltips_come_from_owned_rewards_after_relog() {
     let mut runtime = QuestRuntime::default();
     let ui = QuestUiState::default();
     runtime.apply_snapshot(QuestLogSnapshot {
         entries: vec![worgs(2)],
         watched_quest_ids: vec![BEATING_THEM_BACK],
     });
-    let mut cache = QuestDetailsCache::new();
-    assert!(log_reward_item(&runtime, &ui, &cache, 1).is_none());
-    cache.insert(
-        BEATING_THEM_BACK,
-        QuestGiverQuestDetails {
-            npc: MCBRIDE,
-            quest_id: BEATING_THEM_BACK,
-            title: "Beating Them Back!".into(),
-            description: String::new(),
-            objectives_text: String::new(),
-            level: -1,
-            min_level: 1,
-            suggested_group: 0,
-            objectives: Vec::new(),
-            rewards: buckler_pants_and_hammer(),
-        },
-    );
+    assert!(log_reward_item(&runtime, &ui, 1).is_none());
+    let mut owned = worgs(2);
+    owned.rewards = buckler_pants_and_hammer();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![owned],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
     assert_eq!(
-        log_reward_item(&runtime, &ui, &cache, 2).map(|item| item.name.as_str()),
+        log_reward_item(&runtime, &ui, 2).map(|item| item.name.as_str()),
         Some("Urchin's Pants")
     );
 }

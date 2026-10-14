@@ -803,6 +803,7 @@ impl Account {
         &self,
         request: shared::protocol::TradingPostRequest,
     ) -> Result<(), SessionError> {
+        eprintln!("TP_DELIVERY_HOST_SEND {request:?}");
         self.bridge()?
             .send::<_, InstanceChannel>(request)
             .map_err(SessionError)
@@ -1857,7 +1858,15 @@ impl Account {
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
         if message.is::<shared::protocol::TradingPostSnapshot>() {
-            let update = decode(message)?;
+            let update: shared::protocol::TradingPostSnapshot = decode(message)?;
+            eprintln!(
+                "TP_DELIVERY_HOST_RECV full={} rows={} tender={} frozen={:?} error={:?}",
+                update.catalog_complete,
+                update.items.len(),
+                update.tender,
+                update.frozen_item_id,
+                update.error
+            );
             self.trading_post = Some(std::sync::Arc::new(
                 shared::protocol::TradingPostSnapshot::merge(self.trading_post.as_deref(), update),
             ));
