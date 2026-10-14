@@ -1,5 +1,9 @@
 //! Selected-player body appearance from authored customization and local CASC.
 
+#[cfg(test)]
+#[path = "player_tabard_tests.rs"]
+mod tabard_tests;
+
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
