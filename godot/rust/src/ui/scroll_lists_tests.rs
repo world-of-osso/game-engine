@@ -40,6 +40,8 @@ pub(crate) fn options_model(
         logged_in: true,
         view: GameMenuView::Options,
         category,
+        search: String::new(),
+        addons_tab: category == OptionsCategory::SocialAddons,
         modal_position: [0.0, 0.0],
         draft_graphics: graphics.clone(),
         committed_graphics: graphics,
@@ -199,6 +201,65 @@ fn action_bar_2_bindings_scroll_their_last_buttons_into_view_by_wheel() {
 
     assert_eq!(wheel_to_end(&mut model, true), down);
     assert!(shown(&model, &first) && !shown(&model, &last));
+}
+
+#[test]
+fn graphics_wheel_projects_registry_offset_and_clipped_rows_in_both_skins() {
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = menu(view(OptionsCategory::Graphics, BindingSection::Movement));
+        model.shared.insert(skin);
+        rebuild(&mut model);
+        let list = model
+            .registry
+            .scroll_lists
+            .get(OPTIONS_CONTENT_SCROLL)
+            .unwrap();
+        let maximum = list.geometry.row_count - list.geometry.visible_rows;
+        assert!(maximum > 0, "Graphics has real overflow in {skin:?}");
+        assert_eq!(list.first_row, 0);
+        let area = rect(&model, OPTIONS_CONTENT_SCROLL).unwrap();
+        let particle_before = rect(&model, "SliderRowparticle_density").unwrap();
+        assert!(
+            particle_before.y + particle_before.height > area.y + area.height,
+            "last setting is initially clipped in {skin:?}"
+        );
+        assert!(wheel_to_end(&mut model, false) > 0);
+        assert_eq!(
+            model
+                .registry
+                .scroll_lists
+                .get(OPTIONS_CONTENT_SCROLL)
+                .unwrap()
+                .first_row,
+            maximum
+        );
+        assert_rows_inside_area(&model, "Graphics bottom");
+        let inner = rect(&model, "OptionsContentInner").unwrap();
+        assert!(
+            (area.y - inner.y - maximum as f32).abs() < 0.01,
+            "projection uses registry offset in {skin:?}"
+        );
+        let particle_after = rect(&model, "SliderRowparticle_density").unwrap();
+        assert!(
+            particle_after.y >= area.y
+                && particle_after.y + particle_after.height <= area.y + area.height,
+            "last setting fully visible after actual wheel in {skin:?}"
+        );
+        assert!(shown(&model, "SliderRowbloom_intensity"));
+        assert!(wheel_to_end(&mut model, true) > 0);
+        assert_eq!(
+            model
+                .registry
+                .scroll_lists
+                .get(OPTIONS_CONTENT_SCROLL)
+                .unwrap()
+                .first_row,
+            0
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -466,7 +527,15 @@ fn the_wheel_scrolls_by_pixels_and_clips_a_partial_row() {
 
     assert!(wheel(&mut model, OPTIONS_CONTENT_SCROLL, false));
     rebuild(&mut model);
-    assert!((before - row_top(&model, &first) - step).abs() < 0.01);
+    let list = model
+        .registry
+        .scroll_lists
+        .get(OPTIONS_CONTENT_SCROLL)
+        .unwrap();
+    let maximum = (list.geometry.row_count - list.geometry.visible_rows) as f32;
+    // Wheel motion clamps at the source-sized list's end, even on its first notch.
+    let expected = step.min(maximum);
+    assert!((before - row_top(&model, &first) - expected).abs() < 0.01);
 
     let mut partial = None;
     for _ in 0..100 {

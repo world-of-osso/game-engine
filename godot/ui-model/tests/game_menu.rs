@@ -27,6 +27,8 @@ fn logged_in_menu_preserves_authored_actions_and_labels() {
         ("MenuBtnOptions", ACTION_OPTIONS, "Options"),
         ("MenuBtnSupport", ACTION_SUPPORT, "Support"),
         ("MenuBtnAddons", ACTION_ADDONS, "AddOns"),
+        ("MenuBtnEditMode", "menu_edit_mode", "Edit Mode"),
+        ("MenuBtnMacros", "menu_macros", "Macros"),
         ("MenuBtnLogout", ACTION_LOGOUT, "Log Out"),
         ("MenuBtnExit", ACTION_EXIT, "Exit Game"),
         ("MenuBtnResume", ACTION_RESUME, "Return to Game"),
@@ -48,7 +50,7 @@ fn logged_in_menu_preserves_authored_actions_and_labels() {
         .unwrap();
     assert_eq!(
         (panel.width, panel.height),
-        (Dimension::Fixed(260.0), Dimension::Fixed(358.0))
+        (Dimension::Fixed(260.0), Dimension::Fixed(430.0))
     );
     let contents = model
         .registry
