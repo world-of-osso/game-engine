@@ -186,8 +186,11 @@ impl RegistryUi {
             "difficulty",
             "raid",
             "scoreboard",
+            "arena-quick",
+            "arena-rated",
             "talent-menu",
             "talent-dialog",
+            "talent-choice",
         ]
         .contains(&page.as_str())
         {
@@ -207,23 +210,44 @@ impl RegistryUi {
             if page == "scoreboard" {
                 return self.show_pvp(scoreboard_view());
             }
+            if page.starts_with("arena-") {
+                let mut view = scoreboard_view();
+                view.visible = true;
+                view.scoreboard = false;
+                view.snapshot
+                    .as_mut()
+                    .expect("Offline PvP snapshot")
+                    .battleground = None;
+                view.category = if page == "arena-rated" {
+                    game_engine_ui_model::battleground::PvpCategory::Rated
+                } else {
+                    game_engine_ui_model::battleground::PvpCategory::QuickMatch
+                };
+                return self.show_pvp(view);
+            }
             if page.starts_with("talent-") {
                 let data = game_engine_ui_model::paths::resolve_data_path("");
                 let mut state = game_engine_ui_model::spellbook_preview::load_preview_state(
                     &data,
                     game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab::Talents,
                 )?;
-                let editor = &mut state
+                let talents = state
                     .talents
                     .as_mut()
-                    .ok_or("Talent preview missing graph")?
-                    .editor;
+                    .ok_or("Talent preview missing graph")?;
                 if page == "talent-menu" {
-                    editor.loadout_menu = true;
+                    talents.editor.loadout_menu = true;
+                } else if page == "talent-choice" {
+                    let choice = talents
+                        .nodes()
+                        .find(|node| node.node_type != 3 && node.entries.len() > 1)
+                        .ok_or("Authored talent preview has no non-subtree choice")?
+                        .id;
+                    talents.editor.choice_node = Some(choice);
                 } else {
-                    editor.loadout_dialog =
+                    talents.editor.loadout_dialog =
                         Some(game_engine_ui_model::talents::LoadoutDialog::Create);
-                    editor.loadout_name = "Raid Night".into();
+                    talents.editor.loadout_name = "Raid Night".into();
                 }
                 return self.show_spellbook(state);
             }

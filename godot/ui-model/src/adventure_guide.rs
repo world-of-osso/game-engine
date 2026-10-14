@@ -11,8 +11,10 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "EncounterJournalSearchBox";
 pub const LIST: &str = "EncounterJournalContent";
-pub const SCROLL_LISTS: [&str; 4] = [
+pub const SCROLL_LISTS: [&str; 6] = [
     LIST,
+    "EncounterJournalBosses",
+    "EncounterJournalLore",
     "EncounterJournalSearchList",
     "EncounterJournalFilterList",
     "EncounterJournalDifficultyList",
@@ -53,6 +55,8 @@ pub struct View {
     pub tier: u32,
     pub tier_open: bool,
     pub difficulty_open: bool,
+    pub nav_overflow_open: bool,
+    pub class_menu_open: bool,
     pub instance: Option<u32>,
     pub encounter: Option<u32>,
     pub difficulty: u32,
@@ -86,6 +90,8 @@ impl Default for View {
             tier: 73,
             tier_open: false,
             difficulty_open: false,
+            nav_overflow_open: false,
+            class_menu_open: false,
             instance: None,
             encounter: None,
             difficulty: 2,
@@ -237,7 +243,7 @@ impl View {
             })
             .collect()
     }
-    fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
+    pub(crate) fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
         let Some(instance) = self.catalog.instance(instance) else {
             return Vec::new();
         };
@@ -311,6 +317,14 @@ impl View {
         self.difficulty_open = false;
         self.filter_menu = None;
         self.collapsed.clear();
+        let role = if self.role == 0 { 2 } else { self.role };
+        let collapsed: Vec<_> = self
+            .sections()?
+            .into_iter()
+            .filter(|(section, depth)| *depth > 0 && section.roles & role == 0)
+            .map(|(section, _)| section.id)
+            .collect();
+        self.collapsed.extend(collapsed);
         Ok(())
     }
     pub fn sections(&self) -> Result<Vec<(&Section, usize)>, String> {
@@ -320,6 +334,23 @@ impl View {
         let mut output = Vec::new();
         let mut visited = BTreeSet::new();
         self.walk_sections(encounter.root, 0, false, &mut visited, &mut output)?;
+        if self.page == Page::Overview {
+            let role = if self.role == 0 { 2 } else { self.role };
+            output.sort_by_key(|(section, depth)| {
+                if *depth == 0 {
+                    return 0;
+                }
+                if section.roles & role != 0 {
+                    return 1;
+                }
+                match section.roles & 7 {
+                    2 => 2,
+                    4 => 3,
+                    1 => 4,
+                    _ => 5,
+                }
+            });
+        }
         Ok(output)
     }
     fn walk_sections<'a>(
@@ -340,16 +371,12 @@ impl View {
                 .get(&id)
                 .ok_or_else(|| format!("Missing journal section {id}"))?;
             let overview = in_overview || section.kind == 3;
-            let role_matches =
-                self.role == 0 || section.roles & 7 == 0 || section.roles & self.role != 0;
             let page_matches = match self.page {
                 Page::Overview => overview,
                 Page::Abilities => !overview,
                 _ => false,
             };
-            if difficulty_matches(&self.catalog.section_difficulties, id, self.difficulty)
-                && role_matches
-            {
+            if difficulty_matches(&self.catalog.section_difficulties, id, self.difficulty) {
                 if page_matches {
                     output.push((section, depth));
                 }
@@ -463,6 +490,9 @@ impl View {
                 self.owned_keys_only = !self.owned_keys_only;
                 self.tier_open = false;
             }
+            "nav-overflow" => self.nav_overflow_open = !self.nav_overflow_open,
+            "class-menu" => self.class_menu_open = !self.class_menu_open,
+            "search-clear" => self.search.clear(),
             "tier-menu" => self.tier_open = !self.tier_open,
             "tier" => {
                 self.tier_open = false;
@@ -535,10 +565,15 @@ impl View {
                     0
                 };
                 self.filter_menu = None;
+                self.class_menu_open = false;
             }
             "spec" => {
                 self.spec = number()?;
+                if let Some(spec) = self.catalog.specs.iter().find(|s| s.id == self.spec) {
+                    self.class = spec.class;
+                }
                 self.filter_menu = None;
+                self.class_menu_open = false;
             }
             "slot" => {
                 self.slot = number()?;
@@ -583,37 +618,13 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     let mut body = portrait_border(
         "EncounterJournal",
         (800., 496.),
-        "Adventure Guide",
+        crate::adventure_guide_art::content_title(view.tab),
         "journal:close",
     );
-    body.extend(button(
-        "EncounterJournalBack".into(),
-        "Adventure Guide",
-        "journal:back",
-        (64., 29., 170., 22.),
-    ));
-    let search = view.search.as_str();
-    body.extend(rsx!{editbox {name:"EncounterJournalSearchBox",text:search,left:580.0,top:32.0,width:210.0,height:20.0,font_size:12.0,font_color:WHITE,max_letters:80,text_insets:"4,4,0,0",pos_type:"absolute"}});
-    // Blizzard_EncounterJournal.xml bottom tabs, in Retail order and frame names.
-    for (index, (name, title, action)) in [
-        ("Journeys", "Journeys", "journeys"),
-        ("MonthlyActivities", "Traveler's Log", "monthly"),
-        ("Suggest", "Suggested", "suggested"),
-        ("Dungeon", "Dungeons", "dungeons"),
-        ("Raid", "Raids", "raids"),
-        ("LootJournal", "Item Sets", "sets"),
-        ("Tutorials", "Tutorials", "tutorials"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        body.extend(button(
-            format!("EncounterJournal{name}Tab"),
-            title,
-            &format!("journal:tab:{action}"),
-            (12. + index as f32 * 111., 496., 108., 24.),
-        ));
-    }
+    body.extend(crate::adventure_guide_art::portrait(view));
+    body.extend(crate::adventure_guide_art::navigation(view));
+    body.extend(crate::adventure_guide_art::search_box(&view.search));
+    body.extend(crate::adventure_guide_art::bottom_tabs(view));
     body.extend(if view.loading {
         text(
             "EncounterJournalLoading",
@@ -657,7 +668,8 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     rsx! {r#frame {name:"EncounterJournalRoot",stretch:true,r#frame {name:"EncounterJournal",width:800.0,height:496.0,left,top,pos_type:"absolute",mouse_enabled:true,background_color:"0.08,0.07,0.06,1.0",strata:crate::ui::strata::FrameStrata::Dialog,{body}}}}
 }
 fn instance_list(ctx: &SharedContext, view: &View) -> Element {
-    let mut controls = Vec::new();
+    let background = crate::adventure_guide_art::grid_background(view);
+    let mut controls = rsx! {r#frame {name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,pos_type:"absolute",{background}}};
     // Retail tier dropdown. Native entries are separate named buttons when expanded.
     let title = view
         .catalog
@@ -666,11 +678,22 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         .find(|t| t.id == view.tier)
         .map(|t| t.name.as_str())
         .unwrap_or("");
-    controls.extend(button(
-        "EncounterJournalTierDropdown".into(),
+    controls.extend(crate::adventure_guide_art::dropdown(
+        "EncounterJournalTierDropdown",
         title,
         "journal:tier-menu",
-        (15., 65., 240., 24.),
+        (609., 72., 160., 25.),
+        view.tier_open,
+    ));
+    controls.extend(label(
+        "EncounterJournalInstanceSelectTitle".into(),
+        if view.tab == Tab::Dungeons {
+            "Dungeons"
+        } else {
+            "Raids"
+        },
+        (24., 77., 240., 20.),
+        (16., NORMAL_FONT_COLOR, "LEFT"),
     ));
     let rows = view.instances();
     let content = rows
@@ -678,62 +701,41 @@ fn instance_list(ctx: &SharedContext, view: &View) -> Element {
         .enumerate()
         .flat_map(|(index, instance)| instance_card(index, instance, view))
         .collect();
-    if view.tab == Tab::Dungeons {
-        let title = if view.owned_keys_only {
-            "Owned Keystones ✓"
-        } else {
-            "Owned Keystones"
-        };
-        controls.extend(button(
-            "JournalOwnedKeystones".into(),
-            title,
-            "journal:owned-keys",
-            (270., 65., 210., 24.),
-        ));
-    }
     controls.extend(scroll(
         ctx,
         content,
-        (15., 96., 770., 387.),
-        (rows.len().div_ceil(4) as f32 * 130.).max(387.),
+        (18., 112., 748., 367.),
+        (5. + rows.len().div_ceil(4) as f32 * 111.).max(367.),
     ));
     if view.tier_open {
-        let options: Element = view
-            .catalog
-            .tiers
-            .iter()
-            .enumerate()
-            .flat_map(|(index, tier)| {
-                crate::selection_list::menu_choice(
-                    format!("EncounterJournalTier{}", tier.id),
-                    &tier.name,
-                    &format!("journal:tier:{}", tier.id),
-                    (MenuTick::Radio, view.tier == tier.id),
-                    (0., index as f32 * 24., 240., 23.),
-                )
-            })
-            .collect();
-        let background = crate::selection_list::menu_background(
-            "EncounterJournalTierMenuBackground".into(),
-            (240.0, 312.0),
-        );
-        controls.extend(rsx! { r#frame {name:"EncounterJournalTierMenu",left:15.0,top:89.0,width:240.0,height:312.0,pos_type:"absolute",frame_level:20.0,mouse_enabled:true,{background}{options}} });
+        controls.extend(crate::adventure_guide_menus::tier_menu(view));
     }
     controls
 }
 fn instance_card(index: usize, instance: &Instance, view: &View) -> Element {
-    let left = (index % 4) as f32 * 191.;
-    let top = (index / 4) as f32 * 130.;
-    let mut art = texture(
+    let left = (index % 4) as f32 * 189.;
+    let top = 5. + (index / 4) as f32 * 111.;
+    let mut art = crate::bank_art::cropped(
         format!("JournalInstance{}Art", instance.id),
         instance.button,
-        (0., 0., 185., 105.),
-        WHITE,
+        "0,0.68359375,0,0.7421875",
+        (0., 0., 174., 96.),
     );
-    art.extend(text(
-        &format!("JournalInstance{}Title", instance.id),
+    art.extend(crate::adventure_guide_art::art(
+        format!("JournalInstance{}ButtonArt", instance.id),
+        crate::adventure_guide_art::Art::DungeonUp,
+        (0., 0., 174., 96.),
+    ));
+    art.extend(crate::adventure_guide_art::highlight(
+        format!("JournalInstance{}ButtonHighlight", instance.id),
+        crate::adventure_guide_art::Art::DungeonHighlight,
+        (0., 0., 174., 96.),
+    ));
+    art.extend(label(
+        format!("JournalInstance{}Title", instance.id),
         &instance.name,
-        (4., 106., 177., 22.),
+        (12., 15., 150., 60.),
+        (18., crate::adventure_guide_art::GOLD, "CENTER"),
     ));
     if let Some((key, _)) = view.owned_keys(instance.map).first() {
         art.extend(text(
@@ -744,29 +746,32 @@ fn instance_card(index: usize, instance: &Instance, view: &View) -> Element {
     }
     let name = DynName(format!("JournalInstance{}", instance.id));
     let action = format!("journal:instance:{}", instance.id);
-    rsx! {r#frame {name:{name},left,top,width:185.0,height:128.0,pos_type:"absolute",mouse_enabled:true,onclick:{action.as_str()},{art}}}
+    rsx! {button {name:{name},left,top,width:174.0,height:96.0,pos_type:"absolute",button_default_skin:false,onclick:{action.as_str()},{art}}}
 }
 fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
+    use crate::adventure_guide_art::{Art, HEADER, INFO, INK, MODEL, art};
     let Some(instance) = view.instance.and_then(|id| view.catalog.instance(id)) else {
         return vec![];
     };
-    // Keep authored instance art in the details pane; flat boss rows use the
-    // window's dark panel instead of drawing gold text over the bright artwork.
     let mut out = crate::bank_art::cropped(
-        "EncounterJournalInstanceBackground".into(),
-        instance.background,
-        "0.2372449,1,0,1",
-        (194., 62., 598., 424.),
+        "EncounterJournalInfo".into(),
+        521750,
+        "0,0.766601562,0,0.830078125",
+        INFO,
     );
-    out.extend(crate::selection_list::text_row(
-        "EncounterJournalInstanceOverview".into(),
-        &instance.name,
-        &format!("journal:instance:{}", instance.id),
-        (true, view.encounter.is_none()),
-        (12., 64., 172., 28.),
-        &crate::selection_list::SEARCH,
+    out.extend(art(
+        "EncounterJournalLeftHeader".into(),
+        Art::LeftHeader,
+        (7., 75., 386., 39.),
     ));
-    for (index, e) in view
+    out.extend(crate::adventure_guide_art::instance_button(instance));
+    out.extend(label(
+        "EncounterJournalLeftTitle".into(),
+        &instance.name,
+        (72., 84., 290., 12.),
+        (14., HEADER, "LEFT"),
+    ));
+    let bosses: Vec<_> = view
         .catalog
         .encounters
         .iter()
@@ -774,168 +779,212 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
             e.instance == instance.id
                 && difficulty_matches(&view.catalog.encounter_difficulties, e.id, view.difficulty)
         })
+        .collect();
+    let rows = bosses
+        .iter()
         .enumerate()
-    {
-        out.extend(crate::selection_list::text_row(
-            format!("JournalBoss{}", e.id),
-            &e.name,
-            &format!("journal:encounter:{}", e.id),
-            (true, view.encounter == Some(e.id)),
-            (12., 100. + index as f32 * 27., 172., 25.),
-            &crate::selection_list::SEARCH,
-        ));
-    }
-    if let Some((_, status)) = view.lockouts.iter().find(|(map, _)| *map == instance.map) {
-        out.extend(text(
-            "EncounterJournalLockout",
-            status,
-            (190., 65., 360., 22.),
-        ));
-    }
+        .flat_map(|(index, e)| crate::adventure_guide_art::boss_row(view, e, index))
+        .collect();
+    out.extend(scroll_in(
+        ctx,
+        rows,
+        (32., 106., 338., 382.),
+        (10. + bosses.len() as f32 * 70.).max(382.),
+        "EncounterJournalBosses",
+    ));
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
-        let key_text = [view.owned_key_text(), view.challenge_text()]
+        let mut lore = crate::adventure_guide_art::instance_lore(instance);
+        lore.extend(instance_lore_scroll(ctx, instance));
+        out.extend(rsx! {r#frame {name:"EncounterJournalInstanceFrame",left:402.0,top:64.0,width:390.0,height:425.0,pos_type:"absolute",{lore}}});
+        out.extend(difficulty_button(view));
+        let keys = [view.owned_key_text(), view.challenge_text()]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()
             .join("\n");
-        if !key_text.is_empty() {
-            out.extend(text(
-                "EncounterJournalKeystone",
-                &key_text,
-                (205., 295., 550., 175.),
+        if !keys.is_empty() {
+            out.extend(label(
+                "EncounterJournalKeystone".into(),
+                &keys,
+                (437., 305., 315., 75.),
+                (12., INK, "LEFT"),
             ));
         }
-        out.extend(text(
-            "EncounterJournalInstanceLore",
-            &instance.description,
-            (
-                205.,
-                105.,
-                550.,
-                if !key_text.is_empty() { 175. } else { 340. },
-            ),
-        ));
+        if let Some((_, status)) = view.lockouts.iter().find(|(map, _)| *map == instance.map) {
+            out.extend(label(
+                "EncounterJournalLockout".into(),
+                status,
+                (437., 369., 315., 20.),
+                (10., INK, "LEFT"),
+            ));
+        }
+        if view.difficulty_open {
+            out.extend(difficulty_menu(ctx, view, instance));
+        }
         return out;
     };
-    out.extend(text(
-        "EncounterJournalEncounterTitle",
-        &encounter.name,
-        (205., 65., 350., 24.),
+    out.extend(crate::adventure_guide_art::side_tabs(view.page));
+    if view.page == Page::Model {
+        let model_art = crate::adventure_guide_art::model_art(instance, &encounter.name);
+        let (left, top, width, height) = MODEL;
+        out.extend(rsx! {r#frame {name:"EncounterJournalModelScene",left,top,width,height,pos_type:"absolute",mouse_enabled:true,{model_art}}});
+        return out;
+    }
+    out.extend(art(
+        "EncounterJournalRightHeader".into(),
+        Art::RightHeader,
+        (406., 75., 386., 39.),
     ));
-    for (index, (title, page)) in [
-        ("Overview", "overview"),
-        ("Abilities", "abilities"),
-        ("Loot", "loot"),
-        ("Model", "model"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        out.extend(button(
-            format!("EncounterJournalPage{index}"),
-            title,
-            &format!("journal:page:{page}"),
-            (202. + index as f32 * 140., 96., 137., 23.),
+    if view.page != Page::Loot {
+        out.extend(label(
+            "EncounterJournalEncounterTitle".into(),
+            &encounter.name,
+            (442., 88., 220., 12.),
+            (14., HEADER, "LEFT"),
         ));
     }
     out.extend(difficulty_button(view));
     match view.page {
-        Page::Model => {
-            out.extend(rsx!{r#frame {name:"EncounterJournalModelScene",left:210.0,top:155.0,width:565.0,height:325.0,pos_type:"absolute",mouse_enabled:true}});
-        }
         Page::Loot => out.extend(loot_page(ctx, view)),
-        _ => {
-            for (index, (id, title)) in
-                [(0, "All roles"), (1, "Tank"), (2, "Damage"), (4, "Healer")]
-                    .into_iter()
-                    .enumerate()
-            {
-                out.extend(button(
-                    format!("JournalRole{id}"),
-                    title,
-                    &format!("journal:role:{id}"),
-                    (202. + index as f32 * 140., 149., 136., 22.),
-                ));
-            }
-            let mut y = 0.;
-            let mut content = Vec::new();
-            if view.page == Page::Overview {
-                content.extend(text(
-                    "JournalEncounterLore",
-                    &encounter.description,
-                    (4., y, 545., 70.),
-                ));
-                y += 76.;
-            }
-            match view.sections() {
-                Ok(sections) => {
-                    for (section, depth) in sections {
-                        let indent = depth as f32 * 15.;
-                        let title = format!(
-                            "{} {}",
-                            if view.collapsed.contains(&section.id) {
-                                "+"
-                            } else {
-                                "−"
-                            },
-                            section.title
-                        );
-                        content.extend(section_row(
-                            section,
-                            &title,
-                            (indent, y, 545. - indent, 24.),
-                        ));
-                        y += 26.;
-                        if !view.collapsed.contains(&section.id) && !section.body.is_empty() {
-                            let height =
-                                (section.body.chars().count() as f32 / 72.).ceil() * 16. + 12.;
-                            content.extend(text(
-                                &format!("JournalSection{}Body", section.id),
-                                &section.body,
-                                (indent + 10., y, 535. - indent, height),
-                            ));
-                            y += height + 8.;
-                        }
-                    }
-                }
-                Err(error) => {
-                    content.extend(text("JournalSectionError", &error, (4., 0., 545., 60.)));
-                    y = 60.;
-                }
-            }
-            out.extend(scroll(ctx, content, (202., 179., 575., 300.), y.max(300.)));
-        }
+        _ => out.extend(description_page(ctx, view, encounter)),
     }
     if view.difficulty_open {
         out.extend(difficulty_menu(ctx, view, instance));
     }
     out
 }
-fn section_row(section: &Section, title: &str, rect: (f32, f32, f32, f32)) -> Element {
-    let name = format!("JournalSection{}", section.id);
-    let inset = if section.icon == 0 { 8.0 } else { 26.0 };
-    let mut content = label(
-        format!("{name}Name"),
-        title,
-        (inset, 0.0, rect.2 - inset, rect.3),
-        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+
+fn instance_lore_scroll(ctx: &SharedContext, instance: &Instance) -> Element {
+    let list = "EncounterJournalLore";
+    let content_height = paragraph_height(&instance.description, 45.).max(95.);
+    // XML bar is29px high, less than the shared38px arrow inset: it has no drag track.
+    let geometry = pixel_geometry(95., content_height, 38.);
+    let offset = geometry.clamp(ctx.scroll_first_row(list));
+    let config = scroll_list_attr(&geometry);
+    let child_top = -(offset as f32);
+    let text = paper_text(
+        "EncounterJournalInstanceLore",
+        &instance.description,
+        (0., child_top, 315., content_height),
     );
-    if section.icon != 0 {
-        content.extend(texture(
-            format!("{name}Icon"),
-            section.icon,
-            (2.0, 2.0, 20.0, 20.0),
-            WHITE,
+    let mut out = rsx! {r#frame {name:"EncounterJournalLore",left:35.0,top:325.0,width:315.0,height:95.0,pos_type:"absolute",mouse_enabled:true,scroll_list:config,{text}}};
+    let bar = MinimalScrollBar {
+        list,
+        left: 359.,
+        top: 358.,
+        height: 29.,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideBar,
+    };
+    out.extend(bar.element());
+    out
+}
+
+fn description_page(
+    ctx: &SharedContext,
+    view: &View,
+    encounter: &game_engine_core::adventure_guide::Encounter,
+) -> Element {
+    let mut content = Vec::new();
+    let mut y = 0.;
+    if view.page == Page::Overview {
+        let height = paragraph_height(&encounter.description, 46.);
+        content.extend(paper_text(
+            "JournalEncounterLore",
+            &encounter.description,
+            (2., y + 8., 315., height),
         ));
+        let header_y = 8. + height + 6.;
+        content.extend(crate::adventure_guide_sections::overview_header(header_y));
+        y = header_y + 30. + 6.;
     }
-    crate::selection_list::row(
-        name,
-        &format!("journal:section:{}", section.id),
-        true,
-        rect,
-        (&crate::selection_list::SEARCH, false),
-        content,
-    )
+    append_sections(&mut content, &mut y, view);
+    scroll(ctx, content, (437., 105., 350., 383.), y.max(383.))
+}
+fn append_sections(content: &mut Element, y: &mut f32, view: &View) {
+    let sections = match view.sections() {
+        Ok(sections) => sections,
+        Err(error) => {
+            content.extend(paper_text(
+                "JournalSectionError",
+                &error,
+                (2., *y, 315., 60.),
+            ));
+            *y += 60.;
+            return;
+        }
+    };
+    for (section, depth) in sections {
+        if view.page == Page::Overview && depth == 0 {
+            crate::adventure_guide_sections::append_overview_body(
+                content,
+                y,
+                &format!("JournalSection{}Body", section.id),
+                &section.body,
+            );
+            continue;
+        }
+        let indent = if view.page == Page::Overview {
+            0.
+        } else {
+            depth as f32 * 15.
+        };
+        let collapsed = view.collapsed.contains(&section.id);
+        let title = section.title.as_str();
+        content.extend(section_row(
+            section,
+            title,
+            (indent, *y, 320. - indent, 24.),
+            collapsed,
+        ));
+        *y += 26.;
+        if !collapsed && !section.body.is_empty() {
+            if view.page == Page::Overview {
+                crate::adventure_guide_sections::append_overview_body(
+                    content,
+                    y,
+                    &format!("JournalSection{}Body", section.id),
+                    &section.body,
+                );
+                continue;
+            }
+            let width = 310. - indent;
+            let height = paragraph_height(&section.body, width / 7.);
+            content.extend(paper_text(
+                &format!("JournalSection{}Body", section.id),
+                &section.body,
+                (indent + 10., *y, width, height),
+            ));
+            *y += height + 8.;
+        }
+    }
+}
+pub(crate) fn paragraph_height(value: &str, columns: f32) -> f32 {
+    value
+        .lines()
+        .map(|line| (line.chars().count() as f32 / columns).ceil().max(1.))
+        .sum::<f32>()
+        * 16.
+        + 12.
+}
+pub(crate) fn paper_text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
+    let (left, top, width, height) = rect;
+    let color = if name == "EncounterJournalInstanceLore" {
+        crate::adventure_guide_art::INK
+    } else {
+        "0.25,0.1484375,0.02,1"
+    };
+    // GameFontBlack inherits unshadowed SystemFont_Med1, unlike gold header fonts.
+    rsx! {fontstring {name:{DynName(name.into())},text:value,left,top,width,height,pos_type:"absolute",font_size:12.0,font_color:color,justify_h:"LEFT"}}
+}
+fn section_row(
+    section: &Section,
+    title: &str,
+    rect: (f32, f32, f32, f32),
+    collapsed: bool,
+) -> Element {
+    crate::adventure_guide_sections::section_header(section, title, rect, collapsed)
 }
 
 fn difficulty_button(view: &View) -> Element {
@@ -945,47 +994,16 @@ fn difficulty_button(view: &View) -> Element {
         .get(&view.difficulty)
         .map(String::as_str)
         .unwrap_or("");
-    button(
-        "JournalDifficultyDropdown".into(),
+    crate::adventure_guide_art::dropdown(
+        "JournalDifficultyDropdown",
         name,
         "journal:difficulty-menu",
-        (602., 123., 174., 22.),
+        (673., 77., 100., 25.),
+        view.difficulty_open,
     )
 }
-fn difficulty_menu(ctx: &SharedContext, view: &View, instance: &Instance) -> Element {
-    let entries = view.available_difficulties(instance.id, view.encounter);
-    let height = (entries.len() as f32 * 24.).min(300.);
-    let rows = entries
-        .iter()
-        .enumerate()
-        .flat_map(|(index, id)| {
-            let title = view
-                .catalog
-                .difficulties
-                .get(id)
-                .map(String::as_str)
-                .unwrap_or("");
-            crate::selection_list::menu_choice(
-                format!("JournalDifficulty{id}"),
-                title,
-                &format!("journal:difficulty:{id}"),
-                (MenuTick::Radio, view.difficulty == *id),
-                (0., index as f32 * 24., 164., 23.),
-            )
-        })
-        .collect();
-    let list = scroll_in(
-        ctx,
-        rows,
-        (0., 0., 174., height),
-        entries.len() as f32 * 24.,
-        "EncounterJournalDifficultyList",
-    );
-    let background = crate::selection_list::menu_background(
-        "EncounterJournalDifficultyMenuBackground".into(),
-        (174.0, height),
-    );
-    rsx! {r#frame {name:"EncounterJournalDifficultyMenu",left:602.0,top:147.0,width:174.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,{background}{list}}}
+fn difficulty_menu(_ctx: &SharedContext, view: &View, instance: &Instance) -> Element {
+    crate::adventure_guide_menus::difficulty_menu(view, instance.id)
 }
 fn loot_page(ctx: &SharedContext, view: &View) -> Element {
     let mut out = loot_filter_buttons(view);
@@ -994,34 +1012,45 @@ fn loot_page(ctx: &SharedContext, view: &View) -> Element {
         .iter()
         .enumerate()
         .flat_map(|(index, item)| {
-            let y = index as f32 * 44.;
+            let y = index as f32 * 45.;
             let mut row = texture(
                 format!("JournalLoot{}Icon", item.id),
                 item.icon,
-                (2., y + 2., 36., 36.),
+                (2., y + 2., 42., 42.),
                 WHITE,
             );
-            row.extend(text(
-                &format!("JournalLoot{}Name", item.id),
-                &item.name,
-                (46., y + 2., 475., 22.),
+            row.extend(crate::adventure_guide_art::art(
+                format!("JournalLoot{}Border", item.id),
+                crate::adventure_guide_art::Art::LootFrame,
+                (0., y, 321., 45.),
             ));
-            row.extend(text(
+            row.extend(label(
+                format!("JournalLoot{}Name", item.id),
+                &item.name,
+                (51., y + 9., 250., 12.),
+                (
+                    14.,
+                    crate::merchant_data::quality_color(item.quality as u8),
+                    "LEFT",
+                ),
+            ));
+            row.extend(paper_text(
                 &format!("JournalLoot{}Slot", item.id),
                 &format!("Item level {} · {}", item.level, slot_name(item.slot)),
-                (46., y + 24., 475., 16.),
+                (51., y + 27., 250., 12.),
             ));
             row
         })
         .collect();
-    out.extend(scroll(
+    let list = scroll(
         ctx,
         content,
-        (202., 185., 575., 294.),
-        (items.len() as f32 * 44.).max(294.),
-    ));
+        (-20., -1., 345., 382.),
+        (items.len() as f32 * 45.).max(382.),
+    );
+    out.extend(rsx! {r#frame {name:"EncounterJournalLootContainer",left:442.0,top:106.0,width:345.0,height:382.0,pos_type:"absolute",{list}}});
     if let Some(menu) = view.filter_menu {
-        out.extend(loot_filter_menu(ctx, view, menu));
+        out.extend(crate::adventure_guide_menus::loot_menu(view, menu));
     }
     out
 }
@@ -1075,37 +1104,34 @@ fn loot_filter_buttons(view: &View) -> Element {
         .classes
         .get(&view.class)
         .map(String::as_str)
-        .unwrap_or("All classes");
-    let spec = view
-        .catalog
-        .specs
-        .iter()
-        .find(|s| s.id == view.spec)
-        .map(|s| s.name.as_str())
-        .unwrap_or("All specs");
+        .unwrap_or(crate::auction_mail::text("ALL_CLASSES"));
+    let spec = view.catalog.specs.iter().find(|s| s.id == view.spec);
+    let title = spec.map_or_else(
+        || class.to_string(),
+        |spec| format!("{class} ({})", spec.name),
+    );
     let slot = if view.slot == 0 {
-        "All slots"
+        crate::auction_mail::text("ALL_INVENTORY_SLOTS")
     } else {
         slot_name(view.slot)
     };
-    [
-        ("Class", class, "class"),
-        ("Spec", spec, "spec"),
-        ("Slot", slot, "slot"),
-    ]
-    .into_iter()
-    .enumerate()
-    .flat_map(|(index, (name, title, filter))| {
-        button(
-            format!("Journal{name}Filter"),
-            title,
-            &format!("journal:filter:{filter}"),
-            (202. + index as f32 * 190., 149., 184., 24.),
-        )
-    })
-    .collect()
+    let mut out = crate::adventure_guide_art::dropdown(
+        "JournalClassFilter",
+        &title,
+        "journal:filter:spec",
+        (444., 77., 120., 25.),
+        view.filter_menu == Some(LootFilter::Spec),
+    );
+    out.extend(crate::adventure_guide_art::dropdown(
+        "JournalSlotFilter",
+        slot,
+        "journal:filter:slot",
+        (574., 77., 90., 25.),
+        view.filter_menu == Some(LootFilter::Slot),
+    ));
+    out
 }
-fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, String)> {
+pub(crate) fn loot_filter_entries(view: &View, menu: LootFilter) -> Vec<(u32, String)> {
     match menu {
         LootFilter::Class => std::iter::once((0, "All classes".into()))
             .chain(
@@ -1175,13 +1201,16 @@ fn loot_filter_menu(ctx: &SharedContext, view: &View, menu: LootFilter) -> Eleme
         entries.len() as f32 * 24.,
         "EncounterJournalFilterList",
     );
-    let left = 202. + index as f32 * 190.;
-    let top = if view.tab == Tab::ItemSets { 89. } else { 175. };
+    let (left, top) = if view.tab == Tab::ItemSets {
+        (202. + index as f32 * 190., 89.)
+    } else {
+        (437. + index as f32 * 110., 135.)
+    };
     let background = crate::selection_list::menu_background(
         "EncounterJournalFilterMenuBackground".into(),
         (190.0, height),
     );
-    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:30.0,mouse_enabled:true,{background}{content}}}
+    rsx! {r#frame {name:"EncounterJournalFilterMenu",left,top,width:190.0,height,pos_type:"absolute",frame_level:530.0,mouse_enabled:true,{background}{content}}}
 }
 fn sets(ctx: &SharedContext, view: &View) -> Element {
     let rows = view.item_sets();
@@ -1380,7 +1409,7 @@ pub(crate) fn scroll(
 ) -> Element {
     scroll_in(ctx, children, rect, content_height, LIST)
 }
-fn scroll_in(
+pub(crate) fn scroll_in(
     ctx: &SharedContext,
     children: Element,
     rect: (f32, f32, f32, f32),
@@ -1388,21 +1417,33 @@ fn scroll_in(
     list: &'static str,
 ) -> Element {
     let (left, top, width, height) = rect;
-    let geometry = pixel_geometry(height, content_height, height);
+    // XML InstanceSelect.ScrollBar +12,-6 / +12,-4; BossesScrollBar +5,-5 / +5,+5.
+    let (bar_left, bar_top, bar_height, child_width) = if list == "EncounterJournalBosses" {
+        (left + width + 5., top + 5., height - 10., width)
+    } else if list == LIST && width == 345. {
+        (left + width + 5., top + 5., height - 10., width)
+    } else if list == LIST && width == 748. {
+        (left + width + 12., top + 6., height - 2., width)
+    } else {
+        (left + width - 14., top, height, width - 18.)
+    };
+    let geometry = pixel_geometry(height, content_height, bar_height);
     let offset = geometry.clamp(ctx.scroll_first_row(list));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
     let bar = MinimalScrollBar {
         list,
-        left: width - 14.,
-        top: 0.,
-        height,
+        left: bar_left,
+        top: bar_top,
+        height: bar_height,
         geometry,
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
-    let child_width = width - 18.0;
     let list_name = DynName(list.into());
     let child_name = DynName(format!("{list}Child"));
-    rsx! {r#frame {name:{list_name},left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,r#frame {name:{child_name},left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}{bar.element()}}}
+    let mut out = rsx! {r#frame {name:{list_name},left,top,width,height,pos_type:"absolute",mouse_enabled:true,scroll_list:config,
+    r#frame {name:{child_name},left:0.0,top:child_top,width:child_width,height:content_height,pos_type:"absolute",{children}}}};
+    out.extend(bar.element());
+    out
 }
