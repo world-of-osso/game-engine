@@ -287,7 +287,7 @@ impl GameClient {
             Vector2::new(rect[0], rect[1]),
             Vector2::new(rect[2], rect[3]),
         );
-        if !panel.has_point(mouse.get_position()) {
+        if !panel.contains_point(mouse.get_position()) {
             return None;
         }
         match mouse.get_button_index() {
