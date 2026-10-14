@@ -11,7 +11,8 @@ pub fn refresh_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
         .frames_iter()
         .filter_map(|frame| {
             let name = frame.name.as_ref()?;
-            if !name.starts_with("GuildControlUI") {
+            let guild_button = name.starts_with("GuildControlUI") || name.starts_with("GuildTab");
+            if !guild_button {
                 return None;
             }
             let Some(WidgetData::Button(button)) = &frame.widget_data else {
@@ -28,6 +29,12 @@ pub fn refresh_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
             {
                 texture.source = TextureSource::FileDataId(if pushed { 130752 } else { 130755 });
             }
+        }
+        let square = ["DeleteButton", "ShiftDownButton", "ShiftUpButton"]
+            .iter()
+            .any(|suffix| name.ends_with(suffix));
+        if !square {
+            continue;
         }
         if let Some(id) = registry.get_by_name(&format!("{name}Background")) {
             if let Some(WidgetData::Texture(texture)) =
