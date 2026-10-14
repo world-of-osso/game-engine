@@ -14,6 +14,7 @@ use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, rsx, widget_def::El
 const BUTTON: f32 = 64.0;
 const ROW: f32 = 45.0;
 const GAP: f32 = 10.0;
+const MODE_BAR_WIDTH: f32 = 4.0 * BUTTON + GAP;
 const UNBOUND: &str = "[UNBOUND]";
 const MODES: [(&str, &str, &str); 4] = [
     ("BasicDecorMode", "move", "housing:basic"),
@@ -35,7 +36,7 @@ pub fn basic_screen(view: &HousingView) -> Element {
     let instructions = instructions(view);
     let overlay_hidden =
         view.model.editor.placing.is_none() && view.model.editor.selected.is_none();
-    let left = (view.viewport[0] - (4.0 * BUTTON + GAP)) / 2.0 - 26.0;
+    let left = (view.viewport[0] - MODE_BAR_WIDTH) / 2.0 - 26.0;
     let top = view.viewport[1] - BUTTON - 82.0;
     let snap = icon_button(("Snap", "snap", ""), (0.0, 0.0), true, false);
     let free = icon_button(("FreePlace", "freeplacement", ""), (52.0, 0.0), true, false);
@@ -164,8 +165,16 @@ fn instruction_row(row: (&str, &str, Option<&str>, bool), label_width: f32, top:
     }}
 }
 
+pub(super) fn mode_button_center(view: &HousingView, name: &str) -> f32 {
+    let index = MODES
+        .iter()
+        .position(|(mode, _, _)| *mode == name)
+        .expect("Housing submode bar requires an existing mode button");
+    (view.viewport[0] - MODE_BAR_WIDTH) / 2.0 + BUTTON * (index as f32 + 0.5)
+}
+
 pub(super) fn mode_bar(view: &HousingView) -> Element {
-    let width = 4.0 * BUTTON + GAP;
+    let width = MODE_BAR_WIDTH;
     let left = (view.viewport[0] - width) / 2.0;
     let top = view.viewport[1] - BUTTON;
     let gradient = named_atlas_texture(
