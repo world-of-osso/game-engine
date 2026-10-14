@@ -266,7 +266,7 @@ impl GameClient {
         at: Option<Vector2>,
     ) -> Result<(), FrameError> {
         if click.right {
-            self.toybox.model.context = self.toybox.model.pickup(item_id).map(|toy| toy.item_id);
+            self.open_toy_context(item_id)?;
         } else if let (Some(origin), Some(action)) = (at, self.toybox.model.pickup(item_id)) {
             let fdid = self
                 .toybox
@@ -285,6 +285,19 @@ impl GameClient {
         }
         Ok(())
     }
+    fn open_toy_context(&mut self, item_id: u32) -> Result<(), FrameError> {
+        let Some(toy) = self.toybox.model.pickup(item_id) else {
+            self.toybox.model.context = None;
+            return Ok(());
+        };
+        let ui = self.toybox.ui.as_ref().ok_or("Toy Box input UI missing")?;
+        let at = ui
+            .bind()
+            .read_cursor_relative_to_frame("CollectionsJournal")?;
+        self.toybox.model.context = Some((toy.item_id, at));
+        Ok(())
+    }
+
     fn apply_toybox_action(&mut self, action: &str) -> Result<(), FrameError> {
         match action {
             model::CLOSE | "collections:close" => self.close_toybox(),
