@@ -313,5 +313,23 @@ Actual current70391 head7321940/skin7530107 reproduces the old attach rejection:
 this helm for human male; regression exercises its own skeleton, attachment11 and
 retained mesh2702 without a listfile name. RED is recorded under
 `data/diagnostics/bg-coverage-2026-10-12/head-7321940-red-binding.log`.
-GREEN and both-skin player/portrait pixel acceptance remain pending.
+Current Rust scope3091d049c passes30 filtered equipment tests, warning-free native
+extension build/check and scoped formatting. Fixture d38f1e4f5 observes real animation
+identity, camera and rendered mesh/portrait state without changing it.
+
+Native Modern58/Forever59 both show the equipped player and unnamed helm, matching
+extension SHA256 `a934eee8a6658863e0f94ee3d1a05ad4f0be8a0a02975bcd7199b2e534780817`.
+Both original1920×1080 PNGs under `AgentShared/2026-10-12/bg-coverage/` were inspected;
+player preparation and visual attachment succeed, actual animation is Stand0, and
+no player/texture errors remain after privately authenticating missing70391 particle
+textures7553227/7553230/7553231 and UI3058483. Source guard approach20280471 and normal
+movement are recorded; camera collision produces a close torso/head view, not a
+full-body or battleground-layout acceptance claim. Shutdown hardkills server4100134;
+UDP5712 is freed and the fixture's source origin is restored by admin receipt.
+
+Modern's actual `PlayerPortrait` is visible with loaded mask4682541, equipped-player
+appearance, model shown and no pending load. Forever's current FlareUI HUD intentionally
+has no `PlayerPortrait` node; both-skin HUD-portrait acceptance therefore remains a
+layout decision, not an asset/binding failure. Its existing micro portrait is hidden
+at0×0 and must not be called pixel proof. Whole battleground coverage remains open.
 Contract: [item definition sources](../../specs/item-definition-sources.md).
