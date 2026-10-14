@@ -8,7 +8,10 @@ func _initialize() -> void:
 
 func stop(reason: String) -> void:
 	var state: Dictionary = client.adventure_guide_state() if client != null else {}
-	push_error("JOURNEYS_LAYOUT_FAIL: " + reason + " journal=" + str(state))
+	var summary := {}
+	for key in ["visible", "loaded", "tab", "renown_faction_count", "journey", "journey_level"]:
+		summary[key] = state.get(key)
+	push_error("JOURNEYS_LAYOUT_FAIL: " + reason + " journal=" + str(summary))
 	quit(1)
 
 func settle() -> void:
@@ -77,7 +80,8 @@ func shot(label: String) -> bool:
 	return true
 
 func masked_icon(name: String, inset: bool) -> bool:
-	var node := client.find_child(name, true, false) as TextureRect
+	var owner := client.find_child(name, true, false) as Control
+	var node := owner.find_child("Part0", true, false) as TextureRect if owner != null else null
 	if node == null or node.texture == null:
 		stop("Missing masked icon " + name)
 		return false
