@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -42,8 +42,20 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime"] and not await travelers_log(): return
 	if not await open_vendor(): return
+	if phase in ["cart", "cart-lifetime"]:
+		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
+		var old_layer := CanvasLayer.new()
+		old_layer.name = "TradingPostLayerLifetimeFixture"
+		client.add_child(old_layer)
+		await wait_frames(3)
+		old_layer.free()
+		var new_layer := CanvasLayer.new()
+		new_layer.name = "TradingPostLayerLifetimeFixture"
+		client.add_child(new_layer)
+		await wait_frames(3)
+		if new_layer.visible: fail("Replacement UI owner stayed visible over vendor"); return
 	match phase:
 		"layout":
 			await capture("vendor-all")
@@ -57,6 +69,7 @@ func run_fixture() -> void:
 		"relog": await relog_checks()
 		"purchase": await purchase_each_collection()
 		"cart": await checkout_cart()
+		"cart-lifetime": await finish("layer-lifetime")
 		"refund": await refund_after_relog()
 		_: await browse()
 
