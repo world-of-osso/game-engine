@@ -17,9 +17,11 @@ func capture() -> void:
 		var ui := fixture.get_node("GuildTabardUI")
 		await ready_models(fixture)
 		var model_rect := control(ui, "TabardModel").get_global_rect()
-		if not model_rect.is_equal_approx(Rect2(33.5, 185, 303, 317)):
+		# At UI scale1, native layout.rs uses Taffy's pixel-rounded layout.
+		# Blueprint/source17.5 is asserted separately by the UI-model regression.
+		if not model_rect.is_equal_approx(Rect2(34, 185, 303, 317)):
 			capture_png(directory, skin + "-tabard-designer-diagnostic.png")
-			push_error("TabardModel source rect expected33.5,185,303,317; actual " + str(model_rect))
+			push_error("TabardModel pixel-rounded source rect expected34,185,303,317; actual " + str(model_rect))
 			quit(1)
 			return
 		var portrait: Dictionary = fixture.call("portrait_state")
