@@ -703,14 +703,12 @@ impl UiProjection {
             frame.visible
                 && game_engine_ui_model::selection_list::highlight_layer_shown(registry, frame),
         );
-        // A scroll list is a ScrollBox, which clips its children
-        // (`Blizzard_SharedXML/Shared/Scroll/ScrollBox.xml:20`): rows cut by its edges.
-        node.set_clip_contents(
-            frame
-                .name
-                .as_ref()
-                .is_some_and(|name| registry.scroll_lists.get(name).is_some()),
-        );
+        // ScrollBox clips rows; LFDFrame.xml clips native512px paper/role art
+        // to the panel and its inset rather than stretching it to fit.
+        node.set_clip_contents(frame.name.as_ref().is_some_and(|name| {
+            registry.scroll_lists.get(name).is_some()
+                || matches!(name.as_str(), "LFDParentFrame" | "LFDParentFrameInset")
+        }));
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
         node.set_z_as_relative(false);
         node.set_z_index(
