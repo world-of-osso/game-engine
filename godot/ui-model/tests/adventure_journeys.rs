@@ -220,6 +220,54 @@ fn selected_journey_reward_cards_follow_retail_single_pair_and_grid_anchors() {
     }
 }
 
+#[test]
+fn renown_track_selects_levels_and_disables_boundary_arrows() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    let registry = render(&view);
+    assert_eq!(
+        rect(&registry, "JourneyRenownTrack"),
+        [109.5, 90., 570., 72.]
+    );
+    assert_eq!(
+        rect(&registry, "JourneyRenownLevel2"),
+        [257.5, 8.5, 55., 55.]
+    );
+    assert_eq!(
+        rect(&registry, "JourneyRenownLevel3"),
+        [310.5, 8.5, 55., 55.]
+    );
+    assert_eq!(
+        rect(&registry, "JourneyProgressDetails"),
+        [259.5, 45., 270., 35.]
+    );
+    assert_eq!(text(&registry, "JourneyProgressLevel"), "2");
+    assert!(
+        registry.get_by_name("JourneyProgressBarBG").is_none(),
+        "ordinary renown has no Delves bar"
+    );
+    view.apply("journal:journey-select-level:1").unwrap();
+    let registry = render(&view);
+    let previous = registry
+        .get(registry.get_by_name("JourneyLevelPrev").unwrap())
+        .unwrap();
+    assert!(
+        previous.onclick.is_none(),
+        "first level cannot step backward"
+    );
+    view.apply("journal:journey-level:last").unwrap();
+    assert_eq!(view.journeys.level, 25);
+    let registry = render(&view);
+    let next = registry
+        .get(registry.get_by_name("JourneyLevelNext").unwrap())
+        .unwrap();
+    assert!(next.onclick.is_none(), "last level cannot step forward");
+    assert!(view.apply("journal:journey-select-level:26").is_err());
+    assert_eq!(view.journeys.level, 25);
+}
+
 fn data_view() -> View {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -305,7 +353,7 @@ fn selected_journey_shows_progress_level_rewards_and_unevaluated_unlock() {
         text(&registry, "JourneyProgressCurrent"),
         "Current Progress: 1000 / 2500"
     );
-    assert_eq!(text(&registry, "JourneyProgressLevel"), "Level 2/25");
+    assert_eq!(text(&registry, "JourneyProgressLevel"), "2");
     assert_eq!(
         text(&registry, "JourneyReward622Name"),
         "Centaur Hunting Trophies"

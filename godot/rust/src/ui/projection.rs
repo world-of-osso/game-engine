@@ -714,6 +714,7 @@ impl UiProjection {
                         | "EncounterJournalInstanceSelect"
                         | "EncounterJournalInstanceFrame"
                         | "EncounterJournalModelScene"
+                        | "JourneyRenownTrackClip"
                 )
         }));
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));

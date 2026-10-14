@@ -1,7 +1,8 @@
 //! Retail Mainline Journeys (Blizzard_Journeys.lua/.xml) over realm renown snapshots.
 //! Renown cards and the reward track only; unsourced journey/encounter categories,
 //! texture kits, claim state and Delves companions are not shown.
-use crate::adventure_guide::{button, scroll_in, text};
+mod track;
+use crate::adventure_guide::{scroll_in, text};
 use crate::auction_mail::text as global_string;
 use crate::bank_art::{WHITE, label, texture};
 use crate::menu_primitives::{
@@ -70,22 +71,27 @@ pub fn apply(
             state.selected = Some(id);
         }
         "journey-back" => state.selected = None,
+        "journey-select-level" => {
+            let max = faction(snapshot, state.selected.ok_or("No journey selected")?)?.max_level;
+            let level = number()?;
+            if level == 0 || level > max {
+                return Err(format!("Journey level {level} is outside 1..={max}"));
+            }
+            state.level = level;
+        }
         "journey-level" => {
             let max = faction(snapshot, state.selected.ok_or("No journey selected")?)?.max_level;
             state.level = match value {
                 Some("prev") => state.level.saturating_sub(1).max(1),
                 Some("next") => (state.level + 1).min(max),
+                Some("first") => 1,
+                Some("last") => max,
                 _ => return Err("Unknown journey level step".into()),
             };
         }
         _ => return Err(format!("Unknown journey action {key}")),
     }
     Ok(())
-}
-
-fn fill(name: String, rect: (f32, f32, f32, f32), color: &str) -> Element {
-    let (left, top, width, height) = rect;
-    rsx! {r#frame {name:{DynName(name)},left,top,width,height,pos_type:"absolute",background_color:color}}
 }
 
 /// Replace successive `%d` and drop `|cn…:`/`|r` color markup.
@@ -265,30 +271,14 @@ fn renown_card(faction: &MajorFactionSnapshot, left: f32, top: f32) -> Element {
 }
 
 fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
-    let maxed = faction.level >= faction.max_level;
-    let mut body = button(
-        "JourneyProgressBack".into(),
-        global_string("BACK"),
-        "journal:journey-back",
-        (15., 65., 90., 24.),
-    );
-    body.extend(label(
+    let mut body = label(
         "JourneyProgressName".into(),
         &faction.name,
         (144.5, 15., 500., 25.),
         (20., WHITE, "CENTER"),
-    ));
-    body.extend(label(
-        "JourneyProgressLevel".into(),
-        &format_numbers(
-            global_string("JOURNEYS_LEVEL_LABEL"),
-            &[faction.level, faction.max_level],
-        ),
-        (300., 96., 200., 20.),
-        (13., NORMAL_FONT_COLOR, "CENTER"),
-    ));
-    body.extend(progress_bar(faction, maxed));
-    body.extend(level_selector(level));
+    );
+    body.extend(progress_details(faction));
+    body.extend(track::track(faction, level));
     body.extend(named_atlas_texture(
         "JourneyProgressDivider".into(),
         "ui-journeys-renown-divider",
@@ -310,60 +300,44 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
     }}
 }
 
-fn progress_bar(faction: &MajorFactionSnapshot, maxed: bool) -> Element {
-    // JourneysProgressBarMixin:RefreshBar fills completely at maximum renown.
-    let ratio = if maxed {
-        1.
+fn progress_details(faction: &MajorFactionSnapshot) -> Element {
+    let standing = if faction.level >= faction.max_level {
+        faction.level_threshold
     } else {
-        faction.standing as f32 / faction.level_threshold.max(1) as f32
+        faction.standing
     };
-    let mut bar = fill(
-        "JourneyProgressBarBG".into(),
-        (120., 122., 560., 14.),
-        "0.1,0.1,0.1,1.0",
+    let current = format_numbers(
+        global_string("JOURNEYS_CURRENT_PROGRESS"),
+        &[standing, faction.level_threshold],
     );
-    bar.extend(fill(
-        "JourneyProgressBarFill".into(),
-        (120., 122., 560. * ratio, 14.),
-        "0.2,0.55,0.95,1.0",
+    let mut contents = named_atlas_texture(
+        "JourneyLevelBar".into(),
+        "ui-journeys-delve-level-bar",
+        (0., 5., 250., 25.),
+    );
+    contents.extend(named_atlas_texture(
+        "JourneyLevelRing".into(),
+        "ui-journeys-delve-level-ring",
+        (-21., -1., 42., 37.),
     ));
-    let current = if maxed {
-        global_string("JOURNEYS_MAX_LEVEL_LABEL").to_string()
-    } else {
-        format_numbers(
-            global_string("JOURNEYS_CURRENT_PROGRESS"),
-            &[faction.standing, faction.level_threshold],
-        )
-    };
-    bar.extend(label(
+    contents.extend(label(
+        "JourneyProgressLevel".into(),
+        &faction.level.to_string(),
+        (-22., 0., 40., 35.),
+        (13., NORMAL_FONT_COLOR, "CENTER"),
+    ));
+    contents.extend(label(
         "JourneyProgressCurrent".into(),
         &current,
-        (120., 140., 560., 18.),
-        (12., WHITE, "CENTER"),
+        (0., 2.5, 250., 30.),
+        (13., NORMAL_FONT_COLOR, "CENTER"),
     ));
-    bar
+    rsx! {r#frame {name:"JourneyProgressDetails",left:{259.5},top:45.0,width:270.0,height:35.0,
+    pos_type:"absolute",{contents}}}
 }
 
-fn level_selector(level: u32) -> Element {
-    let mut row = button(
-        "JourneyLevelPrev".into(),
-        "<",
-        "journal:journey-level:prev",
-        (300., 166., 30., 24.),
-    );
-    row.extend(label(
-        "JourneyLevelSelected".into(),
-        &format_numbers(global_string("JOURNEYS_HIGHLIGHT_LEVEL_LABEL"), &[level]),
-        (335., 168., 130., 20.),
-        (14., WHITE, "CENTER"),
-    ));
-    row.extend(button(
-        "JourneyLevelNext".into(),
-        ">",
-        "journal:journey-level:next",
-        (470., 166., 30., 24.),
-    ));
-    row
+pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    track::sync_arrow_art(registry);
 }
 
 /// SetRewards: one card centered +50; two stacked; >2 in two columns below divider.
