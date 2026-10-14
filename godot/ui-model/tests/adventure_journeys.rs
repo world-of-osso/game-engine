@@ -30,10 +30,17 @@ fn reward(id: u32, level: u32, name: &str) -> RenownReward {
     }
 }
 
-fn faction(id: u32, name: &str, expansion: u8, level: u32, standing: u32) -> MajorFactionSnapshot {
+fn faction(
+    id: u32,
+    faction_id: u32,
+    name: &str,
+    expansion: u8,
+    level: u32,
+    standing: u32,
+) -> MajorFactionSnapshot {
     MajorFactionSnapshot {
         id,
-        faction_id: 2400 + id,
+        faction_id,
         name: name.into(),
         description: String::new(),
         expansion,
@@ -60,8 +67,8 @@ fn faction(id: u32, name: &str, expansion: u8, level: u32, standing: u32) -> Maj
 fn snapshot() -> RenownSnapshot {
     RenownSnapshot {
         factions: vec![
-            faction(12, "Maruuk Centaur", 9, 2, 1000),
-            faction(37, "Amani Tribe", 11, 0, 0),
+            faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+            faction(37, 2696, "Amani Tribe", 11, 0, 0),
         ],
         source_error: None,
         watched_faction: None,
@@ -251,9 +258,9 @@ fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
     let mut view = data_view();
     let mut catalog = snapshot();
     catalog.factions = vec![
-        faction(12, "Maruuk Centaur", 9, 2, 1000),
-        faction(13, "Valdrakken Accord", 9, 1, 0),
-        faction(14, "Iskaara Tuskarr", 9, 1, 0),
+        faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+        faction(13, 2507, "Dragonscale Expedition", 9, 1, 0),
+        faction(14, 2511, "Iskaara Tuskarr", 9, 1, 0),
     ];
     view.renown = Some(Arc::new(catalog));
     view.apply("journal:tab:journeys").unwrap();
