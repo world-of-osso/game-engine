@@ -1,3 +1,7 @@
+## 2026-10-14 — Journeys presentation source joins
+
+[Guide catalog](systems/adventure-guide.md#catalog-and-native-host): local active Covenant display rows join texture-kit prefixes and signed UI priorities. Realm authority and unknown classification/collection state are unchanged. UI integration/native icon proof remain pending; missing icon sheets are a separate publication dependency.
+
 ## 2026-10-14 — Watched reputation native baseline
 
 [Reputation bar](systems/reputation-status-bar.md): small owner-only state independent of Journeys catalog, persisted login/clear/refusal/committed-quest backing, source geometry/XP priority and physical hover/leave. Forever overlap reproduced in pixels, then fixed with approved relative top-XP anchor; both skins pass at3010f78da with four inspected1920×1080 originals and exact receipt. Positive MajorFaction watch and full manager parity remain open; current Journeys displays remain unloaded after90s; the received cache must be observed separately before inferring delivery failure.
