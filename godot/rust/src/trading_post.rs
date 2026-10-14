@@ -59,6 +59,7 @@ impl GameClient {
         self.account.trading_post = None;
         self.trading_post.view.snapshot = None;
         self.trading_post.view.visible = true;
+        self.trading_post.view.hide_armor_setting = None;
         self.account
             .send_trading_post(TradingPostRequest::Query)
             .map_err(|error| error.to_string())
@@ -279,7 +280,7 @@ impl GameClient {
         };
         let catalog = game_engine_ui_model::item_catalog::item_catalog()
             .ok_or("Trading Post Retail item catalog still loading")?;
-        let mut equipment = if row.category_id == 8 {
+        let mut equipment = if self.trading_post.view.hide_armor()? {
             EquipmentAppearance::default()
         } else {
             equipped.clone()

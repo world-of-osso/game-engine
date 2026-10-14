@@ -12,7 +12,7 @@ Native Retail Mainline `Blizzard_PerksProgram` vendor and Traveler's Log Tender.
 ## Previews
 
 - Mounts/pets: `UnitAppearance::Creature` from the row's authored display, else the granted mount's unconditional `MountXDisplay` or the pet species display.
-- Transmog/sets: `UnitAppearance::Player` with the local appearance plus the row's preview items (sets start from an empty outfit).
+- Transmog/sets: `UnitAppearance::Player` plus the row's preview items. Installed `db2/12.1.5.70391/UiModelScene.csv` supplies Autodress bit4 for the row's override scene (otherwise its category scene); it determines equipped versus empty base, not the category. Retail Hide Armor overrides that default across product changes and resets on vendor open. Missing scene metadata raises an explicit preview error.
 - Unavailable rows show their gap text and no model. A failed preview clears the previous model, so a stale selection cannot pass for the current one (2026-10-12 live RED: an unreadable top Transmog row left the previous gryphon on screen).
 - Assets: [product-isolated receipts](../../specs/product-isolated-model-assets.md). Before staging, only 167/1309 previewable rows had complete chains. `scripts/stage_trading_post_model_assets.py` (seeded from the same server SQL) authenticated 43,275 artifacts from local CASC for 1287/1309. Package: `/home/osso/.worktrees/trading-post-evidence-2026-10-12/tp-assets-package/`. Validate with `apply_mount_model_assets.py --package`; the lead publishes with `--apply`.
 

@@ -1,4 +1,6 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Installed Retail source scene flags; existing atlas/catalog source pins stay unchanged.
+db2/12.1.5.70391/UiModelScene.csv
 # Trading Post SharedButtonLargeTemplate source three-slice state art (canonical).
 textures/7367529.blp
 # Trading Post cart's56px square mask and UIButton atlas (70391 local-CASC receipt).
