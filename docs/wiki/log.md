@@ -4,6 +4,9 @@
 ## 2026-10-14 — Character-selection reveal
 
 [Selection reveal](investigations/world-entry-stalls.md#windows-character-select-reveal--2026-10-14): fresh outfit imports dominated preparation; retain/prewarm owned catalogs and cover asynchronous camp/model construction with loading UI. Published-base process-frame RED→GREEN and inspected1920×1080 Windows camp/world accepted. Covered selection Windows1.706s/Linux2.398s, differing build profiles; current-master process proof pending.
+## 2026-10-14 — Mutable player-bundle snapshots
+
+[Publication staging](systems/shipped-assets.md#publication-staging--2026-10-14): independent catalog copies prevent later source SQLite writes from changing staged bytes. Manifest hashes staged files; verifier checks size/SHA256 before upload. Two new regressions RED; packaging suite GREEN8/8. No production publication or full asset-closure claim.
 
 ## 2026-10-14 — Unnamed equipped component attachment
 
