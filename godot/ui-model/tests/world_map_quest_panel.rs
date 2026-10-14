@@ -300,7 +300,7 @@ fn quest_map_geometry_and_selection_art_match_source_in_both_skins() {
         assert_eq!(size(&details, "QuestMapFrameBackButton"), [90.0, 22.0]);
         assert_eq!(
             onclick(&details, "QuestMapFrameShareButton"),
-            "quest_log:share"
+            "" // Solo fixture: no enabled Share action.
         );
     }
 }
