@@ -24,6 +24,48 @@ const BUTTON_HEIGHT: f32 = 21.;
 const BUTTON_GAP: f32 = 10.;
 
 pub fn item_confirmation(props: ItemConfirmation<'_>) -> Element {
+    let (contents, height) = confirmation_contents(&props);
+    let prefix = props.name;
+    let (screen_width, screen_height) = props.screen;
+    // GameDialogCoverFrame: authentic half-black cover, not a substitute for dialog art.
+    rsx! {
+        r#frame { name:{DynName(format!("{prefix}Cover"))}, left:0.0, top:0.0,
+            width:screen_width,height:screen_height,pos_type:"absolute",mouse_enabled:true,
+            background_color:"0,0,0,0.5",strata:FrameStrata::FullscreenDialog,frame_level:2001.0 }
+        r#frame { name:{DynName(format!("{prefix}Dialog"))},left:{(screen_width-WIDTH)/2.},top:135.0,
+            width:WIDTH,height,pos_type:"absolute",mouse_enabled:true,
+            strata:FrameStrata::FullscreenDialog,frame_level:2002.0,{contents} }
+    }
+}
+
+fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
+    let (prompt, text_height) = confirmation_prompt(props);
+    // GameDialog.lua: Text→ItemFrame -5, ItemFrame→Buttons -18; XML padding16.
+    let item_y = 16. + text_height + 5.;
+    let buttons_y = item_y + ITEM_HEIGHT + 18.;
+    let height = buttons_y + BUTTON_HEIGHT + 16.;
+    let mut contents = confirmation_background(props.name, height);
+    contents.extend(prompt);
+    contents.extend(item_frame(props.name, props.item, item_y));
+    contents.extend(confirmation_buttons(props, buttons_y));
+    (contents, height)
+}
+
+fn confirmation_background(prefix: &str, height: f32) -> Element {
+    rsx! {
+        texture {
+            name:{DynName(format!("{prefix}Background"))}, texture_fdid:6839810,
+            left:7.0,top:7.0,width:{WIDTH-14.},height:{height-14.},
+            pos_type:"absolute",draw_layer:"BACKGROUND",
+        }
+        r#frame {
+            name:{DynName(format!("{prefix}Border"))}, width:WIDTH, height, left:0.0, top:0.0,
+            pos_type:"absolute", style:"static_popup",draw_layer:"BACKGROUND",
+        }
+    }
+}
+
+fn confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
     use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
     let (before_width, text_height) =
         measure_text(props.prompt.0, GameFont::FrizQuadrata, TEXT_SIZE).expect("dialog font");
@@ -31,26 +73,13 @@ pub fn item_confirmation(props: ItemConfirmation<'_>) -> Element {
         measure_text(props.prompt.1, GameFont::FrizQuadrata, TEXT_SIZE).expect("dialog font");
     let prompt_width = before_width + 4. + 16. + 4. + after_width;
     let prompt_x = (WIDTH - prompt_width) / 2.;
-    // GameDialog.lua: Text→ItemFrame -5, ItemFrame→Buttons -18; XML padding16.
-    let item_y = 16. + text_height + 5.;
-    let buttons_y = item_y + ITEM_HEIGHT + 18.;
-    let height = buttons_y + BUTTON_HEIGHT + 16.;
     let prefix = props.name;
-    let mut contents = rsx! { texture {
-        name:{DynName(format!("{prefix}Background"))}, texture_fdid:6839810,
-        left:7.0,top:7.0,width:{WIDTH-14.},height:{height-14.},
-        pos_type:"absolute",draw_layer:"BACKGROUND",
-    } };
-    contents.extend(rsx! { r#frame {
-        name:{DynName(format!("{prefix}Border"))}, width:WIDTH, height, left:0.0, top:0.0,
-        pos_type:"absolute", style:"static_popup",draw_layer:"BACKGROUND",
-    } });
-    contents.extend(label(
+    let mut contents = label(
         format!("{prefix}TextBefore"),
         props.prompt.0,
         (prompt_x, 16., before_width, text_height),
         (TEXT_SIZE, WHITE, "LEFT"),
-    ));
+    );
     contents.extend(texture(
         format!("{prefix}CurrencyIcon"),
         props.currency_icon,
@@ -68,30 +97,25 @@ pub fn item_confirmation(props: ItemConfirmation<'_>) -> Element {
         (prompt_x + before_width + 24., 16., after_width, text_height),
         (TEXT_SIZE, WHITE, "LEFT"),
     ));
-    contents.extend(item_frame(prefix, props.item, item_y));
+    (contents, text_height)
+}
+
+fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
+    let prefix = props.name;
     let button_x = (WIDTH - BUTTON_WIDTH * 2. - BUTTON_GAP) / 2.;
-    contents.extend(dialog_button(
+    let mut contents = dialog_button(
         &format!("{prefix}Button"),
         props.accept.0,
         props.accept.1,
-        (button_x, buttons_y),
-    ));
+        (button_x, top),
+    );
     contents.extend(dialog_button(
         &format!("{prefix}CancelButton"),
         "Cancel",
         props.cancel_action,
-        (button_x + BUTTON_WIDTH + BUTTON_GAP, buttons_y),
+        (button_x + BUTTON_WIDTH + BUTTON_GAP, top),
     ));
-    let (screen_width, screen_height) = props.screen;
-    // GameDialogCoverFrame: authentic half-black cover, not a substitute for dialog art.
-    rsx! {
-        r#frame { name:{DynName(format!("{prefix}Cover"))}, left:0.0, top:0.0,
-            width:screen_width,height:screen_height,pos_type:"absolute",mouse_enabled:true,
-            background_color:"0,0,0,0.5",strata:FrameStrata::FullscreenDialog,frame_level:2001.0 }
-        r#frame { name:{DynName(format!("{prefix}Dialog"))},left:{(screen_width-WIDTH)/2.},top:135.0,
-            width:WIDTH,height,pos_type:"absolute",mouse_enabled:true,
-            strata:FrameStrata::FullscreenDialog,frame_level:2002.0,{contents} }
-    }
+    contents
 }
 
 fn item_frame(prefix: &str, (name, icon, quality): (&str, u32, u8), top: f32) -> Element {
