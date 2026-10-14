@@ -14,6 +14,9 @@
 ## 2026-10-14 — Seething disconnect boundary
 
 [Disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14): run60 peer reports `ConnectionTimedOut`; last native incoming socket batch08:32:13.043UTC, outgoing worker Pings continue through08:32:22.978, server max frame13.139s reported08:32:26.284. Run67 reproduces the actual native `ConnectionTimedOut` event after10 gathers/1000, alongside25.173s server/41.647s native pauses and memory-full PSI86.38%; system/process attribution remains open. Run69 reports297.768s server/284.237s native pauses, memory-full PSIavg60=90.85 and rising faults across unrelated compiler/verifier/server processes; a sustainable native window is required. No timeout/guard change. Published equipment closure verified20/20; portable manifest now uses the lead's two published indexes. Obsolete Forever no-portrait fixture follows the decided Retail60×60 player slot; Modern shared-menu golden remains untouched.
+## 2026-10-14 — Journeys presentation source joins
+
+[Guide catalog](systems/adventure-guide.md#catalog-and-native-host): local active Covenant display rows join texture-kit prefixes and signed UI priorities. Realm authority and unknown classification/collection state are unchanged. UI integration/native icon proof remain pending; missing icon sheets are a separate publication dependency.
 
 ## 2026-10-14 — Watched reputation native baseline
 
