@@ -1,3 +1,7 @@
+## 2026-10-13 — Game Menu controls and Settings header follow-up
+
+[Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Actual registry-scroll/production-wheel Graphics proof passes in both skins, all13 targeted native scroll cases pass; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
+
 ## 2026-10-13 — Basic editor source continuation
 
 [Housing](systems/housing.md#basic-source-controls-and-release-input--functional2026-10-13): source controls/layout, unbound assignable Retail actions, native owner-routed click/drag release, saved/preview rotation, user unbind and visitor/refusal/relog pass in both skins. Installed70340 hotkey atlas-member re-export remains a named visual gap owned by db2-follow-install; frozen69933 payloads/captures/test were removed under lead decision. Full housing remains open.

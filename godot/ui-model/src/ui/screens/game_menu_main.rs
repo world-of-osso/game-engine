@@ -21,6 +21,8 @@ const SECTION_GAP: f32 = 20.0;
 pub const ACTION_OPTIONS: &str = "menu_options";
 pub const ACTION_SUPPORT: &str = "menu_support";
 pub const ACTION_ADDONS: &str = "menu_addons";
+pub const ACTION_EDIT_MODE: &str = "menu_edit_mode";
+pub const ACTION_MACROS: &str = "menu_macros";
 pub const ACTION_LOGOUT: &str = "menu_logout";
 pub const ACTION_EXIT: &str = "menu_exit";
 pub const ACTION_RESUME: &str = "menu_resume";
@@ -128,10 +130,21 @@ fn menu_buttons(logged_in: bool) -> Element {
     let mut items = vec![
         menu_button("MenuBtnOptions", "Options", ACTION_OPTIONS),
         section_spacer("Spacer1"),
-        menu_button("MenuBtnSupport", "Support", ACTION_SUPPORT),
         menu_button("MenuBtnAddons", "AddOns", ACTION_ADDONS),
-        section_spacer("Spacer2"),
     ];
+    // GameMenuFrame.lua:185 CanEnterEditMode; unavailable outside a character session.
+    if logged_in {
+        items.push(menu_button(
+            "MenuBtnEditMode",
+            "Edit Mode",
+            ACTION_EDIT_MODE,
+        ));
+    }
+    items.extend([
+        menu_button("MenuBtnSupport", "Support", ACTION_SUPPORT),
+        menu_button("MenuBtnMacros", "Macros", ACTION_MACROS),
+        section_spacer("Spacer2"),
+    ]);
     if logged_in {
         items.push(menu_button("MenuBtnLogout", "Log Out", ACTION_LOGOUT));
     }
@@ -147,7 +160,7 @@ pub fn main_menu_view(logged_in: bool) -> Element {
     let height = TOP_PADDING
         + BOTTOM_PADDING
         + SECTION_GAP * 3.0
-        + BUTTON_H * if logged_in { 6.0 } else { 5.0 };
+        + BUTTON_H * if logged_in { 8.0 } else { 6.0 };
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT, stretch: true, background_color: "0.01,0.01,0.02,0.75",

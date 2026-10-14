@@ -11,9 +11,12 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, JustifyH};
 use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESETS};
 
+#[path = "options_menu_header.rs"]
+mod header;
 #[path = "options_menu_scroll.rs"]
 mod scroll;
 pub use crate::minimal_scroll_bar::{back_stepper_name, forward_stepper_name};
+use header::settings_header;
 pub use scroll::{OPTIONS_CONTENT_SCROLL, OptionsPage};
 
 struct DynName(String);
@@ -302,6 +305,8 @@ impl Default for LayoutOptionsView {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OptionsViewModel {
     pub category: OptionsCategory,
+    pub search: String,
+    pub addons_tab: bool,
     pub position: [f32; 2],
     pub graphics: GraphicsOptionsView,
     pub sound: SoundOptionsView,
@@ -374,6 +379,7 @@ pub fn options_view(
             }
             {settings_chrome()}
             {title()}
+            {settings_header(model)}
             {body}
             {popups}
             {build_footer()}
@@ -399,14 +405,36 @@ fn build_body(
     } }
 }
 fn build_tabs(model: &OptionsViewModel) -> Element {
-    let buttons: Element = OptionsCategory::ALL
-        .iter()
-        .flat_map(|category| tab_button(*category, model.category == *category))
+    let categories = visible_options_categories(model);
+    let count = categories.len();
+    let config = format!("{count},30,20,602");
+    let buttons: Element = categories
+        .into_iter()
+        .flat_map(|category| tab_button(category, model.category == category))
         .collect();
-    rsx! { r#frame { name: OPTIONS_TAB_PANEL, width: OPTIONS_TAB_W, height: 602.0,
+    rsx! { r#frame { name: OPTIONS_TAB_PANEL, width: OPTIONS_TAB_W, height: 602.0, scroll_list:config,
         r#frame { name: OPTIONS_TAB_INNER, width: TAB_ROW_W, height: 602.0, layout: "flex-column", gap: 0.0, {buttons} }
     } }
 }
+/// SettingsPanel category-set and Settings search apply to row text as well as headings.
+pub fn visible_options_categories(model: &OptionsViewModel) -> Vec<OptionsCategory> {
+    let query = model.search.trim().to_lowercase();
+    OptionsCategory::ALL
+        .into_iter()
+        .filter(|category| {
+            let in_set = (*category == OptionsCategory::SocialAddons) == model.addons_tab;
+            if !in_set {
+                return false;
+            }
+            let mut page_model = model.clone();
+            page_model.category = *category;
+            query.is_empty()
+                || category.title().to_lowercase().contains(&query)
+                || category_body(&page_model, None).matches(&query)
+        })
+        .collect()
+}
+
 fn tab_button(category: OptionsCategory, selected: bool) -> Element {
     let action = cat_action(category);
     let name = DynName(format!("OptionsTab{}", category.key()));
@@ -534,6 +562,10 @@ fn build_content(
     offset: usize,
     open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
 ) -> Element {
+    if visible_options_categories(model).is_empty() {
+        return rsx! { fontstring { name:"OptionsNoResults",text:"No results found",width:OPTIONS_CONTENT_W,
+        height:24.0,font_size:12.0,pos_type:"absolute",left:15.0,top:18.0 } };
+    }
     rsx! {
         r#frame {
             name: OPTIONS_CONTENT_PANEL,
@@ -541,19 +573,24 @@ fn build_content(
             height: {OPTIONS_CONTENT_H},
             layout: "flex-column",
             pos_type: "relative",
-            {content_header(model.category)}
+            {content_header(model.category, !model.search.trim().is_empty())}
             {content_body(model, offset, open)}
         }
     }
 }
 
-fn content_header(category: OptionsCategory) -> Element {
+fn content_header(category: OptionsCategory, searching: bool) -> Element {
+    let title = if searching {
+        "Search Results"
+    } else {
+        category.title()
+    };
     rsx! {
         fontstring {
             name: "OptionsSectionTitle",
             width: {OPTIONS_CONTENT_W - 30.0},
             height: 24.0,
-            text: {category.title()},
+            text: title,
             font_size: 22.0,
             color: "0.96,0.84,0.56,1.0",
             justify_h: "LEFT",
@@ -568,12 +605,12 @@ fn content_header(category: OptionsCategory) -> Element {
 
 /// Pixels the Options content scrolls per stepper click on `model`'s page.
 pub fn options_pan_extent(model: &OptionsViewModel) -> usize {
-    category_body(model, None).pan_extent()
+    filtered_category_body(model, None).pan_extent()
 }
 
 /// Pixels the Options content scrolls per wheel notch on `model`'s page.
 pub fn options_wheel_extent(model: &OptionsViewModel) -> usize {
-    category_body(model, None).wheel_extent()
+    filtered_category_body(model, None).wheel_extent()
 }
 
 fn category_body(
@@ -608,6 +645,32 @@ fn category_body(
     }
 }
 
+fn filtered_category_body(
+    model: &OptionsViewModel,
+    open: Option<&crate::options_dropdown::OptionsDropdownMenu>,
+) -> OptionsPage {
+    let query = model.search.trim();
+    if query.is_empty() {
+        return category_body(model, open);
+    }
+    // SettingsPanel.lua:575-709: aggregate matching initializers grouped by category.
+    let items = visible_options_categories(model).into_iter().flat_map(|category| {
+        let mut page_model = model.clone();
+        page_model.category = category;
+        let page = category_body(&page_model, open);
+        let mut items = rsx! { fontstring { name:DynName(format!("OptionsSearchCategory{}",category.key())),
+            text:category.title(),width:635.0,height:20.0,font_size:14.0,justify_h:"LEFT" } };
+        let matches = if category.title().to_lowercase().contains(&query.to_lowercase()) {
+            page
+        } else {
+            page.filter(query)
+        };
+        items.extend(matches.items);
+        items
+    }).collect();
+    OptionsPage { items, gap: 14.0 }
+}
+
 fn content_body(
     model: &OptionsViewModel,
     offset: usize,
@@ -626,7 +689,7 @@ fn content_body(
             pos_type: "relative",
             margin_left: {OPTIONS_CONTENT_INSET_X},
             margin_top: {OPTIONS_CONTENT_INSET_TOP},
-            {scroll::scroll_area(category_body(model,open), &area, offset)}
+            {scroll::scroll_area(filtered_category_body(model,open), &area, offset)}
         }
     }
 }

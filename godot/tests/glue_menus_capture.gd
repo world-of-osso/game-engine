@@ -106,7 +106,7 @@ func verify_geometry_and_click(ui: Node, case: String) -> bool:
             action = "select_campsite:2"
         "menu":
             frame_name = "GameMenuPanel"
-            expected_size = Vector2(260, 358)
+            expected_size = Vector2(260, 430)
             button_name = "MenuBtnOptions"
             action = "menu_options"
         _:
