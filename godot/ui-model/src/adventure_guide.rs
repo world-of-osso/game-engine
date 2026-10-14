@@ -641,9 +641,12 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         )
     } else {
         match view.tab {
-            Tab::Journeys => {
-                crate::adventure_journeys::journeys(ctx, &view.journeys, view.renown.as_deref())
-            }
+            Tab::Journeys => crate::adventure_journeys::journeys(
+                ctx,
+                &view.journeys,
+                view.renown.as_deref(),
+                &view.journey_presentation,
+            ),
             Tab::Tutorials => tutorials(view),
             Tab::ItemSets => sets(ctx, view),
             Tab::Monthly => crate::adventure_activities::monthly(
