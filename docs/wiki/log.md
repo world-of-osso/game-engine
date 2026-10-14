@@ -1,3 +1,7 @@
+## 2026-10-14 — Watched reputation native baseline
+
+[Reputation bar](systems/reputation-status-bar.md): small owner-only state independent of Journeys catalog, persisted login/clear/refusal/committed-quest backing, source geometry/XP priority and physical hover/leave. Forever overlap reproduced in pixels, then fixed with approved relative top-XP anchor; both skins pass at3010f78da with four inspected1920×1080 originals and exact receipt. Positive MajorFaction watch and full manager parity remain open; current Journeys first-open delivery still fails after90s.
+
 ## 2026-10-14 — Journeys watch and fractional left boundary
 
 [Watch/left proof](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persisted Faction-ID watch/clear and refusal feedback, no optimistic checkmark; offset51.6 keeps the left arrow enabled despite selected1. Current native snapshots missing in both skins; no new capture PASS or production eligibility claim.
