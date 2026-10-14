@@ -324,7 +324,34 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
                 .is_some(),
             "Source accept keeps confirmation covered by SpinnerTemplate until reply"
         );
-        assert!(text(&pending, "PerksProgramConfirmTextBefore").contains("175"));
+        let prompt: String = pending
+            .frames_iter()
+            .filter_map(|frame| match &frame.widget_data {
+                Some(WidgetData::FontString(text))
+                    if frame
+                        .name
+                        .as_deref()
+                        .is_some_and(|name| name.starts_with("PerksProgramConfirm")) =>
+                {
+                    Some(text.text.as_str())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            prompt.contains("175") && prompt.contains("2 items"),
+            "Captured prompt changed after cart clear: {prompt}"
+        );
+        for name in [
+            "PerksProgramConfirmButton",
+            "PerksProgramConfirmCancelButton",
+        ] {
+            let frame = pending.get(pending.get_by_name(name).unwrap()).unwrap();
+            assert!(
+                matches!(&frame.widget_data,Some(WidgetData::Button(button)) if !button.enabled)
+            );
+        }
         assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
         assert!(
             view.snapshot
