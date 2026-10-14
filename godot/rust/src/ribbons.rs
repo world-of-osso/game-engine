@@ -199,20 +199,7 @@ fn spawn_ribbon_mesh(
 }
 
 fn validate_texture_transform(model: &m2::Model, source: &M2RibbonEmitter) -> Result<(), String> {
-    if source.texture_transform_lookup < 0 {
-        return Ok(());
-    }
-    let lookup = usize::from(source.texture_transform_lookup as u8);
-    let index = model
-        .uv_animation_lookup
-        .get(lookup)
-        .ok_or_else(|| format!("Ribbon UV lookup{lookup} missing"))?;
-    if *index >= 0 {
-        return Err(format!(
-            "Ribbon animated UV transform{index} remains unsupported"
-        ));
-    }
-    Ok(())
+    m2_ribbons::texture_transform_index(model, source, 0).map(|_| ())
 }
 
 fn load_ribbon_material(

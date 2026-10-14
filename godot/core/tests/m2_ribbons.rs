@@ -12,6 +12,48 @@ fn source_ribbon() -> game_engine_core::asset::m2_format::m2_ribbon::M2RibbonEmi
     ribbons.into_iter().next().unwrap()
 }
 
+fn source_model(fdid: u32) -> game_engine_core::m2::Model {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+    let model = std::fs::read(root.join(format!("{fdid}.m2"))).unwrap();
+    let skin = std::fs::read(root.join(format!("{fdid}00.skin"))).unwrap();
+    game_engine_core::m2::parse_model(&model, &skin).unwrap()
+}
+
+#[test]
+fn toyfx26_real_animated_ribbon_uv_lookup_samples_global_translation() {
+    use game_engine_core::{
+        m2_material::{self, MaterialTime, MaterialTracks},
+        m2_ribbons,
+    };
+    let model = source_model(1865728);
+    let source = &model.ribbon_emitters[0];
+    assert_ne!(model.flags & 0x20000, 0);
+    assert_eq!(source.texture_transform_lookup, 0);
+    let index = m2_ribbons::texture_transform_index(&model, source, 0)
+        .unwrap()
+        .unwrap();
+    assert_eq!(index, 1);
+    let tracks = MaterialTracks::of(&model);
+    let track = &tracks.transforms[index];
+    assert_eq!(track.translation.global_sequence, 1);
+    assert_eq!(
+        track.translation.sequences[0],
+        (vec![0, 1267], vec![[0.0, 0.0, 0.0], [0.0, -1.0, 0.0]])
+    );
+    let first = m2_material::texture_matrix(track, &tracks, MaterialTime::default());
+    let middle = m2_material::texture_matrix(
+        track,
+        &tracks,
+        MaterialTime {
+            global_ms: 633,
+            ..Default::default()
+        },
+    );
+    assert_eq!(first, m2_material::IDENTITY_MATRIX);
+    assert!((middle[5] + 633.0 / 1267.0).abs() < 0.0001);
+    assert_eq!(&middle[..5], &first[..5]);
+}
+
 fn frame_at(x: f32) -> game_engine_core::m2_ribbons::RibbonFrame {
     use glam::Vec3;
     game_engine_core::m2_ribbons::RibbonFrame {
