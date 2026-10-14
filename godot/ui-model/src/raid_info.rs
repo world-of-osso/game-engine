@@ -1,4 +1,5 @@
 //! Retail RaidInfoFrameSocialView.lua/XML: saved rows, selection and extension.
+use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, flat_panel_chrome, panel_button};
 use crate::ui::strata::FrameStrata;
 use shared::protocol::{InstanceLockInfo, RaidDifficultySet, SetSavedInstanceExtend};
@@ -7,7 +8,9 @@ use std::path::Path;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const FRAME: &str = "RaidInfoFrame";
-const VISIBLE_ROWS: usize = 3;
+pub const SCROLL_BOX: &str = "RaidInfoScrollBox";
+const LIST_HEIGHT: f32 = 157.0;
+pub const ROW_HEIGHT: f32 = 40.0;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SavedInstanceRow {
@@ -21,7 +24,6 @@ pub struct RaidInfoState {
     pub visible: bool,
     pub rows: Vec<SavedInstanceRow>,
     pub selected: Option<(u32, u32)>,
-    pub offset: usize,
 }
 impl RaidInfoState {
     pub fn selected_row(&self) -> Option<&SavedInstanceRow> {
@@ -39,10 +41,6 @@ impl RaidInfoState {
     pub fn action(&mut self, action: &str) -> Option<SetSavedInstanceExtend> {
         match action {
             "raid_info:close" => self.visible = false,
-            "raid_info:up" => self.offset = self.offset.saturating_sub(1),
-            "raid_info:down" => {
-                self.offset = (self.offset + 1).min(self.rows.len().saturating_sub(VISIBLE_ROWS))
-            }
             "raid_info:extend" => {
                 let row = self.selected_row()?;
                 if row.extend_disabled {
@@ -220,15 +218,7 @@ pub fn screen(ctx: &SharedContext) -> Element {
         122.0,
         "1,1,1,1",
     ));
-    for (index, row) in state
-        .rows
-        .iter()
-        .enumerate()
-        .skip(state.offset)
-        .take(VISIBLE_ROWS)
-    {
-        content.extend(saved_row(index - state.offset, index, row, state.selected));
-    }
+    content.extend(saved_instance_list(ctx, state));
     let enabled = state.selected_row().is_some_and(|row| !row.extend_disabled);
     content.extend(panel_button(
         "RaidInfoExtendButton".into(),
@@ -237,33 +227,46 @@ pub fn screen(ctx: &SharedContext) -> Element {
         enabled,
         (50.0, 210.0, 245.0, 30.0),
     ));
-    let scroll = state.rows.len() > VISIBLE_ROWS;
-    if scroll {
-        content.extend(panel_button(
-            "RaidInfoScrollUp".into(),
-            "▲",
-            "raid_info:up",
-            state.offset > 0,
-            (314.0, 48.0, 22.0, 22.0),
-        ));
-        content.extend(panel_button(
-            "RaidInfoScrollDown".into(),
-            "▼",
-            "raid_info:down",
-            state.offset + VISIBLE_ROWS < state.rows.len(),
-            (314.0, 182.0, 22.0, 22.0),
-        ));
-    }
     rsx! { r#frame { name: "RaidInfoFrame", width:345.0,height:250.0,hidden:hidden,strata:FrameStrata::Dialog,
     mouse_enabled:true,pos_type:"absolute",left:360.0,top:140.0,{content} } }
 }
+fn saved_instance_list(ctx: &SharedContext, state: &RaidInfoState) -> Element {
+    // RaidInfoFrameSocialView.xml: ScrollBox292x157 TOPLEFT(16,-48), bar RIGHT+10, top-2/bottom+4.
+    let height = state.rows.len() as f32 * ROW_HEIGHT;
+    let geometry = pixel_geometry(LIST_HEIGHT, height, LIST_HEIGHT - 6.0);
+    let offset = geometry.clamp(ctx.scroll_first_row(SCROLL_BOX));
+    let rows: Element = state
+        .rows
+        .iter()
+        .enumerate()
+        .flat_map(|(index, row)| saved_row(index, index, row, state.selected))
+        .collect();
+    let config = scroll_list_attr(&geometry);
+    let scrollbar = MinimalScrollBar {
+        list: SCROLL_BOX,
+        left: 16.0 + 302.0,
+        top: 48.0 + 2.0,
+        height: 151.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    }
+    .element();
+    let child_top = -(offset as f32);
+    rsx! { r#frame { name: {DynName(SCROLL_BOX.into())}, width: 292.0, height: LIST_HEIGHT, left: 16.0, top: 48.0, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
+        r#frame { name: "RaidInfoScrollChild", width: 292.0, height, left: 0.0, top: child_top, pos_type: "absolute", {rows} }
+    }
+    {scrollbar}
+    }
+}
+
 fn saved_row(
     slot: usize,
     index: usize,
     row: &SavedInstanceRow,
     selected: Option<(u32, u32)>,
 ) -> Element {
-    let y = 48.0 + slot as f32 * 40.0;
+    let y = slot as f32 * ROW_HEIGHT;
     let action = format!("raid_info:select:{index}");
     let name = format!("RaidInfoRow{index}");
     let selected = selected == Some((row.lock.map_id, row.lock.difficulty_id));
@@ -305,7 +308,7 @@ fn saved_row(
         ));
     }
     let template = (&crate::selection_list::RAID_INSTANCE, selected);
-    crate::selection_list::row(name, &action, true, (16.0, y, 292.0, 40.0), template, texts)
+    crate::selection_list::row(name, &action, true, (0.0, y, 292.0, 40.0), template, texts)
 }
 fn label(name: &str, text: &str, x: f32, y: f32, width: f32, color: &str) -> Element {
     rsx! { fontstring {name:{DynName(name.into())},text:text,width:width,height:18.0,font_size:11.0,font_color:color,

@@ -73,7 +73,12 @@ fn minimap_tracking_each_town_role_tracks_only_its_matching_unit() {
 
 #[test]
 fn minimap_tracking_menu_and_service_art_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
         let mut tracking = TrackingState {
             open: true,
             ..Default::default()
@@ -95,16 +100,16 @@ fn minimap_tracking_menu_and_service_art_both_skins() {
         context.insert(state);
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(minimap_cluster_screen).sync(&context, &mut registry);
-        assert!(registry.get_by_name("MinimapTrackingMenu").is_some());
+        let menu = registry
+            .get(registry.get_by_name("MinimapTrackingMenu").unwrap())
+            .unwrap();
+        assert_eq!(menu.height.value(), 8.0 + 9.0 * 20.0 + 15.0);
+        assert!(menu.background_color.is_none());
         let choice = registry
             .get(registry.get_by_name("MinimapTrackingChoice0").unwrap())
             .unwrap();
         assert_eq!(choice.onclick.as_deref(), Some("minimap:tracking:0"));
-        assert!(
-            registry
-                .get_by_name("MinimapTrackingChoice0Check")
-                .is_some()
-        );
+        assert!(registry.get_by_name("MinimapTrackingChoice0Tick").is_some());
         let frame = registry
             .get(registry.get_by_name("MinimapTrackedUnit1").unwrap())
             .unwrap();

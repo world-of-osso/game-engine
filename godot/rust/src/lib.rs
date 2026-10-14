@@ -561,6 +561,8 @@ impl INode3D for GameClient {
             || self.quest_frame_pointer(&event)
             || self.achievement_pointer(&event)
             || self.battleground_pointer(&event)
+            || self.raid_info_pointer(&event)
+            || self.cooldown_settings_pointer(&event)
             || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)

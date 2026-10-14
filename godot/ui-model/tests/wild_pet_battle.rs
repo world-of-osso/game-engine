@@ -67,6 +67,61 @@ fn snapshot() -> WildPetBattleSnapshot {
     }
 }
 #[test]
+fn retail_pet_selection_buttons_keep_initial_and_dead_swap_rules_and_source_geometry() {
+    use ui_toolkit::{frame::WidgetData, layout_values::Val};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot();
+        state.initial_selection_required = true;
+        state.teams[0][1].health = 0;
+        let view = WildBattleView {
+            viewport: [1920.0, 1080.0],
+            state: Some(state),
+            show_swap: true,
+            ..Default::default()
+        };
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(view);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(wild_battle_screen).sync(&shared, &mut registry);
+        let first = registry
+            .get(registry.get_by_name("PetBattleSwapPet1").unwrap())
+            .unwrap();
+        assert_eq!((first.width.value(), first.height.value()), (192.0, 200.0));
+        assert_eq!(
+            (first.position.left, first.position.top),
+            (Val::Px(662.0), Val::Px(760.0))
+        );
+        assert_eq!(first.onclick.as_deref(), Some("pb:swap:1"));
+        let second = registry
+            .get(registry.get_by_name("PetBattleSwapPet2").unwrap())
+            .unwrap();
+        assert_eq!(second.position.left, Val::Px(864.0));
+        assert!(second.onclick.as_deref().is_none_or(str::is_empty));
+        let WidgetData::Button(button) = second.widget_data.as_ref().unwrap() else {
+            panic!("pet swap button")
+        };
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
+        let model = registry
+            .get(registry.get_by_name("PetBattleSwapPet1ModelScene").unwrap())
+            .unwrap();
+        assert_eq!((model.width.value(), model.height.value()), (250.0, 210.0));
+        assert_eq!(
+            (model.position.left, model.position.top),
+            (Val::Px(-40.0), Val::Px(-20.0))
+        );
+    }
+}
+
+#[test]
 fn petbattle_pvp_initial_selection_allows_current_pet_but_not_combat_actions() {
     let mut view = WildBattleView::default();
     let mut state = snapshot();
