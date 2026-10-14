@@ -1,11 +1,15 @@
 //! Retail Mainline Journeys (Blizzard_Journeys.lua/.xml) over realm renown snapshots.
 //! Renown cards and the reward track only; unsourced journey/encounter categories,
 //! texture kits, claim state and Delves companions are not shown.
-use crate::adventure_guide::{button, scroll, text};
+mod track;
+use crate::adventure_guide::{scroll_in, text};
 use crate::auction_mail::text as global_string;
 use crate::bank_art::{WHITE, label, texture};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR};
-use crate::selection_list::MenuTick;
+use crate::menu_primitives::{
+    ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
+    menu_row_rect_with_heading,
+};
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
 use shared::protocol::{MajorFactionSnapshot, RenownSnapshot, RenownUnlock};
 use std::collections::BTreeSet;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -67,22 +71,27 @@ pub fn apply(
             state.selected = Some(id);
         }
         "journey-back" => state.selected = None,
+        "journey-select-level" => {
+            let max = faction(snapshot, state.selected.ok_or("No journey selected")?)?.max_level;
+            let level = number()?;
+            if level == 0 || level > max {
+                return Err(format!("Journey level {level} is outside 1..={max}"));
+            }
+            state.level = level;
+        }
         "journey-level" => {
             let max = faction(snapshot, state.selected.ok_or("No journey selected")?)?.max_level;
             state.level = match value {
                 Some("prev") => state.level.saturating_sub(1).max(1),
                 Some("next") => (state.level + 1).min(max),
+                Some("first") => 1,
+                Some("last") => max,
                 _ => return Err("Unknown journey level step".into()),
             };
         }
         _ => return Err(format!("Unknown journey action {key}")),
     }
     Ok(())
-}
-
-fn fill(name: String, rect: (f32, f32, f32, f32), color: &str) -> Element {
-    let (left, top, width, height) = rect;
-    rsx! {r#frame {name:{DynName(name)},left,top,width,height,pos_type:"absolute",background_color:color}}
 }
 
 /// Replace successive `%d` and drop `|cn…:`/`|r` color markup.
@@ -134,29 +143,17 @@ fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot
         .iter()
         .filter(|faction| faction.expansion == state.expansion)
         .collect();
-    let mut content = label(
-        "JournalJourneysCategory".into(),
-        global_string("JOURNEYS_RENOWN_LABEL"),
-        (0., 0., 400., 20.),
-        (16., WHITE, "LEFT"),
-    );
-    for (index, faction) in factions.iter().enumerate() {
-        let left = (index % 2) as f32 * (CARD.0 + 4.);
-        let top = 26. + (index / 2) as f32 * (CARD.1 + 6.);
-        content.extend(renown_card(faction, left, top));
-    }
-    let height = 26. + factions.len().div_ceil(2) as f32 * (CARD.1 + 6.);
-    let mut body = button(
-        "JournalJourneysExpansion".into(),
+    let contents = list_contents(ctx, &factions);
+    let mut body = rsx! {r#frame {
+        name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
+        pos_type:"absolute",{contents}
+    }};
+    body.extend(crate::adventure_guide_art::dropdown(
+        "JournalJourneysExpansion",
         expansion_name(state.expansion),
         "journal:journey-expansion-menu",
-        (15., 65., 175., 24.),
-    );
-    body.extend(scroll(
-        ctx,
-        content,
-        (15., 96., 770., 387.),
-        height.max(387.),
+        (609., 72., 160., 25.),
+        state.expansion_open,
     ));
     if state.expansion_open {
         body.extend(expansion_menu(state, snapshot));
@@ -164,134 +161,190 @@ fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot
     body
 }
 
+/// JourneysList sequence: category20, padding15/10/14/10, horizontal/vertical gaps5.
+fn list_contents(ctx: &SharedContext, factions: &[&MajorFactionSnapshot]) -> Element {
+    let mut content = label(
+        "JournalJourneysCategory".into(),
+        global_string("JOURNEYS_RENOWN_LABEL"),
+        (14., 15., 765., 20.),
+        (16., WHITE, "LEFT"),
+    );
+    for (index, faction) in factions.iter().enumerate() {
+        let left = 14. + (index % 2) as f32 * (CARD.0 + 5.);
+        let top = 40. + (index / 2) as f32 * (CARD.1 + 5.);
+        content.extend(renown_card(faction, left, top));
+    }
+    let rows_height = factions.len().div_ceil(2) as f32 * (CARD.1 + 5.);
+    let height = 40. + rows_height - 5. + 10.;
+    let mut body = named_atlas_texture(
+        "EncounterJournalInstanceSelectBackground".into(),
+        "ui-journeys-bg",
+        (3., 1., 792., 432.),
+    );
+    body.extend(scroll_in(
+        ctx,
+        content,
+        (0., 0., 789., 429.),
+        height.max(429.),
+        "EncounterJournalJourneysList",
+    ));
+    body
+}
+
 fn expansion_menu(state: &Journeys, snapshot: &RenownSnapshot) -> Element {
     let expansions: BTreeSet<u8> = snapshot.factions.iter().map(|f| f.expansion).collect();
-    expansions
+    let entries: Vec<_> = expansions
         .iter()
         .rev()
-        .enumerate()
-        .flat_map(|(index, expansion)| {
-            crate::selection_list::menu_choice(
+        .map(|expansion| {
+            (
                 format!("JournalJourneysExpansion{expansion}"),
                 expansion_name(*expansion),
-                &format!("journal:journey-expansion:{expansion}"),
-                (MenuTick::Radio, state.expansion == *expansion),
-                (15., 90. + index as f32 * 24., 175., 23.),
+                format!("journal:journey-expansion:{expansion}"),
+                state.expansion == *expansion,
             )
         })
-        .collect()
+        .collect();
+    let items: Vec<_> = entries
+        .iter()
+        .map(|(name, label, action, _)| ContextMenuItem {
+            name,
+            label,
+            action,
+        })
+        .collect();
+    let rows = entries
+        .iter()
+        .zip(&items)
+        .enumerate()
+        .flat_map(|(index, (entry, item))| {
+            menu_element(
+                *item,
+                MenuElementKind::Radio { checked: entry.3 },
+                true,
+                menu_row_rect_with_heading(160., index, false),
+            )
+        })
+        .collect();
+    context_menu_with_rows(
+        ContextMenu {
+            frame_name: "JournalJourneysExpansionMenu",
+            title_name: "JournalJourneysExpansionTitle",
+            divider_name: "JournalJourneysExpansionDivider",
+            hidden: false,
+            title: "",
+            width: 160.,
+            x: 609.,
+            y: 97.,
+            items: &items,
+        },
+        rows,
+    )
 }
 
 fn renown_card(faction: &MajorFactionSnapshot, left: f32, top: f32) -> Element {
     let prefix = format!("JourneyCard{}", faction.id);
-    let mut card = button(
-        prefix.clone(),
-        "",
-        &format!("journal:journey:{}", faction.id),
-        (left, top, CARD.0, CARD.1),
+    let mut parts = named_atlas_texture(
+        format!("{prefix}IconBorder"),
+        "ui-journeys-renown-radial-bar",
+        (20., 26., 60., 60.),
     );
-    card.extend(label(
+    parts.extend(label(
         format!("{prefix}Name"),
         &faction.name,
-        (left + 90., top + 30., 225., 20.),
+        (85., 41., 225., 20.),
         (14., WHITE, "LEFT"),
     ));
-    card.extend(label(
+    parts.extend(label(
         format!("{prefix}Level"),
         &format_numbers(global_string("RENOWN_LEVEL_LABEL"), &[faction.level]),
-        (left + 90., top + 54., 220., 15.),
+        (85., 61., 220., 15.),
         (13., NORMAL_FONT_COLOR, "LEFT"),
     ));
-    card
+    let action = format!("journal:journey:{}", faction.id);
+    rsx! {button {
+        name:{DynName(prefix)},left,top,width:{CARD.0},height:{CARD.1},pos_type:"absolute",
+        onclick:{action.as_str()},button_default_skin:false,
+        button_atlas_up:"ui-journeys-renown-button",button_atlas_pressed:"ui-journeys-renown-button-pressed",
+        {parts}
+    }}
 }
 
 fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
-    let maxed = faction.level >= faction.max_level;
-    let mut body = button(
-        "JourneyProgressBack".into(),
-        global_string("BACK"),
-        "journal:journey-back",
-        (15., 65., 90., 24.),
-    );
-    body.extend(label(
+    let mut body = label(
         "JourneyProgressName".into(),
         &faction.name,
-        (150., 66., 500., 25.),
+        (144.5, 15., 500., 25.),
         (20., WHITE, "CENTER"),
+    );
+    body.extend(progress_details(faction));
+    body.extend(track::track(faction, level));
+    body.extend(named_atlas_texture(
+        "JourneyProgressDivider".into(),
+        "ui-journeys-renown-divider",
+        (45., 177., 699., 16.),
     ));
-    body.extend(label(
-        "JourneyProgressLevel".into(),
-        &format_numbers(
-            global_string("JOURNEYS_LEVEL_LABEL"),
-            &[faction.level, faction.max_level],
-        ),
-        (300., 96., 200., 20.),
-        (13., NORMAL_FONT_COLOR, "CENTER"),
-    ));
-    body.extend(progress_bar(faction, maxed));
-    body.extend(level_selector(level));
     body.extend(reward_cards(faction, level));
     body.extend(unlock_notice(&faction.unlock));
-    body
+    let background = named_atlas_texture(
+        "EncounterJournalInstanceSelectBackground".into(),
+        "ui-journeys-bg",
+        (3., 1., 792., 432.),
+    );
+    rsx! {r#frame {
+        name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
+        pos_type:"absolute",{background} r#frame {
+            name:"JourneyProgress",left:0.0,top:0.0,width:789.0,height:429.0,
+            pos_type:"absolute",{body}
+        }
+    }}
 }
 
-fn progress_bar(faction: &MajorFactionSnapshot, maxed: bool) -> Element {
-    // JourneysProgressBarMixin:RefreshBar fills completely at maximum renown.
-    let ratio = if maxed {
-        1.
+fn progress_details(faction: &MajorFactionSnapshot) -> Element {
+    let unavailable = matches!(faction.unlock, RenownUnlock::Unsupported { .. });
+    let standing = if faction.level >= faction.max_level {
+        faction.level_threshold
     } else {
-        faction.standing as f32 / faction.level_threshold.max(1) as f32
+        faction.standing
     };
-    let mut bar = fill(
-        "JourneyProgressBarBG".into(),
-        (120., 122., 560., 14.),
-        "0.1,0.1,0.1,1.0",
+    let current = format_numbers(
+        global_string("JOURNEYS_CURRENT_PROGRESS"),
+        &[standing, faction.level_threshold],
     );
-    bar.extend(fill(
-        "JourneyProgressBarFill".into(),
-        (120., 122., 560. * ratio, 14.),
-        "0.2,0.55,0.95,1.0",
+    let mut contents = named_atlas_texture(
+        "JourneyLevelBar".into(),
+        "ui-journeys-delve-level-bar",
+        (0., 5., 250., 25.),
+    );
+    contents.extend(named_atlas_texture(
+        "JourneyLevelRing".into(),
+        "ui-journeys-delve-level-ring",
+        (-21., -1., 42., 37.),
     ));
-    let current = if maxed {
-        global_string("JOURNEYS_MAX_LEVEL_LABEL").to_string()
-    } else {
-        format_numbers(
-            global_string("JOURNEYS_CURRENT_PROGRESS"),
-            &[faction.standing, faction.level_threshold],
-        )
-    };
-    bar.extend(label(
+    contents.extend(label(
+        "JourneyProgressLevel".into(),
+        &faction.level.to_string(),
+        (-22., 0., 40., 35.),
+        (13., NORMAL_FONT_COLOR, "CENTER"),
+    ));
+    contents.extend(label(
         "JourneyProgressCurrent".into(),
         &current,
-        (120., 140., 560., 18.),
-        (12., WHITE, "CENTER"),
+        (0., 2.5, 250., 30.),
+        (13., NORMAL_FONT_COLOR, "CENTER"),
     ));
-    bar
+    rsx! {r#frame {name:"JourneyProgressDetails",left:{259.5},top:45.0,width:270.0,height:35.0,
+    pos_type:"absolute",hidden:unavailable,{contents}}}
 }
 
-fn level_selector(level: u32) -> Element {
-    let mut row = button(
-        "JourneyLevelPrev".into(),
-        "<",
-        "journal:journey-level:prev",
-        (300., 166., 30., 24.),
-    );
-    row.extend(label(
-        "JourneyLevelSelected".into(),
-        &format_numbers(global_string("JOURNEYS_HIGHLIGHT_LEVEL_LABEL"), &[level]),
-        (335., 168., 130., 20.),
-        (14., WHITE, "CENTER"),
-    ));
-    row.extend(button(
-        "JourneyLevelNext".into(),
-        ">",
-        "journal:journey-level:next",
-        (470., 166., 30., 24.),
-    ));
-    row
+pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    track::sync_arrow_art(registry);
+    if let Some(id) = registry.get_by_name("JourneyProgressUnlock") {
+        registry.get_mut(id).unwrap().mouse_enabled = true;
+    }
 }
 
-/// JourneyProgressFrameMixin:SetRewards layout: one card centered, otherwise two columns.
+/// SetRewards: one card centered +50; two stacked; >2 in two columns below divider.
 fn reward_cards(faction: &MajorFactionSnapshot, level: u32) -> Element {
     let rewards: Vec<_> = faction
         .rewards
@@ -299,53 +352,146 @@ fn reward_cards(faction: &MajorFactionSnapshot, level: u32) -> Element {
         .filter(|reward| reward.level == level)
         .take(MAX_REWARD_CARDS)
         .collect();
-    let single = rewards.len() == 1;
     rewards
         .iter()
         .enumerate()
         .flat_map(|(index, reward)| {
-            let left = if single {
-                (800. - REWARD_CARD.0) / 2.
-            } else {
-                75. + (index % 2) as f32 * (REWARD_CARD.0 + 8.)
-            };
-            let top = 200. + (index / 2) as f32 * REWARD_CARD.1;
-            let prefix = format!("JourneyReward{}", reward.id);
-            let mut card = fill(
-                format!("{prefix}Card"),
-                (left, top, REWARD_CARD.0, REWARD_CARD.1 - 6.),
-                "0.12,0.10,0.08,1.0",
-            );
-            card.extend(texture(
-                format!("{prefix}Icon"),
-                reward.icon,
-                (left + 20., top + 28., 45., 45.),
-                WHITE,
-            ));
-            card.extend(label(
-                format!("{prefix}Name"),
-                &reward.name,
-                (left + 80., top + 30., 200., 40.),
-                (13., WHITE, "LEFT"),
-            ));
-            card
+            let (left, top) = reward_card_position(rewards.len(), index);
+            reward_card(reward, left, top)
         })
         .collect()
 }
 
+fn reward_card_position(count: usize, index: usize) -> (f32, f32) {
+    // Renown track TOP90,height72 -> divider TOP177,height16 -> BOTTOM193.
+    match count {
+        1 => ((789. - REWARD_CARD.0) / 2., 243.),
+        2 => (
+            (789. - REWARD_CARD.0) / 2.,
+            193. + index as f32 * REWARD_CARD.1,
+        ),
+        _ => (
+            75. + (index % 2) as f32 * (REWARD_CARD.0 + 8.),
+            193. + (index / 2) as f32 * REWARD_CARD.1,
+        ),
+    }
+}
+
+fn reward_card(reward: &shared::protocol::RenownReward, left: f32, top: f32) -> Element {
+    let prefix = format!("JourneyReward{}", reward.id);
+    let mut parts = named_atlas_texture(
+        format!("{prefix}BG"),
+        "ui-journeys-delve-card",
+        (0., 0., 317., 106.),
+    );
+    parts.extend(texture(
+        format!("{prefix}Icon"),
+        reward.icon,
+        (30., 30.5, 45., 45.),
+        WHITE,
+    ));
+    parts.extend(named_atlas_texture(
+        format!("{prefix}IconBorder"),
+        "ui-journeys-delve-rewardicon-square-frame",
+        (24.5, 25., 56., 56.),
+    ));
+    parts.extend(label(
+        format!("{prefix}Name"),
+        &reward.name,
+        (85., 33., 200., 40.),
+        (13., WHITE, "LEFT"),
+    ));
+    rsx! {r#frame {
+        name:{DynName(format!("{prefix}Card"))},left,top,width:{REWARD_CARD.0},height:{REWARD_CARD.1},
+        pos_type:"absolute",mouse_enabled:true,{parts}
+    }}
+}
+
+/// Blizzard_Journeys.lua:SetRewards OnEnter, without unsourced collection/claim flags.
+pub fn reward_tooltip(
+    state: &Journeys,
+    snapshot: Option<&RenownSnapshot>,
+    frame: &str,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    use crate::tooltip_presentation::{
+        TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
+    };
+    let id = frame
+        .strip_prefix("JourneyReward")?
+        .strip_suffix("Card")?
+        .parse::<u32>()
+        .ok()?;
+    let faction = faction(snapshot, state.selected?).ok()?;
+    let reward = faction
+        .rewards
+        .iter()
+        .filter(|reward| reward.level == state.level)
+        .take(MAX_REWARD_CARDS)
+        .find(|reward| reward.id == id)?;
+    Some(crate::game_tooltip::GameTooltip::new(
+        TooltipPresentation {
+            title: reward.name.clone(),
+            title_color: TOOLTIP_WHITE,
+            lines: vec![
+                TooltipLineState::new(""),
+                TooltipLineState::colored(&reward.description, TOOLTIP_DESCRIPTION_COLOR),
+            ],
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    ))
+}
+
+const UNLOCK_UNAVAILABLE: &str = "Unlock condition is not evaluated by this realm.";
+
 fn unlock_notice(unlock: &RenownUnlock) -> Element {
-    let RenownUnlock::Unsupported { description, .. } = unlock else {
+    if !matches!(unlock, RenownUnlock::Unsupported { .. }) {
         return vec![];
-    };
-    let notice = if description.is_empty() {
-        "Unlock condition is not evaluated by this realm.".to_string()
-    } else {
-        format!("Unlock condition is not evaluated by this realm: {description}")
-    };
-    label(
-        "JourneyProgressUnlock".into(),
-        &notice,
-        (24., 430., 752., 40.),
-        (12., NORMAL_FONT_COLOR, "CENTER"),
+    }
+    // JourneysLockedStateMixin:SetLockedTextWidth caps the centered line at500.
+    let width = ui_toolkit::text_measure::measure_text(
+        UNLOCK_UNAVAILABLE,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        16.,
     )
+    .expect("Journeys unlock font loaded")
+    .0
+    .min(500.);
+    let parts = label(
+        "JourneyProgressUnlock".into(),
+        UNLOCK_UNAVAILABLE,
+        ((500. - width) / 2., 0., width, 25.),
+        (16., WHITE, "CENTER"),
+    );
+    rsx! {r#frame {
+        name:"JourneyProgressLockedState",left:{144.5},top:50.0,width:500.0,height:25.0,
+        pos_type:"absolute",{parts}
+    }}
+}
+
+/// Unknown is not locked/unlocked. The tooltip retains the authored requirement.
+pub fn unlock_tooltip(
+    state: &Journeys,
+    snapshot: Option<&RenownSnapshot>,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
+    let RenownUnlock::Unsupported { description, .. } =
+        &faction(snapshot, state.selected?).ok()?.unlock
+    else {
+        return None;
+    };
+    let lines = if description.is_empty() {
+        vec![]
+    } else {
+        vec![TooltipLineState::colored(description, [1., 0.1, 0.1, 1.])]
+    };
+    Some(crate::game_tooltip::GameTooltip::new(
+        TooltipPresentation {
+            title: UNLOCK_UNAVAILABLE.into(),
+            title_color: TOOLTIP_WHITE,
+            lines,
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    ))
 }
