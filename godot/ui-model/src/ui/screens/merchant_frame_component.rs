@@ -1187,13 +1187,16 @@ pub(crate) fn tab(
         justify: "CENTER",
     }));
     let action = if selected { "" } else { action };
+    let mouse_enabled = !selected;
     rsx! {
-        r#frame {
+        button {
             name: {DynName(name.into())},
             width,
             height: 32.0,
             onclick: action,
-            mouse_enabled: true,
+            button_default_skin: false,
+            disabled: selected,
+            mouse_enabled,
             pos_type: "absolute",
             left: x,
             top: y,
