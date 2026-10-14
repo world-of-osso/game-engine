@@ -600,10 +600,10 @@ mod catalog_lifetime_tests {
                 hidden: false,
             }],
         };
-        let initial = prepare_player_parts(&root, &player, &equipment).unwrap();
+        let initial = prepare_player_parts(&root, &player, &equipment, None).unwrap();
         assert!(!initial.equipment.outfit.item_textures.is_empty());
         std::fs::remove_file(root.join(retail_dir).join("ItemDisplayInfo.csv")).unwrap();
-        let next = prepare_player_parts(&root, &player, &equipment)
+        let next = prepare_player_parts(&root, &player, &equipment, None)
             .expect("prepared outfit rows must survive in the player catalog");
         assert_eq!(
             next.equipment.outfit.item_textures,
