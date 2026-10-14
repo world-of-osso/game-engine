@@ -200,7 +200,19 @@ mod tests {
             icons.insert(id, icon);
         });
         assert!(result.is_ok(), "local pet CSV failed: {result:?}");
-        assert_eq!(icons.len(), 3001);
+        let export = std::fs::read_to_string(&path).unwrap();
+        let records = parse_csv_records(&export);
+        let expected_count = records
+            .iter()
+            .skip(1)
+            .filter(|row| *row != &[String::new()])
+            .count();
+        assert!(records.iter().flatten().any(|field| field.contains('\n')));
+        assert_eq!(
+            icons.len(),
+            expected_count,
+            "every installed species must survive numeric projection"
+        );
         assert_eq!(icons[&39], 656559);
         assert!(icons.contains_key(&1530));
     }
