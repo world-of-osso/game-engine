@@ -121,17 +121,9 @@ impl RibbonTrail {
                 values.slot, self.rows, self.cols
             ));
         }
-        // The first source Update warms one edge; later long frames clamp, not skip.
-        const FIRST_UPDATE_EPSILON: f64 = 0.0001;
-        let delta = if self.updated {
-            f64::from(seconds).max(0.0)
-        } else {
-            self.interval + FIRST_UPDATE_EPSILON
-        };
-        self.updated = true;
-        self.slot = values.slot;
         let start = self.clock;
-        self.clock += delta.min(self.lifetime);
+        self.update_clock(seconds);
+        self.slot = values.slot;
         self.expire_edges();
         self.head = None;
         if !emitting || !values.enabled {
@@ -143,6 +135,18 @@ impl RibbonTrail {
         self.head = Some(interpolate_edge(frame, frame, values, 1.0, self.clock));
         self.previous = Some(frame);
         Ok(())
+    }
+
+    fn update_clock(&mut self, seconds: f32) {
+        // The first source Update warms one edge; later long frames clamp, not skip.
+        const FIRST_UPDATE_EPSILON: f64 = 0.0001;
+        let delta = if self.updated {
+            f64::from(seconds).max(0.0)
+        } else {
+            self.interval + FIRST_UPDATE_EPSILON
+        };
+        self.updated = true;
+        self.clock += delta.min(self.lifetime);
     }
 
     fn expire_edges(&mut self) {
