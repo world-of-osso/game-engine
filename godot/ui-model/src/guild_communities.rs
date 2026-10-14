@@ -207,19 +207,42 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
     } else {
         "1,1,1,1".into()
     };
-    let mut labels = label(
-        format!("{name}Name"),
-        &member.character_name,
-        (name_left, 0.0, name_width, 20.0),
-        (11.0, &color, "LEFT"),
-    );
     let level = profile.map(|m| m.level.to_string()).unwrap_or_default();
-    labels.extend(label(
-        format!("{name}Level"),
-        &level,
-        (4.0, 0.0, 40.0, 20.0),
-        (11.0, "1,1,1,1", "LEFT"),
-    ));
+    let zone = profile
+        .filter(|m| !m.is_online)
+        .map(|m| m.last_online.as_str())
+        .unwrap_or("");
+    // GuildSnapshot has officer_note only. Never expose it as the public Note column.
+    let columns = [
+        (
+            "Name",
+            member.character_name.as_str(),
+            name_left,
+            name_width,
+            color.as_str(),
+        ),
+        ("Level", level.as_str(), 4.0, 40.0, "1,1,1,1"),
+        ("Zone", zone, zone_left, 90.0, "1,1,1,1"),
+        ("Rank", rank, rank_left, 75.0, "1,1,1,1"),
+        (
+            "Note",
+            "",
+            rank_left + 83.0,
+            LIST.2 - rank_left - 87.0,
+            "1,1,1,1",
+        ),
+    ];
+    let mut labels: Element = columns
+        .into_iter()
+        .flat_map(|(column, text, left, width, color)| {
+            label(
+                format!("{name}{column}"),
+                text,
+                (left, 0.0, width, ROW_HEIGHT),
+                (11.0, color, "LEFT"),
+            )
+        })
+        .collect();
     if let Some((_, coords)) = class {
         labels.extend(texture(
             &format!("{name}Class"),
@@ -228,29 +251,6 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
             (52.0, 2.0, 16.0, 16.0),
         ));
     }
-    let zone = profile
-        .filter(|m| !m.is_online)
-        .map(|m| m.last_online.as_str())
-        .unwrap_or("");
-    labels.extend(label(
-        format!("{name}Zone"),
-        zone,
-        (zone_left, 0.0, 90.0, 20.0),
-        (11.0, "1,1,1,1", "LEFT"),
-    ));
-    labels.extend(label(
-        format!("{name}Rank"),
-        rank,
-        (rank_left, 0.0, 75.0, 20.0),
-        (11.0, "1,1,1,1", "LEFT"),
-    ));
-    // GuildSnapshot has officer_note only. Never expose it as the public Note column.
-    labels.extend(label(
-        format!("{name}Note"),
-        "",
-        (rank_left + 83.0, 0.0, LIST.2 - rank_left - 87.0, 20.0),
-        (11.0, "1,1,1,1", "LEFT"),
-    ));
     row(
         name,
         &format!("guild:member:{}", member.character_name),
