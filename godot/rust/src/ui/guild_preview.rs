@@ -43,6 +43,7 @@ impl RegistryUi {
             })
             .collect();
         session.profile = Some(shared::protocol::GuildSnapshot {
+            tabard: None,
             guild_id: 7,
             guild_name: "Adventurers' Rest".into(),
             created_at: None,
