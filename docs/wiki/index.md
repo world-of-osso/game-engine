@@ -5,7 +5,7 @@
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
 - [Watched reputation status bar](systems/reputation-status-bar.md) — independent authoritative login/progress, Retail container priority and approved relative XP preset; four inspected both-skin full-HD restoration/hover captures.
 
-- [Journeys watch and held-left boundary](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14) — persisted authority/refusal, fractional-left regression and explicit current native delivery blocker.
+- [Journeys kit and positive watch](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14) — both-skin authored icons, complete physical track/Home fixture, genuine ungated watch ACK/HUD/query/clear and24 inspected full-HD PNGs; collection/overview/audio remain bounded gaps.
 
 - [Journeys held arrows and native masks](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14) — fractional held scrolling, outside-arrow release/stop, both-skin icon alpha and fourteen inspected full-HD captures; snapshot latency separated from presentation proof.
 - [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
