@@ -35,7 +35,7 @@ pub(crate) struct TradingPost {
     rotating: bool,
     dragged: Option<ProductDrag>,
     /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
-    hidden_layers: Vec<Gd<CanvasLayer>>,
+    hidden_layers: std::collections::HashSet<InstanceId>,
     preview_failed: bool,
     snapshot_observed_at: Option<std::time::Instant>,
     spinner_started_at: Option<std::time::Instant>,
@@ -70,8 +70,9 @@ impl GameClient {
         self.trading_post.view.visible = false;
         self.trading_post.view.clear_cart();
         self.clear_trading_model();
-        for mut layer in std::mem::take(&mut self.trading_post.hidden_layers) {
-            if layer.is_instance_valid() {
+        for id in std::mem::take(&mut self.trading_post.hidden_layers) {
+            // Other UI owners may have removed their layer while the vendor was open.
+            if let Ok(mut layer) = Gd::<CanvasLayer>::try_from_instance_id(id) {
                 layer.set_visible(true);
             }
         }
@@ -180,9 +181,7 @@ impl GameClient {
             let name = layer.get_name().to_string();
             if layer.is_visible() && !KEPT_LAYERS.contains(&name.as_str()) {
                 layer.set_visible(false);
-                if !self.trading_post.hidden_layers.contains(&layer) {
-                    self.trading_post.hidden_layers.push(layer);
-                }
+                self.trading_post.hidden_layers.insert(layer.instance_id());
             }
         }
     }
