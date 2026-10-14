@@ -1,3 +1,7 @@
+## 2026-10-14 — Tabard pixels exposed BGRA palette reversal
+
+[BLP palette normalization](formats/blp-format.md#palettized-bgra-correction-2026-10-14): native vendor/worn/character-select fixtures completed in both skins, but inspected red tabard backgrounds rendered blue. Authenticated180071 RED decoded `[0,9,129,255]` instead of `[129,9,0,255]`; normalize `image-blp` Raw1 palette input. Twelve focused decoder tests pass. Corrected native pixels remain pending; no live-network proof inferred.
+
 ## 2026-10-14 — Guild tabard authority and roster appearance
 
 [Guild tabards](systems/guilds.md#guild-tabard-data-flow): additive durable design/payment, live vendor validation, optional profile/replica/roster wire and source torso tiers have focused CPU proofs. Actual character-selection preparation retains registered layers after lead publication of all7274 authenticated body receipts. Arrow hover RED erased the normal icon; source base plus ADD overlay GREEN. Physical native fixture uses production screen/reducer/loader with simulated replies; both-skin pixels and live networking are not inferred from these tests.
