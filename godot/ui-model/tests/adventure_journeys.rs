@@ -128,6 +128,14 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn journeys_watch_click_sound_follows_the_requested_target_not_optimistic_state() {
+    use game_engine_ui_model::adventure_journeys::watch_click_sound;
+    assert_eq!(watch_click_sound(0), 857);
+    assert_eq!(watch_click_sound(2503), 856);
+    assert_eq!(watch_click_sound(2696), 856);
+}
+
+#[test]
 fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = data_view();
