@@ -361,4 +361,16 @@ required SKID files cannot silently select embedded bones. Scene export reads th
 actual SFID path instead of reporting a guessed alias. The portable test manifest
 lists the two verified FDID files and index only. An isolated extracted-only process
 containing7321940.m2 +7530107.skin reproduces missing-alias RED before the change;
-GREEN/native follow-up remains pending. No canonical bytes are changed.
+then both head cases pass, with forbidden-CASC count0. Seven product/companion
+regressions pass. The old item-material fixture is updated to use normal
+source-qualified model loading; its missing current cloak receipt is privately
+recovered as an authenticated20-asset70391 fixture closure, with no aliases.
+The prior29 equipment passes plus the recovered material case cover that30-case
+scope; portable publication of the new fixture remains lead-owned.
+
+Warning-free native build/check and changed-file formatting pass. After removing
+the private732194000.skin alias, inspected native Modern64/Forever65 originals show
+the equipped player and loaded/visible60×60 portrait in both skins; the alias is
+not recreated and no player/texture errors occur. The source-origin restoration
+receipt succeeds; client stops without hardkill, server393293 requires SIGKILL,
+UDP5712 is freed. No canonical bytes are changed.
