@@ -1,5 +1,6 @@
 extends "res://tests/toy_effects14_signs_framed_live.gd"
-# Native witness: real journal use, all newly received Snake models, source expiry.
+# Bounded witness: real journal use, newly received Snake models and source expiry.
+# Retail's follow promise remains unresolved; this is NOT complete-Flute proof.
 var prior_snakes: Array[int] = []
 
 func proof_cases() -> Array:
