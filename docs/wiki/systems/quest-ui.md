@@ -23,7 +23,7 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 
 - InWorld automation clicks must set the cursor at UI position × `ui_scale` (fixed in `automation_inworld.rs`); `--screen inworld` with `--run-js-ui-script` keeps the auto-login.
 - `game-server-admin set-position` only moves an online character server-side; the client keeps its own position, so move characters while logged out.
-- The quest log's description and rewards come from a session cache of detail pages (`QuestLogData.details`): the log snapshot has neither.
+- Retired Bevy path used a session cache (`QuestLogData.details`). Native owned-entry restoration below replaces that dependency.
 
 ## Godot client
 
@@ -41,7 +41,15 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 
 [Dock fixture](../../../godot/tests/questlog_fidelity_live.gd) on privateUDP5801 proves L/list/details/Back, server Track/Untrack, non-shareable rejection as a system notice, tracker POI, maximize→L restore, and confirmed server Abandon in both asserted skins. The source1035×534 map owner,330×506 dock at(702,25),308×477 list viewport and298×430 detail viewport are asserted from rendered control geometry. Both-skin foreground-confirmation/list/details PNGs are under `/syncthing/AgentShared/2026-10-13/ui-questlog-collections/after/{modern,forever}-quest-live/`; durable `live-questdock-dialog-input-*.log` preserves the actual state/input proof.
 
-The native move exposed shared popup canvas ordering: StaticPopupUI's default layer1 put its Dialog frames below WorldMapUI layer5, despite their local registry strata. The [popup host](../../../godot/rust/src/party_frames.rs) now uses native Dialog layer10 and raises on show (`StaticPopup.lua:582,880`). Its full-screen wrapper is pointer-transparent; only actual dialogs block input. Native RED proved obscured Yes and unchanged server log; GREEN clicks visible foreground Yes and observes removal. Relog detail-cache gaps and full Retail Share-button eligibility remain outside this bounded migration proof.
+The native move exposed shared popup canvas ordering: StaticPopupUI's default layer1 put its Dialog frames below WorldMapUI layer5, despite their local registry strata. The [popup host](../../../godot/rust/src/party_frames.rs) now uses native Dialog layer10 and raises on show (`StaticPopup.lua:582,880`). Its full-screen wrapper is pointer-transparent; only actual dialogs block input. Native RED proved obscured Yes and unchanged server log; GREEN clicks visible foreground Yes and observes removal. Relog restoration and roster-dependent Share remain outside this historical dock proof; current follow-up evidence is recorded below.
+
+## Owned quest details and Share — implementation, live gate open
+
+`QuestEntrySnapshot` now requires `description`, `rewards` and `pushable` on both initial snapshots and updates. Server `quest_view.rs` computes rewards with the actual player context; client `quest_view.rs` reads owned entries directly, without the giver-detail cache. `QuestLogDetails.can_share` combines server pushability with the current group roster (`QuestMapFrame.lua`: `IsPushableQuest && IsInGroup`). Reward tooltips read the same owned entry.
+
+Focused protocol round-trip, real server App/database reopen, and 40 quest view/runtime/integration tests pass. One fresh modern native process restored McBride story, scaled 55-copper reward and disabled solo Share without a giver interaction. This is not reliable relog or both-skin/real-party acceptance: later native logins intermittently remain empty. Private UDP5801 trace at UTC 2026-10-14 06:26:32.465598 recorded two entries published for character32/connection227771v0, but no native bridge receipt before the fixture timed out. The earlier headless connection227766v0 received its initial entries. Publication logs prove enqueue, not packet delivery; transport root cause is not established by this trace. Transport investigation is separately owned; no reconnect workaround was added.
+
+Current reward text also crosses the parchment edge: rewards are still appended inside the story scroller instead of Retail's distinct `RewardsFrameContainer` (`QuestMapFrame.xml`, `SetRewardsHeight`/`AdjustRewardsFrameContainer`). Do not claim reward geometry parity. Both-skin fresh-process/real-party Share and corrected reward layout remain open. Fixture: [questlog_relog_live.gd](../../../godot/tests/questlog_relog_live.gd); private evidence: `data/diagnostics/ui-questlog-collections-camera-2026-10-13/quest-{server-relog-green,view-model-green-fixed,journal-native-modern-trace-snapshot-path-trace}.log` and `server/quest-journal-server-snapshot-path-trace.log`.
 
 ## Native objective progress notices
 
