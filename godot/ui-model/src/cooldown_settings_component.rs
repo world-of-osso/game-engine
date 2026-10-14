@@ -34,8 +34,13 @@ pub struct CooldownSettingsView {
 }
 
 /// CooldownViewerSettings.xml RevertButton inherits UIPanelButtonTemplate.
-pub fn apply_settings_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+pub fn apply_settings_postsetup(
+    state: &CooldownSettingsView,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
     apply_search_insets(registry);
+    apply_search_art(state, registry);
+    apply_clear_button_art(registry);
     if ui_toolkit::atlas::thread_skin() != ui_toolkit::atlas::ActiveSkin::Modern {
         return;
     }
@@ -64,6 +69,55 @@ fn apply_search_insets(registry: &mut ui_toolkit::registry::FrameRegistry) {
         panic!("Settings search must be an EditBox");
     };
     edit.text_insets = [16.0, 20.0, 0.0, 0.0];
+}
+
+/// InputBoxTemplates.lua:175-200 dims only an empty, unfocused SearchBox glyph.
+fn apply_search_art(
+    state: &CooldownSettingsView,
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+) {
+    let Some(id) = registry.get_by_name("CooldownSettingsSearchIcon") else {
+        return;
+    };
+    let Some(ui_toolkit::frame::WidgetData::Texture(texture)) =
+        &mut registry.get_mut(id).expect("Search glyph").widget_data
+    else {
+        panic!("Search glyph must be a Texture");
+    };
+    let channel = if state.search_focused || !state.query.is_empty() {
+        1.0
+    } else {
+        0.6
+    };
+    texture.vertex_color = [channel, channel, channel, 1.0];
+}
+
+/// ClearButtonMixin:215-230 hover opacity and pressed top-left displacement.
+fn apply_clear_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, layout_values::Val, widgets::button::ButtonState};
+    let Some(id) = registry.get_by_name("CooldownSettingsSearchClearButton") else {
+        return;
+    };
+    let Some(WidgetData::Button(button)) = &registry.get(id).expect("Clear button").widget_data
+    else {
+        panic!("Clear must be a Button");
+    };
+    let alpha = if button.hovered { 1.0 } else { 0.5 };
+    let inset = if button.state == ButtonState::Pushed {
+        4.0
+    } else {
+        3.0
+    };
+    let icon = registry
+        .get_by_name("CooldownSettingsSearchClearIcon")
+        .expect("Clear icon");
+    let frame = registry.get_mut(icon).expect("Clear icon frame");
+    frame.position.left = Val::Px(inset);
+    frame.position.top = Val::Px(inset);
+    let Some(WidgetData::Texture(texture)) = &mut frame.widget_data else {
+        panic!("Clear icon must be a Texture");
+    };
+    texture.vertex_color = [1.0, 1.0, 1.0, alpha];
 }
 
 /// SearchBoxTemplate XML:206-254; GlobalStrings55224 supplies instructions.

@@ -460,12 +460,12 @@ impl RegistryModel {
                 &mut self.registry,
             );
         }
-        if self
+        if let Some(view) = self
             .shared
             .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
-            .is_some()
         {
             game_engine_ui_model::cooldown_settings_component::apply_settings_postsetup(
+                &view.settings,
                 &mut self.registry,
             );
             self.icon_masks.apply(&mut self.registry);
