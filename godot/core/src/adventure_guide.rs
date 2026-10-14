@@ -1,4 +1,6 @@
 //! Retail Journal DB2 cache, imported from the pinned local CASC build.
+mod presentation;
+pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
 use std::{collections::BTreeMap, path::Path};
 
