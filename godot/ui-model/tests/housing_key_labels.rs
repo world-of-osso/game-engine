@@ -104,14 +104,14 @@ fn housing_mode_key_labels_follow_assignment_rebind_unbind_in_both_skins() {
     ];
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        for mode in [EditorMode::Basic, EditorMode::Expert] {
+        for mode in [EditorMode::Basic, EditorMode::Expert, EditorMode::Cleanup] {
             let mut view = view(mode);
             let original_authority = view.authority.clone();
             let mut shared = SharedContext::new();
             let mut registry = FrameRegistry::new(1280.0, 720.0);
             let mut screen = Screen::new(housing_screen);
             for (name, action, binding, text, submode) in controls {
-                if submode && mode == EditorMode::Basic {
+                if submode && mode != EditorMode::Expert {
                     continue;
                 }
                 view.model.editor_bindings.assign(action, binding);

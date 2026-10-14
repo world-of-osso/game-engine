@@ -313,18 +313,13 @@ fn mode_is_active(view: &HousingView, name: &str) -> bool {
     use crate::housing_editor::EditorMode;
     matches!(
         (view.model.editor.mode, name),
-        (EditorMode::Basic, "BasicDecorMode") | (EditorMode::Expert, "ExpertDecorMode")
+        (EditorMode::Basic, "BasicDecorMode")
+            | (EditorMode::Expert, "ExpertDecorMode")
+            | (EditorMode::Cleanup, "CleanupMode")
     )
 }
 
 pub fn apply_editor_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
-    use crate::housing_editor::EditorMode;
-    if !matches!(
-        view.model.editor.mode,
-        EditorMode::Basic | EditorMode::Expert
-    ) {
-        return;
-    }
     for (name, atlas, _, _) in MODES.into_iter().chain([
         ("Snap", "snap", "", None),
         ("FreePlace", "freeplacement", "", None),
