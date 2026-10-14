@@ -36,14 +36,15 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - `godot/ui-model/tests/guild_tabards.rs`: source controls, draft isolation, leader gating and pending replies.
 - Native equipment `guild_tabard_body_layers` fixture: all three source tiers and unchanged ordinary tabards.
 - `godot/tests/guild_tabard_fidelity.gd`: physical controls, pending/failure/save/close boundaries, held rotation, production detached player models for all three tiers, masked Jondor portrait and designed Communities; replies simulated, not live network proof.
-- `godot/tests/guild_tabard_character_select.gd`: both-skin production roster projection and `CharacterPreview` campsite/model capture with persisted design IDs; offline fixture, not authenticated networking.
+- `godot/tests/guild_tabard_character_select.gd`: both-skin production roster projection and `CharacterPreview` campsite/model capture with a fabricated roster carrying registered design IDs; server persistence is proven separately, not by this offline fixture.
 - Shared wire `guild_tabard_character_selection_payload_retains_registered_design` and server `guild_tabard_roster_exposes_durable_design_without_changing_character_appearance`: character-selection design serialization and persisted roster projection.
 
-## Known gaps (current cycle)
+## Proof boundaries (2026-10-14)
 
-- [ ] Designed portrait/native pixels.
-- [ ] Native TabardFrame vendor lifecycle and draft/save reply flow.
-- [ ] Equipped and character-selection appearance proof.
+- Both-skin native vendor/draft/reply/rotation, three worn tiers, designed Communities and tier0 character-selection captures passed and were inspected at1920×1080. Corrected BGRA decoding preserves authored body colors.
+- Native replies/roster are fabricated. Separate server tests prove durable payment/design and roster projection; no authenticated client/server run or deployment is claimed.
+- Installed tier0 border styles6–9 lack colors4–16. Variation controls currently select missing combinations; correction awaits a source-compatible option policy.
+- Final checks and lead full protocol gate remain pending.
 
 ## Out of scope
 
