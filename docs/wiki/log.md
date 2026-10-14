@@ -1,3 +1,7 @@
+## 2026-10-13 — Trading Post D1–D6 native source proof
+
+[Rework](systems/trading-post.md#d1d6-rework--verified-native-2026-10-13): authored mask/hold/button art, C_Item base-appearance icon resolution, shared GameDialog, effective145px filter description, source header/freeze/footer details and global-rect/positive-pixel gates. Both1920×1080 skins pass transactions/cancel/freeze/Leave with28 saved PNGs. Failed PNG writes now fail proof; Leave stops polling its freed RegistryUi. Historical51f captures remain rejected. Snapshot/delta timing and cart/outfit/history stay open.
+
 ## 2026-10-13 — Retail Trading Post layout
 
 [Trading Post](systems/trading-post.md#retail-layout-proof--2026-10-13): shared WowStyle2/menu primitives, XML list/frozen/details/footer art and native freeze/replace/drag-off; Modern and Forever1920×1080 transaction/cancel/Leave proof inspected. Decorative-button input and duplicate popup-decoration roots fixed. Canonical art gaps and cart/outfit/history remain explicit.
