@@ -378,6 +378,29 @@ class DesktopServerBuildTests(unittest.TestCase):
                     (self.root / "target/debug" / binary).stat().st_mode & 0o777, 0o755
                 )
 
+    def test_release_features_reach_the_container_build(self):
+        module = self.load()
+        with patch.object(module, "execute", self.execute):
+            module.build(
+                self.root,
+                host="local",
+                release=True,
+                binary="game-server",
+                features="system-timings",
+            )
+        result = json.loads(self.capture.read_text())
+        self.assertIn("FEATURES=system-timings", result["args"])
+        self.assertEqual(
+            (self.root / "target/release/game-server").read_text(), "release game-server"
+        )
+
+    def test_invalid_feature_list_is_rejected_before_export(self):
+        module = self.load()
+        with patch.object(module, "execute", self.execute):
+            with self.assertRaises(ValueError):
+                module.build(self.root, host="local", features="a b; rm")
+        self.assertFalse(self.capture.exists())
+
     def test_selected_binary_cli_exports_only_requested_release_binary(self):
         module = self.load()
         for binary in module.BINARIES:

@@ -4,12 +4,13 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 
 ## What it must do
 
-- [x] List authentic Mount.db2 identities, selected details/source text, search, collected/not-collected and source filters; five capability-derived type categories and authored hidden/server-only flags. Tests assert filtering and readable vendor/zone/cost text.
+- [x] List authentic Mount.db2 identities, selected details/source text, search, collected/not-collected and source filters; five capability-derived type categories and authored hidden/server-only flags. Tests assert filtering and readable vendor/zone/cost text. The fixed90px Retail Filter dropdown opens a content-fit shared menu; its authored ten-pixel spacer and row actions remain intact.
 - [x] Learn authentic mount items through normal UseItem, consuming one item atomically with ownership; duplicate learning preserves the item. No fabricated starter collection.
 - [x] Persist collection/favourites account-wide across characters/restarts; share changes only with the same account. Existing authentic spell-learning results grant account ownership.
 - [x] Summon through normal spell/riding/area rules; dismount cancels the real aura. Random favourites use owned usable candidates, never fabricated display mounting; combat/unowned requests refuse.
 - [x] Import every local MountXDisplay appearance root into a new cache preserving all prior profiles/choices/geosets/coverage; reject conflicting rows/replacement. Extract missing assets from local CASC only.
 - [x] Both skins show the same Mainline703×606 shell/tab/list layout and a rotating authentic3D preview; native item learning, right-click favourite, summon/dismount/random, and alternate-character persistence must pass the privateUDP5901 fixture.
+- [x] Right-click Mount/Dismount and Favorite entries use the shared Retail menu compositor at the cursor (MenuUtil.CreateContextMenu), fit rendered labels and preserve authoritative enabled states. RightInset contains the full-size ModelScene and ShadowOverlayTemplate; the authored MountDisplay YesMountsTex remains its backdrop (Blizzard_MountCollection.xml:443-466), never a substitute for the model.
 
 ### Acquisition/game integration — user extension2026-10-11
 
