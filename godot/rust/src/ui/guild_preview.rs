@@ -21,6 +21,70 @@ impl RegistryUi {
         self.show_guild_preview_skin(ui_toolkit::atlas::ActiveSkin::Forever)
     }
 
+    /// Overflowing roster fixture through the production Communities screen and input reducer.
+    #[func]
+    pub fn show_guild_communities_preview(&mut self, forever: bool) -> GString {
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        let error = self.show_guild_preview_skin(skin);
+        if !error.is_empty() {
+            return error;
+        }
+        let mut session = game_engine_ui_model::guild_rank_frame::preview();
+        session.settings_open = false;
+        let mut state = session.state().expect("guild fixture").clone();
+        state.members = (0..32)
+            .map(|index| shared::protocol::GuildRankMember {
+                character_name: format!("Member{index:02}"),
+                rank: if index == 0 { 0 } else { 2 },
+            })
+            .collect();
+        session.profile = Some(shared::protocol::GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Adventurers' Rest".into(),
+            created_at: None,
+            motd: "Meet at the guild hall tonight.".into(),
+            info_text: "Tuesday raid\nThursday dungeon".into(),
+            members: state
+                .members
+                .iter()
+                .enumerate()
+                .map(|(index, member)| shared::protocol::GuildMemberSnapshot {
+                    character_name: member.character_name.clone(),
+                    level: 80,
+                    class_name: ["Paladin", "Mage", "Druid", "Warrior"][index % 4].into(),
+                    rank_name: "Raider".into(),
+                    is_online: index % 3 != 1,
+                    officer_note: "Officer-only fixture note".into(),
+                    last_online: "Yesterday".into(),
+                })
+                .collect(),
+        });
+        session.apply(state);
+        GString::from(self.set_state(session).err().unwrap_or_default().as_str())
+    }
+
+    #[func]
+    pub fn guild_communities_preview_receipt(&self) -> GString {
+        let Some(session) = self
+            .model
+            .as_ref()
+            .and_then(|m| m.shared.get::<GuildRanksSession>())
+        else {
+            return GString::from("Guild preview state missing");
+        };
+        GString::from(
+            format!(
+                "member={:?};commands={:?}",
+                session.member_menu, session.commands
+            )
+            .as_str(),
+        )
+    }
+
     /// Physical pointer/Enter -> production input reader/reducer, without optimistic mutation.
     #[func]
     pub fn guild_control_preview_dispatch(&mut self) -> GString {
