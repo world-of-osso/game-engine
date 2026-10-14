@@ -94,6 +94,7 @@ mod quests;
 mod raid_info;
 mod raid_targets;
 mod replicated;
+mod reputation_status_bar;
 mod ribbons;
 mod scene;
 mod scene_export;
@@ -261,6 +262,7 @@ pub struct GameClient {
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
     xp_bar: xp_bar::XpBarHud,
+    reputation_bar: Option<Gd<ui::RegistryUi>>,
     group_frames: party_frames::GroupFramesHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
@@ -429,6 +431,7 @@ impl INode3D for GameClient {
             entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
             xp_bar: xp_bar::XpBarHud::default(),
+            reputation_bar: None,
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
             ui_layout: Default::default(),
@@ -1595,6 +1598,9 @@ impl GameClient {
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
         self.xp_bar.visit_uis(&mut visit)?;
+        if let Some(ui) = self.reputation_bar.as_mut() {
+            visit(ui)?;
+        }
         self.group_frames.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
@@ -2165,6 +2171,7 @@ impl GameClient {
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
             ("XP bar", |c, _| c.update_xp_bar()),
+            ("Reputation bar", |c, _| c.update_reputation_bar()),
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
