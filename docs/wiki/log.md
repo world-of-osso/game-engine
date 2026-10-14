@@ -9,6 +9,9 @@
 ## 2026-10-13 — Retail Adventure Guide frame layout
 
 [Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
+## 2026-10-13 — Battleground cast and travel boundaries
+
+[Battlegrounds](systems/battlegrounds.md#cast-and-travel-proof-boundaries--verified-2026-10-13): distinguish authored carry, natural-drop receipts and near-teleport score diagnostics; retain native partial captures rather than victory. Record epoch-stop and idle-owner UDP RED/GREEN, measured transport/apply timing and open travel rollback. Update the stale transport-blocked index entry; publication remains lead-owned.
 ## 2026-10-13 — Collections filters, source cameras and eight-frame capture
 
 [Journal source slice](systems/battle-pets.md#journal-filters-and-authored-scenes--2026-10-13): shared Retail filters/search,40 authored DB2 pet scenes, source normalization/camera transforms and scoped tests. Eight inspected1920×1080 offline frames fix scaled audit clipping; empty journals do not prove owned-model camera appearance. ModelScene default FOV unsourced; existing projection retained. Health/ability payload and persistence decision remain open.
