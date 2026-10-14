@@ -543,6 +543,35 @@ fn journal_combat_choices_wait_for_ack_and_refusal_preserves_server_state() {
 }
 
 #[test]
+fn journal_waits_for_loadout_ack_before_opening_an_owned_ability_selector() {
+    let mut view = view();
+    view.receive_details(combat_details(384, false, None));
+    let request = view.equip_selected(2).unwrap();
+    assert_eq!(view.journal.battle_slots, [Some(1), None, None]);
+    assert_eq!(request.slots, [None, None, Some(1)]);
+    assert!(!view.open_ability_choices(0, 1));
+    let mut journal = view.journal.clone();
+    journal.battle_slots = request.slots;
+    view.receive(CollectionStateUpdate {
+        snapshot: None,
+        pet_journal: Some(journal),
+        summoned_pet_id: None,
+        message: None,
+        error: None,
+    });
+    assert!(!view.open_ability_choices(0, 1));
+    assert!(view.open_ability_choices(2, 1));
+    assert_eq!(
+        view.choose_ability(384),
+        Some(shared::protocol::SetBattlePetAbility {
+            pet_id: 1,
+            slot: 1,
+            ability_id: 384,
+        })
+    );
+}
+
+#[test]
 fn journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

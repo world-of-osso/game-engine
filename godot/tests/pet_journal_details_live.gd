@@ -13,8 +13,9 @@ func check_owned_combat_details() -> bool:
 		return false
 	var journal := client.get_node("CollectionsJournalUI")
 	await click_control(journal.find_child("PetJournalBattleSlot0", true, false) as Control)
-	if not await wait_frames(func(): return client.find_child("PetJournalBattleSlot0Spell1Button", true, false) != null, "equipped combat details"):
+	if not await wait_frames(ability_selector_ready, "server-acknowledged equipped combat details", 60000):
 		return false
+	print("PET_COMBAT_LOADOUT_ACK parent_disabled=", (journal.find_child("PetJournalBattleSlot0", true, false) as BaseButton).disabled)
 	var spell := client.find_child("PetJournalBattleSlot0Spell1Button", true, false) as BaseButton
 	if spell == null or spell.disabled:
 		fail("Owned ability selector disabled while idle")
@@ -60,6 +61,10 @@ func check_owned_combat_details() -> bool:
 	await capture("owned-combat-reopened.png")
 	print("PASS PET_COMBAT_DETAILS skin=", OS.get_environment("QF_SKIN"), " health=", owned_health, " locked-choice=1 server-ack=1 reopened=1")
 	return true
+
+func ability_selector_ready() -> bool:
+	var button := client.find_child("PetJournalBattleSlot0Spell1Button", true, false) as BaseButton
+	return button != null and not button.disabled
 
 func open_pet_details() -> void:
 	await tap_collections()

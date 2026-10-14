@@ -18,7 +18,10 @@ impl PetJournalView {
         self.error = update.error.unwrap_or_default();
     }
     pub fn combat_editable(&self) -> bool {
-        !self.battle_locked && !self.ability_pending && self.queue == PetBattleQueueState::Idle
+        !self.battle_locked
+            && !self.pending
+            && !self.ability_pending
+            && self.queue == PetBattleQueueState::Idle
     }
     pub fn open_ability_choices(&mut self, loadout: usize, slot: u8) -> bool {
         if !self.combat_editable() || !(1..=3).contains(&slot) {
