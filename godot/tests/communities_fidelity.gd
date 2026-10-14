@@ -26,6 +26,7 @@ func capture() -> void:
 		assert(ui.call("frame_text", "GuildMember0Level") == "80")
 		assert(ui.call("frame_text", "GuildMember1Zone") == "Yesterday")
 		assert(ui.call("frame_text", "GuildMember1Note") == "", "Officer notes are not public notes")
+		var info_icon_before := root.get_texture().get_image()
 		capture_png(directory, skin + "-communities-roster.png")
 		assert(String(ui.call("guild_communities_preview_receipt")).contains("pointer_enabled=true"), "Production admission permits settings-closed Communities")
 		await wheel(ui, 1)
@@ -44,6 +45,7 @@ func capture() -> void:
 		await click(ui, "CommunitiesRosterColumn2")
 		assert(ui.call("frame_text", "GuildMember0Name") == "Member31")
 		await click(ui, "GuildInfoTab")
+		assert(assert_selected_icon_retains_pixels(ui, "GuildInfoTabIcon", info_icon_before))
 		assert(ui.call("frame_text", "GuildMOTDText") == "Meet at the guild hall tonight.")
 		assert(ui.call("frame_text", "GuildInfoText") == "Tuesday raid\nThursday dungeon")
 		capture_png(directory, skin + "-communities-info.png")
@@ -68,6 +70,20 @@ func capture() -> void:
 		await settle()
 	print("PASS: both-skin Communities source rectangles, physical wheel/thumb overflow,32 members, column sorting, right-click hierarchy, tabs and invitation reducer;1920x1080 captures. Chat/benefits services remain unbacked.")
 	quit(0)
+
+# Source CheckedTexture/HighlightTexture are ADD: selected glow must not erase icon pixels.
+func assert_selected_icon_retains_pixels(ui: Node, name: String, before: Image) -> bool:
+	var rect := control(ui, name).get_global_rect()
+	var after := root.get_texture().get_image()
+	for sample in [Vector2i(5, 5), Vector2i(15, 15), Vector2i(25, 25), Vector2i(5, 25), Vector2i(25, 5)]:
+		var point: Vector2i = Vector2i(rect.position) + sample
+		var old_color := before.get_pixelv(point)
+		var new_color := after.get_pixelv(point)
+		if new_color.r + 0.02 < old_color.r or new_color.g + 0.02 < old_color.g or new_color.b + 0.02 < old_color.b:
+			push_error("Source ADD tab highlight erased icon at " + str(point) + " old=" + str(old_color) + " new=" + str(new_color))
+			quit(1)
+			return false
+	return true
 
 func control(ui: Node, name: String) -> Control:
 	var node := ui.find_child(name, true, false) as Control
