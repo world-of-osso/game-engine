@@ -17,6 +17,7 @@ mod dungeon_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
 mod forevergaps_preview;
+mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
 mod guild_preview;
 #[cfg(test)]
@@ -25,6 +26,7 @@ mod guild_tests;
 mod housing_drag_input_tests;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
+mod hud_edit_controls_fixture;
 pub(crate) mod hud_edit_layout;
 mod hud_edit_preview;
 #[cfg(test)]
@@ -487,11 +489,14 @@ impl RegistryModel {
                 &mut self.registry,
             );
         }
-        if self
+        if let Some(view) = self
             .shared
             .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
-            .is_some()
         {
+            game_engine_ui_model::cooldown_settings_component::apply_settings_postsetup(
+                &view.settings,
+                &mut self.registry,
+            );
             self.icon_masks.apply(&mut self.registry);
         }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.

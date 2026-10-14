@@ -1,4 +1,4 @@
-extends "res://tests/housing_editor_live.gd"
+extends "res://tests/housing_expert_source_live.gd"
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -31,6 +31,7 @@ func run_test() -> void:
 		client.free()
 		quit(0)
 		return
+	if not await configure_expert_bindings(false): return
 	await click_control(housing_control("HouseEditorExpertDecorModeButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_control("TranslateSubmodeButton") != null and housing_control("HouseEditorStorageFrame") == null, "Retail expert submodes hide storage"): return
 	if not await select_saved_decor(): return
@@ -50,7 +51,7 @@ func run_test() -> void:
 	if not await stage_precision(): return
 	var node: Node3D = placed_node()
 	var expected: Dictionary = {"position": [node.position.x, node.position.y, node.position.z], "pitch": node.rotation.x, "yaw": node.rotation.y, "roll": node.rotation.z, "scale": node.scale.x}
-	await tap(KEY_ENTER)
+	if not await commit_expert_by_world_click(): return
 	if not await wait_housing(func(): return matches_precision(expected) and not client.housing_state().pending, "authoritative expert commit"): return
 	if housing_control("TranslateSubmodeButton") == null:
 		fail("Expert commit must retain its controls")
@@ -65,34 +66,13 @@ func run_test() -> void:
 	output.store_string(JSON.stringify(expected, "\t"))
 	output.close()
 	if not await capture_housing("expert-committed"): return
+	if not await configure_expert_bindings(true): return
 	print("PASS: private5870 native staged XYZ axes/translation/scale, cancel, atomic commit and conserved paid decor ", housing_skin)
 	client.free()
 	quit(0)
 
-func hold_precision(key: Key) -> void:
-	push_key(key, true)
-	await create_timer(0.3).timeout
-	push_key(key, false)
-	await frames(3)
-
 func stage_precision() -> bool:
-	await tap(KEY_2)
-	# Selection starts on X; X cycles through Y then Z.
-	await hold_precision(KEY_E)
-	await tap(KEY_X)
-	await hold_precision(KEY_E)
-	await tap(KEY_X)
-	await hold_precision(KEY_E)
-	await tap(KEY_3)
-	await hold_precision(KEY_E)
-	await tap(KEY_1)
-	await hold_precision(KEY_PAGEUP)
-	var before: Dictionary = client.housing_state().decor[0]
-	var node: Node3D = placed_node()
-	if absf(node.rotation.x - float(before.pitch)) < 0.02 or absf(node.rotation.z - float(before.roll)) < 0.02 or absf(node.scale.x - float(before.scale)) < 0.02 or node.position.y - before.position.y < 0.02:
-		fail("Native expert input did not stage all required axes/scale/translation")
-		return false
-	return true
+	return await stage_assigned_precision()
 
 func precision_receipt() -> Dictionary:
 	var decor: Dictionary = client.housing_state().decor[0]
