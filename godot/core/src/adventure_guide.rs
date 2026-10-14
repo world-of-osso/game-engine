@@ -36,6 +36,8 @@ pub struct Creature {
     pub name: String,
     pub encounter: u32,
     pub display: u32,
+    /// JournalEncounterCreature.FileDataID: the authored EncounterBossButton portrait.
+    pub portrait: u32,
     pub order: u32,
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -195,7 +197,7 @@ impl Catalog {
         )?;
         let creatures = query(
             &db,
-            "SELECT ID,Name_lang,JournalEncounterID,CreatureDisplayInfoID,OrderIndex FROM JournalEncounterCreature ORDER BY OrderIndex,ID",
+            "SELECT ID,Name_lang,JournalEncounterID,CreatureDisplayInfoID,OrderIndex,FileDataID FROM JournalEncounterCreature ORDER BY OrderIndex,ID",
             |r| {
                 Ok(Creature {
                     id: r.get(0)?,
@@ -203,6 +205,7 @@ impl Catalog {
                     encounter: r.get(2)?,
                     display: r.get(3)?,
                     order: r.get(4)?,
+                    portrait: r.get(5)?,
                 })
             },
         )?;

@@ -30,6 +30,12 @@ Windows uses a local-only named pipe `\\\\.\\pipe\\game-engine-<pid>` instead of
 - [x] `Screenshot` captures the owning viewport after `RenderingServer.frame_post_draw`, returns actual WebP bytes in `Response::Screenshot`, and preserves original lossy quality 65%. Independently changed 2D and actual 3D pixels must appear in captures at viewport size; missing/freed viewport, missing pixels, encoding or signal connection failure is explicit.
 - [x] `Performance` preserves `fps`, `frame_time_ms`, `focused` in `Response::Performance`. FPS comes from the engine's measured average; frame time from consecutive main-thread process observations; focus from the containing window. Missing/nonpositive measurements remain `None`, never fabricated constants.
 
+### Passive fixture state
+
+`GameClient.account_state()` exposes `pvp_snapshot_json` as the latest received nullable `PvpSnapshot`, without sending a query. It also exposes `local_player_epoch` (adopted) and `local_server_epoch` (received), with absent epochs reported as null. Battleground wait loops use this passive state rather than repeatedly requesting full server snapshots through `pvp status`; the public CLI's existing refresh behavior remains unchanged.
+
+`BG_NETWORK_TRACE` enables private Lightyear UDP/message metadata traces (including serialized wire byte counts), post-UDP-read batch timestamps before Netcode decoding, post-decode worker relay timestamps, and native PvP apply timestamps. It changes no protocol fields, channel policy, or deadlines. `tracing-subscriber` is a direct dependency only to expose these existing transport diagnostics; already present transitively.
+
 ### Scene export
 
 - [x] `ExportScene` writes the original `SceneSnapshot` JSON through the shared `game_engine_core::scene_snapshot` types/writer (externally tagged `NodeProps`, labels, optional transforms, recursive children; schema unchanged). Success returns `Response::Text("scene exported to {output_path}")`; tree, metadata, encoding and file-write failures return `Response::Error`.
