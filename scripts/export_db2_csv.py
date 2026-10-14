@@ -1158,11 +1158,15 @@ def read_fields(data, field_count, sections):
     fields = [
         struct.unpack_from("<HH5I", data, start + i * 24) for i in range(field_count)
     ]
-    # Pallet (3, 4) and common (2) fields each index their own block, in field order.
-    palette_offsets, offset = [], 0
+    # Scalar pallets precede array pallets, each in field order. PlayerCondition
+    # 1D743D99 interleaves storage 4 before storage 3 in its field descriptors.
+    offsets = {3: 0, 4: sum(field[2] for field in fields if field[3] == 3)}
+    palette_offsets = []
     for field in fields:
-        palette_offsets.append(offset)
-        offset += field[2] if field[3] in (3, 4) else 0
+        storage = field[3]
+        palette_offsets.append(offsets.get(storage, 0))
+        if storage in offsets:
+            offsets[storage] += field[2]
     return fields, palette_offsets, start + field_count * 24
 
 

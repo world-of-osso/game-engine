@@ -78,6 +78,30 @@ class InstallExportTest(unittest.TestCase):
                 self.assertEqual(list(csv.DictReader(stream)), [
                     {'ID': '1', 'MinSkill_0': '0', 'MinSkill_1': '162'}])
 
+    def test_installed_player_condition_scalar_pallets_follow_scalar_block(self):
+        import gzip
+        import hashlib
+        import json
+
+        fixture_root = ROOT / 'scripts/tests/fixtures/playercondition-12.1.5.70391'
+        receipt = json.loads((fixture_root / 'receipt.json').read_text())
+        payload = gzip.decompress((fixture_root / '1045411.db2.gz').read_bytes())
+        self.assertEqual(hashlib.sha256(payload).hexdigest(), receipt['raw_sha256'])
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'PlayerCondition.db2'
+            source.write_bytes(payload)
+            output = Path(directory) / 'PlayerCondition.csv'
+            result = subprocess.run([
+                sys.executable, str(ROOT / 'scripts/export_db2_csv.py'),
+                'PlayerCondition', str(source), str(output),
+                '--definitions', str(fixture_root)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with output.open() as stream:
+                row = next(row for row in csv.DictReader(stream) if row['ID'] == '923')
+            self.assertEqual(row['WeaponSubclassMask'], '0')
+            self.assertEqual(row['ContentTuningID'], '0')
+            self.assertEqual(row['MovementFlags'], '0')
+
     def test_unknown_layout_fails_without_writing_export(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
