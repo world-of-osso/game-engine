@@ -36,6 +36,39 @@ fn settings_navigation_opens_existing_pages_and_clears_search() {
     assert!(!apply_settings_navigation(&mut state, "menu_shop"));
 }
 
+#[test]
+fn settings_apply_commits_pending_values_and_hides_again_without_closing_options() {
+    use game_engine_ui_model::GameMenuModel;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut state = model();
+    let initial = state.committed_sound.master_volume;
+    apply_slider_value(SliderField::MasterVolume, 0.25, &mut state);
+    assert_eq!(state.committed_sound.master_volume, initial);
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, build_view_model(&state));
+    menu.sync();
+    let apply = menu
+        .registry
+        .get_by_name("OptionsApplyButton")
+        .expect("pending ApplyButton");
+    assert!(!menu.registry.get(apply).unwrap().hidden);
+    assert_eq!(
+        menu.registry.click_frame(apply).as_deref(),
+        Some("options_apply")
+    );
+    let snapshot = apply_snapshot(&mut state);
+    assert_eq!(snapshot.sound.master_volume, 0.25);
+    assert_eq!(state.committed_sound.master_volume, 0.25);
+    assert_eq!(state.view, GameMenuView::Options);
+    menu.shared.insert(build_view_model(&state));
+    menu.sync();
+    let apply = menu.registry.get_by_name("OptionsApplyButton").unwrap();
+    assert!(menu.registry.get(apply).unwrap().hidden);
+    assert!(menu.registry.get_by_name("OptionsRoot").is_some());
+}
+
 fn model() -> OptionsModel {
     let graphics = graphics_draft_from_file(&GraphicsOptionsFile::default());
     let sound = sound_draft_from_file(&SoundOptionsFile::default());

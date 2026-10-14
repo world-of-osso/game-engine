@@ -198,6 +198,17 @@ impl GameClient {
             self.load_adventure_guide()?;
             self.adventure_guide.view.loading = false;
         }
+        self.adventure_guide.view.role = self
+            .spells
+            .catalog()
+            .zip(self.account.spells.spec())
+            .and_then(|(data, id)| data.tabs.specs.get(&id))
+            .map_or(2, |spec| match spec.role {
+                0 => 1,
+                1 => 4,
+                2 => 2,
+                role => panic!("Unknown ChrSpecialization role {role}"),
+            });
         self.select_queued_journal_encounter()?;
         self.adventure_guide.view.activities = self.account.adventure_guide.clone();
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();

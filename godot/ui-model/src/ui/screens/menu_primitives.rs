@@ -454,21 +454,40 @@ pub fn context_menu_description(
 }
 
 pub fn menu_height_for_items(item_count: usize) -> f32 {
-    MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
+    menu_height(item_count, true)
+}
+fn heading_height(has_heading: bool) -> f32 {
+    if has_heading {
+        ROW_HEIGHT + DIVIDER_HEIGHT
+    } else {
+        0.0
+    }
+}
+fn menu_height(item_count: usize, has_heading: bool) -> f32 {
+    MENU_INSET + heading_height(has_heading) + item_count as f32 * ROW_HEIGHT + MENU_BOTTOM
 }
 
-/// MenuTemplates/MenuVariants title, divider and 20px entry layout.
-/// Keep custom radio/checkbox rows at the same inset and pitch as normal entries.
+/// MenuTemplates/MenuVariants title, divider and20px entry layout.
 pub fn menu_row_rect(width: f32, index: usize) -> (f32, f32, f32, f32) {
+    menu_row_rect_with_heading(width, index, true)
+}
+
+/// LFDFrame.lua creates root radios without CreateTitle/CreateDivider.
+pub fn menu_row_rect_with_heading(
+    width: f32,
+    index: usize,
+    has_heading: bool,
+) -> (f32, f32, f32, f32) {
     (
         MENU_INSET,
-        MENU_INSET + ROW_HEIGHT + DIVIDER_HEIGHT + index as f32 * ROW_HEIGHT,
+        MENU_INSET + heading_height(has_heading) + index as f32 * ROW_HEIGHT,
         width - 2.0 * MENU_INSET,
         ROW_HEIGHT,
     )
 }
 
 pub fn context_menu(props: ContextMenu<'_>) -> Element {
+    let has_heading = !props.title.is_empty();
     let rows: Element = props
         .items
         .iter()
@@ -478,7 +497,7 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
                 *item,
                 MenuElementKind::Button,
                 true,
-                menu_row_rect(props.width, index),
+                menu_row_rect_with_heading(props.width, index, has_heading),
             )
         })
         .collect();
@@ -486,19 +505,32 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
 }
 
 /// Compose menu_element rows without changing the shared frame/backdrop/layout.
+/// Empty title omits the heading/divider rather than creating a blank header.
 pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element {
-    let height = menu_height_for_items(props.items.len());
+    let height = menu_height(props.items.len(), !props.title.is_empty());
     let mut contents = crate::selection_list::menu_background(
         format!("{}Background", props.frame_name),
         (props.width, height),
     );
-    contents.extend(label(
+    contents.extend(context_menu_heading(props));
+    contents.extend(rows);
+    rsx! { r#frame {
+        name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
+        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
+    } }
+}
+
+fn context_menu_heading(props: ContextMenu<'_>) -> Element {
+    if props.title.is_empty() {
+        return Vec::new();
+    }
+    let mut heading = label(
         props.title_name.into(),
         props.title,
         (MENU_INSET, MENU_INSET, props.width - 16.0, ROW_HEIGHT),
         (12.0, GOLD, "LEFT"),
-    ));
-    contents.extend(texture(
+    );
+    heading.extend(texture(
         props.divider_name.into(),
         MENU_DIVIDER,
         (
@@ -509,9 +541,5 @@ pub fn context_menu_with_rows(props: ContextMenu<'_>, rows: Element) -> Element 
         ),
         NORMAL,
     ));
-    contents.extend(rows);
-    rsx! { r#frame {
-        name: {DynName(props.frame_name.into())}, width: {props.width}, height, hidden: props.hidden,
-        strata: FrameStrata::Dialog, frame_level: 60.0, pos_type: "absolute", left: {props.x}, top: {props.y}, {contents}
-    } }
+    heading
 }

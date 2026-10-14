@@ -349,7 +349,7 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 			fail("Invalid canonical Auto Loot persistence oracle")
 			return false
 		if expression.search(saved) != null:
-			await click_menu_action(client, "OptionsDoneButton")
+			await click_menu_action(client, "OptionsCloseButton")
 			# Done returns to the game menu; Resume closes the overlay.
 			if client.get_node_or_null("GameMenuUI") != null:
 				await click_menu_action(client, "MenuBtnResume")

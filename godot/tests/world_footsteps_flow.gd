@@ -78,7 +78,7 @@ func open_sound_options(client: Node) -> bool:
 	return await click_sound_option(client, "OptionsTabsound")
 
 func close_sound_options(client: Node) -> bool:
-	if not await click_sound_option(client, "OptionsDoneButton"):
+	if not await click_sound_option(client, "OptionsCloseButton"):
 		return false
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")

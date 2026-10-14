@@ -319,7 +319,7 @@ fn every_page_scrolls_inside_a_panel_that_fits_the_screen() {
             show(&mut model, view(category, section));
             let context = format!("{category:?} {section:?}");
             let panel = rect(&model, "OptionsRoot").unwrap();
-            let done = rect(&model, "OptionsDoneButton").unwrap();
+            let done = rect(&model, "OptionsCloseButton").unwrap();
             assert!(
                 panel.y >= 0.0 && panel.y + panel.height <= canvas_h,
                 "{context}"

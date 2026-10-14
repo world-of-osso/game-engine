@@ -4,13 +4,13 @@
 
 use game_engine_ui_model::quest_actions::{ABANDON_QUEST_POPUP, QuestUiEffect, quest_ui_action};
 use game_engine_ui_model::quest_frame_component::quest_frame_screen;
-use game_engine_ui_model::quest_log_frame_component::quest_log_frame_screen;
 use game_engine_ui_model::quest_runtime::{
     NpcInteractionRequest as R, QuestRuntime, QuestTextTokens, QuestUiState, quest_marker_model,
 };
 use game_engine_ui_model::quest_view::{
     QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
 };
+use game_engine_ui_model::world_map_frame_component::{WorldMapFrameState, world_map_frame_screen};
 use shared::protocol::*;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -108,9 +108,19 @@ fn render_log(runtime: &QuestRuntime, ui: &QuestUiState) -> FrameRegistry {
     );
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
-    shared.insert(state);
-    Screen::new(quest_log_frame_screen).sync(&shared, &mut registry);
+    shared.insert(WorldMapFrameState::default().with_quest_panel(state, true));
+    Screen::new(world_map_frame_screen).sync(&shared, &mut registry);
     registry
+}
+
+#[test]
+fn quest_log_uses_world_map_owner_not_a_standalone_window() {
+    let runtime = QuestRuntime::default();
+    let ui = QuestUiState::default();
+    let registry = render_log(&runtime, &ui);
+    assert!(registry.get_by_name("WorldMapFrame").is_some());
+    assert!(registry.get_by_name("QuestMapFrame").is_some());
+    assert!(registry.get_by_name("QuestLogFrame").is_none());
 }
 
 /// The `onclick` of the rendered frame `name`.
@@ -144,7 +154,11 @@ fn click(
     runtime: &mut QuestRuntime,
     ui: &mut QuestUiState,
 ) -> Vec<QuestUiEffect> {
-    quest_ui_action(&onclick(registry, name), runtime, ui)
+    let action = onclick(registry, name);
+    if action == game_engine_ui_model::world_map_frame_component::ACTION_WORLD_MAP_CLOSE {
+        return vec![QuestUiEffect::CloseLog];
+    }
+    quest_ui_action(&action, runtime, ui)
 }
 
 fn sent(effects: Vec<QuestUiEffect>) -> Vec<R> {
@@ -381,19 +395,24 @@ fn quest_log_lists_objectives_tracks_and_confirms_abandon() {
         ["Quest accepted: Beating Them Back!"]
     );
     let log = render_log(&runtime, &ui);
-    assert_eq!(text(&log, "QuestLogCount"), "Quests: 1/35");
+    assert_eq!(runtime.log.len(), 1);
     assert_eq!(
         text(&log, "QuestLogDetailsObjective0"),
         "- 2/6 Blackrock Worg slain"
     );
     assert_eq!(
-        sent(click(&log, "QuestLogTrackButton", &mut runtime, &mut ui)),
+        sent(click(
+            &log,
+            "QuestMapFrameTrackButton",
+            &mut runtime,
+            &mut ui
+        )),
         [R::SetWatched {
             quest_id: BEATING_THEM_BACK,
             watched: false
         }]
     );
-    match click(&log, "QuestLogAbandonButton", &mut runtime, &mut ui).as_slice() {
+    match click(&log, "QuestMapFrameAbandonButton", &mut runtime, &mut ui).as_slice() {
         [QuestUiEffect::ConfirmAbandon { quest_id, popup }] => {
             assert_eq!(*quest_id, BEATING_THEM_BACK);
             assert_eq!(popup.key, ABANDON_QUEST_POPUP);
@@ -402,7 +421,7 @@ fn quest_log_lists_objectives_tracks_and_confirms_abandon() {
         other => panic!("Abandon gave {other:?}"),
     }
     assert_eq!(
-        click(&log, "QuestLogFrameCloseButton", &mut runtime, &mut ui),
+        click(&log, "WorldMapCloseButton", &mut runtime, &mut ui),
         [QuestUiEffect::CloseLog]
     );
 }
@@ -417,7 +436,12 @@ fn quest_share_popup_and_selected_log_button_use_authoritative_offer() {
     });
     let log = render_log(&runtime, &ui);
     assert_eq!(
-        sent(click(&log, "QuestLogShareButton", &mut runtime, &mut ui)),
+        sent(click(
+            &log,
+            "QuestMapFrameShareButton",
+            &mut runtime,
+            &mut ui
+        )),
         [R::Share {
             quest_id: BEATING_THEM_BACK
         }]

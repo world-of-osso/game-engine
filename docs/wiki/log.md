@@ -5,6 +5,38 @@
 ## 2026-10-13 — Retail Trading Post layout
 
 [Trading Post](systems/trading-post.md#retail-layout-proof--2026-10-13): shared WowStyle2/menu primitives, XML list/frozen/details/footer art and native freeze/replace/drag-off; Modern and Forever1920×1080 transaction/cancel/Leave proof inspected. Decorative-button input and duplicate popup-decoration roots fixed. Canonical art gaps and cart/outfit/history remain explicit.
+## 2026-10-13 — Adventure Guide independent-gate corrections
+
+[Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Final shared context shell/row geometry, RGB0.35 instructions and hidden Loot title pass Guide41/shared6 tests and both-skin24 full-HD capture at7d99b7225. Code/binary/PNG receipt and source XML inspection are recorded; extra tooltip-font and inherited Options-wheel test failures remain explicit.
+
+## 2026-10-13 — Retail Adventure Guide frame layout
+
+[Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
+## 2026-10-13 — Battleground cast and travel boundaries
+
+[Battlegrounds](systems/battlegrounds.md#cast-and-travel-proof-boundaries--verified-2026-10-13): distinguish authored carry, natural-drop receipts and near-teleport score diagnostics; retain native partial captures rather than victory. Record epoch-stop and idle-owner UDP RED/GREEN, measured transport/apply timing and open travel rollback. Update the stale transport-blocked index entry; publication remains lead-owned.
+## 2026-10-13 — Collections filters, source cameras and eight-frame capture
+
+[Journal source slice](systems/battle-pets.md#journal-filters-and-authored-scenes--2026-10-13): shared Retail filters/search,40 authored DB2 pet scenes, source normalization/camera transforms and scoped tests. Eight inspected1920×1080 offline frames fix scaled audit clipping; empty journals do not prove owned-model camera appearance. ModelScene default FOV unsourced; existing projection retained. Health/ability payload and persistence decision remain open.
+
+## 2026-10-13 — WorldMap quest dock and dialog ordering
+
+[Quest dock](systems/quest-ui.md#native-quest-dock--2026-10-13): both-skin native L/list/details/Back/server track/non-shareable notice/POI/maximize/confirmed Abandon GREEN. StaticPopup canvas Dialog ordering/raise and pointer-transparent full-screen wrapper correct the actual map-over-confirmation failure. Real rendered source geometry asserted; relog detail cache and full Share-button eligibility remain gaps.
+
+## 2026-10-13 — Collections binding and pet loadout previews
+
+[Battle-pet journal](systems/battle-pets.md#journal-loadout-previews--2026-10-13): assignable Shift-P, card+three detached loadout models, authoritative move/empty teardown and close/reopen proved through real owned-pet native input in both skins. Hidden bag-tree input corrected in the fixture, not product visibility. Filters and owned-health/ability journal payloads remain open.
+## 2026-10-13 — Settings Apply/Close footer
+
+[Footer follow-up](investigations/glue-menu-fidelity.md#applyclose-follow-up--2026-10-13): actual draft-backed Apply visibility/commit, Close96×22 source anchors and Defaults moved to the Retail header; native hidden-hit/Apply/Close clicks and ten inspected1920×1080 both-skin PNGs. Post-master HUD/scroll/menu/options filters70+68 pass (diagnostic1 ignored). Older gm71 HUD failures not reproduced; no speculative HUD patch or deferred-settings redesign.
+
+## 2026-10-13 — Follower type radio fidelity
+
+[Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): LFDFrame.lua CreateRadio/no-header replaces invented Type title/divider/button row. Incoming shared WithRows API retained; heading-aware geometry supports43px radio popup without changing titled consumers. Native76→43 RED/GREEN;12 registry/menu cases, library checks/fmt and replaced inspected1920×1080 both-skin closed/open PNGs pass at46cdad1cf.
+
+## 2026-10-13 — Group Finder Retail layout repair
+
+[Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): shared PanelTab/WowStyle1 controls, XML blue-menu category art/insets and native512×256 clipped quest paper replace generic tabs/stretched wall. Native geometry and covered-description pixel RED→GREEN; both-skin1920×1080 before/after closed/open PNGs inspected against XML. Targeted UI5/native-mask5, library build/check and fmt pass at5b6f57417. Source UI extracts remain private; full follower gameplay still open.
 ## 2026-10-13 — Game Menu controls and Settings header follow-up
 
 [Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Actual registry-scroll/production-wheel Graphics proof passes in both skins, all13 targeted native scroll cases pass; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
@@ -3649,3 +3681,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
 
 - 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).
+
+- 2026-10-13: [Follower Group Finder](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) restores source combat-role backgrounds and visible leadership-controlled guide; both-skin1920×1080 role capture and14 targeted cases pass. Full dungeon proof remains open.
+
+- 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
