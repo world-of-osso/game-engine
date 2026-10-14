@@ -12,7 +12,7 @@ pub(super) fn track(faction: &MajorFactionSnapshot, state: &super::Journeys) -> 
     let levels = (1..=faction.max_level)
         .flat_map(|level| level_button(faction, selected, level, offset))
         .collect::<Element>();
-    let arrows = arrows(selected, faction.max_level);
+    let arrows = arrows(state, faction.max_level);
     rsx! {r#frame {
         name:"JourneyRenownTrack",left:{109.5},top:90.0,width:570.0,height:72.0,pos_type:"absolute",
         r#frame {name:"JourneyRenownTrackClip",left:0.0,top:0.0,width:570.0,height:72.0,pos_type:"absolute",{levels}}
@@ -107,19 +107,22 @@ fn level_caption(prefix: &str, level: u32, earned: bool) -> Element {
     contents
 }
 
-fn arrows(selected: u32, max: u32) -> Element {
+fn arrows(state: &super::Journeys, max: u32) -> Element {
+    let selected = state.track_selected_index();
+    let offset = state.track_offset();
+    let maximum = max.saturating_sub(1) as f32 * super::sliding::LEVEL_SPACING;
     let mut contents = arrow(
         "JourneyLevelPrev",
         "prev",
         (-26., 19., 22., 34.),
-        selected <= 1,
+        offset <= 0.,
         false,
     );
     contents.extend(arrow(
         "JourneyLevelNext",
         "next",
         (574., 19., 22., 34.),
-        selected >= max,
+        offset >= maximum,
         false,
     ));
     contents.extend(arrow(

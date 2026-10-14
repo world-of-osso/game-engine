@@ -231,6 +231,43 @@ fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
 }
 
 #[test]
+fn journeys_left_arrow_stays_enabled_until_the_fractional_offset_reaches_zero() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.7, 25);
+    assert_eq!(view.journeys.level, 1);
+    assert!(view.journeys.track_offset() > 0.);
+    let registry = render(&view);
+    for name in ["JourneyLevelPrev", "JourneyLevelFirst"] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
+            panic!("arrow")
+        };
+        assert_ne!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled,
+            "{name} uses offset/original selection, not centre index"
+        );
+    }
+    view.journeys.stop_scroll(25);
+    let registry = render(&view);
+    let frame = registry
+        .get(registry.get_by_name("JourneyLevelPrev").unwrap())
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        panic!("arrow")
+    };
+    assert_eq!(
+        button.state,
+        ui_toolkit::widgets::button::ButtonState::Disabled,
+        "Release at1 disables the boundary arrow"
+    );
+}
+
+#[test]
 fn journeys_short_hold_steps_once_and_boundary_stops() {
     let mut view = data_view();
     view.renown = Some(Arc::new(snapshot()));
