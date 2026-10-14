@@ -381,13 +381,10 @@ impl GameClient {
         spec: u32,
         entries: &[CooldownEntry],
     ) -> Result<(), String> {
+        self.spells.cooldowns.read_settings_search();
         let Some(ui) = self.spells.cooldowns.ui.as_mut() else {
             return Ok(());
         };
-        self.spells.cooldowns.settings.query = ui
-            .bind_mut()
-            .frame_text(game_engine_ui_model::cooldown_settings_component::SEARCH.into())
-            .to_string();
         let action = self
             .spells
             .cooldowns
@@ -404,6 +401,37 @@ impl GameClient {
 }
 
 impl CooldownHud {
+    fn read_settings_search(&mut self) {
+        let Some(ui) = self.ui.as_mut() else {
+            return;
+        };
+        if !self.settings.open {
+            return;
+        }
+        let mut host = ui.bind_mut();
+        self.settings.query = host
+            .frame_text(game_engine_ui_model::cooldown_settings_component::SEARCH.into())
+            .to_string();
+        self.settings.search_focused = host
+            .frame_control(game_engine_ui_model::cooldown_settings_component::SEARCH)
+            .is_some_and(|control| control.has_focus());
+    }
+
+    fn clear_settings_search(&mut self) -> Result<(), String> {
+        use game_engine_ui_model::cooldown_settings_component::SEARCH;
+        let mut ui = self.ui.clone().ok_or("Cooldown settings UI missing")?;
+        let mut control = {
+            let mut host = ui.bind_mut();
+            host.set_editbox_text(SEARCH, "")?;
+            host.frame_control(SEARCH)
+                .ok_or("Cooldown search control missing")?
+        };
+        control.release_focus();
+        self.settings.query.clear();
+        self.settings.search_focused = false;
+        Ok(())
+    }
+
     fn settings_pointer(
         &mut self,
         event: &Gd<godot::classes::InputEvent>,
@@ -460,6 +488,9 @@ impl CooldownHud {
         action: &str,
     ) -> Result<(), String> {
         let hud = self;
+        if action == "cooldown_search_clear" {
+            return hud.clear_settings_search();
+        }
         if action == "cooldown_close" {
             hud.settings.open = false;
             return Ok(());

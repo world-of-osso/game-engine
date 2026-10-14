@@ -197,6 +197,16 @@ impl UnitMotion {
             yaw: self.local_yaw,
             ..self.target
         };
+        if self.adopted_epoch != Some(control.epoch) && std::env::var_os("BG_DIRECTORY").is_some() {
+            godot_print!(
+                "BG_TRAVEL_NATIVE_ADOPT unix_ms={:.3} old_epoch={:?} new_epoch={} current={:?} target={:?}",
+                godot::classes::Time::singleton().get_unix_time_from_system() * 1000.0,
+                self.adopted_epoch,
+                control.epoch,
+                pose.position,
+                target.position
+            );
+        }
         let update = follow_server_motion(
             pose,
             target,
@@ -1223,10 +1233,23 @@ impl WorldUnits {
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         sync_unit_animation(unit, snapshot, fallbacks);
         unit.motion.forced_facing = snapshot.get::<shared::components::ForcedFacing>().copied();
+        let control = snapshot.get::<MovementControl>().copied();
+        if self.local_player_id == Some(snapshot.server_id)
+            && control != unit.motion.control
+            && std::env::var_os("BG_DIRECTORY").is_some()
+        {
+            godot_print!(
+                "BG_TRAVEL_NATIVE_RECEIVED unix_ms={:.3} entity={} control={:?} position={:?}",
+                godot::classes::Time::singleton().get_unix_time_from_system() * 1000.0,
+                snapshot.server_id,
+                control,
+                position
+            );
+        }
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.get::<Rotation>().map(|rotation| rotation.y),
-            snapshot.get::<MovementControl>().copied(),
+            control,
         );
     }
 
@@ -1667,6 +1690,15 @@ impl WorldUnits {
     /// The `MovementControl::epoch` whose position the local player adopted.
     pub fn local_player_epoch(&self) -> Option<u32> {
         self.units.get(&self.local_player_id?)?.motion.adopted_epoch
+    }
+
+    /// The newest server-replicated movement epoch, before motion adoption.
+    pub fn local_player_server_epoch(&self) -> Option<u32> {
+        self.units
+            .get(&self.local_player_id?)?
+            .motion
+            .control
+            .map(|control| control.epoch)
     }
 
     /// The newest server-replicated position of the local player.
