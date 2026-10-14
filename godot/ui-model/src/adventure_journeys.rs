@@ -301,6 +301,7 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
 }
 
 fn progress_details(faction: &MajorFactionSnapshot) -> Element {
+    let unavailable = matches!(faction.unlock, RenownUnlock::Unsupported { .. });
     let standing = if faction.level >= faction.max_level {
         faction.level_threshold
     } else {
@@ -333,11 +334,14 @@ fn progress_details(faction: &MajorFactionSnapshot) -> Element {
         (13., NORMAL_FONT_COLOR, "CENTER"),
     ));
     rsx! {r#frame {name:"JourneyProgressDetails",left:{259.5},top:45.0,width:270.0,height:35.0,
-    pos_type:"absolute",{contents}}}
+    pos_type:"absolute",hidden:unavailable,{contents}}}
 }
 
 pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     track::sync_arrow_art(registry);
+    if let Some(id) = registry.get_by_name("JourneyProgressUnlock") {
+        registry.get_mut(id).unwrap().mouse_enabled = true;
+    }
 }
 
 /// SetRewards: one card centered +50; two stacked; >2 in two columns below divider.
@@ -438,19 +442,56 @@ pub fn reward_tooltip(
     ))
 }
 
+const UNLOCK_UNAVAILABLE: &str = "Unlock condition is not evaluated by this realm.";
+
 fn unlock_notice(unlock: &RenownUnlock) -> Element {
-    let RenownUnlock::Unsupported { description, .. } = unlock else {
+    if !matches!(unlock, RenownUnlock::Unsupported { .. }) {
         return vec![];
-    };
-    let notice = if description.is_empty() {
-        "Unlock condition is not evaluated by this realm.".to_string()
-    } else {
-        format!("Unlock condition is not evaluated by this realm: {description}")
-    };
-    label(
-        "JourneyProgressUnlock".into(),
-        &notice,
-        (24., 430., 752., 40.),
-        (12., NORMAL_FONT_COLOR, "CENTER"),
+    }
+    // JourneysLockedStateMixin:SetLockedTextWidth caps the centered line at500.
+    let width = ui_toolkit::text_measure::measure_text(
+        UNLOCK_UNAVAILABLE,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        16.,
     )
+    .expect("Journeys unlock font loaded")
+    .0
+    .min(500.);
+    let parts = label(
+        "JourneyProgressUnlock".into(),
+        UNLOCK_UNAVAILABLE,
+        ((500. - width) / 2., 0., width, 25.),
+        (16., WHITE, "CENTER"),
+    );
+    rsx! {r#frame {
+        name:"JourneyProgressLockedState",left:{144.5},top:50.0,width:500.0,height:25.0,
+        pos_type:"absolute",{parts}
+    }}
+}
+
+/// Unknown is not locked/unlocked. The tooltip retains the authored requirement.
+pub fn unlock_tooltip(
+    state: &Journeys,
+    snapshot: Option<&RenownSnapshot>,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
+    let RenownUnlock::Unsupported { description, .. } =
+        &faction(snapshot, state.selected?).ok()?.unlock
+    else {
+        return None;
+    };
+    let lines = if description.is_empty() {
+        vec![]
+    } else {
+        vec![TooltipLineState::colored(description, [1., 0.1, 0.1, 1.])]
+    };
+    Some(crate::game_tooltip::GameTooltip::new(
+        TooltipPresentation {
+            title: UNLOCK_UNAVAILABLE.into(),
+            title_color: TOOLTIP_WHITE,
+            lines,
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    ))
 }

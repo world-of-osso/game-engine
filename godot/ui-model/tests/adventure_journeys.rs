@@ -350,7 +350,7 @@ fn unevaluated_unlock_notice_uses_the_source_locked_state_anchor_in_both_skins()
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render_skin(&view, skin);
         assert_eq!(
-            rect(&registry, "JourneyProgressUnlock"),
+            rect(&registry, "JourneyProgressLockedState"),
             [144.5, 50., 500., 25.]
         );
         assert_eq!(
@@ -433,9 +433,11 @@ fn journeys_lists_current_expansion_renown_and_filters_by_expansion() {
 }
 
 #[test]
-fn selected_journey_shows_progress_level_rewards_and_unevaluated_unlock() {
+fn selected_ungated_journey_shows_authoritative_progress_and_level_rewards() {
     let mut view = data_view();
-    view.renown = Some(Arc::new(snapshot()));
+    let mut catalog = snapshot();
+    catalog.factions[0].unlock = RenownUnlock::Ungated;
+    view.renown = Some(Arc::new(catalog));
     view.apply("journal:tab:journeys").unwrap();
     view.apply("journal:journey-expansion:9").unwrap();
     view.apply("journal:journey:12").unwrap();
@@ -451,7 +453,7 @@ fn selected_journey_shows_progress_level_rewards_and_unevaluated_unlock() {
         "Centaur Hunting Trophies"
     );
     assert!(registry.get_by_name("JourneyReward621Name").is_none());
-    assert!(text(&registry, "JourneyProgressUnlock").contains("Complete the quest Maruukai"));
+    assert!(registry.get_by_name("JourneyProgressUnlock").is_none());
     view.apply("journal:journey-level:next").unwrap();
     assert_eq!(
         text(&render(&view), "JourneyReward623Name"),
