@@ -303,7 +303,7 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
     );
     rsx! {r#frame {
         name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
-        pos_type:"absolute",{background},r#frame {
+        pos_type:"absolute",{background} r#frame {
             name:"JourneyProgress",left:0.0,top:0.0,width:789.0,height:429.0,
             pos_type:"absolute",{body}
         }
