@@ -37,6 +37,49 @@ pub fn sync_template_art(registry: &mut FrameRegistry) {
     apply_atlas_slices(registry);
     apply_dropdown_text_displacement(registry);
     apply_menu_disabled_art(registry);
+    apply_button_child_colors(registry);
+}
+
+fn apply_button_child_colors(registry: &mut FrameRegistry) {
+    let updates: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| {
+            let name = frame.name.as_deref()?;
+            let dialog_text = name.ends_with("DialogButtonText");
+            let perks_header = matches!(
+                name,
+                "PerksProgramNameSortLabel"
+                    | "PerksProgramPriceSortLabel"
+                    | "PerksProgramTimeSortIcon"
+            );
+            if !dialog_text && !perks_header {
+                return None;
+            }
+            let owner = registry.get(frame.parent_id?)?;
+            let Some(WidgetData::Button(button)) = &owner.widget_data else {
+                return None;
+            };
+            let disabled = !button.enabled || button.state == ButtonState::Disabled;
+            let color = if dialog_text && disabled {
+                [0.5, 0.5, 0.5, 1.0]
+            } else if !disabled && button.hovered {
+                [1.0; 4]
+            } else {
+                [1.0, 0.82, 0.0, 1.0]
+            };
+            Some((frame.id, color))
+        })
+        .collect();
+    for (id, color) in updates {
+        match registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            Some(WidgetData::FontString(text)) => text.color = color,
+            Some(WidgetData::Texture(icon)) => icon.vertex_color = color,
+            _ => unreachable!("template label/icon"),
+        }
+    }
 }
 
 fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<RegionUpdate> {
@@ -46,6 +89,19 @@ fn template_region_update(registry: &FrameRegistry, frame: &Frame) -> Option<Reg
         return None;
     };
     let visible = match &frame.widget_data {
+        Some(WidgetData::Texture(texture))
+            if matches!(
+                texture.source,
+                TextureSource::FileDataId(130760 | 130761 | 130763)
+            ) =>
+        {
+            Some(match texture.source {
+                TextureSource::FileDataId(130763) => button.state == ButtonState::Normal,
+                TextureSource::FileDataId(130761) => button.state == ButtonState::Pushed,
+                TextureSource::FileDataId(130760) => button.state == ButtonState::Disabled,
+                _ => unreachable!(),
+            })
+        }
         Some(WidgetData::Texture(texture))
             if matches!(texture.source, TextureSource::FileDataId(516763 | 516764)) =>
         {
@@ -105,7 +161,7 @@ fn apply_texture_flags(registry: &mut FrameRegistry) {
             };
             let template_art = matches!(
                 texture.source,
-                TextureSource::FileDataId(516764 | 516763 | 136810)
+                TextureSource::FileDataId(516764 | 516763 | 136810 | 6839810)
             );
             template_art.then_some(frame.id)
         })
@@ -121,6 +177,11 @@ fn apply_texture_flags(registry: &mut FrameRegistry) {
         }
         if texture.source == TextureSource::FileDataId(516764) {
             texture.horiz_tile = true;
+        }
+        // GameDialog BG.Bottom atlas flags6: repeat both axes.
+        if texture.source == TextureSource::FileDataId(6839810) {
+            texture.horiz_tile = true;
+            texture.vert_tile = true;
         }
     }
 }

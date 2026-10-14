@@ -3,14 +3,17 @@
 ## Contract
 - Collections micro button opens the Pets tab of the existing CollectionsJournal shell. Pets and Toy Box share the same centered window, portrait (FDID454046), title and six-tab bar; switching tabs never opens a second journal. Retail Mainline defines geometry and elements; Forever changes art only.
 - Journal lists server-owned instances and uncollected catalog species, with names, icons, level, quality and breed. Search filters names; selecting an uncollected species cannot summon it.
-- Each populated CompanionLoadOutTemplate slot shows its owned pet's extracted creature display model in the XML ModelScene host, independently of card selection. Moving/removing pets clears old models; closing cancels pending loads and frees previews before the journal UI. Health/ability content remains hidden until authoritative snapshots exist.
+- Each populated CompanionLoadOutTemplate slot shows its owned pet's extracted creature display model in the XML ModelScene host, independently of card selection. Moving/removing pets clears old models; closing cancels pending loads and frees previews before the journal UI. Health and ability content appears only from owner-only server combat snapshots. Health remains injured between battles until healed/revived; chosen abilities persist and later PvE/PvP battles consume them. No invented heal/revive timers or costs.
 - Pet card/loadout cameras and actor scale/origin come from BattlePetSpecies CardUIModelSceneID/LoadoutUIModelSceneID and matching UIModelSceneCamera/Actor/ActorDisplay data, not mesh-fit or hand-tuned size. XML defines each model viewport.
-- Selected pet card shows the species' extracted creature display model, name, level/quality/breed and Retail type icon. Summon/Dismiss sits at the bottom of the right panel; Find Battle remains disabled. No standalone Pet Journal tab button below the shell.
+- Selected pet card shows the species' extracted creature display model, name, level/quality/breed and Retail type icon. Summon/Dismiss sits at the bottom of the right panel; Find Battle follows the [PvP queue contract](petbattle-pvp.md). No standalone Pet Journal tab button below the shell.
 - Summon/dismiss sends the owned instance GUID through existing CollectionChannel requests. Wait for server authority; show refusals and prevent duplicate pending requests.
 - Companion is an ordinary replicated non-combat creature, rendered through the existing CreatureID/display/model path and moved by authoritative owner-follow positions.
 - Escape closes the journal; disconnect clears account journal state.
 
-## Scope
+## Authoritative combat details
+Owned card/loadout health, maximum health, power, speed, level/XP and next-level XP come from server snapshots. Card lists authored ability options; the loadout uses Retail three ability buttons and a two-choice flyout with level locks. Ability selection sends an owned GUID, one-based slot and authored ability ID; displayed selection changes only after acknowledgement. Refusals preserve authoritative state. Pending loadout/summon requests and queued/in-battle loadouts cannot change abilities; wait for the current owned loadout acknowledgement before opening a selector. Unowned species do not receive fabricated combat values.
+
+## Initial phase scope
 Retail CollectionsJournal 703×606, 260px left list, upper-right card, three disabled battle slots and disabled Find Battle. Battles are not implemented in this phase. No Forever-only widgets or behavior.
 
 ## Data

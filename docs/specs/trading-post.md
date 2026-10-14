@@ -11,8 +11,26 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Vendor requests require an authentic capital NPC interaction and server-authoritative Tender balance. Purchases grant existing account collections atomically and persist across relog; one frozen vendor item survives rollover.
 - [x] Refund requests are server-authoritative, policy-duration bounded and reverse only grants introduced by that purchase. Default policy duration is zero because no sourced duration exists (lead decision October12); Retail refund UI remains disabled.
 - [x] Shared native full-screen vendor, PerksProgramFilter category dropdown, scrollable authored item list, transmog/mount/pet3D MainModelScene and Retail ToyOverlayFrame icon/details, purchase confirmation, freeze/drag-to-freeze/unfreeze and server-time-controlled refund. Both skins share layout/behaviour. Lead clarified October12: Retail source takes precedence over PLAN's shorthand 'category tabs'/'3D toys'.
-- [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance; vendor Log and Collections buttons close the vendor interaction before opening existing windows. No invented mail awards.
+- [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
+
+## Retail layout acceptance — October13
+
+- [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter LEFT+9/BOTTOM to container TOP+22. The 122×25 WowStyle2 template is overridden by PerksProgramProducts.lua to effective145×25 with fixed "Filter" text.
+- [x] Native price/name sort headers, action-bar icon mask, source-sized frozen/hold art, shared large-button state art and StaticPopup confirmation; no solid fill replacing authored art. No unsourced search control/API remains.
+- [ ] Time header: per-item remaining time has no sourced calendar binding; visible but disabled, not a fabricated duration.
+- [x] Authored action-bar mask FDID4626072, hold-edge atlas FDID4331660 and button atlas FDID6794983 extracted from installed12.1.5.70391 and published by the lead October13. Positive native decoded/masked-pixel assertions gate visible art; the32px Icon samples the central32px of its centred48px MaskTexture rather than squeezing the full mask. Both-skin alpha comparisons cover the complete sampled output, with separate missing-source tests that never count as fidelity proof.
+- [x] Before/after both-skin private UDP5791 PNG comparison against XML; 1920×1080 after captures and native freeze/replace/drag-off, purchase/refund, popup cancellation and Leave. Proof: `modern-after9.log`, `forever-after1.log` under engine `data/diagnostics/trading-post-ui-2026-10-13/`; PNGs under `/syncthing/AgentShared/2026-10-13/trading-post-layout/`. Refund proof uses explicit private policy3600s; production default stays zero.
+
+## Fidelity rework — October13
+
+Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay passes are not Retail-fidelity acceptance. Background gradients select Orgrimmar only for the player's sourced Horde faction and Stormwind otherwise (PerksProgramProducts.lua:23-30). The native host uses the existing cached ChrRaces faction catalog, not a hardcoded race list. Item icons follow C_Item.GetItemIconByID base-appearance resolution when direct Item.IconFileDataID is zero; item223185 regression requires authored icon135411. Current-build `12.1.5.70391` art is staged privately for lead publication. Shared GameDialog item confirmation supplies source prompts, 128×21 dialog-box state art, item icon/name frame, source border and half-black full-screen cover; defaultbutton art is not used for Trading Post confirmation. Header labels/icons are LEFT-anchored with source normal/hover colors, Price is centered to Time, and freeze instructions/Leave arrow use the complete sourced text/markup dimensions. Effective filtering uses Collected/Not Collected/Useable Only checkboxes, multiple Type checkboxes and Sort By/Ascending/radio submenus. The reset callback restores filter flags, not sort state; frozen selection remains independent of the filtered list. Usability comes from the server's supported class/race/level requirements, with unknown source facts excluded only when Useable Only is selected. Projected and live fidelity gates remain open until D1–D6 re-verification.
+
+## Retail continuation — October13
+
+- [ ] Resolve live catalog delivery under production startup/request ordering (isolated1321-row UDP round-trip passes; private delivery intermittently exceeds60s).
+- [ ] Native multi-product cart and server-authoritative purchase/refund across protocol and persisted collections, sourced from Retail Lua; no invented policy.
+- [ ] Outfit/character preview toggle and native purchase-history widgets.
 
 ## How it works
 
@@ -31,10 +49,10 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 ## Tests asserting this spec
 
 - `scripts/tests/test_trading_post_import.py`: authentic category/price/UI group round-trip and mismatched-layout rejection.
-- `godot/ui-model/tests/trading_post.rs`: both-skin Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state and second-page/search clipping.
+- `godot/ui-model/tests/trading_post.rs`: both-skin XML geometry/dropdown, Tender/price/frozen/refund controls, modal confirmation/no local debit/pending state, freeze/replace/drag-off requests and second-page/category clipping.
 - `godot/network/src/trading_post_wire_tests.rs`: real UDP snapshot/request round-trip.
 - `scripts/tests/test_trading_post_asset_seeds.py`: server preview rules (mount/pet/transmog/set) and whole-chain receipt verdicts.
-- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5731 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
+- `godot/tests/trading_post_live.gd`: private 127.0.0.1:5791 fb_* native-input proof — Log Tender line, authentic NPC gossip, HUD hidden/restored, category dropdown, player transmog/set and creature mount/pet previews, drag rotation, ToyOverlay, unavailable row, drag-to-freeze, unaffordable gating and frozen slot after relog.
 
 ## Known gaps (current cycle)
 
