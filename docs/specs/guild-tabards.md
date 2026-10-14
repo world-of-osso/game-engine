@@ -23,6 +23,8 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - `godot/ui-model/src/guild_tabard_frame.rs`: exact TabardFrame XML art/anchors and source button postsetup.
 - Current RSX macro truncates bare float literals (`ui-toolkit-macros/src/lib.rs:364–371`). Fractional authored attributes use the supported expression form until the lead-owned macro fix lands; no source values are rounded.
 - `godot/network/src/replica/codec.rs`: authoritative design component decoding.
+- `godot/rust/src/guild_tabards.rs`: vendor lifecycle, pending requests, player draft viewport and held-button rotation.
+- `godot/rust/src/account.rs`, network bridge: typed GuildChannel requests and authoritative reply dispatch.
 - `godot/rust/src/game/equipment/equipment_appearance_data.rs`: source guild-tabard tiers and replacement torso layers before clothing-priority compositing.
 - Shared `guild_tabards::GuildTabardCatalog`: installed palette and torso-layer resolution.
 

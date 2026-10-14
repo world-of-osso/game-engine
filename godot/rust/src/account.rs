@@ -257,6 +257,7 @@ pub enum AccountEvent {
     GuildAccepted(shared::protocol::GuildAcceptInviteResponse),
     GuildProfile(shared::protocol::GuildStateUpdate),
     GuildCharter(shared::protocol::GuildCharterReply),
+    GuildTabard(shared::protocol::GuildTabardReply),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
@@ -1111,6 +1112,15 @@ impl Account {
     pub fn send_guild_rank_request(
         &self,
         request: shared::protocol::GuildRankRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::GuildChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_guild_tabard(
+        &self,
+        request: shared::protocol::GuildTabardRequest,
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, shared::protocol::GuildChannel>(request)
@@ -2094,6 +2104,10 @@ impl Account {
             output.push(AccountEvent::GuildProfile(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::GuildTabardReply>() {
+            output.push(AccountEvent::GuildTabard(decode(message)?));
+            return Ok(());
+        }
         if message.is::<shared::protocol::GuildCharterReply>() {
             output.push(AccountEvent::GuildCharter(decode(message)?));
             return Ok(());
@@ -2567,6 +2581,9 @@ mod dungeonclient_tests;
 #[cfg(test)]
 #[path = "account_guild_charter_tests.rs"]
 mod guild_charter_tests;
+#[cfg(test)]
+#[path = "account_guild_tabard_tests.rs"]
+mod guild_tabard_tests;
 
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]

@@ -174,6 +174,7 @@ enum ScreenPostsetup {
     Minimap,
     CharacterFrame,
     Guild,
+    GuildTabard,
     /// Bag bar icons and container portraits get their round `CircleMask`.
     Bags,
     /// Header glyphs become tinted masks (`IconMasks`).
@@ -348,6 +349,9 @@ impl RegistryModel {
         }
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::GuildTabard => {
+                game_engine_ui_model::guild_tabard_frame::apply_postsetup(&mut self.registry);
+            }
             ScreenPostsetup::Guild => {
                 if let Some(state) = self
                     .shared
@@ -2063,6 +2067,27 @@ impl RegistryUi {
             state,
             game_engine_ui_model::guild_rank_frame::guild_screen,
             ScreenPostsetup::Guild,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_guild_tabard(
+        &mut self,
+        state: game_engine_ui_model::guild_tabards::GuildTabards,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::guild_tabard_frame::tabard_screen,
+            ScreenPostsetup::GuildTabard,
             registry,
             parent,
         )?;

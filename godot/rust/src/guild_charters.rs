@@ -82,6 +82,12 @@ impl GameClient {
         self.guild_charters.view.receive(reply);
         Ok(())
     }
+    /// The server already switched to the same vendor's tabard role; do not close that new interaction.
+    pub(super) fn hide_guild_charter_canvas(&mut self) {
+        self.guild_charters.view = View::default();
+        self.guild_charters.free_ui();
+    }
+
     pub(super) fn close_guild_charter(&mut self) -> Result<bool, FrameError> {
         let visible = self.guild_charters.view.visible();
         if let Some(registrar) = &self.guild_charters.view.registrar {
