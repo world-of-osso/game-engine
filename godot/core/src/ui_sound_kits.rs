@@ -1,5 +1,5 @@
 //! Interface sound kits that native frames play (`PlaySound(SOUNDKIT.*)`), with their
-//! `SoundKit.VolumeFloat` and `SoundKitEntry` files from 12.1.0.69933
+//! `SoundKit.VolumeFloat` and `SoundKitEntry` files cached from Retail
 //! (`SoundKitConstants.lua` names). Files are local Ogg copies at `sounds/ui/{fdid}.ogg`.
 
 /// `SOUNDKIT.IG_CHARACTER_INFO_OPEN`.
@@ -8,6 +8,8 @@ pub const IG_CHARACTER_INFO_OPEN: u32 = 839;
 pub const IG_CHARACTER_INFO_CLOSE: u32 = 840;
 /// `SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON`.
 pub const IG_MAINMENU_OPTION_CHECKBOX_ON: u32 = 856;
+/// `SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF`.
+pub const IG_MAINMENU_OPTION_CHECKBOX_OFF: u32 = 857;
 /// `SOUNDKIT.ITEM_REPAIR`.
 pub const ITEM_REPAIR: u32 = 7994;
 /// Cached Mainline SoundKitConstants.lua RAID_BOSS_EMOTE_WARNING.
@@ -27,7 +29,7 @@ pub struct UiSoundKit {
     pub files: &'static [u32],
 }
 
-const KITS: [UiSoundKit; 10] = [
+const KITS: [UiSoundKit; 11] = [
     UiSoundKit {
         id: RAID_BOSS_EMOTE_WARNING,
         volume: 0.398_107_17,
@@ -72,6 +74,12 @@ const KITS: [UiSoundKit; 10] = [
         id: IG_MAINMENU_OPTION_CHECKBOX_ON,
         volume: 0.251_188_64,
         files: &[567_407], // sound/interface/uchatscrollbutton.ogg
+    },
+    // Active70391 SoundKit857/Entry926: same file as ON, with its authored OFF gain.
+    UiSoundKit {
+        id: IG_MAINMENU_OPTION_CHECKBOX_OFF,
+        volume: 0.5,
+        files: &[567_407],
     },
     UiSoundKit {
         id: ITEM_REPAIR,
