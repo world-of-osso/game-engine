@@ -263,7 +263,7 @@ fn slot_line(entry: &ItemCatalogEntry, subclass: &str) -> Option<TooltipLineStat
 }
 
 /// `INVTYPE_*` GlobalStrings by `Enum.InventoryType`.
-fn inventory_type_label(inventory_type: u8) -> Option<&'static str> {
+pub(crate) fn inventory_type_label(inventory_type: u8) -> Option<&'static str> {
     Some(match inventory_type {
         1 => "Head",
         2 => "Neck",
