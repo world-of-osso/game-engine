@@ -403,6 +403,81 @@ fn companion_loadout_and_card_follow_retail_xml_in_both_skins() {
 }
 
 #[test]
+fn loadout_decoration_and_names_follow_owned_quality_type_and_health() {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for health in [73, 0] {
+            for custom_name in [None, Some("Clockwork")] {
+                let mut state = view();
+                state.journal.pets[0].quality = PetQuality::Rare;
+                state.journal.pets[0].custom_name = custom_name.map(str::to_owned);
+                let mut details = combat_details(384, false, None);
+                details.pets[0].health = health;
+                state.receive_details(details);
+                let mut context = SharedContext::new();
+                context.insert(state);
+                let mut registry = FrameRegistry::new(1920.0, 1080.0);
+                Screen::new(pet_journal_screen).sync(&context, &mut registry);
+                game_engine_ui_model::collections_component::apply_collections_postsetup(
+                    &mut registry,
+                );
+                let frame = |name| {
+                    registry
+                        .get(registry.get_by_name(name).expect(name))
+                        .unwrap()
+                };
+                let shadow = frame("PetJournalBattleSlot0Shadow");
+                assert_eq!(shadow.position.left, Val::Px(274.0));
+                let emblem = frame("PetJournalBattleSlot0PetTypeIcon");
+                assert_eq!([emblem.width, emblem.height], [Dimension::Fixed(60.0); 2]);
+                assert_eq!(emblem.position.top, Val::Px(46.0));
+                let quality = frame("PetJournalBattleSlot0QualityBorder");
+                let Some(WidgetData::Texture(texture)) = &quality.widget_data else {
+                    panic!("quality art");
+                };
+                assert_eq!(texture.vertex_color, [0.0, 0.44, 0.87, 1.0]);
+                let dead = registry
+                    .get_by_name("PetJournalBattleSlot0Dead")
+                    .and_then(|id| registry.get(id));
+                assert_eq!(
+                    dead.is_some_and(|frame| frame.visible && !frame.hidden),
+                    health == 0
+                );
+                let name = frame("PetJournalBattleSlot0Name");
+                assert_eq!(
+                    name.height,
+                    Dimension::Fixed(if custom_name.is_some() { 12.0 } else { 28.0 })
+                );
+                assert_eq!(
+                    name.position.top,
+                    Val::Px(if custom_name.is_some() { 19.0 } else { 11.0 })
+                );
+                let Some(WidgetData::FontString(text)) = &name.widget_data else {
+                    panic!("loadout name");
+                };
+                assert_eq!(
+                    text.justify_v,
+                    ui_toolkit::widgets::font_string::JustifyV::Bottom
+                );
+                if custom_name.is_some() {
+                    let Some(WidgetData::FontString(text)) =
+                        &frame("PetJournalBattleSlot0SubName").widget_data
+                    else {
+                        panic!("species subtitle");
+                    };
+                    assert_eq!(text.text, "Mechanical Squirrel");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
     use shared::protocol::{
         PetBattleQueueRequest as Request, PetBattleQueueState as State, PetBattleQueueUpdate,
