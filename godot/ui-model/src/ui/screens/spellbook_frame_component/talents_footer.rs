@@ -15,11 +15,11 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
             label_name: "TalentLoadoutName",
             arrow_name: "TalentLoadoutArrow",
             text: view.editor.loadout_caption(),
-            width: 200.0 * scale,
-            height: 30.0 * scale,
+            width: 120.0 * scale,
+            height: 25.0 * scale,
             x: 48.0 * scale,
             // menu_primitives takes y-up offsets; talent canvas is y-down.
-            y: -y * scale,
+            y: -(y + 2.5) * scale,
             background_color: "0.04,0.04,0.04,1.0",
             text_color: TAB_TEXT,
             arrow_color: TAB_TEXT,
@@ -34,7 +34,7 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
     if view.editor.reset_menu {
         children.extend(menu(
             "TalentResetMenu",
-            [BOOK_W / 2.0 + 96.0, y - 106.0, 200.0, 106.0],
+            [BOOK_W / 2.0 + 96.0, y - 83.0, 200.0, 83.0],
             vec![
                 menu_row(
                     "TalentResetClass",
@@ -73,8 +73,11 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
     if view.editor.loadout_menu {
         children.extend(loadouts::loadout_menu(view, y, scale));
     }
-    children.extend(loadouts::loadout_dialog(view, scale));
     children
+}
+
+pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
+    loadouts::loadout_dialog(view, viewport)
 }
 
 fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
@@ -239,9 +242,13 @@ fn preview_icon(view: &TalentView, entry: u32, name: &str, scale: f32) -> Elemen
 }
 
 fn menu(name: &str, rect: [f32; 4], children: Element, scale: f32) -> Element {
+    let backdrop = crate::selection_list::menu_background(
+        format!("{name}Background"),
+        (rect[2] * scale, rect[3] * scale),
+    );
     rsx! { r#frame {name:{DynName(name.into())},width:{rect[2]*scale},height:{rect[3]*scale},
-    background_color:"0.04,0.04,0.04,1.0",strata:FrameStrata::Dialog,frame_level:2000,
-    pos_type:"absolute",left:{rect[0]*scale},top:{rect[1]*scale},{children}} }
+    strata:FrameStrata::Dialog,frame_level:2000,
+    pos_type:"absolute",left:{rect[0]*scale},top:{rect[1]*scale},{backdrop}{children}} }
 }
 fn menu_row(
     name: &str,
@@ -252,17 +259,19 @@ fn menu_row(
     width: f32,
     scale: f32,
 ) -> Element {
-    use crate::ui::screens::quest_art::panel_button;
-    panel_button(
-        name.into(),
-        text,
-        action,
+    crate::menu_primitives::menu_element(
+        crate::menu_primitives::ContextMenuItem {
+            name,
+            label: text,
+            action,
+        },
+        crate::menu_primitives::MenuElementKind::Button,
         enabled,
         (
-            6.0 * scale,
-            (6.0 + index as f32 * 28.0) * scale,
-            (width - 12.0) * scale,
-            22.0 * scale,
+            8.0 * scale,
+            (8.0 + index as f32 * 20.0) * scale,
+            (width - 16.0) * scale,
+            20.0 * scale,
         ),
     )
 }

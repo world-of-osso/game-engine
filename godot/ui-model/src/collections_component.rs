@@ -22,12 +22,13 @@ pub fn collections_shell(viewport: [f32; 2], selected: usize, body: Element) -> 
     } else {
         TABS[selected]
     };
-    let chrome = portrait_border(
+    let mut chrome = portrait_background();
+    chrome.extend(portrait_border(
         "CollectionsJournal",
         (SIZE[0], SIZE[1]),
         title,
         "collections:close",
-    );
+    ));
     let portrait =
         window_portrait_texture(&window_portrait_slot("CollectionsJournalPortrait"), 454_046);
     let tabs = tabs(selected);
@@ -37,11 +38,137 @@ pub fn collections_shell(viewport: [f32; 2], selected: usize, body: Element) -> 
         r#frame { name: "CollectionsRoot", stretch: true,
             r#frame { name: "CollectionsJournal", width: 703.0, height: 606.0,
                 mouse_enabled: true, pos_type: "absolute", left, top, strata: FrameStrata::Dialog,
-                background_color: "0.08,0.07,0.06,1.0",
                 {chrome} {portrait} {body} {tabs}
             }
         }
     }
+}
+
+// PortraitFrameTexturedBaseTemplate, SharedUIPanelTemplates.xml:597-614.
+fn portrait_background() -> Element {
+    let streaks = named_atlas_texture(
+        "CollectionsJournalTopTileStreaks".into(),
+        "_UI-Frame-TopTileStreaks",
+        (6.0, 21.0, SIZE[0] - 8.0, 43.0),
+    );
+    rsx! {
+        texture { name: "CollectionsJournalBg", texture_fdid: 374_155,
+            width: {SIZE[0] - 4.0}, height: {SIZE[1] - 23.0},
+            pos_type: "absolute", left: 2.0, top: 21.0 }
+        {streaks}
+    }
+}
+
+/// RSX does not expose Retail Texture's horizTile/vertTile attributes.
+pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    // These source tabs remain unavailable; keep their disabled label state while
+    // the shared PanelTab renderer owns all art and geometry.
+    for index in 4..=6 {
+        if let Some(id) = registry.get_by_name(&format!("CollectionsJournalTab{index}Text")) {
+            let frame = registry.get_mut(id).expect("collections tab label");
+            let Some(ui_toolkit::frame::WidgetData::FontString(label)) = &mut frame.widget_data
+            else {
+                panic!("collections tab label must be text");
+            };
+            label.color = [0.5, 0.5, 0.5, 1.0];
+        }
+    }
+    for (name, horizontal, vertical) in [
+        ("CollectionsJournalBg", true, true),
+        ("CollectionsJournalTopTileStreaks", true, false),
+    ] {
+        if let Some(id) = registry.get_by_name(name) {
+            let frame = registry.get_mut(id).expect("collections texture");
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
+            else {
+                panic!("{name} must be a texture");
+            };
+            texture.horiz_tile = horizontal;
+            texture.vert_tile = vertical;
+        }
+    }
+}
+
+/// SharedCollectionTemplates.xml:68-202, two source-sized shadow rings and corners.
+pub fn collection_background_shadows(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
+    let mut out = Vec::new();
+    for (suffix, atlas, edges) in [
+        ("Shadow", "collections-background-shadow-large", true),
+        ("OverlayShadow", "collections-background-shadow-small", true),
+        ("BGCorner", "collections-background-corner", false),
+    ] {
+        out.extend(atlas_corner_ring(prefix, suffix, atlas, rect, edges));
+    }
+    out
+}
+
+fn atlas_corner_ring(
+    prefix: &str,
+    suffix: &str,
+    atlas: &str,
+    (x, y, width, height): (f32, f32, f32, f32),
+    edges: bool,
+) -> Element {
+    use ui_toolkit::atlas::{resolve_region, thread_skin};
+    let region = resolve_region(atlas, thread_skin()).expect("collection shadow atlas");
+    let w = region.width;
+    let h = region.height;
+    let mut pieces = vec![
+        ("TopLeft", (x, y, w, h), [0.0, 1.0, 0.0, 1.0]),
+        ("TopRight", (x + width - w, y, w, h), [1.0, 0.0, 0.0, 1.0]),
+        (
+            "BottomLeft",
+            (x, y + height - h, w, h),
+            [0.0, 1.0, 1.0, 0.0],
+        ),
+        (
+            "BottomRight",
+            (x + width - w, y + height - h, w, h),
+            [1.0, 0.0, 1.0, 0.0],
+        ),
+    ];
+    if edges {
+        pieces.extend([
+            (
+                "Top",
+                (x + w, y, width - 2.0 * w, h),
+                [0.9999, 1.0, 0.0, 1.0],
+            ),
+            (
+                "Bottom",
+                (x + w, y + height - h, width - 2.0 * w, h),
+                [0.9999, 1.0, 1.0, 0.0],
+            ),
+            (
+                "Left",
+                (x, y + h, w, height - 2.0 * h),
+                [0.0, 1.0, 0.9999, 1.0],
+            ),
+            (
+                "Right",
+                (x + width - w, y + h, w, height - 2.0 * h),
+                [1.0, 0.0, 0.9999, 1.0],
+            ),
+        ]);
+    }
+    pieces
+        .into_iter()
+        .flat_map(|(part, (left, top, width, height), [l, r, t, b])| {
+            let uv = format!(
+                "{},{},{},{}",
+                region.left + (region.right - region.left) * l,
+                region.left + (region.right - region.left) * r,
+                region.top + (region.bottom - region.top) * t,
+                region.top + (region.bottom - region.top) * b
+            );
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("collection shadow requires FDID");
+            };
+            rsx! { texture { name: {DynName(format!("{prefix}{suffix}{part}"))},
+            texture_fdid: fdid, tex_coords: {uv.as_str()}, width, height,
+            left, top, pos_type: "absolute" } }
+        })
+        .collect()
 }
 
 fn tabs(selected: usize) -> Element {
@@ -62,48 +189,17 @@ fn tabs(selected: usize) -> Element {
 }
 
 fn journal_tab(index: usize, active: usize, title: &str, left: f32, width: f32) -> Element {
-    let selected = index == active;
-    let name = format!("CollectionsJournalTab{}", index + 1);
-    let prefix = if selected {
-        "uiframe-activetab"
-    } else {
-        "uiframe-tab"
-    };
-    let height = if selected { 42.0 } else { 36.0 };
-    let offset = if selected { -1.0 } else { -3.0 };
-    let right = width + if selected { 8.0 } else { 7.0 } - 37.0;
-    let mut art = named_atlas_texture(
-        format!("{name}Left"),
-        &format!("{prefix}-left"),
-        (offset, 0.0, 35.0, height),
-    );
-    art.extend(named_atlas_texture(
-        format!("{name}Middle"),
-        &format!("_{prefix}-center"),
-        (offset + 35.0, 0.0, right - offset - 35.0, height),
-    ));
-    art.extend(named_atlas_texture(
-        format!("{name}Right"),
-        &format!("{prefix}-right"),
-        (right, 0.0, 37.0, height),
-    ));
-    let enabled = matches!(index, 0 | 1 | 2);
-    let color = if selected {
-        "1.0,1.0,1.0,1.0"
-    } else if enabled {
-        "1.0,0.82,0.0,1.0"
-    } else {
-        "0.5,0.5,0.5,1.0"
-    };
     let action = match index {
         0 => "collections:mounts",
         1 => "collections:pets",
-        _ => "collections:toys",
+        2 => "collections:toys",
+        _ => "",
     };
-    rsx! { button { name: {DynName(name.clone())}, width, height: 32.0, pos_type: "absolute", left, top: 604.0,
-        button_default_skin: false, disabled: {!enabled}, onclick: action, {art}
-        fontstring { name: {DynName(format!("{name}Text"))}, text: title, width, height: 32.0,
-            pos_type: "absolute", left: 0.0, top: {if selected { 3.0 } else { -2.0 }},
-            font_size: 10.0, font_color: color, justify_h: "CENTER" }
-    } }
+    crate::merchant_frame_component::tab(
+        &format!("CollectionsJournalTab{}", index + 1),
+        title,
+        (left, SIZE[1] - 2.0, width),
+        index == active,
+        action,
+    )
 }

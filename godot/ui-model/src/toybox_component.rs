@@ -8,6 +8,15 @@ use ui_toolkit::{
 
 /// Retail ToySpellButton_UpdateButton desaturates the uncollected icon.
 pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
+    crate::collections_component::apply_collections_postsetup(registry);
+    if let Some(id) = registry.get_by_name("ToyBoxBackground") {
+        let frame = registry.get_mut(id).expect("ToyBox background");
+        let Some(WidgetData::Texture(texture)) = &mut frame.widget_data else {
+            panic!("ToyBoxBackground must be a texture");
+        };
+        texture.horiz_tile = true;
+        texture.vert_tile = true;
+    }
     for (index, toy) in view.model.page_items().into_iter().enumerate() {
         let name = format!("ToySpellButton{}Icon", index + 1);
         if let Some(id) = registry.get_by_name(&name)
@@ -35,12 +44,9 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
         .enumerate()
         .flat_map(|(index, toy)| toy_tile(model, index, toy))
         .collect();
-    let background = named_atlas_texture(
-        "ToyBoxBackground".into(),
-        "collections-background-tile",
-        (3.0, 40.0, 691.0, 541.0),
-    );
+    let background = collections_background();
     let filters = filter_menu(model);
+    let filter_button = filter_dropdown(model);
     let context = context_menu(model);
     let progress = progress_bar(model);
     let search = search_box(model);
@@ -48,65 +54,57 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
     let error = model.error.as_deref().unwrap_or("");
     let empty = model.page_items().is_empty();
     let body = rsx! {
-                r#frame { name: "ToyBox", width: 701.0, height: 580.0, pos_type: "absolute", left: 1.0, top: 20.0,
+                r#frame { name: "ToyBox", width: 703.0, height: 606.0, pos_type: "absolute", left: 0.0, top: 0.0,
                     {progress}
                     {search}
-                    button { name: "ToyBoxFilterDropdown", text: "Filter", width: 90.0, height: 22.0,
-                        pos_type: "absolute", left: 599.0, top: 15.0, onclick: "toy_filters" }
+                    {filter_button}
                     {background}
                     {tiles}
                     fontstring { name: "ToyBoxEmpty", text: "No toys match these filters.", hidden: {!empty},
-                        width: 600.0, height: 24.0, pos_type: "absolute", left: 40.0, top: 245.0 }
+                        width: 600.0, height: 24.0, pos_type: "absolute", left: 44.0, top: 265.0 }
                     button { name: "ToyBoxPrevPage", text: "<", width: 32.0, height: 32.0,
-                        pos_type: "absolute", left: 335.0, top: 516.0, onclick: "toy_page:prev", disabled: {model.page == 0} }
+                        pos_type: "absolute", left: 336.0, top: 536.0, onclick: "toy_page:prev", disabled: {model.page == 0} }
                     button { name: "ToyBoxNextPage", text: ">", width: 32.0, height: 32.0,
-                        pos_type: "absolute", left: 370.0, top: 516.0, onclick: "toy_page:next", disabled: {model.page + 1 >= model.page_count()} }
+                        pos_type: "absolute", left: 371.0, top: 536.0, onclick: "toy_page:next", disabled: {model.page + 1 >= model.page_count()} }
                     fontstring { name: "ToyBoxPageText", text: {page.as_str()}, width: 140.0, height: 20.0,
-                        pos_type: "absolute", left: 190.0, top: 522.0, justify_h: "RIGHT", font_size: 12.0 }
+                        pos_type: "absolute", left: 191.0, top: 542.0, justify_h: "RIGHT", font_size: 12.0 }
                     fontstring { name: "ToyBoxError", text: error, width: 650.0, height: 26.0,
-                        pos_type: "absolute", left: 24.0, top: 548.0, font_color: "1.0,0.2,0.2,1.0", font_size: 12.0 }
+                        pos_type: "absolute", left: 24.0, top: 568.0, font_color: "1.0,0.2,0.2,1.0", font_size: 12.0 }
                     {filters} {context}
                 }
     };
     crate::collections_component::collections_shell(view.viewport, 2, body)
 }
 
+// ToyBox.iconsFrame inherits CollectionsBackgroundTemplate; Retail anchors resolve
+// to (4,60)-(697,601). Its tile is inset four pixels on every edge.
+fn collections_background() -> Element {
+    let tile = named_atlas_texture(
+        "ToyBoxBackground".into(),
+        "collections-background-tile",
+        (4.0, 4.0, 685.0, 533.0),
+    );
+    let border = crate::ui::screens::auction_house_frame_component::inset_border(
+        "ToyBoxIconsFrame",
+        (0.0, 0.0, 693.0, 541.0),
+    );
+    let shadows = crate::collections_component::collection_background_shadows(
+        "ToyBox",
+        (4.0, 4.0, 685.0, 533.0),
+    );
+    rsx! { r#frame { name: "ToyBoxIconsFrame", width: 693.0, height: 541.0,
+        left: 4.0, top: 60.0, pos_type: "absolute", clip_children: true,
+        {tile} {border} {shadows}
+    } }
+}
+
 fn search_box(model: &ToyBox) -> Element {
-    let mut art = named_atlas_texture(
-        "ToyBoxSearchLeft".into(),
-        "common-search-border-left",
-        (476.0, 15.0, 8.0, 20.0),
-    );
-    art.extend(named_atlas_texture(
-        "ToyBoxSearchMiddle".into(),
-        "common-search-border-middle",
-        (484.0, 15.0, 104.0, 20.0),
-    ));
-    art.extend(named_atlas_texture(
-        "ToyBoxSearchRight".into(),
-        "common-search-border-right",
-        (588.0, 15.0, 8.0, 20.0),
-    ));
-    art.extend(named_atlas_texture(
-        "ToyBoxSearchIcon".into(),
-        "common-search-magnifyingglass",
-        (482.0, 21.0, 10.0, 10.0),
-    ));
-    let search = model.filters.search.as_str();
-    let clear = named_atlas_texture(
-        "ToyBoxSearchClearIcon".into(),
-        "common-search-clearbutton",
-        (3.0, 3.0, 10.0, 10.0),
-    );
-    rsx! { {art}
-        editbox { name: "ToyBoxSearchBox", text: search, width: 115.0, height: 20.0,
-            text_insets: "16,20,0,0", pos_type: "absolute", left: 481.0, top: 15.0, font_size: 12.0 }
-        fontstring { name: "ToyBoxSearchHint", text: "Search", hidden: {!search.is_empty()},
-            mouse_enabled: false, width: 70.0, height: 20.0, pos_type: "absolute", left: 497.0, top: 15.0,
-            font_size: 12.0, font_color: "0.5,0.5,0.5,1.0", justify_h: "LEFT" }
-        button { name: "ToyBoxSearchClear", width: 17.0, height: 17.0, hidden: {search.is_empty()},
-            pos_type: "absolute", left: 576.0, top: 16.5, button_default_skin: false, onclick: "toy_search:clear", {clear} }
-    }
+    crate::search_box_template::search_box(
+        "ToyBox",
+        &model.filters.search,
+        "toy_search:clear",
+        (481.0, 35.0, 115.0, 20.0),
+    )
 }
 
 fn progress_bar(model: &ToyBox) -> Element {
@@ -115,7 +113,7 @@ fn progress_bar(model: &ToyBox) -> Element {
     let width = 196.0 * learned as f32 / model.catalog.len().max(1) as f32;
     rsx! {
         r#frame { name: "ToyBoxProgressBar", width: 196.0, height: 13.0,
-            pos_type: "absolute", left: 252.0, top: 19.0, background_color: "0.0,0.0,0.0,1.0",
+            pos_type: "absolute", left: 253.5, top: 39.0, background_color: "0.0,0.0,0.0,1.0",
             r#frame { name: "ToyBoxProgressFill", width, height: 11.0, pos_type: "absolute", left: 0.0, top: 1.0,
                 background_color: "0.03125,0.85,0.0,1.0" }
             texture { name: "ToyBoxProgressBorder", texture_fdid: 136571, width: 205.0, height: 29.0,
@@ -135,8 +133,8 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
     } else {
         toy.name.clone()
     };
-    let left = 43.0 + (index % 3) as f32 * 208.0;
-    let top = 93.0 + (index / 3) as f32 * 66.0;
+    let left = 44.0 + (index % 3) as f32 * 208.0;
+    let top = 113.0 + (index / 3) as f32 * 66.0;
     let alpha = if !toy.learned {
         0.18
     } else if toybox::can_use(toy) {
@@ -205,13 +203,57 @@ fn menu_button(
     top: f32,
     checked: Option<bool>,
 ) -> Element {
-    let label = checked.map_or_else(
-        || title.into(),
-        |value| format!("{} {title}", if value { "[x]" } else { "[ ]" }),
-    );
-    rsx! { button { name: {DynName(name)}, text: {label.as_str()}, onclick: action,
-    width: 210.0, height: 22.0, pos_type: "absolute", left: 4.0, top, font_size: 11.0 } }
+    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
+    let (title, kind) = if let Some(checked) = checked {
+        (title, MenuElementKind::Checkbox { checked })
+    } else if let Some(title) = title.strip_suffix(" >") {
+        (title, MenuElementKind::Submenu)
+    } else {
+        (title, MenuElementKind::Button)
+    };
+    menu_element(
+        ContextMenuItem {
+            name: &name,
+            label: title,
+            action,
+        },
+        kind,
+        true,
+        (8.0, top, 202.0, 20.0),
+    )
 }
+fn filter_dropdown(model: &ToyBox) -> Element {
+    use crate::menu_primitives::*;
+    let changed = !model.filters.collected
+        || !model.filters.uncollected
+        || model.filters.usable_only
+        || model.filters.sources.is_some()
+        || model.filters.expansions.is_some();
+    dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "ToyBoxFilterDropdown",
+            label_name: "ToyBoxFilterText",
+            arrow_name: "ToyBoxFilterArrow",
+            text: "Filter",
+            width: 90.0,
+            height: 22.0,
+            x: 601.0,
+            y: -35.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some("toy_filters"),
+        },
+        DropdownState {
+            style: DropdownStyle::Filter,
+            resize_to_text: false,
+            open: model.filters_open,
+            reset_action: changed.then_some("toy_filter:reset"),
+            ..Default::default()
+        },
+    )
+}
+
 fn filter_menu(model: &ToyBox) -> Element {
     if !model.filters_open {
         return vec![];
@@ -226,14 +268,19 @@ fn filter_menu(model: &ToyBox) -> Element {
                 format!("ToyFilter{i}"),
                 &title,
                 &action,
-                4.0 + i as f32 * 22.0,
+                8.0 + i as f32 * 20.0,
                 checked,
             )
         })
         .collect();
-    rsx! { r#frame { name: "ToyBoxFilterMenu", width: 218.0, height: {8.0 + count as f32 * 22.0},
-    pos_type: "absolute", left: 480.0, top: 40.0, strata: FrameStrata::Dialog,
-    mouse_enabled: true, background_color: "0.05,0.04,0.03,1.0", {children} } }
+    let height = 23.0 + count as f32 * 20.0;
+    let background = crate::selection_list::menu_background(
+        "ToyBoxFilterMenuBackground".into(),
+        (218.0, height),
+    );
+    rsx! { r#frame { name: "ToyBoxFilterMenu", width: 218.0, height,
+    pos_type: "absolute", left: 601.0, top: 57.0, strata: FrameStrata::Dialog,
+    mouse_enabled: true, {background} {children} } }
 }
 fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
     if let Some(kind) = &model.filter_submenu {
@@ -285,7 +332,6 @@ fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
         ),
         ("Sources >".into(), "toy_filter:sources".into(), None),
         ("Expansion >".into(), "toy_filter:expansions".into(), None),
-        ("Reset Filters".into(), "toy_filter:reset".into(), None),
     ]
 }
 fn filter_label(kind: &str, id: i32) -> String {
@@ -335,8 +381,10 @@ fn context_menu(model: &ToyBox) -> Element {
         "Set Favorite"
     };
     let action = format!("{}{}", toybox::FAVOURITE_PREFIX, toy.item_id);
-    let button = menu_button("ToyBoxFavouriteToggle".into(), title, &action, 4.0, None);
-    rsx! { r#frame { name: "ToyBoxContextMenu", width: 218.0, height: 30.0,
+    let button = menu_button("ToyBoxFavouriteToggle".into(), title, &action, 8.0, None);
+    let background =
+        crate::selection_list::menu_background("ToyBoxContextMenuBackground".into(), (218.0, 43.0));
+    rsx! { r#frame { name: "ToyBoxContextMenu", width: 218.0, height: 43.0,
     pos_type: "absolute", left: 400.0, top: 440.0, strata: FrameStrata::Dialog,
-    mouse_enabled: true, background_color: "0.05,0.04,0.03,1.0", {button} } }
+    mouse_enabled: true, {background} {button} } }
 }

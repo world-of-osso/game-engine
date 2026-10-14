@@ -4,7 +4,7 @@ use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::pet_journal::{
-    PetJournalView, PetRowKey, PetSpeciesVisual, SEARCH, pet_journal_screen,
+    PetJournalView, PetRowKey, PetSpeciesFilter, PetSpeciesVisual, SEARCH, pet_journal_screen,
 };
 use godot::prelude::*;
 
@@ -13,10 +13,30 @@ pub(crate) struct CompanionJournal {
     pub(crate) view: PetJournalView,
     ui: Option<Gd<RegistryUi>>,
     icons_loaded: bool,
-    scene: Option<Scene>,
-    pending_model: Option<(u64, u32)>,
-    shown_display: Option<u32>,
+    previews: [PetPreview; 4],
+    scene_ids: std::collections::BTreeMap<u32, [u32; 2]>,
+    model_scenes: std::collections::BTreeMap<u32, game_engine_core::pet_model_scene::PetModelScene>,
 }
+
+#[derive(Default)]
+struct PetPreview {
+    scene: Option<Scene>,
+    pending_model: Option<(u64, PetPreviewModel)>,
+    shown_model: Option<PetPreviewModel>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct PetPreviewModel {
+    display_id: u32,
+    scene_id: u32,
+}
+
+const PREVIEW_HOSTS: [&str; 4] = [
+    "PetJournalPetCardModelScene",
+    "PetJournalBattleSlot0ModelScene",
+    "PetJournalBattleSlot1ModelScene",
+    "PetJournalBattleSlot2ModelScene",
+];
 impl CompanionJournal {
     pub(crate) fn visit_uis(
         &mut self,
@@ -41,7 +61,7 @@ impl GameClient {
     pub(super) fn close_pet_journal(&mut self) -> bool {
         let shown = self.pet_journal.view.visible;
         self.pet_journal.view.visible = false;
-        self.clear_pet_card_model();
+        self.clear_pet_models();
         if let Some(ui) = self.pet_journal.ui.take() {
             ui.free();
         }
@@ -65,9 +85,9 @@ impl GameClient {
         if self.pet_journal.view.visible || self.pet_journal.view.queue_ready() {
             self.sync_pet_journal()?;
             if self.pet_journal.view.visible {
-                self.sync_pet_card_model()?;
+                self.sync_pet_models()?;
             } else {
-                self.clear_pet_card_model();
+                self.clear_pet_models();
             }
         }
         Ok(())
@@ -79,16 +99,41 @@ impl GameClient {
         self.load_pet_visuals()?;
         let path = self.data_root.join("db2/active/BattlePetSpecies.csv");
         let mut icons = std::collections::BTreeMap::new();
+        let mut metadata = std::collections::BTreeMap::new();
+        let mut scene_ids = std::collections::BTreeMap::new();
         game_engine_core::csv_util::read_numeric_rows(
             &path,
-            ["ID", "IconFileDataID"],
-            |[species, fdid]| {
+            [
+                "ID",
+                "IconFileDataID",
+                "Flags",
+                "SourceTypeEnum",
+                "CardUIModelSceneID",
+                "LoadoutUIModelSceneID",
+            ],
+            |[species, fdid, flags, source, card, loadout]| {
+                scene_ids.insert(species as u32, [card as u32, loadout as u32]);
                 icons.insert(species as u32, fdid as u32);
+                metadata.insert(
+                    species as u32,
+                    PetSpeciesFilter {
+                        flags: flags as u32,
+                        source: source as i32,
+                    },
+                );
             },
         )?;
         for icon in icons.values_mut() {
             *icon = self.drawable_fdid(*icon);
         }
+        let path = self.data_root.join("battle-pet-model-scenes.json");
+        let scenes: Vec<game_engine_core::pet_model_scene::PetModelScene> = serde_json::from_slice(
+            &std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?,
+        )
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+        self.pet_journal.model_scenes = scenes.into_iter().map(|scene| (scene.id, scene)).collect();
+        self.pet_journal.scene_ids = scene_ids;
+        self.pet_journal.view.species_filters = metadata;
         self.pet_journal.view.icons = icons;
         self.pet_journal.icons_loaded = true;
         Ok(())
@@ -131,6 +176,9 @@ impl GameClient {
         Ok(())
     }
     fn apply_pet_journal_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if self.pet_journal.view.apply_filter(action) {
+            return Ok(());
+        }
         if let Some(slot) = action.strip_prefix("pet:equip:") {
             let slot = slot
                 .parse()
@@ -167,10 +215,7 @@ impl GameClient {
                     self.close_pet_journal();
                     self.toggle_toybox()?;
                 }
-                "pet:filter" => {
-                    self.pet_journal.view.collected_only = !self.pet_journal.view.collected_only;
-                    self.pet_journal.view.reselect_visible();
-                }
+                "pet:search-clear" => self.pet_journal.view.set_search(String::new()),
                 "pet:summon" => {
                     if let Some(request) = self.pet_journal.view.summon_or_dismiss() {
                         self.account.send_pet_request(request)?;
@@ -216,55 +261,94 @@ impl GameClient {
         Ok(())
     }
 
-    fn clear_pet_card_model(&mut self) {
-        if let Some((id, _)) = self.pet_journal.pending_model.take() {
-            self.world.cancel_detached_visual(id);
+    fn clear_pet_models(&mut self) {
+        for index in 0..PREVIEW_HOSTS.len() {
+            self.clear_pet_preview(index);
         }
-        if let Some(scene) = self.pet_journal.scene.take() {
-            scene.free();
-        }
-        self.pet_journal.shown_display = None;
     }
 
-    fn sync_pet_card_model(&mut self) -> Result<(), String> {
-        let display = self
-            .pet_journal
-            .view
-            .selected_visual()
-            .map(|visual| visual.display_id)
-            .filter(|id| *id != 0);
-        let current = self
-            .pet_journal
-            .pending_model
-            .map(|(_, display)| display)
-            .or(self.pet_journal.shown_display);
-        if display != current {
-            self.clear_pet_card_model();
-            if let Some(display_id) = display {
-                let appearance = UnitAppearance::Creature {
-                    display_id,
-                    items: Default::default(),
-                };
-                let id = self.world.request_detached_visual(&appearance);
-                self.pet_journal.pending_model = Some((id, display_id));
-            }
+    fn clear_pet_preview(&mut self, index: usize) {
+        let preview = &mut self.pet_journal.previews[index];
+        if let Some((id, _)) = preview.pending_model.take() {
+            self.world.cancel_detached_visual(id);
         }
-        if display.is_none() {
+        if let Some(scene) = preview.scene.take() {
+            scene.free();
+        }
+        preview.shown_model = None;
+    }
+
+    fn sync_pet_models(&mut self) -> Result<(), String> {
+        let view = &self.pet_journal.view;
+        let card_species = view.selected_visual().map(|visual| visual.species_id);
+        let slot_species = view
+            .journal
+            .battle_slots
+            .map(|id| view.journal.get(id?).map(|pet| pet.species_id));
+        let species = [
+            card_species,
+            slot_species[0],
+            slot_species[1],
+            slot_species[2],
+        ];
+        for (index, species) in species.into_iter().enumerate() {
+            let model = self.pet_preview_model(species, index == 0)?;
+            self.sync_pet_preview(index, model)?;
+        }
+        Ok(())
+    }
+
+    fn pet_preview_model(
+        &self,
+        species: Option<u32>,
+        card: bool,
+    ) -> Result<Option<PetPreviewModel>, String> {
+        let Some(visual) = species.and_then(|id| self.pet_journal.view.visuals.get(&id)) else {
+            return Ok(None);
+        };
+        if visual.display_id == 0 {
+            return Ok(None);
+        }
+        let scenes = self
+            .pet_journal
+            .scene_ids
+            .get(&visual.species_id)
+            .ok_or_else(|| format!("Pet species {} scene links missing", visual.species_id))?;
+        let scene_id = scenes[usize::from(!card)];
+        if !self.pet_journal.model_scenes.contains_key(&scene_id) {
+            return Err(format!(
+                "Pet species {} authored ModelScene {scene_id} missing",
+                visual.species_id
+            ));
+        }
+        Ok(Some(PetPreviewModel {
+            display_id: visual.display_id,
+            scene_id,
+        }))
+    }
+
+    fn sync_pet_preview(
+        &mut self,
+        index: usize,
+        model: Option<PetPreviewModel>,
+    ) -> Result<(), String> {
+        self.request_pet_preview(index, model);
+        if model.is_none() {
             return Ok(());
         }
-        if self.pet_journal.scene.is_none() {
+        if self.pet_journal.previews[index].scene.is_none() {
             let host = self
                 .pet_journal
                 .ui
                 .as_ref()
                 .ok_or("Collections UI missing")?
                 .bind()
-                .frame_control("PetJournalPetCardModelScene")
-                .ok_or("Pet card model scene missing")?;
-            self.pet_journal.scene = Some(Scene::new(host));
+                .frame_control(PREVIEW_HOSTS[index])
+                .ok_or_else(|| format!("Pet model scene missing: {}", PREVIEW_HOSTS[index]))?;
+            self.pet_journal.previews[index].scene = Some(Scene::new(host));
         }
-        self.attach_pet_card_model()?;
-        self.pet_journal
+        self.attach_pet_preview(index)?;
+        self.pet_journal.previews[index]
             .scene
             .as_mut()
             .expect("created above")
@@ -272,22 +356,48 @@ impl GameClient {
         Ok(())
     }
 
-    fn attach_pet_card_model(&mut self) -> Result<(), String> {
-        let Some((id, display)) = self.pet_journal.pending_model else {
+    fn request_pet_preview(&mut self, index: usize, model: Option<PetPreviewModel>) {
+        let preview = &self.pet_journal.previews[index];
+        let current = preview
+            .pending_model
+            .map(|(_, model)| model)
+            .or(preview.shown_model);
+        if model == current {
+            return;
+        }
+        self.clear_pet_preview(index);
+        if let Some(model) = model {
+            let appearance = UnitAppearance::Creature {
+                display_id: model.display_id,
+                items: Default::default(),
+            };
+            let id = self.world.request_detached_visual(&appearance);
+            self.pet_journal.previews[index].pending_model = Some((id, model));
+        }
+    }
+
+    fn attach_pet_preview(&mut self, index: usize) -> Result<(), String> {
+        let preview = &mut self.pet_journal.previews[index];
+        let Some((id, key)) = preview.pending_model else {
             return Ok(());
         };
         let Some(loaded) = self.world.take_detached_visual(id) else {
             return Ok(());
         };
-        self.pet_journal.pending_model = None;
+        preview.pending_model = None;
         let model = loaded?;
         bind_sheet_light(&model);
-        self.pet_journal
+        let authored = self
+            .pet_journal
+            .model_scenes
+            .get(&key.scene_id)
+            .ok_or_else(|| format!("Pet ModelScene {} missing", key.scene_id))?;
+        preview
             .scene
             .as_mut()
-            .ok_or("Pet card model scene missing")?
-            .replace_model(model);
-        self.pet_journal.shown_display = Some(display);
+            .ok_or("Pet model scene missing")?
+            .replace_pet_model(model, authored)?;
+        preview.shown_model = Some(key);
         Ok(())
     }
 }

@@ -110,6 +110,7 @@ pub mod nameplate_style_data;
 pub mod nameplate_visibility_data;
 #[cfg(test)]
 mod nameplate_visibility_data_tests;
+pub mod pet_model_scene;
 #[path = "quest_area_data.rs"]
 pub mod quest_area_data;
 #[path = "realm_preset_data.rs"]

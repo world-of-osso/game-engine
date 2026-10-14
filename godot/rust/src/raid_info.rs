@@ -39,6 +39,27 @@ impl RaidInfo {
     }
 }
 impl GameClient {
+    pub(super) fn raid_info_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() || !self.raid_info.state.visible {
+            return false;
+        }
+        let Some(ui) = self.raid_info.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                true
+            }
+            Ok(false) => false,
+            Err(error) => {
+                crate::frame_error::report_once(&format!("Raid Info scroll: {error}"));
+                false
+            }
+        }
+    }
+
     pub(super) fn close_raid_info(&mut self) -> bool {
         let visible = self.raid_info.state.visible;
         self.raid_info.reset();
