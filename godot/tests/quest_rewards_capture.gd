@@ -9,7 +9,9 @@ func run_rewards_case(forever: bool, long_text: bool) -> void:
 	var clip := node(probe, "QuestMapRewardsFrameContainer")
 	var rewards := node(probe, "QuestMapRewardsFrame")
 	var scroll := node(probe, "QuestMapDetailsScrollFrame")
-	var money := node(probe, "QuestInfoMoneyText")
+	var money := node(probe, "QuestInfoMoneyText") as Label
+	require(money.get_theme_color("font_color") == Color.WHITE, "Map money must use GameFontHighlight, not dark parchment text")
+	require(node(probe, "QuestInfoMoneyIconTexture").size == Vector2(30, 30), "Money must use SmallItemButtonTemplate icon")
 	require(clip.clip_contents, "Reward container must clip native children")
 	var scale: float = clip.get_global_transform().get_scale().y
 	require(abs(clip.size.x - 307.0) < 1, "Reward width differs from XML")
