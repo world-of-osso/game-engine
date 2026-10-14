@@ -24,8 +24,9 @@ fn published_journeys_join_covenant_display_priority_to_texture_kit_prefix() {
 
 #[test]
 fn missing_authored_texture_kit_reports_the_covenant_and_kit() {
-    let directory = tempfile::tempdir().unwrap();
-    let db2 = directory.path().join("db2/active");
+    let directory =
+        std::env::temp_dir().join(format!("journey-presentation-{}", std::process::id()));
+    let db2 = directory.join("db2/active");
     std::fs::create_dir_all(&db2).unwrap();
     std::fs::write(
         db2.join("UiCovenantDisplayInfo.csv"),
@@ -37,7 +38,8 @@ fn missing_authored_texture_kit_reports_the_covenant_and_kit() {
         "ID,KitPrefix\n5477,Expedition\n",
     )
     .unwrap();
-    let error = read_journey_presentation(directory.path()).unwrap_err();
+    let error = read_journey_presentation(&directory).unwrap_err();
+    std::fs::remove_dir_all(directory).unwrap();
     assert!(error.contains("12"), "{error}");
     assert!(error.contains("5478"), "{error}");
 }
