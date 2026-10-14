@@ -14,6 +14,7 @@ use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, rsx, widget_def::El
 const BUTTON: f32 = 64.0;
 const ROW: f32 = 45.0;
 const GAP: f32 = 10.0;
+const MODE_BAR_WIDTH: f32 = 4.0 * BUTTON + GAP;
 const UNBOUND: &str = "[UNBOUND]";
 const MODES: [(&str, &str, &str); 4] = [
     ("BasicDecorMode", "move", "housing:basic"),
@@ -35,7 +36,7 @@ pub fn basic_screen(view: &HousingView) -> Element {
     let instructions = instructions(view);
     let overlay_hidden =
         view.model.editor.placing.is_none() && view.model.editor.selected.is_none();
-    let left = (view.viewport[0] - (4.0 * BUTTON + GAP)) / 2.0 - 26.0;
+    let left = (view.viewport[0] - MODE_BAR_WIDTH) / 2.0 - 26.0;
     let top = view.viewport[1] - BUTTON - 82.0;
     let snap = icon_button(("Snap", "snap", ""), (0.0, 0.0), true, false);
     let free = icon_button(("FreePlace", "freeplacement", ""), (52.0, 0.0), true, false);
@@ -59,7 +60,7 @@ fn binding_width(text: &str) -> f32 {
         + 26.0
 }
 
-fn binding_text(view: &HousingView, action: InputAction) -> String {
+pub(super) fn binding_text(view: &HousingView, action: InputAction) -> String {
     view.model
         .editor_bindings
         .binding(action)
@@ -96,6 +97,13 @@ fn instructions(view: &HousingView) -> Element {
     } else {
         vec![("Select", "Select Decor", None, false)]
     };
+    instruction_rows(view, rows)
+}
+
+pub(super) fn instruction_rows(
+    view: &HousingView,
+    rows: Vec<(&str, &str, Option<String>, bool)>,
+) -> Element {
     let label_width = rows
         .iter()
         .map(|(_, label, _, _)| text_width(label))
@@ -157,8 +165,16 @@ fn instruction_row(row: (&str, &str, Option<&str>, bool), label_width: f32, top:
     }}
 }
 
-fn mode_bar(view: &HousingView) -> Element {
-    let width = 4.0 * BUTTON + GAP;
+pub(super) fn mode_button_center(view: &HousingView, name: &str) -> f32 {
+    let index = MODES
+        .iter()
+        .position(|(mode, _, _)| *mode == name)
+        .expect("Housing submode bar requires an existing mode button");
+    (view.viewport[0] - MODE_BAR_WIDTH) / 2.0 + BUTTON * (index as f32 + 0.5)
+}
+
+pub(super) fn mode_bar(view: &HousingView) -> Element {
+    let width = MODE_BAR_WIDTH;
     let left = (view.viewport[0] - width) / 2.0;
     let top = view.viewport[1] - BUTTON;
     let gradient = named_atlas_texture(
@@ -192,7 +208,7 @@ fn mode_bar(view: &HousingView) -> Element {
             (name, atlas, action),
             (index as f32 * BUTTON, 0.0),
             view.model.pending || action.is_empty(),
-            index == 0,
+            mode_is_active(view, name),
         ));
     }
     rsx! {r#frame {name:"HouseEditorModeBar",width,height:64.0,left,top,pos_type:"absolute",strata:FrameStrata::Dialog,mouse_enabled:true,
@@ -208,25 +224,55 @@ fn icon_button(
     active: bool,
 ) -> Element {
     let (name, atlas, action) = mode;
-    let prefix = format!("HouseEditor{name}Button");
+    icon_control(
+        (&format!("HouseEditor{name}Button"), atlas, action),
+        position,
+        disabled,
+        active,
+    )
+}
+
+pub(super) fn icon_control(
+    mode: (&str, &str, &str),
+    position: (f32, f32),
+    disabled: bool,
+    active: bool,
+) -> Element {
+    let (prefix, atlas, action) = mode;
     let state = if active { "active" } else { "default" };
     let atlas = format!("decor-ability-{atlas}-{state}");
     let icon = named_atlas_texture(format!("{prefix}Icon"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
     let hover = named_atlas_texture(format!("{prefix}Hover"), &atlas, (0.0, 0.0, BUTTON, BUTTON));
     let (left, top) = position;
-    rsx! {button {name:{DynName(prefix)},width:64.0,height:64.0,left,top,pos_type:"absolute",onclick:action,disabled,button_default_skin:false,{icon}{hover}}}
+    rsx! {button {name:{DynName(prefix.into())},width:64.0,height:64.0,left,top,pos_type:"absolute",onclick:action,disabled,button_default_skin:false,{icon}{hover}}}
 }
 
-pub fn apply_basic_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
+fn mode_is_active(view: &HousingView, name: &str) -> bool {
     use crate::housing_editor::EditorMode;
-    if view.model.editor.mode != EditorMode::Basic {
+    matches!(
+        (view.model.editor.mode, name),
+        (EditorMode::Basic, "BasicDecorMode") | (EditorMode::Expert, "ExpertDecorMode")
+    )
+}
+
+pub fn apply_editor_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
+    use crate::housing_editor::EditorMode;
+    if !matches!(
+        view.model.editor.mode,
+        EditorMode::Basic | EditorMode::Expert
+    ) {
         return;
     }
     for (name, atlas, _) in MODES
         .into_iter()
         .chain([("Snap", "snap", ""), ("FreePlace", "freeplacement", "")])
     {
-        update_icon_button(registry, name, atlas, name == "BasicDecorMode");
+        update_icon_control(
+            registry,
+            &format!("HouseEditor{name}Button"),
+            atlas,
+            mode_is_active(view, name),
+        );
     }
     if let Some(id) = registry.get_by_name("HouseEditorModeBarBackground") {
         let frame = registry.get_mut(id).expect("Mode bar background exists");
@@ -236,9 +282,13 @@ pub fn apply_basic_postsetup(view: &HousingView, registry: &mut FrameRegistry) {
     }
 }
 
-fn update_icon_button(registry: &mut FrameRegistry, name: &str, atlas: &str, active: bool) {
-    let prefix = format!("HouseEditor{name}Button");
-    let Some(id) = registry.get_by_name(&prefix) else {
+pub(super) fn update_icon_control(
+    registry: &mut FrameRegistry,
+    prefix: &str,
+    atlas: &str,
+    active: bool,
+) {
+    let Some(id) = registry.get_by_name(prefix) else {
         return;
     };
     let Some(WidgetData::Button(button)) = registry
