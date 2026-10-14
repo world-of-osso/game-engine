@@ -339,6 +339,8 @@ pub struct CustomizationDb {
     pub(super) options_by_model: HashMap<u32, Vec<CustomizationOption>>,
     choices_by_model: HashMap<u32, HashMap<u32, CustomizationChoice>>,
     pub layout_by_model: HashMap<u32, u32>,
+    /// Authored signed selections whose rendering meaning is not established.
+    pub unresolved_geoset_rows: Vec<String>,
     presentation_by_model: HashMap<u32, ModelPresentation>,
     hair_scalp_fallback_by_model: HashMap<u32, u16>,
     race_models: RaceModels,
@@ -368,6 +370,7 @@ impl CustomizationDb {
     pub(crate) fn from_raw(raw: &RawData) -> Self {
         let mut db = CustomizationDb {
             race_models: raw.race_models.clone(),
+            unresolved_geoset_rows: report_unresolved_geoset_rows(raw),
             ..CustomizationDb::default()
         };
         for cm in &raw.chr_models {
@@ -396,6 +399,8 @@ impl CustomizationDb {
     /// Copy only the models referenced by Forever's two playable Skyborne races.
     /// Effect resolution happens before merging, keeping product-local material IDs isolated.
     pub(crate) fn overlay_forever(&mut self, mut forever: Self) -> Result<(), String> {
+        self.unresolved_geoset_rows
+            .append(&mut forever.unresolved_geoset_rows);
         let mut model_ids = std::collections::HashSet::new();
         for race in crate::player_model_data::FOREVER_RACES {
             for sex in [0, 1] {
@@ -882,20 +887,23 @@ fn choice_shows_scalp(
             .chain(related_geosets.iter().map(|g| (g.geoset_type, g.geoset_id)))
             .any(|(geoset_type, geoset_id)| {
                 raw.hair_geosets
-                    .get(&(model_id, geoset_type, geoset_id))
+                    .get(&(model_id, geoset_type, i32::from(geoset_id)))
                     .copied()
                     .unwrap_or(false)
             })
 }
 
-fn build_hair_scalp_fallbacks(hair_geosets: &HashMap<(u32, u16, u16), bool>) -> HashMap<u32, u16> {
+fn build_hair_scalp_fallbacks(hair_geosets: &HashMap<(u32, u16, i32), bool>) -> HashMap<u32, u16> {
     let mut fallbacks = HashMap::new();
     let mut entries: Vec<_> = hair_geosets.iter().collect();
     entries.sort_by_key(|((model_id, geoset_type, geoset_id), _)| {
         (*model_id, *geoset_type, *geoset_id)
     });
     for (&(model_id, geoset_type, geoset_id), &shows_scalp) in entries {
-        if shows_scalp && geoset_type == 0 {
+        if shows_scalp
+            && geoset_type == 0
+            && let Ok(geoset_id) = u16::try_from(geoset_id)
+        {
             fallbacks.entry(model_id).or_insert(geoset_id);
         }
     }
@@ -952,6 +960,23 @@ fn resolve_choice_materials(
     (materials, related_materials)
 }
 
+fn report_unresolved_geoset_rows(raw: &RawData) -> Vec<String> {
+    let mut gaps: Vec<_> = raw.geosets.iter()
+        .map(|(&id, row)| ("ChrCustomizationGeoset", id, row.geoset_id))
+        .chain(raw.skinned_models.iter().map(|(&id, row)| ("ChrCustomizationSkinnedModel", id, row.geoset_id)))
+        .filter(|(_, _, value)| u16::try_from(*value).is_err())
+        .map(|(table, id, value)| format!("{table} row {id}: GeosetID={value}; unresolved signed geoset projection (not remapped)"))
+        .collect();
+    gaps.extend(raw.hair_geosets.keys()
+        .filter(|(_, _, value)| u16::try_from(*value).is_err())
+        .map(|(model, kind, value)| format!("CharHairGeosets model {model}, GeosetType={kind}: GeosetID={value}; unresolved signed geoset projection (not remapped)")));
+    gaps.sort();
+    for gap in &gaps {
+        eprintln!("{gap}");
+    }
+    gaps
+}
+
 fn resolve_choice_geosets(
     elements: &[&RawElement],
     raw: &RawData,
@@ -960,12 +985,14 @@ fn resolve_choice_geosets(
         .iter()
         .filter_map(|el| {
             let geo = raw.geosets.get(&el.geoset_id)?;
+            // Signed rows remain in raw data and are named in unresolved_geoset_rows.
+            let geoset_id = u16::try_from(geo.geoset_id).ok()?;
             Some((
                 el.related_choice_id > 0,
                 ChoiceGeoset {
                     related_choice_id: el.related_choice_id,
                     geoset_type: geo.geoset_type,
-                    geoset_id: geo.geoset_id,
+                    geoset_id,
                 },
             ))
         })
@@ -993,11 +1020,13 @@ fn resolve_choice_skinned_models(
         .iter()
         .filter_map(|element| {
             let row = raw.skinned_models.get(&element.skinned_model_id)?;
+            // No negative-to-zero remap: unresolved rows are reported at projection entry.
+            let geoset_id = u16::try_from(row.geoset_id).ok()?;
             Some(ChoiceSkinnedModel {
                 related_choice_id: element.related_choice_id,
                 collection_fdid: row.collection_fdid,
                 geoset_type: row.geoset_type,
-                geoset_id: row.geoset_id,
+                geoset_id,
             })
         })
         .collect()
@@ -1015,7 +1044,7 @@ pub(crate) struct RawData {
     pub(crate) geosets: HashMap<u32, RawGeoset>,
     /// `ChrCustomizationSkinnedModel` rows by ID.
     pub(crate) skinned_models: HashMap<u32, RawSkinnedModel>,
-    pub(crate) hair_geosets: HashMap<(u32, u16, u16), bool>,
+    pub(crate) hair_geosets: HashMap<(u32, u16, i32), bool>,
     pub(crate) texture_fdids: HashMap<u32, u32>,
     pub(crate) race_models: RaceModels,
 }
@@ -1063,7 +1092,7 @@ pub(crate) struct RawElement {
 pub(crate) struct RawSkinnedModel {
     pub(crate) collection_fdid: u32,
     pub(crate) geoset_type: u16,
-    pub(crate) geoset_id: u16,
+    pub(crate) geoset_id: i32,
 }
 pub(crate) struct RawMaterial {
     pub(crate) texture_target_id: u16,
@@ -1071,5 +1100,5 @@ pub(crate) struct RawMaterial {
 }
 pub(crate) struct RawGeoset {
     pub(crate) geoset_type: u16,
-    pub(crate) geoset_id: u16,
+    pub(crate) geoset_id: i32,
 }

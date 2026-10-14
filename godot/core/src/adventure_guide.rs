@@ -1,4 +1,6 @@
 //! Retail Journal DB2 cache, imported from the pinned local CASC build.
+mod presentation;
+pub use presentation::{JourneyPresentation, read_journey_presentation};
 use rusqlite::{Connection, OpenFlags, Row};
 use std::{collections::BTreeMap, path::Path};
 
@@ -141,11 +143,11 @@ impl Catalog {
     pub fn load(path: &Path) -> Result<Self, String> {
         let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|e| format!("{}: {e}", path.display()))?;
-        let build: String = db
-            .query_row("SELECT build FROM source LIMIT 1", [], |r| r.get(0))
-            .map_err(|e| e.to_string())?;
-        if build != "12.1.0.69933" {
-            return Err(format!("Adventure Guide unsupported build {build}"));
+        let builds = query(&db, "SELECT DISTINCT build FROM source", |row| {
+            row.get::<_, String>(0)
+        })?;
+        if builds.len() != 1 || builds[0].is_empty() {
+            return Err("Adventure Guide requires one declared source build".into());
         }
         let tiers = query(
             &db,
@@ -362,6 +364,39 @@ impl Catalog {
             .map(|c| c.display)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn published_70391_catalog_resolves_authored_instances_and_encounters() {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/cache/adventure_guide.sqlite");
+        let catalog = Catalog::load(&path).expect(
+            "published70391 cache must load, not remain stuck behind an obsolete build gate",
+        );
+        let wailing = catalog.instance(240).expect("authored Wailing Caverns");
+        assert_eq!(
+            (wailing.name.as_str(), wailing.map, wailing.dungeon),
+            ("Wailing Caverns", 43, true)
+        );
+        let molten = catalog.instance(741).expect("authored Molten Core");
+        assert_eq!(
+            (molten.name.as_str(), molten.map, molten.dungeon),
+            ("Molten Core", 409, false)
+        );
+        let lucifron = catalog.encounter(1519).expect("authored Lucifron");
+        assert_eq!(
+            (
+                lucifron.name.as_str(),
+                lucifron.instance,
+                lucifron.dungeon_encounter
+            ),
+            ("Lucifron", 741, 663)
+        );
+        assert!(catalog.instances.len() > 200 && catalog.encounters.len() > 1100);
+    }
+}
+
 pub fn difficulty_matches(
     restrictions: &BTreeMap<u32, Vec<u32>>,
     id: u32,

@@ -2,7 +2,9 @@
 use super::{PetJournalView, PetRow};
 use crate::menu_primitives::*;
 use std::collections::BTreeSet;
-use ui_toolkit::{rsx, widget_def::Element};
+use ui_toolkit::widget_def::Element;
+
+const FILTER_WIDTH: f32 = 90.0; // PetJournal_InitFilterDropdown.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PetSpeciesFilter {
@@ -144,7 +146,7 @@ pub(super) fn controls(view: &PetJournalView) -> Element {
             label_name: "PetJournalFilterText",
             arrow_name: "PetJournalFilterArrow",
             text: "Filter",
-            width: 90.0,
+            width: FILTER_WIDTH,
             height: 22.0,
             x: 169.0,
             y: -70.0,
@@ -291,47 +293,30 @@ fn source_rows(view: &PetJournalView) -> Vec<Row> {
     }));
     rows
 }
-fn row_height(kind: MenuElementKind) -> f32 {
-    // MenuVariants.CreateDivider uses a thirteen-pixel texture; text rows are twenty.
-    if kind == MenuElementKind::Divider {
-        13.0
-    } else {
-        20.0
-    }
-}
-
 fn menu(view: &PetJournalView) -> Element {
     let rows = rows(view);
-    let height = 23.0
-        + rows
-            .iter()
-            .map(|(_, _, kind)| row_height(*kind))
-            .sum::<f32>();
-    let background = crate::selection_list::menu_background(
-        "PetJournalFilterMenuBackground".into(),
-        (218.0, height),
-    );
-    let children: Element = rows
+    let names: Vec<_> = (0..rows.len())
+        .map(|index| format!("PetJournalFilter{index}"))
+        .collect();
+    let entries: Vec<_> = rows
         .iter()
-        .enumerate()
-        .scan(8.0, |top, (index, (label, action, kind))| {
-            let name = format!("PetJournalFilter{index}");
-            let height = row_height(*kind);
-            let y = *top;
-            *top += height;
-            Some(menu_element(
+        .zip(&names)
+        .map(|((label, action, kind), name)| {
+            (
                 ContextMenuItem {
-                    name: &name,
+                    name,
                     label,
                     action,
                 },
                 *kind,
                 true,
-                (8.0, y, 202.0, height),
-            ))
+            )
         })
-        .flatten()
         .collect();
-    rsx! { r#frame { name: "PetJournalFilterMenu", width: 218.0, height, left: 169.0, top: 92.0,
-    strata: crate::ui::strata::FrameStrata::Dialog, pos_type: "absolute", mouse_enabled: true, {background} {children} } }
+    context_menu_description(
+        "PetJournalFilterMenu",
+        (169.0, 92.0),
+        FILTER_WIDTH,
+        &entries,
+    )
 }

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::csv_records::CsvTable;
 
-const RETAIL_DIR: &str = "db2/12.1.0.69933";
+const RETAIL_DIR: &str = "db2/active";
 const FOREVER_DIR: &str = "db2/1.60.1.70205";
 const SKYBORNE_RACES: [u32; 2] = [95, 96];
 

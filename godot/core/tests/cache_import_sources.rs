@@ -12,18 +12,74 @@ impl Fixture {
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
-        std::fs::create_dir_all(root.join("db2/12.1.0.69933")).unwrap();
+        std::fs::create_dir_all(root.join("db2/active")).unwrap();
         Self(root)
     }
     fn write(&self, name: &str, root: &str, retail: &str) {
         std::fs::write(self.0.join(name), root).unwrap();
-        std::fs::write(self.0.join("db2/12.1.0.69933").join(name), retail).unwrap();
+        std::fs::write(self.0.join("db2/active").join(name), retail).unwrap();
     }
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
         std::fs::remove_dir_all(&self.0).unwrap();
     }
+}
+
+#[test]
+fn creature_import_follows_active_export_after_patch() {
+    let fixture = Fixture::new();
+    let base = fixture.0.join("db2");
+    std::fs::remove_dir_all(base.join("active")).unwrap();
+    for (build, display, fdid) in [("12.1.0.69933", 4, 9001), ("12.1.5.70340", 5, 9002)] {
+        let source = base.join(build);
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(source.join("CreatureDisplayInfo.csv"), format!("ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n{display},7,1,1,0,0,0,0\n")).unwrap();
+        std::fs::write(
+            source.join("CreatureModelData.csv"),
+            format!("ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,{fdid},1,0\n"),
+        )
+        .unwrap();
+    }
+    let active = base.join("active");
+    for (build, expected) in [("12.1.0.69933", 9001), ("12.1.5.70340", 9002)] {
+        if active.exists() {
+            std::fs::remove_file(&active).unwrap();
+        }
+        std::os::unix::fs::symlink(build, &active).unwrap();
+        let cache = creature_display_cache::import_creature_display_cache(&fixture.0).unwrap();
+        let conn = Connection::open(cache).unwrap();
+        let actual: u32 = conn
+            .query_row("SELECT model_fdid FROM creature_displays", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(actual, expected, "active export {build}");
+    }
+}
+
+#[test]
+fn outfit_import_uses_active_gear_without_a_legacy_starter_table() {
+    let fixture = Fixture::new();
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    for name in [
+        "ItemModifiedAppearance",
+        "ItemAppearance",
+        "ItemDisplayInfo",
+        "TextureFileData",
+        "ItemDisplayInfoMaterialRes",
+        "ModelFileData",
+    ] {
+        std::os::unix::fs::symlink(
+            source.join(format!("{name}.csv")).canonicalize().unwrap(),
+            fixture.0.join("db2/active").join(format!("{name}.csv")),
+        )
+        .unwrap();
+    }
+    let path = game_engine_core::outfit_catalog_db::import_outfit_links_cache(&fixture.0).unwrap();
+    let conn = Connection::open(path).unwrap();
+    let display: u32 = conn.query_row("SELECT iam.display_info_id FROM item_modified_appearance_map ima JOIN item_appearance_map iam ON iam.appearance_id=ima.appearance_id WHERE ima.item_id=25", [], |r| r.get(0)).unwrap();
+    assert_eq!(display, 1542);
+    let model: u32 = conn.query_row("SELECT file_data_id FROM model_to_fdid WHERE model_resource_id=16810 ORDER BY model_order LIMIT 1", [], |r| r.get(0)).unwrap();
+    assert_eq!(model, 148132);
 }
 
 #[test]
@@ -37,8 +93,8 @@ fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
     );
     fixture.write(
         "CreatureModelData.csv",
-        "ID,FileDataID,ModelScale\n7,9001,1\n",
-        "ID,FileDataID,ModelScale\n7,9002,1.25\n",
+        "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,9001,1,0\n",
+        "ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,9002,1.25,0\n",
     );
     let path = creature_display_cache::import_creature_display_cache(&fixture.0).unwrap();
     let conn = Connection::open(&path).unwrap();
@@ -49,7 +105,7 @@ fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
     );
     // Emulate a cache produced by the old root-path importer, even with matching mtimes.
     conn.execute(
-        "UPDATE source_files SET path = replace(path, 'db2/12.1.0.69933/', '')",
+        "UPDATE source_files SET path = replace(path, 'db2/active/', '')",
         [],
     )
     .unwrap();
@@ -69,10 +125,10 @@ fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
     );
     drop(conn);
     // A missing pinned input must fail even when a usable cache and root CSV remain.
-    std::fs::remove_file(fixture.0.join("db2/12.1.0.69933/CreatureModelData.csv")).unwrap();
+    std::fs::remove_file(fixture.0.join("db2/active/CreatureModelData.csv")).unwrap();
     let error = creature_display_cache::import_creature_display_cache(&fixture.0).unwrap_err();
     assert!(
-        error.contains("db2/12.1.0.69933/CreatureModelData.csv"),
+        error.contains("db2/active/CreatureModelData.csv"),
         "{error}"
     );
 }
@@ -115,7 +171,7 @@ fn texture_import_ignores_root_rows_and_invalidates_root_source_receipts() {
         .unwrap();
     assert_eq!(size, (2048, 1024));
     conn.execute(
-        "UPDATE source_files SET source = replace(source, 'db2/12.1.0.69933/', '')",
+        "UPDATE source_files SET source = replace(source, 'db2/active/', '')",
         [],
     )
     .unwrap();
@@ -150,7 +206,6 @@ fn importers_reject_root_only_csvs_without_creating_caches() {
         "CharComponentTextureSections",
         "CharComponentTextureLayouts",
         "ChrModelMaterial",
-        "CharStartOutfit",
         "ItemModifiedAppearance",
         "ItemAppearance",
         "ItemDisplayInfo",
@@ -162,9 +217,10 @@ fn importers_reject_root_only_csvs_without_creating_caches() {
     for importer in [
         customization_cache::import_customization_cache,
         char_texture_cache::import_char_texture_cache,
+        game_engine_core::outfit_catalog_db::import_outfit_links_cache,
     ] {
         let error = importer(&fixture.0).unwrap_err();
-        assert!(error.contains("db2/12.1.0.69933/"), "{error}");
+        assert!(error.contains("db2/active/"), "{error}");
     }
     assert!(!fixture.0.join("cache").exists());
 }

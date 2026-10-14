@@ -15,8 +15,6 @@ mod outfit_cache_load;
 mod outfit_links_cache;
 #[path = "world_db/outfit_query.rs"]
 mod outfit_query;
-#[path = "world_db/outfit_resolve.rs"]
-mod outfit_resolve;
 pub(crate) use outfit_query::{
     query_display_info, query_material_texture_fdids, query_model_fdids,
 };
@@ -55,24 +53,19 @@ pub(crate) fn query_item_display_id(conn: &Connection, item_id: u32) -> Result<u
     .map_err(|err| format!("resolve item {item_id} display: {err}"))
 }
 
-type OutfitKey = (u8, u8, u8);
-type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 /// Versioned by schema: checkouts with an older schema keep reading their own file.
 fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cache/outfit_links-v4.sqlite")
+    data_dir.join("cache/outfit_links-v5.sqlite")
 }
-fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
-    // WORKAROUND: CharStartOutfit (FDID 1237591) is absent from the local
-    // 12.1.0.69933 CASC root. Keep this importer's existing source set until an
-    // authentic pinned CharStartOutfit export is available, then pin all seven.
+fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 6] {
+    let source = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);
     [
-        data_dir.join("CharStartOutfit.csv"),
-        data_dir.join("ItemModifiedAppearance.csv"),
-        data_dir.join("ItemAppearance.csv"),
-        data_dir.join("ItemDisplayInfo.csv"),
-        data_dir.join("TextureFileData.csv"),
-        data_dir.join("ItemDisplayInfoMaterialRes.csv"),
-        data_dir.join("ModelFileData.csv"),
+        source.join("ItemModifiedAppearance.csv"),
+        source.join("ItemAppearance.csv"),
+        source.join("ItemDisplayInfo.csv"),
+        source.join("TextureFileData.csv"),
+        source.join("ItemDisplayInfoMaterialRes.csv"),
+        source.join("ModelFileData.csv"),
     ]
 }
 
@@ -120,97 +113,6 @@ pub fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     outfit_links_cache::import_outfit_links_cache(data_dir)
 }
 
-fn populate_starter_outfits(conn: &Connection, path: &Path) -> Result<(), String> {
-    let mut reader = open_reader(path)?;
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    let race_col = header_index(&headers, "RaceID", path)?;
-    let class_col = header_index(&headers, "ClassID", path)?;
-    let sex_col = header_index(&headers, "SexID", path)?;
-    let item_cols = (0..12)
-        .map(|i| header_index(&headers, &format!("ItemID_{i}"), path))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut insert = conn
-        .prepare(
-            "INSERT INTO starter_outfits (race_id, class_id, sex_id, item_order, item_id)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
-        .map_err(|err| format!("prepare starter_outfits insert: {err}"))?;
-    insert_starter_outfit_rows(
-        &mut reader,
-        path,
-        race_col,
-        class_col,
-        sex_col,
-        &item_cols,
-        &mut insert,
-    )?;
-    Ok(())
-}
-
-fn insert_starter_outfit_rows(
-    reader: &mut dyn BufRead,
-    path: &Path,
-    race_col: usize,
-    class_col: usize,
-    sex_col: usize,
-    item_cols: &[usize],
-    insert: &mut Statement<'_>,
-) -> Result<(), String> {
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", path.display()))?
-            == 0
-        {
-            break;
-        }
-        let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let race_id = fields
-            .get(race_col)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
-        let class_id = fields
-            .get(class_col)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
-        let sex_id = fields
-            .get(sex_col)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
-        insert_starter_outfit_items(insert, &fields, item_cols, race_id, class_id, sex_id)?;
-    }
-    Ok(())
-}
-
-fn insert_starter_outfit_items(
-    insert: &mut Statement<'_>,
-    fields: &[String],
-    item_cols: &[usize],
-    race_id: u8,
-    class_id: u8,
-    sex_id: u8,
-) -> Result<(), String> {
-    for (item_order, &column) in item_cols.iter().enumerate() {
-        let item_id = fields
-            .get(column)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        if item_id == 0 || item_id == 6948 {
-            continue;
-        }
-        insert
-            .execute((race_id, class_id, sex_id, item_order as u32, item_id))
-            .map_err(|err| format!("insert starter_outfits row: {err}"))?;
-    }
-    Ok(())
-}
-
 fn populate_item_modified_appearance_map(conn: &Connection, path: &Path) -> Result<(), String> {
     let mut reader = open_reader(path)?;
     let mut header = String::new();
@@ -238,6 +140,7 @@ fn insert_item_modified_appearance_rows(
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -247,15 +150,12 @@ fn insert_item_modified_appearance_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let item_id = fields
-            .get(item_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let appearance_id = fields
-            .get(appearance_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let item_id = crate::csv_util::parse_field::<u32>(&fields, item_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
+        let appearance_id = crate::csv_util::parse_field::<u32>(&fields, appearance_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if item_id == 0 || appearance_id == 0 {
             continue;
         }
@@ -293,6 +193,7 @@ fn insert_item_appearance_rows(
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -302,11 +203,10 @@ fn insert_item_appearance_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let appearance_id = fields
-            .get(id_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let appearance_id = crate::csv_util::parse_field::<u32>(&fields, id_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if appearance_id == 0 {
             continue;
         }
@@ -402,6 +302,7 @@ fn insert_display_info_rows(
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -411,8 +312,11 @@ fn insert_display_info_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let Some(row) = parse_display_info_row(&fields, columns) else {
+        let Some(row) = parse_display_info_row(&fields, columns)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?
+        else {
             continue;
         };
         insert
@@ -425,38 +329,28 @@ fn insert_display_info_rows(
 fn parse_display_info_row(
     fields: &[String],
     columns: &DisplayInfoColumns,
-) -> Option<DisplayInfoRow> {
-    let get_u32 = |idx: usize| {
-        fields
-            .get(idx)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0)
-    };
-    let get_i16 = |idx: usize| {
-        fields
-            .get(idx)
-            .and_then(|v| v.parse::<i32>().ok())
-            .unwrap_or(0) as i16
-    };
-    let display_id = get_u32(columns.id);
+) -> Result<Option<DisplayInfoRow>, String> {
+    let get_u32 = |index| crate::csv_util::parse_field::<u32>(fields, index);
+    let get_i16 = |index| crate::csv_util::parse_field::<i16>(fields, index);
+    let display_id = get_u32(columns.id)?;
     if display_id == 0 {
-        return None;
+        return Ok(None);
     }
-    Some((
+    Ok(Some((
         display_id,
-        get_u32(columns.model_res_0),
-        get_u32(columns.model_res_1),
-        get_u32(columns.model_mat_res_0),
-        get_u32(columns.model_mat_res_1),
-        get_i16(columns.geoset_groups[0]),
-        get_i16(columns.geoset_groups[1]),
-        get_i16(columns.geoset_groups[2]),
-        get_i16(columns.geoset_groups[3]),
-        get_i16(columns.geoset_groups[4]),
-        get_i16(columns.geoset_groups[5]),
-        get_u32(columns.helmet_vis_0),
-        get_u32(columns.helmet_vis_1),
-    ))
+        get_u32(columns.model_res_0)?,
+        get_u32(columns.model_res_1)?,
+        get_u32(columns.model_mat_res_0)?,
+        get_u32(columns.model_mat_res_1)?,
+        get_i16(columns.geoset_groups[0])?,
+        get_i16(columns.geoset_groups[1])?,
+        get_i16(columns.geoset_groups[2])?,
+        get_i16(columns.geoset_groups[3])?,
+        get_i16(columns.geoset_groups[4])?,
+        get_i16(columns.geoset_groups[5])?,
+        get_u32(columns.helmet_vis_0)?,
+        get_u32(columns.helmet_vis_1)?,
+    )))
 }
 
 fn populate_model_to_fdid(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -491,6 +385,7 @@ fn insert_model_to_fdid_rows(
     let mut seen = HashSet::new();
     let mut next_order: HashMap<u32, u32> = HashMap::new();
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -500,15 +395,12 @@ fn insert_model_to_fdid_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let file_data_id = fields
-            .get(file_data_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let model_resource_id = fields
-            .get(model_resource_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let file_data_id = crate::csv_util::parse_field::<u32>(&fields, file_data_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
+        let model_resource_id = crate::csv_util::parse_field::<u32>(&fields, model_resource_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if file_data_id == 0
             || model_resource_id == 0
             || !seen.insert((model_resource_id, file_data_id))
@@ -526,19 +418,6 @@ fn insert_model_to_fdid_rows(
 
 fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBuf, String> {
     outfit_links_cache::imported_outfit_links_cache_path(data_dir)
-}
-
-pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits, String> {
-    outfit_cache_load::load_cached_char_start_outfits(data_dir)
-}
-
-pub fn resolve_cached_outfit_display_ids(
-    data_dir: &Path,
-    race: u8,
-    class: u8,
-    sex: u8,
-) -> Result<Vec<u32>, String> {
-    outfit_resolve::resolve_cached_outfit_display_ids(data_dir, race, class, sex)
 }
 
 pub(crate) fn load_cached_display_info(
@@ -582,4 +461,66 @@ pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u
 
 pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
     outfit_cache_load::load_cached_item_appearance(data_dir)
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_outfit_rejects_invalid_canonical_row() {
+        let fixture =
+            crate::db2_test_support::ExportFixture::copy("ItemModifiedAppearance", Some("ItemID"));
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE item_modified_appearance_map(item_id INTEGER, appearance_id INTEGER)",
+        )
+        .unwrap();
+        let error = populate_item_modified_appearance_map(&conn, &fixture.0).unwrap_err();
+        assert!(error.contains("ItemModifiedAppearance.csv:2:"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_outfits_read_all_installed_tables() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let conn = Connection::open_in_memory().unwrap();
+        outfit_links_cache::init_schema(&conn).unwrap();
+        for (file, table, populate) in [
+            (
+                "ItemModifiedAppearance",
+                "item_modified_appearance_map",
+                populate_item_modified_appearance_map
+                    as fn(&Connection, &Path) -> Result<(), String>,
+            ),
+            (
+                "ItemAppearance",
+                "item_appearance_map",
+                populate_item_appearance_map,
+            ),
+            ("ItemDisplayInfo", "display_info", populate_display_info),
+            ("ModelFileData", "model_to_fdid", populate_model_to_fdid),
+            (
+                "TextureFileData",
+                "material_textures",
+                material_links::populate_material_textures,
+            ),
+            (
+                "ItemDisplayInfoMaterialRes",
+                "display_materials",
+                material_links::populate_display_materials,
+            ),
+        ] {
+            populate(&conn, &source.join(format!("{file}.csv"))).unwrap();
+            let count: usize = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert!(count > 0, "{file} imported no rows");
+        }
+        assert!(query_item_display_id(&conn, 5580).unwrap() > 0);
+    }
 }

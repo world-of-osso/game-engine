@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import local Retail 12.1.0.69933 Journal DB2s into the client SQLite cache.
+"""Import source-identified local Retail Journal DB2s into the client SQLite cache.
 
 Extract the FDIDs below with casc-local first. Pass the corresponding WoWDBDefs
 .dbd files in --definitions. The pinned layout hashes, not names, define fields.
@@ -17,7 +17,7 @@ import struct
 SPEC = importlib.util.spec_from_file_location('journal_wdc5', Path(__file__).with_name('export_db2_csv.py'))
 WDC = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(WDC)
-BUILD = '12.1.0.69933'
+from db2_source import source_identity
 TABLES = {
     'JournalTier': (1349056, 0xF4AFE752),
     'JournalTierXInstance': (1285009, 0xBFCBF1F0),
@@ -63,21 +63,19 @@ def layout_fields(definition, layout):
 
 
 def decode_value(data, offset, descriptor, raw, kind, width, element):
-    bits = int((width or '32').lstrip('u'))
-    value = raw[element] if isinstance(raw, tuple) else (raw >> (bits * element)) & ((1 << bits) - 1)
+    import db2_dbd
     if kind in ('string', 'locstring'):
+        value = db2_dbd.number(raw, 'int', 'u32', element)
         return WDC.read_string(data, offset, descriptor, value)
-    if kind == 'float':
-        return struct.unpack('<f', struct.pack('<I', value))[0]
-    if width and not width.startswith('u') and value & (1 << (bits - 1)):
-        value -= 1 << bits
-    return value
+    value = db2_dbd.number(raw, kind, width, element)
+    return float(value) if kind == 'float' else value
 
 
 def read_table(table, path, definition):
-    _, layout = TABLES[table]
+    import db2_dbd
     data = path.read_bytes()
-    fields = layout_fields(definition, layout)
+    layout = struct.unpack_from('<I', data, 156)[0]
+    fields = db2_dbd.layout_fields(definition, layout)
     inline = [field for field in fields if 'noninline' not in field[2]]
     id_field = next((i for i, field in enumerate(inline) if 'id' in field[2]), 0)
     records, dropped, descriptors, _ = WDC.read_wdc5(data, layout, id_field)
@@ -200,6 +198,7 @@ def read_challenge_dungeons(world):
 
 
 def import_cache(db2, definitions, output, items, world):
+    build = source_identity(db2)['build']
     # Decode every input before replacing an existing cache.
     decoded = {table: read_table(table, db2 / f'{fdid}.db2', definitions / f'{table}.dbd') for table, (fdid, _) in TABLES.items()}
     challenges = read_challenge_dungeons(world)
@@ -213,7 +212,7 @@ def import_cache(db2, definitions, output, items, world):
             connection.execute(f'CREATE TABLE "{table}" ({", ".join(f"{name} {kind}" for name, kind in columns)})')
             connection.executemany(f'INSERT INTO "{table}" VALUES ({",".join("?" for _ in columns)})', rows)
             connection.execute(f'CREATE UNIQUE INDEX "{table}_id" ON "{table}" (ID)')
-            connection.execute('INSERT INTO source VALUES(?,?,?,?,?)', (BUILD, table, f'{TABLES[table][1]:08X}', len(rows), dropped))
+            connection.execute('INSERT INTO source VALUES(?,?,?,?,?)', (build, table, f'{struct.unpack_from("<I", (db2 / f"{TABLES[table][0]}.db2").read_bytes(), 156)[0]:08X}', len(rows), dropped))
             print(f'{table}: {len(rows)} readable, {dropped} encrypted/unreadable')
         import_items(connection, items)
         import_item_specializations(connection)

@@ -1,0 +1,14 @@
+{
+  "commit": "d6f50d4f351193e84226aa62a36faa0f58528afa",
+  "definitions": {
+    "ChrModel.dbd": "a3820794d09271781bc10005abe07ccf7db0a6220895ebc3a5141f837fb61607",
+    "ChrCustomizationOption.dbd": "ab0f8f263eee25259ea04adefab887ac602124d04e8d8bc6f3718ace74b68c52",
+    "ChrCustomizationChoice.dbd": "d966dc3072c4616fccbe109d2bfa7b9b33da6092ad759dabcded6e4baadc261c",
+    "ChrCustomizationGeoset.dbd": "110e6e9a29065bc571f8a1bba1b4bc0ac505af1c1b8f57072f4545c280437dab",
+    "CharHairGeosets.dbd": "34ca151cd8b6ecb9ad1440ff63dedc4c4398a862c84cedfd9de62e074c658a27",
+    "ChrCustomizationCategory.dbd": "4d431c5e91ab5d7572ce0c06bd6455e33d43b0d940e4bf6312c98f23f870919b",
+    "CharComponentTextureLayouts.dbd": "30dec35dff951cc47ad62e245fccdb6e7ff2d78aa60d77b6c5ed4ab19eb23cfc",
+    "CharComponentTextureSections.dbd": "c1cf8e3ede8120cbe88d9e89887e2c67f3b8f8f9690214d7276fb462fc66a8ae",
+    "ItemDisplayInfoMaterialRes.dbd": "8d9d087446eef0aa8d490ccdc73b505a30757bef4cddcd7db48ec1723e641570"
+  }
+}

@@ -436,6 +436,10 @@ mod tests {
     fn character_select_root_and_enter_world_follow_original_viewport_bounds() {
         use game_engine_ui_model::CharacterSelectModel;
 
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
         let mut model = CharacterSelectModel::new(1280.0, 720.0);
         model.sync();
         let bounds = compute_layout_with_intrinsics(&model.registry, &HashMap::new()).unwrap();

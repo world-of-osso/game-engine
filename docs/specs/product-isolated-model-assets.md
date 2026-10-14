@@ -7,7 +7,7 @@
 Approved acceptance criteria:
 
 - [x] A model request carries its authored product/build identity; identical FDIDs from Retail and Forever coexist without overwriting or borrowing bytes.
-- [x] Additive `cache/model-asset-index-<name>.json` receipt fragments permit authenticated offline publication without replacing existing data files. Runtime validates every fragment and rejects duplicate product/FDID/kind mappings; no fragment can override the base index.
+- [x] `cache/model-asset-index-<name>.json` fragments publish authenticated offline assets. Runtime validates every fragment and rejects duplicate product/FDID/kind mappings; it never resolves competing receipts by fragment precedence. New-build publication updates the owning index instead of adding a duplicate mapping.
 - [x] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
 - [x] SFID skins, SKID skeletons and external animations inherit their model's identity. Resolve/cache companions by their authored FDIDs (`FDID.skin` / `FDID.skel`); numbered skin and model-named skeleton aliases are not loader inputs. A missing required referenced file errors rather than selecting an embedded or alternate file. Referenced textures retain source identity through decoding/material publication too.
 - [x] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
@@ -25,6 +25,10 @@ files/receipts use the build actually read, never the former receipt's namespace
 `extracted-only` and explicitly authenticated frozen offline publication remain
 unchanged. No DB2 re-export or old-build extraction fallback is authorized.
 This supersedes the active-install prohibition below for local extraction only.
+
+## Live Retail index migration (2026-10-13)
+
+[DB2 follows the installed build](db2-follow-install.md#lead-publication) supersedes the earlier no-re-export/historical-live-index restriction for Retail. Authenticate identical bytes against the current root before recording the current build; extract and authenticate changed bytes. Keep one live mapping per product/FDID/kind, migrate companion aliases, and preserve original files and receipts only as history/backup. Stale frozen receipts cannot undo a newer published mapping. Runtime paths remain receipt-derived, without a compiled build key. Bundles include indexed paths, not every historical namespace. Canonical DB2 and index publication is one lead-only runtime-build command with backup and fingerprint diff.
 
 ## Decision record (2026-10-09)
 

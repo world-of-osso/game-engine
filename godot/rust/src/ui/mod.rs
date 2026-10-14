@@ -13,6 +13,8 @@ mod buttonfit_preview;
 mod auction_preview;
 pub(crate) mod castbar_fx;
 mod castbar_preview;
+#[cfg(debug_assertions)]
+mod db2_atlas_preview;
 mod dungeon_preview;
 mod flight_map_preview;
 mod follower_layout_preview;
@@ -305,6 +307,12 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::trading_post::View>()
+        {
+            game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::adventure_guide::View>()
         {
             game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
@@ -313,6 +321,15 @@ impl RegistryModel {
         game_engine_ui_model::collections_component::apply_collections_postsetup(
             &mut self.registry,
         );
+        if self
+            .shared
+            .get::<game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen>()
+            .is_some()
+        {
+            game_engine_ui_model::encounter_timeline_component::apply_timeline_bar_art(
+                &mut self.registry,
+            );
+        }
         if self.shared.get::<GameMenuViewModel>().is_some() {
             game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
         }
@@ -1569,6 +1586,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
     }
 
+    /// Retail's watched reputation status-bar canvas, sharing the HUD skin/scale mirror.
+    pub fn show_reputation_status_bar(
+        &mut self,
+        state: game_engine_ui_model::reputation_status_bar::ReputationBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::reputation_status_bar::reputation_bar_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the experience bar.
     pub fn show_xp_bar(
         &mut self,
@@ -2426,6 +2455,25 @@ impl RegistryUi {
             .layout_rect
             .as_ref()?;
         Some([rect.x, rect.y, rect.width, rect.height].map(|value| value * registry.ui_scale))
+    }
+
+    /// MenuUtil.CreateContextMenu opens at the cursor, expressed in the owner's UI units.
+    pub fn read_cursor_relative_to_frame(&self, name: &str) -> Result<[f32; 2], String> {
+        let rect = self
+            .frame_viewport_rect(name)
+            .ok_or_else(|| format!("Context owner {name} bounds missing"))?;
+        let scale = self
+            .model
+            .as_ref()
+            .ok_or("Context UI model missing")?
+            .registry
+            .ui_scale;
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Context viewport missing")?;
+        let cursor = viewport.get_mouse_position();
+        Ok([(cursor.x - rect[0]) / scale, (cursor.y - rect[1]) / scale])
     }
 
     /// Initialize a dedicated RegistryUi instance for the retail mirror timer bars.

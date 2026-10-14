@@ -21,6 +21,7 @@ enum Mask {
     Round,
     AuctionItem,
     PerksProduct,
+    PerksCartItem,
     GroupFinder,
     Glyph,
     TalentCircle,
@@ -28,6 +29,9 @@ enum Mask {
     TalentChoiceLeft,
     TalentChoiceRight,
     TalentChoiceFlyout,
+    JourneyRing,
+    JourneySquare,
+    JourneyReward,
 }
 
 #[derive(Default)]
@@ -77,6 +81,30 @@ impl IconMasks {
     }
 
     fn apply_perks_template(&mut self, registry: &mut FrameRegistry) {
+        if let Some(id) = registry.get_by_name("PerksProgramConfirmSpinnerSparks")
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
+        {
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+        }
+        // Cart IconVignette is a black66% texture clipped by the same56px alpha mask.
+        let vignettes: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| {
+                frame.name.as_deref().is_some_and(|name| {
+                    name.starts_with("PerksProgramCart") && name.ends_with("Vignette")
+                })
+            })
+            .map(|frame| frame.id)
+            .collect();
+        for id in vignettes {
+            if let Some(WidgetData::Texture(texture)) = registry
+                .get_mut(id)
+                .and_then(|frame| frame.widget_data.as_mut())
+            {
+                texture.vertex_color = [0., 0., 0., 0.66];
+            }
+        }
         // ToyDetails.xml justifyV=TOP; move into RSX when it exposes vertical justification.
         if let Some(id) = registry.get_by_name("PerksProgramToyDescription")
             && let Some(frame) = registry.get_mut(id)
@@ -88,6 +116,9 @@ impl IconMasks {
             "PerksProgramLeaveButton",
             "PerksProgramPurchaseButton",
             "PerksProgramRefundButton",
+            "PerksProgramAddToCartButton",
+            "PerksProgramRemoveFromCartButton",
+            "PerksProgramCartPurchaseButton",
         ];
         if !names
             .iter()
@@ -152,11 +183,20 @@ impl IconMasks {
                 source
             }
             Mask::PerksProduct => compose_perks_product_icon(source, &load_atlas_mask(mask)?),
+            Mask::PerksCartItem => {
+                // Cart details template: Icon56px and centred Mask56px, no overscan crop.
+                let icon =
+                    image::imageops::resize(&source, 56, 56, image::imageops::FilterType::Triangle);
+                compose_masked_icon(icon, &load_atlas_mask(mask)?)
+            }
             Mask::TalentCircle
             | Mask::TalentChoice
             | Mask::TalentChoiceLeft
             | Mask::TalentChoiceRight
-            | Mask::TalentChoiceFlyout => compose_masked_icon(source, &load_atlas_mask(mask)?),
+            | Mask::TalentChoiceFlyout
+            | Mask::JourneyRing
+            | Mask::JourneySquare => compose_masked_icon(source, &load_atlas_mask(mask)?),
+            Mask::JourneyReward => compose_journey_reward_icon(source, &load_atlas_mask(mask)?),
             Mask::Round | Mask::AuctionItem | Mask::GroupFinder => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
@@ -246,10 +286,14 @@ fn is_round_icon(name: &str) -> bool {
 fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     let atlas = match mask {
         Mask::PerksProduct => "UI-HUD-ActionBar-IconFrame-Mask",
+        Mask::PerksCartItem => "perks-border-square-gold-mask",
         Mask::TalentCircle => "talents-node-circle-mask",
         Mask::TalentChoiceLeft => "talents-node-choice-mask-half",
         Mask::TalentChoice | Mask::TalentChoiceRight => "talents-node-choice-mask",
         Mask::TalentChoiceFlyout => "talents-node-choiceflyout-mask",
+        Mask::JourneyRing => "ui-journeys-delve-rewardicon-ring-mask",
+        Mask::JourneySquare => "ui-journeys-delve-rewardicon-square-mask",
+        Mask::JourneyReward => "talents-node-choice-mask",
         _ => unreachable!("atlas mask only"),
     };
     let region =
@@ -262,9 +306,26 @@ fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     if mask == Mask::TalentChoiceRight {
         image = image::imageops::rotate180(&image);
     }
+    if matches!(mask, Mask::JourneyRing | Mask::JourneySquare) {
+        // RenownLevelTemplate:42px icon inside the atlas-sized64px centered mask.
+        // Refresh changes mask atlas with IgnoreAtlasSize, preserving that64px rect.
+        image = crop_normalized(image, [11. / 64., 53. / 64., 11. / 64., 53. / 64.]);
+    }
     Ok(mask_alpha(&image))
 }
 fn mask_of(name: &str) -> Option<Mask> {
+    let cart_item = name
+        .strip_prefix("PerksProgramCartItem")
+        .and_then(|suffix| suffix.strip_suffix("Icon"))
+        .is_some_and(|id| id.parse::<u32>().is_ok());
+    let cart_member = name
+        .strip_prefix("PerksProgramCartSubItem")
+        .and_then(|suffix| suffix.strip_suffix("Icon"))
+        .and_then(|ids| ids.split_once('_'))
+        .is_some_and(|(vendor, item)| vendor.parse::<u32>().is_ok() && item.parse::<u32>().is_ok());
+    if cart_item || cart_member {
+        return Some(Mask::PerksCartItem);
+    }
     let talent_circle = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
     let profession_circle = (name.starts_with("ProfessionSpecNode") && name.ends_with("Icon"))
         || name == "ProfessionSpecDetailedIcon";
@@ -272,7 +333,13 @@ fn mask_of(name: &str) -> Option<Mask> {
         || name
             .strip_prefix("PerksProgramIcon")
             .is_some_and(|id| id.parse::<u32>().is_ok());
-    if perks {
+    if name.starts_with("JourneyRenownLevel") && name.ends_with("ringIcon") {
+        Some(Mask::JourneyRing)
+    } else if name.starts_with("JourneyRenownLevel") && name.ends_with("squareIcon") {
+        Some(Mask::JourneySquare)
+    } else if name.starts_with("JourneyReward") && name.ends_with("Icon") {
+        Some(Mask::JourneyReward)
+    } else if perks {
         Some(Mask::PerksProduct)
     } else if talent_circle || profession_circle {
         Some(Mask::TalentCircle)
@@ -326,6 +393,17 @@ fn compose_group_finder_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage 
     let circle = resize(round, 62, 62, FilterType::Triangle);
     let mut mask = GrayImage::new(66, 66);
     replace(&mut mask, &circle, 2, 2);
+    compose_masked_icon(source, &mask)
+}
+
+/// JourneyProgressRewardCardTemplate:45px icon, centered40px choice mask.
+/// Compose at2x to retain its authored2.5px inset rather than rounding one edge.
+fn compose_journey_reward_icon(source: RgbaImage, choice: &GrayImage) -> RgbaImage {
+    use image::imageops::{FilterType, replace, resize};
+    let source = resize(&source, 90, 90, FilterType::Triangle);
+    let choice = resize(choice, 80, 80, FilterType::Triangle);
+    let mut mask = GrayImage::new(90, 90);
+    replace(&mut mask, &choice, 5, 5);
     compose_masked_icon(source, &mask)
 }
 
@@ -422,6 +500,68 @@ mod tests {
         }
     }
 
+    #[test]
+    fn journeys_real_icons_cut_mask_corners_and_preserve_the_centre() {
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture {name:"JourneyRenownLevel2ringIcon",texture_fdid:135729,width:42.0,height:42.0}
+                texture {name:"JourneyRenownLevel3squareIcon",texture_fdid:135729,width:42.0,height:42.0}
+                texture {name:"JourneyReward622Icon",texture_fdid:135729,width:45.0,height:45.0}
+            }).sync(&SharedContext::new(),&mut registry);
+            IconMasks::default().apply(&mut registry);
+            for name in [
+                "JourneyRenownLevel2ringIcon",
+                "JourneyRenownLevel3squareIcon",
+                "JourneyReward622Icon",
+            ] {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let Some(WidgetData::Texture(rendered)) = &frame.widget_data else {
+                    panic!("icon")
+                };
+                let image = match rendered.source {
+                    TextureSource::FileDataId(fdid) => texture(fdid),
+                    TextureSource::Dynamic(id) => {
+                        let pixels = registry.dynamic_texture(id).unwrap();
+                        RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone())
+                            .unwrap()
+                    }
+                    _ => panic!("authored icon must retain centre pixels"),
+                };
+                assert_eq!(image.get_pixel(0, 0)[3], 0, "{skin:?} {name} corner");
+                assert_eq!(
+                    image.get_pixel(image.width() - 1, image.height() - 1)[3],
+                    0,
+                    "{name} opposite corner"
+                );
+                assert!(
+                    image.get_pixel(image.width() / 2, image.height() / 2)[3] > 200,
+                    "{name} centre"
+                );
+                if name == "JourneyRenownLevel2ringIcon" {
+                    assert_eq!(
+                        image.get_pixel(image.width() / 10, image.height() / 10)[3],
+                        0,
+                        "ring diagonal outside circle"
+                    );
+                }
+                if name == "JourneyReward622Icon" {
+                    assert_eq!(
+                        image.get_pixel(0, image.height() / 2)[3],
+                        0,
+                        "40px mask inside45px icon"
+                    );
+                }
+            }
+        }
+    }
+
     fn dynamic_icon_pixels(registry: &FrameRegistry, name: &str) -> RgbaImage {
         let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
         let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
@@ -474,6 +614,80 @@ mod tests {
             rendered.get_pixel(16, 16)[3] > 200,
             "opaque centre {skin:?}"
         );
+    }
+
+    #[test]
+    fn trading_post_cart_item_mask_preserves_the_source_56_to_56_ratio() {
+        use image::imageops::{FilterType, resize};
+        use ui_toolkit::{
+            atlas::{ActiveSkin, AtlasSource, set_thread_skin},
+            screen::{Screen, SharedContext},
+        };
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture { name:"PerksProgramCartItem4Icon",texture_fdid:135729u32,width:56.0,height:56.0 }
+                texture { name:"PerksProgramCartSubItem4_189869Icon",texture_fdid:135729u32,width:56.0,height:56.0 }
+            }).sync(&SharedContext::new(), &mut registry);
+            IconMasks::default().apply(&mut registry);
+            let rendered = resize(
+                &dynamic_icon_pixels(&registry, "PerksProgramCartItem4Icon"),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            let member = resize(
+                &dynamic_icon_pixels(&registry, "PerksProgramCartSubItem4_189869Icon"),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            assert_eq!(
+                rendered, member,
+                "ensemble members use the same authored56px mask"
+            );
+            let icon = resize(
+                &super::load_rgba(135729, "cart icon fixture").unwrap(),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            let region = ui_toolkit::atlas::get_region("perks-border-square-gold-mask").unwrap();
+            let AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("cart mask FDID");
+            };
+            let crop = [region.left, region.right, region.top, region.bottom];
+            let mask = resize(
+                &mask_alpha(&super::crop_normalized(
+                    super::load_rgba(fdid, "cart mask fixture").unwrap(),
+                    crop,
+                )),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            for y in 0..56 {
+                for x in 0..56 {
+                    let expected = (u16::from(icon.get_pixel(x, y)[3])
+                        * u16::from(mask.get_pixel(x, y)[0])
+                        / 255) as u8;
+                    assert_eq!(
+                        rendered.get_pixel(x, y)[3],
+                        expected,
+                        "{skin:?} Cart Icon/Mask56:56 alpha({x},{y})"
+                    );
+                }
+            }
+            assert!(
+                rendered.get_pixel(28, 28)[3] > 200,
+                "visible cart icon centre"
+            );
+        }
     }
 
     #[test]

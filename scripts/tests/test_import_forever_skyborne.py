@@ -352,10 +352,11 @@ class CreationSceneAssetTests(unittest.TestCase):
                 staging,
                 cache,
                 data / "db2" / importer.BUILD,
-                data / "db2/12.1.0.69933",
+                data / "db2/active",
             ):
                 directory.mkdir(parents=True, exist_ok=True)
-            (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
+            (data / "db2/active/Map.csv").write_text("ID\n0\n")
+            (data / "db2/active/receipt.json").write_text('{"identity":{"product":"wow","build":"12.1.5.70391"}}')
             for name, raw in sources.items():
                 (staging / name).write_bytes(raw)
             with (

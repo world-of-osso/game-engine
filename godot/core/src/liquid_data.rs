@@ -8,7 +8,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::csv_util::parse_csv_records;
+use crate::csv_util::parse_csv_records_with_lines;
 
 pub use crate::asset::adt_format::adt_tex::FIRST_LIQUID_OBJECT;
 
@@ -172,7 +172,7 @@ pub struct MapLiquidCatalog {
 
 impl MapLiquidCatalog {
     pub fn read(data: &Path) -> Result<Self, String> {
-        let retail_dir = data.join("db2/12.1.0.69933");
+        let retail_dir = data.join("db2/active");
         let forever_dir = data.join("db2/1.60.1.70205");
         let retail_text = std::fs::read_to_string(retail_dir.join("Map.csv"))
             .map_err(|error| format!("Retail Map.csv: {error}"))?;
@@ -498,19 +498,53 @@ fn read_table<T>(
     let path = dir.join(format!("{table}.csv"));
     let text = std::fs::read_to_string(&path)
         .map_err(|error| format!("Cannot read {}: {error}", path.display()))?;
-    let mut records = parse_csv_records(&text).into_iter();
-    let headers = records
+    let mut records = parse_csv_records_with_lines(&text).into_iter();
+    let (_, headers) = records
         .next()
         .ok_or_else(|| format!("{} is empty", path.display()))?;
     records
-        .filter(|values| values.len() > 1)
-        .map(|values| {
+        .map(|(line, values)| {
             let row = CsvRow {
                 table,
                 headers: &headers,
                 values: &values,
             };
-            Ok((row.number("ID")?, parse(&row)?))
+            let id = row
+                .number("ID")
+                .map_err(|error| format!("{}:{line}: {error}", path.display()))?;
+            let value =
+                parse(&row).map_err(|error| format!("{}:{line}: {error}", path.display()))?;
+            Ok((id, value))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_liquidtype_rejects_short_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("db2/active/LiquidType", None);
+        let csv = std::fs::read_to_string(&fixture.0).unwrap();
+        let mut lines: Vec<_> = csv.lines().map(str::to_string).collect();
+        lines[1] = "invalid".into();
+        let csv = lines.join("\n");
+        std::fs::write(&fixture.0, &csv).unwrap();
+        let error = read_table(fixture.0.parent().unwrap(), "LiquidType", |row| {
+            row.number::<u32>("ID")
+        })
+        .unwrap_err();
+        assert!(error.contains("LiquidType.csv:2:"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_liquids_read_installed_tables() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+        let catalog = LiquidCatalog::read(&dir).unwrap();
+        assert!(!catalog.types.is_empty());
+    }
 }

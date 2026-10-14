@@ -84,6 +84,58 @@ fn toy_filters_use_retail_checkbox_submenu_and_reset_controls_both_skins() {
 }
 
 #[test]
+fn toy_menus_fit_source_descriptions_and_preserve_actions_in_both_skins() {
+    use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = journal(skin);
+        let mut model = ToyBox::default();
+        model.receive(vec![toy(1, "Picnic Basket", true)]);
+        model.filters_open = true;
+        model.context = Some((1, [300.0, 100.0]));
+        let mut shared = SharedContext::new();
+        shared.insert(ToyBoxView {
+            model,
+            viewport: [1920.0, 1080.0],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(toybox_screen).sync(&shared, &mut registry);
+        let text_width = |text| measure_text(text, GameFont::FrizQuadrata, 12.0).unwrap().0;
+        let widest = [
+            text_width("Collected") + 19.0,
+            text_width("Not Collected") + 19.0,
+            text_width("Usable Only") + 19.0,
+            text_width("Sources") + 16.0,
+            text_width("Expansion") + 16.0,
+        ]
+        .into_iter()
+        .fold(0.0, f32::max);
+        assert_eq!(
+            visible_frame(&registry, "ToyBoxFilterMenu").width.value(),
+            (widest.ceil() + 16.0).max(90.0)
+        );
+        let context = visible_frame(&registry, "ToyBoxContextMenu");
+        assert_eq!(
+            context.width.value(),
+            text_width("Set Favorite").ceil() + 16.0
+        );
+        assert_eq!(
+            context.position.left,
+            ui_toolkit::layout_values::Val::Px(300.0)
+        );
+        assert_eq!(
+            context.position.top,
+            ui_toolkit::layout_values::Val::Px(100.0)
+        );
+        assert_eq!(
+            visible_frame(&registry, "ToyBoxFavouriteToggle")
+                .onclick
+                .as_deref(),
+            Some(format!("{}1", game_engine_ui_model::toybox::FAVOURITE_PREFIX).as_str())
+        );
+    }
+}
+
+#[test]
 fn collections_portrait_shell_uses_source_background_in_both_skins() {
     // CollectionsJournal inherits PortraitFrameTemplate; SharedUIPanelTemplates.xml:597-614.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

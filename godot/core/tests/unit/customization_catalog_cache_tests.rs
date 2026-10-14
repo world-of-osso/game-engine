@@ -93,7 +93,7 @@ fn pinned_customization_tracks_race_model_inputs_and_ignores_root_csvs() {
         3
     );
     conn.execute(
-        "UPDATE source_files SET source = replace(source, 'db2/12.1.0.69933/', '')",
+        "UPDATE source_files SET source = replace(source, 'db2/active/', '')",
         [],
     )
     .unwrap();
@@ -125,10 +125,7 @@ fn pinned_customization_tracks_race_model_inputs_and_ignores_root_csvs() {
     drop(conn);
     std::fs::remove_file(source).unwrap();
     let error = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap_err();
-    assert!(
-        error.contains("db2/12.1.0.69933/ChrRaceXChrModel.csv"),
-        "{error}"
-    );
+    assert!(error.contains("db2/active/ChrRaceXChrModel.csv"), "{error}");
 }
 
 #[test]
@@ -245,6 +242,22 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
     ] {
         std::fs::write(forever.join(format!("{name}.csv")), contents).unwrap();
     }
+    // Authentic Forever geoset 12368 belongs to an unrelated model, not Skyborne.
+    for (name, row) in [
+        ("ChrCustomizationGeoset", "12368,45,1818453348\n"),
+        ("ChrCustomizationOption", "Other,503,999,3,0,0,0\n"),
+        ("ChrCustomizationChoice", "Other,95003,503,0,0,0,0,0\n"),
+        (
+            "ChrCustomizationElement",
+            "95003,0,12368,0,0,0,0,0,0,0,0,0,0\n",
+        ),
+    ] {
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(forever.join(format!("{name}.csv")))
+            .and_then(|mut file| std::io::Write::write_all(&mut file, row.as_bytes()))
+            .unwrap();
+    }
     // The real Forever export has this wide GeosetID on unrelated collection rows.
     // It must be retained, but not interpreted as a Skyborne submesh ID.
     std::fs::OpenOptions::new()
@@ -318,6 +331,21 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         .unwrap(),
         1684631414
     );
+    assert_eq!(
+        conn.query_row(
+            "SELECT geoset_id FROM geosets WHERE id = 12368",
+            [],
+            |row| row.get::<_, i32>(0)
+        )
+        .unwrap(),
+        1818453348
+    );
+    conn.execute("UPDATE geosets SET geoset_id = 1818453348 WHERE id = 1", [])
+        .unwrap();
+    let error = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap_err();
+    assert!(error.contains("read geosets row"), "{error}");
+    conn.execute("UPDATE geosets SET geoset_id = 2 WHERE id = 1", [])
+        .unwrap();
     conn.execute(
         "UPDATE skinned_models SET geoset_id = 1684631414 WHERE id = 7",
         [],
@@ -326,6 +354,42 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
     drop(conn);
     let error = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap_err();
     assert!(error.contains("read skinned_models row"), "{error}");
+}
+
+#[test]
+fn npc_catalog_limits_geoset_interpretation_to_selected_models() {
+    let fixture = CatalogFixture::new();
+    let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
+    let conn = Connection::open(&cache).unwrap();
+    // Geoset 12368 is an authentic wide Forever value; associate it with model 20.
+    conn.execute("INSERT INTO geosets VALUES (12368, 45, 1818453348)", [])
+        .unwrap();
+    conn.execute(
+        "UPDATE elements SET geoset_id = 12368 WHERE choice_id = 90003",
+        [],
+    )
+    .unwrap();
+    let races = RaceModels::load(&fixture.retail())
+        .unwrap()
+        .for_npc(1, 0)
+        .unwrap();
+    let raw =
+        crate::customization_query_data::query_npc_customization_raw_data(&conn, races).unwrap();
+    assert_eq!(raw.geosets[&1].geoset_id, 2);
+    assert!(!raw.geosets.contains_key(&12368));
+    conn.execute(
+        "UPDATE elements SET geoset_id = 12368 WHERE choice_id = 90001",
+        [],
+    )
+    .unwrap();
+    let races = RaceModels::load(&fixture.retail())
+        .unwrap()
+        .for_npc(1, 0)
+        .unwrap();
+    let error = crate::customization_query_data::query_npc_customization_raw_data(&conn, races)
+        .err()
+        .expect("selected wide geoset must fail");
+    assert!(error.contains("read geosets row"), "{error}");
 }
 
 #[test]
@@ -586,20 +650,23 @@ fn catalog_cache_marks_each_unimplemented_element_kind() {
         "ChrCustGeoComponentLinkID",
     ] {
         assert!(
-            has_unsupported_effects(&[column.into()], &["41".into()]),
+            has_unsupported_effects(&[column.into()], &["41".into()]).unwrap(),
             "{column}"
         );
         assert!(
-            !has_unsupported_effects(&[column.into()], &["0".into()]),
+            !has_unsupported_effects(&[column.into()], &["0".into()]).unwrap(),
             "{column}"
         );
     }
-    assert!(!has_unsupported_effects(
-        &[
-            "ChrCustomizationGeosetID".into(),
-            "ChrCustomizationMaterialID".into(),
-            "ChrCustomizationSkinnedModelID".into()
-        ],
-        &["41".into(), "42".into(), "43".into()]
-    ));
+    assert!(
+        !has_unsupported_effects(
+            &[
+                "ChrCustomizationGeosetID".into(),
+                "ChrCustomizationMaterialID".into(),
+                "ChrCustomizationSkinnedModelID".into()
+            ],
+            &["41".into(), "42".into(), "43".into()]
+        )
+        .unwrap()
+    );
 }

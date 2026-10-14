@@ -80,6 +80,19 @@ impl Background {
         })
     }
 
+    pub fn is_ready(&self) -> bool {
+        let state = self.terrain.state();
+        !state.pending_map
+            && state.pending_tiles.is_empty()
+            && self
+                .materials
+                .attached_tiles()
+                .contains(&self.scene.tile_coords())
+            && self.light.is_some()
+            && self.sky.is_some()
+            && self.objects.is_ready()
+    }
+
     /// Light a newly shown character with the scene's current light.
     pub fn bind_light(&self, model: &Gd<Node3D>) {
         if let Some(light) = &self.light {
@@ -125,6 +138,12 @@ impl Background {
         }
         let span = crate::profile::span(|| "preview.background.objects".to_owned());
         self.objects.sync(root, &self.terrain);
+        if self.objects.failure_count() != 0 {
+            return Err(format!(
+                "Character background: {} campsite objects failed to load",
+                self.objects.failure_count()
+            ));
+        }
         drop(span);
         let _span = crate::profile::span(|| "preview.background.sky".to_owned());
         self.sync_sky(root)

@@ -2,6 +2,19 @@
 
 [Read-only framing73/74](systems/character-rendering.md#close-camera-observation--2026-10-14) identifies the actual visible mailbox collider pulling in the Goldshire camera. Post-AV fresh login is dead; standing-body acceptance remains open. Both-skin front/rear originals and loaded portraits are observations only; no camera/material/gameplay change or retrospective old-capture cause claim.
 
+## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
+
+[Cart acceptance](systems/trading-post.md#cart-acceptance--2026-10-14): stable hidden-owner instance identities fix the controlled free→replacement checkout panic. Modern/Forever checkout→new-client relog→individual refunds pass with zero panic/script-error markers, seventy1920×1080 PNGs and memory/swap boundaries.21 UI/8 native and12 server/1 admin gates pass after current-master integration; protocol3 unchanged. Mount player-preview/rotate widgets remain unchecked.
+
+## 2026-10-14 — Header-aware DB2 CSV catalogs
+
+[CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
+## 2026-10-14 — Character-selection reveal
+
+[Selection reveal](investigations/world-entry-stalls.md#windows-character-select-reveal--2026-10-14): fresh outfit imports dominated preparation; retain/prewarm owned catalogs and cover asynchronous camp/model construction with loading UI. Published-base process-frame RED→GREEN and inspected1920×1080 Windows camp/world accepted. Covered selection Windows1.706s/Linux2.398s, differing build profiles; current-master process proof pending.
+## 2026-10-14 — Mutable player-bundle snapshots
+
+[Publication staging](systems/shipped-assets.md#publication-staging--2026-10-14): independent catalog copies prevent later source SQLite writes from changing staged bytes. Manifest hashes staged files; verifier checks size/SHA256 before upload. Two new regressions RED; packaging suite GREEN8/8. No production publication or full asset-closure claim.
 ## 2026-10-14 — Forever Seething functional victory
 
 [Seething70](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14):15 normal gathers/1500, Winner B, automatic results and ten normal return ACKs before save; lead accepts functional evidence. Frozen redb row and normal native relog verify the identical map0 return position with no baseline reset or position command. Natural departure (`drop_proof:false`) and full-body framing remain open. PSI maxima exclude timing acceptance; the run used actual ADD after the offered window expired. Canonical `7184c3dd` supplies all175746 item definitions; private table matches exactly and derived-row preparation is removed.
@@ -9,7 +22,21 @@
 ## 2026-10-14 — Seething disconnect boundary
 
 [Disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14): run60 peer reports `ConnectionTimedOut`; last native incoming socket batch08:32:13.043UTC, outgoing worker Pings continue through08:32:22.978, server max frame13.139s reported08:32:26.284. Run67 reproduces the actual native `ConnectionTimedOut` event after10 gathers/1000, alongside25.173s server/41.647s native pauses and memory-full PSI86.38%; system/process attribution remains open. Run69 reports297.768s server/284.237s native pauses, memory-full PSIavg60=90.85 and rising faults across unrelated compiler/verifier/server processes; a sustainable native window is required. No timeout/guard change. Published equipment closure verified20/20; portable manifest now uses the lead's two published indexes. Obsolete Forever no-portrait fixture follows the decided Retail60×60 player slot; Modern shared-menu golden remains untouched.
+## 2026-10-14 — Journeys presentation source joins
 
+[Guide catalog](systems/adventure-guide.md#catalog-and-native-host): local active Covenant display rows join texture-kit prefixes and signed UI priorities. Realm authority and unknown classification/collection state are unchanged. UI integration/native icon proof remain pending; missing icon sheets are a separate publication dependency.
+
+## 2026-10-14 — Watched reputation native baseline
+
+[Reputation bar](systems/reputation-status-bar.md): small owner-only state independent of Journeys catalog, persisted login/clear/refusal/committed-quest backing, source geometry/XP priority and physical hover/leave. Forever overlap reproduced in pixels, then fixed with approved relative top-XP anchor; both skins pass at3010f78da with four inspected1920×1080 originals and exact receipt. Positive MajorFaction watch and full manager parity remain open; current Journeys displays remain unloaded after90s; the received cache must be observed separately before inferring delivery failure.
+
+## 2026-10-14 — Journeys watch and fractional left boundary
+
+[Watch/left proof](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persisted Faction-ID watch/clear and refusal feedback, no optimistic checkmark; offset51.6 keeps the left arrow enabled despite selected1. Current native snapshots missing in both skins; no new capture PASS or production eligibility claim.
+
+## 2026-10-14 — Journeys held arrows and native masks
+
+[Held-arrow proof](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14): sourced fractional scrolling and directional release;12/12 focused UI tests, both-skin physical hold/outside release/stop plus icon-mask pixels PASS at executablecb706aab3. Fourteen inspected original full-HD captures and hashed receipt. Cross-agent snapshot latency is timestamped separately; no retry/workaround. Claim/watch/overview backing and70391 metadata remain open.
 ## 2026-10-14 — Unnamed equipped component attachment
 
 [Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
@@ -82,6 +109,10 @@
 ## 2026-10-13 — Game Menu controls and Settings header follow-up
 
 [Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Actual registry-scroll/production-wheel Graphics proof passes in both skins, all13 targeted native scroll cases pass; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
+
+## 2026-10-13 — DB2 and live asset-index refresh implementation
+
+[Asset pipeline](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13): active70391 exact-layout exports and eight cache/catalog outputs;302-table census and zero newly missing TDB join IDs. New-build mappings supersede their owning receipt without duplicates; current-only bundle selection and guarded lead migration pass concrete old-index fixtures. Native RED exposed LightSkybox's new Name column; named-field GREEN passes. All-table translation import hit global OOM; serial native regeneration finished78inputs/678resources. Inspected authenticated Modern/Forever captures prove12hotkeys plus3changed-sheet samples; all30 native regions match current CSVs. Canonical publication is lead-only.
 
 ## 2026-10-13 — Basic editor source continuation
 
@@ -3731,3 +3762,11 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
 
 - 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.
+
+- 2026-10-14: [[quest-ui#Fresh login and real-party eligibility — 2026-10-14]] records both-skin fresh owned story/55-copper fixed reward and real invite/roster-driven Share eligibility. Landed UDP receive queue integrated, no empty-log retry. Fourteen inspected PNGs; stale private schema refreshed read-only. World-model receipt diagnostics and general latency/recipient acceptance remain outside proof.
+
+- 2026-10-14: [[collections-ui]] records source shared menus/cursor positioning and pet decoration, preserving already-source shell/inset/card/ToyBox layout. Both-skin native controls/models pass;26 inspected1920×1080 PNGs and52 focused regressions. Initial synthetic-cursor failures rejected as product RED evidence; Input ingestion corrected. Default ModelScene FOV remains unsourced.
+
+- 2026-10-14: [[collections-ui#Mount selected/hover compositing follow-up]] corrects shared Mount/Pet highlight ADD→source BLEND. Both-skin native source-region/pixel proof restores blue rim over yellow selection; no opaque white centre reproduced. Mount14/Pet18 pass, expanded command34pass/1 unrelated guild-fixture failure retained; build/check/fmt pass.
+
+- 2026-10-14: [[boss-encounters#Source timer-bar art — 2026-10-14]] ports textured background/fill/additive spark and source runtime320×387/300px-row geometry. Missing-art and placeholder-size REDs→four model tests GREEN; both-skin1920×1080 full/half/empty native proof inspected, build/check/fmt pass. Initial placeholder-sized captures rejected; no scheduler or default-color parity claim.

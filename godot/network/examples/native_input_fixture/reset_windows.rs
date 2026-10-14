@@ -9,7 +9,7 @@ mod tests {
     fn preflight_reports_all_missing_authored_inputs_without_staging() {
         let missing = missing_fixture_inputs(Path::new("/nonexistent/reset-fixture-data"));
         for name in [
-            "cache/customization-v4.sqlite",
+            "cache/customization-v5.sqlite",
             "cache/char_texture-v2.sqlite",
             "ChrRaces.csv",
             "equipment_transforms.ron",
@@ -27,7 +27,6 @@ mod tests {
             "ChrModelTextureLayer.csv",
             "CharComponentTextureSections.csv",
             "CharComponentTextureLayouts.csv",
-            "CharStartOutfit.csv",
             "ModelFileData.csv",
             "community-listfile.csv",
             "models",
@@ -43,7 +42,7 @@ mod tests {
 
 const ASSET_TREES: &[&str] = &["models", "terrain", "textures"];
 const CACHE_FILES: &[&str] = &[
-    "customization-v4.sqlite",
+    "customization-v5.sqlite",
     "char_texture-v2.sqlite",
     "creature_display.sqlite",
     "npc_appearance.sqlite",
@@ -60,7 +59,6 @@ const DATA_FILES: &[&str] = &[
     "music_zone_links.csv",
     "music_manifest.csv",
     "community-listfile.csv",
-    "CharStartOutfit.csv",
     "ItemModifiedAppearance.csv",
     "ItemAppearance.csv",
     "ItemDisplayInfo.csv",

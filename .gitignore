@@ -4,3 +4,4 @@
 /tmp
 /.worktrees/
 PLAN.md
+__pycache__/
