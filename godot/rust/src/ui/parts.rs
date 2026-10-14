@@ -119,17 +119,27 @@ fn project_perks_rotate_button(
         Crop::Full,
         WHITE,
     ));
-    if button.hovered || button.highlight_locked {
-        let mut hover = textured(
-            [0., 0., width, height],
-            TextureSource::Atlas("perks-button-up".into()),
-            Crop::Full,
-            [1., 1., 1., 0.6],
-        );
-        hover.additive = true;
-        parts.push(hover);
-    }
+    project_perks_rotate_highlight(button, width, height, parts);
     true
+}
+
+fn project_perks_rotate_highlight(
+    button: &ButtonData,
+    width: f32,
+    height: f32,
+    parts: &mut Vec<ImagePart>,
+) {
+    if !(button.hovered || button.highlight_locked) {
+        return;
+    }
+    let mut hover = textured(
+        [0., 0., width, height],
+        TextureSource::Atlas("perks-button-up".into()),
+        Crop::Full,
+        [1., 1., 1., 0.6],
+    );
+    hover.additive = true;
+    parts.push(hover);
 }
 
 /// SharedButtonTemplate inherits128-RedButton; its114px/292px caps scale with height.
