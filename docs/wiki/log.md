@@ -1,3 +1,7 @@
+## 2026-10-13 — Journeys native track and hover continuation
+
+[Journeys](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): source renown card/reward anchors, shared dropdown/Home and native reward GameTooltip. Actual wheel RED2→2 at24ba6c127 becomes both-skin2→3/jump1/25/Home GREEN at7fa263976;10 individually inspected full-HD captures with binary/fixture/PNG receipt. UI9/9; kit/category/priority/hidden/claim/overview/unlock metadata and producers remain open. Capture inspection found the clipped unsupported notice, still active rather than claimed fixed.
+
 ## 2026-10-13 — Adventure Guide independent-gate corrections
 
 [Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Final shared context shell/row geometry, RGB0.35 instructions and hidden Loot title pass Guide41/shared6 tests and both-skin24 full-HD capture at7d99b7225. Code/binary/PNG receipt and source XML inspection are recorded; extra tooltip-font and inherited Options-wheel test failures remain explicit.
