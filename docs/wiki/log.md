@@ -14,6 +14,10 @@
 
 [Cart acceptance](systems/trading-post.md#cart-acceptance--2026-10-14): stable hidden-owner instance identities fix the controlled free→replacement checkout panic. Modern/Forever checkout→new-client relog→individual refunds pass with zero panic/script-error markers, seventy1920×1080 PNGs and memory/swap boundaries.21 UI/8 native and12 server/1 admin gates pass after current-master integration; protocol3 unchanged. Mount player-preview/rotate widgets remain unchecked.
 
+## 2026-10-14 — Cooldown Settings source inset
+
+[Settings art](investigations/cooldown-assist-data.md#settings-template-art--2026-10-14): retain already-repaired399×609 shell/tabs/row geometry; restore character-panel inset background/shared border and source orange preview tint. Two source-art REDs→13 focused tests GREEN, build/check/fmt pass, four inspected both-skin full-HD Spells/Auras captures. No new authority or Settings behavior.
+
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
