@@ -16,7 +16,6 @@ mod castbar_preview;
 mod dungeon_preview;
 mod flight_map_preview;
 mod forevergaps_preview;
-mod gameplay_baseline_capture;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
 mod guild_preview;
