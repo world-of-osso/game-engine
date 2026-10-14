@@ -31,12 +31,12 @@ impl View {
 
     fn select_cart_item(&mut self, item_id: u32) -> Result<(), String> {
         let key = selection_key(self.cart_inventory_type(item_id)?);
-        if self.cart_selected.get(&key) == Some(&item_id) {
-            self.cart_selected.remove(&key);
+        // Disabled wearables clear OTHER before inspecting their retained selection.
+        if key != 0 && self.cart_selected.remove(&0).is_some() {
             return Ok(());
         }
-        // A disabled wearable row clears the OTHER override without selecting itself.
-        if key != 0 && self.cart_selected.remove(&0).is_some() {
+        if self.cart_selected.get(&key) == Some(&item_id) {
+            self.cart_selected.remove(&key);
             return Ok(());
         }
         match key {
