@@ -98,7 +98,7 @@ fn trading_post_other_cart_preview_dims_wearables_but_keeps_remove_colored_and_c
     mount.category_id = 2;
     mount.item_id = 117;
     data.items.push(mount);
-    let view = View {
+    let mut view = View {
         visible: true,
         snapshot: Some(Arc::new(data)),
         cart: vec![4, 5],
@@ -108,7 +108,7 @@ fn trading_post_other_cart_preview_dims_wearables_but_keeps_remove_colored_and_c
         cart_hover: Some(4),
         ..Default::default()
     };
-    let registry = render(ActiveSkin::Modern, view);
+    let registry = render(ActiveSkin::Modern, view.clone());
     let frame = registry
         .get(registry.get_by_name("PerksProgramCartItem4").unwrap())
         .unwrap();
@@ -129,6 +129,16 @@ fn trading_post_other_cart_preview_dims_wearables_but_keeps_remove_colored_and_c
         .unwrap();
     assert!(
         matches!(&remove.widget_data,Some(WidgetData::Texture(texture)) if !texture.desaturated)
+    );
+    view.click("perks:cart:item:189869").unwrap();
+    assert!(
+        view.cart_selected.get(&0).is_none(),
+        "Disabled wearable click must clear OTHER first"
+    );
+    assert_eq!(
+        view.cart_preview_item_ids(),
+        [189869],
+        "Do not deselect the hidden wearable while clearing OTHER"
     );
 }
 
