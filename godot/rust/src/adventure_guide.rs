@@ -89,12 +89,6 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn open_adventure_monthly(&mut self) -> Result<(), String> {
-        self.adventure_guide.view.apply("journal:tab:monthly")?;
-        self.adventure_guide.view.loading = !self.adventure_guide.loaded;
-        self.adventure_guide.queued_encounter = None;
-        self.request_adventure_guide_state()
-    }
     fn request_adventure_guide_state(&self) -> Result<(), String> {
         self.account
             .send_request_raid_info()

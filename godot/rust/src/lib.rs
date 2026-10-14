@@ -2348,6 +2348,9 @@ impl GameClient {
             AccountEvent::MountJournal(update) => self.receive_mount_journal(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
+            AccountEvent::PetJournalDetails(update) => {
+                self.pet_journal.view.receive_details(update)
+            }
             AccountEvent::FollowerDungeons(catalog) => {
                 self.follower_dungeons.view.receive_catalog(catalog)
             }
