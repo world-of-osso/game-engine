@@ -153,6 +153,21 @@ func check_mount_row_highlight() -> bool:
 	Input.parse_input_event(motion)
 	await frames(20)
 	await capture("mount-row-selected-hover.png")
+	if not await check_mount_controls():
+		return false
+	row = control("MountJournalRow18")
+	await capture("mount-row-filter-reset-context.png")
+	for suffix in ["Selected", "RowHighlight"]:
+		var region := control("MountJournalRow18" + suffix)
+		if region == null:
+			continue
+		for part in region.find_children("*", "TextureRect", true, false):
+			var source: Image = part.texture.get_image()
+			var path := OS.get_environment("QF_SHOTS").path_join("mount-row-source-" + suffix + ".png")
+			if source.save_png(path) != OK:
+				fail("Could not preserve native source row art")
+				return false
+			print("MOUNT_ROW_SOURCE ", suffix, " ", source.get_size())
 	var image := root.get_texture().get_image()
 	var white := 0
 	var samples := 0

@@ -115,6 +115,59 @@ fn mount_display_follows_retail_inset_allpoints_in_both_skins() {
 }
 
 #[test]
+fn uncollected_mount_selection_keeps_source_alpha_blend_and_enabled_row() {
+    use game_engine_ui_model::{mount_journal::mount_journal_screen, selection_list};
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        widgets::button::ButtonState,
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        let mount = state.catalog.get_mut(&18).unwrap();
+        mount.collected = false;
+        mount.usable = false;
+        state.visible = true;
+        state.selected = Some(18);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+        let frame = |name| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let row = frame("MountJournalRow18");
+        let Some(WidgetData::Button(button)) = &row.widget_data else {
+            panic!("mount row");
+        };
+        assert_ne!(
+            button.state,
+            ButtonState::Disabled,
+            "Uncollected mounts remain selectable"
+        );
+        let Some(WidgetData::FontString(name)) = &frame("MountJournalRow18Name").widget_data else {
+            panic!("mount name");
+        };
+        assert_eq!(name.color, [0.5, 0.5, 0.5, 1.0]);
+        for name in ["MountJournalRow18Selected", "MountJournalRow18RowHighlight"] {
+            let frame = frame(name);
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("mount row art");
+            };
+            assert!(
+                !selection_list::is_additive_row_art(frame, texture),
+                "MountListButtonTemplate selectedTexture and HighlightTexture use alpha blending: {name}"
+            );
+        }
+    }
+}
+
+#[test]
 fn mount_context_menu_fits_its_rendered_labels_in_both_skins() {
     use game_engine_ui_model::mount_journal::mount_journal_screen;
     use ui_toolkit::{
