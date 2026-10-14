@@ -309,9 +309,15 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     if !view.visible {
         return vec![];
     }
+    // PVPUI.lua:1812,1823: Quick/Rated show the225px HonorInset beside the563px PVE base.
+    let width = if view.category == PvpCategory::PremadeGroups {
+        563.0
+    } else {
+        563.0 + 225.0
+    };
     let mut children = window_chrome_no_portrait(
         "PVPUIFrame",
-        (563.0, 428.0),
+        (width, 428.0),
         "Player vs. Player",
         "pvp:close",
     );
@@ -342,20 +348,16 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     }
     if view.category != PvpCategory::QuickMatch {
         children.extend(category_panel(view));
-        return frame("PVPUIFrame", (563.0, 428.0), (24.0, 90.0), children);
+        return frame("PVPUIFrame", (width, 428.0), (100.0, 84.0), children);
     }
     if let Some(wallet) = &view.snapshot {
         children.extend(text(
             "PVPUIHonorCurrency",
             &format!("Honor: {} / {}", wallet.honor, wallet.honor_max),
-            (194.0, 260.0, 340.0, 22.0),
+            (236.0, 41.0, 370.0, 22.0),
         ));
     }
-    children.extend(text(
-        "HonorFrameTitle",
-        "Quick Match",
-        (194.0, 52.0, 300.0, 22.0),
-    ));
+
     children.extend(specific_list(context, view));
     let queued = view.snapshot.as_ref().is_some_and(|s| s.queue.is_some());
     let status = if view.pending {
@@ -369,25 +371,26 @@ fn queue(context: &SharedContext, view: &PvpView) -> Element {
     } else {
         "Specific Battlegrounds"
     };
-    children.extend(text(
-        "HonorFrameQueueStatus",
-        status,
-        (194.0, 295.0, 340.0, 22.0),
-    ));
+    children.extend(hidden_text("HonorFrameQueueStatus", status));
     children.extend(label(
         "PVPUIError".into(),
         &view.error,
-        (24.0, 335.0, 500.0, 32.0),
-        (12.0, "1,0.2,0.2,1", "LEFT"),
+        (
+            (view.viewport[0] - 512.0) / 2.0 - 100.0,
+            122.0 - 84.0,
+            512.0,
+            60.0,
+        ),
+        (16.0, "1,0.2,0.2,1", "CENTER"),
     ));
     children.extend(panel_button(
         "HonorFrameQueueButton".into(),
         if queued { "Leave Queue" } else { "Join Battle" },
         if queued { "pvp:dequeue" } else { "pvp:queue" },
         !view.pending && view.battleground().is_none(),
-        (365.0, 388.0, 170.0, 22.0),
+        (363.0, 404.0, 116.0, 22.0),
     ));
-    frame("PVPUIFrame", (563.0, 428.0), (24.0, 90.0), children)
+    frame("PVPUIFrame", (width, 428.0), (100.0, 84.0), children)
 }
 pub const SPECIFIC_LIST: &str = "HonorFrameSpecificScrollBox";
 const SPECIFIC_ROW_H: f32 = 40.0;
@@ -405,8 +408,9 @@ pub fn pvp_pan_extent(list: &str) -> Option<usize> {
 
 fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     let templates = specific_choices();
-    let height = ((templates.len() + 2) as f32 * SPECIFIC_ROW_H).max(160.0);
-    let geometry = pixel_geometry(160.0, height, 160.0);
+    let height = templates.len() as f32 * SPECIFIC_ROW_H + 2.0 * 55.0;
+    // HonorFrame(402,403), Inset LEFT4/TOP85/RIGHT-5/BOTTOM22, ScrollBox inset2/21/2/2.
+    let geometry = pixel_geometry(292.0, height, 284.0);
     let offset = geometry.clamp(context.scroll_first_row(SPECIFIC_LIST));
     let config = scroll_list_attr(&geometry);
     let child_top = -(offset as f32);
@@ -430,9 +434,10 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
     ));
     let bar = MinimalScrollBar {
         list: SPECIFIC_LIST,
-        left: 324.0,
-        top: 0.0,
-        height: 160.0,
+        // HonorFrame's sibling ScrollBar TOPRIGHT(-22,-92), not a clipped list child.
+        left: 220.0 + 402.0 - 22.0,
+        top: 22.0 + 92.0,
+        height: 284.0,
         geometry,
         offset,
         unscrollable: Unscrollable::HideThumb,
@@ -441,13 +446,13 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
         .iter()
         .find(|template| template.id == view.selected_battleground)
         .expect("selection belongs to the supported source list");
-    let mut elements = rsx! { r#frame { name: "HonorFrameSpecificScrollBox", width: 340.0,
-    height: 160.0, left: 194.0, top: 90.0, pos_type: "absolute", mouse_enabled: true,
+    let mut elements = rsx! { r#frame { name: "HonorFrameSpecificScrollBox", width: 370.0,
+    height: 292.0, left: 226.0, top: 109.0, pos_type: "absolute", mouse_enabled: true,
     scroll_list: config,
-    r#frame { name: "HonorFrameSpecificScrollChild", width: 324.0, height, left: 0.0,
+    r#frame { name: "HonorFrameSpecificScrollChild", width: 370.0, height, left: 0.0,
         top: child_top, pos_type: "absolute", {children} }
-    {bar.element()} } };
-    elements.extend(text(
+    } {bar.element()} };
+    elements.extend(hidden_text(
         "HonorFrameDescription",
         &view.selected_arena.map_or_else(
             || format!("Selected: {}", selected.name),
@@ -457,9 +462,13 @@ fn specific_list(context: &SharedContext, view: &PvpView) -> Element {
                 _ => unreachable!("Quick Match only selects skirmishes"),
             },
         ),
-        (194.0, 275.0, 340.0, 22.0),
     ));
     elements
+}
+
+// Existing automation receipt, not a visible Retail row; selection is shown by source selected art.
+fn hidden_text(name: &str, text: &str) -> Element {
+    rsx! { fontstring { name: {DynName(name.into())}, text, hidden: true } }
 }
 
 fn category_panel(view: &PvpView) -> Element {
@@ -812,6 +821,10 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         ));
     }
     children.extend(score_rows(context, view, bg, row_top));
+    // Scoreboard.xml: Content(30,35), ScrollCategories TOP3+50, ScrollBox256,
+    // TabGroup TOP(-50), first tab TOPLEFT(+0,+46); AnchorTabs uses +3 horizontal spacing.
+    let mut tab_left = 40.0;
+    let content_top = if height == 620.0 { 90.0 } else { 35.0 };
     for (i, (title, action)) in [
         ("All", "pvp:all"),
         ("Alliance", "pvp:alliance"),
@@ -827,13 +840,25 @@ fn scoreboard(context: &SharedContext, view: &PvpView) -> Element {
         } else {
             title
         };
-        children.extend(panel_button(
-            format!("PVPScoreboardTab{}", i + 1),
+        let width = crate::merchant_frame_component::tab_width(title);
+        let selected = view.filter
+            == match i {
+                1 => Some(BgTeam::A),
+                2 => Some(BgTeam::B),
+                _ => None,
+            };
+        children.extend(crate::merchant_frame_component::tab(
+            &format!("PVPScoreboardTab{}", i + 1),
             title,
+            (
+                tab_left,
+                content_top + 3.0 + 50.0 + 256.0 + 50.0 - 46.0,
+                width,
+            ),
+            selected,
             action,
-            true,
-            (30.0 + i as f32 * 110.0, height - 62.0, 105.0, 22.0),
         ));
+        tab_left += width + 3.0;
     }
     children.extend(panel_button(
         "PVPMatchLeaveButton".into(),

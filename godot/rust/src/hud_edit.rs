@@ -25,7 +25,10 @@ impl GameClient {
             return Ok(false);
         }
         if self.hud_editor.draft.active && matches!(key.get_keycode(), Key::ESCAPE | Key::F10) {
-            if self.hud_editor.draft.pending_delete.is_some() {
+            if self.hud_editor.draft.name_dialog.is_some() {
+                self.apply_hud_edit_action(ACTION_EDIT_MODE_NAME_CANCEL)?;
+                self.refresh_hud_edit()?;
+            } else if self.hud_editor.draft.pending_delete.is_some() {
                 self.apply_hud_edit_action(ACTION_EDIT_MODE_CANCEL_DELETE)?;
                 self.refresh_hud_edit()?;
             } else {
@@ -158,22 +161,14 @@ impl GameClient {
     }
 
     fn hud_edit_panel(&mut self) -> Result<EditModePanelState, String> {
-        let name_draft = self
-            .hud_editor
-            .ui
-            .as_mut()
-            .map(|ui| {
-                ui.bind_mut()
-                    .frame_text(EDIT_MODE_NAME_INPUT.0.into())
-                    .to_string()
-            })
-            .unwrap_or_default();
         Ok(EditModePanelState {
             show_systems: ui_layout_data::edit_mode_account_settings(
                 &self.account.hud_layout_path()?,
             )?,
             layout_name: self.ui_layout.name.clone(),
-            name_draft,
+            name_draft: self.hud_editor.draft.name_draft.clone(),
+            layout_menu_open: self.hud_editor.draft.layout_menu_open,
+            name_dialog: self.hud_editor.draft.name_dialog,
             layout_names: ui_layout_data::layout_names(&self.account.hud_layout_path()?)?,
             pending_delete: self.hud_editor.draft.pending_delete.clone(),
             preset: SYSTEM_PRESETS
@@ -191,7 +186,9 @@ impl GameClient {
         if !self.hud_editor.draft.active {
             return Ok(false);
         }
-        if self.hud_editor.draft.pending_delete.is_some() {
+        if self.hud_editor.draft.pending_delete.is_some()
+            || self.hud_editor.draft.name_dialog.is_some()
+        {
             return Ok(false);
         }
         if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
@@ -303,6 +300,19 @@ impl GameClient {
         if let Some(ui) = &mut self.hud_editor.ui {
             ui.bind_mut().set_ui_scale(scale)?;
         }
+        if self.hud_editor.draft.name_dialog.is_some() {
+            let mut ui = self
+                .hud_editor
+                .ui
+                .as_ref()
+                .ok_or("HUD naming dialog host missing")?
+                .clone();
+            let mut host = ui.bind_mut();
+            host.frame_control(EDIT_MODE_NAME_INPUT.0)
+                .ok_or("HUD naming dialog input missing")?;
+            self.hud_editor.draft.name_draft =
+                host.frame_text(EDIT_MODE_NAME_INPUT.0.into()).to_string();
+        }
         loop {
             let action = self
                 .hud_editor
@@ -324,6 +334,11 @@ impl GameClient {
     }
 
     fn apply_hud_edit_action(&mut self, action: &str) -> Result<(), String> {
+        let action = if action == "editbox_submit:EditModeManagerFrameLayoutName" {
+            ACTION_EDIT_MODE_NAME_CONFIRM
+        } else {
+            action
+        };
         if action == ACTION_EDIT_MODE_EXIT {
             return self.exit_hud_edit();
         }
@@ -378,11 +393,50 @@ pub(crate) fn apply_manager_action(
     {
         return Ok(None);
     }
+    if let Some(name) = action.strip_prefix(ACTION_EDIT_MODE_SELECT_LAYOUT_PREFIX) {
+        let updated = ui_layout_data::set_active_layout(path, id, name)?;
+        draft.enter(&updated);
+        return Ok(Some(updated));
+    }
     if let Some(key) = action.strip_prefix("edit_mode_show_") {
         persist_system_visibility(path, key, draft)?;
         return Ok(None);
     }
     match action {
+        ACTION_EDIT_MODE_LAYOUT_MENU => draft.layout_menu_open = !draft.layout_menu_open,
+        ACTION_EDIT_MODE_NAME_NEW | ACTION_EDIT_MODE_NAME_RENAME => {
+            if action == ACTION_EDIT_MODE_NAME_RENAME
+                && SYSTEM_PRESETS.iter().any(|(name, _)| *name == layout.name)
+            {
+                return Err("System presets cannot be renamed".into());
+            }
+            draft.name_dialog = Some(if action == ACTION_EDIT_MODE_NAME_NEW {
+                LayoutNameOperation::New
+            } else {
+                LayoutNameOperation::Rename
+            });
+            draft.name_draft = if action == ACTION_EDIT_MODE_NAME_NEW {
+                String::new()
+            } else {
+                layout.name.clone()
+            };
+            draft.layout_menu_open = false;
+        }
+        ACTION_EDIT_MODE_NAME_CANCEL => {
+            draft.name_dialog = None;
+            draft.name_draft.clear();
+        }
+        ACTION_EDIT_MODE_NAME_CONFIRM => {
+            let operation = draft.name_dialog.ok_or("No layout naming dialog open")?;
+            let action = match operation {
+                LayoutNameOperation::New => ACTION_EDIT_MODE_NEW,
+                LayoutNameOperation::Rename => ACTION_EDIT_MODE_RENAME,
+            };
+            let updated =
+                persist_manager_layout(path, id, action, name, layout, draft.working.clone())?;
+            draft.enter(&updated);
+            return Ok(Some(updated));
+        }
         ACTION_EDIT_MODE_DELETE => {
             if SYSTEM_PRESETS.iter().any(|(name, _)| *name == layout.name) {
                 return Err("System presets cannot be deleted".into());
@@ -464,31 +518,6 @@ fn persist_manager_layout(
             ui_layout_data::rename_layout(path, &layout.name, name)?;
             ui_layout_data::active_layout(path, id)
         }
-        ACTION_EDIT_MODE_PREV_LAYOUT | ACTION_EDIT_MODE_NEXT_LAYOUT => persist_cycled_layout(
-            path,
-            id,
-            &layout.name,
-            action == ACTION_EDIT_MODE_NEXT_LAYOUT,
-        ),
         _ => Err(format!("Unknown HUD editor action {action:?}")),
     }
-}
-
-fn persist_cycled_layout(
-    path: &std::path::Path,
-    id: u64,
-    active: &str,
-    forward: bool,
-) -> Result<ActiveLayout, String> {
-    let names = ui_layout_data::layout_names(path)?;
-    let current = names
-        .iter()
-        .position(|name| name == active)
-        .ok_or("Active HUD layout missing")?;
-    let next = if forward {
-        (current + 1) % names.len()
-    } else {
-        (current + names.len() - 1) % names.len()
-    };
-    ui_layout_data::set_active_layout(path, id, &names[next])
 }

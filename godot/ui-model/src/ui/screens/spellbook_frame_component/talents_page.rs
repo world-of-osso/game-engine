@@ -1056,11 +1056,12 @@ pub(super) fn dialogs(state: &SpellbookFrameState, scale: f32) -> Element {
     let Some(view) = &state.talents else {
         return Vec::new();
     };
+    let mut dialogs = footer::loadout_dialog(view, state.viewport);
     let Some(node) = view.editor.choice_node.and_then(|id| {
         view.nodes()
             .find(|node| node.id == id && node.node_type == 3)
     }) else {
-        return Vec::new();
+        return dialogs;
     };
     let [width, height] = state.viewport;
     let mut children = rsx! { button {
@@ -1069,7 +1070,8 @@ pub(super) fn dialogs(state: &SpellbookFrameState, scale: f32) -> Element {
         pos_type:"absolute",pos_x:0.0,pos_y:0.0,
     }};
     children.extend(hero_choice_dialog(node, view, scale, state.viewport));
-    children
+    dialogs.extend(children);
+    dialogs
 }
 fn hero_choice_dialog(
     node: &TalentNode,
