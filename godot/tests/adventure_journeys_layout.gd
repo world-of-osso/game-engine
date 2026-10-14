@@ -236,7 +236,16 @@ func run() -> void:
 	if not error.is_empty():
 		stop(error)
 		return
-	if not await wait_screen("CharacterSelect") or not await click("EnterWorld"):
+	if not await wait_screen("CharacterSelect"):
+		return
+	# CharacterSelect is entered before its asynchronous preview reveals EnterWorld.
+	deadline = Time.get_ticks_msec() + 180000
+	while Time.get_ticks_msec() < deadline:
+		var enter := control("EnterWorld")
+		if enter != null and enter.is_visible_in_tree():
+			break
+		await process_frame
+	if not await click("EnterWorld"):
 		return
 	if not await wait_screen("InWorld"):
 		return
