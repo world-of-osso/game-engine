@@ -391,58 +391,68 @@ mod tests {
         .unwrap();
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
             set_thread_skin(skin);
-            let mut registry = FrameRegistry::new(1920., 1080.);
-            Screen::new(|_| ui_toolkit::rsx! {
-                texture { name:"PerksProgramIcon4", texture_fdid:135729, width:32.0, height:32.0 }
-                texture { name:"PerksProgramFrozenIcon", texture_fdid:135729, width:32.0, height:32.0 }
-            }).sync(&SharedContext::new(), &mut registry);
-            IconMasks::default().apply(&mut registry);
-            for name in ["PerksProgramIcon4", "PerksProgramFrozenIcon"] {
-                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
-                let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
-                    panic!("icon");
-                };
-                let TextureSource::Dynamic(id) = icon.source else {
-                    panic!("Trading Post icon must use its authored mask");
-                };
-                let pixels = registry.dynamic_texture(id).unwrap();
-                let rgba =
-                    RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap();
-                use image::imageops::{FilterType, crop_imm, resize};
-                // Elements.xml: centred48×48 MaskTexture over32×32 Icon.
-                // Compare visible output pixels, not generic corner opacity.
-                let icon = resize(
-                    &super::load_rgba(135729, "fixture icon").unwrap(),
-                    32,
-                    32,
-                    FilterType::Triangle,
-                );
-                let mask = resize(
-                    &super::load_atlas_mask(super::Mask::PerksProduct).unwrap(),
-                    48,
-                    48,
-                    FilterType::Triangle,
-                );
-                let coverage = crop_imm(&mask, 8, 8, 32, 32).to_image();
-                let rendered = resize(&rgba, 32, 32, FilterType::Triangle);
-                for y in 0..32 {
-                    for x in 0..32 {
-                        let expected = (u16::from(icon.get_pixel(x, y)[3])
-                            * u16::from(coverage.get_pixel(x, y)[0])
-                            / 255) as u8;
-                        assert_eq!(
-                            rendered.get_pixel(x, y)[3],
-                            expected,
-                            "{skin:?} {name} alpha at ({x},{y}), centred48:32 mask"
-                        );
-                    }
+            for fdid in [135729u32, 2957417, 135411] {
+                let mut registry = FrameRegistry::new(1920., 1080.);
+                Screen::new(|_| ui_toolkit::rsx! {
+                    texture { name:"PerksProgramIcon4", texture_fdid:fdid, width:32.0, height:32.0 }
+                    texture { name:"PerksProgramFrozenIcon", texture_fdid:fdid, width:32.0, height:32.0 }
+                }).sync(&SharedContext::new(), &mut registry);
+                IconMasks::default().apply(&mut registry);
+                for name in ["PerksProgramIcon4", "PerksProgramFrozenIcon"] {
+                    assert_perks_mask_alpha(&registry, name, fdid, skin);
                 }
-                assert!(
-                    rendered.get_pixel(16, 16)[3] > 200,
-                    "opaque centre {skin:?}"
+            }
+        }
+    }
+
+    fn assert_perks_mask_alpha(
+        registry: &FrameRegistry,
+        name: &str,
+        fdid: u32,
+        skin: ui_toolkit::atlas::ActiveSkin,
+    ) {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
+            panic!("icon");
+        };
+        let TextureSource::Dynamic(id) = icon.source else {
+            panic!("Trading Post icon must use its authored mask");
+        };
+        let pixels = registry.dynamic_texture(id).unwrap();
+        let rgba = RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap();
+        use image::imageops::{FilterType, crop_imm, resize};
+        // Elements.xml: centred48×48 MaskTexture over32×32 Icon.
+        // Compare visible output pixels, not generic corner opacity.
+        let icon = resize(
+            &super::load_rgba(fdid, "fixture icon").unwrap(),
+            32,
+            32,
+            FilterType::Triangle,
+        );
+        let mask = resize(
+            &super::load_atlas_mask(super::Mask::PerksProduct).unwrap(),
+            48,
+            48,
+            FilterType::Triangle,
+        );
+        let coverage = crop_imm(&mask, 8, 8, 32, 32).to_image();
+        let rendered = resize(&rgba, 32, 32, FilterType::Triangle);
+        for y in 0..32 {
+            for x in 0..32 {
+                let expected = (u16::from(icon.get_pixel(x, y)[3])
+                    * u16::from(coverage.get_pixel(x, y)[0])
+                    / 255) as u8;
+                assert_eq!(
+                    rendered.get_pixel(x, y)[3],
+                    expected,
+                    "{skin:?} {name} FDID{fdid} alpha at ({x},{y}), centred48:32 mask"
                 );
             }
         }
+        assert!(
+            rendered.get_pixel(16, 16)[3] > 200,
+            "opaque centre {skin:?}"
+        );
     }
 
     #[test]
