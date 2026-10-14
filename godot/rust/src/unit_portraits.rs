@@ -9,6 +9,8 @@
 #[cfg(test)]
 mod camera_tests;
 mod fixture;
+#[cfg(debug_assertions)]
+mod guild_tabard_fixture;
 mod hud_fixture;
 mod npcportraits_preview;
 pub(crate) use npcportraits_preview::{attach_customer_orders_preview, attach_trainer_preview};

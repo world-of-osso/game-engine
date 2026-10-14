@@ -189,22 +189,11 @@ impl GameClient {
 
     fn guild_tabard_preview_appearance(&self) -> Option<UnitAppearance> {
         let unit = self.replica.unit(self.world.local_player_id()?)?;
-        let player = unit.get::<Player>()?.clone();
-        let mut equipment = unit.get::<EquipmentAppearance>()?.clone();
-        let design = self.guild_tabards.view.draft?;
-        equipment
-            .entries
-            .retain(|entry| entry.slot != EquipmentVisualSlot::Tabard);
-        // TabardModel previews the design on a guild tabard; it does not grant/equip an owned item.
-        equipment.entries.push(EquippedAppearanceEntry {
-            slot: EquipmentVisualSlot::Tabard,
-            item_id: Some(5976),
-            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
-            display_info_id: None,
-            inventory_type: 19,
-            hidden: false,
-        });
-        Some(UnitAppearance::Player(player, equipment, Some(design)))
+        Some(dress_draft_preview(
+            unit.get::<Player>()?.clone(),
+            unit.get::<EquipmentAppearance>()?.clone(),
+            self.guild_tabards.view.draft?,
+        ))
     }
 
     fn sync_guild_tabard_preview(&mut self, delta: f32) -> Result<(), String> {
@@ -285,7 +274,27 @@ impl GameClient {
     }
 }
 
-fn held_button(ui: &Gd<RegistryUi>, name: &str) -> Result<bool, String> {
+/// TabardModel previews a guild tabard without granting or equipping an owned item.
+pub(crate) fn dress_draft_preview(
+    player: Player,
+    mut equipment: EquipmentAppearance,
+    design: shared::guild_creation::GuildTabardDesign,
+) -> UnitAppearance {
+    equipment
+        .entries
+        .retain(|entry| entry.slot != EquipmentVisualSlot::Tabard);
+    equipment.entries.push(EquippedAppearanceEntry {
+        slot: EquipmentVisualSlot::Tabard,
+        item_id: Some(5976),
+        definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+        display_info_id: None,
+        inventory_type: 19,
+        hidden: false,
+    });
+    UnitAppearance::Player(player, equipment, Some(design))
+}
+
+pub(crate) fn held_button(ui: &Gd<RegistryUi>, name: &str) -> Result<bool, String> {
     let control = ui
         .bind()
         .frame_control(name)

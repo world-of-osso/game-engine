@@ -8,6 +8,26 @@ use shared::protocol::GuildRankRequest;
 #[derive(Clone)]
 struct PendingGuildPreview(GuildRankRequest);
 
+impl RegistryUi {
+    pub(crate) fn update_guild_communities_design(
+        &mut self,
+        design: shared::guild_creation::GuildTabardDesign,
+    ) -> Result<(), String> {
+        let mut session = self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<GuildRanksSession>())
+            .cloned()
+            .ok_or("Missing Communities fixture")?;
+        session
+            .profile
+            .as_mut()
+            .ok_or("Missing guild snapshot")?
+            .tabard = Some(design);
+        self.set_state(session)
+    }
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
     /// Offline authoritative guild snapshot through the production settings screen.
