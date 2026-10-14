@@ -185,8 +185,9 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
     ] {
         let identity = AssetIdentity::new(product.as_str(), key).unwrap();
         let bytes = model_with_vertex(x);
+        let skin_fdid = m2::parse_asset_references(&bytes).unwrap().skin_fdids[0];
         fixture.seed(&identity, "models/126278.m2", &bytes);
-        fixture.seed(&identity, "models/12627800.skin", &skin);
+        fixture.seed(&identity, &format!("models/{skin_fdid}.skin"), &skin);
         receipts.push(json!({"product": product, "build_key": key, "build": build,
             "fdid": MODEL_FDID, "kind": "m2", "path": format!("products/{}/{key}/models/126278.m2", product.as_str()),
             "bytes": bytes.len(), "sha256": "a".repeat(64), "content_key": "b".repeat(32)}));
@@ -199,14 +200,18 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
     receipts.push(missing);
     // Valid legacy models deliberately tempt an unqualified resolver in a fresh process.
     fs::create_dir_all(fixture.0.join("models")).unwrap();
+    let legacy_model = model_with_vertex(1.25);
+    let legacy_skin_fdid = m2::parse_asset_references(&legacy_model)
+        .unwrap()
+        .skin_fdids[0];
     for fdid in [MODEL_FDID, MODEL_FDID + 1] {
-        fs::write(
-            fixture.0.join(format!("models/{fdid}.m2")),
-            model_with_vertex(1.25),
-        )
-        .unwrap();
-        fs::write(fixture.0.join(format!("models/{fdid}00.skin")), &skin).unwrap();
+        fs::write(fixture.0.join(format!("models/{fdid}.m2")), &legacy_model).unwrap();
     }
+    fs::write(
+        fixture.0.join(format!("models/{legacy_skin_fdid}.skin")),
+        &skin,
+    )
+    .unwrap();
     fs::create_dir_all(fixture.0.join("cache")).unwrap();
     fs::write(
         fixture.0.join("cache/model-asset-index.json"),
