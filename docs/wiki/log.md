@@ -3727,3 +3727,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [[quest-ui#Fresh login and real-party eligibility — 2026-10-14]] records both-skin fresh owned story/55-copper fixed reward and real invite/roster-driven Share eligibility. Landed UDP receive queue integrated, no empty-log retry. Fourteen inspected PNGs; stale private schema refreshed read-only. World-model receipt diagnostics and general latency/recipient acceptance remain outside proof.
 
 - 2026-10-14: [[collections-ui]] records source shared menus/cursor positioning and pet decoration, preserving already-source shell/inset/card/ToyBox layout. Both-skin native controls/models pass;26 inspected1920×1080 PNGs and52 focused regressions. Initial synthetic-cursor failures rejected as product RED evidence; Input ingestion corrected. Default ModelScene FOV remains unsourced.
+
+- 2026-10-14: Spell tooltip coefficients select the distinct owner RAP by native DefenseType3; explicit AP remains melee, zero RAP has no fallback. CPU proof only: [[investigations/class-spell-live-proof]].
