@@ -1,3 +1,7 @@
+## 2026-10-13 — Journeys unknown-unlock notice native proof
+
+[Notice proof](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): actual clipped-bounds RED corrected with source LockedStateFrame anchoring, centered16px text and authored cursor-right requirement tooltip. Both-skin native dee707137 PASS; UI10/10,12 revision-directory full-HD captures with hashed receipt. Unknown never becomes fabricated locked/unlocked; no extra renown grant or runtime remains.70391 presentation metadata publication remains separate pending scope.
+
 ## 2026-10-13 — Journeys native track and hover continuation
 
 [Journeys](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): source renown card/reward anchors, shared dropdown/Home and native reward GameTooltip. Actual wheel RED2→2 at24ba6c127 becomes both-skin2→3/jump1/25/Home GREEN at7fa263976;10 individually inspected full-HD captures with binary/fixture/PNG receipt. UI9/9; kit/category/priority/hidden/claim/overview/unlock metadata and producers remain open. Capture inspection found the clipped unsupported notice, still active rather than claimed fixed.
