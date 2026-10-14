@@ -2896,6 +2896,7 @@ mod tests {
             success: true,
             token: "new-token".into(),
             characters: vec![CharacterListEntry {
+                tabard: None,
                 character_id: 42,
                 name: "Alessio".into(),
                 level: 10,

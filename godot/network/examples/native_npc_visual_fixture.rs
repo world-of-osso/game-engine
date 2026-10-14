@@ -592,6 +592,7 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
                 success: true,
                 token: "fixture-only-token".into(),
                 characters: vec![CharacterListEntry {
+                    tabard: None,
                     character_id: 17,
                     name: NAME.into(),
                     level: 10,

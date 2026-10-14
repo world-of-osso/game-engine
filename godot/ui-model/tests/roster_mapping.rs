@@ -12,6 +12,7 @@ use ui_toolkit::frame::WidgetData;
 
 fn character(id: u64, name: &str, level: u16, race: u8, class: u8) -> CharacterListEntry {
     CharacterListEntry {
+        tabard: None,
         character_id: id,
         name: name.into(),
         level,
