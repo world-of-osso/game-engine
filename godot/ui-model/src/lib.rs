@@ -271,6 +271,7 @@ pub mod bank_frame_component;
 pub mod guild_bank;
 #[path = "ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
+pub mod guild_communities;
 pub mod guild_control;
 mod guild_control_art;
 pub mod guild_rank_frame;

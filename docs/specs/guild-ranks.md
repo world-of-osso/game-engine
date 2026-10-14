@@ -7,6 +7,13 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 
 ## What it must do
 
+### Communities presentation
+- [x] Mainline CommunitiesFrame is814×426, centered, with32px Chat/Roster/Guild Benefits/Info icon tabs at the right edge and52px pitch. Selected/hover tab glows use source ADD blending, preserving icon pixels. Forever changes art only.
+- [x] Expanded roster uses source592×315 ScrollBox,20px CommunitiesMemberListEntryTemplate rows, ColumnDisplay headers and an unclipped sibling MinimalScrollBar. Previous/Next/Page controls and paging state are removed; wheel advances40px, stepper20px, thumb reaches every member. Production pointer admission uses Communities visibility, so settings-closed roster input remains enabled; the game menu still blocks it.
+- [x] Name/rank header sorting changes presentation only; member actions still use authoritative character names and rank hierarchy. Available GuildSnapshot level/class/last-online data populates source fields. Officer notes never populate the public Note column.
+- [x] Guild Settings belongs to Roster for guild leaders/officers; Invite belongs to Chat. Both use the XML130×20 bottom-right anchor(-5,+5), not simultaneous invented footer positions. Info preserves authoritative MOTD/info editors.
+- [ ] Communities stream/history/voice, guild benefits/rewards/news/challenges, zone/public-note metadata and extra achievement/profession columns have no backing in these snapshots. Tabs expose source navigation only; no messages/rewards/stats, emblems or service requests are fabricated. Only Name/Rank sorting is currently implemented; other column sort actions are disabled. Level/class values are displayed where supplied, but their sorting remains a named UI gap.
+
 ### Rank controls
 - [x] Guild Control uses the Retail Mainline 338×444 TranslucentFrameTemplate shell, navigation dropdown (159 pixels), rank dropdown (180 pixels), RankChangeTemplate rows and separate rank-permissions/bank panes. No oversized combined canvas, generic category buttons or extra Save controls.
 - [x] Mainline Officer checkbox id22 reflects either pinned TC officer-chat bit; explicit toggle sets/clears both only. MOTD/info/note permissions remain independently preserved/enforced, represented by the Mainline OfficerPermissions bullet lines, not invented checkboxes.
@@ -57,14 +64,15 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 
 ## Tests asserting this spec
 
+- `godot/tests/communities_fidelity.gd`: source rectangles, physical wheel/thumb reaching member32, name sorting, member hierarchy menu, all four source tabs and invitation reducer in both skins; fixture authority only, not a live-server/deployment claim.
 - `godot/tests/guild_control_fidelity.gd`: both-skin1920×1080 native source rectangles, physical menus/rename/id22/gold/tab edits, pending-authority pacing and eighth-tab overflow. Fixture replies only; real authority/persistence are asserted by server tests.
 - Mainline Discord officer bullet GlobalString is absent from the current canonical strings; its text is not fabricated. Tab icon and bank-purchase payloads are absent; those source features remain named gaps.
 
-- `godot/tests/guild_member_controls_live.gd`: native right-click menu is inside the viewport; Promote/Demote alter and restore the authoritative roster label.
+- `godot/tests/guild_member_controls_live.gd`: native right-click menu is inside the viewport; Promote/Demote alter and restore the dedicated authoritative Rank label. The helper now reads that field rather than a combined Name/Rank label; no new live-server execution is claimed for the Communities port.
 - `godot/tests/guild_profile_live.gd`: private guild master types MOTD, inserts before the final character, accepts and checks the authoritative displayed reply; real Godot input/projection boundary.
 
 - `godot/ui-model/tests/native_guild_ranks.rs`: 5 authoritative model/Officer tests pass.
-- `godot/ui-model/tests/guild_rank_widgets.rs`: 9 tests pass in both skins, including
+- `godot/ui-model/tests/guild_rank_widgets.rs`:16 tests cover both-skin controls, including
   mounted state, exact click requests, disabled controls, hierarchy, pacing and purchased tabs.
 - `godot/network/src/guild_rank_wire_tests.rs`: real loopback UDP request/reply proof passes.
 - `godot/rust/src/account.rs`: native state/refusal dispatch test passes.
@@ -96,7 +104,10 @@ Root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
 - `Blizzard_GuildControlUI/Blizzard_GuildControlUI.xml:7`: 15-letter rank names.
 - `Blizzard_GuildControlUI/Blizzard_GuildControlUI.lua:137–238,420–459`: tab rights, counts, flags and gold/repair input.
 - `Blizzard_Communities/GuildRoster.lua:137–141`: member rank actions.
-- `Blizzard_Communities/CommunitiesFrame.xml:265`: GuildControlUI entry point.
+- `Blizzard_Communities/CommunitiesFrame.xml:241–304,369–431,458–463,567–590`: root, side tabs, member list and footer anchors; `CommunitiesFrame.lua:544–567,1753–1756`: Invite only in Chat, Guild Settings in Roster.
+- `Blizzard_Communities/CommunitiesMemberList.xml:5–32,185–241,296–350` and `.lua:96–133,584–614,1235–1427`:20px rows, columns, expanded geometry, metadata and sibling scrollbar.
+- `Blizzard_Communities/CommunitiesTabs.xml:5–52`:32px side-tab template,64px backing,30px icon and ADD highlights.
+- `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:1122–1230` and `.lua:766–805`: ColumnDisplay strips, headers and anchors.
 - `data/GlobalStrings.csv`: Retail refusal strings.
 
 See [guild bank](guild-bank-frame.md) for vault actions and game-server
