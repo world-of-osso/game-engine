@@ -703,14 +703,16 @@ impl GameClient {
         state.set("cart_visible", view.cart_visible);
         state.set(
             "cart",
-            view.cart
+            &view
+                .cart
                 .iter()
                 .map(|id| i64::from(*id))
                 .collect::<PackedInt64Array>(),
         );
         state.set(
             "cart_preview_items",
-            view.cart_preview_item_ids()
+            &view
+                .cart_preview_item_ids()
                 .iter()
                 .map(|id| i64::from(*id))
                 .collect::<PackedInt64Array>(),
@@ -735,7 +737,7 @@ impl GameClient {
                 state.set("item_id", i64::from(row.item_id));
                 state.set(
                     "preview_item_ids",
-                    row.preview_item_ids
+                    &row.preview_item_ids
                         .iter()
                         .map(|id| i64::from(*id))
                         .collect::<PackedInt64Array>(),
