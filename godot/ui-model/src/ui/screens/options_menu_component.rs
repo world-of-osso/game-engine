@@ -53,7 +53,8 @@ const OPTIONS_FOOTER_RIGHT_INSET: f32 = 16.0;
 const TAB_ROW_W: f32 = 175.0;
 const TAB_ROW_H: f32 = 20.0;
 
-pub const ACTION_OPTIONS_OKAY: &str = "options_okay";
+pub const ACTION_OPTIONS_APPLY: &str = "options_apply";
+pub const ACTION_OPTIONS_CLOSE: &str = "options_close";
 pub const ACTION_OPTIONS_DEFAULTS: &str = "options_defaults";
 pub const ACTION_RESET_WINDOW_POSITIONS: &str = "options_reset_window_positions";
 pub const ACTION_RESET_LAYOUT_SETTINGS: &str = "options_reset_layout_settings";
@@ -307,6 +308,7 @@ pub struct OptionsViewModel {
     pub category: OptionsCategory,
     pub search: String,
     pub addons_tab: bool,
+    pub pending_changes: bool,
     pub position: [f32; 2],
     pub graphics: GraphicsOptionsView,
     pub sound: SoundOptionsView,
@@ -382,7 +384,7 @@ pub fn options_view(
             {settings_header(model)}
             {body}
             {popups}
-            {build_footer()}
+            {build_footer(model.pending_changes)}
         }
     }
 }
@@ -574,6 +576,7 @@ fn build_content(
             layout: "flex-column",
             pos_type: "relative",
             {content_header(model.category, !model.search.trim().is_empty())}
+            {header_defaults_button(!model.search.trim().is_empty())}
             {content_body(model, offset, open)}
         }
     }
@@ -694,49 +697,40 @@ fn content_body(
     }
 }
 
-fn build_footer() -> Element {
-    let footer_buttons = footer_buttons();
+// SettingsPanel.xml:46-56:96x22 Close BOTTOMRIGHT(-16,16), Apply RIGHT->LEFT-2.
+const OPTIONS_BUTTON_W: f32 = 96.0;
+const OPTIONS_BUTTON_H: f32 = 22.0;
+const OPTIONS_BUTTON_GAP: f32 = 2.0;
+const OPTIONS_FOOTER_BOTTOM_INSET: f32 = 16.0;
+
+fn build_footer(pending_changes: bool) -> Element {
+    let width = OPTIONS_BUTTON_W * 2.0 + OPTIONS_BUTTON_GAP;
+    let apply_hidden = !pending_changes;
     rsx! {
-        r#frame {
-            name: OPTIONS_FOOTER,
-            width: "auto",
-            height: "auto",
-            layout: "flex-row",
-            justify: "start",
-            align: "center",
-            gap: 2.0,
-            pos_type: "absolute",
-            left: "100%",
-            top: "100%",
-            translate_x: "-100%",
-            translate_y: "-100%",
-            margin_left: {(-OPTIONS_FOOTER_RIGHT_INSET).to_string()},
-            margin_top: -16.0,
-            {footer_buttons}
+        r#frame {name:OPTIONS_FOOTER,width,height:OPTIONS_BUTTON_H,
+            layout:"flex-row",justify:"end",align:"center",gap:OPTIONS_BUTTON_GAP,
+            pos_type:"absolute",left:{OPTIONS_W-OPTIONS_FOOTER_RIGHT_INSET-width},
+            top:{OPTIONS_H-OPTIONS_FOOTER_BOTTOM_INSET-OPTIONS_BUTTON_H},
+            {small_button("OptionsApplyButton","Apply",ACTION_OPTIONS_APPLY,OPTIONS_BUTTON_W,apply_hidden)}
+            {small_button("OptionsCloseButton","Close",ACTION_OPTIONS_CLOSE,OPTIONS_BUTTON_W,false)}
         }
     }
 }
 
-fn footer_buttons() -> Element {
-    footer_specs()
-        .into_iter()
-        .flat_map(|(name, text, action, width)| small_button(name, text, action, width))
-        .collect()
+fn header_defaults_button(searching: bool) -> Element {
+    // SettingsList.xml:28-33: DefaultsButton TOPRIGHT(-36,-16),96x22.
+    let button = small_button(
+        "OptionsDefaultsButton",
+        "Defaults",
+        ACTION_OPTIONS_DEFAULTS,
+        OPTIONS_BUTTON_W,
+        searching,
+    );
+    rsx! {r#frame {name:"OptionsDefaultsMount",width:OPTIONS_BUTTON_W,height:OPTIONS_BUTTON_H,
+    pos_type:"absolute",left:{OPTIONS_CONTENT_W-36.0-OPTIONS_BUTTON_W},top:16.0,{button}}}
 }
 
-fn footer_specs() -> [(&'static str, &'static str, &'static str, f32); 2] {
-    [
-        (
-            "OptionsDefaultsButton",
-            "Defaults",
-            ACTION_OPTIONS_DEFAULTS,
-            96.0,
-        ),
-        ("OptionsDoneButton", "Done", ACTION_OPTIONS_OKAY, 96.0),
-    ]
-}
-
-fn small_button(name: &str, text: &str, action: &str, width: f32) -> Element {
+fn small_button(name: &str, text: &str, action: &str, width: f32, hidden: bool) -> Element {
     let n = DynName(name.to_string());
     let text = text.to_string();
     let action = action.to_string();
@@ -744,10 +738,12 @@ fn small_button(name: &str, text: &str, action: &str, width: f32) -> Element {
         button {
             name: {&n},
             width: {width},
-            height: 22.0,
+            height: OPTIONS_BUTTON_H,
             text: {&text},
-            font_size: 14.0,
+            font_size: 12.0,
             onclick: {&action},
+            hidden,
+            disabled: hidden,
             button_atlas_up: BUTTON_ATLAS_UP,
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,

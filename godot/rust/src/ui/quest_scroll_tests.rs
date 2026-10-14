@@ -51,7 +51,7 @@ use super::*;
 use crate::ui::ui_parent::UiParent;
 use crate::ui::{RegistryModel, ScreenPostsetup};
 use game_engine_ui_model::quest_log_frame_component::{
-    QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine, quest_log_frame_screen,
+    QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine,
 };
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
@@ -275,10 +275,16 @@ fn long_log() -> QuestLogFrameState {
 
 #[test]
 fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
-    const LIST: &str = "QuestLogDetailsScrollFrame";
+    use game_engine_ui_model::world_map_frame_component::{
+        WorldMapFrameState, world_map_frame_screen,
+    };
+    const LIST: &str = "QuestMapDetailsScrollFrame";
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        let mut model = quest_model(long_log(), quest_log_frame_screen);
+        let mut model = quest_model(
+            WorldMapFrameState::default().with_quest_panel(long_log(), true),
+            world_map_frame_screen,
+        );
         let scroll = model
             .registry
             .scroll_lists
@@ -288,7 +294,7 @@ fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
             scroll.geometry.max_first_row() > 1000,
             "{skin:?} range={:?}, child={:?}, paragraph={:?}",
             scroll.geometry,
-            rect(&model, "QuestLogDetailsScrollChildFrame"),
+            rect(&model, "QuestMapDetailsScrollChildFrame"),
             rect(&model, "QuestLogDetailsDescription")
         );
         assert!(shown(&model, &thumb_name(LIST)));

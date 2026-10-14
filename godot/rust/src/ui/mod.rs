@@ -15,6 +15,7 @@ pub(crate) mod castbar_fx;
 mod castbar_preview;
 mod dungeon_preview;
 mod flight_map_preview;
+mod follower_layout_preview;
 mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
@@ -181,6 +182,17 @@ enum ScreenPostsetup {
     PetActionBar,
     PortraitParty,
     CastingBar,
+    FollowerDungeons,
+}
+
+fn search_for_clear_action(action: &str) -> Option<&'static str> {
+    match action {
+        game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR => {
+            Some(game_engine_ui_model::bag_frame_component::SEARCH_BOX)
+        }
+        "journal:search-clear" => Some(game_engine_ui_model::adventure_guide::SEARCH),
+        _ => None,
+    }
 }
 
 impl RegistryModel {
@@ -226,6 +238,7 @@ impl RegistryModel {
         use game_engine_ui_model::quest_scroll::{QuestScrollExtent, quest_scroll_child};
         let mut lists = game_engine_ui_model::quest_frame_component::QUEST_SCROLL_FRAMES.to_vec();
         lists.push(game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL);
+        lists.push("QuestScrollFrame");
         let extent = lists.into_iter().find_map(|list| {
             let child = self.registry.get_by_name(&quest_scroll_child(list))?;
             let height = self.registry.get(child)?.layout_rect.as_ref()?.height;
@@ -290,6 +303,16 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
+            self.icon_masks.apply(&mut self.registry);
+        }
+        game_engine_ui_model::collections_component::apply_collections_postsetup(
+            &mut self.registry,
+        );
         if self.shared.get::<GameMenuViewModel>().is_some() {
             game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
         }
@@ -399,6 +422,12 @@ impl RegistryModel {
                     &mut self.registry,
                 );
                 // The NPC canvas's own backpack portrait.
+                self.icon_masks.apply(&mut self.registry);
+            }
+            ScreenPostsetup::FollowerDungeons => {
+                game_engine_ui_model::follower_dungeons::apply_follower_postsetup(
+                    &mut self.registry,
+                );
                 self.icon_masks.apply(&mut self.registry);
             }
             ScreenPostsetup::CharacterFrame => {
@@ -548,10 +577,9 @@ impl RegistryModel {
             return None;
         }
         let action = self.registry.click_frame(id)?;
-        if action == game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR {
-            let search = self
-                .registry
-                .get_by_name(game_engine_ui_model::bag_frame_component::SEARCH_BOX)?;
+        let clear_search = search_for_clear_action(&action);
+        if let Some(name) = clear_search {
+            let search = self.registry.get_by_name(name)?;
             self.edit_text(search, String::new());
             self.blur_frame(search);
             return None;
@@ -1022,6 +1050,7 @@ impl RegistryUi {
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
     pub fn show_world_map(&mut self, state: WorldMapFrameState) -> Result<(), String> {
+        self.toplevel = true;
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
@@ -1565,7 +1594,7 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for one quest window (`QuestFrame`,
-    /// `QuestLogFrame`) with the portrait `metal_frame` border their chrome uses.
+    /// quest giver dialogs) with the portrait `metal_frame` border their chrome uses.
     pub fn show_quest_window<T: 'static>(
         &mut self,
         state: T,
@@ -1859,7 +1888,7 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::follower_dungeons::follower_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::FollowerDungeons,
             registry,
             parent,
         )?;
@@ -2508,23 +2537,39 @@ impl RegistryUi {
             return Ok(());
         }
         if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::quest_log_frame_component::QuestLogFrameState>(
+            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
         ) {
-            use game_engine_ui_model::quest_log_frame_component::{
-                QUEST_LOG_DETAILS_SCROLL, QuestLogFrameState,
-            };
+            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
+            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
             let previous = model
                 .shared
-                .get::<QuestLogFrameState>()
-                .and_then(|state| state.details.as_ref())
+                .get::<WorldMapFrameState>()
+                .and_then(|state| state.quest_panel.as_ref())
+                .and_then(|panel| panel.log.details.as_ref())
                 .map(|details| details.quest_id);
-            let selected = next.details.as_ref().map(|details| details.quest_id);
+            let selected = next
+                .quest_panel
+                .as_ref()
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
             if previous != selected {
                 model
                     .registry
                     .scroll_lists
                     .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
             }
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::adventure_guide::View>()
+            && let Some(previous) = model
+                .shared
+                .get::<game_engine_ui_model::adventure_guide::View>()
+        {
+            game_engine_ui_model::adventure_guide_art::reset_changed_scrolls(
+                previous,
+                next,
+                &mut model.registry,
+            );
         }
         model.shared.insert(state);
         self.sync_model()
@@ -2821,7 +2866,6 @@ impl RegistryUi {
     }
 
     fn release_search_clear_focus(&mut self, event: &UiInput) {
-        use game_engine_ui_model::bag_frame_component::{ACTION_SEARCH_CLEAR, SEARCH_BOX};
         let (UiInput::Click(id) | UiInput::FrameClick { id, .. }) = event else {
             return;
         };
@@ -2832,8 +2876,9 @@ impl RegistryUi {
             .registry
             .get(*id)
             .and_then(|frame| frame.onclick.as_deref());
-        if action == Some(ACTION_SEARCH_CLEAR) {
-            self.release_focus_named(SEARCH_BOX);
+        let search = action.and_then(search_for_clear_action);
+        if let Some(name) = search {
+            self.release_focus_named(name);
         }
     }
 
