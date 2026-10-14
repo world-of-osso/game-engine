@@ -1,6 +1,6 @@
 //! Retail Mainline Journeys (Blizzard_Journeys.lua/.xml) over realm renown snapshots.
 //! Renown cards and the reward track only; unsourced journey/encounter categories,
-//! texture kits, claim state and Delves companions are not shown.
+//! claim state and Delves companions are not shown. Texture kits/priorities are local source data.
 mod sliding;
 mod track;
 use crate::adventure_guide::{scroll_in, text};
@@ -11,8 +11,9 @@ use crate::menu_primitives::{
     menu_row_rect_with_heading,
 };
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture};
+use game_engine_core::adventure_guide::JourneyPresentation;
 use shared::protocol::{MajorFactionSnapshot, RenownSnapshot, RenownUnlock};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 /// Retail 12.1 client `LE_EXPANSION_LEVEL_CURRENT` (EXPANSION_NAME11 "Midnight").
@@ -122,6 +123,7 @@ pub fn journeys(
     ctx: &SharedContext,
     state: &Journeys,
     snapshot: Option<&RenownSnapshot>,
+    presentation: &BTreeMap<u32, JourneyPresentation>,
 ) -> Element {
     let Some(snapshot) = snapshot else {
         return text(
@@ -133,12 +135,15 @@ pub fn journeys(
     if let Some(error) = &snapshot.source_error {
         return text("JournalJourneysError", error, (24., 100., 740., 40.));
     }
+    if let Some(error) = presentation_error(snapshot, presentation) {
+        return error;
+    }
     match state
         .selected
         .and_then(|id| snapshot.factions.iter().find(|f| f.id == id))
     {
         Some(faction) => progress(faction, state),
-        None => journey_list(ctx, state, snapshot),
+        None => journey_list(ctx, state, snapshot, presentation),
     }
 }
 
@@ -146,13 +151,49 @@ fn expansion_name(expansion: u8) -> &'static str {
     global_string(&format!("EXPANSION_NAME{expansion}"))
 }
 
-fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot) -> Element {
-    let factions: Vec<_> = snapshot
+fn presentation_error(
+    snapshot: &RenownSnapshot,
+    presentation: &BTreeMap<u32, JourneyPresentation>,
+) -> Option<Element> {
+    let missing = snapshot
         .factions
         .iter()
-        .filter(|faction| faction.expansion == state.expansion)
+        .find(|faction| !presentation.contains_key(&faction.id))?;
+    Some(text(
+        "JournalJourneysPresentationError",
+        &format!("Missing Covenant {} display metadata", missing.id),
+        (24., 100., 740., 40.),
+    ))
+}
+
+/// Blizzard_Journeys.lua JourneysMajorFactionSort: priority descending, then UTF-8 name.
+fn sorted_factions_for_expansion<'a>(
+    snapshot: &'a RenownSnapshot,
+    expansion: u8,
+    presentation: &BTreeMap<u32, JourneyPresentation>,
+) -> Vec<&'a MajorFactionSnapshot> {
+    let mut factions: Vec<_> = snapshot
+        .factions
+        .iter()
+        .filter(|faction| faction.expansion == expansion)
         .collect();
-    let contents = list_contents(ctx, &factions, state, snapshot);
+    factions.sort_by(|left, right| {
+        let priority = presentation[&right.id]
+            .priority
+            .cmp(&presentation[&left.id].priority);
+        priority.then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+    });
+    factions
+}
+
+fn journey_list(
+    ctx: &SharedContext,
+    state: &Journeys,
+    snapshot: &RenownSnapshot,
+    presentation: &BTreeMap<u32, JourneyPresentation>,
+) -> Element {
+    let factions = sorted_factions_for_expansion(snapshot, state.expansion, presentation);
+    let contents = list_contents(ctx, &factions, state, snapshot, presentation);
     let mut body = rsx! {r#frame {
         name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
         pos_type:"absolute",{contents}
@@ -176,6 +217,7 @@ fn list_contents(
     factions: &[&MajorFactionSnapshot],
     state: &Journeys,
     snapshot: &RenownSnapshot,
+    presentation: &BTreeMap<u32, JourneyPresentation>,
 ) -> Element {
     let mut content = label(
         "JournalJourneysCategory".into(),
@@ -186,7 +228,13 @@ fn list_contents(
     for (index, faction) in factions.iter().enumerate() {
         let left = 14. + (index % 2) as f32 * (CARD.0 + 5.);
         let top = 40. + (index / 2) as f32 * (CARD.1 + 5.);
-        content.extend(renown_card(faction, left, top, state, snapshot));
+        content.extend(renown_card(
+            faction,
+            &presentation[&faction.id],
+            (left, top),
+            state,
+            snapshot,
+        ));
     }
     let rows_height = factions.len().div_ceil(2) as f32 * (CARD.1 + 5.);
     let height = 40. + rows_height - 5. + 10.;
@@ -258,13 +306,14 @@ fn expansion_menu(state: &Journeys, snapshot: &RenownSnapshot) -> Element {
 
 fn renown_card(
     faction: &MajorFactionSnapshot,
-    left: f32,
-    top: f32,
+    presentation: &JourneyPresentation,
+    position: (f32, f32),
     state: &Journeys,
     snapshot: &RenownSnapshot,
 ) -> Element {
+    let (left, top) = position;
     let prefix = format!("JourneyCard{}", faction.id);
-    let mut parts = card_art(faction, &prefix);
+    let mut parts = card_art(faction, &prefix, &presentation.texture_kit);
     parts.extend(watch_toggle(faction, state, snapshot));
     let action = format!("journal:journey:{}", faction.id);
     rsx! {button {
@@ -275,12 +324,17 @@ fn renown_card(
     }}
 }
 
-fn card_art(faction: &MajorFactionSnapshot, prefix: &str) -> Element {
+fn card_art(faction: &MajorFactionSnapshot, prefix: &str, texture_kit: &str) -> Element {
     let mut parts = named_atlas_texture(
+        format!("{prefix}Icon"),
+        &format!("majorfactions_icons_{texture_kit}512"),
+        (30., 36., 40., 40.),
+    );
+    parts.extend(named_atlas_texture(
         format!("{prefix}IconBorder"),
         "ui-journeys-renown-radial-bar",
         (20., 26., 60., 60.),
-    );
+    ));
     parts.extend(label(
         format!("{prefix}Name"),
         &faction.name,
