@@ -154,10 +154,11 @@ impl CharacterLoad {
             appearance: entry.appearance.clone(),
         };
         let equipment = entry.equipment_appearance.clone();
+        let tabard = entry.tabard;
         Self {
             entry: entry.clone(),
             parts: BackgroundLoad::start("character-preview", move || {
-                prepare_player_parts(&data_root, &player, &equipment, None)
+                prepare_player_parts(&data_root, &player, &equipment, tabard)
             }),
         }
     }

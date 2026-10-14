@@ -26,6 +26,7 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 - `godot/rust/src/guild_tabards.rs`: vendor lifecycle, pending requests, player draft viewport and held-button rotation.
 - `godot/rust/src/account.rs`, network bridge: typed GuildChannel requests and authoritative reply dispatch.
 - `godot/rust/src/game/equipment/equipment_appearance_data.rs`: source guild-tabard tiers and replacement torso layers before clothing-priority compositing.
+- `godot/rust/src/world*.rs`, `assets/player.rs`, `character_select.rs`: replicated/roster designs enter model loading and invalidate stale visuals.
 - Shared `guild_tabards::GuildTabardCatalog`: installed palette and torso-layer resolution.
 
 ## Tests asserting this spec
