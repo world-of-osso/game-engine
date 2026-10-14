@@ -192,6 +192,14 @@ impl CharacterPreview {
         }
     }
 
+    pub fn is_ready(&self) -> bool {
+        self.preview.as_ref().is_some_and(|preview| {
+            preview.shown.as_ref().is_some_and(|shown| {
+                preview.selected.as_ref() == Some(&shown.entry) && shown.model.is_visible_in_tree()
+            }) && preview.background.is_ready()
+        })
+    }
+
     /// Show campsite `id` from the next sync, rebuilding the scene when it changes.
     pub fn select_scene(&mut self, id: u32) {
         if self.scene_id != Some(id) {
