@@ -27,6 +27,7 @@ func capture() -> void:
 		assert(ui.call("frame_text", "GuildMember1Zone") == "Yesterday")
 		assert(ui.call("frame_text", "GuildMember1Note") == "", "Officer notes are not public notes")
 		capture_png(directory, skin + "-communities-roster.png")
+		assert(String(ui.call("guild_communities_preview_receipt")).contains("pointer_enabled=true"), "Production admission permits settings-closed Communities")
 		await wheel(ui, 1)
 		assert(is_equal_approx(control(ui, "GuildMember0").get_global_rect().position.y, 370.0), "Wheel uses two20px pan extents")
 		await drag_to_bottom(ui)

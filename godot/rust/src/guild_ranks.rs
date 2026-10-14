@@ -280,7 +280,7 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
 }
 
 pub(crate) fn guild_pointer_enabled(session: &GuildRanksSession, game_menu_open: bool) -> bool {
-    !game_menu_open && session.settings_open
+    !game_menu_open && session.visible
 }
 
 pub(crate) fn read_inputs_for_registry(
