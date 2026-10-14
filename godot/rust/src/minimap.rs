@@ -363,6 +363,14 @@ impl GameClient {
         Some(([origin.x, origin.z], self.world.local_player_facing()?))
     }
 
+    pub(crate) fn player_is_horde(&self) -> bool {
+        self.minimap
+            .catalogs
+            .loaded()
+            .and_then(|result| result.as_ref().ok())
+            .is_some_and(|catalogs| self.player_faction_group(catalogs) == FACTION_GROUP_HORDE)
+    }
+
     fn player_faction_group(&self, catalogs: &Catalogs) -> u32 {
         let session = &self.account.session;
         session
