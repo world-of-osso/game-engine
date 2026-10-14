@@ -119,6 +119,7 @@ pub enum UiInput {
     PointerUp(Vector2),
     Focus(u64),
     Blur(u64),
+    CancelEdit(u64),
     Text(u64, String),
     Submit,
     SearchPreviewStep(isize),
@@ -1385,7 +1386,14 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
     node.connect("text_changed", &text_changed);
     node.connect("focus_entered", &emit(pending, UiInput::Focus(id)));
     node.connect("focus_exited", &emit(pending, UiInput::Blur(id)));
-    let keys = if is_housing_search_field(frame.name.as_deref()) {
+    let guild_field = frame
+        .name
+        .as_deref()
+        .and_then(game_engine_ui_model::guild_control::input_action)
+        .is_some();
+    let keys = if guild_field {
+        release_guild_field_focus(node.clone(), pending.clone(), id)
+    } else if is_housing_search_field(frame.name.as_deref()) {
         release_housing_search_focus(node.clone())
     } else {
         release_focus_on_escape(node.clone())
@@ -1480,6 +1488,28 @@ fn release_housing_search_focus(mut edit: Gd<Control>) -> Callable {
             edit.release_focus();
             edit.accept_event();
         }
+    })
+}
+
+/// Mainline GuildControlUI XML: Escape restores before Blur; Enter saves on Blur.
+fn release_guild_field_focus(mut edit: Gd<Control>, pending: PendingInputs, id: u64) -> Callable {
+    Callable::from_fn("guild-control-field-keys", move |args| {
+        let Some(key) = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+        else {
+            return Variant::nil();
+        };
+        use godot::global::Key;
+        if key.is_pressed() && matches!(key.get_keycode(), Key::ENTER | Key::KP_ENTER | Key::ESCAPE)
+        {
+            if key.get_keycode() == Key::ESCAPE {
+                pending.push(UiInput::CancelEdit(id));
+            }
+            edit.release_focus();
+            edit.accept_event();
+        }
+        Variant::nil()
     })
 }
 
