@@ -9,7 +9,7 @@ use ui_toolkit::{
     widget_def::Element,
 };
 
-pub(super) fn card_stats(view: &PetJournalView) -> Element {
+pub(in crate::pet_journal) fn card_stats(view: &PetJournalView) -> Element {
     let Some(pet_id) = view.selected_owned_id() else {
         return vec![];
     };
@@ -99,7 +99,7 @@ fn stat_value(name: &str, stat: &str, value: i32, (left, top): (f32, f32), uv: &
     out
 }
 
-pub(super) fn slot_stats(
+pub(in crate::pet_journal) fn slot_stats(
     view: &PetJournalView,
     loadout: usize,
     name: &str,
@@ -264,7 +264,7 @@ fn ability_icon(
     out
 }
 
-pub(super) fn spell_select(view: &PetJournalView) -> Element {
+pub(in crate::pet_journal) fn spell_select(view: &PetJournalView) -> Element {
     let Some((loadout, slot)) = view.ability_selection else {
         return vec![];
     };
