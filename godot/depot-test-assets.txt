@@ -34,6 +34,8 @@ textures/6715404.blp
 textures/5933889.blp
 # Source GameDialog SpinnerTemplate Ring/Sparks.
 textures/5413429.blp
+# Source minimal checkbox atlas for Retail Hide Armor.
+textures/5891357.blp
 # Trading Post authored icon mask, HoldPanel vertical edges, and source button atlas.
 textures/4626072.blp
 textures/4331660.blp

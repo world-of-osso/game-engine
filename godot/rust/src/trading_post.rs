@@ -139,10 +139,16 @@ impl GameClient {
         self.poll_trading_inputs()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
+            // Release the detached scene while its old UI host is still alive.
+            let prepared = self.prepare_trading_model();
+            let can_attach = prepared.is_ok();
+            self.record_trading_preview(prepared);
             self.sync_trading_ui()?;
             self.animate_trading_spinner();
-            let preview = self.sync_trading_model();
-            self.record_trading_preview(preview);
+            if can_attach {
+                let preview = self.sync_trading_model();
+                self.record_trading_preview(preview);
+            }
         }
         Ok(())
     }
@@ -372,7 +378,7 @@ impl GameClient {
         }
         self.trading_post.shown = None;
     }
-    fn sync_trading_model(&mut self) -> Result<(), String> {
+    fn prepare_trading_model(&mut self) -> Result<(), String> {
         let desired = self.desired_trading_appearance()?;
         let current = self
             .trading_post
@@ -387,6 +393,9 @@ impl GameClient {
                 self.trading_post.pending = Some((id, appearance));
             }
         }
+        Ok(())
+    }
+    fn sync_trading_model(&mut self) -> Result<(), String> {
         if self.trading_post.pending.is_none() && self.trading_post.shown.is_none() {
             return Ok(());
         }
