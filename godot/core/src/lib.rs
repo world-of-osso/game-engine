@@ -63,6 +63,7 @@ pub mod customization_data;
 mod customization_query_data;
 #[path = "game/db2_cache.rs"]
 pub mod db2_cache;
+pub mod db2_source;
 #[cfg(test)]
 mod db2_test_support;
 pub mod elastic_tree;

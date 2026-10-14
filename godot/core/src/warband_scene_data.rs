@@ -7,7 +7,7 @@ use crate::asset::adt::CHUNK_SIZE;
 use crate::csv_util::{header_index, parse_csv_line as parse_csv_fields};
 
 /// Build whose UI atlas and texture kit tables live under `data/db2/`.
-const UI_DB2_DIR: &str = "db2/12.1.0.69933";
+const UI_DB2_DIR: &str = "db2/active";
 
 /// WoW Forever build whose UI atlas tables live under `data/db2/` (Wago DB2CSV exports; see
 /// `scripts/import_forever_atlas.py`).

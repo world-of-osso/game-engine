@@ -82,7 +82,7 @@ pub(crate) struct WaterLight {
 
 impl LightingCatalog {
     pub fn read(data_root: &Path) -> Result<Self, String> {
-        let db2 = data_root.join("db2/12.1.0.69933");
+        let db2 = data_root.join("db2/active");
         let mut catalog = Self::read_tables(data_root, data_root, &db2)?;
         catalog.forever_maps = read_forever_map_ids(data_root)?;
         if !catalog.forever_maps.is_empty() {
@@ -108,7 +108,7 @@ impl LightingCatalog {
         .map_err(|error| format!("{}: {error}", tables.display()))?;
         let (liquid_alphas, light_params_flags, params_skybox) =
             parse_light_params(&params.join("LightParams.csv"))?;
-        let skyboxes = parse_light_skyboxes(&params.join("LightSkybox.csv"), &params_skybox)?;
+        let skyboxes = read_light_skyboxes(&params.join("LightSkybox.csv"), &params_skybox)?;
         let stars_path =
             cache_stars(data_root).map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
         cache_planet_textures(data_root)?;
@@ -287,7 +287,7 @@ fn read_keyframes(path: &Path) -> Result<(LightKeyframes, FogKeyframes), String>
 }
 
 fn read_forever_map_ids(data_root: &Path) -> Result<HashSet<u32>, String> {
-    let retail = read_text(&data_root.join("db2/12.1.0.69933/Map.csv"))?;
+    let retail = read_text(&data_root.join("db2/active/Map.csv"))?;
     let forever = read_text(&data_root.join("db2/1.60.1.70205/Map.csv"))?;
     forever_only_map_ids(&retail, &forever)
 }
@@ -359,10 +359,7 @@ pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, St
 }
 
 /// LightSkybox `(SkyboxFileDataID, Flags)` of each LightParams in `params_skybox`.
-fn parse_light_skyboxes(
-    path: &Path,
-    params_skybox: &HashMap<u32, u32>,
-) -> Result<HashMap<u32, (u32, u32)>, String> {
+fn read_light_skybox_rows(path: &Path) -> Result<HashMap<u32, (u32, u32)>, String> {
     let mut rows: HashMap<u32, (u32, u32)> = HashMap::new();
     game_engine_core::csv_util::read_db2_rows(path, |row| {
         rows.insert(
@@ -371,6 +368,14 @@ fn parse_light_skyboxes(
         );
         Ok(())
     })?;
+    Ok(rows)
+}
+
+pub(super) fn read_light_skyboxes(
+    path: &Path,
+    params_skybox: &HashMap<u32, u32>,
+) -> Result<HashMap<u32, (u32, u32)>, String> {
+    let rows = read_light_skybox_rows(path)?;
     params_skybox
         .iter()
         .map(|(&params, skybox)| {
@@ -484,8 +489,8 @@ mod db2_header_tests {
     fn db2_header_skyboxes_read_installed_export_with_name_column() {
         let path =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active/LightSkybox.csv");
-        let rows = parse_light_skyboxes(&path, &std::collections::HashMap::from([(1, 1), (2, 2)]))
-            .unwrap();
+        let rows =
+            read_light_skyboxes(&path, &std::collections::HashMap::from([(1, 1), (2, 2)])).unwrap();
         assert_eq!(rows[&1], (130636, 0));
         assert_eq!(rows[&2], (130609, 0));
     }

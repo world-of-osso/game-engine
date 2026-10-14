@@ -633,10 +633,8 @@ mod tests {
 
     #[test]
     fn only_reputation_factions_are_named() {
-        let names = FactionNames::load(&crate::paths::resolve_data_path(
-            "db2/12.1.0.69933/Faction.csv",
-        ))
-        .expect("Faction.csv");
+        let names = FactionNames::load(&crate::paths::resolve_data_path("db2/active/Faction.csv"))
+            .expect("Faction.csv");
         assert_eq!(names.get(72), Some("Stormwind"));
         assert_eq!(names.get(7), None, "Creature has no reputation");
     }

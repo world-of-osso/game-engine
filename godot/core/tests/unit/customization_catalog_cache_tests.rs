@@ -93,7 +93,7 @@ fn pinned_customization_tracks_race_model_inputs_and_ignores_root_csvs() {
         3
     );
     conn.execute(
-        "UPDATE source_files SET source = replace(source, 'db2/12.1.0.69933/', '')",
+        "UPDATE source_files SET source = replace(source, 'db2/active/', '')",
         [],
     )
     .unwrap();
@@ -125,10 +125,7 @@ fn pinned_customization_tracks_race_model_inputs_and_ignores_root_csvs() {
     drop(conn);
     std::fs::remove_file(source).unwrap();
     let error = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap_err();
-    assert!(
-        error.contains("db2/12.1.0.69933/ChrRaceXChrModel.csv"),
-        "{error}"
-    );
+    assert!(error.contains("db2/active/ChrRaceXChrModel.csv"), "{error}");
 }
 
 #[test]

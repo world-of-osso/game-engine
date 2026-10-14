@@ -25,8 +25,13 @@ Retail source geometry: PVPUIFrame 563×428, PVPReadyDialog 306×210 with 115×2
 - `godot/network/src/lib.rs`, `ipc/wire.rs`, `godot/cli/src/{main,requests}.rs` — PvP receipt and typed diagnostic access.
 - `godot/network/examples/native_battleground_peers.rs`, `godot/tests/battleground_live.gd` — real-UDP support accounts and native-pointer driver. Private peers accept `peer:<index>:<action>` for exact actor staging: normal `attack:<NPC-entry>:<team>`, `equip:<bag>:<slot>`, `unequip-offhand:<bag>:<slot>` and `cast:<spell-ID>:<target-entity>`. `spec:<specialization-ID>` retains the server's class/level authority. `traits:<JSONfile>` submits a source-derived normal `CommitTraitConfig`; ordered talent lifecycle snapshots/results and learned/known spell receipts are retained in each peer's diagnostic JSON. This is fixture control, not a spell grant or a substitute for server acceptance. Casts require `BG_LOS_DIR` pointing to the same read-only eye table and geometry bake as the private server; witnesses use actual replicated bodies and clear baked rays, never fabricated LOS. Inventory refusals fail explicitly; passive player health and inventory/equipment receipts distinguish alive gameplay from dead-before-request runs. These commands do not alter NPC health, damage, scores or outcomes.
 
+Private peer state files must expose complete JSON receipts throughout publication; concurrent readers may retain the preceding complete snapshot while the next snapshot is written. Publication errors remain explicit. Gameplay, connection deadlines, and cast timers remain unchanged.
+
+The private native fixture's read-only `visuals` action reports actual camera position, local-player animation identity and mesh transforms/bounds/visibility. `portrait` reads the existing renderer receipt for a named portrait frame, excluding its image object from JSON. Neither changes rendering state nor substitutes those receipts for inspected pixels.
+
 ## Tests asserting this spec
 
+- `godot/network/examples/native_battleground_peers.rs::tests::peer_snapshot_readers_always_observe_complete_json_during_publication` — real concurrent file reads retain complete receipts across successive publications.
 - `godot/ui-model/tests/battleground.rs` — identity/pending/refusal behavior; both-skin invitation, HUD, roster filters, rewards and closed-scoreboard/end transition.
 - `godot/rust/src/game_objects.rs::tests::battleground_flags_render_and_offer_object_use` — source flag type remains visible/usable; six related object tests pass.
 - Server `crates/server/src/maps/tests.rs::ten_warsong_players_accept_over_the_channel_then_ack_one_reserved_map` — retained ten-player typed-channel entry, physical source objectives, outcome and origin return.
