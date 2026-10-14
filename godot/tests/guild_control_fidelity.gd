@@ -103,6 +103,7 @@ func capture() -> void:
 		await settle()
 		assert_rect(ui, "GuildControlBankScrollBox", Rect2(473, 243, 254, 294))
 		assert_rect(ui, "GuildControlBankTab2", Rect2(473, 321, 254, 74))
+		assert_rect(ui, "GuildTabLimitLabel0", Rect2(488, 269, 150, 24))
 		await click(ui, "GuildTabDeposit0")
 		request = ui.call("guild_control_preview_dispatch")
 		assert(request.contains("SetTab") and request.contains("deposit: false"), request)

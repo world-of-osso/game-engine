@@ -491,8 +491,9 @@ fn bank(session: &GuildRanksSession, shared: &ui_toolkit::screen::SharedContext)
         contents.extend(label(
             format!("GuildTabLimitLabel{index}"),
             "Withdraw Items\n(stacks/day):",
-            (99.0, 49.0, 150.0, 24.0),
-            (10.0, NORMAL_FONT_COLOR, "LEFT"),
+            // XML LabelText BOTTOMLEFT to StackBox TOPLEFT +(0,1).
+            (15.0, 26.0, 150.0, 24.0),
+            (10.0, "1,1,1,1", "LEFT"),
         ));
         rows.extend(rsx! {r#frame {name:{DynName(format!("GuildControlBankTab{}",index+1))},width:254.0,height:74.0,left:0.0,top:y,pos_type:"absolute",{contents}}});
     }
