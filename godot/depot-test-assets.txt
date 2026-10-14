@@ -1,4 +1,18 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Trading Post SharedButtonLargeTemplate source three-slice state art (canonical).
+textures/7367529.blp
+# Trading Post authored icon mask, HoldPanel vertical edges, and source button atlas.
+textures/4626072.blp
+textures/4331660.blp
+textures/6794983.blp
+# GameDialog item confirmation: border/background, dialog button states, item name frame.
+textures/6795680.blp
+textures/6839810.blp
+textures/130760.blp
+textures/130761.blp
+textures/130762.blp
+textures/130763.blp
+textures/136796.blp
 # Source Cage505683 live trapdoor hull/primary skin, already extracted from local CASC.
 models/1417024.m2
 # Existing real ribbon/global-UV translation fixture (no generated track bytes).
@@ -3021,6 +3035,9 @@ textures/135690.blp
 textures/135726.blp
 textures/135728.blp
 textures/135729.blp
+textures/135411.blp
+textures/626008.blp
+textures/2957417.blp
 textures/135730.blp
 textures/135731.blp
 textures/135732.blp

@@ -107,7 +107,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 29] = [
+        const SOURCES: [Source; 30] = [
+            GameClient::journal_journey_tooltip,
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
             GameClient::transmog_source_tooltip,
@@ -206,6 +207,41 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    /// SetRewards uses ANCHOR_RIGHT; LockedState's requirement uses ANCHOR_CURSOR_RIGHT.
+    fn journal_journey_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, (mut tooltip, at_cursor)) =
+            named_ancestor(ui.registry()?, hit.frame, |frame| {
+                self.journey_tooltip_for_frame(frame)
+            })?;
+        drop(ui);
+        if at_cursor {
+            tooltip.anchor = game_engine_ui_model::game_tooltip::TooltipAnchor::CursorRight;
+        } else {
+            let rect = self.owner_rect(&hit.ui, owner)?;
+            tooltip = tooltip.owned(rect, OwnerSide::Right);
+        }
+        Some(HoveredTooltip::text(tooltip))
+    }
+
+    fn journey_tooltip_for_frame(&self, frame: &Frame) -> Option<(GameTooltip, bool)> {
+        let view = &self.adventure_guide.view;
+        let name = frame.name.as_deref()?;
+        if name == "JourneyProgressUnlock" {
+            return game_engine_ui_model::adventure_journeys::unlock_tooltip(
+                &view.journeys,
+                view.renown.as_deref(),
+            )
+            .map(|tooltip| (tooltip, true));
+        }
+        game_engine_ui_model::adventure_journeys::reward_tooltip(
+            &view.journeys,
+            view.renown.as_deref(),
+            name,
+        )
+        .map(|tooltip| (tooltip, false))
     }
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
