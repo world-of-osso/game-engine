@@ -44,7 +44,7 @@ pub fn tabard_screen(shared: &SharedContext) -> Element {
     children.extend(rsx! { fontstring { name: "TabardFrameGreetingText", text: greeting,
         width: 250.0, height: "auto", left: 59.0, top: 28.0, pos_type: "absolute", font_size: 14.0,
         font_color: "1,1,1,1", justify_h: "CENTER", word_wrap: true }
-        r#frame { name: {DynName(MODEL.into())}, width: 303.0, height: 317.0, left: 17.5, top: 69.0, pos_type: "absolute" } });
+        r#frame { name: {DynName(MODEL.into())}, width: 303.0, height: 317.0, left: {17.5}, top: 69.0, pos_type: "absolute" } });
     children.extend(outer_frame());
     children.extend(emblem_overlays(view));
     children.extend(customization());
@@ -145,7 +145,7 @@ fn emblem_overlays(view: &GuildTabards) -> Element {
         ("BottomLeft", textures.lower[1], "0.5,0,0,1", (137.0,176.0,100.0,74.0)),
     ].into_iter().flat_map(|(name, fdid, uv, (left,top,width,height))| {
         rsx! { texture { name: {DynName(format!("TabardFrameEmblem{name}"))}, texture_fdid: fdid, tex_coords: uv,
-            left, top, width, height, pos_type: "absolute", alpha: 0.4, draw_layer: "OVERLAY" } }
+            left, top, width, height, pos_type: "absolute", alpha: {0.4}, draw_layer: "OVERLAY" } }
     }).collect()
 }
 
