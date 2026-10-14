@@ -212,6 +212,53 @@ fn stockade_interior_walls_keep_the_camera_in_sight_at_every_yaw() {
     );
 }
 
+/// Native map389 entry stopped at x=-9 on this baked corridor corner.
+/// Use the real global WMO and the same wall rays/ground prediction as gameplay.
+#[test]
+fn ragefire_entrance_baked_corner_can_be_walked_with_real_wmo_walls() {
+    let terrain = load("orgrimmarinstance", (32, 31), |terrain| {
+        terrain
+            .map_wdt
+            .as_ref()
+            .is_some_and(|map| map.global_wmo.is_some())
+    });
+    let wmo = &terrain
+        .map_wdt
+        .as_ref()
+        .unwrap()
+        .global_wmo
+        .as_ref()
+        .unwrap()
+        .collision;
+    let start = Vec3::new(-8.594405, -21.63951, 38.54167);
+    let target = Vec3::new(-16.66732, -21.426952, 40.625);
+    let triangles = world_triangles([wmo], start, 40.0);
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+        game_object_floor: &|_| None,
+    };
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = start;
+    let direction = (target - start).with_y(0.0).normalize();
+    for _ in 0..90 {
+        feet = movement.predict(
+            feet,
+            crate::gameplay::MovementFrame {
+                direction: direction.to_array(),
+                speed: shared::movement::RUN_SPEED,
+                vertical: 0.0,
+            },
+            false,
+            &ground,
+            &mut |_, to, _| to,
+            1.0 / 60.0,
+        );
+    }
+    assert!(feet.x < -16.0, "baked corridor stopped at {feet:?}");
+}
+
 fn stairwell() -> (StreamedTerrain, Vec<[Vec3; 3]>) {
     let terrain = load("azeroth", (30, 48), |terrain| {
         terrain.parsed_tiles.contains_key(&(30, 48))
