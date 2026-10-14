@@ -126,22 +126,10 @@ impl GameClient {
                     .and_then(|id| id.parse::<u32>().ok())
                 {
                     self.mount_journal.view.selected = Some(id);
-                    let rect = ui
+                    let at = ui
                         .bind()
-                        .frame_viewport_rect(&format!("MountJournalRow{id}"))
-                        .ok_or("Mount row bounds missing")?;
-                    let journal = ui
-                        .bind()
-                        .frame_viewport_rect("CollectionsJournal")
-                        .ok_or("Mount Journal bounds missing")?;
-                    let scale = self.effective_ui_scale();
-                    self.mount_journal.view.context = Some((
-                        id,
-                        [
-                            (rect[0] + rect[2] - journal[0]) / scale,
-                            (rect[1] - journal[1]) / scale,
-                        ],
-                    ));
+                        .read_cursor_relative_to_frame("CollectionsJournal")?;
+                    self.mount_journal.view.context = Some((id, at));
                 }
             }
         }

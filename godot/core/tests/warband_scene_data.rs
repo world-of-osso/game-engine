@@ -34,7 +34,52 @@ fn authored_adventurers_rest_records_preserve_camera_focus_and_primary_tile() {
     assert_eq!(first_slot.id, 1);
     assert_eq!(first_slot.position, [-2981.82, 457.35, 452.826]);
     assert_eq!(first_slot.rotation, 108.0);
-    assert!(!catalog.placement_options.is_empty());
+    let csv = std::fs::read_to_string(data_root.join("WarbandScenePlacementOption.csv")).unwrap();
+    assert_eq!(catalog.placement_options.len(), csv.lines().count() - 1);
+    let option = catalog
+        .placement_options
+        .iter()
+        .find(|option| option.placement_id == 1 && option.layout_key == 4)
+        .unwrap();
+    assert_eq!(option.position, [-2982.40991, 458.520996, 452.890991]);
+    assert_eq!(option.orientation, 108.0);
+    assert_eq!(option.scale, 1.0);
+}
+
+#[test]
+fn malformed_authored_option_reports_file_and_line() {
+    let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let fixture = std::env::temp_dir().join(format!("warband-db2-{}", std::process::id()));
+    std::fs::create_dir_all(&fixture).unwrap();
+    for table in [
+        "WarbandScene",
+        "WarbandScenePlacement",
+        "WarbandScenePlacementOption",
+    ] {
+        std::fs::copy(
+            data_root.join(format!("{table}.csv")),
+            fixture.join(format!("{table}.csv")),
+        )
+        .unwrap();
+    }
+    let path = fixture.join("WarbandScenePlacementOption.csv");
+    let csv = std::fs::read_to_string(&path).unwrap();
+    let mut lines: Vec<String> = csv.lines().map(str::to_string).collect();
+    let index = lines[0]
+        .split(',')
+        .position(|name| name == "WarbandScenePlacementID")
+        .unwrap();
+    let mut fields: Vec<String> = lines[1].split(',').map(str::to_string).collect();
+    fields[index] = "invalid".into();
+    lines[1] = fields.join(",");
+    std::fs::write(&path, lines.join("\n")).unwrap();
+    let error = read_authored_catalog(&fixture).unwrap_err();
+    std::fs::remove_dir_all(&fixture).unwrap();
+    assert!(
+        error.contains("WarbandScenePlacementOption.csv:2:"),
+        "{error}"
+    );
+    assert!(error.contains("WarbandScenePlacementID"), "{error}");
 }
 
 #[test]

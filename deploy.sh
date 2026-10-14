@@ -107,6 +107,8 @@ publish() {
     local upload=(--header-upload "Cache-Control: no-cache" --transfers 8 --checkers 16)
     echo "=== Generating manifest ==="
     run cargo run --release --quiet --manifest-path "$FILE_SERVER_DIR/Cargo.toml" -- manifest "$BUNDLE"
+    echo "=== Verifying staged bytes ==="
+    run python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" --verify-manifest
     echo "=== Uploading bundle to $DESTINATION ==="
     run rclone copy "$BUNDLE/" "$DESTINATION" --exclude /manifest.json "${upload[@]}" --progress
     echo "=== Publishing manifest ==="

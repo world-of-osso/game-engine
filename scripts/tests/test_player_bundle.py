@@ -1,9 +1,13 @@
+import hashlib
 import importlib.util
 import json
 import shutil
-import tempfile
+import sqlite3
 import subprocess
+import sys
+import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location('player_bundle', Path(__file__).parents[1] / 'player_bundle.py')
@@ -80,6 +84,75 @@ class PlayerBundleTest(unittest.TestCase):
             bundle.copy_data(root, target)
             self.assertEqual((target / 'data' / new).read_bytes(), b'new')
             self.assertFalse((target / 'data' / old).exists())
+
+    def test_mutable_catalog_staging_retains_preparation_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            texts = {
+                'cache/model-asset-index.json': '{"version":1,"assets":[]}',
+                'equipment_transforms.ron': '()',
+                'db2/active/Rows.csv': 'ID,Name\n1,prepared\n',
+                'gametables/classes.txt': 'prepared',
+            }
+            for name, content in texts.items():
+                path = data / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            catalogs = ['cache/catalog.sqlite', 'local-listfile-cache.sqlite']
+            for name in catalogs:
+                with closing(sqlite3.connect(data / name)) as connection, connection:
+                    connection.execute('CREATE TABLE names (name TEXT)')
+                    connection.execute("INSERT INTO names VALUES ('prepared')")
+            target = root / 'player'
+            bundle.copy_data(root, target)
+            for name in catalogs:
+                with closing(sqlite3.connect(data / name)) as connection, connection:
+                    connection.execute("UPDATE names SET name = 'changed'")
+                with closing(sqlite3.connect(target / 'data' / name)) as connection:
+                    names = connection.execute('SELECT name FROM names').fetchall()
+                    self.assertEqual(names, [('prepared',)])
+            for name, content in texts.items():
+                (data / name).write_text('changed')
+                self.assertEqual((target / 'data' / name).read_text(), content)
+
+    def test_manifest_check_uses_staged_bytes_and_rejects_later_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            staged = root / 'player'
+            path = staged / 'data/cache/catalog.sqlite'
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b'expected')
+            manifest = {
+                'version': 'fixture',
+                'files': [{
+                    'path': 'data/cache/catalog.sqlite',
+                    'size': 8,
+                    'sha256': hashlib.sha256(b'expected').hexdigest(),
+                }],
+            }
+            (staged / 'manifest.json').write_text(json.dumps(manifest))
+            command = [sys.executable, str(Path(bundle.__file__)), '--root', str(root),
+                       '--bundle', str(staged), '--platform', 'linux-x86_64', '--verify-manifest']
+            valid = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+            path.write_bytes(b'mutated!')
+            invalid = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertIn('SHA256 mismatch', invalid.stderr)
+            self.assertIn('data/cache/catalog.sqlite', invalid.stderr)
+            path.write_bytes(b'expected')
+            manifest['files'][0]['size'] = 9
+            (staged / 'manifest.json').write_text(json.dumps(manifest))
+            invalid_size = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(invalid_size.returncode, 0)
+            self.assertIn('size mismatch', invalid_size.stderr)
+            path.unlink()
+            missing = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn('catalog.sqlite', missing.stderr)
 
     def test_project_keeps_resources_but_excludes_crates_and_tests(self):
         with tempfile.TemporaryDirectory() as directory:

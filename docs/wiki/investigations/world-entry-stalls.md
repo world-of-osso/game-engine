@@ -228,8 +228,19 @@ Fix: the scene light and fog are Godot global shader uniforms (`project.godot` `
 
 Evidence: `data/diagnostics/settlegate-2026-10-02/` (`base-prof-1`, `diag-1`, `fix-prof-1`, `green-*`). Loading itself (~127 s at load 7) is the separate Loading gate ([world-loading](../../specs/world-loading.md)).
 
+## Windows character-select reveal — 2026-10-14
+
+The published client revealed roster UI before its asynchronous scene finished: Windows exposed sky-only selection for 3.625 s. Instrumented preparation spent 2,193 ms importing outfit CSV rows into a fresh catalog, versus 748 ms on the body and 171 ms on appearance. Reusing a catalog keyed by data root and prewarming its owned Retail namespace moves that import off the selection critical path. The real-source lifetime fixture prepares equipped item40, removes the active namespace's `ItemDisplayInfo.csv` link, and prepares again from retained rows.
+
+The existing loading UI now covers selection until the matching selected model, campsite terrain, sky/light and queued campsite objects are attached. Preparation errors remain covered and reported; empty rosters do not wait for a model. Automation reports Loading until reveal. The process-frame fixture rejects visible roster UI without actual terrain and character mesh drawables.
+
+Published-base revision `584ccf56b`, same assets/account: Windows release Loading9.628s→ready11.334s (1.706s covered), Linux native debug8.248s→10.646s (2.398s covered). These are single measurements, not cold/warm or platform-speed certification. Both fixtures passed at1920×1080; Windows camp and textured in-world player captures were accepted. Near-dark rear armor also reproduced on Linux;14 player batches had textures/scene lighting, with nonzero ambient/direct light. No arbitrary brightening or material replacement was needed.
+
+Evidence: `data/diagnostics/windows-final-flow-2026-10-14/`, particularly `sequence-timing.json`, `linux-sequence/timing.json`, `sequence-ready-scene.png`, `close-valid-player-front.png` and `close-valid-materials.json`. Contract: [character-select loading](../../specs/character-select-loading.md).
+
 ## Sources
 
+- [Character-select loading](../../specs/character-select-loading.md), `godot/tests/charselect_scene_reveal.gd` and `assets::player::catalog_lifetime_tests` — scene reveal and retained owned catalog behavior.
 - `data/diagnostics/retained-performance-20261001/run1/` and `run2/` — actual `result.json` and `stdout.log`; manifests/config retained alongside them.
 - `/tmp/claude/retained-conversion-20/{performance-run1-verification.md,perf-settled-boundary.md,readiness-red.log,readiness-green.log,performance-runner1.log,performance-runner2.log,C.md}` — arithmetic/source-boundary audit, test proof and runner status; run2 rounded summary is not a separate settled distribution.
 - [measure.py](../../../scripts/performance/measure.py), [test_measure.py](../../../scripts/performance/test_measure.py), [world_entry_frames.gd](../../../godot/tests/world_entry_frames.gd), [world_entry_readiness.gd](../../../godot/tests/world_entry_readiness.gd) — runner and diagnostic readiness contract.

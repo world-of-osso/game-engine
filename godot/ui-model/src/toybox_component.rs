@@ -1,7 +1,7 @@
 //! Retail Mainline CollectionsJournal.xml (703x606) and ToyBox.xml (3x6 grid).
+use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
 use crate::toybox::{self, ToyBox};
 use crate::ui::screens::quest_art::{DynName, named_atlas_texture};
-use crate::ui::strata::FrameStrata;
 use ui_toolkit::{
     frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
 };
@@ -29,6 +29,8 @@ pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
 }
 
 pub use crate::collections_component::{SIZE, TABS};
+// ToyBox_InitFilterDropdown explicitly fixes the owner width to90.
+const FILTER_WIDTH: f32 = 90.0;
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToyBoxView {
     pub model: ToyBox,
@@ -196,32 +198,6 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
     } }
 }
 
-fn menu_button(
-    name: String,
-    title: &str,
-    action: &str,
-    top: f32,
-    checked: Option<bool>,
-) -> Element {
-    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
-    let (title, kind) = if let Some(checked) = checked {
-        (title, MenuElementKind::Checkbox { checked })
-    } else if let Some(title) = title.strip_suffix(" >") {
-        (title, MenuElementKind::Submenu)
-    } else {
-        (title, MenuElementKind::Button)
-    };
-    menu_element(
-        ContextMenuItem {
-            name: &name,
-            label: title,
-            action,
-        },
-        kind,
-        true,
-        (8.0, top, 202.0, 20.0),
-    )
-}
 fn filter_dropdown(model: &ToyBox) -> Element {
     use crate::menu_primitives::*;
     let changed = !model.filters.collected
@@ -235,7 +211,7 @@ fn filter_dropdown(model: &ToyBox) -> Element {
             label_name: "ToyBoxFilterText",
             arrow_name: "ToyBoxFilterArrow",
             text: "Filter",
-            width: 90.0,
+            width: FILTER_WIDTH,
             height: 22.0,
             x: 601.0,
             y: -35.0,
@@ -259,30 +235,27 @@ fn filter_menu(model: &ToyBox) -> Element {
         return vec![];
     }
     let rows = filter_rows(model);
-    let count = rows.len();
-    let children: Element = rows
-        .into_iter()
-        .enumerate()
-        .flat_map(|(i, (title, action, checked))| {
-            menu_button(
-                format!("ToyFilter{i}"),
-                &title,
-                &action,
-                8.0 + i as f32 * 20.0,
-                checked,
+    let names: Vec<_> = (0..rows.len())
+        .map(|index| format!("ToyFilter{index}"))
+        .collect();
+    let entries: Vec<_> = rows
+        .iter()
+        .zip(&names)
+        .map(|((label, action, kind), name)| {
+            (
+                ContextMenuItem {
+                    name,
+                    label,
+                    action,
+                },
+                *kind,
+                true,
             )
         })
         .collect();
-    let height = 23.0 + count as f32 * 20.0;
-    let background = crate::selection_list::menu_background(
-        "ToyBoxFilterMenuBackground".into(),
-        (218.0, height),
-    );
-    rsx! { r#frame { name: "ToyBoxFilterMenu", width: 218.0, height,
-    pos_type: "absolute", left: 601.0, top: 57.0, strata: FrameStrata::Dialog,
-    mouse_enabled: true, {background} {children} } }
+    context_menu_description("ToyBoxFilterMenu", (601.0, 57.0), FILTER_WIDTH, &entries)
 }
-fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
+fn filter_rows(model: &ToyBox) -> Vec<(String, String, MenuElementKind)> {
     if let Some(kind) = &model.filter_submenu {
         let (prefix, ids, selected) = if kind == "sources" {
             (
@@ -302,14 +275,24 @@ fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
             )
         };
         let mut rows = vec![
-            ("Check All".into(), format!("{prefix}all"), None),
-            ("Uncheck All".into(), format!("{prefix}none"), None),
+            (
+                "Check All".into(),
+                format!("{prefix}all"),
+                MenuElementKind::Button,
+            ),
+            (
+                "Uncheck All".into(),
+                format!("{prefix}none"),
+                MenuElementKind::Button,
+            ),
         ];
         rows.extend(ids.into_iter().map(|id| {
             (
                 filter_label(kind, id),
                 format!("{prefix}{id}"),
-                Some(selected.as_ref().is_none_or(|set| set.contains(&id))),
+                MenuElementKind::Checkbox {
+                    checked: selected.as_ref().is_none_or(|set| set.contains(&id)),
+                },
             )
         }));
         return rows;
@@ -318,20 +301,34 @@ fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
         (
             "Collected".into(),
             "toy_filter:collected".into(),
-            Some(model.filters.collected),
+            MenuElementKind::Checkbox {
+                checked: model.filters.collected,
+            },
         ),
         (
             "Not Collected".into(),
             "toy_filter:uncollected".into(),
-            Some(model.filters.uncollected),
+            MenuElementKind::Checkbox {
+                checked: model.filters.uncollected,
+            },
         ),
         (
             "Usable Only".into(),
             "toy_filter:usable".into(),
-            Some(model.filters.usable_only),
+            MenuElementKind::Checkbox {
+                checked: model.filters.usable_only,
+            },
         ),
-        ("Sources >".into(), "toy_filter:sources".into(), None),
-        ("Expansion >".into(), "toy_filter:expansions".into(), None),
+        (
+            "Sources".into(),
+            "toy_filter:sources".into(),
+            MenuElementKind::Submenu,
+        ),
+        (
+            "Expansion".into(),
+            "toy_filter:expansions".into(),
+            MenuElementKind::Submenu,
+        ),
     ]
 }
 fn filter_label(kind: &str, id: i32) -> String {
@@ -372,7 +369,10 @@ fn filter_label(kind: &str, id: i32) -> String {
         .map_or_else(|| format!("{kind} {id}"), |label| (*label).into())
 }
 fn context_menu(model: &ToyBox) -> Element {
-    let Some(toy) = model.context.and_then(|id| model.toy(id)) else {
+    let Some((item_id, at)) = model.context else {
+        return vec![];
+    };
+    let Some(toy) = model.toy(item_id) else {
         return vec![];
     };
     let title = if toy.favourite {
@@ -381,10 +381,18 @@ fn context_menu(model: &ToyBox) -> Element {
         "Set Favorite"
     };
     let action = format!("{}{}", toybox::FAVOURITE_PREFIX, toy.item_id);
-    let button = menu_button("ToyBoxFavouriteToggle".into(), title, &action, 8.0, None);
-    let background =
-        crate::selection_list::menu_background("ToyBoxContextMenuBackground".into(), (218.0, 43.0));
-    rsx! { r#frame { name: "ToyBoxContextMenu", width: 218.0, height: 43.0,
-    pos_type: "absolute", left: 400.0, top: 440.0, strata: FrameStrata::Dialog,
-    mouse_enabled: true, {background} {button} } }
+    context_menu_description(
+        "ToyBoxContextMenu",
+        (at[0], at[1]),
+        0.0,
+        &[(
+            ContextMenuItem {
+                name: "ToyBoxFavouriteToggle",
+                label: title,
+                action: &action,
+            },
+            MenuElementKind::Button,
+            true,
+        )],
+    )
 }
