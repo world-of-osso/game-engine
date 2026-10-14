@@ -270,6 +270,7 @@ impl NetworkBridge {
             .receive::<protocol::ProfessionSpecializationStateUpdate>()
             .receive::<protocol::CraftingOrderStateUpdate>()
             .receive::<protocol::CollectionStateUpdate>()
+            .receive::<protocol::PetJournalDetailsUpdate>()
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()
             .receive::<protocol::PvpStateUpdate>()
