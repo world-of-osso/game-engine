@@ -29,8 +29,10 @@ Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay 
 ## Retail continuation — October13
 
 - [ ] Resolve live catalog delivery under production startup/request ordering (isolated1321-row UDP round-trip passes; private delivery intermittently exceeds60s).
-- [ ] Native multi-product cart and server-authoritative purchase/refund across protocol and persisted collections, sourced from Retail Lua; no invented policy.
-- [ ] Outfit/character preview toggle and native purchase-history widgets.
+- [x] Native multi-product cart and server-authoritative purchase/refund across protocol and persisted collections, sourced from Retail Lua; no invented policy. Modern and Forever checkout→new-client relog→individual refunds pass on one preserved private UDP5791 server/database; four receipts total6546 Tender, no panic/script-error markers. Proof: `cart-{modern,forever}-{identity-final,refund-identity-final}.log` in engine `data/diagnostics/trading-post-ui-2026-10-13/`, engine6b772c3a9/server4dcb1774/protocold9944f5.
+- [x] Native Hide Armor and selected-item purchase-history widgets. Installed70391 UiModelScene Autodress bit4 supplies the default; user override survives selections and resets on vendor open. Both-skin native captures prove dressed/hidden changes, ownership after relog and each authoritative refund.
+- [ ] Retail footer rotation buttons:100×48 container BOTTOM(+140,+42),48×48 left/right buttons with26×25 sourced icons. Press holds camera rotation at sourced0.1 increment per model-scene update; release stops, including outside button bounds. Pushed art/icon offset is(+1,+1) in screen-down coordinates; hover art is additive at0.6 alpha. Toys/unavailable previews have no rotation controls. Hide Armor and drag rotation do not certify this widget.
+- [ ] Remaining outfit/character controls: sourced mount TogglePlayerPreview; Hide Armor does not certify mounted-player composition.
 
 ## How it works
 

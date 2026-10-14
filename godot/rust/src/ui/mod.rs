@@ -307,6 +307,12 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         if let Some(view) = self
             .shared
+            .get::<game_engine_ui_model::trading_post::View>()
+        {
+            game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
             .get::<game_engine_ui_model::adventure_guide::View>()
         {
             game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
