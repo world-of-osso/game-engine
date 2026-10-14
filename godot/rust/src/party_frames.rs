@@ -31,11 +31,14 @@ use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 /// `CompactUnitFrame_UpdateInRange`: members beyond 40 yd fade.
 const GROUP_FRAME_RANGE: f32 = 40.0;
 const PARTY_INVITE_POPUP: &str = "PARTY_INVITE";
+/// Native Dialog canvases (GameMenuUI also uses 10), above map/journal panels.
+const POPUP_LAYER: i32 = 10;
 
 #[derive(Default)]
 pub(crate) struct GroupFramesHud {
     frames: Option<Gd<RegistryUi>>,
     popups_ui: Option<Gd<RegistryUi>>,
+    popups_shown: bool,
     pub(crate) popups: PopupStack,
     manager_expanded: bool,
 }
@@ -470,12 +473,30 @@ impl GameClient {
             let ui = self.attach_group_ui("GroupFramesUI", |ui| ui.show_group_frames(frames))?;
             self.group_frames.frames = Some(ui);
         }
+        self.show_popup_ui(popups)
+    }
+
+    fn show_popup_ui(&mut self, popups: StaticPopupState) -> Result<(), String> {
+        let shown = !popups.popups.is_empty();
         if let Some(ui) = self.group_frames.popups_ui.as_mut() {
             ui.bind_mut().set_state(popups)?;
         } else {
-            let ui = self.attach_group_ui("StaticPopupUI", |ui| ui.show_static_popups(popups))?;
+            let mut ui =
+                self.attach_group_ui("StaticPopupUI", |ui| ui.show_static_popups(popups))?;
+            ui.set_layer(POPUP_LAYER);
             self.group_frames.popups_ui = Some(ui);
         }
+        // StaticPopup.lua:582,880: Dialog strata and Raise on show.
+        if shown && !self.group_frames.popups_shown {
+            let ui = self
+                .group_frames
+                .popups_ui
+                .as_ref()
+                .expect("mounted above")
+                .clone();
+            self.raise_above_layer(&ui)?;
+        }
+        self.group_frames.popups_shown = shown;
         Ok(())
     }
 

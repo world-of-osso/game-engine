@@ -249,11 +249,44 @@ pub const AUTHORED: RowTemplate = RowTemplate {
     selected: None,
 };
 
-const TEMPLATES: [&RowTemplate; 14] = [
+/// PVPUI.xml:647/730 casual/rated activity selected and hover art (ADD, all points).
+/// Normal/pushed art is on the button, not a static normal child.
+pub const PVP_RATED_ACTIVITY: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(fill(Art::Atlas("pvpqueue-button-highlight"), true)),
+    selected: Some(fill(Art::Atlas("pvpqueue-button-selected"), true)),
+};
+pub const PVP_CASUAL_ACTIVITY: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(fill(Art::Atlas("pvpqueue-button-casual-highlight"), true)),
+    selected: Some(fill(Art::Atlas("pvpqueue-button-casual-selected"), true)),
+};
+
+/// PetBattleUI.xml:96 / Patchwerks.xml:86, BOTTOM(2,6), 169x42 inside192x200.
+pub const PET_BATTLE_SELECTION: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(RowArt {
+        art: Art::File(603587, [0.56347656, 0.72851563, 0.76757813, 0.84960938]),
+        insets: [13.5, 152.0, 9.5, 6.0],
+        alpha: 0.5,
+        additive: false,
+    }),
+    selected: Some(RowArt {
+        art: Art::File(603587, [0.56347656, 0.72851563, 0.76757813, 0.84960938]),
+        insets: [13.5, 152.0, 9.5, 6.0],
+        alpha: 1.0,
+        additive: false,
+    }),
+};
+
+const TEMPLATES: [&RowTemplate; 17] = [
     &SEARCH,
     &RAID_INSTANCE,
     &PVP_INSTANCE,
     &PVP_CATEGORY,
+    &PVP_RATED_ACTIVITY,
+    &PVP_CASUAL_ACTIVITY,
+    &PET_BATTLE_SELECTION,
     &MENU,
     &AUCTION_ROW,
     &AUCTION_CATEGORY,

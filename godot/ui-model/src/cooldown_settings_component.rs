@@ -1,138 +1,332 @@
-//! Choose and reorder the active spec's authored cooldown entries.
-use crate::ui::anchor::FrameName;
-use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::GameFont;
-use ui_toolkit::rsx;
-use ui_toolkit::widget_def::Element;
+//! Blizzard_CooldownViewer/CooldownViewerSettings.xml: source shell, categories and item hosts.
+use crate::bank_art::{WHITE, edit_box, label, texture};
+use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
+use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, window_chrome};
+use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
-struct DynName(String);
-pub const SETTINGS_PAGE_SIZE: usize = 10;
+pub const SCROLL: &str = "CooldownSettingsScroll";
+pub const SEARCH: &str = "CooldownSettingsSearch";
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CooldownSettingEntry {
     pub id: u32,
     pub category: u32,
     pub label: String,
+    pub icon_fdid: u32,
     pub selected: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CooldownSettingsView {
     pub open: bool,
+    /// Spells=0, auras=2; source display modes contain multiple categories together.
     pub category: usize,
-    pub page: usize,
     pub entries: Vec<CooldownSettingEntry>,
+    pub portrait_fdid: u32,
     pub status: String,
+    pub query: String,
+    pub menu: Option<u32>,
+    pub menu_position: [f32; 2],
+    pub dragging: Option<u32>,
+    pub can_undo: bool,
 }
 
-pub fn settings_panel(state: &CooldownSettingsView) -> Element {
+pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Element {
     if !state.open {
         return Vec::new();
     }
-    let rows = settings_rows(state);
-    let tabs = category_tabs();
-    let close = panel_button(
-        "CooldownSettingsClose".into(),
-        "Close",
-        "cooldown_close".into(),
-        [480.0, 492.0, 90.0, 28.0],
+    let mut children = window_chrome(
+        "CooldownViewerSettings",
+        (399.0, 609.0),
+        "Cooldown Settings",
+        "cooldown_close",
     );
-    let previous = panel_button(
-        "CooldownSettingsPrevious".into(),
-        "Previous",
-        "cooldown_previous".into(),
-        [16.0, 492.0, 100.0, 28.0],
-    );
-    let next = panel_button(
-        "CooldownSettingsNext".into(),
-        "Next",
-        "cooldown_next".into(),
-        [120.0, 492.0, 100.0, 28.0],
-    );
-    rsx! {
-        r#frame {
-            name: {FrameName("CooldownViewerSettings")}, width: 590.0, height: 540.0,
-            strata: FrameStrata::Dialog, background_color: "0.08,0.06,0.04,0.98",
-            pos_type: "absolute", left: "50%", top: "50%", margin_left: -295.0, margin_top: -270.0,
-            fontstring {
-                name: {FrameName("CooldownSettingsTitle")}, width: 550.0, height: 30.0,
-                text: "Cooldown Manager", font: GameFont::FrizQuadrata, font_size: 18.0,
-                font_color: "1.0,0.82,0.0,1.0", pos_type: "absolute", pos_x: 16.0, pos_y: 8.0,
-            }
-            {tabs}
-            {rows}
-            fontstring {
-                name: {FrameName("CooldownSettingsStatus")}, width: 550.0, height: 44.0,
-                text: {state.status.as_str()}, font: GameFont::FrizQuadrata, font_size: 11.0,
-                font_color: "1.0,0.82,0.0,1.0", pos_type: "absolute", pos_x: 16.0, pos_y: 438.0,
-            }
-            {previous}
-            {next}
-            {close}
-        }
+    children.extend(crate::quest_art::window_portrait_texture(
+        &crate::quest_art::window_portrait_slot("CooldownSettingsPortrait"),
+        state.portrait_fdid,
+    ));
+    children.extend(category_tabs(state));
+    children.extend(edit_box(SEARCH, (72.0, 30.0, 184.0, 30.0)));
+    children.extend(category_scroll(ctx, state));
+    children.extend(item_menu(state));
+    children.extend(settings_footer(state));
+    rsx! { r#frame {name:"CooldownViewerSettings", width:399.0,height:609.0,
+        strata:crate::ui::strata::FrameStrata::Dialog,mouse_enabled:true,
+        pos_type:"absolute",left:16.0,top:116.0,{children}}
     }
 }
 
-fn category_tabs() -> Element {
-    ["Essential", "Utility", "Tracked Buffs", "Tracked Bars"]
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, label)| {
-            panel_button(
-                format!("CooldownSettingsCategory{index}"),
-                label,
-                format!("cooldown_category:{index}"),
-                [16.0 + index as f32 * 140.0, 44.0, 136.0, 28.0],
-            )
-        })
-        .collect()
+fn settings_footer(state: &CooldownSettingsView) -> Element {
+    use crate::menu_primitives::{DropdownButton, DropdownState, dropdown_button_with_state};
+    let mut children = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "CooldownSettingsLayoutDropdown",
+            label_name: "CooldownSettingsLayoutText",
+            arrow_name: "CooldownSettingsLayoutArrow",
+            text: "Default",
+            width: 120.0,
+            height: 25.0,
+            x: 5.0,
+            y: -581.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: None,
+        },
+        DropdownState {
+            enabled: false,
+            ..Default::default()
+        },
+    );
+    children.extend(crate::quest_art::panel_button(
+        "CooldownSettingsUndo".into(),
+        "Revert",
+        "cooldown_undo",
+        state.can_undo,
+        (232.0, 583.0, 164.0, 22.0),
+    ));
+    children
 }
 
-fn settings_rows(state: &CooldownSettingsView) -> Element {
-    state
-        .entries
-        .iter()
-        .filter(|entry| entry.category as usize == state.category)
-        .skip(state.page * SETTINGS_PAGE_SIZE)
-        .take(SETTINGS_PAGE_SIZE)
-        .enumerate()
-        .flat_map(|(index, entry)| setting_row(index, entry))
-        .collect()
+fn centered_art(name: String, atlas: &str, center: [f32; 2]) -> Element {
+    let art = ui_toolkit::atlas::get_region(atlas).expect("Retail cooldown atlas loaded");
+    named_atlas_texture(
+        name,
+        atlas,
+        (
+            center[0] - art.width / 2.0,
+            center[1] - art.height / 2.0,
+            art.width,
+            art.height,
+        ),
+    )
 }
 
-fn setting_row(index: usize, entry: &CooldownSettingEntry) -> Element {
-    let label = &entry.label;
-    let y = 84.0 + index as f32 * 34.0;
-    let select = crate::selection_list::text_row(
-        format!("CooldownSettingsSelect{}", entry.id),
-        label,
-        &format!("cooldown_select:{}", entry.id),
-        (true, entry.selected),
-        (16.0, y, 454.0, 30.0),
-        &crate::selection_list::SEARCH,
-    );
-    let up = panel_button(
-        format!("CooldownSettingsUp{}", entry.id),
-        "Up",
-        format!("cooldown_up:{}", entry.id),
-        [476.0, y, 46.0, 30.0],
-    );
-    let down = panel_button(
-        format!("CooldownSettingsDown{}", entry.id),
-        "Down",
-        format!("cooldown_down:{}", entry.id),
-        [526.0, y, 46.0, 30.0],
-    );
-    [select, up, down].into_iter().flatten().collect()
-}
-
-fn panel_button(name: String, label: &str, action: String, rect: [f32; 4]) -> Element {
-    rsx! {
-        button {
-            name: {DynName(name)}, width: {rect[2]}, height: {rect[3]}, text: label,
-            font: GameFont::FrizQuadrata, font_size: 12.0,
-            onclick: {action.as_str()}, background_color: "0.18,0.13,0.07,1.0",
-            pos_type: "absolute", pos_x: {rect[0]}, pos_y: {rect[1]},
+fn category_tabs(state: &CooldownSettingsView) -> Element {
+    [
+        ("Spells", "icon_cooldownmanager", 0),
+        ("Auras", "icon_trackedbuffs", 2),
+        ("GroupBuffs", "icon_buffreorder", 4),
+    ]
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, (name, icon, category))| {
+        let prefix = format!("CooldownSettings{name}Tab");
+        let mut art = centered_art(
+            format!("{prefix}Background"),
+            "common-sidetab",
+            [21.5, 27.5],
+        );
+        art.extend(centered_art(format!("{prefix}Icon"), icon, [19.5, 27.5]));
+        if state.category == category {
+            art.extend(centered_art(
+                format!("{prefix}Selected"),
+                "common-sidetab-selected",
+                [21.5, 27.5],
+            ));
         }
+        let action = format!("cooldown_category:{category}");
+        let disabled = category == 4; // GroupBuffFilter has no backing model yet; never invent entries.
+        rsx! {button {name:{DynName(prefix)},width:43.0,height:55.0,button_default_skin:false,
+        onclick:{action.as_str()},disabled,button_atlas_highlight:"common-sidetab-hover",
+        pos_type:"absolute",left:399.0,top:{28.0+index as f32*58.0},{art}}}
+    })
+    .collect()
+}
+
+fn category_scroll(ctx: &SharedContext, state: &CooldownSettingsView) -> Element {
+    let (rows, content_height) = category_contents(state);
+    let geometry = pixel_geometry(508.0, content_height, 508.0);
+    let offset = geometry.clamp(ctx.scroll_first_row(SCROLL));
+    let config = scroll_list_attr(&geometry);
+    let bar = MinimalScrollBar {
+        list: SCROLL,
+        left: 17.0 + 352.0,
+        top: 72.0,
+        height: 508.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    rsx! {r#frame {name:{DynName(SCROLL.into())},width:352.0,height:508.0,pos_type:"absolute",left:17.0,top:72.0,mouse_enabled:true,scroll_list:config,
+    r#frame {name:"CooldownSettingsContent",width:344.0,height:content_height,pos_type:"absolute",left:0.0,top:{-(offset as f32)},{rows}}
     }
+    {bar.element()}}
+}
+
+fn category_contents(state: &CooldownSettingsView) -> (Element, f32) {
+    let categories = if state.category < 2 {
+        [
+            (0, "Essential Cooldowns"),
+            (1, "Utility Cooldowns"),
+            (4, "Not Displayed"),
+        ]
+    } else {
+        [
+            (2, "Tracked Buffs"),
+            (3, "Tracked Bars"),
+            (5, "Not Displayed"),
+        ]
+    };
+    let query = state.query.to_lowercase();
+    let mut children = Vec::new();
+    let mut top = 0.0;
+    for (category, title) in categories {
+        let entries: Vec<_> = state
+            .entries
+            .iter()
+            .filter(|entry| {
+                let matches_category = if category < 4 {
+                    entry.selected && entry.category == category
+                } else {
+                    !entry.selected && (entry.category < 2) == (category == 4)
+                };
+                matches_category && entry.label.to_lowercase().contains(&query)
+            })
+            .collect();
+        let stride = if category == 3 { 1 } else { 7 };
+        let count = entries.len().max(1).div_ceil(stride);
+        let height = 37.0 + count as f32 * 46.0 - 8.0;
+        children.extend(category_header(category, title, top));
+        for (index, entry) in entries.into_iter().enumerate() {
+            let rect = (
+                13.0 + (index % stride) as f32 * 46.0,
+                top + 37.0 + (index / stride) as f32 * 46.0,
+            );
+            children.extend(setting_item(entry, rect));
+        }
+        top += height + 18.0;
+    }
+    (children, top)
+}
+
+fn category_header(category: u32, title: &str, top: f32) -> Element {
+    let prefix = format!("CooldownSettingsCategory{category}");
+    let left =
+        ui_toolkit::atlas::get_region("Options_ListExpand_Left").expect("Retail list header");
+    let right =
+        ui_toolkit::atlas::get_region("Options_ListExpand_Right").expect("Retail list header");
+    let mut children = named_atlas_texture(
+        format!("{prefix}Left"),
+        "Options_ListExpand_Left",
+        (0.0, top, left.width, left.height),
+    );
+    children.extend(named_atlas_texture(
+        format!("{prefix}Right"),
+        "Options_ListExpand_Right",
+        (344.0 - right.width, top, right.width, right.height),
+    ));
+    children.extend(named_atlas_texture(
+        format!("{prefix}Middle"),
+        "_Options_ListExpand_Middle",
+        (left.width, top, 344.0 - left.width - right.width, 22.0),
+    ));
+    children.extend(label(
+        format!("{prefix}Name"),
+        title,
+        (10.0, top + 3.5, 300.0, 15.0),
+        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+    ));
+    children
+}
+
+fn setting_item(entry: &CooldownSettingEntry, (left, top): (f32, f32)) -> Element {
+    let name = format!("CooldownSettingsItem{}", entry.id);
+    let width = if entry.category == 3 && entry.selected {
+        317.0
+    } else {
+        38.0
+    };
+    let mut art = texture(
+        format!("{name}Icon"),
+        entry.icon_fdid,
+        (0.0, 0.0, 38.0, 38.0),
+        WHITE,
+    );
+    if width > 38.0 {
+        art.extend(named_atlas_texture(
+            format!("{name}BarBackground"),
+            "UI-HUD-CoolDownManager-Bar-BG",
+            (41.0, 6.0, 282.0, 30.0),
+        ));
+        art.extend(named_atlas_texture(
+            format!("{name}Bar"),
+            "UI-HUD-CoolDownManager-Bar",
+            (43.0, 9.5, 274.0, 19.0),
+        ));
+        art.extend(label(
+            format!("{name}Name"),
+            &entry.label,
+            (48.0, 9.5, 244.0, 19.0),
+            (12.0, WHITE, "LEFT"),
+        ));
+    }
+    let action = format!("cooldown_pick:{}", entry.id);
+    let template = crate::selection_list::RowTemplate {
+        normal: None,
+        selected: None,
+        hover: Some(crate::selection_list::RowArt {
+            art: crate::selection_list::Art::File(130718, [0.0, 1.0, 0.0, 1.0]),
+            insets: [0.0, 0.0, width - 38.0, 0.0],
+            alpha: 1.0,
+            additive: true,
+        }),
+    };
+    crate::selection_list::row(
+        name,
+        &action,
+        true,
+        (left, top, width, 38.0),
+        (&template, false),
+        art,
+    )
+}
+
+fn item_menu(state: &CooldownSettingsView) -> Element {
+    let Some(id) = state.menu else {
+        return Vec::new();
+    };
+    let Some(entry) = state.entries.iter().find(|entry| entry.id == id) else {
+        return Vec::new();
+    };
+    let name = "CooldownSettingsVisibility";
+    let action = format!("cooldown_select:{id}");
+    // GetCategoryAssignmentText uses these GlobalStrings, not a generic checkbox caption.
+    let label = if entry.selected {
+        "Remove from Bar".to_string()
+    } else {
+        let category = [
+            "Essential Cooldowns",
+            "Utility Cooldowns",
+            "Tracked Buffs",
+            "Tracked Bars",
+        ][entry.category as usize];
+        format!("Assign to {category}")
+    };
+    let width = ui_toolkit::text_measure::measure_text(
+        &label,
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .expect("menu font metrics")
+    .0
+    .ceil()
+        + 32.0;
+    let mut children = crate::selection_list::menu_background(
+        "CooldownSettingsMenuBackground".into(),
+        (width, 43.0),
+    );
+    children.extend(menu_element(
+        ContextMenuItem {
+            name,
+            label: &label,
+            action: &action,
+        },
+        MenuElementKind::Button,
+        true,
+        (8.0, 8.0, width - 16.0, 20.0),
+    ));
+    rsx! {r#frame {name:"CooldownSettingsMenu",width,height:43.0,frame_level:600,
+    pos_type:"absolute",left:{state.menu_position[0]},top:{state.menu_position[1]},mouse_enabled:true,{children}}}
 }

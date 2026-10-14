@@ -2,6 +2,12 @@
 
 Verified: 2026-10-11 — private both-skin Leatherworking specialization and cross-character fixed-output order/mail proof. [Contract](../../specs/crafting-ui.md) owns requirements; [existing professions](native-professions-crafting.md) owns recipe/trainer behavior. Retail Mainline defines both skins' elements; Forever changes art.
 
+## Customer control fidelity — verified 2026-10-13
+
+CustomerOrders.xml67-77 supplies Place Order (`BROWSE_ORDERS` in GlobalStrings.csv) BOTTOMLEFT(20,-28) and My Orders LEFT at Browse RIGHT(-10,0); shared PanelTabButtonTemplate measures widths. Form.xml supplies recipient TOPRIGHT(-10,-11); Form.lua530/588 overrides WowStyle1 widths to136/143px. Form origin(5,60), Payment origin(510,155), Duration label110×40 at y345 resolves dropdown(620,352.5). Right-justified labels retain source RIGHT edges and use measured font extents inside the right pane. Commission/input centerline is325; Personal Order To/input centerline109.5. Back uses SecureUIPanelTemplates sheet art, not defaultbutton art. CustomerOrders.lua86 binds the interacting NPC through the existing native masked portrait renderer. Pending disables dropdown actions; recipient/duration reducers remain unchanged.
+
+Review RED caught missing Order To and120px vs136px; eight targeted order tests pass after caption fix005037ac2 (master merged932412df5), including pane bounds and input centerlines. Native1920×1080 captures: original `before/`, corrected recipient/duration/personal in `after-review/`, under `/syncthing/AgentShared/2026-10-13/ui-gameplay-panels/`. Both skins inspected against XML/Lua. The fixture asserts a populated portrait using a concrete offline human clerk; live NPC binding follows the active interaction, not the profession icon. Build and refreshed captures pass at005037ac2; helper check and fmt pass at33cfee500. Cage reports unavailable XWayland/libdecor/FIFO/activation/VSync capabilities but captures pass. These prove control geometry/art and portrait rendering, not new gameplay authority.
+
 ## Projection and authority
 
 `ProfessionView` selects Recipes, Specializations, Orders or the disabled recraft schematic. Customer orders use the separate825×568 PortraitFrame; crafter orders use942×658 ProfessionsFrame; specialization page is1144px. Backgrounds, tabs, paths and dial art use the authored Retail atlases and profession kit.

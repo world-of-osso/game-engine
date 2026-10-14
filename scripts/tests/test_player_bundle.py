@@ -20,7 +20,8 @@ class PlayerBundleTest(unittest.TestCase):
                 (data / name).mkdir(parents=True)
             for name in ('cache/catalog.sqlite', 'cache/casc/root.bin', 'cache/pre-retail-old/a',
                          'textures/12.blp', 'textures/13.blp.missing', 'cache/a.lock',
-                         'auth_token.realm', 'diagnostics/run.log', 'Map.csv', 'local-listfile-cache.sqlite',
+                         'auth_token.realm', 'auth_token.private.json', 'diagnostics/run.log', 'Map.csv', 'local-listfile-cache.sqlite',
+                         'battle-pet-model-scenes.json',
                          'forever-1.60.1.70205/models/a.m2', 'gametables/classes.txt',
                          'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
                          'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2.receipt.json'):
@@ -29,7 +30,7 @@ class PlayerBundleTest(unittest.TestCase):
                 path.write_text(name)
             index = {'version': 1, 'assets': [{'product': 'wow', 'build_key': 'dcfc90fffd79ba00406ae46f5f657592', 'path': 'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2'}]}
             (data / 'cache/model-asset-index.json').write_text(json.dumps(index))
-            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv',
+            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv', 'battle-pet-model-scenes.json',
                         'local-listfile-cache.sqlite', 'forever-1.60.1.70205/models/a.m2',
                         'gametables/classes.txt',
                         'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',

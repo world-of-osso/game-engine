@@ -5,7 +5,7 @@
 //! - right-clicking a quest giver (`merchant.rs` sends `InteractNpc`) opens `QuestFrame`
 //!   on the server's gossip menu or quest giver role and asks for its quests
 //!   (`QuestGiverHello`); detail, progress and reward pages follow the server;
-//! - L toggles `QuestLogFrame`; Abandon asks through the `ABANDON_QUEST` popup;
+//! - L opens the WorldMapFrame quest dock; Abandon uses the `ABANDON_QUEST` popup;
 //! - every mirrored quest giver is queried for its marker (`QuestGiverStatusQuery`) and
 //!   wears the `interface/buttons/talktome*.m2` of that marker on its model's
 //!   above-character attachment (M2 attachment 18), facing the camera.
@@ -22,9 +22,7 @@ use game_engine_ui_model::quest_actions::{ABANDON_QUEST_POPUP, QuestUiEffect, qu
 use game_engine_ui_model::quest_frame_component::{
     FRAME_W as QUEST_FRAME_W, QUEST_FRAME, QuestFrameState, quest_frame_screen,
 };
-use game_engine_ui_model::quest_log_frame_component::{
-    QUEST_LOG_FRAME, QuestLogFrameState, quest_log_frame_screen,
-};
+use game_engine_ui_model::quest_log_frame_component::QuestLogFrameState;
 use game_engine_ui_model::quest_runtime::{
     NpcInteractionRequest, QuestDialogPage, QuestTextTokens, QuestUiState, quest_failed_text,
     quest_marker_model,
@@ -69,7 +67,6 @@ pub(crate) struct QuestHud {
     toast_ui: Option<Gd<RegistryUi>>,
     pending_toast: Option<game_engine_ui_model::world_quest_ui::WorldQuestToast>,
     toast_deadline: Option<std::time::Instant>,
-    log_ui: Option<Gd<RegistryUi>>,
     /// The quest the open `ABANDON_QUEST` popup is about.
     pending_abandon: Option<u32>,
     pending_share: Option<u64>,
@@ -90,7 +87,7 @@ impl QuestHud {
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
     ) -> Result<(), String> {
-        for ui in [&mut self.frame_ui, &mut self.log_ui, &mut self.toast_ui]
+        for ui in [&mut self.frame_ui, &mut self.toast_ui]
             .into_iter()
             .flatten()
         {
@@ -104,18 +101,10 @@ impl QuestHud {
         self.frame_ui.as_ref()
     }
 
-    pub(crate) fn log_open(&self) -> bool {
-        self.windows.is_open(WindowId::QuestLog)
-    }
-
     fn reset(&mut self) {
-        for ui in [
-            self.frame_ui.take(),
-            self.log_ui.take(),
-            self.toast_ui.take(),
-        ]
-        .into_iter()
-        .flatten()
+        for ui in [self.frame_ui.take(), self.toast_ui.take()]
+            .into_iter()
+            .flatten()
         {
             ui.free();
         }
@@ -440,7 +429,10 @@ impl GameClient {
 
     /// `ToggleQuestLog` (L).
     pub(super) fn toggle_quest_log(&mut self) {
-        self.quests.windows.toggle(WindowId::QuestLog);
+        if let Err(error) = self.toggle_quest_map() {
+            godot_error!("Quest log: {error}");
+            self.close_world_map();
+        }
     }
 
     /// Wheel, stepper and thumb input of the QuestFrame scroll frames; returns whether the
@@ -470,10 +462,7 @@ impl GameClient {
 
     fn poll_quest_actions(&mut self) -> Result<(), FrameError> {
         let mut actions = Vec::new();
-        for ui in [&mut self.quests.frame_ui, &mut self.quests.log_ui]
-            .into_iter()
-            .flatten()
-        {
+        for ui in [&mut self.quests.frame_ui].into_iter().flatten() {
             let action = ui.bind_mut().pop_action().to_string();
             if !action.is_empty() {
                 actions.push(action);
@@ -492,10 +481,8 @@ impl GameClient {
         for effect in effects {
             match effect {
                 QuestUiEffect::Send(request) => self.account.send_quest_request(request)?,
-                QuestUiEffect::OpenLog => self.quests.windows.open(WindowId::QuestLog),
-                QuestUiEffect::CloseLog => {
-                    self.quests.windows.close(WindowId::QuestLog);
-                }
+                QuestUiEffect::OpenLog => self.open_quest_details()?,
+                QuestUiEffect::CloseLog => self.close_world_map(),
                 QuestUiEffect::ConfirmAbandon { quest_id, popup } => {
                     self.quests.pending_abandon = Some(quest_id);
                     self.group_frames.popups.push(popup);
@@ -545,7 +532,7 @@ impl GameClient {
         let quests = &self.quests;
         if quests.frame_ui.as_ref() == Some(ui) {
             frame_reward_item(self.account.quests.dialog.as_ref(), n).cloned()
-        } else if quests.log_ui.as_ref() == Some(ui) {
+        } else if self.world_map.ui.as_ref() == Some(ui) {
             log_reward_item(&self.account.quests, &quests.ui, &quests.details, n).cloned()
         } else {
             None
@@ -560,7 +547,6 @@ impl GameClient {
                 .send_quest_request(NpcInteractionRequest::Close { npc: dialog.npc })?;
             closed = true;
         }
-        closed |= self.quests.windows.close(WindowId::QuestLog);
         Ok(closed)
     }
 
@@ -641,59 +627,47 @@ impl GameClient {
             &tokens,
             &mut |sort_id| names.get(&sort_id).cloned().unwrap_or_default(),
             self.player_level().map_or(1, i32::from),
-            self.quests.log_open(),
+            self.world_map.quest_log_is_open(),
         );
         (frame, log)
     }
 
-    /// The quest log for the world map's docked quest panel. The panel opens a
-    /// quest's details on click instead of marking a selected row.
+    /// The docked quest panel highlights C_SuperTrack's quest (QuestMapFrame.lua:2066).
     pub(crate) fn quest_map_log(&mut self) -> QuestLogFrameState {
         let mut log = self.quest_window_states().1;
         log.visible = true;
         for row in log.groups.iter_mut().flat_map(|group| &mut group.quests) {
-            row.selected = false;
+            row.selected = self.quests.ui.super_tracked == Some(row.quest_id);
         }
         log
     }
 
     fn sync_quest_windows(&mut self) -> Result<(), String> {
-        let (frame, log) = self.quest_window_states();
+        let (frame, _) = self.quest_window_states();
         let frame_open = frame.visible;
-        let log_open = log.visible;
-        self.cache_quest_textures(frame.clone(), log.clone());
+        self.cache_quest_textures(frame.clone());
         if let Some(ui) = self.quests.frame_ui.as_mut() {
             ui.bind_mut().reset_quest_scroll_for(&frame);
         }
         let scale = self.effective_ui_scale();
-        let positions = self.quest_window_positions();
+        let position = self.quest_window_position();
         sync_window(
             self,
             |hud| &mut hud.frame_ui,
             frame_open.then_some(frame),
             ("QuestFrameUI", QUEST_FRAME),
             quest_frame_screen,
-            positions.0,
-            scale,
-        )?;
-        sync_window(
-            self,
-            |hud| &mut hud.log_ui,
-            log_open.then_some(log),
-            ("QuestLogUI", QUEST_LOG_FRAME),
-            quest_log_frame_screen,
-            positions.1,
+            position,
             scale,
         )
     }
 
     /// Panel slots of the shared window manager: slot 0 at the left edge, slot 1 right
     /// of it (Bevy `panel_position`).
-    fn quest_window_positions(&self) -> ([f32; 2], [f32; 2]) {
+    fn quest_window_position(&self) -> [f32; 2] {
         let windows = &self.quests.windows;
         let width = |id: WindowId| match id {
             WindowId::QuestGiver => QUEST_FRAME_W,
-            WindowId::QuestLog => game_engine_ui_model::quest_log_frame_component::FRAME_W,
             _ => 0.0,
         };
         let position = |id: WindowId| {
@@ -703,17 +677,14 @@ impl GameClient {
                 .fold(PANEL_LEFT, |x, left| x + width(left) + PANEL_GAP);
             [x, WINDOW_TOP]
         };
-        (position(WindowId::QuestGiver), position(WindowId::QuestLog))
+        position(WindowId::QuestGiver)
     }
 
     /// Copy the textures the open windows draw out of local CASC before they show.
-    fn cache_quest_textures(&mut self, frame: QuestFrameState, log: QuestLogFrameState) {
+    fn cache_quest_textures(&mut self, frame: QuestFrameState) {
         let mut fdids = Vec::new();
         if frame.visible {
             fdids.extend(screen_texture_fdids(frame, quest_frame_screen));
-        }
-        if log.visible {
-            fdids.extend(screen_texture_fdids(log, quest_log_frame_screen));
         }
         let new: Vec<u32> = fdids
             .into_iter()
@@ -884,7 +855,7 @@ impl GameClient {
     fn quest_state(&self) -> VarDictionary {
         let quests = &self.account.quests;
         let mut result = VarDictionary::new();
-        result.set("log_open", self.quests.log_open());
+        result.set("log_open", self.world_map.quest_log_is_open());
         result.set("frame_open", self.quests.frame_ui.is_some());
         if let Some(dialog) = &quests.dialog {
             result.set("npc", dialog.npc as i64);

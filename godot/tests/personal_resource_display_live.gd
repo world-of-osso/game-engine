@@ -72,7 +72,7 @@ func enable_option() -> bool:
 	await press(KEY_ESCAPE)
 	if not await wait_until(func(): return control("GameMenuUI", "MenuBtnOptions") != null, 5000, "game menu"):
 		return false
-	for name in ["MenuBtnOptions", "OptionsTabhud", "ToggleSwitchpersonal_resource_display", "OptionsDoneButton"]:
+	for name in ["MenuBtnOptions", "OptionsTabhud", "ToggleSwitchpersonal_resource_display", "OptionsCloseButton"]:
 		var target := control("GameMenuUI", name)
 		if target == null or not target.is_visible_in_tree():
 			fail("Options control absent: " + name)

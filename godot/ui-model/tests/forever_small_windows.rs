@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use game_engine_ui_model::character_frame::{
     CharacterFrameView, PaperDollSlotView, character_frame_screen,
 };
-use game_engine_ui_model::quest_log_frame_component::{QuestLogFrameState, quest_log_frame_screen};
 
 use game_engine_ui_model::mail_frame_component::{
     MailFrameState, MailFrameTab, OpenMailView, mail_frame_screen,
@@ -387,16 +386,6 @@ fn forever_window_titles_sit_inside_the_title_bar_band() {
                 merchant_frame_screen,
             ),
             "MerchantFrame",
-        ),
-        (
-            forever_window(
-                QuestLogFrameState {
-                    visible: true,
-                    ..Default::default()
-                },
-                quest_log_frame_screen,
-            ),
-            "QuestLogFrame",
         ),
         (
             forever_window(
