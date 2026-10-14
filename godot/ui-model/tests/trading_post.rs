@@ -282,6 +282,69 @@ fn trading_post_cart_selects_exclusive_hand_slots_and_deselects_clicked_item() {
 }
 
 #[test]
+fn trading_post_retail_rotate_buttons_match_footer_anchors_and_hide_for_non_model_products() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(snapshot())),
+            selected: Some(4),
+            ..Default::default()
+        };
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            rect(&registry, "PerksProgramRotateButtonContainer"),
+            [1050., 10., 100., 48.]
+        );
+        for (name, left, atlas) in [
+            ("PerksProgramRotateLeftButton", 0., "perks-icon-rotate-left"),
+            (
+                "PerksProgramRotateRightButton",
+                52.,
+                "perks-icon-rotate-right",
+            ),
+        ] {
+            assert_eq!(rect(&registry, name), [left, 0., 48., 48.]);
+            assert_eq!(
+                rect(&registry, &format!("{name}Icon")),
+                [11., 11.5, 26., 25.]
+            );
+            let icon = registry
+                .get(registry.get_by_name(&format!("{name}Icon")).unwrap())
+                .unwrap();
+            let Some(WidgetData::Texture(icon)) = &icon.widget_data else {
+                panic!("rotate icon must be authored art")
+            };
+            let region =
+                ui_toolkit::atlas::resolve_region(atlas, skin).expect("Retail rotate atlas");
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("rotate art needs FDID")
+            };
+            assert_eq!(
+                icon.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(fdid)
+            );
+            assert_eq!(
+                icon.tex_coords,
+                [region.left, region.right, region.top, region.bottom]
+            );
+        }
+        assert_eq!(view.click("perks:rotate-left").unwrap(), None);
+        assert_eq!(view.click("perks:rotate-right").unwrap(), None);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        for (category, unavailable) in [(5, None), (1, Some("Source model unavailable".into()))] {
+            let data = Arc::make_mut(view.snapshot.as_mut().unwrap());
+            data.items[0].category_id = category;
+            data.items[0].grant_unavailable = unavailable;
+            assert!(
+                render(skin, view.clone())
+                    .get_by_name("PerksProgramRotateButtonContainer")
+                    .is_none()
+            );
+        }
+    }
+}
+
+#[test]
 fn trading_post_hide_armor_uses_authored_default_and_persists_toggle_between_products() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = View {
