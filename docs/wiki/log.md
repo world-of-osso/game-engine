@@ -1,3 +1,7 @@
+## 2026-10-14 — Trading Post reply ordering
+
+[Guide delivery](systems/trading-post.md#unsolicited-guide-delivery--2026-10-14): monthly settlement no longer sends an unsolicited full Guide before vendor replies. Purchase/no-Guide regression RED→GREEN; monthly credit and rollover retained. Native sub-second delivery remains a transport acceptance gate.
+
 ## 2026-10-13 — Journeys unknown-unlock notice native proof
 
 [Notice proof](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): actual clipped-bounds RED corrected with source LockedStateFrame anchoring, centered16px text and authored cursor-right requirement tooltip. Both-skin native dee707137 PASS; UI10/10,12 revision-directory full-HD captures with hashed receipt. Unknown never becomes fabricated locked/unlocked; no extra renown grant or runtime remains.70391 presentation metadata publication remains separate pending scope.
