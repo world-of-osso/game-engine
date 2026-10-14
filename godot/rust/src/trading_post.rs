@@ -661,6 +661,7 @@ impl GameClient {
         let mut state = VarDictionary::new();
         state.set("open", view.visible);
         state.set("selected", view.selected.map_or(-1, i64::from));
+        state.set("model_yaw", self.trading_post.yaw);
         let enabled_types: Vec<_> = view
             .snapshot
             .iter()

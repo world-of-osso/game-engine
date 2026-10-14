@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -42,7 +42,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -70,6 +70,7 @@ func run_fixture() -> void:
 		"purchase": await purchase_each_collection()
 		"cart": await checkout_cart()
 		"cart-lifetime": await finish("layer-lifetime")
+		"rotate-controls": await rotate_control_proof()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -444,6 +445,37 @@ func select_first_available(budget: int = -1) -> bool:
 		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
+
+func rotate_control_proof() -> void:
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().preview_ready, "mount preview ready"): return
+	await capture("rotate-default")
+	for direction in ["Left", "Right"]:
+		var name := "PerksProgramRotate" + direction + "Button"
+		var target := control(name)
+		if target == null: fail("Missing Retail rotation button " + name); return
+		var point: Vector2 = target.get_global_rect().get_center()
+		var before := float(client.trading_post_state().model_yaw)
+		await motion(point, false)
+		await button_event(point, MOUSE_BUTTON_LEFT, true)
+		await wait_frames(10)
+		var held := float(client.trading_post_state().model_yaw)
+		var sign := -1.0 if direction == "Left" else 1.0
+		if sign * (held - before) < 0.5: fail("Held %s did not continuously rotate sourced direction: %s -> %s" % [direction, before, held]); return
+		await capture("rotate-held-" + direction.to_lower())
+		await motion(Vector2(1800, 500), true, Vector2(1, 0))
+		await button_event(Vector2(1800, 500), MOUSE_BUTTON_LEFT, false)
+		await wait_frames(3)
+		var released := float(client.trading_post_state().model_yaw)
+		await wait_frames(10)
+		if absf(float(client.trading_post_state().model_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
+		await capture("rotate-released-" + direction.to_lower())
+	if not await choose_category(5): return
+	if not await select_first_available(): return
+	if control("PerksProgramRotateLeftButton") != null: fail("Toy retained model-scene rotation controls"); return
+	await capture("toy-no-rotate-controls")
+	await finish("rotate-controls")
 
 func rotate_model() -> bool:
 	var start := control("PerksProgramMainModelScene").get_global_rect().get_center()
