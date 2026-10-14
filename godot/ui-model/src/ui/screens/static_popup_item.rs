@@ -8,6 +8,7 @@ use ui_toolkit::{rsx, widget_def::Element};
 
 pub struct ItemConfirmation<'a> {
     pub name: &'a str,
+    pub pending: bool,
     /// The two text runs around the source currency texture markup.
     pub prompt: (&'a str, &'a str),
     pub currency_icon: Option<u32>,
@@ -58,6 +59,23 @@ fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
         contents.extend(item_frame(props.name, item, item_y));
     }
     contents.extend(confirmation_buttons(props, buttons_y));
+    if props.pending {
+        let prefix = props.name;
+        let ring = crate::quest_art::named_atlas_texture(
+            format!("{prefix}SpinnerRing"),
+            "Spinner_Ring",
+            (0., 0., 60., 60.),
+        );
+        let sparks = crate::quest_art::named_atlas_texture(
+            format!("{prefix}SpinnerSparks"),
+            "Spinner_Sparks",
+            (0., 0., 60., 60.),
+        );
+        contents.extend(rsx! {
+            r#frame{name:{DynName(format!("{prefix}DarkOverlay"))},left:0.0,top:0.0,width:WIDTH,height,pos_type:"absolute",frame_level:999.0,mouse_enabled:true,background_color:"0,0,0,0.8"}
+            r#frame{name:{DynName(format!("{prefix}Spinner"))},left:{(WIDTH-60.)/2.},top:{(height-60.)/2.},width:60.0,height:60.0,pos_type:"absolute",frame_level:1000.0,{ring}{sparks}}
+        });
+    }
     (contents, height)
 }
 
@@ -140,12 +158,14 @@ fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
         &format!("{prefix}Button"),
         props.accept.0,
         props.accept.1,
+        props.pending,
         (button_x, top),
     );
     contents.extend(dialog_button(
         &format!("{prefix}CancelButton"),
         "Cancel",
         props.cancel_action,
+        props.pending,
         (button_x + BUTTON_WIDTH + BUTTON_GAP, top),
     ));
     contents
@@ -174,7 +194,13 @@ fn item_frame(prefix: &str, (name, icon, quality): (&str, u32, u8), top: f32) ->
     width:ITEM_WIDTH,height:ITEM_HEIGHT,pos_type:"absolute",{contents} } }
 }
 
-fn dialog_button(name: &str, text: &str, action: &str, (left, top): (f32, f32)) -> Element {
+fn dialog_button(
+    name: &str,
+    text: &str,
+    action: &str,
+    disabled: bool,
+    (left, top): (f32, f32),
+) -> Element {
     let contents = rsx! {
         texture { name:{DynName(format!("{name}NormalArt"))},texture_fdid:130763,
             width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
@@ -193,5 +219,5 @@ fn dialog_button(name: &str, text: &str, action: &str, (left, top): (f32, f32)) 
             pos_type:"absolute",left:0.0,top:-1.0 }
     };
     rsx! { button { name:{DynName(name.into())},width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
-    pos_type:"absolute",left,top,button_default_skin:false,onclick:action,{contents} } }
+    pos_type:"absolute",left,top,button_default_skin:false,onclick:action,disabled,{contents} } }
 }

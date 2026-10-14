@@ -205,6 +205,7 @@ impl View {
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
             "perks:cart:clear" => {}
             "perks:cart:checkout" if self.can_checkout() => {
+                self.cart_confirmation = Some((self.cart_price(), self.cart.len()));
                 self.confirm = Some("cart-checkout".into())
             }
             "perks:cart:checkout" => {}

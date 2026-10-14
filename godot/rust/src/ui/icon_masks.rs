@@ -515,6 +515,7 @@ mod tests {
             let mut registry = FrameRegistry::new(1920., 1080.);
             Screen::new(|_| ui_toolkit::rsx! {
                 texture { name:"PerksProgramCartItem4Icon",texture_fdid:135729u32,width:56.0,height:56.0 }
+                texture { name:"PerksProgramCartSubItem4_189869Icon",texture_fdid:135729u32,width:56.0,height:56.0 }
             }).sync(&SharedContext::new(), &mut registry);
             IconMasks::default().apply(&mut registry);
             let rendered = resize(
@@ -522,6 +523,16 @@ mod tests {
                 56,
                 56,
                 FilterType::Triangle,
+            );
+            let member = resize(
+                &dynamic_icon_pixels(&registry, "PerksProgramCartSubItem4_189869Icon"),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            assert_eq!(
+                rendered, member,
+                "ensemble members use the same authored56px mask"
             );
             let icon = resize(
                 &super::load_rgba(135729, "cart icon fixture").unwrap(),

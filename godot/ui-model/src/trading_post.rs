@@ -56,6 +56,8 @@ pub struct View {
     /// Monotonic seconds since observing the current authoritative snapshot.
     pub refund_elapsed: u32,
     pub confirm: Option<String>,
+    /// Captured price/count survive source clear-on-accept cart lifecycle.
+    pub cart_confirmation: Option<(u64, usize)>,
     pub error: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -115,6 +117,7 @@ impl View {
         self.pending = false;
         self.refund_elapsed = 0;
         self.confirm = None;
+        self.cart_confirmation = None;
         self.reselect();
     }
     pub fn rows(&self) -> Vec<&TradingPostItem> {
@@ -186,6 +189,9 @@ impl View {
         !self.pending && self.remaining_refund_seconds() > 0
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
+        if self.pending && self.confirm.is_some() {
+            return Ok(None);
+        }
         if self.confirm.is_some() && !matches!(action, "perks:confirm" | "perks:cancel") {
             return Ok(None);
         }
@@ -309,7 +315,6 @@ impl View {
             };
             // Retail clears the local cart when acceptance enqueues checkout, not at receipt.
             self.clear_cart();
-            self.confirm = None;
             self.pending = true;
             return Ok(Some(Action::Request(request)));
         }
@@ -1046,12 +1051,13 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
     if kind == "cart-checkout" {
-        let count = view.cart.len();
+        let (price, count) = view.cart_confirmation.expect("Captured cart confirmation");
         let noun = if count == 1 { "item" } else { "items" };
-        let before = format!("Are you sure you want to exchange {}", view.cart_price());
+        let before = format!("Are you sure you want to exchange {price}");
         let after = format!("for {count} {noun}?");
         return item_confirmation(ItemConfirmation {
             name: "PerksProgramConfirm",
+            pending: view.pending,
             prompt: (&before, &after),
             currency_icon: Some(TENDER_ICON),
             item: None,
@@ -1066,6 +1072,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         let prompt = format!("Are you sure you want to remove {count} {noun} from the cart?");
         return item_confirmation(ItemConfirmation {
             name: "PerksProgramConfirm",
+            pending: false,
             prompt: (&prompt, ""),
             currency_icon: None,
             item: None,
@@ -1086,6 +1093,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
     };
     item_confirmation(ItemConfirmation {
         name: "PerksProgramConfirm",
+        pending: false,
         prompt: (
             &before,
             if refund {

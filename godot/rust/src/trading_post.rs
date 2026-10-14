@@ -38,6 +38,7 @@ pub(crate) struct TradingPost {
     hidden_layers: Vec<Gd<CanvasLayer>>,
     preview_failed: bool,
     snapshot_observed_at: Option<std::time::Instant>,
+    spinner_started_at: Option<std::time::Instant>,
 }
 
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
@@ -136,6 +137,7 @@ impl GameClient {
         if self.trading_post.view.visible {
             self.hide_ui_parent();
             self.sync_trading_ui()?;
+            self.animate_trading_spinner();
             let preview = self.sync_trading_model();
             self.record_trading_preview(preview);
         }
@@ -231,6 +233,28 @@ impl GameClient {
         }
         Ok(())
     }
+    fn animate_trading_spinner(&mut self) {
+        if !self.trading_post.view.pending
+            || self.trading_post.view.confirm.as_deref() != Some("cart-checkout")
+        {
+            self.trading_post.spinner_started_at = None;
+            return;
+        }
+        let started = self
+            .trading_post
+            .spinner_started_at
+            .get_or_insert_with(std::time::Instant::now);
+        // SpinnerTemplate: both textures rotate -360 degrees every two seconds.
+        let rotation = started.elapsed().as_secs_f32() * std::f32::consts::PI;
+        let Some(ui) = &self.trading_post.ui else {
+            return;
+        };
+        if let Some(mut spinner) = ui.bind().frame_control("PerksProgramConfirmSpinner") {
+            spinner.set_pivot_offset(Vector2::new(30., 30.));
+            spinner.set_rotation(rotation);
+        }
+    }
+
     fn sync_trading_ui(&mut self) -> Result<(), String> {
         let size = self
             .base()
@@ -663,6 +687,26 @@ impl GameClient {
             .collect();
         state.set("rows", &rows);
         state.set("pending", view.pending);
+        state.set("cart_visible", view.cart_visible);
+        state.set(
+            "cart",
+            view.cart
+                .iter()
+                .map(|id| i64::from(*id))
+                .collect::<PackedInt64Array>(),
+        );
+        state.set(
+            "cart_preview_items",
+            view.cart_preview_item_ids()
+                .iter()
+                .map(|id| i64::from(*id))
+                .collect::<PackedInt64Array>(),
+        );
+        state.set("cart_price", view.cart_price() as i64);
+        match view.hide_armor() {
+            Ok(hide) => state.set("hide_armor", hide),
+            Err(error) => state.set("outfit_error", error.as_str()),
+        }
         state.set(
             "hidden_layers",
             self.trading_post.hidden_layers.len() as i64,
