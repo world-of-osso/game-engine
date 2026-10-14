@@ -1,5 +1,5 @@
 //! Spell tooltips with the player's replicated spell and attack power, and the spec
-//! primary stat the CharacterFrame reads, against the pinned 12.1.0.69933 CSVs.
+//! primary stat the CharacterFrame reads, against published active CSVs.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -165,5 +165,17 @@ fn ranged_spell_tooltip_uses_ranged_power_without_changing_melee_or_ap_tokens() 
     assert!(
         explicit_ap.contains("absorbs the next 100 healing"),
         "{explicit_ap}"
+    );
+    let no_ranged = SpellTextContext {
+        caster_power: Some(CasterPower {
+            ranged_attack_power: 0.0,
+            ..ctx.caster_power.unwrap()
+        }),
+        ..ctx
+    };
+    assert_eq!(
+        data.render_description(19434, &no_ranged).unwrap(),
+        "A powerful aimed shot that deals 0 Physical damage.",
+        "zero RAP must not fall back to melee AP100"
     );
 }
