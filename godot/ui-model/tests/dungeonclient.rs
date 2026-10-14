@@ -10,17 +10,23 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn retail_categories() -> Vec<AchievementCategoryEntry> {
-    include_str!("../../../data/db2/active/Achievement_Category.csv")
-        .lines()
+    let records = game_engine_core::csv_util::parse_csv_records(include_str!(
+        "../../../data/db2/active/Achievement_Category.csv"
+    ));
+    let header = &records[0];
+    let column = |name| header.iter().position(|field| field == name).unwrap();
+    let id = column("ID");
+    let name = column("Name_lang");
+    let parent = column("Parent");
+    let order = column("Ui_order");
+    records
+        .iter()
         .skip(1)
-        .map(|line| {
-            let fields: Vec<_> = line.split(',').collect();
-            AchievementCategoryEntry {
-                category_id: fields[0].parse().unwrap(),
-                name: fields[1].into(),
-                parent_id: fields[2].parse().unwrap(),
-                order_index: fields[3].parse().unwrap(),
-            }
+        .map(|fields| AchievementCategoryEntry {
+            category_id: fields[id].parse().unwrap(),
+            name: fields[name].clone(),
+            parent_id: fields[parent].parse().unwrap(),
+            order_index: fields[order].parse().unwrap(),
         })
         .collect()
 }
