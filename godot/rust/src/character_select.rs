@@ -147,21 +147,32 @@ struct CharacterLoad {
 impl CharacterLoad {
     fn start(data_root: &Path, entry: &CharacterListEntry) -> Self {
         let data_root = data_root.to_owned();
-        let player = Player {
-            name: entry.name.clone(),
-            race: entry.race,
-            class: entry.class,
-            appearance: entry.appearance.clone(),
-        };
-        let equipment = entry.equipment_appearance.clone();
-        let tabard = entry.tabard;
+        let character = entry.clone();
         Self {
             entry: entry.clone(),
             parts: BackgroundLoad::start("character-preview", move || {
-                prepare_player_parts(&data_root, &player, &equipment, tabard)
+                prepare_character_parts(&data_root, &character)
             }),
         }
     }
+}
+
+pub(crate) fn prepare_character_parts(
+    data_root: &Path,
+    entry: &CharacterListEntry,
+) -> Result<PlayerParts, String> {
+    let player = Player {
+        name: entry.name.clone(),
+        race: entry.race,
+        class: entry.class,
+        appearance: entry.appearance.clone(),
+    };
+    prepare_player_parts(
+        data_root,
+        &player,
+        &entry.equipment_appearance,
+        entry.tabard,
+    )
 }
 
 pub(crate) struct CharacterPreview {
