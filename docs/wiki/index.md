@@ -26,7 +26,7 @@
 - [Silvershard private prerequisites](systems/battlegrounds.md#silvershard-private-prerequisites--active2026-10-12) — real-source switch GUIDs, grounded cart-follow points, bounded both-skin six-account cart/switch lifecycle, visible authenticated source models and source-floor travel; canonical assets/cache published by lead;708/1110 rows ship with assets in the next client bundle,894 transport gate remains.
 - [Epic source continuation](systems/battlegrounds.md#epic-source-continuation--active-2026-10-12) — corrected AV/Isle queues/ten-per-team minimums; AV pure nodes/mines and real-channel cast/tower/captain/general/return proof, native/live pending.
 - [Deephaul lifecycle](systems/battlegrounds.md#deephaul-ravine--bounded-both-skin-proof-2026-10-12) — source crystal/cart control, both-skin10-account natural victory/return/save and24 inspected PNGs; crystal assets staged for lead publication, vehicle/art/aura gaps explicit.
-- [Seething source objective slice](systems/battlegrounds.md#seething-shore--objective-slice-transport-entry-blocked-2026-10-12) — dynamic fissures/Azerite/six-second Gathering; source ship-relative entry explicitly blocked and public894 hidden; authored transport work remains in scope.
+- [Seething authored transport and gathering](systems/battlegrounds.md#seething-shore--authored-transport-and-native-gathering-partial-2026-10-13) — both-skin private ship carry/return, partial native captures, cast/UDP timing and idle-travel RED/GREEN; victory and remaining rollback/departure boundaries stay open.
 - [Kotmogu lifecycle](systems/battlegrounds.md#kotmogu--bounded-both-skin-proof-2026-10-12) — source orb use/ticks/counters, both-skin four-account natural victory/return and save-gated private teardown; combat-aura/scenery gaps explicit.
 
 - [Source warning signs](systems/toy-box.md#source-warning-sign-batches-2026-10-12) — four actual-use/native lifetime identities, Swarthy’s two authored state models and explicit screenshot/per-effect pixel boundary.
@@ -117,7 +117,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Trading Post](systems/trading-post.md) — native Mainline PerksProgram vendor, source category dropdown, creature/player previews over an authenticated asset closure, HUD hiding, freeze, and Traveler's Log Tender; both-skin live proof and purchase-proof boundary.
 
-- [Native Adventure Guide](systems/adventure-guide.md) — authored Journal/sets, owned keys and shared Traveler's Log; both-skin navigation/source difficulty and preview-only additive compositing proof; inherited yaw, Journeys and model closure remain open.
+- [Native Adventure Guide](systems/adventure-guide.md) — ten-defect layout correction, shared Retail shell/rows/tabs/navbar, Guide41/shared6 tests and inspected receipt-bound both-skin full-HD input/clip/paint proof; broader feature and extra-test gaps explicit.
 
 - [Gathering](systems/gathering.md) — integrated both-skin exact-node tracking, real herb/ore/kill/Skinning loot and rank gains, authored despawn/respawn; inspected native proof and scoped RED/GREEN, with explicit remaining catalog limits.
 - [Quest sharing, resets and timers](systems/quest-share-resets.md) — party offer/result relays, sampled clock countdown and inspected both-skin private proof.
