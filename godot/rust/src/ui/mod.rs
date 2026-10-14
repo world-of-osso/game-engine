@@ -463,6 +463,9 @@ impl RegistryModel {
             .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
             .is_some()
         {
+            game_engine_ui_model::cooldown_settings_component::apply_settings_postsetup(
+                &mut self.registry,
+            );
             self.icon_masks.apply(&mut self.registry);
         }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
