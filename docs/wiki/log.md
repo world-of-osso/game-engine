@@ -1,3 +1,7 @@
+## 2026-10-14 — Unnamed equipped component attachment
+
+[Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins and source model order replace the authored-filename gate. Actual70391 helm7321940 reproduces attach RED; corrected source reference is wow.export, not WebWowViewerCpp. Native player/portrait acceptance remains pending.
+
 ## 2026-10-13 — Expert editor source continuation
 
 [Housing](systems/housing.md#expert-source-action-continuation--implementation2026-10-13): fourteen assigned/unbound action identities and distinct held increments replace hardcoded keys; shared source mode controls and target/manipulation/submode instruction rows replace invented help text. Current canonical GlobalStrings labels are user-authorized pending installed70391 export. New both-skin paid1693/2330 and readonly-visitor physical assignment/release/stage/cancel/click-commit/relog proof passes; active housing-key precedence repairs the acceptedF10/global HUD conflict without changing inactive HUD behavior; hotkey visuals, snap and source-rate/axis parity remain gaps.

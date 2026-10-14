@@ -291,3 +291,27 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - [[rendering-pipeline]] — M2 material assembly, blend modes
 - [[animation]] — bone animation, HD skeleton loading
 - [[asset-pipeline]] — CASC extraction for BLP textures, DB2 chains
+
+## FDID-only equipped component binding — implementation2026-10-14
+
+`ItemDisplayInfo.ModelResourcesID` → `ModelFileData` supplies candidate FDIDs;
+`ComponentModelFileData` selects wearer race/gender and shoulder position. Canonical
+`data/db2/12.1.0.69933/ComponentModelFileData.csv` exists; no db2-follow table dependency.
+A missing community-listfile name must not reject a selected component. Runtime
+appearance records source model order: the first model of an attachment slot keeps
+its slot attachment; additional models and body-slot models bind to character joints.
+Mesh filtering follows that binding, not a `collections/` filename.
+
+Reference: local `~/Repos/wow.export`, commit `c2fd7bd`,
+`src/js/db/caches/DBItemModels.js:64-79,165-230,257-300` (FDID joins/filtering) and
+`src/js/modules/tab_characters.js:669-678,681-745` (attachment then collection).
+The earlier WebWowViewerCpp pointer was incorrect; it contains no item-display code.
+This is code semantics evidence, not a gameplay-data source.
+
+Actual current70391 head7321940/skin7530107 reproduces the old attach rejection:
+`Equipment Head FDID 7321940 has no authored path`. Source display730376 resolves
+this helm for human male; regression exercises its own skeleton, attachment11 and
+retained mesh2702 without a listfile name. RED is recorded under
+`data/diagnostics/bg-coverage-2026-10-12/head-7321940-red-binding.log`.
+GREEN and both-skin player/portrait pixel acceptance remain pending.
+Contract: [item definition sources](../../specs/item-definition-sources.md).

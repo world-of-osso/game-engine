@@ -1,4 +1,9 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Current local-CASC unnamed Retail helmet and primary skin (FDID7530107 alias).
+cache/model-asset-index-bg-head-7321940.json
+products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7321940.m2
+products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7530107.skin
+products/wow/334a36cf5f3c32a5f7a167405487fa14/models/732194000.skin
 # Source Cage505683 live trapdoor hull/primary skin, already extracted from local CASC.
 models/6339134.m2
 models/6339702.skin
