@@ -529,6 +529,7 @@ fn arcane_mage_derived() -> DerivedStats {
     DerivedStats {
         spell_power: 66.0,
         attack_power: 0.0,
+        ranged_attack_power: 0.0,
         crit_pct: 5.0 + 3.0 / 4.431_969_6,
         haste_pct: 8.0 / 4.239_275_5,
         mastery_pct: 10.56,
