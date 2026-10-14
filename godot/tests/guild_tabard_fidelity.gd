@@ -16,7 +16,12 @@ func capture() -> void:
 		assert(fixture.call("initialize", skin == "forever") == "")
 		var ui := fixture.get_node("GuildTabardUI")
 		await ready_models(fixture)
-		assert(control(ui, "TabardModel").get_global_rect().is_equal_approx(Rect2(33.5, 185, 303, 317)))
+		var model_rect := control(ui, "TabardModel").get_global_rect()
+		if not model_rect.is_equal_approx(Rect2(33.5, 185, 303, 317)):
+			capture_png(directory, skin + "-tabard-designer-diagnostic.png")
+			push_error("TabardModel source rect expected33.5,185,303,317; actual " + str(model_rect))
+			quit(1)
+			return
 		var portrait: Dictionary = fixture.call("portrait_state")
 		assert(portrait.get("mask_loaded", false))
 		assert(not portrait.get("pending", true))
