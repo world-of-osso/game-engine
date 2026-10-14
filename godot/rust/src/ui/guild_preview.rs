@@ -8,6 +8,7 @@ use shared::protocol::GuildRankRequest;
 #[derive(Clone)]
 struct PendingGuildPreview(GuildRankRequest);
 
+#[cfg(debug_assertions)]
 impl RegistryUi {
     pub(crate) fn update_guild_communities_design(
         &mut self,
