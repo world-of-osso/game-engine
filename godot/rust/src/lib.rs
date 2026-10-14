@@ -2319,12 +2319,6 @@ impl GameClient {
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
             AccountEvent::PetJournalDetails(update) => {
-                godot_print!(
-                    "PET_ABILITY_ACK pets={} locked={} error={:?}",
-                    update.pets.len(),
-                    update.locked,
-                    update.error
-                );
                 self.pet_journal.view.receive_details(update)
             }
             AccountEvent::FollowerDungeons(catalog) => {

@@ -196,7 +196,6 @@ impl GameClient {
                 .parse()
                 .map_err(|_| format!("Invalid ability: {action}"))?;
             if let Some(request) = self.pet_journal.view.choose_ability(ability) {
-                godot_print!("PET_ABILITY_SEND {:?}", request);
                 self.account.send_pet_ability(request)?;
             }
         } else if let Some(slot) = action.strip_prefix("pet:equip:") {
