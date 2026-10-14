@@ -76,21 +76,25 @@ pub(crate) enum UnitAppearance {
         display_id: u32,
         items: EquipmentAppearance,
     },
-    Player(Player, EquipmentAppearance),
+    Player(
+        Player,
+        EquipmentAppearance,
+        Option<shared::guild_creation::GuildTabardDesign>,
+    ),
 }
 
 impl UnitAppearance {
     pub fn describe_unit(&self, server_id: u64) -> String {
         match self {
             Self::Creature { display_id, .. } => format!("NPC {server_id} display {display_id}"),
-            Self::Player(player, _) => format!("Player {server_id} ({})", player.name),
+            Self::Player(player, _, _) => format!("Player {server_id} ({})", player.name),
         }
     }
 
     /// A player's body model: its race and sex.
     pub fn player_model(&self) -> Option<(u8, u8)> {
         match self {
-            Self::Player(player, _) => Some((player.race, player.appearance.sex)),
+            Self::Player(player, _, _) => Some((player.race, player.appearance.sex)),
             Self::Creature { .. } => None,
         }
     }
@@ -119,7 +123,11 @@ enum VisualRequest {
         items: EquipmentAppearance,
         sheath: SheathState,
     },
-    Player(Player, EquipmentAppearance),
+    Player(
+        Player,
+        EquipmentAppearance,
+        Option<shared::guild_creation::GuildTabardDesign>,
+    ),
 }
 
 /// A unit visual with its file work done: `WorldModels::build_visual` makes its nodes.
@@ -237,13 +245,14 @@ impl VisualCatalogs {
                 items,
                 sheath,
             } => self.load_creature(display_id, &items, sheath),
-            VisualRequest::Player(player, equipment) => {
+            VisualRequest::Player(player, equipment, tabard) => {
                 // The main thread places an arrived visual's weapons from these rows.
                 self.gear()?;
                 Ok(VisualParts::Player(prepare_player_parts(
                     &self.data_root,
                     &player,
                     &equipment,
+                    tabard,
                 )?))
             }
         }
@@ -486,8 +495,8 @@ impl WorldModels {
                 },
                 Priority::Later,
             ),
-            UnitAppearance::Player(player, equipment) => (
-                VisualRequest::Player(player.clone(), equipment.clone()),
+            UnitAppearance::Player(player, equipment, tabard) => (
+                VisualRequest::Player(player.clone(), equipment.clone(), *tabard),
                 Priority::Now,
             ),
         };
