@@ -13,6 +13,7 @@ func capture() -> void:
 		assert(error == "", error)
 		await settle()
 		assert_rect(ui, "GuildControlUI", Rect2(440, 130, 338, 444))
+		assert_dropdown_member_image(ui, "GuildControlUINavigationDropdownBackground")
 		assert_rect(ui, "GuildControlUIRankOrderFrame", Rect2(454, 190, 312, 372))
 		assert_rect(ui, "GuildRankOrderName2", Rect2(536, 258, 132, 32))
 		assert_rect(ui, "GuildControlUIRankOrderFrameRank3ShiftUpButton", Rect2(669, 261, 26, 26))
@@ -51,6 +52,7 @@ func capture() -> void:
 		assert(ui.call("guild_control_preview_dispatch") == "")
 		await settle()
 		assert_rect(ui, "GuildControlUIRankSettingsFrameRankDropdown", Rect2(574, 196, 180, 25))
+		assert_dropdown_member_image(ui, "GuildControlUIRankSettingsFrameRankDropdownBackground")
 		assert_rect(ui, "GuildControlUIRankSettingsFrameOfficerBg", Rect2(465, 248, 290, 160))
 		assert_rect(ui, "GuildControlUIRankSettingsFrameOfficerCheckbox", Rect2(465, 251, 20, 20))
 		assert_rect(ui, "GuildRankGold", Rect2(612, 522, 60, 28))
@@ -144,6 +146,22 @@ func assert_rect(ui: Node, name: String, expected: Rect2) -> void:
 		push_error(name + " actual=" + str(actual) + " expected=" + str(expected))
 		quit(1)
 	assert(actual.is_equal_approx(expected), name + " actual=" + str(actual) + " expected=" + str(expected))
+
+# UiTextureAtlasMember25558: source 1x textholder is54x41 in both active sets.
+# Observe the decoded image actually supplied to the native backdrop, not registry construction.
+func assert_dropdown_member_image(ui: Node, name: String) -> void:
+	var target := control(ui, name).get_global_rect()
+	for node in ui.find_children("*", "TextureRect", true, false):
+		var part := node as TextureRect
+		if part.get_global_rect().is_equal_approx(target):
+			var image: Image = part.texture.get_image()
+			if image.get_size() != Vector2i(54, 41):
+				push_error("Dropdown must use its one source member, not square-button UVs: " + name + " image=" + str(image.get_size()))
+				quit(1)
+			assert(image.get_size() == Vector2i(54, 41))
+			return
+	push_error("Dropdown backdrop image missing: " + name)
+	quit(1)
 
 func capture_png(directory: String, filename: String) -> void:
 	var image := root.get_texture().get_image()
