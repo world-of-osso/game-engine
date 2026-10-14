@@ -84,7 +84,7 @@ fn screen(ctx: &SharedContext) -> Element {
     }
 }
 
-pub(super) fn raid_state() -> Result<game_engine_ui_model::raid_info::RaidInfoState, String> {
+fn raid_state() -> Result<game_engine_ui_model::raid_info::RaidInfoState, String> {
     use game_engine_ui_model::raid_info::{RaidCatalog, RaidInfoState};
     let catalog = RaidCatalog::load(&game_engine_ui_model::paths::resolve_data_path(
         "db2/12.1.0.69933",
@@ -121,7 +121,7 @@ pub(super) fn raid_state() -> Result<game_engine_ui_model::raid_info::RaidInfoSt
     })
 }
 
-pub(super) fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
+fn scoreboard_view() -> game_engine_ui_model::battleground::PvpView {
     use shared::{
         battleground::{BgPhase, BgTeam, FlagObjective},
         protocol::{BattlegroundPlayerScoreSnapshot, BattlegroundSnapshot, PvpSnapshot},
