@@ -2,6 +2,7 @@
 
 Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mounts, Pets, Toy Box, Heirlooms, Appearances, Warband Scenes), and ToyBox's 18 entries/page, 3 columns × 6 rows. Forever changes art only.
 
+- ToyBox fills the CollectionsJournal parent. CollectionsBackgroundTemplate owns its authored inset, tiled background and shadows. Filter uses the fixed90px Retail dropdown owner; typed shared menu descriptions fit checkbox/submenu labels instead of reserving a fixed-width push-button column. Favorite context menus open at the cursor through the same compositor (MenuUtil.CreateContextMenu), in both skins.
 - Both skins show each toy name to its icon's right, including greyed uncollected names and desaturated uncollected icons. Empty catalog names display ItemID, matching Retail ToySpellButton_UpdateButton; search and a graphical collection progress bar remain present in both skins.
 - Full ToyCollectionUpdate replaces catalog/ownership/favourites. Initial ownership is not new; subsequent learning glows and navigates to the filtered page containing that toy. Catalogs arriving before enter-world completes survive CharacterSelect/loading frames. Successful bag learning updates collection state and the open or next-opened Toy Box without a reopen/query workaround; connection/world reset clears the previous session's catalog.
 - Collected/uncollected/usable, source, expansion and case-insensitive name search filter the real catalog. Favourites sort first, then name and ItemID. Empty filters show an empty result. Page changes clamp.

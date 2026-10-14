@@ -110,7 +110,8 @@ pub struct ToyBox {
     pub open: bool,
     pub filters_open: bool,
     pub filter_submenu: Option<String>,
-    pub context: Option<u32>,
+    /// Item identity and cursor position relative to CollectionsJournal.
+    pub context: Option<(u32, [f32; 2])>,
     pub hovered: Option<u32>,
     pub error: Option<String>,
     received: bool,
