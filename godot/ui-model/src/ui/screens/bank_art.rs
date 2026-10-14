@@ -318,31 +318,42 @@ pub fn checkbox(
     action: &str,
     (x, y): (f32, f32),
 ) -> Element {
+    checkbox_sized(name, text, checked, action, (x, y, 24., 4.))
+}
+
+/// UICheckButtonTemplate size and label anchor supplied by the consuming XML.
+pub fn checkbox_sized(
+    name: &str,
+    text: &str,
+    checked: bool,
+    action: &str,
+    (x, y, size, label_gap): (f32, f32, f32, f32),
+) -> Element {
     let mut children = texture(
         format!("{name}Up"),
         CHECKBOX_UP,
-        (0.0, 0.0, 24.0, 24.0),
+        (0., 0., size, size),
         WHITE,
     );
     if checked {
         children.extend(texture(
             format!("{name}Check"),
             CHECKBOX_CHECK,
-            (0.0, 0.0, 24.0, 24.0),
+            (0., 0., size, size),
             WHITE,
         ));
     }
     children.extend(label(
         format!("{name}Text"),
         text,
-        (28.0, 5.0, 180.0, 14.0),
+        (size + label_gap, (size - 14.) / 2., 180., 14.),
         (12.0, NORMAL_FONT_COLOR, "LEFT"),
     ));
     rsx! {
         r#frame {
             name: {DynName(name.to_string())},
-            width: 24.0,
-            height: 24.0,
+            width: size,
+            height: size,
             onclick: action,
             mouse_enabled: true,
             pos_type: "absolute",
