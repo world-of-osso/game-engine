@@ -139,9 +139,10 @@ func select_saved_decor() -> bool:
 	if hit.is_empty():
 		fail("Saved decor has no visible native-pick triangle")
 		return false
+	var instance: int = int(node.get_meta("housing_instance_id"))
+	print("HOUSING_SELECTION_NATIVE point=",hit.point," picked=",UnitPicker.pick(camera(),hit.point)," expected=",instance," state=",client.housing_state().get("selected",0))
 	await click(hit.point,MOUSE_BUTTON_LEFT)
-	await frames(5)
-	return true
+	return await wait_housing(func(): return int(client.housing_state().get("selected",0))==instance,"actual saved decor selection",15000)
 
 func record_editor(phase: String) -> bool:
 	editor_receipts.append({"phase":phase, "skin":housing_skin, "state":client.housing_state(), "account":client.account_state()})
