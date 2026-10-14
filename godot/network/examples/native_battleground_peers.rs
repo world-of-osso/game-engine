@@ -354,13 +354,19 @@ impl Peer {
             "players":self.observed_players(),"inventory":self.inventory,
             "equipment":self.equipment,"inventory_delta":self.inventory_delta,
             "traits":self.traits,"trait_result":self.trait_result,"known_spells":self.known_spells});
-        fs::write(
-            directory.join(format!("peer{}.json", self.index)),
-            serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())
+        write_peer_snapshot(&directory.join(format!("peer{}.json", self.index)), &value)
     }
 }
+
+fn write_peer_snapshot(path: &Path, value: &serde_json::Value) -> Result<(), String> {
+    let bytes = serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?;
+    let pending = path.with_extension("json.pending");
+    fs::write(&pending, bytes)
+        .map_err(|error| format!("Write peer snapshot {}: {error}", pending.display()))?;
+    fs::rename(&pending, path)
+        .map_err(|error| format!("Publish peer snapshot {}: {error}", path.display()))
+}
+
 fn run() -> Result<(), String> {
     let directory = PathBuf::from(std::env::var("BG_DIRECTORY").map_err(|e| e.to_string())?);
     let address = std::env::var("BG_ENDPOINT")
@@ -568,6 +574,53 @@ fn parse_source_attack(action: &str) -> Result<(u32, BgTeam), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn peer_snapshot_readers_always_observe_complete_json_during_publication() {
+        use std::sync::{
+            Barrier,
+            atomic::{AtomicBool, Ordering},
+        };
+        let directory = std::env::temp_dir().join(format!(
+            "bg-peer-publication-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&directory).unwrap();
+        let path = directory.join("peer1.json");
+        let payload = "x".repeat(262144);
+        write_peer_snapshot(&path, &serde_json::json!({"seq":0,"payload":payload})).unwrap();
+        let started = Barrier::new(2);
+        let done = AtomicBool::new(false);
+        thread::scope(|scope| {
+            scope.spawn(|| {
+                started.wait();
+                for seq in 1..=64 {
+                    write_peer_snapshot(&path, &serde_json::json!({"seq":seq,"payload":payload}))
+                        .unwrap();
+                    thread::yield_now();
+                }
+                done.store(true, Ordering::Release);
+            });
+            started.wait();
+            let mut reads = 0;
+            while !done.load(Ordering::Acquire) || reads == 0 {
+                let bytes = fs::read(&path).unwrap();
+                let value: serde_json::Value = serde_json::from_slice(&bytes)
+                    .expect("published peer state must be a complete JSON receipt");
+                assert_eq!(value["payload"].as_str(), Some(payload.as_str()));
+                assert!(value["seq"].as_u64().unwrap() <= 64);
+                reads += 1;
+            }
+            assert!(reads > 0);
+        });
+        let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(value["seq"], 64);
+        fs::remove_dir_all(directory).unwrap();
+    }
 
     #[test]
     fn scoped_command_selects_exact_real_peer_without_changing_the_request() {

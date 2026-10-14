@@ -653,6 +653,60 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
 }
 
 #[test]
+fn guild_communities_no_design_portrait_matches_retail_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        let reg = mounted(&session);
+        // CommunitiesFrame.xml328–353; GuildUtil.lua115–127,180–202.
+        for (name, fdid, rect, uv, color) in [
+            (
+                "CommunitiesTabardBackground",
+                410251,
+                (-5.0, -8.0, 60.0, 60.0),
+                [0.63183594, 0.69238281, 0.61914063, 0.74023438],
+                [0.2245, 0.2088, 0.1794, 1.0],
+            ),
+            (
+                "CommunitiesTabardEmblem",
+                460904,
+                (-7.0, -9.0, 64.0, 64.0),
+                [0.0, 1.0, 0.0, 1.0],
+                [1.0; 4],
+            ),
+            (
+                "CommunitiesTabardBorder",
+                410251,
+                (-5.0, -7.0, 60.0, 59.0),
+                [0.63183594, 0.69238281, 0.74414063, 0.86523438],
+                [0.2, 0.2, 0.2, 1.0],
+            ),
+        ] {
+            let frame = reg.get(reg.get_by_name(name).expect(name)).unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(rect.0), Val::Px(rect.1))
+            );
+            assert_eq!(
+                (frame.width.value(), frame.height.value()),
+                (rect.2, rect.3)
+            );
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must render texture");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+            assert_eq!(texture.tex_coords, uv);
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
 fn guild_communities_column_sort_keeps_authoritative_rank_identity() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     let mut session = GuildRanksSession::default();
