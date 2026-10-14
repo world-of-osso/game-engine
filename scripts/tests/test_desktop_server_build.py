@@ -391,7 +391,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         result = json.loads(self.capture.read_text())
         self.assertIn("FEATURES=system-timings", result["args"])
         self.assertEqual(
-            (self.root / "target/release/game-server").read_text(), "new game-server"
+            (self.root / "target/release/game-server").read_text(), "release game-server"
         )
 
     def test_invalid_feature_list_is_rejected_before_export(self):
