@@ -18,7 +18,7 @@ pub fn text(tag: &str) -> &'static str {
 }
 
 fn load_retail_strings() -> HashMap<String, String> {
-    let path = crate::paths::resolve_data_path("db2/12.1.0.69933/GlobalStrings.csv");
+    let path = crate::paths::resolve_data_path("db2/active/GlobalStrings.csv");
     let table = CsvTable::read(&path).expect("read Retail GlobalStrings for auction mail");
     let tag = table
         .column("BaseTag")

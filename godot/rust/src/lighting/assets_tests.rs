@@ -5,6 +5,26 @@ use std::{
 
 use super::assets::LightingCatalog;
 
+#[test]
+fn db2_follow_install_light_skybox_named_columns_accept_current_export() {
+    let path = std::env::temp_dir().join(format!("db2-follow-skybox-{}.csv", std::process::id()));
+    fs::write(&path, "ID,Name,Flags,SkyboxFileDataID,CelestialSkyboxFileDataID\n683,\"sky, authored\",3,7345733,0\n").unwrap();
+    let parameters = std::collections::HashMap::from([(12, 683)]);
+    let skyboxes = super::assets::read_light_skyboxes(&path, &parameters).unwrap();
+    assert_eq!(skyboxes[&12], (7345733, 3));
+    fs::write(
+        &path,
+        "ID,Name,Flags,SkyboxFileDataID\n683,sky,invalid,7345733\n",
+    )
+    .unwrap();
+    assert!(
+        super::assets::read_light_skyboxes(&path, &parameters)
+            .unwrap_err()
+            .contains("invalid")
+    );
+    fs::remove_file(path).unwrap();
+}
+
 struct LightingFixture(PathBuf);
 
 impl LightingFixture {
@@ -25,7 +45,7 @@ impl Drop for LightingFixture {
 }
 
 fn copy_retail_fixture(source: &Path, root: &Path) {
-    fs::create_dir_all(root.join("db2/12.1.0.69933")).unwrap();
+    fs::create_dir_all(root.join("db2/active")).unwrap();
     fs::create_dir_all(root.join("db2/1.60.1.70205")).unwrap();
     for directory in ["models", "textures"] {
         std::os::unix::fs::symlink(source.join(directory), root.join(directory)).unwrap();
@@ -38,7 +58,7 @@ fn copy_retail_fixture(source: &Path, root: &Path) {
         .unwrap();
     }
     for table in ["LightParams", "LightSkybox", "Map"] {
-        let relative = format!("db2/12.1.0.69933/{table}.csv");
+        let relative = format!("db2/active/{table}.csv");
         fs::copy(source.join(&relative), root.join(&relative)).unwrap();
     }
 }

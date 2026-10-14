@@ -12,7 +12,7 @@ fn data_root() -> PathBuf {
 }
 
 fn catalog() -> LiquidCatalog {
-    LiquidCatalog::read(&data_root().join("db2/12.1.0.69933")).expect("liquid DB2 CSVs")
+    LiquidCatalog::read(&data_root().join("db2/active")).expect("liquid DB2 CSVs")
 }
 
 /// One chunk-0 SLiquidInstance of 1x1 cells with `liquid_object_or_lvf` and vertex bytes.
