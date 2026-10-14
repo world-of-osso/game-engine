@@ -582,7 +582,10 @@ fn unknown_unlock_preserves_known_progress_without_player_facing_implementation_
         let details = registry
             .get(registry.get_by_name("JourneyProgressDetails").unwrap())
             .unwrap();
-        assert!(!details.hidden, "Unknown unlock must not hide received progress");
+        assert!(
+            !details.hidden,
+            "Unknown unlock must not hide received progress"
+        );
         assert_eq!(text(&registry, "JourneyProgressLevel"), "2");
         assert_eq!(
             text(&registry, "JourneyProgressCurrent"),
