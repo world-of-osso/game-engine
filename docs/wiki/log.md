@@ -1,3 +1,7 @@
+## 2026-10-14 — Client UDP receive queue
+
+[Receive queue](systems/trading-post.md#client-udp-receive-queue--2026-10-14): production socket drops reproduced by a 512-datagram pre-drain burst. Shared UDP transport now requests 4 MiB and reports effective OS allocation. Burst retention RED 92/512 → GREEN 512/512; pacing, Windows and sub-second application delivery remain separate transport gates.
+
 ## 2026-10-14 — Trading Post reply ordering
 
 [Guide delivery](systems/trading-post.md#unsolicited-guide-delivery--2026-10-14): monthly settlement no longer sends an unsolicited full Guide before vendor replies. Purchase/no-Guide regression RED→GREEN; monthly credit and rollover retained. Native sub-second delivery remains a transport acceptance gate.
