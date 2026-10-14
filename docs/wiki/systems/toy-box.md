@@ -16,6 +16,8 @@ Actual native journal activation of Little Wickerman70722/99767 renders source20
 
 ## Data and actions
 
+[Collections source layout](collections-ui.md) owns shared shell/background/menu composition and the2026-10-14 both-skin native fidelity proof.
+
 `godot/ui-model/src/toybox.rs` projects the full ToyCollectionUpdate catalog, account ownership/favourites, filters and 18-item paging. Initial snapshots do not glow; newly learned identities glow and page to their filtered position. `toybox_component.rs` uses Retail Mainline geometry/chrome in both skins. Unimplemented journal tabs are disabled, not new feature panels. Collections OnLoad calls `PanelTemplates_SetNumTabs`, whose `PanelTemplates_AnchorTabs` replaces XML's overlapping -16 anchors with +3 sibling spacing; applying XML alone clips neighbouring captions.
 
 `godot/rust/src/account.rs` sends CollectionChannel UseToy/SetToyFavourite and emits ordered catalog/result/cooldown events. `godot/rust/src/toybox.rs` owns the window and press/drag lifecycle. `ToyAction` is a client classification of the existing persisted ItemID action: server SetActionButton already stores ActionRef::Item. Catalog-backed toy slots route to UseToy; bag-based item actions keep UseItem. No protocol variant or server persistence change was needed.
