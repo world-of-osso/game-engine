@@ -75,6 +75,7 @@ func layout_proof() -> void:
 	await click("PerksProgramFilter")
 	if not await wait_until(func(): return control("PerksProgramFilterMenu") != null, "filter description"): return
 	await capture("filter-description")
+	if not await assert_filter_interactions(): return
 	if not await choose_category(2): return
 	if not await select_first_available(int(client.trading_post_state().tender)): return
 	if not assert_masked_icon("PerksProgramIcon%d" % int(client.trading_post_state().selected)): return
@@ -117,6 +118,36 @@ func layout_proof() -> void:
 	if not await wait_until(func(): return not client.trading_post_state().purchased and int(client.trading_post_state().tender) == tender, "authoritative refund"): return
 	await capture("refunded")
 	finish("layout-proof")
+
+func assert_filter_interactions() -> bool:
+	await click("PerksProgramFilterCollected")
+	if not await wait_until(func(): return not client.trading_post_state().filter_collected, "Collected checkbox"): return false
+	await click("PerksProgramFilterUncollected")
+	if not await wait_until(func(): return not client.trading_post_state().filter_uncollected and client.trading_post_state().rows.is_empty(), "both collection flags exclude all rows"): return false
+	await capture("filter-empty")
+	await click("PerksProgramFilterResetButton")
+	if not await wait_until(func(): return client.trading_post_state().filter_collected and client.trading_post_state().filter_uncollected and not client.trading_post_state().rows.is_empty(), "Reset restores source filter flags"): return false
+	if control("PerksProgramFilterMenu") == null: await click("PerksProgramFilter")
+	await click("PerksProgramFilterUsable")
+	if not await wait_until(func(): return client.trading_post_state().filter_usable, "Useable Only checkbox"): return false
+	await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "Sort By hover submenu"): return false
+	if control_enabled("PerksProgramFilterSortTime"):
+		fail("Unsourced per-item remaining time became enabled"); return false
+	await capture("filter-sort")
+	await click("PerksProgramFilterSortPrice")
+	if not await wait_until(func(): return client.trading_post_state().sort == "price" and not client.trading_post_state().ascending, "Price radio"): return false
+	await click("PerksProgramFilterAscending")
+	if not await wait_until(func(): return client.trading_post_state().ascending, "Ascending checkbox"): return false
+	await click("PerksProgramFilterResetButton")
+	if not await wait_until(func(): return not client.trading_post_state().filter_usable and client.trading_post_state().sort == "price" and client.trading_post_state().ascending, "Reset preserves independent sort state"): return false
+	if control("PerksProgramFilterMenu") == null: await click("PerksProgramFilter")
+	await motion(control("PerksProgramFilterSort").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return control("PerksProgramSortMenu") != null, "Sort By after Reset"): return false
+	await click("PerksProgramFilterSortName")
+	if not await wait_until(func(): return client.trading_post_state().sort == "name", "Name radio"): return false
+	await click("PerksProgramFilter")
+	return true
 
 func drag_off_frozen() -> bool:
 	var slot := control("PerksProgramFrozenSlot")
