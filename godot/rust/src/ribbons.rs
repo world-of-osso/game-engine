@@ -23,6 +23,16 @@ struct PlacedRibbon {
     geometry: Gd<ArrayMesh>,
 }
 
+impl PlacedRibbon {
+    fn draw(&mut self, fade: f32) {
+        let vertices = self.trail.triangles(fade);
+        upload_geometry(&mut self.geometry, &vertices);
+        for mesh in &mut self.meshes {
+            mesh.set_visible(!vertices.is_empty());
+        }
+    }
+}
+
 pub(crate) struct PlacedRibbons {
     ribbons: Vec<PlacedRibbon>,
     skeleton: Gd<Skeleton3D>,
@@ -97,11 +107,7 @@ impl PlacedRibbons {
                     global_ms: global_ms as u32,
                 },
             );
-            let vertices = ribbon.trail.triangles(fade);
-            upload_geometry(&mut ribbon.geometry, &vertices);
-            for mesh in &mut ribbon.meshes {
-                mesh.set_visible(!vertices.is_empty());
-            }
+            ribbon.draw(fade);
         }
         Ok(())
     }
