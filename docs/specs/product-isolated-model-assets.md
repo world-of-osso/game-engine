@@ -9,7 +9,7 @@ Approved acceptance criteria:
 - [x] A model request carries its authored product/build identity; identical FDIDs from Retail and Forever coexist without overwriting or borrowing bytes.
 - [x] `cache/model-asset-index-<name>.json` fragments publish authenticated offline assets. Runtime validates every fragment and rejects duplicate product/FDID/kind mappings; it never resolves competing receipts by fragment precedence. New-build publication updates the owning index instead of adding a duplicate mapping.
 - [x] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
-- [x] SFID skins, SKID skeletons and external animations inherit their model's identity. Referenced textures retain source identity through decoding/material publication too.
+- [x] SFID skins, SKID skeletons and external animations inherit their model's identity. Resolve/cache companions by their authored FDIDs (`FDID.skin` / `FDID.skel`); numbered skin and model-named skeleton aliases are not loader inputs. A missing required referenced file errors rather than selecting an embedded or alternate file. Referenced textures retain source identity through decoding/material publication too.
 - [x] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
 - [x] Retain authored ItemAppearance rows whose display ID is0. Those equipped slots draw no item model/textures/geoset changes but remain occupied; absent item/appearance rows and malformed display IDs still error. Do not substitute legacy or another product's appearance.
 - [x] Both named displays render from extracted-only model/appearance files without type9 failures; a comparable native run shows no new errors for other displays. Model loads do not require access to a WoW installation.
@@ -55,6 +55,8 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 ## Tests asserting this spec
 
 `godot/rust/tests/resolver_product_shadowing.rs`: enabled explicit-identity resolver IO tests alternate Retail/Forever/Retail within one process and reject tempting unqualified bytes. The `model_asset_` unit subset covers parsed models, companion IO, texture pixels/publication, metadata ownership and extracted-only constructor/parser behavior. `godot/tests/model_product_isolation.gd` renders both named Forever displays, a Retail creature and an equipped Human male; verifies source hashes, equipped-item pixel contribution and the CASC tripwire.
+
+`assets::parser_isolation_tests::retail_head_7321940_reads_primary_sfid_without_filename_alias_or_casc` copies only authentic70391 `7321940.m2` and SFID7530107 into an isolated product/build directory. Extracted-only parsing must retain its real bones/submesh2702 without a numbered alias or CASC access.
 
 ## Known gaps (current cycle)
 
