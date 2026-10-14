@@ -7,11 +7,12 @@ use crate::customization_data::{
     RawOption, RawSkinnedModel,
 };
 
-type HairGeosetKey = (u32, u16, u16);
+type HairGeosetKey = (u32, u16, i32);
 
 /// Cache schema; the version is in the file name because checkouts and the two
 /// clients share `data/cache`, and one name made each rebuild over the other's.
-pub(crate) const CACHE_SCHEMA_VERSION: u32 = 4;
+// v5 retains signed GeosetID values; v4 silently stored authored -1 as 0.
+pub(crate) const CACHE_SCHEMA_VERSION: u32 = 5;
 
 pub fn customization_cache_file() -> String {
     format!("customization-v{CACHE_SCHEMA_VERSION}.sqlite")
@@ -258,7 +259,7 @@ fn load_hair_geosets(conn: &Connection) -> Result<HashMap<HairGeosetKey, bool>, 
                 (
                     row.get::<_, u32>(0)?,
                     row.get::<_, u16>(1)?,
-                    row.get::<_, u16>(2)?,
+                    row.get::<_, i32>(2)?,
                 ),
                 row.get::<_, bool>(3)?,
             ))
