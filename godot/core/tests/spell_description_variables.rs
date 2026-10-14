@@ -200,6 +200,7 @@ fn crusader_strike_reads_its_attack_power_damage_variable() {
         caster_power: Some(CasterPower {
             spell_power: 0.0,
             attack_power: 100.0,
+            ranged_attack_power: 0.0,
         }),
         ..SpellTextContext::default()
     };
