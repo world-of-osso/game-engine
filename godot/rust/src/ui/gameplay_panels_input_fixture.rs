@@ -26,7 +26,9 @@ impl INode for GameplayPreviewScrollInput {
                 }
             }
             Ok(false) => {}
-            Err(error) => godot_error!("Gameplay preview scroll: {error}"),
+            Err(error) => {
+                godot_error!("Gameplay preview scroll: {error}");
+            }
         }
     }
 }
