@@ -42,6 +42,9 @@ pub mod ui {
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod adventure_activities;
 pub mod adventure_guide;
+pub mod adventure_guide_art;
+mod adventure_guide_menus;
+mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
 pub mod assisted_highlight;
@@ -78,6 +81,7 @@ pub mod housing_editor;
 pub mod housing_editor_component;
 #[cfg(test)]
 mod housing_editor_tests;
+pub mod housing_expert_component;
 pub mod housing_finder_component;
 pub mod housing_mouse_component;
 pub mod housing_navigation_component;

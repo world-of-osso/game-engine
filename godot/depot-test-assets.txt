@@ -4704,6 +4704,10 @@ textures/130828.blp
 textures/5171843.blp
 textures/5740021.blp
 textures/5740409.blp
+# Cooldown settings atlas sheets; published local-CASC 12.1.5.70391 bytes.
+textures/8033669.blp
+textures/7289697.blp
+textures/4571485.blp
 # Quest geometry and extracted Retail blue blob / super-track art.
 db2/12.1.0.69933/QuestPOIBlob.csv
 db2/12.1.0.69933/QuestPOIPoint.csv
