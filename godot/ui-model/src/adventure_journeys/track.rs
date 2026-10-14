@@ -39,43 +39,58 @@ fn level_art(faction: &MajorFactionSnapshot, selected: u32, level: u32, prefix: 
         "-grey"
     };
     let reward = faction.rewards.iter().find(|reward| reward.level == level);
-    let shape = reward.map_or("square", |reward| {
-        if reward.item_id > 0 || reward.mount_id > 0 || reward.title_id > 0 {
-            "ring"
-        } else {
-            "square"
-        }
-    });
-    let mut contents = Vec::new();
-    if let Some(reward) = reward {
-        contents.extend(texture(
+    let shape = reward.map_or("square", reward_shape);
+    let mut contents = level_icon(reward, prefix);
+    contents.extend(level_border(prefix, shape, suffix));
+    contents.extend(level_caption(prefix, level, earned));
+    contents
+}
+
+fn reward_shape(reward: &shared::protocol::RenownReward) -> &'static str {
+    if reward.item_id > 0 || reward.mount_id > 0 || reward.title_id > 0 {
+        "ring"
+    } else {
+        "square"
+    }
+}
+
+fn level_icon(reward: Option<&shared::protocol::RenownReward>, prefix: &str) -> Element {
+    reward.map_or_else(Vec::new, |reward| {
+        texture(
             format!("{prefix}Icon"),
             reward.icon,
             (6.5, 6.5, 42., 42.),
             WHITE,
-        ));
-    }
-    contents.extend(named_atlas_texture(
+        )
+    })
+}
+
+fn level_border(prefix: &str, shape: &str, suffix: &str) -> Element {
+    let mut contents = named_atlas_texture(
         format!("{prefix}Border"),
         &format!("ui-journeys-delve-rewardicon-{shape}-frame{suffix}"),
         (0., 0., 55., 55.),
-    ));
+    );
     contents.extend(named_atlas_texture(
         format!("{prefix}Rectangle"),
         &format!("ui-journeys-delve-rewardicon-rectangle-frame{suffix}"),
         (10.5, 37., 34., 27.),
     ));
+    contents
+}
+
+fn level_caption(prefix: &str, level: u32, earned: bool) -> Element {
     let color = if earned {
         NORMAL_FONT_COLOR
     } else {
         "0.5,0.5,0.5,1"
     };
-    contents.extend(label(
+    let mut contents = label(
         format!("{prefix}Level"),
         &level.to_string(),
         (10.5, 41., 34., 20.),
         (12., color, "CENTER"),
-    ));
+    );
     if earned {
         contents.extend(named_atlas_texture(
             format!("{prefix}Earned"),
