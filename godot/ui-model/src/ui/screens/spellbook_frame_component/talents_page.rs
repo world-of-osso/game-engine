@@ -1056,7 +1056,8 @@ pub(super) fn dialogs(state: &SpellbookFrameState, scale: f32) -> Element {
     let Some(view) = &state.talents else {
         return Vec::new();
     };
-    let mut dialogs = footer::loadout_dialog(view, state.viewport);
+    // Archived footer owns its inline dialog; do not also mount the newer UIParent dialog.
+    let mut dialogs = Vec::new();
     let Some(node) = view.editor.choice_node.and_then(|id| {
         view.nodes()
             .find(|node| node.id == id && node.node_type == 3)
