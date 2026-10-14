@@ -174,11 +174,7 @@ impl GuildTabardFixture {
         });
         let entry = registered_roster_entry();
         let names = CharSelectNames::load(&data)?;
-        let state = char_select_state_from_roster(
-            std::slice::from_ref(&entry),
-            Some(0),
-            &names,
-        )?;
+        let state = char_select_state_from_roster(std::slice::from_ref(&entry), Some(0), &names)?;
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("CharacterSelectUI");
         self.base_mut().add_child(&ui);

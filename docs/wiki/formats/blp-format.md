@@ -1,6 +1,6 @@
 # BLP Format
 
-BLP is Blizzard's proprietary texture format used for essentially all WoW art assets — UI textures, model skins, terrain layers, skyboxes, and more. The engine reads BLP files and converts them to Bevy `Image` objects at load time.
+BLP is Blizzard's proprietary texture format used for essentially all WoW art assets — UI textures, model skins, terrain layers, skyboxes, and more. The Godot client decodes BLPs through `game-engine-core` and uploads RGBA8 or authored DXT blocks.
 
 ## Compression
 
@@ -16,13 +16,19 @@ The eye reflection texture (FDID 5210142) is DXT5 at 128×128 with a small alpha
 
 ## Loading Pipeline
 
-BLP loading is handled by `src/asset/blp.rs` via the `image-blp` crate:
+BLP loading is handled by `godot/core/src/blp.rs` via the `image-blp` crate:
 
 ```
-FDID → CASC extraction → .blp bytes → image-blp decode → Bevy Image (RGBA8 / compressed)
+FDID → receipted local CASC bytes → core decode → Godot texture (RGBA8 / compressed)
 ```
 
 Additional compositing helpers (`scale_2x`, `blit_region`) are implemented in `blp.rs` for building character texture atlases — blitting face, hair, and underwear overlays onto the body skin base texture.
+
+## Palettized BGRA correction (2026-10-14)
+
+`image-blp`1.2.0 `raw1_to_image` assigns a palette word's low byte to red, but BLP palettes store BGRA. Core normalizes `Raw1.cmap` before conversion; separately stored alpha stays unchanged. DXT paths are unaffected. Retire normalization when the dependency decodes BGRA correctly.
+
+Authenticated70391 tabard background180071 at(64,10): palette `[0,9,129,0]` plus alpha255 must decode RGBA `[129,9,0,255]`, not `[0,9,129,255]`. Native [guild-tabard](../../specs/guild-tabards.md) pixels exposed the blue-for-red error; `guild_tabard_palette_keeps_authored_red_and_separate_alpha` covers CPU and upload decoding.
 
 ## Character Texture Compositing
 
