@@ -81,6 +81,45 @@ fn guild_tabard_variations_remain_drafts_and_save_waits_for_authority() {
 }
 
 #[test]
+fn guild_tabard_variations_skip_unavailable_border_combinations() {
+    // Installed70391 tier0 styles6–9 have no colors4–16. Step around
+    // the missing combinations without changing the other four design fields.
+    for (field, direction, border, color, next_border, next_color) in [
+        (3, 1, 5, 4, 0, 4),
+        (3, -1, 0, 4, 5, 4),
+        (4, 1, 6, 3, 6, 0),
+        (4, -1, 6, 0, 6, 3),
+    ] {
+        let mut view = open(Some(0));
+        let authority = view.vendor.clone();
+        let original = GuildTabardDesign {
+            icon: 1,
+            icon_color: 2,
+            border,
+            border_color: color,
+            background_color: 5,
+        };
+        view.draft = Some(original);
+        assert_eq!(
+            view.click(&format!("tabard:cycle:{field}:{direction}")),
+            Ok(None)
+        );
+        assert_eq!(
+            view.draft,
+            Some(GuildTabardDesign {
+                border: next_border,
+                border_color: next_color,
+                ..original
+            })
+        );
+        assert_eq!(
+            view.vendor, authority,
+            "Variation must remain a local draft"
+        );
+    }
+}
+
+#[test]
 fn guild_tabard_nonguild_and_nonleader_can_browse_but_not_register() {
     for rank in [None, Some(1)] {
         let mut view = open(rank);
