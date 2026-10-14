@@ -236,6 +236,9 @@ impl GameClient {
         if self.game_menu_ui.is_some() || !self.adventure_guide.view.visible {
             return false;
         }
+        if self.journey_progress_wheel(event) {
+            return true;
+        }
         let Some(ui) = self.adventure_guide.ui.as_mut() else {
             return false;
         };
@@ -252,6 +255,48 @@ impl GameClient {
             }
         }
     }
+    /// JourneyProgressFrameMixin:OnMouseWheel changes selection, not list offset.
+    fn journey_progress_wheel(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        let Some(action) = self.journey_wheel_action(event) else {
+            return false;
+        };
+        if let Err(error) = self.adventure_guide.view.apply(action) {
+            self.handle_frame_error("Journeys level selection", error.into());
+        }
+        self.mark_viewport_input_handled();
+        true
+    }
+
+    fn journey_wheel_action(&self, event: &Gd<godot::classes::InputEvent>) -> Option<&'static str> {
+        use game_engine_ui_model::adventure_guide::Tab;
+        use godot::{classes::InputEventMouseButton, global::MouseButton};
+        if self.adventure_guide.view.tab != Tab::Journeys {
+            return None;
+        }
+        let mouse = event.clone().try_cast::<InputEventMouseButton>().ok()?;
+        if !mouse.is_pressed() {
+            return None;
+        }
+        let (rect, _) = self
+            .adventure_guide
+            .ui
+            .as_ref()?
+            .bind()
+            .frame_rect("JourneyProgress")?;
+        let panel = Rect2::new(
+            Vector2::new(rect[0], rect[1]),
+            Vector2::new(rect[2], rect[3]),
+        );
+        if !panel.contains_point(mouse.get_position()) {
+            return None;
+        }
+        match mouse.get_button_index() {
+            MouseButton::WHEEL_UP => Some("journal:journey-level:prev"),
+            MouseButton::WHEEL_DOWN => Some("journal:journey-level:next"),
+            _ => None,
+        }
+    }
+
     fn update_journal_lockouts(&mut self) {
         let elapsed = self.account.instance_info_at.elapsed().as_secs();
         self.adventure_guide.view.lockouts = self
