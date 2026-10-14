@@ -150,8 +150,8 @@ impl IconMasks {
                 flare_glyph_mask(&mut source);
                 source
             }
-            Mask::PerksProduct
-            | Mask::TalentCircle
+            Mask::PerksProduct => compose_perks_product_icon(source, &load_atlas_mask(mask)?),
+            Mask::TalentCircle
             | Mask::TalentChoice
             | Mask::TalentChoiceLeft
             | Mask::TalentChoiceRight
@@ -300,6 +300,18 @@ fn compose_auction_item_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage 
     compose_masked_icon(source, &mask)
 }
 
+/// Elements.xml:32px Icon and48px MaskTexture share a centre.
+fn compose_perks_product_icon(source: RgbaImage, mask: &GrayImage) -> RgbaImage {
+    use image::imageops::{FilterType, crop_imm, resize};
+    const ICON_PX: u32 = 32;
+    const MASK_PX: u32 = 48;
+    let icon = resize(&source, ICON_PX, ICON_PX, FilterType::Triangle);
+    let coverage = resize(mask, MASK_PX, MASK_PX, FilterType::Triangle);
+    let inset = (MASK_PX - ICON_PX) / 2;
+    let coverage = crop_imm(&coverage, inset, inset, ICON_PX, ICON_PX).to_image();
+    compose_masked_icon(icon, &coverage)
+}
+
 /// The (left, right, top, bottom) normalized region of `image`.
 fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
     if crop == [0.0, 1.0, 0.0, 1.0] {
@@ -396,9 +408,37 @@ mod tests {
                 let pixels = registry.dynamic_texture(id).unwrap();
                 let rgba =
                     RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap();
-                assert_eq!(rgba.get_pixel(0, 0)[3], 0, "masked corner {skin:?}");
+                use image::imageops::{FilterType, crop_imm, resize};
+                // Elements.xml: centred48×48 MaskTexture over32×32 Icon.
+                // Compare visible output pixels, not generic corner opacity.
+                let icon = resize(
+                    &super::load_rgba(135729, "fixture icon").unwrap(),
+                    32,
+                    32,
+                    FilterType::Triangle,
+                );
+                let mask = resize(
+                    &super::load_atlas_mask(super::Mask::PerksProduct).unwrap(),
+                    48,
+                    48,
+                    FilterType::Triangle,
+                );
+                let coverage = crop_imm(&mask, 8, 8, 32, 32).to_image();
+                let rendered = resize(&rgba, 32, 32, FilterType::Triangle);
+                for y in 0..32 {
+                    for x in 0..32 {
+                        let expected = (u16::from(icon.get_pixel(x, y)[3])
+                            * u16::from(coverage.get_pixel(x, y)[0])
+                            / 255) as u8;
+                        assert_eq!(
+                            rendered.get_pixel(x, y)[3],
+                            expected,
+                            "{skin:?} {name} alpha at ({x},{y}), centred48:32 mask"
+                        );
+                    }
+                }
                 assert!(
-                    rgba.get_pixel(rgba.width() / 2, rgba.height() / 2)[3] > 200,
+                    rendered.get_pixel(16, 16)[3] > 200,
                     "opaque centre {skin:?}"
                 );
             }
