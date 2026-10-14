@@ -66,6 +66,7 @@ fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     set_thread_skin(skin);
     let mut ctx = SharedContext::new();
     ctx.insert(skin);
@@ -83,6 +84,38 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         other => panic!("Expected text, got {other:?}"),
     }
 }
+#[test]
+fn trading_post_cart_selects_exclusive_hand_slots_and_deselects_clicked_item() {
+    let mut data = snapshot();
+    data.frozen_item_id = None;
+    data.items.clear();
+    for (index, item_id) in [25, 35, 876, 1190].into_iter().enumerate() {
+        let mut row = snapshot().items[0].clone();
+        row.id = index as u32 + 10;
+        row.item_id = item_id;
+        row.preview_item_ids = vec![item_id];
+        data.items.push(row);
+    }
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        cart: vec![10, 11, 12, 13],
+        selected: Some(10),
+        ..Default::default()
+    };
+    render(ActiveSkin::Modern, view.clone());
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    view.click("perks:cart:show").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190, 25, 876]);
+    view.click("perks:cart:item:35").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190, 35]);
+    view.click("perks:cart:item:35").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190]);
+    view.click("perks:cart:item:876").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190, 876]);
+    assert_eq!(view.cart, [10, 11, 12, 13]); // Preview never removes/charges a cart product.
+}
+
 #[test]
 fn trading_post_hide_armor_uses_authored_default_and_persists_toggle_between_products() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

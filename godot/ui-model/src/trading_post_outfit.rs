@@ -54,9 +54,15 @@ impl View {
             return Ok(setting);
         }
         let row = self
-            .selected_item()
+            .preview_product()
             .ok_or("Trading Post preview selection missing")?;
-        let scene = if row.model_scene_id != 0 {
+        let scene = if self.cart_visible && !self.cart_selected.contains_key(&0) {
+            self.snapshot
+                .as_ref()
+                .and_then(|snapshot| snapshot.categories.iter().find(|category| category.id == 1))
+                .map(|category| category.model_scene_id)
+                .ok_or("Trading Post transmog scene missing")?
+        } else if row.model_scene_id != 0 {
             row.model_scene_id
         } else {
             self.snapshot
@@ -76,7 +82,7 @@ impl View {
 
 pub(super) fn footer(view: &View) -> Element {
     if !view
-        .selected_item()
+        .preview_product()
         .is_some_and(|row| matches!(row.category_id, 1 | 8))
     {
         return vec![];

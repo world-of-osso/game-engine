@@ -261,7 +261,7 @@ impl GameClient {
         Ok(())
     }
     fn desired_trading_appearance(&self) -> Result<Option<UnitAppearance>, String> {
-        let Some(row) = self.trading_post.view.selected_item() else {
+        let Some(row) = self.trading_post.view.preview_product() else {
             return Ok(None);
         };
         // Unavailable rows show their source gap in the details text instead of a model.
@@ -285,7 +285,12 @@ impl GameClient {
         } else {
             equipped.clone()
         };
-        for id in &row.preview_item_ids {
+        let preview_items = if self.trading_post.view.cart_visible {
+            self.trading_post.view.cart_preview_item_ids()
+        } else {
+            row.preview_item_ids.clone()
+        };
+        for id in &preview_items {
             let item = catalog
                 .get(*id)
                 .ok_or_else(|| format!("Trading Post preview item{id} metadata unavailable"))?;

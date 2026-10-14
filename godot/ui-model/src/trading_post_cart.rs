@@ -2,7 +2,118 @@
 use super::View;
 use shared::protocol::TradingPostItem;
 
+/// ConvertInvTypeToSelectionKey: hand variants share one selection; other slots stay distinct.
+fn selection_key(inventory_type: u8) -> u8 {
+    match inventory_type {
+        14 | 22 | 23 => 22,
+        15 | 17 | 25 | 26 => 17,
+        13 | 21 => 21,
+        value => value,
+    }
+}
+
 impl View {
+    fn cart_inventory_type(&self, item_id: u32) -> Result<u8, String> {
+        // Mounts, pets and toys have no wearable selection even when their item teaches one.
+        if self
+            .cart_items()
+            .iter()
+            .any(|row| row.item_id == item_id && !matches!(row.category_id, 1 | 8))
+        {
+            return Ok(0);
+        }
+        crate::item_catalog::item_catalog()
+            .ok_or("Trading Post cart item catalog still loading")?
+            .get(item_id)
+            .map(|item| item.inventory_type)
+            .ok_or_else(|| format!("Trading Post cart item{item_id} metadata unavailable"))
+    }
+
+    fn select_cart_item(&mut self, item_id: u32) -> Result<(), String> {
+        let key = selection_key(self.cart_inventory_type(item_id)?);
+        if self.cart_selected.get(&key) == Some(&item_id) {
+            self.cart_selected.remove(&key);
+            return Ok(());
+        }
+        // A disabled wearable row clears the OTHER override without selecting itself.
+        if key != 0 && self.cart_selected.remove(&0).is_some() {
+            return Ok(());
+        }
+        match key {
+            17 => {
+                self.cart_selected.remove(&21);
+                self.cart_selected.remove(&22);
+            }
+            21 | 22 => {
+                self.cart_selected.remove(&17);
+            }
+            _ => {}
+        }
+        self.cart_selected.insert(key, item_id);
+        Ok(())
+    }
+
+    fn initialize_cart_selection(&mut self) -> Result<(), String> {
+        self.cart_selected.clear();
+        let item_ids: Vec<_> = self
+            .cart_items()
+            .iter()
+            .flat_map(|row| {
+                if row.category_id == 8 {
+                    row.preview_item_ids.clone()
+                } else {
+                    vec![row.item_id]
+                }
+            })
+            .collect();
+        let mut all_other = true;
+        for id in &item_ids {
+            let key = selection_key(self.cart_inventory_type(*id)?);
+            if key == 0 {
+                continue;
+            }
+            all_other = false;
+            let occupied = self.cart_selected.contains_key(&key)
+                || key == 17
+                    && (self.cart_selected.contains_key(&21)
+                        || self.cart_selected.contains_key(&22));
+            if !occupied {
+                self.select_cart_item(*id)?;
+            }
+        }
+        if all_other && let Some(id) = item_ids.first() {
+            self.select_cart_item(*id)?;
+        }
+        Ok(())
+    }
+
+    pub fn preview_product(&self) -> Option<&TradingPostItem> {
+        if !self.cart_visible {
+            return self.selected_item();
+        }
+        if let Some(id) = self.cart_selected.get(&0) {
+            return self
+                .snapshot
+                .as_ref()?
+                .items
+                .iter()
+                .find(|row| self.cart.contains(&row.id) && row.item_id == *id);
+        }
+        self.snapshot
+            .as_ref()?
+            .items
+            .iter()
+            .find(|row| self.cart.contains(&row.id) && matches!(row.category_id, 1 | 8))
+    }
+
+    pub fn cart_preview_item_ids(&self) -> Vec<u32> {
+        self.cart_selected
+            .iter()
+            .filter(|(key, _)| **key != 0)
+            .map(|(_, id)| *id)
+            .collect()
+    }
+
     pub fn cart_items(&self) -> Vec<&TradingPostItem> {
         let Some(snapshot) = &self.snapshot else {
             return Vec::new();
@@ -46,10 +157,26 @@ impl View {
     }
 
     pub(super) fn click_cart(&mut self, action: &str) -> Result<(), String> {
+        if let Some(id) = action.strip_prefix("perks:cart:item:") {
+            let id = id.parse().map_err(|_| "Invalid Trading Post cart item")?;
+            let present = self
+                .cart_items()
+                .iter()
+                .any(|row| row.item_id == id || row.preview_item_ids.contains(&id));
+            if present {
+                self.select_cart_item(id)?;
+            }
+            return Ok(());
+        }
         if let Some(id) = action.strip_prefix("perks:cart:select:") {
             let id = id.parse().map_err(|_| "Invalid Trading Post cart item")?;
-            if self.cart.contains(&id) {
-                self.selected = Some(id);
+            if let Some(item_id) = self
+                .cart_items()
+                .iter()
+                .find(|row| row.id == id)
+                .map(|row| row.item_id)
+            {
+                self.select_cart_item(item_id)?;
             }
             return Ok(());
         }
@@ -70,7 +197,10 @@ impl View {
                     self.remove_from_cart(id);
                 }
             }
-            "perks:cart:show" => self.cart_visible = !self.cart.is_empty(),
+            "perks:cart:show" => {
+                self.initialize_cart_selection()?;
+                self.cart_visible = !self.cart.is_empty();
+            }
             "perks:cart:close" => self.cart_visible = false,
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
             "perks:cart:clear" => {}
@@ -84,6 +214,15 @@ impl View {
     }
 
     pub fn remove_from_cart(&mut self, id: u32) {
+        let removed: Vec<_> = self
+            .cart_items()
+            .iter()
+            .filter(|row| row.id == id)
+            .flat_map(|row| {
+                std::iter::once(row.item_id).chain(row.preview_item_ids.iter().copied())
+            })
+            .collect();
+        self.cart_selected.retain(|_, item| !removed.contains(item));
         self.cart.retain(|item| *item != id);
         if self.cart.is_empty() {
             self.cart_visible = false;
@@ -92,6 +231,7 @@ impl View {
 
     pub fn clear_cart(&mut self) {
         self.cart.clear();
+        self.cart_selected.clear();
         self.cart_visible = false;
         self.cart_hover = None;
     }
