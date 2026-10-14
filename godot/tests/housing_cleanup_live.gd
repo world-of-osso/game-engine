@@ -42,8 +42,13 @@ func run_test() -> void:
 	if not await record_editor("cleanup-hover"): return
 	push_mouse_motion(housing_control("HouseEditorBasicDecorModeButton").get_global_rect().get_center())
 	if not await wait_housing(func(): return housing_control("HouseEditorCleanupTooltip") == null and highlighted_meshes() == 0, "hover leaves target and restores original material"): return
+	print_cleanup_hover_probe("before-return", hit.point)
 	push_mouse_motion(hit.point)
-	if not await wait_housing(func(): return highlighted_meshes() > 0, "hover returns"): return
+	await frames(2)
+	print_cleanup_hover_probe("after-return", hit.point)
+	if not await wait_housing(func(): return highlighted_meshes() > 0, "hover returns"):
+		print_cleanup_hover_probe("return-timeout", hit.point)
+		return
 	await click(hit.point, MOUSE_BUTTON_LEFT)
 	if cleanup_role == "owner":
 		if not await prove_cleanup_owner(before): return
@@ -52,6 +57,9 @@ func run_test() -> void:
 	print("PASS: private5870 Cleanup ", cleanup_role, " ", housing_skin)
 	client.free()
 	quit(0)
+
+func print_cleanup_hover_probe(phase: String, point: Vector2) -> void:
+	print("CLEANUP_HOVER_PROBE phase=", phase, " point=", point, " actual_mouse=", root.get_mouse_position(), " picked=", UnitPicker.pick(camera(), point), " camera=", camera().global_transform, " highlighted=", highlighted_meshes(), " tooltip=", housing_control("HouseEditorCleanupTooltip") != null, " hovered_control=", root.gui_get_hovered_control(), " state=", client.housing_state())
 
 func push_mouse_motion(point: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
