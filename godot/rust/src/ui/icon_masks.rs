@@ -21,6 +21,7 @@ enum Mask {
     Round,
     AuctionItem,
     PerksProduct,
+    PerksCartItem,
     GroupFinder,
     Glyph,
     TalentCircle,
@@ -80,6 +81,30 @@ impl IconMasks {
     }
 
     fn apply_perks_template(&mut self, registry: &mut FrameRegistry) {
+        if let Some(id) = registry.get_by_name("PerksProgramConfirmSpinnerSparks")
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
+        {
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+        }
+        // Cart IconVignette is a black66% texture clipped by the same56px alpha mask.
+        let vignettes: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| {
+                frame.name.as_deref().is_some_and(|name| {
+                    name.starts_with("PerksProgramCart") && name.ends_with("Vignette")
+                })
+            })
+            .map(|frame| frame.id)
+            .collect();
+        for id in vignettes {
+            if let Some(WidgetData::Texture(texture)) = registry
+                .get_mut(id)
+                .and_then(|frame| frame.widget_data.as_mut())
+            {
+                texture.vertex_color = [0., 0., 0., 0.66];
+            }
+        }
         // ToyDetails.xml justifyV=TOP; move into RSX when it exposes vertical justification.
         if let Some(id) = registry.get_by_name("PerksProgramToyDescription")
             && let Some(frame) = registry.get_mut(id)
@@ -91,6 +116,9 @@ impl IconMasks {
             "PerksProgramLeaveButton",
             "PerksProgramPurchaseButton",
             "PerksProgramRefundButton",
+            "PerksProgramAddToCartButton",
+            "PerksProgramRemoveFromCartButton",
+            "PerksProgramCartPurchaseButton",
         ];
         if !names
             .iter()
@@ -155,6 +183,12 @@ impl IconMasks {
                 source
             }
             Mask::PerksProduct => compose_perks_product_icon(source, &load_atlas_mask(mask)?),
+            Mask::PerksCartItem => {
+                // Cart details template: Icon56px and centred Mask56px, no overscan crop.
+                let icon =
+                    image::imageops::resize(&source, 56, 56, image::imageops::FilterType::Triangle);
+                compose_masked_icon(icon, &load_atlas_mask(mask)?)
+            }
             Mask::TalentCircle
             | Mask::TalentChoice
             | Mask::TalentChoiceLeft
@@ -252,6 +286,7 @@ fn is_round_icon(name: &str) -> bool {
 fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     let atlas = match mask {
         Mask::PerksProduct => "UI-HUD-ActionBar-IconFrame-Mask",
+        Mask::PerksCartItem => "perks-border-square-gold-mask",
         Mask::TalentCircle => "talents-node-circle-mask",
         Mask::TalentChoiceLeft => "talents-node-choice-mask-half",
         Mask::TalentChoice | Mask::TalentChoiceRight => "talents-node-choice-mask",
@@ -279,6 +314,18 @@ fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     Ok(mask_alpha(&image))
 }
 fn mask_of(name: &str) -> Option<Mask> {
+    let cart_item = name
+        .strip_prefix("PerksProgramCartItem")
+        .and_then(|suffix| suffix.strip_suffix("Icon"))
+        .is_some_and(|id| id.parse::<u32>().is_ok());
+    let cart_member = name
+        .strip_prefix("PerksProgramCartSubItem")
+        .and_then(|suffix| suffix.strip_suffix("Icon"))
+        .and_then(|ids| ids.split_once('_'))
+        .is_some_and(|(vendor, item)| vendor.parse::<u32>().is_ok() && item.parse::<u32>().is_ok());
+    if cart_item || cart_member {
+        return Some(Mask::PerksCartItem);
+    }
     let talent_circle = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
     let profession_circle = (name.starts_with("ProfessionSpecNode") && name.ends_with("Icon"))
         || name == "ProfessionSpecDetailedIcon";
@@ -567,6 +614,80 @@ mod tests {
             rendered.get_pixel(16, 16)[3] > 200,
             "opaque centre {skin:?}"
         );
+    }
+
+    #[test]
+    fn trading_post_cart_item_mask_preserves_the_source_56_to_56_ratio() {
+        use image::imageops::{FilterType, resize};
+        use ui_toolkit::{
+            atlas::{ActiveSkin, AtlasSource, set_thread_skin},
+            screen::{Screen, SharedContext},
+        };
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture { name:"PerksProgramCartItem4Icon",texture_fdid:135729u32,width:56.0,height:56.0 }
+                texture { name:"PerksProgramCartSubItem4_189869Icon",texture_fdid:135729u32,width:56.0,height:56.0 }
+            }).sync(&SharedContext::new(), &mut registry);
+            IconMasks::default().apply(&mut registry);
+            let rendered = resize(
+                &dynamic_icon_pixels(&registry, "PerksProgramCartItem4Icon"),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            let member = resize(
+                &dynamic_icon_pixels(&registry, "PerksProgramCartSubItem4_189869Icon"),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            assert_eq!(
+                rendered, member,
+                "ensemble members use the same authored56px mask"
+            );
+            let icon = resize(
+                &super::load_rgba(135729, "cart icon fixture").unwrap(),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            let region = ui_toolkit::atlas::get_region("perks-border-square-gold-mask").unwrap();
+            let AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("cart mask FDID");
+            };
+            let crop = [region.left, region.right, region.top, region.bottom];
+            let mask = resize(
+                &mask_alpha(&super::crop_normalized(
+                    super::load_rgba(fdid, "cart mask fixture").unwrap(),
+                    crop,
+                )),
+                56,
+                56,
+                FilterType::Triangle,
+            );
+            for y in 0..56 {
+                for x in 0..56 {
+                    let expected = (u16::from(icon.get_pixel(x, y)[3])
+                        * u16::from(mask.get_pixel(x, y)[0])
+                        / 255) as u8;
+                    assert_eq!(
+                        rendered.get_pixel(x, y)[3],
+                        expected,
+                        "{skin:?} Cart Icon/Mask56:56 alpha({x},{y})"
+                    );
+                }
+            }
+            assert!(
+                rendered.get_pixel(28, 28)[3] > 200,
+                "visible cart icon centre"
+            );
+        }
     }
 
     #[test]

@@ -87,6 +87,16 @@ impl CampsiteObjects {
         self.objects.sync(parent, terrain, &self.selection);
     }
 
+    pub fn is_ready(&self) -> bool {
+        self.objects.tile_progress(self.selection.primary).is_some()
+            && self.objects.pending_count() == 0
+            && self.objects.failure_count() == 0
+    }
+
+    pub fn failure_count(&self) -> usize {
+        self.objects.failure_count()
+    }
+
     pub fn update_lighting(&mut self, light: &TerrainLight) {
         self.objects.update_lighting(light);
     }
