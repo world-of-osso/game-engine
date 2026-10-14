@@ -138,6 +138,39 @@ func check_mount_controls() -> bool:
 	await capture("mounts-context.png")
 	return true
 
+func check_mount_row_highlight() -> bool:
+	if not await select_mare():
+		return false
+	var row := control("MountJournalRow18")
+	var motion := InputEventMouseMotion.new()
+	motion.position = control("MountJournalModelScene").get_global_rect().get_center()
+	motion.global_position = motion.position
+	Input.parse_input_event(motion)
+	await frames(20)
+	await capture("mount-row-selected-idle.png")
+	motion.position = row.global_position + Vector2(150, 20)
+	motion.global_position = motion.position
+	Input.parse_input_event(motion)
+	await frames(20)
+	await capture("mount-row-selected-hover.png")
+	var image := root.get_texture().get_image()
+	var white := 0
+	var samples := 0
+	# Regression boundary: hovering must not replace the source row with a white box.
+	for y in range(6, 40, 2):
+		for x in range(48, 244, 2):
+			var point := Vector2i(row.global_position) + Vector2i(x, y)
+			var pixel := image.get_pixelv(point)
+			if minf(pixel.r, minf(pixel.g, pixel.b)) > 0.95:
+				white += 1
+			samples += 1
+	print("MOUNT_ROW_PIXELS skin=", OS.get_environment("QF_SKIN"), " white=", white, " samples=", samples)
+	if white * 2 > samples:
+		fail("MountListButton hover covers selected uncollected row with a white fill")
+		return false
+	print("PASS MOUNT_ROW_HIGHLIGHT skin=", OS.get_environment("QF_SKIN"))
+	return true
+
 func select_owned_pet() -> bool:
 	if not await select_collection_tab(2):
 		return false
