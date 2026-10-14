@@ -176,7 +176,10 @@ impl Peer {
                 return Ok(());
             }
             if Instant::now() >= deadline {
-                return Err(format!("Quest peer timed out: {what}"));
+                return Err(format!(
+                    "Quest peer timed out: {what}; entered={} have_log={} character={}",
+                    self.entered, self.have_log, self.character
+                ));
             }
             thread::sleep(Duration::from_millis(10));
         }
@@ -220,6 +223,13 @@ impl Peer {
             "PASS QUEST_PEER_ACCEPT character={} quest={} pushable={} rewards={}",
             self.character, quest, entry.pushable, entry.rewards.money
         );
+        Ok(())
+    }
+    fn prepare_journal(&mut self, directory: &Path) -> Result<(), String> {
+        fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+        for (quest, giver) in [(28766, 197), (62, 240)] {
+            self.prepare(quest, giver, &directory.join(format!("{quest}.json")))?;
+        }
         self.disconnect()
     }
     fn disconnect(&mut self) -> Result<(), String> {
@@ -317,35 +327,27 @@ impl Peer {
 }
 fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().collect();
-    let mode = args.get(1).ok_or(
-        "prepare <account> <quest> <giver> <receipt> | party <account> <target> <directory>",
-    )?;
+    let mode = args
+        .get(1)
+        .ok_or("prepare <account> <receipts-directory> | party <account> <target> <directory>")?;
     let account = args.get(2).ok_or("Missing private account")?;
     let mut peer = Peer::connect(account)?;
-    match mode.as_str() {
-        "prepare" => {
-            let quest = args
-                .get(3)
-                .ok_or("Missing quest")?
-                .parse()
-                .map_err(|e| format!("Quest id: {e}"))?;
-            let giver = args
-                .get(4)
-                .ok_or("Missing giver")?
-                .parse()
-                .map_err(|e| format!("Giver id: {e}"))?;
-            peer.prepare(
-                quest,
-                giver,
-                &PathBuf::from(args.get(5).ok_or("Missing receipt path")?),
-            )
-        }
+    let result = match mode.as_str() {
+        "prepare" => peer.prepare_journal(&PathBuf::from(
+            args.get(3).ok_or("Missing receipts directory")?,
+        )),
         "party" => peer.party(
             args.get(3).ok_or("Missing target")?,
             &PathBuf::from(args.get(4).ok_or("Missing control directory")?),
         ),
         _ => Err("Unknown quest peer mode".into()),
+    };
+    if result.is_err()
+        && let Err(error) = peer.disconnect()
+    {
+        eprintln!("Quest peer cleanup: {error}");
     }
+    result
 }
 fn main() {
     if let Err(error) = run() {
