@@ -1,6 +1,9 @@
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
+## 2026-10-13 — Mainline Communities roster native proof
+
+[Communities data flow](systems/banks.md#rank-settings-model): source814×426 frame, right-edge icon tabs,20px scrolling roster/column headers and source footer modes replace paging. Production settings-only pointer admission reproduced RED2 and corrected; native right-click fixture now mirrors the alt-click consumer. Pixel inspection reproduced selected-icon erasure; registering source row templates restores ADD glows. Model33/native8/check/fmt PASS; both-skin1920×1080 wheel/steppers/thumb,32-member overflow, sorting, hierarchy menu and invitation reducer PASS. Chat/benefits services and unsupported column sorting remain [named contract gaps](../specs/guild-ranks.md#communities-presentation); no new live-server/deployment claim.
 
 ## 2026-10-14 — Client UDP receive queue
 

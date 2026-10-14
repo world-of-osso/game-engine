@@ -4733,6 +4733,17 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
+# Mainline Communities right-edge tabs, column strips/highlight and class sprite.
+textures/136831.blp
+textures/2056011.blp
+textures/442272.blp
+textures/413584.blp
+textures/1500877.blp
+textures/130718.blp
+textures/130724.blp
+textures/131139.blp
+textures/136580.blp
+textures/131146.blp
 # Mainline GuildControlUI TranslucentFrameTemplate / UIPanelSquareButton / permission states.
 textures/407328.blp
 textures/407329.blp
