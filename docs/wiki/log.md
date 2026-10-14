@@ -1,3 +1,7 @@
+## 2026-10-14 — Journeys player-facing progress header
+
+[Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.
+
 ## 2026-10-14 — Journeys native kit and positive watch
 
 [Exact71a checkpoint](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14): both skins pass the complete physical kit/track/Home fixture and authentic Covenant55 watch ACK/HUD/query/clear;24 original full-HD PNGs inspected and hashed. PSI/swap recorded, owned runtimes stopped. Headless dummy audio excludes playback proof; collection/overview and the separately observed one-pixel Journeys-list wheel pan remain open.
