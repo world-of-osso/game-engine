@@ -3,6 +3,7 @@
 use super::Portrait;
 use crate::{
     character_frame::preview::{Scene, bind_sheet_light},
+    character_select::CharacterPreview,
     guild_tabards::{dress_draft_preview, held_button},
     ui::RegistryUi,
     world::WorldUnits,
@@ -10,17 +11,18 @@ use crate::{
 };
 use game_engine_network::replica::Replica;
 use game_engine_ui_model::{
-    guild_tabard_frame,
+    char_select_data::CharSelectNames,
+    char_select_state_from_roster, guild_tabard_frame,
     guild_tabards::{GuildTabards, calculate_rotation},
 };
 use godot::{
-    classes::{Node, ProjectSettings},
+    classes::{Node, Node3D, ProjectSettings},
     prelude::*,
 };
 use shared::{
     components::{EquipmentAppearance, Player},
     guild_creation::GuildTabardDesign,
-    protocol::{GuildTabardReply, GuildTabardVendorSnapshot},
+    protocol::{CharacterListEntry, GuildTabardReply, GuildTabardVendorSnapshot},
 };
 use std::path::PathBuf;
 
@@ -47,6 +49,8 @@ struct GuildTabardFixture {
     shown: Option<UnitAppearance>,
     tier: usize,
     yaw: f32,
+    character_select: Option<CharacterPreview>,
+    character_stage: Option<Gd<Node3D>>,
 }
 
 #[godot_api]
@@ -65,10 +69,15 @@ impl INode for GuildTabardFixture {
             shown: None,
             tier: 0,
             yaw: 0.0,
+            character_select: None,
+            character_stage: None,
         }
     }
     fn exit_tree(&mut self) {
         self.clear_vendor();
+        if let Some(preview) = &mut self.character_select {
+            preview.reset();
+        }
         self.world.reset();
     }
 }
@@ -81,7 +90,14 @@ impl GuildTabardFixture {
     }
     #[func]
     fn tick(&mut self, delta: f64) -> GString {
+        if self.character_select.is_some() {
+            return report(self.update_character_selection());
+        }
         report(self.update_models(delta as f32))
+    }
+    #[func]
+    fn show_character_selection(&mut self, forever: bool) -> GString {
+        report(self.mount_character_selection(forever))
     }
     #[func]
     fn dispatch(&mut self) -> GString {
@@ -125,6 +141,12 @@ impl GuildTabardFixture {
         receipt.set("waiting", self.view.waiting);
         receipt.set("yaw", f64::from(self.yaw));
         receipt.set(
+            "character_select_ready",
+            self.character_select
+                .as_ref()
+                .is_some_and(CharacterPreview::is_ready),
+        );
+        receipt.set(
             "model_ready",
             self.pending.is_none() && self.shown == self.appearance(),
         );
@@ -141,6 +163,55 @@ impl GuildTabardFixture {
 }
 
 impl GuildTabardFixture {
+    fn mount_character_selection(&mut self, forever: bool) -> Result<(), String> {
+        let data = ProjectSettings::singleton().globalize_path("res://../data");
+        let data = PathBuf::from(data.to_string());
+        game_engine_ui_model::paths::set_data_root(data.clone())?;
+        ui_toolkit::atlas::set_thread_skin(if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        });
+        let entry = registered_roster_entry();
+        let names = CharSelectNames::load(&data)?;
+        let state = char_select_state_from_roster(
+            std::slice::from_ref(&entry),
+            Some(entry.character_id),
+            &names,
+        )?;
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CharacterSelectUI");
+        self.base_mut().add_child(&ui);
+        ui.bind_mut().set_ui_scale(1.0)?;
+        let error = ui.bind_mut().show_character_select();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        ui.bind_mut().set_state(state)?;
+        self.ui = Some(ui);
+        let mut stage = Node3D::new_alloc();
+        stage.set_name("CharacterSelectStage");
+        self.base_mut().add_child(&stage);
+        self.character_stage = Some(stage);
+        self.character_select = Some(CharacterPreview::new(data));
+        Ok(())
+    }
+    fn update_character_selection(&mut self) -> Result<(), String> {
+        let preview = self
+            .character_select
+            .as_mut()
+            .ok_or("Missing character preview")?;
+        let stage = self
+            .character_stage
+            .as_mut()
+            .ok_or("Missing character stage")?;
+        preview.sync(
+            stage,
+            Some(&registered_roster_entry()),
+            720.0,
+            glam::Vec2::ZERO,
+        )
+    }
     fn mount_vendor(&mut self, forever: bool) -> Result<(), String> {
         self.clear_vendor();
         let mut ui = RegistryUi::new_alloc();
@@ -333,6 +404,32 @@ impl GuildTabardFixture {
         ui.bind_mut().update_guild_communities_design(design)?;
         self.communities = Some(ui);
         Ok(())
+    }
+}
+
+fn registered_roster_entry() -> CharacterListEntry {
+    let appearance = dress_draft_preview(
+        Player {
+            name: "Guildmaster".into(),
+            race: 1,
+            class: 2,
+            appearance: Default::default(),
+        },
+        EquipmentAppearance::default(),
+        SAVED,
+    );
+    let UnitAppearance::Player(player, equipment_appearance, tabard) = appearance else {
+        unreachable!("player preview must produce a player appearance")
+    };
+    CharacterListEntry {
+        character_id: 7,
+        name: player.name,
+        level: 80,
+        race: player.race,
+        class: player.class,
+        appearance: player.appearance,
+        equipment_appearance,
+        tabard,
     }
 }
 
