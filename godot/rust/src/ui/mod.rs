@@ -15,7 +15,9 @@ pub(crate) mod castbar_fx;
 mod castbar_preview;
 mod dungeon_preview;
 mod flight_map_preview;
+mod follower_layout_preview;
 mod forevergaps_preview;
+mod gameplay_panels_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
@@ -178,6 +180,7 @@ enum ScreenPostsetup {
     PetActionBar,
     PortraitParty,
     CastingBar,
+    FollowerDungeons,
 }
 
 impl RegistryModel {
@@ -398,6 +401,12 @@ impl RegistryModel {
                 // The NPC canvas's own backpack portrait.
                 self.icon_masks.apply(&mut self.registry);
             }
+            ScreenPostsetup::FollowerDungeons => {
+                game_engine_ui_model::follower_dungeons::apply_follower_postsetup(
+                    &mut self.registry,
+                );
+                self.icon_masks.apply(&mut self.registry);
+            }
             ScreenPostsetup::CharacterFrame => {
                 if let Some(view) =
                     self.shared
@@ -447,6 +456,22 @@ impl RegistryModel {
                 view,
                 &mut self.registry,
             );
+        }
+        if self
+            .shared
+            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            .is_some_and(|view| view.orders.customer)
+        {
+            game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(
+                &mut self.registry,
+            );
+        }
+        if self
+            .shared
+            .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
+            .is_some()
+        {
+            self.icon_masks.apply(&mut self.registry);
         }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
         if self
@@ -1223,10 +1248,18 @@ impl RegistryUi {
         &mut self,
         state: game_engine_ui_model::cooldown_assist::CooldownViewerView,
     ) -> Result<(), String> {
-        self.show_viewport_screen(
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
             state,
             game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen,
             ScreenPostsetup::None,
+            registry,
+            parent,
         )
     }
 
@@ -1829,7 +1862,7 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::follower_dungeons::follower_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::FollowerDungeons,
             registry,
             parent,
         )?;
