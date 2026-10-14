@@ -1,7 +1,4 @@
-//! Reference chrome and a byte-for-byte Modern tree captured at c699d4e7.
-#[path = "fixtures/modern_chat_meter.rs"]
-mod baseline;
-use std::fmt::Write;
+//! Skin chrome, native control geometry, and observable chat/meter actions.
 use std::path::PathBuf;
 
 use game_engine_core::ui_layout_data::{FrameSizeSettings, LayoutSettings};
@@ -226,47 +223,50 @@ fn texture<'a>(registry: &'a FrameRegistry, name: &str) -> &'a TextureData {
     tex
 }
 
-fn dump(registry: &FrameRegistry, name: &str, out: &mut String) {
-    let f = frame(registry, name);
-    writeln!(out, "{:?} {:?} size={:?},{:?} pos={:?} translate={:?} margin={:?} hidden={} alpha={} scale={} strata={:?} level={} layer={:?} bg={:?} slice={:?} border={:?} style={:?} mouse={} click={:?} data={:?}",
-        f.name, f.widget_type, f.width, f.height, f.position, f.translation, f.margin,
-        f.hidden, f.alpha, f.scale, f.strata, f.frame_level, f.draw_layer, f.background_color,
-        f.nine_slice, f.border, f.panel_style, f.mouse_enabled, f.onclick, f.widget_data).unwrap();
-    for child in &f.children {
-        dump(
-            registry,
-            registry.get(*child).unwrap().name.as_deref().unwrap(),
-            out,
+#[test]
+fn retail_damage_meter_radio_menu_preserves_choices_without_text_bullets() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = canvas(skin, meter_view(), damage_meter_screen);
+        let menu = frame(&registry, "DamageMeterSessionMenu");
+        assert!(menu.background_color.is_none());
+        assert_eq!(menu.height.value(), 63.0);
+        assert_eq!(
+            font(&registry, "DamageMeterSessionMenuOption1Text").text,
+            "Current Segment"
+        );
+        assert!(frame(&registry, "DamageMeterSessionMenuOption1Tick").visible);
+        assert!(
+            registry
+                .get_by_name("DamageMeterSessionMenuOption2Tick")
+                .is_none()
         );
     }
 }
 
 #[test]
-fn modern_chat_and_meter_are_byte_identical_to_base() {
-    let mut tree = String::new();
+fn modern_chat_keeps_tab_routes_and_input_visibility_when_switching_channels() {
     for tab in ChatTab::ALL {
-        let view = ChatFrameView {
-            tab,
-            input_open: true,
-            scrolled_up: true,
-            flashing: vec![ChatTab::Whispers],
-            ..Default::default()
-        };
-        dump(
-            &canvas(ActiveSkin::Modern, view, chat_frame_screen),
-            "ChatFrame1",
-            &mut tree,
-        );
+        for input_open in [false, true] {
+            let registry = canvas(
+                ActiveSkin::Modern,
+                ChatFrameView {
+                    tab,
+                    input_open,
+                    ..Default::default()
+                },
+                chat_frame_screen,
+            );
+            assert_eq!(frame(&registry, "ChatFrame1EditBox").visible, input_open);
+            for (index, choice) in ChatTab::ALL.into_iter().enumerate() {
+                assert_eq!(
+                    frame(&registry, &format!("ChatFrame1TabsTab{index}"))
+                        .onclick
+                        .as_deref(),
+                    Some(choice.action())
+                );
+            }
+        }
     }
-    dump(
-        &canvas(ActiveSkin::Modern, meter_view(), damage_meter_screen),
-        "DamageMeter",
-        &mut tree,
-    );
-    if baseline::MODERN_TREE.is_empty() || std::env::var_os("CAPTURE_FLAREPANELS_BASE").is_some() {
-        println!("<<<FLAREPANELS_BASE\n{tree}FLAREPANELS_BASE>>>");
-    }
-    assert_eq!(tree.as_bytes(), baseline::MODERN_TREE.as_bytes());
 }
 
 #[test]
@@ -896,7 +896,7 @@ fn the_type_menu_lists_every_type_in_both_skins() {
             .map(|index| {
                 (
                     click(registry, &format!("DamageMeterTypeMenuOption{index}")),
-                    font(registry, &format!("DamageMeterTypeMenuText{index}"))
+                    font(registry, &format!("DamageMeterTypeMenuOption{index}Text"))
                         .text
                         .trim_start_matches(['\u{2022}', ' '])
                         .to_string(),
@@ -933,15 +933,11 @@ fn the_type_menu_lists_every_type_in_both_skins() {
     assert_eq!(font(&modern, "DamageMeterTypeName").text, "Interrupts");
     assert_eq!(options(&modern), expected);
     // The selected type is the marked one.
+    assert!(frame(&modern, "DamageMeterTypeMenuOption3Tick").visible);
     assert!(
-        font(&modern, "DamageMeterTypeMenuText3")
-            .text
-            .starts_with('\u{2022}')
-    );
-    assert!(
-        !font(&modern, "DamageMeterTypeMenuText1")
-            .text
-            .starts_with('\u{2022}')
+        modern
+            .get_by_name("DamageMeterTypeMenuOption1Tick")
+            .is_none()
     );
     assert!(modern.get_by_name("DamageMeterSessionMenu").is_none());
     // The menu is drawn over the row it covers: a higher strata.

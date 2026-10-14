@@ -10,8 +10,18 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - Both Modern and Forever show the same replicated followers and existing party frames; no skin-specific gameplay or invented UI frames.
 - Local user-approved server workaround uses labelled-spec player spells and same-map Normal population/entrance; absent Rogue/DK/DH identities and full-rotation gaps remain explicit in the server contract.
 
+## Retail layout fidelity
+
+- `PVEFrame` retains XML563×428/TOPLEFT100,-84. All three tabs use the shared `PanelTabButtonTemplate` helper; Tab1 BOTTOMLEFT19,-30, Tab2/3 LEFT-to-RIGHT-16. Mythic+ remains unavailable in this follower slice.
+- Category buttons use `GroupFinderGroupButtonTemplate`203×60, source224×80 bluemenu backdrop,95×96 ring,66px inset-masked icon and GameFontNormalLarge. Current no-scenarios anchors come from `PVEFrame.lua`101px/30px spacing, not the scenarios-enabled XML70px/23px branch.
+- Source left inset, blue frame texture crops and the right inset remain native geometry. `UI-LFG-BACKGROUND-QUESTPAPER`337492 is512×256, BOTTOMLEFT6,26, clipped to the right inset; never stretched wall art337489.
+- The type chooser uses shared Retail WowStyle1 dropdown/menu primitives in both skins. `LFDFrame.lua` creates a checked follower radio, without a menu title/divider; the one supported follower option must preserve that shape.
+
+- Combat roles inherit centered80×80 background atlases behind their48×48 icons. Leader uses the base role template at DPS RIGHT+32 (274,46), with source disabled leader art and hidden checkbox when unavailable. Retail Shared/LFGFrame.lua:457 allows solo players and actual group leaders to toggle the guide check without changing the queued combat role; grouped non-leaders retain the disabled guide icon with its checkbox hidden. Solo admission remains server-authoritative; guide preference is not a new wire field.
+
 ## Tests
 
+- `godot/tests/follower_layout_capture.gd` — native rendered Control rectangles from XML/Lua, all three tab anchors and parent clipping;1920×1080 Modern/Forever closed/open dropdown PNGs. `GODOT_FOLLOWER_LAYOUT_ASSERT=1` enables the geometry gate.
 - `ui-model/tests/follower_dungeons.rs` — real both-skin registry, sourced catalog selection, selected-role queue actions, pending/refusal/match state and absent/stale-catalog refusal.
 - `network/src/wire_tests.rs::follower_group_finder_default_bridge_receives_catalog_over_udp` — default bridge, real loopback UDP catalog delivery.
 - `account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and LFG state reach the native host while IPC retains authoritative state.

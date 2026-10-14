@@ -1022,20 +1022,125 @@ fn tabs(buyback_tab: bool) -> Element {
     }
 }
 
-pub(crate) fn tab_width(label: &str) -> f32 {
+pub(crate) enum TabLabel<'a> {
+    Panel(&'a str),
+    Minimal(&'a str),
+}
+impl<'a> From<&'a str> for TabLabel<'a> {
+    fn from(label: &'a str) -> Self {
+        Self::Panel(label)
+    }
+}
+
+pub(crate) enum TabGeometry {
+    Panel(f32, f32, f32),
+    Minimal(f32, f32, f32),
+}
+impl From<(f32, f32, f32)> for TabGeometry {
+    fn from((x, y, width): (f32, f32, f32)) -> Self {
+        Self::Panel(x, y, width)
+    }
+}
+
+pub(crate) fn tab_width<'a>(label: impl Into<TabLabel<'a>>) -> f32 {
+    let label = match label.into() {
+        TabLabel::Panel(label) => label,
+        // MinimalTabMixin:OnLoad: GameFontNormal string width +40.
+        TabLabel::Minimal(label) => {
+            return (measure_text(label, GameFont::FrizQuadrata, 12.0)
+                .expect("MinimalTab requires GameFontNormal")
+                .0
+                + 40.0)
+                .ceil();
+        }
+    };
     let text_w = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(50.0, |(w, _)| w);
     (text_w + 20.0)
         .max(TAB_INACTIVE[0].size().0 + TAB_INACTIVE[2].size().0)
         .ceil()
 }
 
-pub(crate) fn tab(
+/// MinimalTab.xml anchors each cap to BOTTOM, center between their TOP corners.
+fn minimal_tab(
     name: &str,
     label: &str,
     (x, y, width): (f32, f32, f32),
     selected: bool,
     action: &str,
 ) -> Element {
+    let prefix = if selected {
+        "Options_Tab_Active"
+    } else {
+        "Options_Tab"
+    };
+    let left =
+        ui_toolkit::atlas::get_region(&format!("{prefix}_Left")).expect("MinimalTab left atlas");
+    let right =
+        ui_toolkit::atlas::get_region(&format!("{prefix}_Right")).expect("MinimalTab right atlas");
+    let art = [
+        ("Left", (0.0, 37.0 - left.height, left.width, left.height)),
+        (
+            "Right",
+            (
+                width - right.width,
+                37.0 - right.height,
+                right.width,
+                right.height,
+            ),
+        ),
+        (
+            "Middle",
+            (
+                left.width,
+                37.0 - left.height,
+                width - left.width - right.width,
+                left.height,
+            ),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(part, rect)| {
+        crate::quest_art::named_atlas_texture(
+            format!("{name}{part}"),
+            &format!("{prefix}_{part}"),
+            rect,
+        )
+    })
+    .collect::<Element>();
+    // MinimalTabMixin:OnSelected uses GameFont[Highlight|Normal]Small at BOTTOM +6/+4.
+    let text_y = if selected { 21.0 } else { 23.0 };
+    let color = if selected {
+        HIGHLIGHT_FONT_COLOR
+    } else {
+        NORMAL_FONT_COLOR
+    };
+    let text = text(Text {
+        name: format!("{name}Text"),
+        text: label,
+        rect: (0.0, text_y, width, 10.0),
+        font: GameFont::FrizQuadrata,
+        size: 10.0,
+        color,
+        justify: "CENTER",
+    });
+    let action = if selected { "" } else { action };
+    rsx! { r#frame {name:DynName(name.into()),width,height:37.0,onclick:action,mouse_enabled:true,
+    pos_type:"absolute",left:x,top:y,{art}{text} } }
+}
+
+pub(crate) fn tab(
+    name: &str,
+    label: &str,
+    geometry: impl Into<TabGeometry>,
+    selected: bool,
+    action: &str,
+) -> Element {
+    let (x, y, width) = match geometry.into() {
+        TabGeometry::Panel(x, y, width) => (x, y, width),
+        TabGeometry::Minimal(x, y, width) => {
+            return minimal_tab(name, label, (x, y, width), selected, action);
+        }
+    };
     let art = if selected { &TAB_ACTIVE } else { &TAB_INACTIVE };
     let height = art[0].size().1;
     let (left_w, right_w) = (art[0].size().0, art[2].size().0);

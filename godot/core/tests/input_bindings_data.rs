@@ -34,6 +34,37 @@ impl InputState for State {
 }
 
 #[test]
+fn collections_binding_matches_shift_p_and_can_be_reassigned() {
+    let action = InputAction::from_key("toggle_collections").expect("TOGGLECOLLECTIONS action");
+    assert_eq!(action.label(), "Warband Collections");
+    assert!(actions_for_section(BindingSection::Interface).contains(&action));
+    let mut bindings = InputBindingsData::default();
+    assert_eq!(
+        bindings.binding(action),
+        Some(InputBinding::ShiftKeyboard(BindingKey::KeyP))
+    );
+    let mut state = State {
+        edge: vec![BindingKey::KeyP],
+        ..State::default()
+    };
+    assert!(!bindings.is_just_pressed(action, &state));
+    assert!(bindings.is_just_pressed(InputAction::ToggleSpellbook, &state));
+    state.shift = true;
+    assert!(bindings.is_just_pressed(action, &state));
+    assert!(!bindings.is_just_pressed(InputAction::ToggleSpellbook, &state));
+    bindings.assign(action, InputBinding::Keyboard(BindingKey::F7));
+    assert!(!bindings.is_just_pressed(action, &state));
+    let state = State {
+        edge: vec![BindingKey::F7],
+        ..State::default()
+    };
+    assert!(bindings.is_just_pressed(action, &state));
+    let saved = serde_json::to_string(&bindings).unwrap();
+    let restored: InputBindingsData = serde_json::from_str(&saved).unwrap();
+    assert!(restored.is_just_pressed(action, &state));
+}
+
+#[test]
 fn launcher_binding_is_listed_and_matches_ctrl_space_only() {
     let action = InputAction::from_key("toggle_launcher").expect("Toggle Launcher binding");
     assert_eq!(action.label(), "Toggle Launcher");
@@ -127,11 +158,47 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 120);
+    assert_eq!(InputAction::ALL.len(), 141);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 12, 12, 1, 15, 6]
+        [8, 6, 14, 22, 12, 12, 12, 12, 1, 16, 6, 20]
     );
+    let housing = actions_for_section(BindingSection::Housing);
+    assert_eq!(
+        housing
+            .iter()
+            .map(|action| action.key())
+            .collect::<Vec<_>>(),
+        [
+            "HOUSING_TOGGLEBASICDECORMODE",
+            "HOUSING_TOGGLEEXPERTDECORMODE",
+            "HOUSING_TOGGLECLEANUPMODE",
+            "HOUSING_BASICDECOR_ROTATELEFT",
+            "HOUSING_BASICDECOR_ROTATERIGHT",
+            "HOUSING_REMOVEDECOR",
+            "HOUSING_EXPERTDECORTRANSLATESUBMODE",
+            "HOUSING_EXPERTDECORROTATESUBMODE",
+            "HOUSING_EXPERTDECORSCALESUBMODE",
+            "HOUSING_EXPERTDECORINCREMENT_LEFT",
+            "HOUSING_EXPERTDECORINCREMENT_RIGHT",
+            "HOUSING_EXPERTDECORINCREMENT_FORWARD",
+            "HOUSING_EXPERTDECORINCREMENT_BACK",
+            "HOUSING_EXPERTDECORINCREMENT_UP",
+            "HOUSING_EXPERTDECORINCREMENT_DOWN",
+            "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
+            "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
+            "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
+            "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
+            "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
+        ]
+    );
+    for action in housing {
+        assert_eq!(
+            bindings.binding(*action),
+            None,
+            "Housing defaults require source data"
+        );
+    }
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
         assert!(seen.insert(action));

@@ -14,11 +14,12 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::{BlendMode, TextureData};
 
+use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::quest_art::{named_atlas_texture, panel_button};
 use crate::ui::screens::quest_log_frame_component::{
-    ABANDON_ACTION, QuestLogDetails, QuestLogFrameState, QuestPane, SELECT_PREFIX, TRACK_ACTION,
-    quest_details_text, quest_list,
+    ABANDON_ACTION, QUEST_LOG_DETAILS_SCROLL, QuestLogDetails, QuestLogFrameState, QuestPane,
+    SELECT_PREFIX, SHARE_ACTION, TRACK_ACTION, quest_details_elements, quest_list,
 };
 use crate::ui::screens::world_map_frame_art::{self as art, MapArt};
 use crate::ui::strata::FrameStrata;
@@ -259,6 +260,14 @@ pub enum WorldMapClick<'a> {
     QuestLog(&'a str),
 }
 
+impl WorldMapFrameState {
+    pub fn with_quest_panel(mut self, log: QuestLogFrameState, details: bool) -> Self {
+        self.visible = log.visible;
+        self.quest_panel = Some(QuestMapPanel { log, details });
+        self
+    }
+}
+
 impl WorldMapDisplay {
     /// A quest title opens its details (`QuestMapFrame_ShowQuestDetails`), Back returns
     /// to the list (QuestMapFrame.xml:671-681); the maximize button toggles the display
@@ -379,7 +388,7 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
         .quest_panel
         .as_ref()
         .filter(|_| !state.maximized)
-        .map(|panel| quest_panel(panel, &layout))
+        .map(|panel| quest_panel(panel, &layout, ctx))
         .unwrap_or_default();
     let blackout = if state.maximized {
         blackout(state.viewport)
@@ -493,7 +502,7 @@ fn background(layout: &WorldMapLayout) -> Element {
 
 /// The docked `QuestMapFrame` right of the canvas: the quest list, or the selected
 /// quest's `DetailsFrame` with Back, Abandon, Share and Track.
-fn quest_panel(panel: &QuestMapPanel, layout: &WorldMapLayout) -> Element {
+fn quest_panel(panel: &QuestMapPanel, layout: &WorldMapLayout, ctx: &SharedContext) -> Element {
     let x = layout.size[0] - CANVAS_RIGHT - PANEL_W;
     let height = layout.size[1] - PANEL_TOP - PANEL_BOTTOM;
     let mut elements = solid(
@@ -502,27 +511,95 @@ fn quest_panel(panel: &QuestMapPanel, layout: &WorldMapLayout) -> Element {
         [x, PANEL_TOP, PANEL_W, height],
     );
     match panel.log.details.as_ref().filter(|_| panel.details) {
-        Some(details) => elements.extend(details_page(details, x)),
-        None => elements.extend(quest_list(
-            &panel.log,
-            QuestPane {
-                x: x + (QUESTS_W - LIST_W) / 2.0,
-                y: PANEL_TOP + LIST_TOP,
-                width: LIST_W,
-            },
-        )),
+        Some(details) => elements.extend(details_page(details, x, ctx)),
+        None => {
+            let list = quest_list(
+                &panel.log,
+                QuestPane {
+                    x: 2.0,
+                    y: 0.0,
+                    width: LIST_W,
+                },
+            );
+            let content_height = panel
+                .log
+                .groups
+                .iter()
+                .map(|group| {
+                    22.0 + if group.collapsed {
+                        0.0
+                    } else {
+                        group.quests.len() as f32 * 30.0
+                    }
+                })
+                .sum::<f32>()
+                .max(454.0);
+            let region = ui_toolkit::atlas::resolve_region(
+                "QuestLog-main-background",
+                ui_toolkit::atlas::thread_skin(),
+            )
+            .expect("quest list background atlas");
+            let bg_height = region.height.min(height - LIST_TOP);
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("quest list background FDID");
+            };
+            let uv = format!(
+                "{},{},{},{}",
+                region.left,
+                region.right,
+                region.top,
+                region.top + (region.bottom - region.top) * bg_height / region.height
+            );
+            elements.extend(crate::bank_art::cropped(
+                "QuestMapListBackground".into(),
+                fdid,
+                &uv,
+                (x, PANEL_TOP + LIST_TOP, region.width, bg_height),
+            ));
+            let content = rsx! { r#frame { name: "QuestScrollContents", width: LIST_W,
+            height: content_height, {list} } };
+            elements.extend(quest_scroll_frame(
+                ctx,
+                "QuestScrollFrame",
+                content,
+                QuestScrollPane {
+                    x,
+                    y: PANEL_TOP + LIST_TOP,
+                    width: QUESTS_W,
+                    height: height - LIST_TOP,
+                    bar_x: QUESTS_W + 8.0,
+                    bar_top: 2.0,
+                    bar_bottom: 4.0,
+                },
+            ));
+        }
     }
     elements
 }
 
-fn details_page(details: &QuestLogDetails, panel_x: f32) -> Element {
+fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) -> Element {
     let left = panel_x + QUESTS_W - DETAILS_W;
     let top = PANEL_TOP + 1.0;
+    let background = ui_toolkit::atlas::resolve_region(
+        "QuestDetailsBackgrounds",
+        ui_toolkit::atlas::thread_skin(),
+    )
+    .expect("quest details background atlas");
     let mut elements = named_atlas_texture(
         "QuestMapDetailsBackground".into(),
         "QuestDetailsBackgrounds",
-        (left, top, DETAILS_W, DETAILS_H),
+        (left, top, DETAILS_W, background.height),
     );
+    let top_region = ui_toolkit::atlas::resolve_region(
+        "questlog-reward-top-frame",
+        ui_toolkit::atlas::thread_skin(),
+    )
+    .expect("quest details top frame atlas");
+    elements.extend(named_atlas_texture(
+        "QuestMapDetailsTopFrame".into(),
+        "questlog-reward-top-frame",
+        (left, top, top_region.width, top_region.height),
+    ));
     elements.extend(panel_button(
         "QuestMapFrameBackButton".into(),
         "Back",
@@ -535,18 +612,33 @@ fn details_page(details: &QuestLogDetails, panel_x: f32) -> Element {
             BUTTON_H,
         ),
     ));
-    elements.extend(quest_details_text(
+    let text = quest_details_elements(
         details,
         QuestPane {
-            x: left + DETAILS_TEXT_LEFT + DETAILS_TEXT_INSET,
-            y: top + DETAILS_TEXT_TOP,
+            x: 0.0,
+            y: 0.0,
             width: DETAILS_TEXT_W - 2.0 * DETAILS_TEXT_INSET,
+        },
+    );
+    let content = rsx! { r#frame { name: "QuestLogDetailsContent", width: {DETAILS_TEXT_W - 2.0 * DETAILS_TEXT_INSET},
+    height: "auto", layout: "flex-column", align: "start",
+    margin_left: DETAILS_TEXT_INSET, {text} } };
+    elements.extend(quest_scroll_frame(
+        ctx,
+        QUEST_LOG_DETAILS_SCROLL,
+        content,
+        QuestScrollPane {
+            x: left + DETAILS_TEXT_LEFT,
+            y: top + DETAILS_TEXT_TOP,
+            width: DETAILS_TEXT_W,
+            height: 430.0,
+            bar_x: DETAILS_TEXT_W + 13.0,
+            bar_top: 17.0,
+            bar_bottom: 27.0,
         },
     ));
     let button_y = top + DETAILS_H + 2.0 - BUTTON_H;
     let track = if details.watched { "Untrack" } else { "Track" };
-    // Share needs a party (`QuestMapFrame_UpdateQuestDetailsButtons` enables it for
-    // pushable quests while grouped); the client has no group, so it stays disabled.
     let buttons = [
         (
             "QuestMapFrameAbandonButton",
@@ -555,7 +647,13 @@ fn details_page(details: &QuestLogDetails, panel_x: f32) -> Element {
             true,
             105.0,
         ),
-        ("QuestMapFrameShareButton", "Share", "", false, 103.0),
+        (
+            "QuestMapFrameShareButton",
+            "Share",
+            SHARE_ACTION,
+            true,
+            103.0,
+        ),
         ("QuestMapFrameTrackButton", track, TRACK_ACTION, true, 105.0),
     ];
     let mut x = left - 3.0;
@@ -576,6 +674,18 @@ fn details_page(details: &QuestLogDetails, panel_x: f32) -> Element {
 /// additive blend of the hovered map's highlight (`HighlightFileDataID` art is
 /// black where it adds nothing).
 pub fn apply_world_map_postsetup(state: &WorldMapFrameState, registry: &mut FrameRegistry) {
+    let selected: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|frame| frame.name.as_ref())
+        .filter(|name| name.starts_with("QuestLogTitle") && name.ends_with("Selected"))
+        .cloned()
+        .collect();
+    for name in selected {
+        edit_texture(registry, &name, |texture| {
+            texture.blend_mode = BlendMode::Additive;
+            texture.vertex_color[3] = 0.4;
+        });
+    }
     if let Some(player) = &state.player {
         edit_texture(registry, WORLD_MAP_PLAYER_ARROW, |texture| {
             texture.rotation = player.rotation;

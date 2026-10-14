@@ -104,7 +104,7 @@ func set_invert_y(client: Node, inverted: bool) -> bool:
 	return await close_camera_options(client)
 
 func close_camera_options(client: Node) -> bool:
-	if not await click_option(client, "OptionsDoneButton"):
+	if not await click_option(client, "OptionsCloseButton"):
 		return false
 	if client.get_node_or_null("GameMenuUI") != null:
 		if not await click_option(client, "MenuBtnResume"):

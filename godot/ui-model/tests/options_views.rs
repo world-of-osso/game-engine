@@ -27,6 +27,9 @@ fn model() -> GameMenuViewModel {
         view: GameMenuView::Options,
         options: OptionsViewModel {
             category: OptionsCategory::Sound,
+            search: String::new(),
+            addons_tab: false,
+            pending_changes: false,
             position: [0.0, 0.0],
             graphics: GraphicsOptionsView {
                 particle_density: 75.0,
@@ -134,13 +137,17 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
     assert_eq!(categories.len(), OptionsCategory::ALL.len());
     for (category, body_label) in categories {
         view.options.category = category;
+        view.options.addons_tab = category == OptionsCategory::SocialAddons;
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         assert_eq!(label(&registry, "OptionsSectionTitle"), category.title());
         assert!(registry.frames_iter().any(|frame| {
             matches!(&frame.widget_data, Some(WidgetData::FontString(data)) if data.text == body_label)
         }), "Missing {category:?} content: {body_label}");
-        for tab in OptionsCategory::ALL {
+        for tab in OptionsCategory::ALL
+            .into_iter()
+            .filter(|tab| (*tab == OptionsCategory::SocialAddons) == view.options.addons_tab)
+        {
             let id = registry
                 .get_by_name(&format!("OptionsTab{}", tab.key()))
                 .unwrap();
@@ -539,7 +546,13 @@ fn settings_panel_and_category_rows_match_retail_xml() {
             ui_toolkit::frame::Dimension::Fixed(724.0)
         )
     );
-    for category in OptionsCategory::ALL {
+    for name in ["OptionsGameTab", "OptionsAddOnsTab", "OptionsSearchBox"] {
+        assert!(menu.registry.get_by_name(name).is_some(), "{name} missing");
+    }
+    for category in OptionsCategory::ALL
+        .into_iter()
+        .filter(|category| *category != OptionsCategory::SocialAddons)
+    {
         let row = menu
             .registry
             .get(
@@ -560,6 +573,163 @@ fn settings_panel_and_category_rows_match_retail_xml() {
             Some(format!("options_category:{}", category.key()).as_str())
         );
     }
+}
+
+#[test]
+fn settings_header_geometry_matches_settings_panel_xml_in_both_skins() {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+        layout_values::Val,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut menu = GameMenuModel::from_view(1920.0, 1080.0, model());
+        menu.sync();
+        let frame = |name: &str| {
+            menu.registry
+                .get(menu.registry.get_by_name(name).unwrap())
+                .unwrap()
+        };
+        let game = frame("OptionsGameTab");
+        let addons = frame("OptionsAddOnsTab");
+        assert_eq!(game.position.left, Val::Px(32.0));
+        assert_eq!(game.position.top, Val::Px(27.0));
+        assert_eq!(game.height, Dimension::Fixed(37.0));
+        let Dimension::Fixed(game_width) = game.width else {
+            panic!("fixed tab width")
+        };
+        assert_eq!(addons.position.left, Val::Px(32.0 + game_width + 5.0));
+        assert_eq!(addons.position.top, Val::Px(27.0));
+        assert_eq!(addons.height, Dimension::Fixed(37.0));
+        let search = frame("OptionsSearchBox");
+        assert_eq!(
+            (search.width, search.height),
+            (Dimension::Fixed(350.0), Dimension::Fixed(22.0))
+        );
+        assert_eq!(
+            (search.position.left, search.position.top),
+            (Val::Px(552.0), Val::Px(34.0))
+        );
+        // Container right920-22; SearchBox BOTTOMRIGHT relative TOPRIGHT +(4,20).
+        assert_eq!(552.0 + 350.0, 920.0 - 22.0 + 4.0);
+        assert_eq!(34.0 + 22.0, 76.0 - 20.0);
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn settings_search_filters_categories_and_setting_rows_case_insensitively() {
+    let mut view = model();
+    view.options.search = "mUsIc".into();
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view.clone());
+    menu.sync();
+    assert!(menu.registry.get_by_name("OptionsTabsound").is_some());
+    assert!(menu.registry.get_by_name("OptionsTabcamera").is_none());
+    assert!(
+        menu.registry
+            .frames_iter()
+            .any(|frame| matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "Music Volume"))
+    );
+    assert!(
+        !menu
+            .registry
+            .frames_iter()
+            .any(|frame| matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "Master Volume"))
+    );
+    view.options.search = "no settings match this".into();
+    let mut empty = GameMenuModel::from_view(1920.0, 1080.0, view);
+    empty.sync();
+    assert!(empty.registry.get_by_name("OptionsNoResults").is_some());
+    assert!(empty.registry.get_by_name("OptionsTabsound").is_none());
+}
+
+#[test]
+fn settings_search_shared_controls_are_not_duplicated_across_categories() {
+    let mut view = model();
+    view.options.search = "UI Scale".into();
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view);
+    menu.sync();
+    let count = menu
+        .registry
+        .frames_iter()
+        .filter(|frame| {
+            matches!(&frame.widget_data,
+        Some(WidgetData::FontString(data)) if data.text == "UI Scale")
+        })
+        .count();
+    assert_eq!(
+        count, 1,
+        "one shared setting appears once in search results"
+    );
+}
+
+#[test]
+fn settings_footer_has_retail_close_and_hides_apply_without_pending_settings() {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut menu = GameMenuModel::from_view(1920.0, 1080.0, model());
+        menu.sync();
+        let close = menu
+            .registry
+            .get_by_name("OptionsCloseButton")
+            .expect("Retail CloseButton");
+        let frame = menu.registry.get(close).unwrap();
+        assert_eq!(
+            (frame.width, frame.height),
+            (Dimension::Fixed(96.0), Dimension::Fixed(22.0))
+        );
+        assert_eq!(label(&menu.registry, "OptionsCloseButton"), "Close");
+        assert_eq!(
+            menu.registry.click_frame(close).as_deref(),
+            Some("options_close")
+        );
+        let apply = menu
+            .registry
+            .get_by_name("OptionsApplyButton")
+            .expect("Retail ApplyButton");
+        assert!(menu.registry.get(apply).unwrap().hidden);
+        assert!(matches!(&menu.registry.get(apply).unwrap().widget_data,
+            Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled));
+        let defaults = menu
+            .registry
+            .get_by_name("OptionsDefaultsButton")
+            .expect("Retail list header DefaultsButton");
+        let parent = menu.registry.get(defaults).unwrap().parent_id.unwrap();
+        let mount = menu.registry.get(parent).unwrap();
+        assert_eq!(
+            mount.position.left,
+            ui_toolkit::layout_values::Val::Px(533.0)
+        );
+        assert_eq!(mount.position.top, ui_toolkit::layout_values::Val::Px(16.0));
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn settings_addons_tab_contains_only_addon_categories() {
+    let mut view = model();
+    view.options.addons_tab = true;
+    view.options.category = OptionsCategory::SocialAddons;
+    let mut menu = GameMenuModel::from_view(1920.0, 1080.0, view);
+    menu.sync();
+    assert!(
+        menu.registry
+            .get_by_name("OptionsTabsocialaddons")
+            .is_some()
+    );
+    assert!(menu.registry.get_by_name("OptionsTabsound").is_none());
+    let id = menu.registry.get_by_name("OptionsGameTabControl").unwrap();
+    assert_eq!(
+        menu.registry.click_frame(id).as_deref(),
+        Some("options_tab:game")
+    );
 }
 
 #[test]

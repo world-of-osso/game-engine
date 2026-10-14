@@ -95,6 +95,7 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
             id: 27,
             category: 0,
             label: "Mortal Strike".into(),
+            icon_fdid: 132355,
             selected: true,
         }],
         ..Default::default()
@@ -102,30 +103,38 @@ fn cooldown_assist_settings_display_the_active_spec_selection() {
     shared.insert(view.clone());
     let mut screen = Screen::new(cooldown_viewer_screen);
     screen.sync(&shared, &mut registry);
-    let name = registry
-        .get_by_name("CooldownSettingsSelect27Name")
-        .unwrap();
-    let Some(WidgetData::FontString(label)) = registry.get(name).unwrap().widget_data.as_ref()
-    else {
-        panic!("visible row label")
-    };
-    assert_eq!(label.text, "Mortal Strike");
-    let selected = registry
-        .get_by_name("CooldownSettingsSelect27RowSelected")
-        .unwrap();
-    assert!(registry.get(selected).unwrap().visible);
-    let select_id = registry.get_by_name("CooldownSettingsSelect27").unwrap();
+    let item_id = registry.get_by_name("CooldownSettingsItem27").unwrap();
     assert_eq!(
-        registry.click_frame(select_id),
+        registry.click_frame(item_id),
+        Some("cooldown_pick:27".into())
+    );
+    let icon_id = registry.get_by_name("CooldownSettingsItem27Icon").unwrap();
+    assert!(
+        matches!(&registry.get(icon_id).unwrap().widget_data, Some(WidgetData::Texture(icon)) if icon.source == ui_toolkit::widgets::texture::TextureSource::FileDataId(132355))
+    );
+    view.settings.menu = Some(27);
+    shared.insert(view.clone());
+    screen.sync(&shared, &mut registry);
+    let menu_id = registry.get_by_name("CooldownSettingsVisibility").unwrap();
+    assert_eq!(
+        registry.click_frame(menu_id),
         Some("cooldown_select:27".into())
+    );
+    let caption = registry
+        .get_by_name("CooldownSettingsVisibilityText")
+        .unwrap();
+    assert!(
+        matches!(&registry.get(caption).unwrap().widget_data, Some(WidgetData::FontString(label)) if label.text == "Remove from Bar")
     );
     view.settings.entries[0].selected = false;
     shared.insert(view);
     screen.sync(&shared, &mut registry);
-    let selected = registry
-        .get_by_name("CooldownSettingsSelect27RowSelected")
+    let caption = registry
+        .get_by_name("CooldownSettingsVisibilityText")
         .unwrap();
-    assert!(!registry.get(selected).unwrap().visible);
+    assert!(
+        matches!(&registry.get(caption).unwrap().widget_data, Some(WidgetData::FontString(label)) if label.text == "Assign to Essential Cooldowns")
+    );
 }
 
 fn catalog() -> CooldownAssistCatalog {

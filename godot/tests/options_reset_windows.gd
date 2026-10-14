@@ -84,7 +84,7 @@ func run_test() -> void:
 		return
 	if not check_persistence(path, options, initial_options):
 		return
-	await click(menu.find_child("OptionsDoneButton", true, false) as Control)
+	await click(menu.find_child("OptionsCloseButton", true, false) as Control)
 	await process_frame
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")

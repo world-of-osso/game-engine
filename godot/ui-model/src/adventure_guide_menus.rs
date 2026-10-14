@@ -4,7 +4,7 @@ use crate::{
     auction_mail::text,
     menu_primitives::{
         ContextMenu, ContextMenuItem, MenuElementKind, context_menu_with_rows, menu_element,
-        menu_row_rect_with_header,
+        menu_row_rect_with_heading,
     },
 };
 use ui_toolkit::widget_def::Element;
@@ -35,7 +35,7 @@ fn menu(name: &str, entries: &[Entry], left: f32, top: f32) -> Element {
                 },
                 *kind,
                 true,
-                menu_row_rect_with_header(width, i, false),
+                menu_row_rect_with_heading(width, i, false),
             )
         })
         .collect();

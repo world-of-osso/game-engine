@@ -40,6 +40,56 @@ impl RegistryUi {
         result.err().unwrap_or_default().as_str().into()
     }
 
+    /// Offline production-tree fixture for Settings category-set/search geometry and captures.
+    #[func]
+    fn show_buttonfit_settings_preview(
+        &mut self,
+        query: GString,
+        addons: bool,
+        forever: bool,
+    ) -> GString {
+        use game_engine_ui_model::options_menu_component::OptionsCategory;
+        let result = party_preview::load_data_root().and_then(|()| {
+            set_thread_skin(if forever {
+                ActiveSkin::Forever
+            } else {
+                ActiveSkin::Modern
+            });
+            self.set_ui_scale(1.0)?;
+            let category = if addons {
+                OptionsCategory::SocialAddons
+            } else {
+                OptionsCategory::Sound
+            };
+            let mut view = load_menu_fixture(Some(category));
+            view.options.addons_tab = addons;
+            view.options.search = query.to_string();
+            self.show_game_menu_view(view)
+        });
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn show_buttonfit_settings_pending_preview(&mut self, forever: bool) -> GString {
+        use game_engine_ui_model::{
+            options_menu_component::OptionsCategory, options_menu_data as policy,
+        };
+        let result = party_preview::load_data_root().and_then(|()| {
+            let skin = if forever {
+                ActiveSkin::Forever
+            } else {
+                ActiveSkin::Modern
+            };
+            set_thread_skin(skin);
+            self.set_ui_scale(1.0)?;
+            let mut model = super::hud_edit_preview::extra_bar_options_model(skin);
+            model.category = OptionsCategory::Sound;
+            policy::apply_slider_value(policy::SliderField::MasterVolume, 0.25, &mut model);
+            self.show_game_menu_view(policy::build_view_model(&model))
+        });
+        result.err().unwrap_or_default().as_str().into()
+    }
+
     #[func]
     fn show_buttonfit_service_preview(&mut self, case: GString, forever: bool) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
@@ -105,6 +155,8 @@ fn load_menu_fixture(
     let mut view = build_view_model(&model);
     if let Some(category) = category {
         view.options.category = category;
+        view.options.addons_tab =
+            category == game_engine_ui_model::options_menu_component::OptionsCategory::SocialAddons;
     } else {
         view.view = GameMenuView::MainMenu;
     }

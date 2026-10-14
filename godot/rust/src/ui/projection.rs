@@ -98,6 +98,7 @@ pub(super) fn stepper_art_is_disabled(frame: &Frame, registry: &FrameRegistry) -
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
+    HousingDecorDragStart(u64),
     FrameClick {
         id: u64,
         at: Vector2,
@@ -594,6 +595,15 @@ impl UiProjection {
                 // Retail entries register both LeftButtonUp and RightButtonUp.
                 connect_placed_list_context(pending, frame.id, node);
             }
+            WidgetType::Button
+                if frame
+                    .onclick
+                    .as_deref()
+                    .is_some_and(|action| action.starts_with("housing:place:")) =>
+            {
+                connect_button(pending, frame.id, node);
+                connect_housing_storage_drag(pending, frame.id, node);
+            }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame, node),
             WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),
@@ -693,23 +703,19 @@ impl UiProjection {
             frame.visible
                 && game_engine_ui_model::selection_list::highlight_layer_shown(registry, frame),
         );
-        // A scroll list is a ScrollBox, which clips its children
-        // (`Blizzard_SharedXML/Shared/Scroll/ScrollBox.xml:20`): rows cut by its edges.
-        let clip_pane = matches!(
-            frame.name.as_deref(),
-            Some(
-                "EncounterJournalInstanceSelect"
-                    | "EncounterJournalInstanceFrame"
-                    | "EncounterJournalModelScene"
-            )
-        );
-        node.set_clip_contents(
-            clip_pane
-                || frame
-                    .name
-                    .as_ref()
-                    .is_some_and(|name| registry.scroll_lists.get(name).is_some()),
-        );
+        // ScrollBox clips rows; journal and LFD panes clip authored art
+        // to its XML parent rather than stretching it to fit.
+        node.set_clip_contents(frame.name.as_ref().is_some_and(|name| {
+            registry.scroll_lists.get(name).is_some()
+                || matches!(
+                    name.as_str(),
+                    "LFDParentFrame"
+                        | "LFDParentFrameInset"
+                        | "EncounterJournalInstanceSelect"
+                        | "EncounterJournalInstanceFrame"
+                        | "EncounterJournalModelScene"
+                )
+        }));
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
         node.set_z_as_relative(false);
         node.set_z_index(
@@ -1252,6 +1258,29 @@ fn connect_placed_list_context(pending: &PendingInputs, id: u64, node: &mut Gd<C
         }
     });
     node.connect("gui_input", &callback);
+}
+
+/// Godot's native drag recognizer supplies OnDragStart; no invented Retail threshold.
+fn connect_housing_storage_drag(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let instance = node.instance_id();
+    let get = Callable::from_fn("housing-storage-drag-start", move |_| {
+        let Ok(control) = Gd::<Control>::try_from_instance_id(instance) else {
+            return Variant::nil();
+        };
+        let Ok(button) = control.try_cast::<godot::classes::BaseButton>() else {
+            return Variant::nil();
+        };
+        if button.is_disabled() {
+            return Variant::nil();
+        }
+        pending.push(UiInput::HousingDecorDragStart(id));
+        (id as i64).to_variant()
+    });
+    // World placement is resolved against authored ground in GameClient, not a UI drop target.
+    let can_drop = Callable::from_fn("housing-storage-ui-drop-disabled", |_| false);
+    let drop = Callable::from_fn("housing-storage-ui-drop-unused", |_| {});
+    node.set_drag_forwarding(&get, &can_drop, &drop);
 }
 
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {

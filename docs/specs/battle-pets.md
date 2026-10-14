@@ -3,6 +3,8 @@
 ## Contract
 - Collections micro button opens the Pets tab of the existing CollectionsJournal shell. Pets and Toy Box share the same centered window, portrait (FDID454046), title and six-tab bar; switching tabs never opens a second journal. Retail Mainline defines geometry and elements; Forever changes art only.
 - Journal lists server-owned instances and uncollected catalog species, with names, icons, level, quality and breed. Search filters names; selecting an uncollected species cannot summon it.
+- Each populated CompanionLoadOutTemplate slot shows its owned pet's extracted creature display model in the XML ModelScene host, independently of card selection. Moving/removing pets clears old models; closing cancels pending loads and frees previews before the journal UI. Health/ability content remains hidden until authoritative snapshots exist.
+- Pet card/loadout cameras and actor scale/origin come from BattlePetSpecies CardUIModelSceneID/LoadoutUIModelSceneID and matching UIModelSceneCamera/Actor/ActorDisplay data, not mesh-fit or hand-tuned size. XML defines each model viewport.
 - Selected pet card shows the species' extracted creature display model, name, level/quality/breed and Retail type icon. Summon/Dismiss sits at the bottom of the right panel; Find Battle remains disabled. No standalone Pet Journal tab button below the shell.
 - Summon/dismiss sends the owned instance GUID through existing CollectionChannel requests. Wait for server authority; show refusals and prevent duplicate pending requests.
 - Companion is an ordinary replicated non-combat creature, rendered through the existing CreatureID/display/model path and moved by authoritative owner-follow positions.
@@ -13,6 +15,8 @@ Retail CollectionsJournal 703×606, 260px left list, upper-right card, three dis
 
 ## Data
 Maintained local exporter `scripts/export_db2_csv.py` supports the BattlePet tables and Creature. `scripts/export_pet_catalog.py <csv-dir> <output.json>` joins species to local Creature names/displays for server runtime. Exported assets are uncommitted data, never downloaded from Wago/Wowhead.
+
+`scripts/export_pet_model_scenes.py --db2 <private-local-extraction> --definitions <matching-WoWDBDefs> --build <installed-build> --species data/db2/12.1.0.69933/BattlePetSpecies.csv --output data/battle-pet-model-scenes.json` exports journal-only scene cameras and actor transforms, with byte/schema hashes in a provenance sidecar. Missing scene/actor/display data fails explicitly; no paperdoll-fit fallback. **ModelScene default FOV unsourced**: these tables/XML do not define it. Retain existing engine projection; do not claim projection parity.
 
 ## Verification
 UI-model owned/unowned/search/pending/action tests in both skins, protocol journal/64-bit request round trips, and private-server native captures of both journals plus follower. Captures/proof status recorded in the Phase 1 handoff; code alone does not establish visual acceptance.

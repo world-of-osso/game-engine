@@ -15,10 +15,14 @@ pub(crate) mod castbar_fx;
 mod castbar_preview;
 mod dungeon_preview;
 mod flight_map_preview;
+mod follower_layout_preview;
 mod forevergaps_preview;
+mod gameplay_panels_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
+#[cfg(test)]
+mod housing_drag_input_tests;
 #[cfg(test)]
 mod housing_placed_list_input_tests;
 pub(crate) mod hud_edit_layout;
@@ -176,6 +180,7 @@ enum ScreenPostsetup {
     PetActionBar,
     PortraitParty,
     CastingBar,
+    FollowerDungeons,
 }
 
 fn search_for_clear_action(action: &str) -> Option<&'static str> {
@@ -231,6 +236,7 @@ impl RegistryModel {
         use game_engine_ui_model::quest_scroll::{QuestScrollExtent, quest_scroll_child};
         let mut lists = game_engine_ui_model::quest_frame_component::QUEST_SCROLL_FRAMES.to_vec();
         lists.push(game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL);
+        lists.push("QuestScrollFrame");
         let extent = lists.into_iter().find_map(|list| {
             let child = self.registry.get_by_name(&quest_scroll_child(list))?;
             let height = self.registry.get(child)?.layout_rect.as_ref()?.height;
@@ -302,6 +308,9 @@ impl RegistryModel {
             game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut self.registry);
             self.icon_masks.apply(&mut self.registry);
         }
+        game_engine_ui_model::collections_component::apply_collections_postsetup(
+            &mut self.registry,
+        );
         if self.shared.get::<GameMenuViewModel>().is_some() {
             game_engine_ui_model::game_menu_main::sync_menu_button_art(&mut self.registry);
         }
@@ -413,6 +422,12 @@ impl RegistryModel {
                 // The NPC canvas's own backpack portrait.
                 self.icon_masks.apply(&mut self.registry);
             }
+            ScreenPostsetup::FollowerDungeons => {
+                game_engine_ui_model::follower_dungeons::apply_follower_postsetup(
+                    &mut self.registry,
+                );
+                self.icon_masks.apply(&mut self.registry);
+            }
             ScreenPostsetup::CharacterFrame => {
                 if let Some(view) =
                     self.shared
@@ -462,6 +477,22 @@ impl RegistryModel {
                 view,
                 &mut self.registry,
             );
+        }
+        if self
+            .shared
+            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
+            .is_some_and(|view| view.orders.customer)
+        {
+            game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(
+                &mut self.registry,
+            );
+        }
+        if self
+            .shared
+            .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
+            .is_some()
+        {
+            self.icon_masks.apply(&mut self.registry);
         }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
         if self
@@ -581,6 +612,11 @@ impl RegistryModel {
                 Some(*at / self.registry.ui_scale),
             ),
             UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::HousingDecorDragStart(id) => {
+                let action = self.click_action(*id)?;
+                let decor = action.strip_prefix("housing:place:")?;
+                (format!("housing:place-drag:{decor}"), Click::LEFT, None)
+            }
             UiInput::FrameAltClick {
                 id,
                 right,
@@ -1009,6 +1045,7 @@ impl RegistryUi {
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
     pub fn show_world_map(&mut self, state: WorldMapFrameState) -> Result<(), String> {
+        self.toplevel = true;
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
@@ -1232,10 +1269,18 @@ impl RegistryUi {
         &mut self,
         state: game_engine_ui_model::cooldown_assist::CooldownViewerView,
     ) -> Result<(), String> {
-        self.show_viewport_screen(
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
             state,
             game_engine_ui_model::cooldown_viewer_component::cooldown_viewer_screen,
             ScreenPostsetup::None,
+            registry,
+            parent,
         )
     }
 
@@ -1544,7 +1589,7 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for one quest window (`QuestFrame`,
-    /// `QuestLogFrame`) with the portrait `metal_frame` border their chrome uses.
+    /// quest giver dialogs) with the portrait `metal_frame` border their chrome uses.
     pub fn show_quest_window<T: 'static>(
         &mut self,
         state: T,
@@ -1838,7 +1883,7 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::follower_dungeons::follower_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::FollowerDungeons,
             registry,
             parent,
         )?;
@@ -2487,17 +2532,21 @@ impl RegistryUi {
             return Ok(());
         }
         if let Some(next) = (&state as &dyn std::any::Any)
-            .downcast_ref::<game_engine_ui_model::quest_log_frame_component::QuestLogFrameState>(
+            .downcast_ref::<game_engine_ui_model::world_map_frame_component::WorldMapFrameState>(
         ) {
-            use game_engine_ui_model::quest_log_frame_component::{
-                QUEST_LOG_DETAILS_SCROLL, QuestLogFrameState,
-            };
+            use game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL;
+            use game_engine_ui_model::world_map_frame_component::WorldMapFrameState;
             let previous = model
                 .shared
-                .get::<QuestLogFrameState>()
-                .and_then(|state| state.details.as_ref())
+                .get::<WorldMapFrameState>()
+                .and_then(|state| state.quest_panel.as_ref())
+                .and_then(|panel| panel.log.details.as_ref())
                 .map(|details| details.quest_id);
-            let selected = next.details.as_ref().map(|details| details.quest_id);
+            let selected = next
+                .quest_panel
+                .as_ref()
+                .and_then(|panel| panel.log.details.as_ref())
+                .map(|details| details.quest_id);
             if previous != selected {
                 model
                     .registry
