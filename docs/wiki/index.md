@@ -9,7 +9,7 @@
 - [Linked cooking-fire proof](systems/toy-box.md#linked-cooking-fire-proof-2026-10-12) — actual both-skin Little Wickerman/source.25 model/particles, real cooking and Cozy Fire cancellation-refresh; seven-item backend and per-variant boundaries.
 
 - [Native player housing](systems/housing.md) — Cleanup physical hover/store/relog/visitor refusal in both skins, HouseSettings authority/save-relog denial, friend/sale Finder, bulletin roster, both-skin receipt-backed catalog3D/acquisition, staged keyboard/unsnapped mouse transforms, visitor/observer proof, sourced migrations and backend-only atomic dyes/variant storage; starter grants/assembly/outdoor bounds/charter and WMO AO remain gaps.
-- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; structural5417/1804 census (server inventory), remaining producers and source gaps explicit.
+- [Criteria gameplay and online comparison](systems/dungeon-achievements.md#criteria-gameplay-and-online-comparison--verified-2026-10-12) — both-skin private paid Ring/Bear/Mammoth grants, actual mount2→4 progress and isolated online peer comparison; current structural census ([server inventory](../../../../game-server/docs/achievement-criteria-producer-inventory.md)), remaining producers and source gaps explicit.
 - [Native arenas](systems/arenas.md) — skirmish/rated/Shuffle lifecycle, source consumers, authoritative live-GO support/walls, Naminze native voice playback and shared exact-copy/origin reconnect; revision-receipted map/skin and query-cost proof tracked in handoff.
 - [Native arenas](systems/arenas.md) — skirmish/rated lifecycle, source consumers, authoritative live-GO support/walls and measured six-player query costs; revision-receipted dynamic native proof tracked in handoff.
 - [Avenging Wrath material time](investigations/avenging-wrath-material-time.md) — Hold pixel fix, published hash census and capture provenance correction: Divine Shield normal-map particles misclassified as colour; general refraction-flag/forward exclusion preserves AW.
@@ -235,7 +235,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [Glue/menu fidelity](investigations/glue-menu-fidelity.md) — Retail nav/menu/delete/campsite/Settings geometry, pinned atlas slices, shared popup input and native fractional-shadow crop regression.
+- [Glue/menu fidelity](investigations/glue-menu-fidelity.md) — Retail nav/menu/delete/campsite/Settings geometry, pinned atlas slices, shared popup input and native fractional-shadow crop regression; [menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13) adds existing Edit Mode/Macros/Support routes and MinimalTabs/settings search.
 
 - [Native compile speed](investigations/native-compile-speed.md) — cross-slot KTX cache, host-profile unification, actual linker/job defaults, registry-cache experiment and unmet every-slot seconds target.
 

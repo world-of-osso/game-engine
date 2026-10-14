@@ -43,6 +43,10 @@ fn skin(frame: &Frame) -> Vec<String> {
 }
 
 fn create_frames(mode: CharCreateMode, names: &[&str]) -> Vec<Frame> {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut model = CharacterCreateModel::new(1920.0, 1080.0);
     model.shared.insert(CharCreateUiState {
         mode,
@@ -58,6 +62,10 @@ fn create_frames(mode: CharCreateMode, names: &[&str]) -> Vec<Frame> {
 
 #[test]
 fn character_create_buttons_use_character_select_button_skin() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut select = CharacterSelectModel::new(1920.0, 1080.0);
     select.sync();
     let reference = frame_named(&select.registry, SELECT_BACK.0);
@@ -92,6 +100,10 @@ fn character_create_buttons_use_character_select_button_skin() {
 
 #[test]
 fn character_create_navigation_labels_use_character_select_button_text() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut select = CharacterSelectModel::new(1920.0, 1080.0);
     select.sync();
     let reference = frame_named(&select.registry, SELECT_BACK.0);
