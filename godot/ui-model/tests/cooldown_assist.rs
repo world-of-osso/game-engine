@@ -13,6 +13,133 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
+fn cooldown_buff_bars_use_source_texture_geometry_and_remaining_fill() {
+    use ui_toolkit::{
+        atlas::set_thread_skin,
+        frame::Dimension,
+        layout_values::Val,
+        widgets::texture::{BlendMode, TextureSource},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for fraction in [0.0, 0.5, 1.0] {
+            let mut view = CooldownViewerView {
+                enabled: true,
+                ..Default::default()
+            };
+            view.categories[3].push(CooldownIconView {
+                cooldown_id: 900,
+                spell_id: 31884,
+                name: "Avenging Wrath".into(),
+                icon_fdid: 135875,
+                fraction,
+                remaining: fraction * 10.0,
+                charges: Some(2),
+                assisted_highlight: false,
+            });
+            let mut shared = SharedContext::new();
+            shared.insert(skin);
+            shared.insert(view);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(cooldown_viewer_screen).sync(&shared, &mut registry);
+            let frame = |name| {
+                registry
+                    .get(registry.get_by_name(name).expect(name))
+                    .unwrap()
+            };
+            let background = frame("CooldownViewer900BarBackground");
+            assert_eq!(
+                [background.width, background.height],
+                [Dimension::Fixed(194.0), Dimension::Fixed(28.0)]
+            );
+            assert_eq!(
+                [background.position.left, background.position.top],
+                [Val::Px(-2.0), Val::Px(-2.0)]
+            );
+            let Some(WidgetData::Texture(texture)) = &background.widget_data else {
+                panic!("source buff background");
+            };
+            assert_eq!(
+                texture.source,
+                TextureSource::Atlas("UI-HUD-CoolDownManager-Bar-BG".into())
+            );
+            let applications = frame("CooldownViewer900Charges");
+            assert_eq!(
+                [applications.width, applications.height],
+                [Dimension::Fixed(32.0), Dimension::Fixed(10.0)],
+                "CooldownViewerBuffBarItemTemplate Applications size"
+            );
+            assert_eq!(
+                [applications.position.right, applications.position.bottom],
+                [Val::Px(5.0), Val::Px(5.0)],
+                "Applications BOTTOMRIGHT (-5, +5)"
+            );
+            let bar = frame("CooldownViewer900Cooldown");
+            assert_eq!(
+                [bar.width, bar.height],
+                [Dimension::Fixed(188.0), Dimension::Fixed(19.0)]
+            );
+            assert_eq!(
+                [bar.position.left, bar.position.top],
+                [Val::Px(32.0), Val::Px(5.5)]
+            );
+            let fill = frame("CooldownViewer900BarFill");
+            assert_eq!(fill.width, Dimension::Fixed(188.0 * fraction));
+            let Some(WidgetData::Texture(texture)) = &fill.widget_data else {
+                panic!("source buff fill");
+            };
+            assert_eq!(
+                texture.source,
+                TextureSource::Atlas("UI-HUD-CoolDownManager-Bar".into())
+            );
+            assert_eq!(texture.tex_coords, [0.0, fraction, 0.0, 1.0]);
+            assert_eq!(texture.vertex_color, [1.0, 0.5, 0.25, 1.0]);
+            let pip = frame("CooldownViewer900BarPip");
+            assert_eq!(
+                [pip.width, pip.height],
+                [Dimension::Fixed(10.0), Dimension::Fixed(46.0)]
+            );
+            assert_eq!(
+                [pip.position.left, pip.position.top],
+                [Val::Px(188.0 * fraction - 5.0), Val::Px(-12.5)]
+            );
+            assert_eq!(pip.hidden, fraction == 0.0);
+            let Some(WidgetData::Texture(texture)) = &pip.widget_data else {
+                panic!("source buff pip");
+            };
+            assert_eq!(
+                texture.blend_mode,
+                BlendMode::AlphaKey,
+                "Buff pip has no ADD alphaMode in XML"
+            );
+            let name = frame("CooldownViewer900Name");
+            assert_eq!(
+                [name.width, name.height],
+                [Dimension::Fixed(158.0), Dimension::Fixed(19.0)]
+            );
+            assert_eq!(
+                [name.position.left, name.position.top],
+                [Val::Px(5.0), Val::Px(0.0)]
+            );
+            let Some(WidgetData::FontString(text)) = &name.widget_data else {
+                panic!("source buff name");
+            };
+            assert_eq!(
+                text.justify_h,
+                ui_toolkit::widgets::font_string::JustifyH::Left
+            );
+            let duration = frame("CooldownViewer900Timer");
+            assert_eq!(duration.width, Dimension::Auto);
+            assert_eq!(duration.position.right, Val::Px(8.0));
+        }
+    }
+}
+
+#[test]
 fn cooldown_assist_native_rows_and_highlights_share_both_skin_inventory() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
