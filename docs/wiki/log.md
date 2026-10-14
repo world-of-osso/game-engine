@@ -3702,3 +3702,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
 
 - 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
+
+- 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.
