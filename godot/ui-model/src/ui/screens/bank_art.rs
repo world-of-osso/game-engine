@@ -329,6 +329,23 @@ pub fn checkbox_sized(
     action: &str,
     (x, y, size, label_gap): (f32, f32, f32, f32),
 ) -> Element {
+    let children = checkbox_art(name, text, checked, size, label_gap);
+    rsx! {
+        r#frame {
+            name: {DynName(name.to_string())},
+            width: size,
+            height: size,
+            onclick: action,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            {children}
+        }
+    }
+}
+
+fn checkbox_art(name: &str, text: &str, checked: bool, size: f32, label_gap: f32) -> Element {
     let mut children = texture(
         format!("{name}Up"),
         CHECKBOX_UP,
@@ -347,21 +364,9 @@ pub fn checkbox_sized(
         format!("{name}Text"),
         text,
         (size + label_gap, (size - 14.) / 2., 180., 14.),
-        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+        (12., NORMAL_FONT_COLOR, "LEFT"),
     ));
-    rsx! {
-        r#frame {
-            name: {DynName(name.to_string())},
-            width: size,
-            height: size,
-            onclick: action,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: x,
-            top: y,
-            {children}
-        }
-    }
+    children
 }
 
 /// `SmallMoneyFrameTemplate` right-aligned at `right`, bottom at `bottom`.
