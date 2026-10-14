@@ -33,6 +33,9 @@ pub struct GuildRanksSession {
     pub visible: bool,
     pub awaiting_state: bool,
     pub settings_open: bool,
+    pub control_page: usize,
+    pub control_menu_open: bool,
+    pub rank_menu_open: bool,
     pub member_menu: Option<String>,
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
@@ -155,6 +158,33 @@ impl GuildRanksSession {
             .is_some_and(|state| state.members.len() > (self.roster_page + 1) * ROSTER_PAGE_SIZE)
     }
 
+    pub fn saved_input_text(&self, name: &str) -> Option<String> {
+        if let Some(index) = name
+            .strip_prefix("GuildRankOrderName")
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            return Some(self.state()?.ranks.get(index)?.name.clone());
+        }
+        if let Some(index) = name
+            .strip_prefix("GuildTabItems")
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            return Some(
+                self.selected()?
+                    .tabs
+                    .get(index)?
+                    .withdrawals_per_day
+                    .to_string(),
+            );
+        }
+        (name == crate::guild_rank_frame::GOLD_BOX)
+            .then(|| {
+                self.selected()
+                    .map(|rank| (rank.gold_per_day / 10_000).to_string())
+            })
+            .flatten()
+    }
+
     pub fn selected_index(&self) -> usize {
         self.selected_rank
     }
@@ -204,11 +234,17 @@ impl GuildRanksSession {
                 self.member_menu = None;
                 None
             }
-            "guild:add" => self.add_rank(input(crate::guild_rank_frame::NAME_BOX)),
-            "guild:rename" => self.rename_rank(input(crate::guild_rank_frame::NAME_BOX)),
-            "guild:remove" => self.remove_rank(),
-            "guild:up" => self.move_rank(true),
-            "guild:down" => self.move_rank(false),
+            "guild:add" => self.add_rank("New Rank"),
+            "guild:control-menu" => {
+                self.control_menu_open = !self.control_menu_open;
+                self.rank_menu_open = false;
+                None
+            }
+            "guild:rank-menu" => {
+                self.rank_menu_open = !self.rank_menu_open;
+                self.control_menu_open = false;
+                None
+            }
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
@@ -235,11 +271,31 @@ impl GuildRanksSession {
         match kind {
             "rank" => {
                 self.select_rank(index);
+                self.rank_menu_open = false;
                 None
             }
-            "permission" => {
-                let flag = 1u32.checked_shl(u32::try_from(index).ok()?)?;
-                self.set_permission(flag, self.selected()?.rights & flag == 0)
+            "control-page" if index < crate::guild_control::PAGES.len() => {
+                self.control_page = index;
+                self.control_menu_open = false;
+                self.rank_menu_open = false;
+                if index != 0 && self.selected_rank == 0 {
+                    self.select_rank(1);
+                }
+                None
+            }
+            "retail-permission" => {
+                let mask = crate::guild_control::permission_right(index)?;
+                self.set_permission_mask(mask, self.selected()?.rights & mask == 0)
+            }
+            "rename" | "remove" | "up" | "down" => {
+                self.state()?.ranks.get(index)?;
+                self.select_rank(index);
+                match kind {
+                    "rename" => self.rename_rank(texts.get(&format!("GuildRankOrderName{index}"))?),
+                    "remove" => self.remove_rank(),
+                    "up" => self.move_rank(true),
+                    _ => self.move_rank(false),
+                }
             }
             "view" | "deposit" | "items" => self.click_tab(kind, index, texts),
             _ => None,
@@ -286,11 +342,15 @@ impl GuildRanksSession {
         if !flag.is_power_of_two() || flag & !GUILD_RIGHT_ALL != 0 {
             return None;
         }
+        self.set_permission_mask(flag, enabled)
+    }
+
+    fn set_permission_mask(&self, mask: u32, enabled: bool) -> Option<GuildRankRequest> {
         let (rank, settings) = self.editable_rank()?;
         let rights = if enabled {
-            settings.rights | flag
+            settings.rights | mask
         } else {
-            settings.rights & !flag
+            settings.rights & !mask
         };
         Some(GuildRankRequest::SetPermissions {
             rank,
