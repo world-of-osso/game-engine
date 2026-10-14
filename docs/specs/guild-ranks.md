@@ -10,7 +10,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 ### Rank controls
 - [x] Guild Control uses the Retail Mainline 338×444 TranslucentFrameTemplate shell, navigation dropdown (159 pixels), rank dropdown (180 pixels), RankChangeTemplate rows and separate rank-permissions/bank panes. No oversized combined canvas, generic category buttons or extra Save controls.
 - [x] Mainline Officer checkbox id22 reflects either pinned TC officer-chat bit; explicit toggle sets/clears both only. MOTD/info/note permissions remain independently preserved/enforced, represented by the Mainline OfficerPermissions bullet lines, not invented checkboxes.
-- [x] Wire rights use pinned TC `a352b1fa` masks; server layout-2 migration maps each compact bit independently, preserving mixed rights and all bank data/member positions.
+- [x] Wire rights use pinned TC `a352b1fa` masks; server layout-2 migration maps each compact bit independently, preserving mixed rights and all bank data/member positions. Shared semantic epoch1 rejects older mask interpretations at connect.
 - [ ] Authenticator, Neighborhood Manager, bank-tab modification, Discord and club/voice/event/guild-finder services have no authoritative backing here. Their source checkboxes remain disabled or source descriptive bullet lines; no privileges are synthesized.
 - [x] Guild settings → Guild Ranks opens the same Retail functionality in both skins.
 - [x] Guild Master alone adds, removes, renames, reorders and configures ranks; rank 0 is immutable, there are 2–10 ranks and names have at most 15 characters.
@@ -31,7 +31,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
 
 ### Permissions and members
-- [x] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
+- [x] Mainline exposes guild-chat speak, Officer(id22), invite/remove/promote/demote and monetary checks. MOTD/info/note rights are preserved/enforced independently and appear only in source OfficerPermissions bullet text, not invented controls.
 - [x] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.
 - [x] Whole-gold input sends copper/day, sharing the allowance with guild repairs.
 - [x] Right-click member context menu stays on screen and shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
