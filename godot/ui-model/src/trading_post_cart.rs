@@ -13,6 +13,23 @@ impl View {
             .collect()
     }
 
+    pub fn cart_price(&self) -> u64 {
+        self.cart_items()
+            .iter()
+            .map(|row| u64::from(row.price))
+            .sum()
+    }
+
+    pub fn can_checkout(&self) -> bool {
+        !self.pending
+            && !self.cart.is_empty()
+            && self.cart_items().len() == self.cart.len()
+            && self
+                .snapshot
+                .as_ref()
+                .is_some_and(|snapshot| self.cart_price() <= u64::from(snapshot.tender))
+    }
+
     pub fn can_add_to_cart(&self) -> bool {
         let frozen = self
             .snapshot
@@ -57,6 +74,10 @@ impl View {
             "perks:cart:close" => self.cart_visible = false,
             "perks:cart:clear" if !self.cart.is_empty() => self.confirm = Some("clear-cart".into()),
             "perks:cart:clear" => {}
+            "perks:cart:checkout" if self.can_checkout() => {
+                self.confirm = Some("cart-checkout".into())
+            }
+            "perks:cart:checkout" => {}
             _ => return Err(format!("Unknown Trading Post cart action: {action}")),
         }
         Ok(())

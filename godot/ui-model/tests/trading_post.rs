@@ -157,6 +157,85 @@ fn trading_post_cart_add_remove_and_confirmed_clear_follow_retail_in_both_skins(
 }
 
 #[test]
+fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_local_debit() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.frozen_item_id = None;
+        data.tender = 150;
+        let mut wrap = data.items[0].clone();
+        wrap.id = 5;
+        wrap.name = "Arcanofire Wrap".into();
+        wrap.price = 75;
+        data.items.push(wrap);
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data.clone())),
+            selected: Some(4),
+            ..Default::default()
+        };
+        view.click("perks:cart:add").unwrap();
+        view.click("perks:select:5").unwrap();
+        view.click("perks:cart:add").unwrap();
+        view.click("perks:cart:show").unwrap();
+        assert_eq!(view.click("perks:cart:checkout").unwrap(), None);
+        assert!(
+            view.confirm.is_none(),
+            "whole cart costs175, not just selected75"
+        );
+        data.tender = 500;
+        view.receive(Arc::new(data.clone()));
+        view.click("perks:cart:checkout").unwrap();
+        let dialog = render(skin, view.clone());
+        assert!(dialog.get_by_name("PerksProgramConfirmDialog").is_some());
+        assert!(
+            dialog.get_by_name("PerksProgramConfirmItemFrame").is_none(),
+            "Retail cart confirmation has no single-item frame"
+        );
+        view.click("perks:cancel").unwrap();
+        assert_eq!(
+            text(&render(skin, view.clone()), "PerksProgramCartPriceText"),
+            "175"
+        );
+        view.click("perks:cart:checkout").unwrap();
+        assert_eq!(
+            view.click("perks:confirm").unwrap(),
+            Some(Action::Request(TradingPostRequest::Checkout {
+                vendor_item_ids: vec![4, 5]
+            }))
+        );
+        assert!(view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(
+            view.snapshot
+                .as_ref()
+                .unwrap()
+                .items
+                .iter()
+                .all(|row| !row.purchased)
+        );
+        assert!(!view.cart_visible);
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "0"
+        );
+        data.tender = 325;
+        for row in &mut data.items {
+            row.purchased = true;
+            row.collected = true;
+            row.refund_seconds = 600;
+        }
+        view.receive(Arc::new(data));
+        assert!(!view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 325);
+        assert!(view.selected_item().unwrap().purchased);
+    }
+}
+
+#[test]
 fn trading_post_renders_player_faction_gradients_in_both_skins() {
     use ui_toolkit::atlas::{AtlasSource, resolve_region};
     use ui_toolkit::widgets::texture::TextureSource;
