@@ -339,6 +339,10 @@ textures/6375814.blp
 db2/active/UiTextureKit.csv
 # Journeys faction icon prefixes and source list ordering.
 db2/active/UiCovenantDisplayInfo.csv
+# Published major-faction icon sheets: Dragonflight, War Within and Midnight.
+textures/4672345.blp
+textures/5930301.blp
+textures/7446932.blp
 db2/active/UiTextureAtlasElement.csv
 db2/active/UiTextureAtlas.csv
 db2/active/UiTextureAtlasMember.csv
