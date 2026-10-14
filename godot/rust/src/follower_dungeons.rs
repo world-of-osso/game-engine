@@ -117,10 +117,10 @@ impl GameClient {
             .selected_character_name
             .as_deref()
             .unwrap_or("");
-        let group_leader =
-            self.account.group.in_group() && self.account.group.is_leader(local_name);
-        self.follower_dungeons.view.group_leader = group_leader;
-        if !group_leader {
+        let leader_available =
+            !self.account.group.in_group() || self.account.group.is_leader(local_name);
+        self.follower_dungeons.view.leader_available = leader_available;
+        if !leader_available {
             self.follower_dungeons.view.volunteer_leader = false;
         }
         let view = self.follower_dungeons.view.clone();
