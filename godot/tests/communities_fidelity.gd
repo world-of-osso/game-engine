@@ -11,6 +11,8 @@ func capture() -> void:
 		root.add_child(ui)
 		var error: String = ui.call("show_guild_communities_preview", skin == "forever")
 		assert(error == "", error)
+		# Offline host mirrors GameClient's production ScrollBox event route.
+		ui.call("enable_gameplay_preview_scroll_input")
 		await settle()
 		assert_rect(ui, "CommunitiesFrame", Rect2(553, 327, 814, 426))
 		assert_rect(ui, "CommunitiesMemberListScrollBox", Rect2(749, 410, 592, 315))
