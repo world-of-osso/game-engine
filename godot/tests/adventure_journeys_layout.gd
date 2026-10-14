@@ -275,18 +275,14 @@ func run() -> void:
 		return
 	if not masked_icon("JourneyRenownLevel2*Icon", false) or not masked_icon("JourneyReward622Icon", true):
 		return
-	var notice := control("JourneyProgressUnlock")
-	var pane := control("JourneyProgress")
-	if notice == null or not notice.is_visible_in_tree() or not pane.get_global_rect().encloses(notice.get_global_rect()):
-		stop("Unevaluated unlock notice is outside its clipped progress pane")
+	var details := control("JourneyProgressDetails")
+	if control("JourneyProgressUnlock") != null or details == null or not details.is_visible_in_tree():
+		stop("Received progress hidden by unknown unlock or developer notice")
 		return
-	if not await move_to("JourneyProgressUnlock"):
+	if label_text("JourneyProgressLevel") != "2" or label_text("JourneyProgressCurrent") != "Current Progress: 1000 / 2500":
+		stop("Authoritative current level/progress header missing")
 		return
-	var unlock_tooltip: Dictionary = client.tooltip_state()
-	if not unlock_tooltip.visible or not unlock_tooltip.title.contains("not evaluated") or not str(unlock_tooltip.lines).contains("Maruukai"):
-		stop("Authored unevaluated unlock tooltip absent: " + str(unlock_tooltip))
-		return
-	if not await shot("journeys-unlock-tooltip"):
+	if not await move_to("JourneyProgressName") or not await shot("journeys-progress-header"):
 		return
 	if not await move_to("JourneyReward622Card"): 
 		return
