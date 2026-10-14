@@ -26,6 +26,9 @@ struct Peer {
     inventory: Option<InventorySnapshot>,
     equipment: Option<EquipmentSnapshot>,
     inventory_delta: Option<InventoryDelta>,
+    traits: Option<TraitConfigSnapshot>,
+    trait_result: Option<TraitCommitResult>,
+    known_spells: Vec<u32>,
 }
 impl Peer {
     fn receive(&mut self, message: ProtocolMessage) -> Result<(), String> {
@@ -43,7 +46,24 @@ impl Peer {
         if spellbook_receipt {
             return self.receive_spellbook(message);
         }
-        if message.is::<AttackStart>() {
+        if message.is::<TraitConfigSnapshot>() {
+            let snapshot = message
+                .downcast::<TraitConfigSnapshot>()
+                .map_err(|_| "trait config type")?;
+            println!("{} trait config {snapshot:?}", self.username);
+            self.traits = Some(snapshot);
+        } else if message.is::<TraitCommitResult>() {
+            let result = message
+                .downcast::<TraitCommitResult>()
+                .map_err(|_| "trait commit type")?;
+            println!("{} trait result {result:?}", self.username);
+            self.trait_result = Some(result);
+        } else if message.is::<TraitLoadoutsSnapshot>() {
+            let snapshot = message
+                .downcast::<TraitLoadoutsSnapshot>()
+                .map_err(|_| "trait loadouts type")?;
+            println!("{} trait loadouts {snapshot:?}", self.username);
+        } else if message.is::<AttackStart>() {
             let receipt = message
                 .downcast::<AttackStart>()
                 .map_err(|_| "attack start type")?;
@@ -118,12 +138,13 @@ impl Peer {
         Ok(())
     }
 
-    fn receive_spellbook(&self, message: ProtocolMessage) -> Result<(), String> {
+    fn receive_spellbook(&mut self, message: ProtocolMessage) -> Result<(), String> {
         if message.is::<KnownSpellsSnapshot>() {
             let spells = message
                 .downcast::<KnownSpellsSnapshot>()
                 .map_err(|_| "known spells type")?;
             println!("{} known spells {spells:?}", self.username);
+            self.known_spells = spells.spells;
         } else if message.is::<SpecializationChanged>() {
             let spec = message
                 .downcast::<SpecializationChanged>()
@@ -134,11 +155,16 @@ impl Peer {
                 .downcast::<SpellsLearned>()
                 .map_err(|_| "learned spells type")?;
             println!("{} learned spells {spells:?}", self.username);
+            self.known_spells.extend(spells.spells);
+            self.known_spells.sort_unstable();
+            self.known_spells.dedup();
         } else {
             let spells = message
                 .downcast::<SpellsUnlearned>()
                 .map_err(|_| "unlearned spells type")?;
             println!("{} unlearned spells {spells:?}", self.username);
+            self.known_spells
+                .retain(|spell| !spells.spells.contains(spell));
         }
         Ok(())
     }
@@ -216,11 +242,22 @@ impl Peer {
                 })
             }
             _ if action.starts_with("cast:") => self.send_spell_cast(action),
+            _ if action.starts_with("traits:") => self.send_trait_commit(action),
             _ if action.starts_with("spec:") => self
                 .bridge
                 .send::<_, TalentChannel>(parse_specialization(action)?),
             _ => Err(format!("Unknown command {action}")),
         }
+    }
+
+    fn send_trait_commit(&self, action: &str) -> Result<(), String> {
+        let path = action
+            .strip_prefix("traits:")
+            .ok_or("expected traits:<JSONfile>")?;
+        let json = fs::read_to_string(path)
+            .map_err(|error| format!("Read trait request {path}: {error}"))?;
+        let request = parse_trait_commit(&json)?;
+        self.bridge.send::<_, TalentChannel>(request)
     }
 
     fn send_spell_cast(&self, action: &str) -> Result<(), String> {
@@ -315,7 +352,8 @@ impl Peer {
         let value = serde_json::json!({"entered": self.entered,"map":self.map,
             "snapshot":self.snapshot,"npcs":self.observed_npcs(),
             "players":self.observed_players(),"inventory":self.inventory,
-            "equipment":self.equipment,"inventory_delta":self.inventory_delta});
+            "equipment":self.equipment,"inventory_delta":self.inventory_delta,
+            "traits":self.traits,"trait_result":self.trait_result,"known_spells":self.known_spells});
         fs::write(
             directory.join(format!("peer{}.json", self.index)),
             serde_json::to_vec_pretty(&value).map_err(|e| e.to_string())?,
@@ -362,7 +400,7 @@ fn run() -> Result<(), String> {
             .receive::<InventoryDelta>()
             .receive::<InventoryError>()
             .receive::<KnownSpellsSnapshot>()
-            .receive::<SpecializationChanged>()
+            .receive_talents()
             .receive::<SpellsLearned>()
             .receive::<SpellsUnlearned>()
             .connect(address, clock + index as u64)?;
@@ -386,6 +424,9 @@ fn run() -> Result<(), String> {
             inventory: None,
             equipment: None,
             inventory_delta: None,
+            traits: None,
+            trait_result: None,
+            known_spells: Vec::new(),
         });
         // Each real account completes entry before another worker starts. Large
         // rosters must not starve earlier handshakes during parallel app setup.
@@ -400,9 +441,15 @@ fn run() -> Result<(), String> {
             }
             thread::sleep(Duration::from_millis(50));
         }
+        if index < count {
+            settle_peer_login(&mut peers, &directory)?;
+        }
     }
     let mut last = String::new();
-    let deadline = Instant::now() + Duration::from_secs(1800);
+    // Full source-timed matches include admission, terrain travel, objective clocks,
+    // and saved return; the observed 12 gathers in 15 minutes need a longer fixture.
+    // This is only the peer process lifetime, not a protocol/gameplay timeout.
+    let deadline = Instant::now() + Duration::from_secs(3600);
     while Instant::now() < deadline {
         for peer in &mut peers {
             peer.receive_events()?;
@@ -458,6 +505,10 @@ fn parse_bag_location(action: &str, verb: &str) -> Result<ItemLocation, String> 
         return Err("bag must be in the owner inventory".into());
     }
     Ok(ItemLocation::Bag { bag, slot })
+}
+
+fn parse_trait_commit(json: &str) -> Result<CommitTraitConfig, String> {
+    serde_json::from_str(json).map_err(|error| format!("Decode trait request: {error}"))
 }
 
 fn parse_specialization(action: &str) -> Result<SetSpecialization, String> {
@@ -532,6 +583,27 @@ mod tests {
     }
 
     #[test]
+    fn trait_commit_preserves_source_spec_entries_and_total_ranks() {
+        let request = parse_trait_commit(r#"{"spec_id":73,"entries":[{"node_id":90302,"entry_id":112156,"rank":1},{"node_id":90295,"entry_id":112149,"rank":1}]}"#).unwrap();
+        assert_eq!(request.spec_id, 73);
+        assert_eq!(
+            request.entries,
+            vec![
+                TraitEntrySelection {
+                    node_id: 90302,
+                    entry_id: 112156,
+                    rank: 1
+                },
+                TraitEntrySelection {
+                    node_id: 90295,
+                    entry_id: 112149,
+                    rank: 1
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn specialization_command_preserves_normal_server_authority() {
         assert_eq!(
             parse_specialization("spec:73"),
@@ -603,6 +675,22 @@ mod tests {
             assert!(parse_source_attack(input).is_err(), "{input}");
         }
     }
+}
+
+/// Fixture accommodation for server login/catalog frames measured at 2.6–3.8s.
+/// Keep earlier clients polling while the server drains this admission; production
+/// handshake deadlines and the source roster minimum remain unchanged.
+fn settle_peer_login(peers: &mut [Peer], directory: &Path) -> Result<(), String> {
+    const LOGIN_SETTLE_TIME: Duration = Duration::from_secs(10);
+    let deadline = Instant::now() + LOGIN_SETTLE_TIME;
+    while Instant::now() < deadline {
+        for peer in peers.iter_mut() {
+            peer.receive_events()?;
+            peer.write_state(directory)?;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    Ok(())
 }
 
 fn main() {
