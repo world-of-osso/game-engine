@@ -150,7 +150,15 @@ pub fn input(name: &str, text: &str, enabled: bool, rect: (f32, f32, f32, f32)) 
     if !enabled {
         return label(name.into(), text, rect, (12.0, "0.65,0.65,0.65,1", "LEFT"));
     }
-    let mut children = crate::bank_art::edit_box(name, rect);
+    const TEMPLATE: &str = "GuildControlField";
+    let mut children = crate::bank_art::edit_box(TEMPLATE, rect);
+    for child in &mut children {
+        if let ui_toolkit::widget_def::WidgetChild::Widget(widget) = child {
+            if let Some(original) = &mut widget.name {
+                *original = original.replace(TEMPLATE, name);
+            }
+        }
+    }
     let input = children.last_mut().expect("InputBoxTemplate editbox");
     if let ui_toolkit::widget_def::WidgetChild::Widget(widget) = input {
         widget.attrs.push(ui_toolkit::widget_def::Attr::new_static(
