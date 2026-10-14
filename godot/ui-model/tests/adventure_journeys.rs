@@ -152,12 +152,42 @@ fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
                 .get_by_name("JourneyCard12WatchCheckboxCheck")
                 .is_some()
         );
+        let mut unchecked = snapshot();
+        unchecked.factions[0].unlock = RenownUnlock::Ungated;
+        view.renown = Some(Arc::new(unchecked));
+        let registry = render_skin(&view, skin);
+        let checkbox = registry
+            .get(registry.get_by_name("JourneyCard12WatchCheckbox").unwrap())
+            .unwrap();
+        assert_eq!(
+            checkbox.onclick.as_deref(),
+            Some("journal:journey-watch:12:2503")
+        );
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_none()
+        );
         view.journeys.hovered = None;
         assert!(
             render_skin(&view, skin)
                 .get_by_name("JourneyCard12Watch")
                 .is_none()
         );
+    }
+}
+
+#[test]
+fn journeys_watch_child_hover_keeps_the_card_not_the_clear_target_selected() {
+    use game_engine_ui_model::adventure_journeys::hovered_faction;
+    for (action, faction) in [
+        ("journal:journey:12", Some(12)),
+        ("journal:journey-watch:12:0", Some(12)),
+        ("journal:journey-watch:12:2503", Some(12)),
+        ("journal:journey-level:next", None),
+        ("journal:journey:invalid", None),
+    ] {
+        assert_eq!(hovered_faction(action), faction);
     }
 }
 

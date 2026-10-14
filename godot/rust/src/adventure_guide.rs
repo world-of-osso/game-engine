@@ -214,6 +214,7 @@ impl GameClient {
         self.adventure_guide.view.activities = self.account.adventure_guide.clone();
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.adventure_guide.view.renown = self.account.renown.clone();
+        self.update_journey_hover()?;
         self.advance_journey_scroll();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
@@ -252,6 +253,22 @@ impl GameClient {
             }
         }
     }
+    fn update_journey_hover(&mut self) -> Result<(), String> {
+        use game_engine_ui_model::adventure_guide::Tab;
+        let view = &mut self.adventure_guide.view;
+        if view.tab != Tab::Journeys || view.journeys.selected.is_some() {
+            view.journeys.hovered = None;
+            return Ok(());
+        }
+        let action = self
+            .hovered_ui_frame()?
+            .and_then(|hit| hit.ui.bind().frame_click_action(hit.frame));
+        self.adventure_guide.view.journeys.hovered = action
+            .as_deref()
+            .and_then(game_engine_ui_model::adventure_journeys::hovered_faction);
+        Ok(())
+    }
+
     fn journey_max_level(&self) -> Option<u32> {
         let state = &self.adventure_guide.view.journeys;
         self.account
@@ -386,6 +403,20 @@ impl GameClient {
             })
             .collect();
     }
+    fn send_journey_watch(&self, action: &str) -> Result<bool, String> {
+        let Some(watch) = action.strip_prefix("journal:journey-watch:") else {
+            return Ok(false);
+        };
+        let (_, faction_id) = watch.split_once(':').ok_or("Missing watched faction ID")?;
+        let faction_id = faction_id
+            .parse()
+            .map_err(|_| "Invalid watched faction ID")?;
+        self.account
+            .send_renown(shared::protocol::RenownRequest::SetWatchedFaction { faction_id })
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    }
+
     fn poll_adventure_inputs(&mut self) -> Result<(), String> {
         let Some(mut ui) = self.adventure_guide.ui.clone() else {
             return Ok(());
@@ -417,6 +448,9 @@ impl GameClient {
                         },
                     })
                     .map_err(|error| error.to_string())?;
+                continue;
+            }
+            if self.send_journey_watch(&action)? {
                 continue;
             }
             let previous_filters = self.adventure_guide.view.activity_filters.clone();
@@ -581,6 +615,14 @@ impl GameClient {
             view.renown.as_ref().map_or(-1, |r| r.factions.len() as i64),
         );
         state.set("journey_expansion", view.journeys.expansion);
+        state.set(
+            "watched_faction",
+            view.renown
+                .as_ref()
+                .and_then(|r| r.watched_faction)
+                .map(i64::from)
+                .unwrap_or(-1),
+        );
         state.set(
             "journey",
             view.journeys.selected.map(i64::from).unwrap_or(-1),

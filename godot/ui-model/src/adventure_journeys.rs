@@ -264,6 +264,18 @@ fn renown_card(
     snapshot: &RenownSnapshot,
 ) -> Element {
     let prefix = format!("JourneyCard{}", faction.id);
+    let mut parts = card_art(faction, &prefix);
+    parts.extend(watch_toggle(faction, state, snapshot));
+    let action = format!("journal:journey:{}", faction.id);
+    rsx! {button {
+        name:{DynName(prefix)},left,top,width:{CARD.0},height:{CARD.1},pos_type:"absolute",
+        onclick:{action.as_str()},button_default_skin:false,
+        button_atlas_up:"ui-journeys-renown-button",button_atlas_pressed:"ui-journeys-renown-button-pressed",
+        {parts}
+    }}
+}
+
+fn card_art(faction: &MajorFactionSnapshot, prefix: &str) -> Element {
     let mut parts = named_atlas_texture(
         format!("{prefix}IconBorder"),
         "ui-journeys-renown-radial-bar",
@@ -281,14 +293,7 @@ fn renown_card(
         (85., 61., 220., 15.),
         (13., NORMAL_FONT_COLOR, "LEFT"),
     ));
-    parts.extend(watch_toggle(faction, state, snapshot));
-    let action = format!("journal:journey:{}", faction.id);
-    rsx! {button {
-        name:{DynName(prefix)},left,top,width:{CARD.0},height:{CARD.1},pos_type:"absolute",
-        onclick:{action.as_str()},button_default_skin:false,
-        button_atlas_up:"ui-journeys-renown-button",button_atlas_pressed:"ui-journeys-renown-button-pressed",
-        {parts}
-    }}
+    parts
 }
 
 /// RenownCard OnEnter/OnLeave show the source toggle only for known unlocked factions.
