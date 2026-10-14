@@ -78,6 +78,12 @@ impl IconMasks {
     }
 
     fn apply_perks_template(&mut self, registry: &mut FrameRegistry) {
+        if let Some(id) = registry.get_by_name("PerksProgramConfirmSpinnerSparks")
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
+        {
+            texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+        }
         // ToyDetails.xml justifyV=TOP; move into RSX when it exposes vertical justification.
         if let Some(id) = registry.get_by_name("PerksProgramToyDescription")
             && let Some(frame) = registry.get_mut(id)
