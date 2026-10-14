@@ -57,7 +57,12 @@ func check_controls(fixture: Node, ui: Node, directory: String, skin: String) ->
 	assert(fixture.call("tick", 0.25) == "")
 	assert(is_equal_approx(fixture.call("receipt")["yaw"], yaw + PI * 0.25), "Released rotation stops")
 	await click(ui, "TabardFrameAcceptButton")
-	assert(fixture.call("dispatch").contains("Save"))
+	var save_request: String = fixture.call("dispatch")
+	if not save_request.contains("Save"):
+		var accept := control(ui, "TabardFrameAcceptButton") as Button
+		push_error("Accept produced '" + save_request + "'; receipt=" + str(fixture.call("receipt")) + "; disabled=" + str(accept.disabled) + "; rect=" + str(accept.get_global_rect()))
+		quit(1)
+		return
 	assert(fixture.call("receipt")["waiting"])
 	assert(fixture.call("receipt")["registered"] == "none")
 	await click(ui, "TabardFrameAcceptButton")
@@ -99,12 +104,18 @@ func check_designed_portrait(ui: Node) -> void:
 
 func ready_models(fixture: Node) -> void:
 	for frame in range(1200):
-		assert(fixture.call("tick", 0.0) == "")
-		if fixture.call("receipt")["model_ready"]:
+		var error: String = fixture.call("tick", 0.0)
+		if not error.is_empty():
+			push_error("Tabard native model preparation: " + error)
+			quit(1)
+			return
+		var portrait: Dictionary = fixture.call("portrait_state")
+		if fixture.call("receipt")["model_ready"] and portrait.get("exists", false) and not portrait.get("pending", true):
 			await settle()
 			return
 		await process_frame
-	assert(false, "Real tabard player model did not load")
+	push_error("Real player/NPC tabard models did not both load")
+	quit(1)
 
 func control(ui: Node, name: String) -> Control:
 	var result := ui.find_child(name, true, false) as Control
