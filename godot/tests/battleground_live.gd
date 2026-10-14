@@ -45,6 +45,9 @@ func live_run() -> void:
 						result.controls.append({"name": str(node.name), "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "text": str(node.text) if node is Label or node is Button else ""})
 			"visuals":
 				result.visuals = read_local_player_visuals()
+			"portrait":
+				result.portrait = client.unit_portrait_state(command.frame)
+				result.portrait.erase("image")
 			"units":
 				result.units = []
 				var units := root.find_child("WorldUnits", true, false)
@@ -119,6 +122,11 @@ func read_local_player_visuals() -> Dictionary:
 		result.error = "Local character Bgcovera node absent"
 		return result
 	result.player_position = str(player.global_position)
+	var animation := player.get_node_or_null("PlayerModel/M2Animation")
+	result.animation_exists = animation != null
+	if animation != null:
+		result.animation_id = animation.current_animation_id()
+		result.action_id = animation.current_action_id()
 	for node in player.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		result.models.append({"path": str(mesh.get_path()),
