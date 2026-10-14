@@ -3,7 +3,7 @@
 [Housing](systems/housing.md#expert-source-action-continuation--implementation2026-10-13): fourteen assigned/unbound action identities and distinct held increments replace hardcoded keys; shared source mode controls and target/manipulation/submode instruction rows replace invented help text. Current canonical GlobalStrings labels are user-authorized pending installed70391 export. New both-skin paid1693/2330 and readonly-visitor physical assignment/release/stage/cancel/click-commit/relog proof passes; active housing-key precedence repairs the acceptedF10/global HUD conflict without changing inactive HUD behavior; hotkey visuals, snap and source-rate/axis parity remain gaps.
 ## 2026-10-13 — Owned pet combat details
 
-[Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal15, dispatch1 and server battle17 focused tests GREEN; native payload captures pending.
+[Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal16, dispatch1 and server battle17 focused tests GREEN; six inspected both-skin native flyout/ack/reopened frames. Pending loadout gates ability edits; source ADD blend applied through existing postsetup.
 
 ## 2026-10-13 — Adventure Guide independent-gate corrections
 
