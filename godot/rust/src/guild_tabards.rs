@@ -253,6 +253,12 @@ impl GameClient {
             return Err(error);
         }
         bind_sheet_light(&model);
+        self.mount_guild_tabard_scene()?.replace_model(model);
+        self.guild_tabards.shown = Some(appearance);
+        Ok(())
+    }
+
+    fn mount_guild_tabard_scene(&mut self) -> Result<&mut Scene, String> {
         if self.guild_tabards.scene.is_none() {
             let host = self
                 .guild_tabards
@@ -264,13 +270,11 @@ impl GameClient {
                 .ok_or("TabardModel control missing")?;
             self.guild_tabards.scene = Some(Scene::new(host));
         }
-        self.guild_tabards
+        Ok(self
+            .guild_tabards
             .scene
             .as_mut()
-            .expect("tabard scene created")
-            .replace_model(model);
-        self.guild_tabards.shown = Some(appearance);
-        Ok(())
+            .expect("tabard scene created"))
     }
 }
 

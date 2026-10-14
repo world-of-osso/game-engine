@@ -129,16 +129,7 @@ impl GuildTabards {
             return Ok(None);
         }
         if action == "tabard:accept" {
-            if !self.can_save() {
-                return Ok(None);
-            }
-            let vendor = self.vendor.as_ref().expect("save requires vendor");
-            let design = self.draft.expect("save requires draft");
-            self.waiting = true;
-            return Ok(Some(GuildTabardRequest::Save {
-                npc: vendor.npc,
-                design,
-            }));
+            return Ok(self.begin_save());
         }
         let Some(cycle) = action.strip_prefix("tabard:cycle:") else {
             return Ok(None);
@@ -158,6 +149,19 @@ impl GuildTabards {
         cycle_design(&mut design, field, direction, load_catalog()?)?;
         self.draft = Some(design);
         Ok(None)
+    }
+
+    fn begin_save(&mut self) -> Option<GuildTabardRequest> {
+        if !self.can_save() {
+            return None;
+        }
+        let vendor = self.vendor.as_ref().expect("save requires vendor");
+        let design = self.draft.expect("save requires draft");
+        self.waiting = true;
+        Some(GuildTabardRequest::Save {
+            npc: vendor.npc,
+            design,
+        })
     }
 }
 

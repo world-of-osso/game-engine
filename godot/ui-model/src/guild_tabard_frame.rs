@@ -49,32 +49,50 @@ pub fn tabard_screen(shared: &SharedContext) -> Element {
     children.extend(emblem_overlays(view));
     children.extend(customization());
     children.extend(money(view));
-    children.extend(panel_button(
-        "TabardFrameAcceptButton".into(),
-        "Accept",
-        "tabard:accept",
-        view.can_save(),
-        (173.0, 398.0, 80.0, 22.0),
-    ));
-    children.extend(panel_button(
-        "TabardFrameCancelButton".into(),
-        "Cancel",
-        "tabard:close",
-        true,
-        (254.0, 398.0, 80.0, 22.0),
-    ));
-    children.extend(arrow(
-        "TabardCharacterModelRotateLeftButton",
-        "",
-        (14.0, 356.0, 35.0, 35.0),
-    ));
-    children.extend(arrow(
-        "TabardCharacterModelRotateRightButton",
-        "",
-        (44.0, 356.0, 35.0, 35.0),
-    ));
+    children.extend(footer_buttons(view.can_save()));
+    children.extend(rotation_buttons());
     rsx! { r#frame { name: "TabardFrame", width: {SIZE.0}, height: {SIZE.1}, left: 16.0, top: 116.0,
     pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+}
+
+fn footer_buttons(can_save: bool) -> Element {
+    [
+        (
+            "TabardFrameAcceptButton",
+            "Accept",
+            "tabard:accept",
+            can_save,
+            173.0,
+        ),
+        (
+            "TabardFrameCancelButton",
+            "Cancel",
+            "tabard:close",
+            true,
+            254.0,
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, text, action, enabled, left)| {
+        panel_button(
+            name.into(),
+            text,
+            action,
+            enabled,
+            (left, 398.0, 80.0, 22.0),
+        )
+    })
+    .collect()
+}
+
+fn rotation_buttons() -> Element {
+    [
+        ("TabardCharacterModelRotateLeftButton", 14.0),
+        ("TabardCharacterModelRotateRightButton", 44.0),
+    ]
+    .into_iter()
+    .flat_map(|(name, left)| arrow(name, "", (left, 356.0, 35.0, 35.0)))
+    .collect()
 }
 
 fn outer_frame() -> Element {
@@ -287,12 +305,25 @@ fn arrow(name: &str, action: &str, (left, top, width, height): (f32, f32, f32, f
     pos_type: "absolute", mouse_enabled: true } }
 }
 
+fn source_arrow_textures(name: &str) -> Option<(u32, u32, Option<u32>, u32)> {
+    match name {
+        "TabardCharacterModelRotateLeftButton" => Some((130845, 130844, None, 130717)),
+        "TabardCharacterModelRotateRightButton" => Some((130847, 130846, None, 130717)),
+        name if name.starts_with("TabardFrameCustomization") => {
+            if name.ends_with("LeftButton") {
+                Some((130869, 130868, Some(130867), 130757))
+            } else if name.ends_with("RightButton") {
+                Some((130866, 130865, Some(130864), 130757))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
-    use ui_toolkit::{
-        atlas::{ActiveSkin, thread_skin},
-        frame::WidgetData,
-        widgets::texture::{BlendMode, TextureSource},
-    };
+    use ui_toolkit::{frame::WidgetData, widgets::texture::BlendMode};
     let ids: Vec<_> = registry.frames_iter().map(|frame| frame.id).collect();
     for name in ids {
         let frame = registry.get_mut(name).expect("registered tabard frame");
@@ -310,34 +341,28 @@ pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
                 texture.blend_mode = BlendMode::Additive;
             }
         }
-        let Some(WidgetData::Button(button)) = &mut frame.widget_data else {
-            continue;
-        };
-        let textures = if name.starts_with("TabardFrameCustomization")
-            && name.ends_with("LeftButton")
-        {
-            Some((130869, 130868, Some(130867), 130757))
-        } else if name.starts_with("TabardFrameCustomization") && name.ends_with("RightButton") {
-            Some((130866, 130865, Some(130864), 130757))
-        } else if name == "TabardCharacterModelRotateLeftButton" {
-            Some((130845, 130844, None, 130717))
-        } else if name == "TabardCharacterModelRotateRightButton" {
-            Some((130847, 130846, None, 130717))
-        } else {
-            None
-        };
-        if let Some((normal, pushed, disabled, highlight)) = textures {
-            button.normal_texture = Some(TextureSource::FileDataId(normal));
-            button.pushed_texture = Some(TextureSource::FileDataId(pushed));
-            button.disabled_texture = disabled.map(TextureSource::FileDataId);
-            button.highlight_texture = Some(TextureSource::FileDataId(highlight));
-        } else if thread_skin() == ActiveSkin::Modern
-            && matches!(name, "TabardFrameAcceptButton" | "TabardFrameCancelButton")
-        {
-            button.normal_texture = Some(TextureSource::FileDataId(130828));
-            button.pushed_texture = Some(TextureSource::FileDataId(130825));
-            button.disabled_texture = Some(TextureSource::FileDataId(130824));
-            button.highlight_texture = None;
+        if let Some(WidgetData::Button(button)) = &mut frame.widget_data {
+            install_source_button_art(button, name);
         }
+    }
+}
+
+fn install_source_button_art(button: &mut ui_toolkit::widgets::button::ButtonData, name: &str) {
+    use ui_toolkit::{
+        atlas::{ActiveSkin, thread_skin},
+        widgets::texture::TextureSource,
+    };
+    if let Some((normal, pushed, disabled, highlight)) = source_arrow_textures(name) {
+        button.normal_texture = Some(TextureSource::FileDataId(normal));
+        button.pushed_texture = Some(TextureSource::FileDataId(pushed));
+        button.disabled_texture = disabled.map(TextureSource::FileDataId);
+        button.highlight_texture = Some(TextureSource::FileDataId(highlight));
+    } else if thread_skin() == ActiveSkin::Modern
+        && matches!(name, "TabardFrameAcceptButton" | "TabardFrameCancelButton")
+    {
+        button.normal_texture = Some(TextureSource::FileDataId(130828));
+        button.pushed_texture = Some(TextureSource::FileDataId(130825));
+        button.disabled_texture = Some(TextureSource::FileDataId(130824));
+        button.highlight_texture = None;
     }
 }

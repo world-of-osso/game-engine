@@ -1,3 +1,7 @@
+## 2026-10-14 — Guild tabard authority and roster appearance
+
+[Guild tabards](systems/guilds.md#guild-tabard-data-flow): additive durable design/payment, live vendor validation, optional profile/replica/roster wire and source torso tiers have focused CPU proofs. Actual character-selection preparation retains registered layers after lead publication of all7274 authenticated body receipts. Arrow hover RED erased the normal icon; source base plus ADD overlay GREEN. Physical native fixture uses production screen/reducer/loader with simulated replies; both-skin pixels and live networking are not inferred from these tests.
+
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
