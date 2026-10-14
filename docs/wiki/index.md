@@ -236,7 +236,7 @@ WoW file format specifications as used by the engine.
 
 - [m2-format](formats/m2-format.md) — MD21 chunks, bones, animations, geosets, skin files, 156-byte modern light records, first-key authored camera snapshots, particles, texture types, retail batch shaders, texture transforms and wrap flags
 - [adt-format](formats/adt-format.md) — Split files, MCNK MCVT row/column axes and center-fan topology, texture layers, MDDF/MODF placement
-- [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
+- [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, BGRA palette normalization, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
 - [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule, MODF 0x80 MWDS sets and MDDI
 - [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer; [header-order failures and signed geoset gaps](formats/db2-format.md#installed-csv-column-order-and-signed-selections).
