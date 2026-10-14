@@ -4,7 +4,7 @@
 
 ## 2026-10-13 — DB2 and live asset-index refresh implementation
 
-[Asset pipeline](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13): active70391 exact-layout exports and eight cache/catalog outputs;302-table census and zero newly missing TDB join IDs. New-build mappings supersede their owning receipt without duplicates; current-only bundle selection and guarded lead migration pass concrete old-index fixtures. Native RED exposed LightSkybox's new Name column; named-field GREEN passes. All-table translation import hit global OOM; serial native regeneration and both-skin atlas acceptance remain pending. Canonical publication is lead-only.
+[Asset pipeline](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13): active70391 exact-layout exports and eight cache/catalog outputs;302-table census and zero newly missing TDB join IDs. New-build mappings supersede their owning receipt without duplicates; current-only bundle selection and guarded lead migration pass concrete old-index fixtures. Native RED exposed LightSkybox's new Name column; named-field GREEN passes. All-table translation import hit global OOM; serial native regeneration finished78inputs/678resources. Inspected authenticated Modern/Forever captures prove12hotkeys plus3changed-sheet samples; all30 native regions match current CSVs. Canonical publication is lead-only.
 
 ## 2026-10-13 — Basic editor source continuation
 

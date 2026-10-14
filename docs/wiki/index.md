@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports, census, guarded lead migration and pending native/translation acceptance.
+- [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
 
