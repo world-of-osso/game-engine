@@ -44,7 +44,7 @@ use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 /// Composite resolution: the 198-unit Modern map at up to 1.3× UI scale and the 244-unit
 /// Forever map at up to 1.05× without upsampling.
 const COMPOSITE_PX: u32 = 256;
-const DB2_DIR: &str = "db2/12.1.0.69933";
+const DB2_DIR: &str = "db2/active";
 
 pub(crate) struct Minimap {
     pub(crate) ui: Option<Gd<RegistryUi>>,

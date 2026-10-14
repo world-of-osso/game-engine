@@ -145,6 +145,12 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
             info_text: "Raid Tuesdays".into(),
             members: vec![],
         });
+        assert!(
+            mounted(&session)
+                .get_by_name("GuildRosterInviteButton")
+                .is_none()
+        );
+        session.click("guild:chat_open", &Default::default());
         let registry = mounted(&session);
         assert_eq!(
             action(&registry, "GuildRosterInviteButton"),
@@ -617,28 +623,206 @@ fn guild_rank_widgets_disable_unauthorized_and_occupied_controls_both_skins() {
     }
 }
 #[test]
-fn guild_rank_roster_pages_keep_all_members_reachable() {
+fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes_as_public_notes() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    session.apply(state(0));
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: vec![GuildMemberSnapshot {
+            character_name: "Cara".into(),
+            level: 80,
+            class_name: "Paladin".into(),
+            rank_name: "Member".into(),
+            is_online: false,
+            officer_note: "Private strategy".into(),
+            last_online: "Yesterday".into(),
+        }],
+    });
+    let reg = mounted(&session);
+    assert_eq!(text(&reg, "GuildMember0Level"), "80");
+    assert_eq!(text(&reg, "GuildMember0Zone"), "Yesterday");
+    assert_eq!(text(&reg, "GuildMember0Note"), "");
+    assert_eq!(text(&reg, "GuildMember0Name"), "Cara");
+    assert!(reg.get_by_name("GuildMember0Class").is_some());
+}
+
+#[test]
+fn guild_communities_no_design_portrait_matches_retail_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        let reg = mounted(&session);
+        // CommunitiesFrame.xml328–353; GuildUtil.lua115–127,180–202.
+        for (name, fdid, rect, uv, color) in [
+            (
+                "CommunitiesTabardBackground",
+                410251,
+                (-5.0, -8.0, 60.0, 60.0),
+                [0.63183594, 0.69238281, 0.61914063, 0.74023438],
+                [0.2245, 0.2088, 0.1794, 1.0],
+            ),
+            (
+                "CommunitiesTabardEmblem",
+                460904,
+                (-7.0, -9.0, 64.0, 64.0),
+                [0.0, 1.0, 0.0, 1.0],
+                [1.0; 4],
+            ),
+            (
+                "CommunitiesTabardBorder",
+                410251,
+                (-5.0, -7.0, 60.0, 59.0),
+                [0.63183594, 0.69238281, 0.74414063, 0.86523438],
+                [0.2, 0.2, 0.2, 1.0],
+            ),
+        ] {
+            let frame = reg.get(reg.get_by_name(name).expect(name)).unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(rect.0), Val::Px(rect.1))
+            );
+            assert_eq!(
+                (frame.width.value(), frame.height.value()),
+                (rect.2, rect.3)
+            );
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must render texture");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+            assert_eq!(texture.tex_coords, uv);
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
+fn guild_communities_column_sort_keeps_authoritative_rank_identity() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut snapshot = state(0);
+    snapshot.members = vec![
+        GuildRankMember {
+            character_name: "Zara".into(),
+            rank: 1,
+        },
+        GuildRankMember {
+            character_name: "Alessio".into(),
+            rank: 2,
+        },
+    ];
+    session.apply(snapshot.clone());
+    let reg = mounted(&session);
+    session.click(
+        &action(&reg, "CommunitiesRosterColumn2"),
+        &Default::default(),
+    );
+    assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Alessio");
+    session.click("guild:member:Alessio", &Default::default());
+    assert_eq!(
+        session.promote("Alessio"),
+        Some(GuildRankRequest::Promote {
+            character_name: "Alessio".into()
+        })
+    );
+    session.click("guild:roster-sort:name", &Default::default());
+    assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Zara");
+    session.click("guild:roster-sort:rank", &Default::default());
+    assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Zara");
+    assert_eq!(
+        session.state().unwrap(),
+        &snapshot,
+        "Sorting never mutates authoritative ranks or member positions"
+    );
+}
+
+#[test]
+fn guild_communities_retail_scroll_reaches_last_member_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         let mut snapshot = state(0);
-        snapshot.members = (0..13)
+        snapshot.members = (0..32)
             .map(|index| GuildRankMember {
                 character_name: format!("Member{index}"),
                 rank: 2,
             })
             .collect();
         session.apply(snapshot);
-        let reg = mounted(&session);
-        assert!(reg.get_by_name("GuildMember9").is_none());
-        session.click(&action(&reg, "GuildRosterNext"), &Default::default());
-        let reg = mounted(&session);
-        session.click(&action(&reg, "GuildMember12"), &Default::default());
-        assert_eq!(session.member_menu.as_deref(), Some("Member12"));
-        session.click(&action(&reg, "GuildRosterPrevious"), &Default::default());
-        assert!(mounted(&session).get_by_name("GuildMember0").is_some());
+        let mut reg = mounted(&session);
+        let root = reg
+            .get(reg.get_by_name("CommunitiesFrame").unwrap())
+            .unwrap();
+        assert_eq!((root.width.value(), root.height.value()), (814.0, 426.0));
+        assert!(reg.get_by_name("GuildRosterNext").is_none());
+        assert!(reg.get_by_name("GuildRosterPrevious").is_none());
+        assert!(reg.get_by_name("GuildRosterPage").is_none());
+        let list = reg
+            .get(reg.get_by_name("CommunitiesMemberListScrollBox").unwrap())
+            .unwrap();
+        assert_eq!((list.width.value(), list.height.value()), (592.0, 315.0));
+        assert!(
+            reg.scroll_lists
+                .scroll_to("CommunitiesMemberListScrollBox", 10000)
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(session.clone());
+        Screen::new(guild_screen).sync(&shared, &mut reg);
+        assert_eq!(
+            reg.scroll_lists
+                .get("CommunitiesMemberListScrollBox")
+                .unwrap()
+                .first_row,
+            325
+        );
+        let row = reg.get(reg.get_by_name("GuildMember31").unwrap()).unwrap();
+        assert_eq!((row.width.value(), row.height.value()), (592.0, 20.0));
+        session.click(&action(&reg, "GuildMember31"), &Default::default());
+        assert_eq!(session.member_menu.as_deref(), Some("Member31"));
+        assert_eq!(text(&reg, "GuildMember31Name"), "Member31");
+        assert_eq!(text(&reg, "GuildMember31Rank"), "Member");
+        for (name, top, action_name) in [
+            ("GuildRosterTab", 88.0, "guild:roster_open"),
+            ("GuildInfoTab", 192.0, "guild:info_open"),
+        ] {
+            let tab = reg.get(reg.get_by_name(name).unwrap()).unwrap();
+            assert_eq!((tab.width.value(), tab.height.value()), (32.0, 32.0));
+            assert_eq!(tab.position.top, ui_toolkit::layout_values::Val::Px(top));
+            assert_eq!(action(&reg, name), action_name);
+        }
+        for (name, tab_action) in [
+            ("CommunitiesChatTab", "guild:chat_open"),
+            ("CommunitiesGuildBenefitsTab", "guild:benefits_open"),
+        ] {
+            assert_eq!(action(&reg, name), tab_action);
+            session.click(tab_action, &Default::default());
+            assert!(
+                session.commands.is_empty(),
+                "Tab navigation does not fabricate service requests"
+            );
+        }
+        for (index, title) in ["Lvl", "Class", "Name", "Zone", "Rank", "Note"]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                text(&reg, &format!("CommunitiesRosterColumn{index}Label")),
+                *title
+            );
+        }
     }
     set_thread_skin(ActiveSkin::Modern);
 }

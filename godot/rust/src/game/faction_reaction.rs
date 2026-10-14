@@ -78,9 +78,9 @@ mod tests {
         // Shared with the Godot client crate, whose manifest sits two levels deeper.
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
-            .map(|dir| dir.join("data/db2/12.1.0.69933/FactionTemplate.csv"))
+            .map(|dir| dir.join("data/db2/active/FactionTemplate.csv"))
             .find(|path| path.exists())
-            .expect("data/db2/12.1.0.69933/FactionTemplate.csv above the crate");
+            .expect("data/db2/active/FactionTemplate.csv above the crate");
         let text = std::fs::read_to_string(path)
             .expect("FactionTemplate.csv from wago.tools build 12.1.0.69933");
         parse_faction_template_csv(&text).expect("parse FactionTemplate.csv")

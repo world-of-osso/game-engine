@@ -614,6 +614,7 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
                 } else {
                     state.reason.clone()
                 };
+                battleground_trace::record_disconnect(reason.as_deref(), timed_out);
                 events
                     .send(Event::Disconnected(reason))
                     .expect("host event receiver closed");

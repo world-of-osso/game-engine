@@ -125,7 +125,7 @@ fn criminal_sleep_and_sit_poses_leave_the_stand_pose() {
 /// instead of failing with "M2 animation ID 6 has no base variation".
 #[test]
 fn a_corpse_without_a_dead_clip_lies_at_the_end_of_death() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(&root).unwrap();
     let mut player = human_male_hd();
     let err = player.update_locomotion(6, false, false).unwrap_err();

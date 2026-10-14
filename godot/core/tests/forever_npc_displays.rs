@@ -10,13 +10,13 @@ fn forever_npc_displays_resolve_real_ailee_and_ventaari_without_retail_changes()
     let source = Path::new("data");
     let root = std::env::temp_dir().join(format!("forever-npc-real-{}", std::process::id()));
     let forever = root.join("db2/1.60.1.70205");
-    let retail_dir = root.join("db2/12.1.0.69933");
+    let retail_dir = root.join("db2/active");
     std::fs::create_dir_all(&forever).unwrap();
     std::fs::create_dir_all(&retail_dir).unwrap();
     for table in ["CreatureDisplayInfo", "CreatureModelData"] {
         let name = format!("{table}.csv");
         std::fs::copy(
-            source.join("db2/12.1.0.69933").join(&name),
+            source.join("db2/active").join(&name),
             retail_dir.join(&name),
         )
         .unwrap();

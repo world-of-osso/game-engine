@@ -7,12 +7,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from prepare_ui_icons import prepare_ui_icons  # noqa: E402
 
-BUILD = "12.1.0.69933"
+BUILD = "12.1.5.70340"
 
 
 def write_fixture(root: Path, exceptions: list[int]) -> None:
     db2 = root / "data/db2" / BUILD
     db2.mkdir(parents=True)
+    (db2.parent / 'active').symlink_to(BUILD, target_is_directory=True)
+    (db2 / 'receipt.json').write_text(json.dumps({'identity': {'product': 'wow', 'build': BUILD}}))
     (db2 / "SpellMisc.csv").write_text("ID,SpellIconFileDataID,ActiveIconFileDataID\n1,101,0\n2,102,103\n")
     (db2 / "TraitDefinition.csv").write_text("ID,OverrideIcon\n1,0\n")
     (db2 / "ChrClasses.csv").write_text("ID,IconFileDataID\n1,0\n")
@@ -38,6 +40,7 @@ class ReleaseIconExceptions(unittest.TestCase):
             root = Path(tmp)
             write_fixture(root, exceptions=[102, 103])
             manifest = prepare_ui_icons(root, root / "casc-local")
+            self.assertEqual(manifest['spell_db2_build'], BUILD)
             self.assertEqual([icon["fdid"] for icon in manifest["icons"]], [101, 102, 103])
             provenance = json.loads((root / "data/cache/ui-icon-provenance.json").read_text())
             self.assertEqual(provenance["status"], "complete-with-exceptions")
