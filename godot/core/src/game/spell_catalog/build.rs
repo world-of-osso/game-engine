@@ -68,7 +68,7 @@ pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
     apply_effects(dir, &mut spells)?;
     apply_powers(dir, &mut spells)?;
     apply_cooldowns(dir, &mut spells)?;
-    apply_charges(dir, &mut spells)?;
+    apply_categories(dir, &mut spells)?;
     apply_aura_options(dir, &mut spells)?;
     let mut sorted: Vec<CatalogSpell> = spells.into_values().collect();
     sorted.sort_unstable_by_key(|spell| spell.id);
@@ -431,7 +431,7 @@ fn apply_cooldowns(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
     })
 }
 
-fn apply_charges(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+fn apply_categories(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
     let category_columns = ["ID", "MaxCharges", "ChargeRecoveryTime"];
     let categories = load_id_map(dir, "SpellCategory", &category_columns, |row| {
         Ok(SpellCharges {
@@ -439,7 +439,7 @@ fn apply_charges(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
             recovery_ms: row.get(2)?,
         })
     })?;
-    let columns = ["SpellID", "DifficultyID", "ChargeCategory"];
+    let columns = ["SpellID", "DifficultyID", "ChargeCategory", "DefenseType"];
     for_each_row(dir, "SpellCategories", &columns, |row| {
         if !row.is_base_difficulty(1)? {
             return Ok(());
@@ -447,6 +447,7 @@ fn apply_charges(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         let Some(spell) = spells.get_mut(&row.get(0)?) else {
             return Ok(());
         };
+        spell.defense_type = row.get(3)?;
         spell.charges = categories
             .get(&row.get(2)?)
             .copied()

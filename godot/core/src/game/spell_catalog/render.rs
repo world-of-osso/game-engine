@@ -492,7 +492,7 @@ fn letter_value(
     power: Option<super::CasterPower>,
 ) -> Option<f64> {
     let effect = || spell.effect(token.index.unwrap_or(0));
-    let points = || effect_points(effect()?, power);
+    let points = || effect_points(spell, effect()?, power);
     let value = match token.name.as_str() {
         "s" | "S" | "w" | "W" => points()?.abs(),
         "m" | "M" => points()?,
@@ -517,7 +517,11 @@ fn letter_value(
 /// truncated to an integer (`DoneTotal += int32(...)` in `Unit::SpellDamageBonusDone`,
 /// TrinityCore a352b1fa Unit.cpp:6868-6905; the game server's `scaled_amount`). `None`
 /// for level scaled points, and for power scaled points without the player's powers.
-fn effect_points(effect: &super::CatalogEffect, power: Option<super::CasterPower>) -> Option<f64> {
+fn effect_points(
+    spell: &CatalogSpell,
+    effect: &super::CatalogEffect,
+    power: Option<super::CasterPower>,
+) -> Option<f64> {
     if effect.level_scaled {
         return None;
     }
@@ -526,10 +530,16 @@ fn effect_points(effect: &super::CatalogEffect, power: Option<super::CasterPower
         return Some(base);
     }
     let power = power?;
+    // TC Unit.cpp6880 selects RANGED_ATTACK only for SPELL_DAMAGE_CLASS_RANGED3.
+    let attack_power = if spell.defense_type == 3 {
+        power.ranged_attack_power
+    } else {
+        power.attack_power
+    };
     // f32 like the server and TrinityCore: 1.4f × 100 is 140, in f64 139.99999.
     let bonus = |coefficient: f32, power: f32| f64::from((coefficient * power).trunc());
     Some(
-        base + bonus(effect.attack_power_coefficient, power.attack_power)
+        base + bonus(effect.attack_power_coefficient, attack_power)
             + bonus(effect.spell_power_coefficient, power.spell_power),
     )
 }
