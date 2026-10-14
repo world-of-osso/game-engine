@@ -25,6 +25,8 @@ func has_drawable(node: Node) -> bool:
 	return false
 
 func check_reveal() -> void:
+	if root.size != Vector2i(1920, 1080):
+		root.size = Vector2i(1920, 1080)
 	if Time.get_ticks_msec() - started > 180000:
 		push_error("character scene reveal timed out")
 		quit(1)
