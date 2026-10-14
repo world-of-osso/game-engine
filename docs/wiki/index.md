@@ -4,6 +4,10 @@
 
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
 - [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
+- [Forever Seething70 functional victory](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14) —15 gathers/1500, normal return ACK/save, frozen persisted row and no-reset native relog; natural departure/full-body framing open; pressure excludes timing acceptance.
+
+- [Seething disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14) — actual native packet timeout reproduced with25.173s server/41.647s native pauses and severe host memory pressure; system/process attribution pending.
+
 - [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins/order replace filename rejection; real7321940 RED→GREEN30, both-skin equipped-player and HUD-portrait pixels; Forever bronze bars retained, old shared-menu golden drift reported.
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
 
