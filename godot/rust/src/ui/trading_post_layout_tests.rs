@@ -85,6 +85,70 @@ fn assert_rect(
 }
 
 #[test]
+fn trading_post_rotation_controls_project_source_bounds_and_visible_icons_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let (registry, bounds) = render(View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(vendor())),
+            ..Default::default()
+        });
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramRotateButtonContainer",
+            [1050., 990., 100., 48.],
+        );
+        for (direction, left) in [("Left", 1050.), ("Right", 1102.)] {
+            let name = format!("PerksProgramRotate{direction}Button");
+            assert_rect(&registry, &bounds, &name, [left, 990., 48., 48.]);
+            let icon_name = format!("{name}Icon");
+            assert_rect(
+                &registry,
+                &bounds,
+                &icon_name,
+                [left + 11., 1001.5, 26., 25.],
+            );
+            let frame = registry
+                .get(registry.get_by_name(&icon_name).unwrap())
+                .unwrap();
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("Retail rotate icon texture")
+            };
+            let ui_toolkit::widgets::texture::TextureSource::FileDataId(fdid) = texture.source
+            else {
+                panic!("Retail rotate icon FDID")
+            };
+            let bytes = std::fs::read(game_engine_ui_model::paths::resolve_data_path(format!(
+                "textures/{fdid}.blp"
+            )))
+            .unwrap();
+            let decoded = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+            let image =
+                image::RgbaImage::from_raw(decoded.width, decoded.height, decoded.pixels).unwrap();
+            let [left, right, top, bottom] = texture.tex_coords;
+            let region = image::imageops::crop_imm(
+                &image,
+                (left * image.width() as f32).round() as u32,
+                (top * image.height() as f32).round() as u32,
+                ((right - left) * image.width() as f32).round() as u32,
+                ((bottom - top) * image.height() as f32).round() as u32,
+            );
+            assert!(
+                region.pixels().any(|(_, _, pixel)| pixel[3] > 0),
+                "Retail rotate icon contains no visible pixels"
+            );
+        }
+    }
+}
+
+#[test]
 fn trading_post_pending_checkout_keeps_source_overlay_and_centred_spinner_bounds() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
