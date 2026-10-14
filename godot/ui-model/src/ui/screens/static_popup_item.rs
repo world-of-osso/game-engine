@@ -1,4 +1,6 @@
-//! GameDialog.xml / GameDialog.lua item confirmation: Text → ItemFrame → Buttons.
+//! GameDialog.xml / GameDialog.lua confirmation: optional ItemFrame and currency markup.
+#[path = "static_popup_prompt.rs"]
+mod prompt_layout;
 use crate::bank_art::{WHITE, label, texture};
 use crate::quest_art::DynName;
 use crate::ui::strata::FrameStrata;
@@ -6,10 +8,12 @@ use ui_toolkit::{rsx, widget_def::Element};
 
 pub struct ItemConfirmation<'a> {
     pub name: &'a str,
+    pub pending: bool,
     /// The two text runs around the source currency texture markup.
     pub prompt: (&'a str, &'a str),
-    pub currency_icon: u32,
-    pub item: (&'a str, u32, u8),
+    pub currency_icon: Option<u32>,
+    /// GameDialog's hasItemFrame flag; cart/clear confirmations have no item frame.
+    pub item: Option<(&'a str, u32, u8)>,
     pub accept: (&'a str, &'a str),
     pub cancel_action: &'a str,
     pub screen: (f32, f32),
@@ -42,12 +46,36 @@ fn confirmation_contents(props: &ItemConfirmation<'_>) -> (Element, f32) {
     let (prompt, text_height) = confirmation_prompt(props);
     // GameDialog.lua: Text→ItemFrame -5, ItemFrame→Buttons -18; XML padding16.
     let item_y = 16. + text_height + 5.;
-    let buttons_y = item_y + ITEM_HEIGHT + 18.;
+    let buttons_y = if props.item.is_some() {
+        item_y + ITEM_HEIGHT + 18.
+    } else {
+        // GameDialog.lua GetSpacing_ButtonsAfterText: two buttons use9px.
+        16. + text_height + 9.
+    };
     let height = buttons_y + BUTTON_HEIGHT + 16.;
     let mut contents = confirmation_background(props.name, height);
     contents.extend(prompt);
-    contents.extend(item_frame(props.name, props.item, item_y));
+    if let Some(item) = props.item {
+        contents.extend(item_frame(props.name, item, item_y));
+    }
     contents.extend(confirmation_buttons(props, buttons_y));
+    if props.pending {
+        let prefix = props.name;
+        let ring = crate::quest_art::named_atlas_texture(
+            format!("{prefix}SpinnerRing"),
+            "Spinner_Ring",
+            (0., 0., 60., 60.),
+        );
+        let sparks = crate::quest_art::named_atlas_texture(
+            format!("{prefix}SpinnerSparks"),
+            "Spinner_Sparks",
+            (0., 0., 60., 60.),
+        );
+        contents.extend(rsx! {
+            r#frame{name:{DynName(format!("{prefix}DarkOverlay"))},left:0.0,top:0.0,width:WIDTH,height,pos_type:"absolute",frame_level:999.0,mouse_enabled:true,background_color:"0,0,0,0.8"}
+            r#frame{name:{DynName(format!("{prefix}Spinner"))},left:{(WIDTH-60.)/2.},top:{(height-60.)/2.},width:60.0,height:60.0,pos_type:"absolute",frame_level:1000.0,{ring}{sparks}}
+        });
+    }
     (contents, height)
 }
 
@@ -66,12 +94,18 @@ fn confirmation_background(prefix: &str, height: f32) -> Element {
 }
 
 fn confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
+    let Some(currency_icon) = props.currency_icon else {
+        return plain_confirmation_prompt(props);
+    };
     use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
     let (before_width, text_height) =
         measure_text(props.prompt.0, GameFont::FrizQuadrata, TEXT_SIZE).expect("dialog font");
     let (after_width, _) =
         measure_text(props.prompt.1, GameFont::FrizQuadrata, TEXT_SIZE).expect("dialog font");
     let prompt_width = before_width + 4. + 16. + 4. + after_width;
+    if prompt_width > 290. {
+        return prompt_layout::wrapped_currency_prompt(props.name, props.prompt, currency_icon);
+    }
     let prompt_x = (WIDTH - prompt_width) / 2.;
     let prefix = props.name;
     let mut contents = label(
@@ -82,7 +116,7 @@ fn confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
     );
     contents.extend(texture(
         format!("{prefix}CurrencyIcon"),
-        props.currency_icon,
+        currency_icon,
         (
             prompt_x + before_width + 4.,
             16. + (text_height - 16.) / 2.,
@@ -100,6 +134,23 @@ fn confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
     (contents, text_height)
 }
 
+fn plain_confirmation_prompt(props: &ItemConfirmation<'_>) -> (Element, f32) {
+    use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
+    let text = format!("{}{}", props.prompt.0, props.prompt.1);
+    let line_height = measure_text(&text, GameFont::FrizQuadrata, TEXT_SIZE)
+        .expect("dialog font")
+        .1;
+    let text_height =
+        crate::quest_art::wrapped_line_count(&text, 290., TEXT_SIZE) as f32 * line_height;
+    let contents = label(
+        format!("{}TextBefore", props.name),
+        &text,
+        (15., 16., 290., text_height),
+        (TEXT_SIZE, WHITE, "CENTER"),
+    );
+    (contents, text_height)
+}
+
 fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
     let prefix = props.name;
     let button_x = (WIDTH - BUTTON_WIDTH * 2. - BUTTON_GAP) / 2.;
@@ -107,12 +158,14 @@ fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
         &format!("{prefix}Button"),
         props.accept.0,
         props.accept.1,
+        props.pending,
         (button_x, top),
     );
     contents.extend(dialog_button(
         &format!("{prefix}CancelButton"),
         "Cancel",
         props.cancel_action,
+        props.pending,
         (button_x + BUTTON_WIDTH + BUTTON_GAP, top),
     ));
     contents
@@ -141,7 +194,13 @@ fn item_frame(prefix: &str, (name, icon, quality): (&str, u32, u8), top: f32) ->
     width:ITEM_WIDTH,height:ITEM_HEIGHT,pos_type:"absolute",{contents} } }
 }
 
-fn dialog_button(name: &str, text: &str, action: &str, (left, top): (f32, f32)) -> Element {
+fn dialog_button(
+    name: &str,
+    text: &str,
+    action: &str,
+    disabled: bool,
+    (left, top): (f32, f32),
+) -> Element {
     let contents = rsx! {
         texture { name:{DynName(format!("{name}NormalArt"))},texture_fdid:130763,
             width:BUTTON_WIDTH,height:BUTTON_HEIGHT,pos_type:"absolute",left:0.0,top:0.0,
@@ -160,5 +219,5 @@ fn dialog_button(name: &str, text: &str, action: &str, (left, top): (f32, f32)) 
             pos_type:"absolute",left:0.0,top:-1.0 }
     };
     rsx! { button { name:{DynName(name.into())},width:BUTTON_WIDTH,height:BUTTON_HEIGHT,
-    pos_type:"absolute",left,top,button_default_skin:false,onclick:action,{contents} } }
+    pos_type:"absolute",left,top,button_default_skin:false,onclick:action,disabled,{contents} } }
 }

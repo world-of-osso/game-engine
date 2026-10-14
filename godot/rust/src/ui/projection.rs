@@ -515,19 +515,6 @@ impl UiProjection {
                 .as_deref()
                 .unwrap_or(&format!("Frame{}", frame.id)),
         );
-        // Shared dropdown chrome carries ButtonData for pressed/hover art only; its
-        // owner, not this actionless child surface, receives pointer events.
-        let passive_dropdown_art = frame.onclick.is_none()
-            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
-                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
-                    if atlas.starts_with("common-dropdown-")));
-        node.set_mouse_filter(if passive_dropdown_art {
-            godot::classes::control::MouseFilter::IGNORE
-        } else if frame.mouse_enabled {
-            godot::classes::control::MouseFilter::STOP
-        } else {
-            godot::classes::control::MouseFilter::IGNORE
-        });
         let mut parts = Control::new_alloc();
         parts.set_name(PARTS_NODE);
         parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
@@ -681,6 +668,19 @@ impl UiProjection {
         registry: &FrameRegistry,
     ) -> Result<(), String> {
         let mut node = self.nodes[&frame.id].clone();
+        // Reconcile pointer policy when a disabled breadcrumb becomes actionable.
+        // Shared dropdown chrome is passive; its owner receives pointer events.
+        let passive_dropdown_art = frame.onclick.is_none()
+            && matches!(&frame.widget_data, Some(WidgetData::Button(button))
+                if matches!(&button.normal_texture, Some(TextureSource::Atlas(atlas))
+                    if atlas.starts_with("common-dropdown-")));
+        node.set_mouse_filter(if passive_dropdown_art {
+            godot::classes::control::MouseFilter::IGNORE
+        } else if frame.mouse_enabled {
+            godot::classes::control::MouseFilter::STOP
+        } else {
+            godot::classes::control::MouseFilter::IGNORE
+        });
         let parent = frame.parent_id.and_then(|id| bounds.get(&id));
         let origin = parent.map_or(Vector2::ZERO, |rect| Vector2::new(rect.x, rect.y));
         // Godot snaps every control to whole pixels on its own. A turned texture's rect
