@@ -6,9 +6,11 @@ use crate::{
 use shared::protocol::MajorFactionSnapshot;
 use ui_toolkit::{rsx, widget_def::Element};
 
-pub(super) fn track(faction: &MajorFactionSnapshot, selected: u32) -> Element {
+pub(super) fn track(faction: &MajorFactionSnapshot, state: &super::Journeys) -> Element {
+    let selected = state.level;
+    let offset = state.track_offset();
     let levels = (1..=faction.max_level)
-        .flat_map(|level| level_button(faction, selected, level))
+        .flat_map(|level| level_button(faction, selected, level, offset))
         .collect::<Element>();
     let arrows = arrows(selected, faction.max_level);
     rsx! {r#frame {
@@ -18,9 +20,9 @@ pub(super) fn track(faction: &MajorFactionSnapshot, selected: u32) -> Element {
     }}
 }
 
-fn level_button(faction: &MajorFactionSnapshot, selected: u32, level: u32) -> Element {
+fn level_button(faction: &MajorFactionSnapshot, selected: u32, level: u32, offset: f32) -> Element {
     let prefix = format!("JourneyRenownLevel{level}");
-    let left = 257.5 + (level as f32 - selected as f32) * 53.;
+    let left = 257.5 + (level - 1) as f32 * super::sliding::LEVEL_SPACING - offset;
     let contents = level_art(faction, selected, level, &prefix);
     let action = format!("journal:journey-select-level:{level}");
     rsx! {button {
@@ -156,7 +158,12 @@ fn arrow(
     if disabled {
         return rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:true,{parts}}};
     }
-    rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,onclick:{action.as_str()},{parts}}}
+    if small {
+        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,onclick:{action.as_str()},{parts}}}
+    } else {
+        // RewardTrackButtonTemplate is driven by physical down/up, not OnClick.
+        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,{parts}}}
+    }
 }
 
 fn arrow_atlas(small: bool, suffix: &str) -> String {

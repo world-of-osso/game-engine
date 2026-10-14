@@ -1,6 +1,7 @@
 //! Retail Mainline Journeys (Blizzard_Journeys.lua/.xml) over realm renown snapshots.
 //! Renown cards and the reward track only; unsourced journey/encounter categories,
 //! texture kits, claim state and Delves companions are not shown.
+mod sliding;
 mod track;
 use crate::adventure_guide::{scroll_in, text};
 use crate::auction_mail::text as global_string;
@@ -21,12 +22,13 @@ const MAX_REWARD_CARDS: usize = 4;
 const CARD: (f32, f32) = (374., 112.);
 const REWARD_CARD: (f32, f32) = (317., 106.);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Journeys {
     pub expansion: u8,
     pub expansion_open: bool,
     pub selected: Option<u32>,
     pub level: u32,
+    pub scroll: Option<sliding::Scroll>,
 }
 impl Default for Journeys {
     fn default() -> Self {
@@ -35,6 +37,7 @@ impl Default for Journeys {
             expansion_open: false,
             selected: None,
             level: 0,
+            scroll: None,
         }
     }
 }
@@ -51,6 +54,10 @@ pub fn apply(
     key: &str,
     value: Option<&str>,
 ) -> Result<(), String> {
+    if state.is_scrolling() && matches!(key, "journey-select-level" | "journey-level") {
+        return Ok(());
+    }
+    state.scroll = None;
     let number = || {
         value
             .ok_or("Missing journey value")?
@@ -128,7 +135,7 @@ pub fn journeys(
         .selected
         .and_then(|id| snapshot.factions.iter().find(|f| f.id == id))
     {
-        Some(faction) => progress(faction, state.level),
+        Some(faction) => progress(faction, state),
         None => journey_list(ctx, state, snapshot),
     }
 }
@@ -270,7 +277,8 @@ fn renown_card(faction: &MajorFactionSnapshot, left: f32, top: f32) -> Element {
     }}
 }
 
-fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
+fn progress(faction: &MajorFactionSnapshot, state: &Journeys) -> Element {
+    let level = state.level;
     let mut body = label(
         "JourneyProgressName".into(),
         &faction.name,
@@ -278,7 +286,7 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
         (20., WHITE, "CENTER"),
     );
     body.extend(progress_details(faction));
-    body.extend(track::track(faction, level));
+    body.extend(track::track(faction, state));
     body.extend(named_atlas_texture(
         "JourneyProgressDivider".into(),
         "ui-journeys-renown-divider",
