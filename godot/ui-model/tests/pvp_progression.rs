@@ -192,8 +192,8 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
 
 #[test]
 fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() {
-    use game_engine_ui_model::battleground::{PvpView, pvp_screen};
-    use shared::protocol::PvpSnapshot;
+    use game_engine_ui_model::battleground::{PvpAction, PvpView, pvp_screen};
+    use shared::protocol::{PvpBracketSnapshot, PvpSnapshot};
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     game_engine_ui_model::paths::set_data_root(data).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -228,8 +228,22 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
         };
         assert!(text.text.contains("750"));
         assert!(text.text.contains("15000"));
-        view.action("pvp:category:rated");
-        shared.insert(view);
+        let rated_category = registry
+            .get(
+                registry
+                    .get_by_name("PVPQueueFrameCategoryButton2")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            rated_category.onclick.as_deref(),
+            Some("pvp:category:rated")
+        );
+        assert_eq!(
+            view.action(rated_category.onclick.as_deref().unwrap()),
+            None
+        );
+        shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         let conquest = registry
             .get(
@@ -241,21 +255,48 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
         let Some(WidgetData::FontString(text)) = conquest.widget_data.as_ref() else {
             panic!("Conquest balance text")
         };
-        assert!(text.text.contains("120"));
-        let policy = registry
-            .get(registry.get_by_name("ConquestFramePolicy").unwrap())
-            .unwrap();
-        let Some(WidgetData::FontString(text)) = policy.widget_data.as_ref() else {
-            panic!("Policy gap text")
-        };
-        assert!(
-            text.text
-                .contains("2v2 • Full max-level group; leader queues")
+        assert_eq!(
+            text.text, "Conquest: 120",
+            "wallet, not invented season progress/cap"
         );
+        // The Retail activity rows replaced the standalone policy annotation.
+        for (name, expected) in [
+            ("ConquestFrameArena2v2Text", "2v2"),
+            ("ConquestFrameArena2v2TypeText", "Rated Arena"),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::FontString(text)) = frame.widget_data.as_ref() else {
+                panic!("Rated activity text: {name}")
+            };
+            assert_eq!(text.text, expected);
+        }
+        for activity in [
+            "ConquestFrameRatedSoloShuffle",
+            "ConquestFrameRatedBGBlitz",
+            "ConquestFrameArena2v2",
+            "ConquestFrameArena3v3",
+            "ConquestFrameRatedBG",
+        ] {
+            assert!(
+                registry
+                    .get_by_name(&format!("{activity}CurrentRating"))
+                    .is_none(),
+                "no invented rating without authoritative bracket stats"
+            );
+        }
+        let arena = registry
+            .get(registry.get_by_name("ConquestFrameArena2v2").unwrap())
+            .unwrap();
+        assert_eq!(arena.onclick.as_deref(), Some("pvp:rated:2v2"));
+        assert_eq!(view.action(arena.onclick.as_deref().unwrap()), None);
         let join = registry
             .get(registry.get_by_name("ConquestFrameJoinButton").unwrap())
             .unwrap();
         assert_eq!(join.onclick.as_deref(), Some("pvp:rated:queue"));
+        assert_eq!(
+            view.action(join.onclick.as_deref().unwrap()),
+            Some(PvpAction::Rated(PvpBracketSnapshot::Arena2v2))
+        );
         assert!(
             registry.get_by_name("HonorFrameQueueButton").is_none(),
             "rated tab uses its own authoritative queue action"
