@@ -34,9 +34,15 @@ Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and select
 
 ### Mode and Expert submode hotkey labels
 
-Supported Basic/Expert mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Cleanup's separate screen, unsupported submode actions, tooltips and active-glow animation remain separate work.
+Supported Basic/Expert/Cleanup mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Unsupported submode actions, tooltips and active-glow animation remain separate work.
 
-Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales, active glow and complete appearance parity remain separate.
+Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Basic/Expert both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales, active glow and complete appearance parity remain separate.
+
+## Cleanup source controls
+
+Cleanup uses the maintained64px shared supported-mode bar at bottom center, including disabled Customize, assigned icon labels and common active/pressed/hover art. No separate192px three-button/y84 toolbar remains. Its sole source `SelectInstruction` says `Remove Decor`, with the same45px/right30 layout and left-click glyph as the other editor instruction rows. Both storage parts and Basic/Expert submode bars stay hidden. Hover, authoritative removal/conservation and readonly refusal remain unchanged; tooltip style/predicates, unsupported modes and sounds are separate scope. Native both-skin acceptance for this chrome change remains pending.
+
+Source: `Blizzard_HouseEditorCleanupMode.xml/lua`, shared ModeButtons/Instructions templates, installed70391 `HOUSING_CLEANUP_SELECT_INSTRUCTION`.
 
 ## Expert editor actions — continuation
 
