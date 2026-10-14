@@ -2,6 +2,9 @@
 
 [Journeys](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): source renown card/reward anchors, shared dropdown/Home and native reward GameTooltip. Actual wheel RED2→2 at24ba6c127 becomes both-skin2→3/jump1/25/Home GREEN at7fa263976;10 individually inspected full-HD captures with binary/fixture/PNG receipt. UI9/9; kit/category/priority/hidden/claim/overview/unlock metadata and producers remain open. Capture inspection found the clipped unsupported notice, still active rather than claimed fixed.
 
+## 2026-10-13 — Expert editor source continuation
+
+[Housing](systems/housing.md#expert-source-action-continuation--implementation2026-10-13): fourteen assigned/unbound action identities and distinct held increments replace hardcoded keys; shared source mode controls and target/manipulation/submode instruction rows replace invented help text. Current canonical GlobalStrings labels are user-authorized pending installed70391 export. New both-skin paid1693/2330 and readonly-visitor physical assignment/release/stage/cancel/click-commit/relog proof passes; active housing-key precedence repairs the acceptedF10/global HUD conflict without changing inactive HUD behavior; hotkey visuals, snap and source-rate/axis parity remain gaps.
 ## 2026-10-13 — Adventure Guide independent-gate corrections
 
 [Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Final shared context shell/row geometry, RGB0.35 instructions and hidden Loot title pass Guide41/shared6 tests and both-skin24 full-HD capture at7d99b7225. Code/binary/PNG receipt and source XML inspection are recorded; extra tooltip-font and inherited Options-wheel test failures remain explicit.
