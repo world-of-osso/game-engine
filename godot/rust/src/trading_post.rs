@@ -13,6 +13,21 @@ use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
 use shared::protocol::{EquipmentSlot, TradingPostRequest};
 
+/// PerksModelSceneControlButtonMixin:IconCENTER(1,-1)while held;0,0 on release.
+fn move_trading_rotate_icon(ui: &Gd<RegistryUi>, name: &str, pressed: bool) {
+    let Some(button) = ui.bind().frame_control(name) else {
+        return;
+    };
+    let Some(mut icon) = ui.bind().frame_control(&format!("{name}Icon")) else {
+        return;
+    };
+    let rect = button.get_global_rect();
+    let scale = rect.size.x / 48.;
+    let offset = if pressed { 1. } else { 0. };
+    let position = rect.position + Vector2::new(11. + offset, 11.5 + offset) * scale;
+    icon.set_global_position(position);
+}
+
 fn contains_pointer([x, y, width, height]: [f32; 4], point: Vector2) -> bool {
     Rect2::new(Vector2::new(x, y), Vector2::new(width, height)).contains_point(point)
 }
@@ -35,8 +50,10 @@ pub(crate) struct TradingPost {
     rotating: bool,
     dragged: Option<ProductDrag>,
     /// HUD layers hidden while shown: UIPanelWindows area "full" hides UIParent.
-    hidden_layers: Vec<Gd<CanvasLayer>>,
+    hidden_layers: std::collections::HashSet<InstanceId>,
     preview_failed: bool,
+    snapshot_observed_at: Option<std::time::Instant>,
+    spinner_started_at: Option<std::time::Instant>,
 }
 
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
@@ -58,6 +75,7 @@ impl GameClient {
         self.account.trading_post = None;
         self.trading_post.view.snapshot = None;
         self.trading_post.view.visible = true;
+        self.trading_post.view.hide_armor_setting = None;
         self.account
             .send_trading_post(TradingPostRequest::Query)
             .map_err(|error| error.to_string())
@@ -65,9 +83,11 @@ impl GameClient {
     pub(super) fn close_trading_post(&mut self) -> bool {
         let visible = self.trading_post.view.visible;
         self.trading_post.view.visible = false;
+        self.trading_post.view.clear_cart();
         self.clear_trading_model();
-        for mut layer in std::mem::take(&mut self.trading_post.hidden_layers) {
-            if layer.is_instance_valid() {
+        for id in std::mem::take(&mut self.trading_post.hidden_layers) {
+            // Other UI owners may have removed their layer while the vendor was open.
+            if let Ok(mut layer) = Gd::<CanvasLayer>::try_from_instance_id(id) {
                 layer.set_visible(true);
             }
         }
@@ -79,7 +99,10 @@ impl GameClient {
         visible
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
-        if self.trading_post.view.confirm.take().is_some() {
+        if self.trading_post.view.confirm.is_some() {
+            if !self.trading_post.view.pending {
+                self.trading_post.view.confirm = None;
+            }
             return Ok(true);
         }
         if self.trading_post.view.dropdown {
@@ -115,6 +138,7 @@ impl GameClient {
             let current = self.trading_post.view.snapshot.as_ref();
             if !current.is_some_and(|current| std::sync::Arc::ptr_eq(current, snapshot)) {
                 self.trading_post.view.receive(snapshot.clone());
+                self.trading_post.snapshot_observed_at = Some(std::time::Instant::now());
                 if self.trading_post.view.visible && snapshot.npc_net_id.is_none() {
                     self.close_trading_post();
                 }
@@ -123,13 +147,25 @@ impl GameClient {
         if !self.trading_post.view.visible {
             return Ok(());
         }
+        if let Some(observed_at) = self.trading_post.snapshot_observed_at {
+            self.trading_post.view.refund_elapsed =
+                observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
+        }
         self.trading_post.view.horde = self.player_is_horde();
         self.poll_trading_inputs()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
+            // Release the detached scene while its old UI host is still alive.
+            let prepared = self.prepare_trading_model();
+            let can_attach = prepared.is_ok();
+            self.record_trading_preview(prepared);
             self.sync_trading_ui()?;
-            let preview = self.sync_trading_model();
-            self.record_trading_preview(preview);
+            self.animate_trading_spinner();
+            self.animate_trading_rotation();
+            if can_attach {
+                let preview = self.sync_trading_model();
+                self.record_trading_preview(preview);
+            }
         }
         Ok(())
     }
@@ -161,9 +197,7 @@ impl GameClient {
             let name = layer.get_name().to_string();
             if layer.is_visible() && !KEPT_LAYERS.contains(&name.as_str()) {
                 layer.set_visible(false);
-                if !self.trading_post.hidden_layers.contains(&layer) {
-                    self.trading_post.hidden_layers.push(layer);
-                }
+                self.trading_post.hidden_layers.insert(layer.instance_id());
             }
         }
     }
@@ -184,6 +218,37 @@ impl GameClient {
                 return Ok(());
             }
         }
+        let pointer = self
+            .base()
+            .get_viewport()
+            .ok_or("Trading Post viewport missing")?
+            .get_mouse_position();
+        self.trading_post.view.cart_hover =
+            self.trading_post.view.cart_items().iter().find_map(|row| {
+                let template = if row.category_id == 8 { "Set" } else { "Item" };
+                let name = format!("PerksProgramCart{template}{}", row.id);
+                [name.clone(), format!("{name}Remove")]
+                    .iter()
+                    .any(|name| {
+                        ui.bind()
+                            .frame_viewport_rect(name)
+                            .is_some_and(|rect| contains_pointer(rect, pointer))
+                    })
+                    .then_some(row.id)
+            });
+        self.trading_post.view.cart_item_hover =
+            ui.bind().hovered_button().and_then(|(name, _)| {
+                if let Some(ids) = name.strip_prefix("PerksProgramCartSubItem") {
+                    return ids.split_once('_')?.1.parse().ok();
+                }
+                let vendor: u32 = name.strip_prefix("PerksProgramCartItem")?.parse().ok()?;
+                self.trading_post
+                    .view
+                    .cart_items()
+                    .iter()
+                    .find(|row| row.id == vendor)
+                    .map(|row| row.item_id)
+            });
         if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
             if let Some((name, _)) = ui.bind().hovered_button() {
                 match name.as_str() {
@@ -218,6 +283,50 @@ impl GameClient {
         }
         Ok(())
     }
+    fn animate_trading_spinner(&mut self) {
+        if !self.trading_post.view.pending
+            || self.trading_post.view.confirm.as_deref() != Some("cart-checkout")
+        {
+            self.trading_post.spinner_started_at = None;
+            return;
+        }
+        let started = self
+            .trading_post
+            .spinner_started_at
+            .get_or_insert_with(std::time::Instant::now);
+        // SpinnerTemplate: both textures rotate -360 degrees every two seconds.
+        let rotation = started.elapsed().as_secs_f32() * std::f32::consts::PI;
+        let Some(ui) = &self.trading_post.ui else {
+            return;
+        };
+        if let Some(mut spinner) = ui.bind().frame_control("PerksProgramConfirmSpinner") {
+            spinner.set_pivot_offset(Vector2::new(30., 30.));
+            spinner.set_rotation(rotation);
+        }
+    }
+
+    fn animate_trading_rotation(&mut self) {
+        let Some(ui) = &self.trading_post.ui else {
+            return;
+        };
+        let pressed = if self.trading_post.view.confirm.is_none() {
+            ui.bind().pushed_button()
+        } else {
+            None
+        };
+        // ModelSceneMixin.OnUpdate/PerksProgram.xml:0.1 radians per update, not per click.
+        for (name, increment) in [
+            ("PerksProgramRotateLeftButton", -0.1),
+            ("PerksProgramRotateRightButton", 0.1),
+        ] {
+            let down = pressed.as_deref() == Some(name);
+            if down {
+                self.trading_post.yaw += increment;
+            }
+            move_trading_rotate_icon(ui, name, down);
+        }
+    }
+
     fn sync_trading_ui(&mut self) -> Result<(), String> {
         let size = self
             .base()
@@ -248,7 +357,7 @@ impl GameClient {
         Ok(())
     }
     fn desired_trading_appearance(&self) -> Result<Option<UnitAppearance>, String> {
-        let Some(row) = self.trading_post.view.selected_item() else {
+        let Some(row) = self.trading_post.view.preview_product() else {
             return Ok(None);
         };
         // Unavailable rows show their source gap in the details text instead of a model.
@@ -268,12 +377,17 @@ impl GameClient {
         };
         let catalog = game_engine_ui_model::item_catalog::item_catalog()
             .ok_or("Trading Post Retail item catalog still loading")?;
-        let mut equipment = if row.category_id == 8 {
+        let mut equipment = if self.trading_post.view.hide_armor()? {
             EquipmentAppearance::default()
         } else {
             equipped.clone()
         };
-        for id in &row.preview_item_ids {
+        let preview_items = if self.trading_post.view.cart_visible {
+            self.trading_post.view.cart_preview_item_ids()
+        } else {
+            row.preview_item_ids.clone()
+        };
+        for id in &preview_items {
             let item = catalog
                 .get(*id)
                 .ok_or_else(|| format!("Trading Post preview item{id} metadata unavailable"))?;
@@ -306,7 +420,7 @@ impl GameClient {
         }
         self.trading_post.shown = None;
     }
-    fn sync_trading_model(&mut self) -> Result<(), String> {
+    fn prepare_trading_model(&mut self) -> Result<(), String> {
         let desired = self.desired_trading_appearance()?;
         let current = self
             .trading_post
@@ -321,6 +435,9 @@ impl GameClient {
                 self.trading_post.pending = Some((id, appearance));
             }
         }
+        Ok(())
+    }
+    fn sync_trading_model(&mut self) -> Result<(), String> {
         if self.trading_post.pending.is_none() && self.trading_post.shown.is_none() {
             return Ok(());
         }
@@ -587,6 +704,7 @@ impl GameClient {
         let mut state = VarDictionary::new();
         state.set("open", view.visible);
         state.set("selected", view.selected.map_or(-1, i64::from));
+        state.set("model_yaw", self.trading_post.yaw);
         let enabled_types: Vec<_> = view
             .snapshot
             .iter()
@@ -650,6 +768,28 @@ impl GameClient {
             .collect();
         state.set("rows", &rows);
         state.set("pending", view.pending);
+        state.set("cart_visible", view.cart_visible);
+        state.set(
+            "cart",
+            &view
+                .cart
+                .iter()
+                .map(|id| i64::from(*id))
+                .collect::<PackedInt64Array>(),
+        );
+        state.set(
+            "cart_preview_items",
+            &view
+                .cart_preview_item_ids()
+                .iter()
+                .map(|id| i64::from(*id))
+                .collect::<PackedInt64Array>(),
+        );
+        state.set("cart_price", view.cart_price() as i64);
+        match view.hide_armor() {
+            Ok(hide) => state.set("hide_armor", hide),
+            Err(error) => state.set("outfit_error", error.as_str()),
+        }
         state.set(
             "hidden_layers",
             self.trading_post.hidden_layers.len() as i64,
@@ -663,6 +803,13 @@ impl GameClient {
             if let Some(row) = view.selected_item() {
                 state.set("selected_name", row.name.as_str());
                 state.set("item_id", i64::from(row.item_id));
+                state.set(
+                    "preview_item_ids",
+                    &row.preview_item_ids
+                        .iter()
+                        .map(|id| i64::from(*id))
+                        .collect::<PackedInt64Array>(),
+                );
                 state.set("price", i64::from(row.price));
                 state.set("purchased", row.purchased);
                 state.set("collected", row.collected);

@@ -6,11 +6,13 @@ use crate::{
 use shared::protocol::MajorFactionSnapshot;
 use ui_toolkit::{rsx, widget_def::Element};
 
-pub(super) fn track(faction: &MajorFactionSnapshot, selected: u32) -> Element {
+pub(super) fn track(faction: &MajorFactionSnapshot, state: &super::Journeys) -> Element {
+    let selected = state.level;
+    let offset = state.track_offset();
     let levels = (1..=faction.max_level)
-        .flat_map(|level| level_button(faction, selected, level))
+        .flat_map(|level| level_button(faction, selected, level, offset))
         .collect::<Element>();
-    let arrows = arrows(selected, faction.max_level);
+    let arrows = arrows(state, faction.max_level);
     rsx! {r#frame {
         name:"JourneyRenownTrack",left:{109.5},top:90.0,width:570.0,height:72.0,pos_type:"absolute",
         r#frame {name:"JourneyRenownTrackClip",left:0.0,top:0.0,width:570.0,height:72.0,pos_type:"absolute",{levels}}
@@ -18,9 +20,9 @@ pub(super) fn track(faction: &MajorFactionSnapshot, selected: u32) -> Element {
     }}
 }
 
-fn level_button(faction: &MajorFactionSnapshot, selected: u32, level: u32) -> Element {
+fn level_button(faction: &MajorFactionSnapshot, selected: u32, level: u32, offset: f32) -> Element {
     let prefix = format!("JourneyRenownLevel{level}");
-    let left = 257.5 + (level as f32 - selected as f32) * 53.;
+    let left = 257.5 + (level - 1) as f32 * super::sliding::LEVEL_SPACING - offset;
     let contents = level_art(faction, selected, level, &prefix);
     let action = format!("journal:journey-select-level:{level}");
     rsx! {button {
@@ -40,7 +42,7 @@ fn level_art(faction: &MajorFactionSnapshot, selected: u32, level: u32, prefix: 
     };
     let reward = faction.rewards.iter().find(|reward| reward.level == level);
     let shape = reward.map_or("square", reward_shape);
-    let mut contents = level_icon(reward, prefix);
+    let mut contents = level_icon(reward, prefix, shape);
     contents.extend(level_border(prefix, shape, suffix));
     contents.extend(level_caption(prefix, level, earned));
     contents
@@ -54,10 +56,14 @@ fn reward_shape(reward: &shared::protocol::RenownReward) -> &'static str {
     }
 }
 
-fn level_icon(reward: Option<&shared::protocol::RenownReward>, prefix: &str) -> Element {
+fn level_icon(
+    reward: Option<&shared::protocol::RenownReward>,
+    prefix: &str,
+    shape: &str,
+) -> Element {
     reward.map_or_else(Vec::new, |reward| {
         texture(
-            format!("{prefix}Icon"),
+            format!("{prefix}{shape}Icon"),
             reward.icon,
             (6.5, 6.5, 42., 42.),
             WHITE,
@@ -101,19 +107,22 @@ fn level_caption(prefix: &str, level: u32, earned: bool) -> Element {
     contents
 }
 
-fn arrows(selected: u32, max: u32) -> Element {
+fn arrows(state: &super::Journeys, max: u32) -> Element {
+    let selected = state.track_selected_index();
+    let offset = state.track_offset();
+    let maximum = max.saturating_sub(1) as f32 * super::sliding::LEVEL_SPACING;
     let mut contents = arrow(
         "JourneyLevelPrev",
         "prev",
         (-26., 19., 22., 34.),
-        selected <= 1,
+        offset <= 0.,
         false,
     );
     contents.extend(arrow(
         "JourneyLevelNext",
         "next",
         (574., 19., 22., 34.),
-        selected >= max,
+        offset >= maximum,
         false,
     ));
     contents.extend(arrow(
@@ -152,7 +161,12 @@ fn arrow(
     if disabled {
         return rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:true,{parts}}};
     }
-    rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,onclick:{action.as_str()},{parts}}}
+    if small {
+        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:false,onclick:{action.as_str()},{parts}}}
+    } else {
+        // RewardTrackButtonTemplate is driven by physical down/up, not OnClick.
+        rsx! {button {name,left,top,width,height,pos_type:"absolute",button_default_skin:false,disabled:false,{parts}}}
+    }
 }
 
 fn arrow_atlas(small: bool, suffix: &str) -> String {

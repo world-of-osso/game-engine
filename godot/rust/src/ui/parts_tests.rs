@@ -278,6 +278,41 @@ fn retail_shared_red_button_preserves_authored_caps_in_each_state() {
 }
 
 #[test]
+fn trading_post_rotate_button_projects_additive_hover_and_offset_pressed_art() {
+    for state in [ButtonState::Normal, ButtonState::Pushed] {
+        let frame = button(ButtonData {
+            normal_texture: atlas("perks-button-up"),
+            pushed_texture: atlas("perks-button-down"),
+            highlight_texture: atlas("perks-button-up"),
+            highlight_alpha: 0.6,
+            hovered: true,
+            state,
+            use_default_skin: false,
+            ..Default::default()
+        });
+        let parts = project_images(&frame, 48., 48.);
+        assert_eq!(
+            parts.len(),
+            2,
+            "Retail normal/pushed plus additive highlight"
+        );
+        let base = &parts[0];
+        assert_eq!(
+            base.rect,
+            if state == ButtonState::Pushed {
+                [1., 1., 48., 48.]
+            } else {
+                [0., 0., 48., 48.]
+            }
+        );
+        let hover = &parts[1];
+        assert_eq!(hover.rect, [0., 0., 48., 48.]);
+        assert!(hover.additive);
+        assert_eq!(hover.color, [1., 1., 1., 0.6]);
+    }
+}
+
+#[test]
 fn authored_button_textures_replace_the_default_skin() {
     let data = ButtonData {
         normal_texture: atlas("128-redbutton-up"),

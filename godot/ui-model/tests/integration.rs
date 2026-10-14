@@ -95,6 +95,7 @@ mod quest_flow;
 mod quest_poi_hover;
 mod raid_entry;
 mod readycheck_afk;
+mod reputation_status_bar;
 mod rezrtap;
 mod roster_mapping;
 mod scenarios;
