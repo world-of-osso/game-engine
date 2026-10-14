@@ -275,6 +275,16 @@ func checkout_cart() -> void:
 	if not await wait_until(func(): return client.trading_post_state().cart_visible and control("PerksProgramCartPurchaseButton") != null and client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "player", "cart composite preview"): return
 	if int(client.trading_post_state().cart_price) != total: fail("Cart total differs from authored prices"); return
 	await capture("cart-four-products")
+	var wearable = bought[0]
+	var mount = bought[1]
+	await click("PerksProgramCartItem%d" % int(mount.vendor))
+	if not await wait_until(func(): return client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "creature", "OTHER cart preview"): return
+	var dimmed := control("PerksProgramCartItem%d" % int(wearable.vendor))
+	if absf(dimmed.modulate.a - 0.7) > 0.01: fail("OTHER preview did not dim wearable to source alpha0.7"); return
+	await capture("cart-other-preview")
+	await click("PerksProgramCartItem%d" % int(wearable.vendor))
+	if not await wait_until(func(): return client.trading_post_state().preview_ready and client.trading_post_state().preview_kind == "player" and int(wearable.item_id) in client.trading_post_state().cart_preview_items, "disabled wearable clears OTHER without deselection"): return
+	await capture("cart-other-cleared")
 	await click("PerksProgramCartClearButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "clear confirmation"): return
 	await capture("cart-clear-confirm")
