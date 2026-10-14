@@ -391,6 +391,10 @@ impl NetworkBridge {
                 .unwrap_or_else(|error| {
                     panic!("missing sender for {}: {error}", std::any::type_name::<M>())
                 });
+            if std::any::TypeId::of::<M>() == std::any::TypeId::of::<protocol::TradingPostRequest>()
+            {
+                eprintln!("TP_DELIVERY_WORKER_SEND");
+            }
             sender.send::<C>(message);
         })
     }
@@ -630,6 +634,16 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
         (move |mut receivers: Query<&mut MessageReceiver<M>>| {
             for mut receiver in &mut receivers {
                 for message in receiver.receive() {
+                    if let Some(snapshot) = (&message as &dyn std::any::Any)
+                        .downcast_ref::<protocol::TradingPostSnapshot>()
+                    {
+                        eprintln!(
+                            "TP_DELIVERY_WORKER_RECV full={} rows={} tender={}",
+                            snapshot.catalog_complete,
+                            snapshot.items.len(),
+                            snapshot.tender
+                        );
+                    }
                     battleground_trace::record_relay(&message);
                     events
                         .send(Event::Message(ProtocolMessage(Box::new(message))))

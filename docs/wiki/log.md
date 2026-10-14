@@ -17,6 +17,14 @@
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+## 2026-10-14 — Client UDP receive queue
+
+[Receive queue](systems/trading-post.md#client-udp-receive-queue--2026-10-14): production socket drops reproduced by a 512-datagram pre-drain burst. Shared UDP transport now requests 4 MiB and reports effective OS allocation. Burst retention RED 92/512 → GREEN 512/512; pacing, Windows and sub-second application delivery remain separate transport gates.
+
+## 2026-10-14 — Trading Post reply ordering
+
+[Guide delivery](systems/trading-post.md#unsolicited-guide-delivery--2026-10-14): monthly settlement no longer sends an unsolicited full Guide before vendor replies. Purchase/no-Guide regression RED→GREEN; monthly credit and rollover retained. Native sub-second delivery remains a transport acceptance gate.
+
 ## 2026-10-13 — Journeys unknown-unlock notice native proof
 
 [Notice proof](systems/adventure-guide.md#journeys-native-continuation--2026-10-13): actual clipped-bounds RED corrected with source LockedStateFrame anchoring, centered16px text and authored cursor-right requirement tooltip. Both-skin native dee707137 PASS; UI10/10,12 revision-directory full-HD captures with hashed receipt. Unknown never becomes fabricated locked/unlocked; no extra renown grant or runtime remains.70391 presentation metadata publication remains separate pending scope.
@@ -3723,3 +3731,6 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13 — [Group-private owner/UDP fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13): source doll/gong identity and natural-lifetime fixtures; execution gates pending.
 
 - 2026-10-13 — [Guardian scenery/pet identity](systems/toy-box.md#guardian-scenery-is-not-a-pet-2026-10-13): actual both-skin Gong-as-pet failure and selector RED; source UnitIsPet designation replaces the flags heuristic for local/party frames; owner-only PetSpells remains the bar declaration.
+- 2026-10-13: [[quest-ui]] records owned story/reward and roster-Share implementation plus targeted proofs; fresh native delivery and Retail reward-container geometry remain open, with UTC2026-10-14 publication/no-receipt trace evidence. No transport fix or both-skin/party acceptance claimed.
+
+- 2026-10-13: [[quest-ui]] source RewardsFrameContainer/spacer/reveal and SmallItemButtonTemplate rows implemented. Four Rust regressions and four both-skin offline native clipping/bounds cases pass; eight final source-template PNGs inspected. First capture’s dark money regression preserved separately. Fresh-login/real-party proof remains transport-blocked.
