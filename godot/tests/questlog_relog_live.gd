@@ -3,8 +3,7 @@ extends "res://tests/questlog_fidelity_live.gd"
 # Setup uses native_quest_journal_peer's real query/accept requests, then disconnects.
 # This fresh rendered process never talks to a giver or stages quest/detail snapshots.
 func check_relog_details() -> bool:
-	if not in_log(client.quest_state(), QUEST):
-		fail("Relog fixture requires the previously accepted quest")
+	if not await wait_quest(func(state): return in_log(state, QUEST), "previously accepted quest in fresh owned snapshot", 60000):
 		return false
 	if not await show_owned_quest(QUEST):
 		return false
