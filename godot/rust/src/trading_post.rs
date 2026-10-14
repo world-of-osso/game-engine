@@ -177,7 +177,12 @@ impl GameClient {
                 break;
             }
             let action = self.trading_post.view.click(&action)?;
+            let closes_vendor = matches!(&action, Some(Action::Close));
             self.apply_trading_action(action)?;
+            // Leave frees this RegistryUi; do not poll that input owner again.
+            if closes_vendor {
+                return Ok(());
+            }
         }
         if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
             if let Some((name, _)) = ui.bind().hovered_button() {
