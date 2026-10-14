@@ -13,6 +13,24 @@
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+## 2026-10-13 — Adventure Guide independent-gate corrections
+
+[Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Final shared context shell/row geometry, RGB0.35 instructions and hidden Loot title pass Guide41/shared6 tests and both-skin24 full-HD capture at7d99b7225. Code/binary/PNG receipt and source XML inspection are recorded; extra tooltip-font and inherited Options-wheel test failures remain explicit.
+
+## 2026-10-13 — Retail Adventure Guide frame layout
+
+[Adventure Guide](systems/adventure-guide.md#retail-frame-layout--2026-10-13): XML-derived two-page journal geometry, authored grid/boss portrait rows, breadcrumb/search/dropdowns, right-edge icon tabs and PanelTab art replace generic controls. Both skins capture grid/instance/Overview/Abilities/Loot/Model with native resolved rectangles and retain Classic scroll→Wailing→Molten Core/Lucifron. Gold title/unshadowed paragraph styles and clipped lore fix visual regressions found by inspecting captures. Parent publishes missing art; no agent CASC access.
+## 2026-10-13 — Collections filters, source cameras and eight-frame capture
+
+[Journal source slice](systems/battle-pets.md#journal-filters-and-authored-scenes--2026-10-13): shared Retail filters/search,40 authored DB2 pet scenes, source normalization/camera transforms and scoped tests. Eight inspected1920×1080 offline frames fix scaled audit clipping; empty journals do not prove owned-model camera appearance. ModelScene default FOV unsourced; existing projection retained. Health/ability payload and persistence decision remain open.
+
+## 2026-10-13 — WorldMap quest dock and dialog ordering
+
+[Quest dock](systems/quest-ui.md#native-quest-dock--2026-10-13): both-skin native L/list/details/Back/server track/non-shareable notice/POI/maximize/confirmed Abandon GREEN. StaticPopup canvas Dialog ordering/raise and pointer-transparent full-screen wrapper correct the actual map-over-confirmation failure. Real rendered source geometry asserted; relog detail cache and full Share-button eligibility remain gaps.
+
+## 2026-10-13 — Collections binding and pet loadout previews
+
+[Battle-pet journal](systems/battle-pets.md#journal-loadout-previews--2026-10-13): assignable Shift-P, card+three detached loadout models, authoritative move/empty teardown and close/reopen proved through real owned-pet native input in both skins. Hidden bag-tree input corrected in the fixture, not product visibility. Filters and owned-health/ability journal payloads remain open.
 ## 2026-10-13 — Settings Apply/Close footer
 
 [Footer follow-up](investigations/glue-menu-fidelity.md#applyclose-follow-up--2026-10-13): actual draft-backed Apply visibility/commit, Close96×22 source anchors and Defaults moved to the Retail header; native hidden-hit/Apply/Close clicks and ten inspected1920×1080 both-skin PNGs. Post-master HUD/scroll/menu/options filters70+68 pass (diagnostic1 ignored). Older gm71 HUD failures not reproduced; no speculative HUD patch or deferred-settings redesign.

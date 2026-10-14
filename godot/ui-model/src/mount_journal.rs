@@ -26,6 +26,7 @@ pub struct MountJournalView {
     pub search: String,
     pub collected: bool,
     pub uncollected: bool,
+    pub unusable: bool,
     pub excluded_types: BTreeSet<u32>,
     pub excluded_sources: BTreeSet<i32>,
     pub filters_open: bool,
@@ -43,6 +44,7 @@ impl Default for MountJournalView {
             search: String::new(),
             collected: true,
             uncollected: true,
+            unusable: true,
             excluded_types: BTreeSet::new(),
             excluded_sources: BTreeSet::new(),
             filters_open: false,
@@ -130,6 +132,7 @@ impl MountJournalView {
                     && (mount.collected || mount.flags & EXCLUDE_UNTIL_COLLECTED == 0);
                 owned
                     && shown
+                    && (self.unusable || mount.usable)
                     && matches_type
                     && !self.excluded_sources.contains(&mount.source_type)
                     && (search.is_empty() || mount.name.to_lowercase().contains(&search))
@@ -163,9 +166,25 @@ impl MountJournalView {
                 self.filters_open = !self.filters_open;
                 self.submenu = None;
             }
+            "mount:search-clear" => self.search.clear(),
             "mount:collected" => self.collected = !self.collected,
             "mount:uncollected" => self.uncollected = !self.uncollected,
-            "mount:types" => self.submenu = Some("types".into()),
+            "mount:unusable" => self.unusable = !self.unusable,
+            "mount:reset" => {
+                self.collected = true;
+                self.uncollected = true;
+                self.unusable = true;
+                self.excluded_types.clear();
+                self.excluded_sources.clear();
+            }
+            "mount:sources:all" => self.excluded_sources.clear(),
+            "mount:sources:none" => {
+                self.excluded_sources = self
+                    .catalog
+                    .values()
+                    .map(|mount| mount.source_type)
+                    .collect();
+            }
             "mount:sources" => self.submenu = Some("sources".into()),
             _ => {
                 if let Some(kind) = action
@@ -198,7 +217,7 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     if !view.visible {
         return Vec::new();
     }
-    let mut body = search_box();
+    let mut body = search_box(view);
     body.extend(label(
         "MountJournalCount".into(),
         &format!(
@@ -213,17 +232,18 @@ pub fn mount_journal_screen(ctx: &SharedContext) -> Element {
     ));
     body.extend(mount_list(ctx, view));
     body.extend(mount_details(view));
+    body.extend(filter_dropdown(view));
     body.extend(filter_menu(view));
     body.extend(context_menu(view));
     crate::collections_component::collections_shell(view.viewport, 0, body)
 }
-fn search_box() -> Element {
-    rsx! { editbox { name: "MountJournalSearchBox", width: 145.0, height: 20.0,
-        left: 19.0, top: 69.0, pos_type: "absolute", font_size: 12.0,
-        font_color: WHITE, text_insets: "4,4,0,0", max_letters: 40 }
-        button { name: "MountJournalFilterButton", width: 78.0, height: 20.0,
-        left: 182.0, top: 69.0, pos_type: "absolute", text: "Filter", onclick: "mount:filters", font_size: 12.0 }
-    }
+fn search_box(view: &MountJournalView) -> Element {
+    crate::search_box_template::search_box(
+        "MountJournal",
+        &view.search,
+        "mount:search-clear",
+        (19.0, 69.0, 145.0, 20.0),
+    )
 }
 fn mount_list(ctx: &SharedContext, view: &MountJournalView) -> Element {
     let rows = view.rows();
@@ -304,15 +324,32 @@ fn mount_row(view: &MountJournalView, mount: &MountJournalEntry, top: f32) -> El
     )
 }
 fn mount_details(view: &MountJournalView) -> Element {
-    // Blizzard_MountCollection.xml MountDisplay.YesMountsTex, local listfile FDID651761.
-    let mut out = cropped(
+    // Blizzard_MountCollection.xml:397-400,443-466,523-526. LeftInset's bottom
+    // is 606-111=495; RightInset bottom is 495+85=580, left is 4+260+20=284.
+    let border = crate::ui::screens::auction_house_frame_component::inset_border(
+        "MountJournalRightInset",
+        (0.0, 0.0, 413.0, 520.0),
+    );
+    let background = cropped(
         "MountJournalBackground".into(),
         651761,
         "0,0.78515625,0,1",
-        (292.0, 64.0, 405.0, 510.0),
+        (0.0, 0.0, 407.0, 514.0),
     );
-    out.extend(rsx! { r#frame { name: "MountJournalModelScene", width: 405.0, height: 365.0,
-        left: 292.0, top: 120.0, pos_type: "absolute", mouse_enabled: true }
+    let shadow = mount_shadow_overlay();
+    let mut out = rsx! {
+        r#frame { name: "MountJournalRightInset", width: 413.0, height: 520.0,
+            left: 284.0, top: 60.0, pos_type: "absolute", {border}
+            r#frame { name: "MountJournalMountDisplay", width: 407.0, height: 514.0,
+                left: 3.0, top: 3.0, pos_type: "absolute", clip_children: true,
+                {background}
+                r#frame { name: "MountJournalModelScene", width: 407.0, height: 514.0,
+                    left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: true }
+                {shadow}
+            }
+        }
+    };
+    out.extend(rsx! {
         button { name: "MountJournalSummonRandomFavorite", width: 206.0, height: 33.0,
         left: 484.0, top: 33.0, pos_type: "absolute", text: "Summon Random Favorite Mount", font_size: 10.0, onclick: "mount:random" }
     });
@@ -373,84 +410,158 @@ fn mount_details(view: &MountJournalView) -> Element {
     ));
     out
 }
+// SharedUIPanelTemplates.xml:163-224; source files give 64px corners/edges.
+fn mount_shadow_overlay() -> Element {
+    [
+        ("TopLeft", 423810, "0,1,0,1", (0.0, 0.0, 64.0, 64.0)),
+        ("TopRight", 423810, "1,0,0,1", (343.0, 0.0, 64.0, 64.0)),
+        ("BottomLeft", 423810, "0,1,1,0", (0.0, 450.0, 64.0, 64.0)),
+        ("BottomRight", 423810, "1,0,1,0", (343.0, 450.0, 64.0, 64.0)),
+        ("Top", 423813, "0,1,0,1", (64.0, 0.0, 279.0, 64.0)),
+        ("Bottom", 423809, "0,1,0,1", (64.0, 450.0, 279.0, 64.0)),
+        ("Left", 423811, "0,1,0,1", (0.0, 64.0, 64.0, 386.0)),
+        ("Right", 423812, "0,1,0,1", (343.0, 64.0, 64.0, 386.0)),
+    ]
+    .into_iter()
+    .flat_map(|(name, fdid, uv, rect)| cropped(format!("MountJournalShadow{name}"), fdid, uv, rect))
+    .collect()
+}
+
+fn filter_dropdown(view: &MountJournalView) -> Element {
+    use crate::menu_primitives::*;
+    let changed = !view.collected
+        || !view.uncollected
+        || !view.unusable
+        || !view.excluded_types.is_empty()
+        || !view.excluded_sources.is_empty();
+    dropdown_button_with_state(
+        DropdownButton {
+            frame_name: "MountJournalFilterButton",
+            label_name: "MountJournalFilterText",
+            arrow_name: "MountJournalFilterArrow",
+            text: "Filter",
+            width: 90.0,
+            height: 22.0,
+            x: 169.0,
+            y: -70.0,
+            background_color: "",
+            text_color: "",
+            arrow_color: "",
+            onclick: Some("mount:filters"),
+        },
+        DropdownState {
+            style: DropdownStyle::Filter,
+            resize_to_text: false,
+            open: view.filters_open,
+            reset_action: changed.then_some("mount:reset"),
+            ..Default::default()
+        },
+    )
+}
+
 fn filter_menu(view: &MountJournalView) -> Element {
     if !view.filters_open {
         return Vec::new();
     }
-    let entries: Vec<(String, String, bool)> = match view.submenu.as_deref() {
-        Some("types") => [
-            (GROUND, "Ground"),
-            (FLYING, "Flying"),
-            (AQUATIC, "Aquatic"),
-            (SKYRIDING, "Skyriding"),
-            (RIDE_ALONG, "Ride Along"),
-        ]
-        .into_iter()
-        .map(|(kind, name)| {
+    use crate::menu_primitives::MenuElementKind as Kind;
+    let checkbox = |checked| Kind::Checkbox { checked };
+    let mut entries: Vec<(String, String, Kind)> = if view.submenu.as_deref() == Some("sources") {
+        let mut rows = vec![
+            ("mount:sources:all".into(), "Check All".into(), Kind::Button),
             (
-                format!("mount:type:{kind}"),
-                name.into(),
-                !view.excluded_types.contains(&kind),
-            )
-        })
-        .collect(),
-        Some("sources") => view
+                "mount:sources:none".into(),
+                "Uncheck All".into(),
+                Kind::Button,
+            ),
+        ];
+        let sources: BTreeSet<_> = view
             .catalog
             .values()
             .map(|mount| mount.source_type)
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .map(|source| {
-                (
-                    format!("mount:source:{source}"),
-                    source_name(source).into(),
-                    !view.excluded_sources.contains(&source),
-                )
-            })
-            .collect(),
-        _ => vec![
-            ("mount:collected".into(), "Collected".into(), view.collected),
+            .collect();
+        rows.extend(sources.into_iter().map(|source| {
+            (
+                format!("mount:source:{source}"),
+                source_name(source).into(),
+                checkbox(!view.excluded_sources.contains(&source)),
+            )
+        }));
+        rows
+    } else {
+        vec![
+            (
+                "mount:collected".into(),
+                "Collected".into(),
+                checkbox(view.collected),
+            ),
             (
                 "mount:uncollected".into(),
                 "Not Collected".into(),
-                view.uncollected,
+                checkbox(view.uncollected),
             ),
-            ("mount:types".into(), "Mount Type >".into(), false),
-            ("mount:sources".into(), "Sources >".into(), false),
-        ],
+            (
+                "mount:unusable".into(),
+                "Unusable".into(),
+                checkbox(view.unusable),
+            ),
+            (String::new(), "Mount Type".into(), Kind::Title),
+        ]
     };
+    if view.submenu.is_none() {
+        entries.extend(
+            [
+                (GROUND, "Ground"),
+                (FLYING, "Flying"),
+                (AQUATIC, "Aquatic"),
+                (SKYRIDING, "Skyriding"),
+                (RIDE_ALONG, "Ride Along"),
+            ]
+            .into_iter()
+            .filter(|(kind, _)| {
+                view.catalog
+                    .values()
+                    .any(|mount| mount.journal_types & kind != 0)
+            })
+            .map(|(kind, name)| {
+                (
+                    format!("mount:type:{kind}"),
+                    name.into(),
+                    checkbox(!view.excluded_types.contains(&kind)),
+                )
+            }),
+        );
+        entries.push(("mount:sources".into(), "Sources".into(), Kind::Submenu));
+    }
+    // MenuTemplates.CreateSpacer() defaults to ten pixels before Mount Type.
+    let spacer = if view.submenu.is_none() { 10.0 } else { 0.0 };
     let children: Element = entries
         .iter()
         .enumerate()
-        .flat_map(|(index, (action, title, checked))| {
+        .flat_map(|(index, (action, title, kind))| {
             let name = format!("MountJournalFilter{index}");
-            let rect = (5.0, 5.0 + index as f32 * 22.0, 190.0, 22.0);
-            // MountJournal filter menu: CreateCheckbox entries and submenu buttons.
-            match title.strip_suffix(" >") {
-                Some(submenu) => crate::selection_list::text_row(
-                    name,
-                    submenu,
+            crate::menu_primitives::menu_element(
+                crate::menu_primitives::ContextMenuItem {
+                    name: &name,
+                    label: title,
                     action,
-                    (true, false),
-                    rect,
-                    &crate::selection_list::MENU,
+                },
+                *kind,
+                true,
+                (
+                    8.0,
+                    8.0 + index as f32 * 20.0 + if index >= 3 { spacer } else { 0.0 },
+                    184.0,
+                    20.0,
                 ),
-                None => crate::selection_list::menu_choice(
-                    name,
-                    title,
-                    action,
-                    (crate::selection_list::MenuTick::Checkbox, *checked),
-                    rect,
-                ),
-            }
+            )
         })
         .collect();
-    let height = 10.0 + entries.len() as f32 * 22.0;
+    let height = 23.0 + entries.len() as f32 * 20.0 + spacer;
     let background = crate::selection_list::menu_background(
         "MountJournalFilterMenuBackground".into(),
         (200.0, height),
     );
-    rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 75.0,top: 91.0,pos_type: "absolute",
+    rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 169.0,top: 92.0,pos_type: "absolute",
     strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,{background}{children} } }
 }
 fn context_menu(view: &MountJournalView) -> Element {
@@ -466,29 +577,33 @@ fn context_menu(view: &MountJournalView) -> Element {
     } else {
         "Set Favorite"
     };
-    let mut children = panel_button(
-        "MountJournalContextSummon".into(),
-        mount_text,
-        "mount:summon",
-        mount.active || mount.usable,
-        (5.0, 5.0, 180.0, 22.0),
+    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, menu_element};
+    let mut children = crate::selection_list::menu_background(
+        "MountJournalContextMenuBackground".into(),
+        (190.0, 63.0),
     );
-    children.extend(panel_button(
-        "MountJournalFavoriteToggle".into(),
-        favourite_text,
-        "mount:favourite",
+    children.extend(menu_element(
+        ContextMenuItem {
+            name: "MountJournalContextSummon",
+            label: mount_text,
+            action: "mount:summon",
+        },
+        MenuElementKind::Button,
+        mount.active || mount.usable,
+        (8.0, 8.0, 174.0, 20.0),
+    ));
+    children.extend(menu_element(
+        ContextMenuItem {
+            name: "MountJournalFavoriteToggle",
+            label: favourite_text,
+            action: "mount:favourite",
+        },
+        MenuElementKind::Button,
         mount.collected,
-        (5.0, 29.0, 180.0, 22.0),
+        (8.0, 28.0, 174.0, 20.0),
     ));
-    children.extend(panel_button(
-        "MountJournalContextCancel".into(),
-        "Cancel",
-        "mount:context-close",
-        true,
-        (5.0, 53.0, 180.0, 22.0),
-    ));
-    rsx! { r#frame { name: "MountJournalContextMenu",width: 190.0,height: 80.0,left,top,pos_type: "absolute",
-    strata: crate::ui::strata::FrameStrata::Dialog,mouse_enabled: true,background_color: "0.05,0.04,0.03,1.0",{children} } }
+    rsx! { r#frame { name: "MountJournalContextMenu",width: 190.0,height: 63.0,left,top,pos_type: "absolute",
+    strata: crate::ui::strata::FrameStrata::Dialog,mouse_enabled: true,{children} } }
 }
 
 fn source_name(source: i32) -> &'static str {

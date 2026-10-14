@@ -42,9 +42,15 @@ impl RegistryUi {
                 remaining_ms: 5000,
                 is_gcd: false,
             });
+            let size = self
+                .base()
+                .get_viewport()
+                .ok_or("Toy Box fixture viewport missing")?
+                .get_visible_rect()
+                .size;
             self.show_toybox(ToyBoxView {
                 model,
-                viewport: [1920.0, 1080.0],
+                viewport: [size.x, size.y],
             })?;
             self.update_toy_swipe("ToySpellButton1Cooldown", 0.5)
         });
