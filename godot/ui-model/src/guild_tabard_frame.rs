@@ -34,7 +34,7 @@ pub fn tabard_screen(shared: &SharedContext) -> Element {
         "TabardFrameNameText".into(),
         &vendor.npc_name,
         (120.5, 2.0, 109.0, 16.0),
-        (14.0, "1,0.82,0,1", "CENTER"),
+        (12.0, "1,0.82,0,1", "CENTER"),
     ));
     let greeting = if vendor.own_rank == Some(0) {
         GREETING
@@ -42,8 +42,8 @@ pub fn tabard_screen(shared: &SharedContext) -> Element {
         NONLEADER_GREETING
     };
     children.extend(rsx! { fontstring { name: "TabardFrameGreetingText", text: greeting,
-        width: 250.0, height: "auto", left: 59.0, top: 28.0, pos_type: "absolute", font_size: 14.0,
-        font_color: "1,1,1,1", justify_h: "CENTER", word_wrap: true }
+        width: 250.0, height: "auto", left: 59.0, top: 28.0, pos_type: "absolute", font_size: 12.0,
+        font_color: "1,1,1,1", shadow_color: "0,0,0,1", shadow_offset: "1,-1", justify_h: "CENTER", word_wrap: true }
         r#frame { name: {DynName(MODEL.into())}, width: 303.0, height: 317.0, left: {17.5}, top: 69.0, pos_type: "absolute" } });
     children.extend(outer_frame());
     children.extend(emblem_overlays(view));
@@ -184,7 +184,7 @@ fn customization() -> Element {
             format!("{prefix}Text"),
             text,
             (39.5, 8.0, 85.0, 10.0),
-            (12.0, "1,1,1,1", "CENTER"),
+            (10.0, "1,1,1,1", "CENTER"),
         ));
         children.extend(arrow(
             &format!("{prefix}LeftButton"),
@@ -206,9 +206,8 @@ fn money(view: &GuildTabards) -> Element {
     use crate::merchant_frame_component::{MoneyAlign, money_width, player_money};
     use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
     let cost = view.vendor.as_ref().expect("visible tabard vendor").cost;
-    let label_width = measure_text("Cost:", GameFont::FrizQuadrata, 14.0)
-        .expect("source cost font")
-        .0;
+    let (label_width, label_height) =
+        measure_text("Cost:", GameFont::FrizQuadrata, 12.0).expect("source cost font");
     let mut cost_children = crate::game_tooltip::render::nine_slice(
         "TabardFrameCostFrame",
         (170.0, 23.0),
@@ -226,11 +225,11 @@ fn money(view: &GuildTabards) -> Element {
         "Cost:",
         (
             170.0 - money_width(cost) - 5.0 - label_width,
-            3.5,
+            23.0 / 2.0 - 1.0 - label_height / 2.0,
             label_width,
-            14.0,
+            label_height,
         ),
-        (14.0, "1,1,1,1", "RIGHT"),
+        (12.0, "1,1,1,1", "RIGHT"),
     ));
     let mut out = rsx! { r#frame { name: "TabardFrameCostFrame", width: 170.0, height: 23.0, left: 151.0, top: 68.0, pos_type: "absolute", {cost_children} } };
     out.extend(texture(
