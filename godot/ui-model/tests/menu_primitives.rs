@@ -63,6 +63,116 @@ fn mount(skin: ActiveSkin) -> FrameRegistry {
 }
 
 #[test]
+fn edit_mode_uses_source_layout_dropdown_instead_of_paging_and_inline_name_input() {
+    use game_engine_ui_model::hud_edit_component::{EditModePanelState, edit_mode_panel_screen};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = mount(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState {
+            layout_name: "Modern".into(),
+            layout_names: vec!["Modern".into(), "Forever".into(), "Raid Night".into()],
+            ..Default::default()
+        });
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut reg);
+        let dropdown = reg
+            .get(
+                reg.get_by_name("EditModeManagerFrameLayoutDropdown")
+                    .expect("Retail LayoutDropdown"),
+            )
+            .unwrap();
+        assert_eq!(
+            (dropdown.width.value(), dropdown.height.value()),
+            (120.0, 25.0)
+        );
+        assert_eq!(
+            (dropdown.position.left, dropdown.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(25.0),
+                ui_toolkit::layout_values::Val::Px(52.0)
+            )
+        );
+        assert_eq!(dropdown.onclick.as_deref(), Some("edit_mode_layout_menu"));
+        for old in [
+            "EditModeManagerFramePrev",
+            "EditModeManagerFrameNext",
+            "EditModeManagerFrameLayoutName",
+        ] {
+            assert!(reg.get_by_name(old).is_none(), "{old}");
+        }
+    }
+}
+
+#[test]
+fn unit_difficulty_submenu_uses_retail_backdrop_and_keeps_authoritative_radios() {
+    use game_engine_ui_model::inworld_unit_frames_component::{
+        DifficultyMenuEntry, DifficultyMenuState, InWorldUnitFramesState,
+        inworld_unit_frames_screen,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = mount(skin);
+        let mut state = InWorldUnitFramesState {
+            show_player_frame: false,
+            show_target_frame: false,
+            target_cast: None,
+            player: game_engine_ui_model::inworld_unit_frames_component::UnitFrameState::named(
+                "Player",
+            ),
+            target: None,
+            target_of_target: None,
+            focus: None,
+            pet: None,
+            bosses: vec![],
+            menu: Default::default(),
+            personal_resource: None,
+        };
+        state.menu.difficulty_menu = Some(DifficultyMenuState {
+            x: 500.0,
+            y: 200.0,
+            entries: vec![DifficultyMenuEntry {
+                difficulty_id: 2,
+                label: "Heroic".into(),
+                checked: true,
+                enabled: true,
+            }],
+        });
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(state);
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(inworld_unit_frames_screen).sync(&shared, &mut reg);
+        let menu = reg
+            .get(reg.get_by_name("UnitFrameDifficultyMenu").unwrap())
+            .unwrap();
+        assert!(menu.background_color.is_none());
+        assert_eq!(menu.height.value(), 103.0);
+        let title_width = ui_toolkit::text_measure::measure_text(
+            "Dungeon Difficulty",
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            12.0,
+        )
+        .unwrap()
+        .0;
+        assert!(
+            menu.width.value() >= title_width + 16.0,
+            "Retail menu must fit title without ellipsis"
+        );
+        let row = reg
+            .get(reg.get_by_name("UnitFrameDifficultyMenu2").unwrap())
+            .unwrap();
+        assert_eq!(
+            row.onclick.as_deref(),
+            Some("unit_menu_dungeon_difficulty:2")
+        );
+        assert!(
+            reg.get(reg.get_by_name("UnitFrameDifficultyMenu2Tick").unwrap())
+                .unwrap()
+                .visible
+        );
+    }
+}
+
+#[test]
 fn world_map_breadcrumb_home_uses_measured_navbar_template_width() {
     use game_engine_ui_model::world_map_frame_component::{
         MapBreadcrumb, WorldMapFrameState, world_map_frame_screen,

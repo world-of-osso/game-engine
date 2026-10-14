@@ -535,6 +535,95 @@ fn assert_text(registry: &FrameRegistry, name: &str, expected: &str) {
     assert_eq!(label.text, expected);
 }
 
+#[test]
+fn retail_pvp_activity_rows_use_authored_templates_and_keep_bracket_actions() {
+    use game_engine_ui_model::battleground::PvpCategory;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(PvpView {
+            visible: true,
+            category: PvpCategory::Rated,
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pvp_screen).sync(&shared, &mut registry);
+        let rated = registry
+            .get(registry.get_by_name("ConquestFrameArena2v2").unwrap())
+            .unwrap();
+        assert_eq!((rated.width.value(), rated.height.value()), (365.0, 56.0));
+        assert_eq!(
+            (rated.position.left, rated.position.top),
+            (
+                ui_toolkit::layout_values::Val::Px(238.0),
+                ui_toolkit::layout_values::Val::Px(227.0)
+            )
+        );
+        assert_eq!(rated.onclick.as_deref(), Some("pvp:rated:2v2"));
+        shared.insert(PvpView {
+            visible: true,
+            ..Default::default()
+        });
+        Screen::new(pvp_screen).sync(&shared, &mut registry);
+        let casual = registry
+            .get(registry.get_by_name("HonorFrameArena2v2Button").unwrap())
+            .unwrap();
+        assert_eq!((casual.width.value(), casual.height.value()), (365.0, 54.0));
+        assert_eq!(casual.onclick.as_deref(), Some("pvp:activity:2v2"));
+    }
+}
+
+#[test]
+fn retail_scoreboard_tabs_use_source_anchor_spacing_and_filter_actions() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = PvpView {
+            scoreboard: true,
+            ..Default::default()
+        };
+        receive(&mut view, snapshot(BgPhase::InProgress, true));
+        view.scoreboard = true;
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pvp_screen).sync(&context, &mut registry);
+        let first = registry
+            .get(registry.get_by_name("PVPScoreboardTab1").unwrap())
+            .unwrap();
+        assert_eq!(first.height.value(), 32.0);
+        assert_eq!(
+            first.position.left,
+            ui_toolkit::layout_values::Val::Px(40.0)
+        );
+        assert_eq!(
+            first.position.top,
+            ui_toolkit::layout_values::Val::Px(348.0)
+        );
+        let second = registry
+            .get(registry.get_by_name("PVPScoreboardTab2").unwrap())
+            .unwrap();
+        assert_eq!(
+            second.position.left,
+            ui_toolkit::layout_values::Val::Px(40.0 + first.width.value() + 3.0)
+        );
+        assert_eq!(second.onclick.as_deref(), Some("pvp:alliance"));
+        view.action("pvp:alliance");
+        assert_eq!(view.filter, Some(BgTeam::A));
+        view.action("pvp:all");
+        assert_eq!(view.filter, None);
+    }
+}
+
 fn assert_size(registry: &FrameRegistry, name: &str, width: f32, height: f32) {
     let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
     assert_eq!(frame.width, ui_toolkit::frame::Dimension::Fixed(width));
@@ -860,7 +949,7 @@ fn battleground_both_skins_render_invite_hud_score_rows_and_end_without_fake_hon
             ..Default::default()
         });
         screen.sync(&context, &mut registry);
-        assert_size(&registry, "PVPUIFrame", 563.0, 428.0);
+        assert_size(&registry, "PVPUIFrame", 788.0, 428.0);
     }
     set_thread_skin(ActiveSkin::Modern);
 }

@@ -20,6 +20,7 @@ use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 enum Mask {
     Round,
     AuctionItem,
+    GroupFinder,
     Glyph,
     TalentCircle,
     TalentChoice,
@@ -94,13 +95,15 @@ impl IconMasks {
             | Mask::TalentChoiceLeft
             | Mask::TalentChoiceRight
             | Mask::TalentChoiceFlyout => compose_masked_icon(source, &talent_mask(mask)?),
-            Mask::Round | Mask::AuctionItem => {
+            Mask::Round | Mask::AuctionItem | Mask::GroupFinder => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
                     empty => empty.insert(mask_alpha(&load_rgba(PORTRAIT_MASK_FDID, "mask")?)),
                 };
                 if mask == Mask::AuctionItem {
                     compose_auction_item_icon(source, round)
+                } else if mask == Mask::GroupFinder {
+                    compose_group_finder_icon(source, round)
                 } else {
                     compose_masked_icon(source, round)
                 }
@@ -130,6 +133,7 @@ fn is_round_icon(name: &str) -> bool {
                 | "OpenMailFramePortrait"
                 | "FlightMapPortrait"
                 | "ProfessionsPortrait"
+                | "CooldownSettingsPortrait"
                 | "ProfessionsOutputIcon"
                 | "EncounterJournalPortrait"
                 | "EncounterJournalInstanceButtonIcon"
@@ -174,6 +178,8 @@ fn mask_of(name: &str) -> Option<Mask> {
         Some(Mask::TalentChoiceFlyout)
     } else if name == "AuctionHouseFrameItemBuyFrameItemDisplayItemButtonIcon" {
         Some(Mask::AuctionItem)
+    } else if name.starts_with("GroupFinderFrameGroupButton") && name.ends_with("Icon") {
+        Some(Mask::GroupFinder)
     } else if is_round_icon(name) {
         Some(Mask::Round)
     } else if FOREVER_CHAT_HEADER_ICONS.contains(&name) {
@@ -189,6 +195,16 @@ fn compose_auction_item_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage 
     let source = resize(&source, 46, 46, FilterType::Triangle);
     let circle = resize(round, 42, 42, FilterType::Triangle);
     let mut mask = GrayImage::new(46, 46);
+    replace(&mut mask, &circle, 2, 2);
+    compose_masked_icon(source, &mask)
+}
+
+/// PVEFrame.xml GroupFinderGroupButtonTemplate:66px icon,62px mask inset2.
+fn compose_group_finder_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage {
+    use image::imageops::{FilterType, replace, resize};
+    let source = resize(&source, 66, 66, FilterType::Triangle);
+    let circle = resize(round, 62, 62, FilterType::Triangle);
+    let mut mask = GrayImage::new(66, 66);
     replace(&mut mask, &circle, 2, 2);
     compose_masked_icon(source, &mask)
 }

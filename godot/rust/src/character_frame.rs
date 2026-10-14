@@ -308,7 +308,7 @@ impl GameClient {
             open: OpenWindows {
                 character: self.character_frame.open,
                 player_spells: self.spellbook_open(),
-                quest_log: self.quests.log_open(),
+                quest_log: self.world_map.quest_log_is_open(),
                 game_menu: self.game_menu_ui.is_some(),
             },
             hovered: hovered.as_deref().and_then(micro_button_index),

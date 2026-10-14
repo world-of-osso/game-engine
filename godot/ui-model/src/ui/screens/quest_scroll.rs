@@ -51,17 +51,21 @@ pub fn quest_scroll_frame(
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
+    // Godot Control clips all children, unlike WoW ScrollFrame which clips only
+    // ScrollChild. Keep the authored viewport size and its external scrollbar in
+    // separate children of a transparent projection host.
     rsx! {
         r#frame {
-            name: {DynName(list.into())},
+            name: {DynName(format!("{list}Host"))},
             width: {pane.bar_x + BAR_W + 5.0},
             height: {pane.height},
-            mouse_enabled: true,
-            scroll_list: {config},
             pos_type: "absolute",
             left: {pane.x},
             top: {pane.y},
             r#frame {
+                name: {DynName(list.into())}, width: {pane.width}, height: {pane.height},
+                mouse_enabled: true, scroll_list: {config}, pos_type: "absolute", left: 0.0, top: 0.0,
+                r#frame {
                 name: {DynName(quest_scroll_child(list))},
                 width: {pane.width},
                 height: "auto",
@@ -71,6 +75,7 @@ pub fn quest_scroll_frame(
                 left: 0,
                 top: {-(offset as f32)},
                 {content}
+                }
             }
             {bar.element()}
         }

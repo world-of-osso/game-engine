@@ -12,28 +12,28 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
         let action = format!("talent:loadout_select:{}", config.id);
         let edit = format!("talent:loadout_edit:{}", config.id);
         let name = format!("TalentLoadoutRow{}", config.id);
-        let top = (6.0 + index as f32 * 28.0) * scale;
+        let top = (8.0 + index as f32 * 20.0) * scale;
         let selected = list.is_some_and(|list| list.selected_id == config.id);
         let check = if selected {
             rsx! { texture { name:{DynName(format!("{name}Check"))},texture_fdid:130751,
-            width:{20.0*scale},height:{20.0*scale},pos_type:"absolute",left:{142.0*scale},top:{4.0*scale} } }
+            width:{20.0*scale},height:{20.0*scale},pos_type:"absolute",left:{(8.0 + ui_toolkit::text_measure::measure_text(&config.name, GameFont::FrizQuadrata, 12.0).expect("loadout font loaded").0)*scale},top:0.0 } }
         } else {
             Vec::new()
         };
         let content = rsx! {
-            fontstring {name:{DynName(format!("{name}Text"))},text:{config.name.as_str()},width:{136.0*scale},height:{28.0*scale},
+            fontstring {name:{DynName(format!("{name}Text"))},text:{config.name.as_str()},width:{136.0*scale},height:{20.0*scale},
                 font_size:{12.0*scale},font_color:TAB_TEXT,justify_h:"LEFT",mouse_enabled:false} {check}
         };
         rows.extend(crate::selection_list::row(
             name.clone(),
             &action,
             enabled,
-            (6.0 * scale, top, 164.0 * scale, 28.0 * scale),
+            (8.0 * scale, top, 164.0 * scale, 20.0 * scale),
             (&crate::selection_list::MENU, false),
             content,
         ));
         rows.extend(rsx! { button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},disabled,button_default_skin:false,
-            width:{16.0*scale},height:{16.0*scale},pos_type:"absolute",left:{178.0*scale},top:{top+6.0*scale},
+            width:{16.0*scale},height:{16.0*scale},pos_type:"absolute",left:{176.0*scale},top:{top+2.0*scale},
             texture {name:{DynName(format!("{name}Gear"))},texture_fdid:311226,width:{16.0*scale},height:{16.0*scale},mouse_enabled:false,
                 pos_type:"absolute",left:0.0,top:0.0}
         } });
@@ -58,10 +58,10 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             scale,
         ));
     }
-    let height = 12.0 + (configs.len() + 3) as f32 * 28.0;
+    let height = 8.0 + (configs.len() + 3) as f32 * 20.0 + 15.0;
     menu(
         "TalentLoadoutMenu",
-        [48.0, y - height, 200.0, height],
+        [48.0, y + 2.5 - height, 200.0, height],
         rows,
         scale,
     )
@@ -75,16 +75,12 @@ fn sentinel_row(
     index: usize,
     scale: f32,
 ) -> Element {
-    let color = if enabled { TAB_TEXT } else { "0.5,0.5,0.5,1.0" };
-    let disabled = !enabled;
-    rsx! { button {name:{DynName(name.into())},onclick:action,disabled,button_default_skin:false,
-        width:{188.0*scale},height:{28.0*scale},pos_type:"absolute",left:{6.0*scale},top:{(6.0+index as f32*28.0)*scale},
-        fontstring {name:{DynName(format!("{name}Text"))},text,width:{188.0*scale},height:{28.0*scale},
-            font_size:{12.0*scale},font_color:color,justify_h:"LEFT",mouse_enabled:false}
-    } }
+    menu_row(name, text, action, enabled, index, 200.0, scale)
 }
 
-pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
+pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
+    // StaticPopup_SetUpPosition: special dialogs are UIParent children, independent of book fitting.
+    let scale = 1.0;
     let Some(dialog) = &view.editor.loadout_dialog else {
         return Vec::new();
     };
@@ -99,8 +95,8 @@ pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
         Label {
             name: "TalentLoadoutDialogTitle".into(),
             text: title,
-            rect: [40.0, 20.0, 380.0, 20.0],
-            size: 14.0,
+            rect: [105.0, 20.0, 250.0, 12.0],
+            size: 12.0,
             color: TAB_TEXT,
             justify: "CENTER",
         },
@@ -134,9 +130,35 @@ pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
             },
             scale,
         ));
-        contents.extend(rsx! { editbox {name:"TalentLoadoutNameInput",text:{view.editor.loadout_name.as_str()},max_letters:30,
-            width:{380.0*scale},height:{32.0*scale},font_size:{12.0*scale},text_insets:"6,6,0,0",
-            background_color:"0.04,0.04,0.04,1.0",pos_type:"absolute",left:{40.0*scale},top:{56.0*scale}} });
+        let mut input = crate::bank_art::edit_box(
+            "TalentLoadoutNameInput",
+            (40.0 * scale, 58.0 * scale, 380.0 * scale, 32.0 * scale),
+        );
+        // InputBoxTemplate: source NameControl bottom90, 32px input; letters30.
+        let input_widget = input
+            .iter_mut()
+            .find_map(|child| match child {
+                ui_toolkit::widget_def::WidgetChild::Widget(widget)
+                    if widget.name.as_deref() == Some("TalentLoadoutNameInput") =>
+                {
+                    Some(widget)
+                }
+                _ => None,
+            })
+            .expect("InputBoxTemplate includes named input");
+        input_widget
+            .attrs
+            .push(ui_toolkit::widget_def::Attr::new_dynamic(
+                "text",
+                view.editor.loadout_name.clone(),
+            ));
+        input_widget
+            .attrs
+            .push(ui_toolkit::widget_def::Attr::new_static(
+                "max_letters",
+                "30".into(),
+            ));
+        contents.extend(input);
     }
     let enabled = confirm || !view.editor.loadout_name.trim().is_empty();
     let is_edit = matches!(dialog, LoadoutDialog::Edit(_));
@@ -193,11 +215,11 @@ pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
             scale,
         ));
     }
-    rsx! { r#frame {name:"TalentLoadoutDialogBlocker",width:{BOOK_W*scale},height:{BOOK_H*scale},
+    rsx! { r#frame {name:"TalentLoadoutDialogBlocker",width:{viewport[0]},height:{viewport[1]},
         strata:FrameStrata::Dialog,frame_level:2090,pos_type:"absolute",left:0.0,top:0.0}
         r#frame {name:"TalentLoadoutDialog",width:{460.0*scale},height:{height*scale},
-            strata:FrameStrata::Dialog,frame_level:2100,pos_type:"absolute",left:{(BOOK_W-460.0)/2.0*scale},top:{(BOOK_H-height)/2.0*scale},
-            texture {name:"TalentLoadoutDialogBackground",texture_fdid:312922,width:{446.0*scale},height:{(height-14.0)*scale},
+            strata:FrameStrata::Dialog,frame_level:2100,pos_type:"absolute",left:{(viewport[0]-460.0)/2.0},top:135.0,
+            texture {name:"TalentLoadoutDialogBackground",texture_fdid:312922,width:{446.0*scale},height:{(height-14.0)*scale},horiz_tile:true,vert_tile:true,
                 pos_type:"absolute",left:{7.0*scale},top:{7.0*scale}} {contents}
         }
     }

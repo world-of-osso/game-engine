@@ -31,9 +31,15 @@ pub struct GameMenuViewModel {
 impl GameMenuViewModel {
     /// What the Options content area shows: the view, the category and, on Keybindings, the
     /// section.
-    pub fn options_page(&self) -> (GameMenuView, OptionsCategory, BindingSection) {
+    pub fn options_page(&self) -> (GameMenuView, OptionsCategory, BindingSection, &str, bool) {
         let options = &self.options;
-        (self.view, options.category, options.bindings.section)
+        (
+            self.view,
+            options.category,
+            options.bindings.section,
+            &options.search,
+            options.addons_tab,
+        )
     }
 }
 

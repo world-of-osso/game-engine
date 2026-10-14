@@ -22,6 +22,10 @@ use super::{RegistryModel, ScreenPostsetup};
 use crate::ui::layout::compute_layout_with_intrinsics;
 
 fn modern<T: 'static>(state: T, build: fn(&SharedContext) -> Element) -> RegistryModel {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(state);
     let mut model = RegistryModel {

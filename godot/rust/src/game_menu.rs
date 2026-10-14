@@ -11,11 +11,12 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     game_menu_component::GameMenuView,
     game_menu_main::{
-        ACTION_ADDONS, ACTION_EXIT, ACTION_LOGOUT, ACTION_OPTIONS, ACTION_RESUME, ACTION_SUPPORT,
+        ACTION_ADDONS, ACTION_EDIT_MODE, ACTION_EXIT, ACTION_LOGOUT, ACTION_MACROS, ACTION_OPTIONS,
+        ACTION_RESUME, ACTION_SUPPORT,
     },
     options_menu_component::{
-        ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, ACTION_RESET_WINDOW_POSITIONS,
-        OPTIONS_DRAG_HANDLE, OptionsCategory,
+        ACTION_OPTIONS_APPLY, ACTION_OPTIONS_CLOSE, ACTION_OPTIONS_DEFAULTS,
+        ACTION_RESET_WINDOW_POSITIONS, OPTIONS_DRAG_HANDLE, OptionsCategory,
     },
     options_menu_data::{self as policy, BindingCapture, LayoutAction, OptionsModel, SliderField},
 };
@@ -81,9 +82,12 @@ impl GameClient {
         let camera = policy::camera_draft_from_file(&file.camera);
         let hud = policy::hud_draft_from_file(&file.hud);
         Ok(OptionsModel {
-            logged_in: self.base().get_node_or_null("SkyboxDebug").is_none(),
+            logged_in: self.account.session.screen == SessionScreen::InWorld
+                && self.account.session.gameplay_input_allowed(),
             view: GameMenuView::MainMenu,
             category: OptionsCategory::Sound,
+            search: String::new(),
+            addons_tab: false,
             modal_position: drag::initial_position(
                 file.modal_offset,
                 file.modal_position,
@@ -455,6 +459,11 @@ impl GameClient {
     }
 
     fn dispatch_options_action(&mut self, action: &str) -> Result<bool, String> {
+        if action == ACTION_OPTIONS_APPLY {
+            self.commit_game_menu_options()?;
+            self.refresh_game_menu()?;
+            return Ok(true);
+        }
         if action == "cooldown_settings" {
             self.open_cooldown_settings();
             return Ok(true);
@@ -497,8 +506,11 @@ impl GameClient {
             .expect("menu has options model");
         let mut changed = false;
         let mut committed = false;
-        if let Some(category) = policy::parse_category_action(action) {
+        if action.starts_with("options_") && policy::apply_settings_navigation(model, action) {
+            changed = true;
+        } else if let Some(category) = policy::parse_category_action(action) {
             model.category = category;
+            model.search.clear();
             changed = true;
         } else if let Some(section) = policy::parse_binding_section_action(action) {
             model.binding_section = section;
@@ -536,7 +548,25 @@ impl GameClient {
         if !error.is_empty() {
             return Err(error.to_string());
         }
+        let search = {
+            let host = ui.bind();
+            host.registry().and_then(|registry| {
+                let frame = registry.get(registry.get_by_name("OptionsSearchBox")?)?;
+                match frame.widget_data.as_ref()? {
+                    ui_toolkit::frame::WidgetData::EditBox(edit) => Some(edit.text.clone()),
+                    _ => None,
+                }
+            })
+        };
         let sliders = ui.bind_mut().drain_slider_events();
+        if let Some(search) = search
+            && self
+                .game_menu_options
+                .as_ref()
+                .is_some_and(|model| model.search != search)
+        {
+            self.dispatch_options_action(&format!("options_search:{search}"))?;
+        }
         for slider in sliders {
             if let Some(field) = policy::parse_slider_action(&slider.action) {
                 let model = self
@@ -568,23 +598,27 @@ impl GameClient {
                 continue;
             }
             match action.as_str() {
-                ACTION_RESUME | ACTION_OPTIONS_OKAY => {
+                ACTION_RESUME | ACTION_OPTIONS_CLOSE => {
                     self.close_game_menu();
                     break;
                 }
                 ACTION_EXIT => self.base().get_tree().quit(),
-                ACTION_SUPPORT => self.show_support(),
+                ACTION_EDIT_MODE => {
+                    self.close_game_menu();
+                    self.enter_hud_edit()?;
+                    break;
+                }
                 ACTION_LOGOUT => {
                     self.request_logout()?;
                     break;
                 }
-                ACTION_OPTIONS | ACTION_ADDONS => {
-                    if action == ACTION_ADDONS {
+                ACTION_OPTIONS | ACTION_ADDONS | ACTION_MACROS | ACTION_SUPPORT => {
+                    policy::apply_settings_navigation(
                         self.game_menu_options
                             .as_mut()
-                            .expect("menu has options model")
-                            .category = OptionsCategory::SocialAddons;
-                    }
+                            .expect("menu has options model"),
+                        &action,
+                    );
                     self.show_game_menu_options()?;
                 }
                 _ => return Err(format!("Unknown game menu action: {action}")),

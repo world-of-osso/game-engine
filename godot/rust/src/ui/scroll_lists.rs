@@ -38,6 +38,22 @@ pub(super) fn list_containing(registry: &FrameRegistry, mut id: u64) -> Option<S
                 return Some(list.into());
             }
         }
+        // Retail controllers are siblings of their clipped ScrollBox, not descendants.
+        if let Some(name) = &frame.name {
+            for suffix in [
+                "ScrollThumb",
+                "ScrollTrack",
+                "ScrollBack",
+                "ScrollForward",
+                "ScrollBar",
+            ] {
+                if let Some(list) = name.strip_suffix(suffix)
+                    && registry.scroll_lists.get(list).is_some()
+                {
+                    return Some(list.to_owned());
+                }
+            }
+        }
         id = frame.parent_id?;
     }
 }
@@ -80,6 +96,14 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         || game_engine_ui_model::adventure_guide::SCROLL_LISTS.contains(&list)
     {
         // Achievement and journal lists use pixel steps, not one-pixel rows.
+        return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
+    }
+    if list == game_engine_ui_model::raid_info::SCROLL_BOX {
+        // ScrollBoxListView:GetPanExtent uses its first SocialUIRaidInfo row (40px).
+        let pan = game_engine_ui_model::raid_info::ROW_HEIGHT as usize;
+        return (pan * 2, pan);
+    }
+    if list == game_engine_ui_model::cooldown_settings_component::SCROLL {
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
     if QUEST_SCROLL_FRAMES.contains(&list)
@@ -354,6 +378,10 @@ impl RegistryUi {
 #[cfg(test)]
 #[path = "scroll_lists_tests.rs"]
 pub(super) mod tests;
+
+#[cfg(test)]
+#[path = "raid_scroll_tests.rs"]
+mod raid_tests;
 
 #[cfg(test)]
 #[path = "quest_scroll_tests.rs"]

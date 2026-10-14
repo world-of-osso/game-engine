@@ -80,7 +80,7 @@ func choose_option(category: String, name: String, capture_file: String) -> bool
 		await frames(3)
 	if capture_file != "":
 		await shot(capture_file)
-	if not await click_menu_control("OptionsDoneButton"):
+	if not await click_menu_control("OptionsCloseButton"):
 		return false
 	await frames(3)
 	if menu_open():
