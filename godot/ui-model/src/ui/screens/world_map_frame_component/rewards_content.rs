@@ -39,22 +39,26 @@ pub(super) fn build(rewards: &RewardView) -> Content {
     };
     append_items(&mut content, &rewards.items, rewards.choices.len(), receive);
     if rewards.money > 0 {
-        content.height += SECTION_GAP;
-        let money = RewardItemView {
-            name: crate::quest_runtime::money_text(rewards.money),
-            count: 1,
-            icon_fdid: Some(COIN_ICON),
-        };
-        content.elements.extend(small_item(
-            "QuestInfoMoney",
-            "QuestInfoMoneyText",
-            &money,
-            [0.0, content.height],
-        ));
-        content.height += ITEM_HEIGHT;
-        content.rows += 1;
+        append_money(&mut content, rewards.money);
     }
     content
+}
+
+fn append_money(content: &mut Content, amount: u32) {
+    content.height += SECTION_GAP;
+    let money = RewardItemView {
+        name: crate::quest_runtime::money_text(amount),
+        count: 1,
+        icon_fdid: Some(COIN_ICON),
+    };
+    content.elements.extend(small_item(
+        "QuestInfoMoney",
+        "QuestInfoMoneyText",
+        &money,
+        [0.0, content.height],
+    ));
+    content.height += ITEM_HEIGHT;
+    content.rows += 1;
 }
 
 fn append_items(content: &mut Content, items: &[RewardItemView], first: usize, heading: &str) {
@@ -82,14 +86,11 @@ fn append_items(content: &mut Content, items: &[RewardItemView], first: usize, h
     content.rows += rows;
 }
 
-fn small_item(name: &str, label_name: &str, item: &RewardItemView, [x, y]: [f32; 2]) -> Element {
-    let text = &item.name;
-    let icon = item.icon_fdid.unwrap_or(UNKNOWN_ITEM_ICON);
-    let count = item.count;
+fn name_border(name: &str) -> Element {
     let border =
         ui_toolkit::atlas::resolve_region("QuestItemBorder", ui_toolkit::atlas::thread_skin())
             .expect("small reward name border");
-    let art = named_atlas_texture(
+    named_atlas_texture(
         format!("{name}NameFrame"),
         "QuestItemBorder",
         (
@@ -98,7 +99,14 @@ fn small_item(name: &str, label_name: &str, item: &RewardItemView, [x, y]: [f32;
             border.width,
             border.height,
         ),
-    );
+    )
+}
+
+fn small_item(name: &str, label_name: &str, item: &RewardItemView, [x, y]: [f32; 2]) -> Element {
+    let text = &item.name;
+    let icon = item.icon_fdid.unwrap_or(UNKNOWN_ITEM_ICON);
+    let count = item.count;
+    let art = name_border(name);
     let hide_count = count <= 1;
     let count_text = count.to_string();
     rsx! {
