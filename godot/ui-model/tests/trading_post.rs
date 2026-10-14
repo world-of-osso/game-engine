@@ -78,6 +78,7 @@ fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
     ctx.insert(view);
     let mut registry = FrameRegistry::new(1920., 1080.);
     Screen::new(trading_post_screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::trading_post::apply_cart_art(ctx.get::<View>().unwrap(), &mut registry);
     registry
 }
 fn text(registry: &FrameRegistry, name: &str) -> String {
@@ -89,6 +90,48 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         other => panic!("Expected text, got {other:?}"),
     }
 }
+#[test]
+fn trading_post_other_cart_preview_dims_wearables_but_keeps_remove_colored_and_clickable() {
+    let mut data = snapshot();
+    let mut mount = data.items[0].clone();
+    mount.id = 5;
+    mount.category_id = 2;
+    mount.item_id = 117;
+    data.items.push(mount);
+    let view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        cart: vec![4, 5],
+        cart_visible: true,
+        selected: Some(4),
+        cart_selected: std::collections::BTreeMap::from([(0, 117), (16, 189869)]),
+        cart_hover: Some(4),
+        ..Default::default()
+    };
+    let registry = render(ActiveSkin::Modern, view);
+    let frame = registry
+        .get(registry.get_by_name("PerksProgramCartItem4").unwrap())
+        .unwrap();
+    assert!(
+        (frame.alpha - 0.7).abs() < 0.01,
+        "Retail disabled-preview row alpha is0.7, not1"
+    );
+    let icon = registry
+        .get(registry.get_by_name("PerksProgramCartItem4Icon").unwrap())
+        .unwrap();
+    assert!(matches!(&icon.widget_data,Some(WidgetData::Texture(texture)) if texture.desaturated));
+    let remove = registry
+        .get(
+            registry
+                .get_by_name("PerksProgramCartItem4RemoveIcon")
+                .unwrap(),
+        )
+        .unwrap();
+    assert!(
+        matches!(&remove.widget_data,Some(WidgetData::Texture(texture)) if !texture.desaturated)
+    );
+}
+
 #[test]
 fn trading_post_cart_total_never_ellipsizes_four_digit_authored_prices() {
     let mut data = snapshot();
