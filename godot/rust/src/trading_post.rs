@@ -733,6 +733,13 @@ impl GameClient {
             if let Some(row) = view.selected_item() {
                 state.set("selected_name", row.name.as_str());
                 state.set("item_id", i64::from(row.item_id));
+                state.set(
+                    "preview_item_ids",
+                    row.preview_item_ids
+                        .iter()
+                        .map(|id| i64::from(*id))
+                        .collect::<PackedInt64Array>(),
+                );
                 state.set("price", i64::from(row.price));
                 state.set("purchased", row.purchased);
                 state.set("collected", row.collected);

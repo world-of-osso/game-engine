@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -42,7 +42,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	match phase:
 		"layout":
@@ -56,6 +56,7 @@ func run_fixture() -> void:
 		"layout-proof": await layout_proof()
 		"relog": await relog_checks()
 		"purchase": await purchase_each_collection()
+		"cart": await checkout_cart()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -220,6 +221,85 @@ func relog_checks() -> void:
 
 # Vendor category, label and the client collection receipt each purchase must change.
 const PURCHASES := [[1, "transmog", "appearance"], [2, "mount", "mounts"], [3, "pet", "pets"], [5, "toy", "toys"]]
+
+func cart_ensemble_preview() -> bool:
+	if not await choose_category(8): return false
+	if not await select_first_available(): return false
+	var state: Dictionary = client.trading_post_state()
+	var vendor := int(state.selected)
+	var members: PackedInt64Array = state.preview_item_ids
+	if members.size() < 2: fail("Authored ensemble needs multiple member rows"); return false
+	await click("PerksProgramAddToCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.size() == 1, "ensemble add"): return false
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return control("PerksProgramCartSet%d" % vendor) != null and client.trading_post_state().preview_ready, "source ensemble header and composite preview"): return false
+	await capture("cart-ensemble-preview")
+	var item := int(members[0])
+	await click("PerksProgramCartSubItem%d_%d" % [vendor,item])
+	if not await wait_until(func(): return not item in client.trading_post_state().cart_preview_items and client.trading_post_state().preview_ready, "ensemble member deselection"): return false
+	await capture("cart-ensemble-member-deselected")
+	await click("PerksProgramCartSubItem%d_%d" % [vendor,item])
+	if not await wait_until(func(): return item in client.trading_post_state().cart_preview_items, "ensemble member restored"): return false
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmButton") != null, "ensemble clear confirmation"): return false
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.size() == 0 and not client.trading_post_state().cart_visible, "confirmed clear"): return false
+	return true
+
+func checkout_cart() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if tender < 2000: fail("Admin cart Tender setup missing"); return
+	if not await cart_ensemble_preview(): return
+	var bought := []
+	var total := 0
+	for entry in PURCHASES:
+		if not await choose_category(entry[0]): return
+		if not await select_first_available(tender - total): return
+		var state: Dictionary = client.trading_post_state()
+		if state.purchased or state.collected: fail("Cart fixture needs unowned authored rows: " + str(state)); return
+		if entry[0] == 1:
+			if not await wait_until(func(): return client.trading_post_state().preview_ready, "dressed preview"): return
+			await capture("cart-outfit-default")
+			var default_hide: bool = state.hide_armor
+			await click("PerksProgramToggleHideArmor")
+			if not await wait_until(func(): return client.trading_post_state().hide_armor != default_hide and client.trading_post_state().preview_ready, "Hide Armor override"): return
+			await capture("cart-outfit-hidden")
+			await click("PerksProgramToggleHideArmor")
+			if not await wait_until(func(): return client.trading_post_state().hide_armor == default_hide, "restore authored outfit"): return
+		var before := await collection_count(entry[2], int(state.item_id))
+		await click("PerksProgramAddToCartButton")
+		total += int(state.price)
+		bought.append({"category":entry[0],"kind":entry[2],"vendor":int(state.selected),"item_id":int(state.item_id),"price":int(state.price),"count":before + 1})
+		if not await wait_until(func(): return client.trading_post_state().cart.size() == bought.size(), "cart add"): return
+	await click("PerksProgramViewCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart_visible and control("PerksProgramCartPurchaseButton") != null, "cart preview"): return
+	if int(client.trading_post_state().cart_price) != total: fail("Cart total differs from authored prices"); return
+	await capture("cart-four-products")
+	await click("PerksProgramCartClearButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "clear confirmation"): return
+	await capture("cart-clear-confirm")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel clear"): return
+	if client.trading_post_state().cart.size() != 4: fail("Cancel clear removed products"); return
+	await click("PerksProgramCartPurchaseButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "cart checkout confirmation"): return
+	if control("PerksProgramConfirmItemFrame") != null: fail("Cart incorrectly has single-item frame"); return
+	if int(client.trading_post_state().tender) != tender: fail("Cart confirmation debited locally"); return
+	await capture("cart-checkout-confirm")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return not client.trading_post_state().pending and int(client.trading_post_state().tender) == tender-total, "atomic checkout reply"): return
+	if client.trading_post_state().cart.size() != 0: fail("Accepted cart not cleared"); return
+	for row in bought:
+		if not await choose_category(int(row.category)): return
+		await click("PerksProgramProduct%d" % int(row.vendor))
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == int(row.vendor) and client.trading_post_state().purchased and client.trading_post_state().collected, "checkout affected row"): return
+		if not await wait_until_count(row.kind,int(row.item_id),int(row.count),"checkout collection"): return
+		if control("PerksProgramHistoryRefundTime") == null: fail("Selected purchased item missing source refund history"); return
+		await capture("cart-owned-" + str(row.kind))
+	var file := FileAccess.open(receipts.path_join(skin + "-purchases.json"),FileAccess.WRITE)
+	file.store_string(JSON.stringify({"tender":tender-total,"bought":bought},"\t"))
+	file.close()
+	finish("cart-checkout")
 
 func purchase_each_collection() -> void:
 	var tender := int(client.trading_post_state().tender)
