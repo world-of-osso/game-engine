@@ -672,6 +672,14 @@ impl RegistryModel {
         }
     }
 
+    fn guild_saved_text(&self, id: u64) -> Option<String> {
+        let state = self
+            .shared
+            .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()?;
+        let name = self.registry.get(id)?.name.as_deref()?;
+        state.saved_input_text(name)
+    }
+
     fn guild_field_action(&self, id: u64) -> Option<String> {
         let state = self
             .shared
@@ -830,9 +838,24 @@ impl RegistryModel {
     }
 
     fn edit_text(&mut self, id: u64, text: String) {
+        let original = matches!(self.postsetup, ScreenPostsetup::Guild)
+            .then(|| self.guild_saved_text(id))
+            .flatten();
         if let Some(frame) = self.registry.get_mut(id)
             && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
         {
+            let text = if matches!(self.postsetup, ScreenPostsetup::Guild) && edit.numeric {
+                text.chars().filter(char::is_ascii_digit).collect()
+            } else {
+                text
+            };
+            if let Some(original) = original {
+                edit.text_color = if text == original {
+                    [1.0; 4]
+                } else {
+                    [0.0, 1.0, 0.0, 1.0]
+                };
+            }
             edit.cursor_position = text.len();
             edit.text = text;
         }
@@ -2952,7 +2975,17 @@ impl RegistryUi {
                     model.edit_text(id, text);
                 }
             }
-            UiInput::Blur(id) if matches!(model.postsetup, ScreenPostsetup::Guild) => {
+            UiInput::Blur(id)
+                if matches!(model.postsetup, ScreenPostsetup::Guild)
+                    && model.guild_saved_text(id).is_some() =>
+            {
+                if let Some(WidgetData::EditBox(edit)) = model
+                    .registry
+                    .get_mut(id)
+                    .and_then(|frame| frame.widget_data.as_mut())
+                {
+                    edit.text_color = [1.0; 4];
+                }
                 if let Some(action) = model.guild_field_action(id) {
                     self.actions.push_back(action);
                 }
