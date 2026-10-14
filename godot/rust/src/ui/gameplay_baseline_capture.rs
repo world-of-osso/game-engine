@@ -71,7 +71,19 @@ impl RegistryUi {
                 ActiveSkin::Modern
             });
             self.set_ui_scale(1.0)?;
-            self.show_viewport_screen(baseline(page.to_string())?, screen, ScreenPostsetup::None)
+            let parent = self.hud_parent()?;
+            let mut registry = parent.registry();
+            super::register_metal_frame_style(
+                &mut registry,
+                game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+            )?;
+            self.show_viewport_screen_in(
+                baseline(page.to_string())?,
+                screen,
+                ScreenPostsetup::None,
+                registry,
+                parent,
+            )
         })();
         result.err().unwrap_or_default().as_str().into()
     }
