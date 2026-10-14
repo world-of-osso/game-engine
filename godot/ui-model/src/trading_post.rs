@@ -24,7 +24,7 @@ use crate::{
         strata::FrameStrata,
     },
 };
-pub use outfit::load_scene_autodress;
+pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
 use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};

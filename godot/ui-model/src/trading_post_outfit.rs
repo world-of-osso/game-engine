@@ -107,6 +107,34 @@ fn rotation_button(direction: &str, left: f32, atlas: &str, action: &str) -> Ele
     button_atlas_highlight:"perks-button-up",button_highlight_alpha:0.6,onclick:action,{icon}}}
 }
 
+/// Source mouse-down/up moves the icon; registry layout, not native Control state, owns its position.
+pub fn apply_rotation_icon_positions(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::{frame::WidgetData, layout_values::Val, widgets::button::ButtonState};
+    for name in [
+        "PerksProgramRotateLeftButton",
+        "PerksProgramRotateRightButton",
+    ] {
+        let Some(button) = registry.get_by_name(name) else {
+            continue;
+        };
+        let pushed = matches!(registry.get(button).and_then(|frame| frame.widget_data.as_ref()), Some(WidgetData::Button(button)) if button.state == ButtonState::Pushed);
+        let icon = registry
+            .get_by_name(&format!("{name}Icon"))
+            .expect("Perks rotation icon");
+        let offset = if pushed { 1. } else { 0. };
+        let left = Val::Px(11. + offset);
+        let top = Val::Px(11.5 + offset);
+        let frame = registry.get(icon).expect("Perks rotation icon frame");
+        if frame.position.left == left && frame.position.top == top {
+            continue;
+        }
+        let frame = registry.get_mut(icon).expect("Perks rotation icon frame");
+        frame.position.left = left;
+        frame.position.top = top;
+        registry.mark_rect_dirty(icon);
+    }
+}
+
 pub(super) fn footer(view: &View) -> Element {
     if !view
         .preview_product()

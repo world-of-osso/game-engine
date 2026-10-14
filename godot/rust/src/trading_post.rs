@@ -13,21 +13,6 @@ use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
 use shared::protocol::{EquipmentSlot, TradingPostRequest};
 
-/// PerksModelSceneControlButtonMixin:IconCENTER(1,-1)while held;0,0 on release.
-fn move_trading_rotate_icon(ui: &Gd<RegistryUi>, name: &str, pressed: bool) {
-    let Some(button) = ui.bind().frame_control(name) else {
-        return;
-    };
-    let Some(mut icon) = ui.bind().frame_control(&format!("{name}Icon")) else {
-        return;
-    };
-    let rect = button.get_global_rect();
-    let scale = rect.size.x / 48.;
-    let offset = if pressed { 1. } else { 0. };
-    let position = rect.position + Vector2::new(11. + offset, 11.5 + offset) * scale;
-    icon.set_global_position(position);
-}
-
 fn contains_pointer([x, y, width, height]: [f32; 4], point: Vector2) -> bool {
     Rect2::new(Vector2::new(x, y), Vector2::new(width, height)).contains_point(point)
 }
@@ -323,7 +308,6 @@ impl GameClient {
             if down {
                 self.trading_post.yaw += increment;
             }
-            move_trading_rotate_icon(ui, name, down);
         }
     }
 
