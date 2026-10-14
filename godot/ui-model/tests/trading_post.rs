@@ -236,6 +236,51 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
 }
 
 #[test]
+fn trading_post_purchase_history_shows_owned_or_refund_time_instead_of_a_purchase_button() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.items[0].purchased = true;
+        data.items[0].collected = true;
+        let view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(data.clone())),
+            ..Default::default()
+        };
+        let owned = render(skin, view);
+        assert_eq!(
+            text(&owned, "PerksProgramHistoryPurchasedText"),
+            "You own this item"
+        );
+        assert!(owned.get_by_name("PerksProgramPurchaseButton").is_none());
+        assert!(
+            owned
+                .get_by_name("PerksProgramHistoryPurchasedIcon")
+                .is_some()
+        );
+        data.items[0].refund_seconds = 600;
+        let view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(data)),
+            ..Default::default()
+        };
+        let refundable = render(skin, view);
+        assert_eq!(
+            text(&refundable, "PerksProgramHistoryRefundPrefix"),
+            "Time remaining to refund this item:"
+        );
+        assert_eq!(text(&refundable, "PerksProgramHistoryRefundTime"), "10m");
+        assert!(refundable.get_by_name("PerksProgramRefundButton").is_some());
+        assert!(
+            refundable
+                .get_by_name("PerksProgramHistoryPurchasedText")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn trading_post_renders_player_faction_gradients_in_both_skins() {
     use ui_toolkit::atlas::{AtlasSource, resolve_region};
     use ui_toolkit::widgets::texture::TextureSource;
