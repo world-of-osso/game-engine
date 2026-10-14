@@ -78,8 +78,10 @@ impl RegistryUi {
         };
         GString::from(
             format!(
-                "member={:?};commands={:?}",
-                session.member_menu, session.commands
+                "member={:?};commands={:?};pointer_enabled={}",
+                session.member_menu,
+                session.commands,
+                crate::guild_ranks::guild_pointer_enabled(session, false)
             )
             .as_str(),
         )
@@ -104,6 +106,12 @@ impl RegistryUi {
             let texts = crate::guild_ranks::read_inputs_for_registry(&model.registry, &state);
             if let Some(next) = state.click(&action, &texts) {
                 request = Some(next);
+            }
+        }
+        // Mirror GameClient::update_guild_ranks: right releases use the alt-click queue.
+        while let Some((action, right, _)) = self.pop_alt_click() {
+            if right && action.starts_with("guild:member:") {
+                state.click(&action, &Default::default());
             }
         }
         let result = request
