@@ -12,6 +12,12 @@ Retail XML/Lua under `Blizzard_*/retail/AddOns` defines controls, sizes, anchors
 
 Each finished group requires behavior tests, XML-geometry assertions, native1920×1080 before/after captures in both skins, and inspection alongside the corresponding XML. Source screening alone is not visual acceptance. Each landable report names its commit group; incomplete groups remain explicit.
 
+## Cooldown settings source boundary
+
+`Blizzard_CooldownViewer/CooldownViewerSettings.xml` supplies the399×609 shell, LargeSideTab controls,38×38 icons,317×38 bars, pixel scroll viewport and Revert UIPanelButtonTemplate. Settings preserve per-specialization choices/order and a reopen restore point; the native fixture physically picks/drops, assigns visibility, reloads from disk and reverts in both skins. Modern Revert projects the authored sheet strips; Forever changes art only.
+
+Named gaps: GroupBuffs has no current category data; named layouts, alerts and cross-category assignment have no backing state. Disabled controls do not establish parity. Full visual acceptance remains pending inspected captures after published atlas textures.
+
 ## Proof owners
 
 - [Customer-order source/control proof](../wiki/systems/crafting-ui.md#customer-control-fidelity--verified-2026-10-13).
