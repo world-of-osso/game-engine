@@ -4,9 +4,12 @@ use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, 
 use crate::quest_art::{DynName, NORMAL_FONT_COLOR, named_atlas_texture, portrait_border};
 use crate::selection_list::MenuTick;
 use game_engine_core::adventure_guide::{
-    Catalog, Instance, Item, ItemSet, Section, difficulty_matches,
+    Catalog, Instance, Item, ItemSet, JourneyPresentation, Section, difficulty_matches,
 };
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "EncounterJournalSearchBox";
@@ -76,6 +79,7 @@ pub struct View {
     pub trading_post: Option<Arc<shared::protocol::TradingPostSnapshot>>,
     pub activity_filters: crate::adventure_activities::ActivityFilters,
     pub renown: Option<Arc<shared::protocol::RenownSnapshot>>,
+    pub journey_presentation: Arc<BTreeMap<u32, JourneyPresentation>>,
     pub journeys: crate::adventure_journeys::Journeys,
 }
 impl Default for View {
@@ -111,6 +115,7 @@ impl Default for View {
             trading_post: None,
             activity_filters: Default::default(),
             renown: None,
+            journey_presentation: Arc::default(),
             journeys: Default::default(),
         }
     }
@@ -636,9 +641,12 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         )
     } else {
         match view.tab {
-            Tab::Journeys => {
-                crate::adventure_journeys::journeys(ctx, &view.journeys, view.renown.as_deref())
-            }
+            Tab::Journeys => crate::adventure_journeys::journeys(
+                ctx,
+                &view.journeys,
+                view.renown.as_deref(),
+                &view.journey_presentation,
+            ),
             Tab::Tutorials => tutorials(view),
             Tab::ItemSets => sets(ctx, view),
             Tab::Monthly => crate::adventure_activities::monthly(

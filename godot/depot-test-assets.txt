@@ -346,6 +346,8 @@ WarbandScenePlacement.csv
 WarbandScenePlacementOption.csv
 textures/6375814.blp
 db2/active/UiTextureKit.csv
+# Journeys faction icon prefixes and source list ordering.
+db2/active/UiCovenantDisplayInfo.csv
 db2/active/UiTextureAtlasElement.csv
 db2/active/UiTextureAtlas.csv
 db2/active/UiTextureAtlasMember.csv

@@ -34,6 +34,9 @@ mod creature_sound_tests {
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
 #[cfg(test)]
+#[path = "renown_account_tests.rs"]
+mod renown_snapshot_tests;
+#[cfg(test)]
 #[path = "talents_account_tests.rs"]
 mod talents_account_tests;
 
@@ -1832,6 +1835,23 @@ impl Account {
             || message.is::<shared::protocol::PlayerXpUpdate>()
     }
 
+    fn receive_renown_reply(
+        &mut self,
+        reply: shared::protocol::RenownSnapshot,
+        output: &mut Vec<AccountEvent>,
+    ) {
+        if let Some(error) = &reply.watch_error {
+            output.push(AccountEvent::Reputation(
+                shared::protocol::ReputationStateUpdate {
+                    snapshot: None,
+                    message: None,
+                    error: Some(error.clone()),
+                },
+            ));
+        }
+        self.renown = Some(std::sync::Arc::new(reply));
+    }
+
     fn dispatch_account_state_message(
         &mut self,
         message: ProtocolMessage,
@@ -1857,7 +1877,7 @@ impl Account {
             return Ok(());
         }
         if message.is::<shared::protocol::RenownSnapshot>() {
-            self.renown = Some(std::sync::Arc::new(decode(message)?));
+            self.receive_renown_reply(decode(message)?, output);
             return Ok(());
         }
         if message.is::<shared::protocol::PartyKeystoneSnapshot>() {
