@@ -319,12 +319,11 @@ fn flyout_option(
     let name = format!("PetJournalSpellSelectOption{}", choice.id);
     let mut children = ability_icon(name.clone(), choice, (0.0, 0.0, 28.0), level);
     if choice.id == selected {
-        children.extend(texture(
-            format!("{name}Selected"),
-            130724,
-            (0.0, 0.0, 28.0, 28.0),
-            WHITE,
-        ));
+        children.extend(rsx! { texture {
+            name: {DynName(format!("{name}Selected"))}, texture_fdid: 130724,
+            width: 28.0, height: 28.0, left: 0.0, top: 0.0,
+            pos_type: "absolute", blend_mode: "ADD"
+        } });
     }
     let disabled = !view.combat_editable() || choice.required_level > level;
     let action = format!("pet:ability:{}", choice.id);

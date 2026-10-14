@@ -612,5 +612,19 @@ fn journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
         };
         assert_eq!(text.text, "10");
         assert_eq!(option.onclick.as_deref(), Some("pet:ability:202"));
+        let selected = registry
+            .get(
+                registry
+                    .get_by_name("PetJournalSpellSelectOption384Selected")
+                    .unwrap(),
+            )
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &selected.widget_data else {
+            panic!("selected highlight");
+        };
+        assert_eq!(
+            texture.blend_mode,
+            ui_toolkit::widgets::texture::BlendMode::Additive
+        );
     }
 }
