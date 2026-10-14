@@ -3,7 +3,7 @@ use crate::bank_art::label;
 use crate::guild_ranks::{CommunitiesTab, GuildRanksSession, GuildRosterSort};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
 use crate::quest_art::{DynName, panel_button, window_chrome};
-use crate::selection_list::{Art, RowArt, RowTemplate, row};
+use crate::selection_list::row;
 use shared::protocol::*;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
@@ -11,33 +11,6 @@ pub const SCROLL_BOX: &str = "CommunitiesMemberListScrollBox";
 pub const ROW_HEIGHT: f32 = 20.0;
 const FRAME_SIZE: (f32, f32) = (814.0, 426.0);
 const LIST: (f32, f32, f32, f32) = (196.0, 83.0, 592.0, 315.0);
-const TAB_ART: RowTemplate = RowTemplate {
-    normal: None,
-    hover: Some(RowArt {
-        art: Art::File(130718, [0.0, 1.0, 0.0, 1.0]),
-        insets: [0.0; 4],
-        alpha: 1.0,
-        additive: true,
-    }),
-    selected: Some(RowArt {
-        art: Art::File(130724, [0.0, 1.0, 0.0, 1.0]),
-        insets: [0.0; 4],
-        alpha: 1.0,
-        additive: true,
-    }),
-};
-
-const COLUMN_ART: RowTemplate = RowTemplate {
-    normal: None,
-    hover: Some(RowArt {
-        art: Art::File(136580, [0.0, 1.0, 0.0, 1.0]),
-        insets: [0.0, -5.0, 0.0, -7.0],
-        alpha: 1.0,
-        additive: true,
-    }),
-    selected: None,
-};
-
 pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let mut children = window_chrome(
         "CommunitiesFrame",
@@ -126,7 +99,7 @@ fn tabs(selected: CommunitiesTab) -> Element {
             action,
             true,
             (814.0, 36.0 + index as f32 * 52.0, 32.0, 32.0),
-            (&TAB_ART, tab == selected),
+            (&crate::selection_list::COMMUNITIES_TAB, tab == selected),
             art,
         )
     })
@@ -359,7 +332,7 @@ fn columns() -> Element {
             action,
             enabled,
             (left, 58.0, width, 24.0),
-            (&COLUMN_ART, false),
+            (&crate::selection_list::COLUMN_HEADER, false),
             art,
         ));
         left += width - 2.0;

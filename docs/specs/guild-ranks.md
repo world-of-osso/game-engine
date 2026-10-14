@@ -8,7 +8,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 ## What it must do
 
 ### Communities presentation
-- [x] Mainline CommunitiesFrame is814×426, centered, with32px Chat/Roster/Guild Benefits/Info icon tabs at the right edge and52px pitch. Forever changes art only.
+- [x] Mainline CommunitiesFrame is814×426, centered, with32px Chat/Roster/Guild Benefits/Info icon tabs at the right edge and52px pitch. Selected/hover tab glows use source ADD blending, preserving icon pixels. Forever changes art only.
 - [x] Expanded roster uses source592×315 ScrollBox,20px CommunitiesMemberListEntryTemplate rows, ColumnDisplay headers and an unclipped sibling MinimalScrollBar. Previous/Next/Page controls and paging state are removed; wheel advances40px, stepper20px, thumb reaches every member. Production pointer admission uses Communities visibility, so settings-closed roster input remains enabled; the game menu still blocks it.
 - [x] Name/rank header sorting changes presentation only; member actions still use authoritative character names and rank hierarchy. Available GuildSnapshot level/class/last-online data populates source fields. Officer notes never populate the public Note column.
 - [x] Guild Settings belongs to Roster for guild leaders/officers; Invite belongs to Chat. Both use the XML130×20 bottom-right anchor(-5,+5), not simultaneous invented footer positions. Info preserves authoritative MOTD/info editors.
