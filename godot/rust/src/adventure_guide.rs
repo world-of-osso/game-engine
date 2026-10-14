@@ -595,6 +595,21 @@ impl GameClient {
         let mut state = VarDictionary::new();
         state.set("visible", view.visible);
         state.set("loaded", self.adventure_guide.loaded);
+        state.set(
+            "renown_received_faction_count",
+            self.account
+                .renown
+                .as_ref()
+                .map_or(-1, |snapshot| snapshot.factions.len() as i64),
+        );
+        state.set(
+            "journal_spell_catalog_ready",
+            self.spells.catalog().is_some(),
+        );
+        state.set(
+            "journal_item_catalog_ready",
+            game_engine_ui_model::item_catalog::item_catalog().is_some(),
+        );
         state.set("tab", format!("{:?}", view.tab));
         state.set("page", format!("{:?}", view.page));
         state.set("tier", view.tier);

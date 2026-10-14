@@ -9,7 +9,7 @@ func _initialize() -> void:
 func stop(reason: String) -> void:
 	var state: Dictionary = client.adventure_guide_state() if client != null else {}
 	var summary := {}
-	for key in ["visible", "loaded", "tab", "renown_faction_count", "journey", "journey_level"]:
+	for key in ["visible", "loaded", "tab", "renown_faction_count", "renown_received_faction_count", "journal_spell_catalog_ready", "journal_item_catalog_ready", "journey", "journey_level"]:
 		summary[key] = state.get(key)
 	push_error("JOURNEYS_LAYOUT_FAIL: " + reason + " journal=" + str(summary))
 	quit(1)
@@ -149,7 +149,8 @@ func held_boundary() -> bool:
 	return true
 
 func trace_open(sequence: int, action: String) -> void:
-	print("RENOWN_REPRO utc=%s ticks_usec=%s event_id=%s action=%s request_type=RenownRequest::Query reply_type=RenownSnapshot state=%s" % [Time.get_datetime_string_from_system(true), Time.get_ticks_usec(), sequence, action, client.adventure_guide_state().renown_faction_count])
+	var state: Dictionary = client.adventure_guide_state()
+	print("RENOWN_REPRO utc=%s ticks_usec=%s event_id=%s action=%s nominal_request_type=RenownRequest::Query reply_type=RenownSnapshot displayed=%s received=%s spells_ready=%s items_ready=%s" % [Time.get_datetime_string_from_system(true), Time.get_ticks_usec(), sequence, action, state.renown_faction_count, state.renown_received_faction_count, state.journal_spell_catalog_ready, state.journal_item_catalog_ready])
 
 func journal_key() -> void:
 	for pressed in [true, false]:
@@ -249,7 +250,7 @@ func run() -> void:
 		await process_frame
 	trace_open(1, "snapshot-wait-complete")
 	if client.adventure_guide_state().renown_faction_count != 29:
-		stop("Pinned realm renown catalog did not arrive")
+		stop("Journeys did not become display-ready; received authority and local prerequisites are separate")
 		return
 	if not await click("EncounterJournalJourneysTab") or not await shot("journeys-midnight"):
 		return
