@@ -59,7 +59,7 @@ func run_test() -> void:
 	var image := root.get_texture().get_image()
 	var samples := []
 	for index in range(names.size()):
-		var texture = panel.find_child("Db2AtlasProofImage%d" % index, true, false) as TextureRect
+		var texture = sample_texture(index)
 		var rect := texture.get_global_rect()
 		var pixels := image.get_region(Rect2i(rect))
 		var lit := 0
@@ -84,9 +84,15 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func sample_texture(index: int) -> TextureRect:
+	var frame := panel.find_child("Db2AtlasProofImage%d" % index, true, false)
+	if frame == null:
+		return null
+	return frame.get_node_or_null("Parts/Part0") as TextureRect
+
 func samples_ready() -> bool:
 	for index in range(names.size()):
-		var texture = panel.find_child("Db2AtlasProofImage%d" % index, true, false) as TextureRect
+		var texture = sample_texture(index)
 		if texture == null or texture.texture == null:
 			return false
 	return true
