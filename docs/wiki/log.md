@@ -1,3 +1,7 @@
+## 2026-10-13 — Owned pet combat details
+
+[Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal15, dispatch1 and server battle17 focused tests GREEN; native payload captures pending.
+
 ## 2026-10-13 — Collections filters, source cameras and eight-frame capture
 
 [Journal source slice](systems/battle-pets.md#journal-filters-and-authored-scenes--2026-10-13): shared Retail filters/search,40 authored DB2 pet scenes, source normalization/camera transforms and scoped tests. Eight inspected1920×1080 offline frames fix scaled audit clipping; empty journals do not prove owned-model camera appearance. ModelScene default FOV unsourced; existing projection retained. Health/ability payload and persistence decision remain open.
