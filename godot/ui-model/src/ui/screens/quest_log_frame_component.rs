@@ -109,10 +109,11 @@ pub struct QuestLogDetails {
     pub title: String,
     pub objectives_text: String,
     pub objectives: Vec<QuestLogObjectiveLine>,
-    /// Story text; known once the quest giver showed it this session.
+    /// Owned story text from the authoritative quest entry.
     pub description: Option<String>,
     pub rewards: Option<RewardView>,
     pub watched: bool,
+    pub can_share: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]

@@ -651,7 +651,7 @@ fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) ->
             "QuestMapFrameShareButton",
             "Share",
             SHARE_ACTION,
-            true,
+            details.can_share,
             103.0,
         ),
         ("QuestMapFrameTrackButton", track, TRACK_ACTION, true, 105.0),
