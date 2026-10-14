@@ -399,8 +399,43 @@ fn reward_card(reward: &shared::protocol::RenownReward, left: f32, top: f32) -> 
     ));
     rsx! {r#frame {
         name:{DynName(format!("{prefix}Card"))},left,top,width:{REWARD_CARD.0},height:{REWARD_CARD.1},
-        pos_type:"absolute",{parts}
+        pos_type:"absolute",mouse_enabled:true,{parts}
     }}
+}
+
+/// Blizzard_Journeys.lua:SetRewards OnEnter, without unsourced collection/claim flags.
+pub fn reward_tooltip(
+    state: &Journeys,
+    snapshot: Option<&RenownSnapshot>,
+    frame: &str,
+) -> Option<crate::game_tooltip::GameTooltip> {
+    use crate::tooltip_presentation::{
+        TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
+    };
+    let id = frame
+        .strip_prefix("JourneyReward")?
+        .strip_suffix("Card")?
+        .parse::<u32>()
+        .ok()?;
+    let faction = faction(snapshot, state.selected?).ok()?;
+    let reward = faction
+        .rewards
+        .iter()
+        .filter(|reward| reward.level == state.level)
+        .take(MAX_REWARD_CARDS)
+        .find(|reward| reward.id == id)?;
+    Some(crate::game_tooltip::GameTooltip::new(
+        TooltipPresentation {
+            title: reward.name.clone(),
+            title_color: TOOLTIP_WHITE,
+            lines: vec![
+                TooltipLineState::new(""),
+                TooltipLineState::colored(&reward.description, TOOLTIP_DESCRIPTION_COLOR),
+            ],
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    ))
 }
 
 fn unlock_notice(unlock: &RenownUnlock) -> Element {
