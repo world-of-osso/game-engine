@@ -51,6 +51,7 @@ mod group_countdown;
 mod guild_charters;
 mod guild_rank_widgets;
 mod housing;
+mod housing_key_labels;
 mod item_catalog_pending;
 mod item_tooltip;
 mod launcher;
