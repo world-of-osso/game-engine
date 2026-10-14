@@ -64,7 +64,7 @@ impl RibbonMaterialFixture {
         .collect();
         let mut geometry = ArrayMesh::new_gd();
         upload_geometry(&mut geometry, &vertices);
-        let root = self.base().clone();
+        let root = self.to_gd().upcast::<Node3D>();
         let mut mesh = spawn_ribbon_mesh(&root, &geometry, &material);
         mesh.set_visible(true);
         Ok(())
