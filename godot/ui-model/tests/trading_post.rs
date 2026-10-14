@@ -84,6 +84,79 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 #[test]
+fn trading_post_cart_add_remove_and_confirmed_clear_follow_retail_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.frozen_item_id = None;
+        let mut wrap = data.items[0].clone();
+        wrap.id = 5;
+        wrap.name = "Arcanofire Wrap".into();
+        wrap.price = 75;
+        data.items.push(wrap);
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data)),
+            selected: Some(4),
+            ..Default::default()
+        };
+        assert_eq!(view.click("perks:cart:add").unwrap(), None);
+        assert_eq!(view.click("perks:cart:add").unwrap(), None);
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "1"
+        );
+        view.click("perks:select:5").unwrap();
+        view.click("perks:cart:add").unwrap();
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "2"
+        );
+        view.click("perks:cart:show").unwrap();
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramShoppingCartFrame")
+                .is_some()
+        );
+        view.click("perks:cart:close").unwrap();
+        view.click("perks:cart:remove").unwrap();
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "1"
+        );
+        view.click("perks:cart:show").unwrap();
+        view.click("perks:cart:clear").unwrap();
+        view.click("perks:cancel").unwrap();
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "1"
+        );
+        view.click("perks:cart:show").unwrap();
+        view.click("perks:cart:clear").unwrap();
+        assert_eq!(view.click("perks:confirm").unwrap(), None);
+        let registry = render(skin, view);
+        assert!(
+            registry
+                .get_by_name("PerksProgramShoppingCartFrame")
+                .is_none()
+        );
+        assert_eq!(text(&registry, "PerksProgramViewCartItemCountText"), "0");
+    }
+}
+
+#[test]
 fn trading_post_renders_player_faction_gradients_in_both_skins() {
     use ui_toolkit::atlas::{AtlasSource, resolve_region};
     use ui_toolkit::widgets::texture::TextureSource;

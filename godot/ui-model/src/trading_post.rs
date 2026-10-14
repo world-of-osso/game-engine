@@ -1,5 +1,7 @@
 //! Retail Mainline Blizzard_PerksProgram: full-screen list, category filter and model.
 //! Forever changes atlas art only; ToyOverlayFrame uses the authored item icon/details.
+#[path = "trading_post_cart.rs"]
+mod cart;
 #[path = "trading_post_filter.rs"]
 mod filter_menu;
 use crate::{
@@ -30,6 +32,8 @@ pub struct View {
     pub snapshot: Option<Arc<TradingPostSnapshot>>,
     pub filters: Filters,
     pub selected: Option<u32>,
+    pub cart: Vec<u32>,
+    pub cart_visible: bool,
     pub dropdown: bool,
     pub submenu: Option<FilterSubmenu>,
     pub sort: Sort,
@@ -163,6 +167,10 @@ impl View {
         if self.confirm.is_some() && !matches!(action, "perks:confirm" | "perks:cancel") {
             return Ok(None);
         }
+        if action.starts_with("perks:cart:") {
+            self.click_cart(action)?;
+            return Ok(None);
+        }
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
             "perks:filter" => {
@@ -264,6 +272,11 @@ impl View {
         Err(format!("Unknown Trading Post action: {action}"))
     }
     fn confirm_request(&mut self) -> Result<Option<Action>, String> {
+        if self.confirm.as_deref() == Some("clear-cart") {
+            self.clear_cart();
+            self.confirm = None;
+            return Ok(None);
+        }
         let Some(id) = self.selected else {
             return Ok(None);
         };
