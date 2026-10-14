@@ -169,6 +169,57 @@ fn journeys_expansion_dropdown_uses_the_journal_anchor_and_closes_on_selection()
     );
 }
 
+#[test]
+fn selected_journey_reward_cards_follow_retail_single_pair_and_grid_anchors() {
+    let mut view = data_view();
+    view.apply("journal:tab:journeys").unwrap();
+    for count in 1..=4 {
+        let mut catalog = snapshot();
+        let faction = &mut catalog.factions[0];
+        faction.rewards = (0..count)
+            .map(|index| reward(1000 + index, 2, &format!("Reward {index}")))
+            .collect();
+        view.renown = Some(Arc::new(catalog));
+        view.apply("journal:journey:12").unwrap();
+        let registry = render(&view);
+        assert_eq!(
+            rect(&registry, "JourneyProgressName"),
+            [144.5, 15., 500., 25.]
+        );
+        let first = if count == 1 {
+            [236., 243., 317., 106.]
+        } else if count == 2 {
+            [236., 193., 317., 106.]
+        } else {
+            [75., 193., 317., 106.]
+        };
+        assert_eq!(rect(&registry, "JourneyReward1000Card"), first);
+        assert_eq!(
+            rect(&registry, "JourneyReward1000Icon"),
+            [30., 30.5, 45., 45.]
+        );
+        assert_eq!(
+            rect(&registry, "JourneyReward1000Name"),
+            [85., 33., 200., 40.]
+        );
+        if count == 2 {
+            assert_eq!(
+                rect(&registry, "JourneyReward1001Card"),
+                [236., 299., 317., 106.]
+            );
+        } else if count > 2 {
+            assert_eq!(
+                rect(&registry, "JourneyReward1001Card"),
+                [400., 193., 317., 106.]
+            );
+            assert_eq!(
+                rect(&registry, "JourneyReward1002Card"),
+                [75., 299., 317., 106.]
+            );
+        }
+    }
+}
+
 fn data_view() -> View {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
