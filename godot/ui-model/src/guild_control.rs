@@ -44,6 +44,7 @@ pub fn apply_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
             &mut registry.get_mut(id).expect("guild field").widget_data
         {
             edit.max_letters = Some(max);
+            edit.numeric = !name.starts_with("GuildRankOrderName");
         }
     }
     if ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Modern {

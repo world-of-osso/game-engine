@@ -30,6 +30,11 @@ func capture() -> void:
 		await settle()
 		assert(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder")
 		await type_text(ui, "GuildRankOrderName2", "Discarded", false)
+		var edit := control(ui, "GuildRankOrderName2") as LineEdit
+		if edit.get_theme_color("font_color") != Color(0, 1, 0, 1):
+			push_error("Source changed-name text must be green: " + str(edit.get_theme_color("font_color")))
+			quit(1)
+		assert(edit.get_theme_color("font_color") == Color(0, 1, 0, 1))
 		await key(KEY_ESCAPE)
 		await settle()
 		var escaped: String = ui.call("guild_control_preview_dispatch")
@@ -72,8 +77,11 @@ func capture() -> void:
 		assert(ui.call("guild_control_preview_reply") == "")
 		await settle()
 		assert(ui.call("guild_control_preview_rights") == (old_rights | 12))
-		await type_text(ui, "GuildRankGold", "7")
+		await type_text(ui, "GuildRankGold", "7x")
 		request = ui.call("guild_control_preview_dispatch")
+		if not request.contains("gold_per_day: 70000"):
+			push_error("Source numeric GoldBox must reject x while preserving digit7: " + request)
+			quit(1)
 		assert(request.contains("gold_per_day: 70000"), request)
 		assert(ui.call("guild_control_preview_reply") == "")
 		await settle()
@@ -97,7 +105,7 @@ func capture() -> void:
 		request = ui.call("guild_control_preview_dispatch")
 		assert(request.contains("SetTab") and request.contains("deposit: false"), request)
 		assert(ui.call("guild_control_preview_reply") == "")
-		await type_text(ui, "GuildTabItems0", "9")
+		await type_text(ui, "GuildTabItems0", "9x")
 		request = ui.call("guild_control_preview_dispatch")
 		assert(request.contains("withdrawals_per_day: 9"), request)
 		assert(ui.call("guild_control_preview_reply") == "")
