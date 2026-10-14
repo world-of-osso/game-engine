@@ -42,6 +42,8 @@ pub struct View {
     pub cart: Vec<u32>,
     pub cart_visible: bool,
     pub cart_hover: Option<u32>,
+    /// Retail selectedItems keyed by ConvertInvTypeToSelectionKey; 0 is OTHER.
+    pub cart_selected: std::collections::BTreeMap<u8, u32>,
     /// Retail resets this override on vendor open, not on product changes.
     pub hide_armor_setting: Option<bool>,
     pub dropdown: bool,
