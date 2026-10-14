@@ -106,3 +106,9 @@ Evidence lives in canonical `data/diagnostics/adventure-guide-2026-10-11/`. The 
 
 - [[asset-pipeline]] — local CASC acquisition.
 - [[raid-entry]] — authoritative saves and difficulty selection.
+
+## Journeys authoritative watch and held-left regression — 2026-10-14
+
+`RenownRequest::SetWatchedFaction` uses the real Faction ID; zero clears the persisted `CharacterReputation` watch. Queries read the live component. Unsupported unlock conditions and unknown factions refuse without discarding the prior watch or catalog. Native Account caches the returned snapshot and forwards refusal through existing reputation errors; the hover-only26px shared checkbox renders only authoritative checked state. A refused write no longer hides an otherwise eligible hovered toggle. Evaluator fixtures certify eligible states, not production eligibility: all29 pinned gates remain unevaluated.
+
+Held-left offset51.6 rounds selection to1 but is not the left boundary. Source `RefreshView` disables the previous arrow only at offset0 and retains the original selection for jump availability. Corrected ButtonState RED→GREEN and16 focused UI cases cover this distinction. Native fixture99edc3cb6 adds physical fractional-left/release1/short-right2 and held-boundary25 cases. Neither current skin reached these assertions: Modern first J08:30:54–08:32:26UTC and Forever08:48:31–08:50:02UTC lacked the first RenownSnapshot after90s. No close/reopen/retry or network workaround was added. Detailed timestamps and logs live in `/home/osso/.worktrees/adventure-guide4-proof/renown-open-loop-repro.md`; delivery belongs to server-tick-perf7. Earliercb706aab3 captures remain bounded to their exact executable. Main-screen status-bar work is authorized next; positive native watch remains blocked on genuine evaluated eligibility and authoritative delivery.
