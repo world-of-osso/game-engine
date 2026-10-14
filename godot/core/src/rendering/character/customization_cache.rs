@@ -258,6 +258,7 @@ where
         .prepare(sql)
         .map_err(|err| format!("prepare insert for {}: {err}", path.display()))?;
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -267,8 +268,11 @@ where
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let Some(params) = row_builder(&headers, &fields, path)? else {
+        let Some(params) = row_builder(&headers, &fields, path)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?
+        else {
             continue;
         };
         insert
@@ -278,11 +282,8 @@ where
     Ok(())
 }
 
-fn parse_u32(fields: &[String], index: usize) -> u32 {
-    fields
-        .get(index)
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(0)
+fn parse_u32(fields: &[String], index: usize) -> Result<u32, String> {
+    crate::csv_util::parse_field(fields, index)
 }
 
 fn parse_i32(fields: &[String], index: usize, path: &Path) -> Result<i32, String> {
@@ -300,15 +301,15 @@ fn parse_i32(fields: &[String], index: usize, path: &Path) -> Result<i32, String
     })
 }
 
-fn parse_f32(fields: &[String], index: usize) -> f32 {
-    fields
-        .get(index)
-        .and_then(|v| v.parse::<f32>().ok())
-        .unwrap_or(0.0)
+fn parse_f32(fields: &[String], index: usize) -> Result<f32, String> {
+    crate::csv_util::parse_field(fields, index)
 }
 
-fn parse_str(fields: &[String], index: usize) -> String {
-    fields.get(index).cloned().unwrap_or_default()
+fn parse_str(fields: &[String], index: usize) -> Result<String, String> {
+    fields
+        .get(index)
+        .cloned()
+        .ok_or_else(|| format!("missing column {index}"))
 }
 
 fn populate_chr_models(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -322,10 +323,10 @@ fn populate_chr_models(conn: &Connection, path: &Path) -> Result<(), String> {
             let customize_scale = header_index(headers, "CustomizeScale", path)?;
             let camera_distance_offset = header_index(headers, "CameraDistanceOffset", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_u32(fields, layout),
-                parse_f32(fields, customize_scale),
-                parse_f32(fields, camera_distance_offset),
+                parse_u32(fields, id)?,
+                parse_u32(fields, layout)?,
+                parse_f32(fields, customize_scale)?,
+                parse_f32(fields, camera_distance_offset)?,
             )))
         },
     )
@@ -345,13 +346,13 @@ fn populate_options(conn: &Connection, path: &Path) -> Result<(), String> {
             let ui_type = header_index(headers, "OptionType", path)?;
             let requirement = header_index(headers, "Requirement", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_str(fields, name),
-                parse_u32(fields, model),
-                parse_u32(fields, category),
-                parse_u32(fields, order),
-                parse_u32(fields, ui_type),
-                parse_u32(fields, requirement),
+                parse_u32(fields, id)?,
+                parse_str(fields, name)?,
+                parse_u32(fields, model)?,
+                parse_u32(fields, category)?,
+                parse_u32(fields, order)?,
+                parse_u32(fields, ui_type)?,
+                parse_u32(fields, requirement)?,
             )))
         },
     )
@@ -369,11 +370,11 @@ fn populate_categories(conn: &Connection, path: &Path) -> Result<(), String> {
             let icon = header_index(headers, "CustomizeIcon", path)?;
             let selected_icon = header_index(headers, "CustomizeIconSelected", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_str(fields, name),
-                parse_u32(fields, order),
-                parse_u32(fields, icon),
-                parse_u32(fields, selected_icon),
+                parse_u32(fields, id)?,
+                parse_str(fields, name)?,
+                parse_u32(fields, order)?,
+                parse_u32(fields, icon)?,
+                parse_u32(fields, selected_icon)?,
             )))
         },
     )
@@ -394,12 +395,12 @@ fn populate_choices(conn: &Connection, path: &Path) -> Result<(), String> {
             let swatch_color_0 = header_index(headers, "SwatchColor_0", path)?;
             let swatch_color_1 = header_index(headers, "SwatchColor_1", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_u32(fields, option_id),
-                parse_str(fields, name),
-                parse_u32(fields, requirement_id),
-                parse_u32(fields, order_index),
-                parse_u32(fields, visibility_requirement),
+                parse_u32(fields, id)?,
+                parse_u32(fields, option_id)?,
+                parse_str(fields, name)?,
+                parse_u32(fields, requirement_id)?,
+                parse_u32(fields, order_index)?,
+                parse_u32(fields, visibility_requirement)?,
                 parse_i32(fields, swatch_color_0, path)?,
                 parse_i32(fields, swatch_color_1, path)?,
             )))
@@ -419,18 +420,18 @@ fn populate_elements(conn: &Connection, path: &Path) -> Result<(), String> {
             let material_id = header_index(headers, "ChrCustomizationMaterialID", path)?;
             let skinned_model_id = header_index(headers, "ChrCustomizationSkinnedModelID", path)?;
             Ok(Some((
-                parse_u32(fields, choice_id),
-                parse_u32(fields, related_choice_id),
-                parse_u32(fields, geoset_id),
-                parse_u32(fields, material_id),
-                parse_u32(fields, skinned_model_id),
-                has_unsupported_effects(headers, fields),
+                parse_u32(fields, choice_id)?,
+                parse_u32(fields, related_choice_id)?,
+                parse_u32(fields, geoset_id)?,
+                parse_u32(fields, material_id)?,
+                parse_u32(fields, skinned_model_id)?,
+                has_unsupported_effects(headers, fields)?,
             )))
         },
     )
 }
 
-fn has_unsupported_effects(headers: &[String], fields: &[String]) -> bool {
+fn has_unsupported_effects(headers: &[String], fields: &[String]) -> Result<bool, String> {
     const UNSUPPORTED_COLUMNS: [&str; 8] = [
         "ChrCustomizationBoneSetID",
         "ChrCustomizationCondModelID",
@@ -441,9 +442,13 @@ fn has_unsupported_effects(headers: &[String], fields: &[String]) -> bool {
         "ParticleColorID",
         "ChrCustGeoComponentLinkID",
     ];
-    headers.iter().enumerate().any(|(index, name)| {
-        UNSUPPORTED_COLUMNS.contains(&name.as_str()) && parse_u32(fields, index) != 0
-    })
+    let mut unsupported = false;
+    for (index, name) in headers.iter().enumerate() {
+        if UNSUPPORTED_COLUMNS.contains(&name.as_str()) {
+            unsupported |= parse_u32(fields, index)? != 0;
+        }
+    }
+    Ok(unsupported)
 }
 
 fn populate_skinned_models(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -457,10 +462,10 @@ fn populate_skinned_models(conn: &Connection, path: &Path) -> Result<(), String>
             let geoset_type = header_index(headers, "GeosetType", path)?;
             let geoset_id = header_index(headers, "GeosetID", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_u32(fields, collection),
-                parse_u32(fields, geoset_type),
-                parse_u32(fields, geoset_id),
+                parse_u32(fields, id)?,
+                parse_u32(fields, collection)?,
+                parse_u32(fields, geoset_type)?,
+                parse_i32(fields, geoset_id, path)?,
             )))
         },
     )
@@ -476,9 +481,9 @@ fn populate_materials(conn: &Connection, path: &Path) -> Result<(), String> {
             let target = header_index(headers, "ChrModelTextureTargetID", path)?;
             let res = header_index(headers, "MaterialResourcesID", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_u32(fields, target) as u16,
-                parse_u32(fields, res),
+                parse_u32(fields, id)?,
+                parse_u32(fields, target)? as u16,
+                parse_u32(fields, res)?,
             )))
         },
     )
@@ -494,9 +499,9 @@ fn populate_geosets(conn: &Connection, path: &Path) -> Result<(), String> {
             let geoset_type = header_index(headers, "GeosetType", path)?;
             let geoset_id = header_index(headers, "GeosetID", path)?;
             Ok(Some((
-                parse_u32(fields, id),
-                parse_u32(fields, geoset_type) as u16,
-                parse_u32(fields, geoset_id) as u16,
+                parse_u32(fields, id)?,
+                parse_u32(fields, geoset_type)? as u16,
+                parse_i32(fields, geoset_id, path)?,
             )))
         },
     )
@@ -517,17 +522,15 @@ fn populate_hair_geosets(
             let geoset_type = header_index(headers, "GeosetType", path)?;
             let geoset_id = header_index(headers, "GeosetID", path)?;
             let shows_scalp = header_index(headers, "Showscalp", path)?;
-            let Some(model_id) = race_models
-                .chr_model_id(parse_u32(fields, race) as u8, parse_u32(fields, sex) as u8)
-            else {
+            let race = parse_u32(fields, race)? as u8;
+            let sex = parse_u32(fields, sex)? as u8;
+            let geoset_type = parse_u32(fields, geoset_type)? as u16;
+            let geoset_id = parse_i32(fields, geoset_id, path)?;
+            let shows_scalp = parse_u32(fields, shows_scalp)? != 0;
+            let Some(model_id) = race_models.chr_model_id(race, sex) else {
                 return Ok(None);
             };
-            Ok(Some((
-                model_id,
-                parse_u32(fields, geoset_type) as u16,
-                parse_u32(fields, geoset_id) as u16,
-                parse_u32(fields, shows_scalp) != 0,
-            )))
+            Ok(Some((model_id, geoset_type, geoset_id, shows_scalp)))
         },
     )
 }
@@ -544,12 +547,12 @@ fn populate_texture_fdids(conn: &Connection, path: &Path) -> Result<(), String> 
             // A material's texture is its UsageType 0 row; others (such as the
             // Demon Hunter tattoos' opaque UsageType 2 companions) are not the
             // diffuse layer (wow.export `DBCharacterCustomization._initialize`).
-            if parse_u32(fields, usage_type) != 0 {
+            if parse_u32(fields, usage_type)? != 0 {
                 return Ok(None);
             }
             Ok(Some((
-                parse_u32(fields, material_resources_id),
-                parse_u32(fields, file_data_id),
+                parse_u32(fields, material_resources_id)?,
+                parse_u32(fields, file_data_id)?,
             )))
         },
     )
@@ -726,5 +729,153 @@ mod tests {
             .expect("reused customization cache mtime");
         assert_eq!(cache_path, reused_path);
         assert_eq!(before, after);
+    }
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_customization_rejects_invalid_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("ChrModel", Some("ID"));
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        let error = populate_chr_models(&conn, &fixture.0).unwrap_err();
+        assert!(error.contains("ChrModel.csv:2:"), "{error}");
+    }
+    #[test]
+    fn db2_header_customization_imports_every_canonical_model() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("ChrModel", None);
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        populate_chr_models(&conn, &fixture.0).unwrap();
+        let count: usize = conn
+            .query_row("SELECT COUNT(*) FROM chr_models", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            count,
+            std::fs::read_to_string(&fixture.0).unwrap().lines().count() - 1
+        );
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_customization_reads_all_installed_tables() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        for (file, table, populate) in [
+            (
+                "ChrModel",
+                "chr_models",
+                populate_chr_models as fn(&Connection, &Path) -> Result<(), String>,
+            ),
+            ("ChrCustomizationOption", "options", populate_options),
+            ("ChrCustomizationChoice", "choices", populate_choices),
+            (
+                "ChrCustomizationCategory",
+                "categories",
+                populate_categories,
+            ),
+            ("ChrCustomizationElement", "elements", populate_elements),
+            ("ChrCustomizationMaterial", "materials", populate_materials),
+            ("ChrCustomizationGeoset", "geosets", populate_geosets),
+            (
+                "ChrCustomizationSkinnedModel",
+                "skinned_models",
+                populate_skinned_models,
+            ),
+        ] {
+            let path = source.join(format!("{file}.csv"));
+            populate(&conn, &path).unwrap();
+            let count: usize = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let expected =
+                crate::csv_util::parse_csv_records(&std::fs::read_to_string(path).unwrap()).len()
+                    - 1;
+            assert_eq!(count, expected, "{file}");
+        }
+        let race_models = RaceModels::load(&source).unwrap();
+        populate_hair_geosets(&conn, &source.join("CharHairGeosets.csv"), &race_models).unwrap();
+        let raw = crate::customization_query_data::query_customization_raw_data(&conn, race_models)
+            .unwrap();
+        let db = crate::customization_data::CustomizationDb::from_raw(&raw);
+        let choices: HashMap<_, _> = db
+            .options_by_model
+            .values()
+            .flatten()
+            .flat_map(|option| &option.choices)
+            .map(|choice| (choice.id, choice))
+            .collect();
+        let mut checked = 0;
+        for element in &raw.elements {
+            let (Some(geoset), Some(choice)) = (
+                raw.geosets.get(&element.geoset_id),
+                choices.get(&element.choice_id),
+            ) else {
+                continue;
+            };
+            if element.related_choice_id != 0 || geoset.geoset_id < 0 {
+                continue;
+            }
+            assert!(
+                choice
+                    .geosets
+                    .contains(&(geoset.geoset_type, geoset.geoset_id as u16)),
+                "choice {} lost authored nonnegative geoset",
+                element.choice_id
+            );
+            checked += 1;
+        }
+        assert!(checked > 0);
+    }
+}
+
+#[cfg(test)]
+mod signed_geoset_tests {
+    use super::*;
+    #[test]
+    fn db2_header_signed_geosets_preserve_real_rows_and_report_projection_gaps() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        populate_geosets(&conn, &source.join("ChrCustomizationGeoset.csv")).unwrap();
+        populate_skinned_models(&conn, &source.join("ChrCustomizationSkinnedModel.csv")).unwrap();
+        let race_models = RaceModels::load(&source).unwrap();
+        let night_elf_model = race_models.chr_model_id(4, 0).unwrap();
+        populate_hair_geosets(&conn, &source.join("CharHairGeosets.csv"), &race_models).unwrap();
+        let raw = crate::customization_query_data::query_customization_raw_data(&conn, race_models)
+            .unwrap();
+        // Canonical CharHairGeosets8594: Night Elf male group17/id-1.
+        assert!(raw.hair_geosets.contains_key(&(night_elf_model, 17, -1)));
+        assert_eq!(raw.geosets[&213].geoset_id as i64, -1);
+        assert_eq!(raw.skinned_models[&497].geoset_id as i64, -1);
+        assert_eq!(raw.skinned_models[&614].geoset_id as i64, -1);
+        let db = crate::customization_data::CustomizationDb::from_raw(&raw);
+        assert!(
+            db.unresolved_geoset_rows
+                .iter()
+                .any(|gap| gap.contains(&format!(
+                    "CharHairGeosets model {night_elf_model}, GeosetType=17: GeosetID=-1"
+                )))
+        );
+        for (table, id) in [
+            ("ChrCustomizationGeoset", 213),
+            ("ChrCustomizationSkinnedModel", 497),
+            ("ChrCustomizationSkinnedModel", 614),
+        ] {
+            assert!(
+                db.unresolved_geoset_rows
+                    .iter()
+                    .any(|gap| gap.contains(&format!("{table} row {id}: GeosetID=-1"))),
+                "missing explicit gap for {table} {id}"
+            );
+        }
     }
 }
