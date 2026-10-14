@@ -1,6 +1,7 @@
 //! Native global bounds, derived from effective PerksProgram XML/Lua anchors.
 use super::compute_layout_with_intrinsics;
 use game_engine_ui_model::trading_post::{FilterSubmenu, View, trading_post_screen};
+use image::GenericImageView;
 use shared::protocol::{TradingPostCategory, TradingPostItem, TradingPostSnapshot};
 use std::{collections::HashMap, sync::Arc};
 use ui_toolkit::{
