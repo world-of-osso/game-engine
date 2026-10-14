@@ -24,18 +24,24 @@ impl RegistryUi {
     /// Physical pointer/Enter -> production input reader/reducer, without optimistic mutation.
     #[func]
     pub fn guild_control_preview_dispatch(&mut self) -> GString {
-        let action = self.pop_action().to_string();
-        if action.is_empty() {
-            return GString::new();
-        }
         let Some(model) = &self.model else {
             return GString::from("Guild preview not mounted");
         };
         let Some(mut state) = model.shared.get::<GuildRanksSession>().cloned() else {
             return GString::from("Guild preview state missing");
         };
-        let texts = crate::guild_ranks::read_inputs_for_registry(&model.registry, &state);
-        let request = state.click(&action, &texts);
+        let mut request = None;
+        loop {
+            let action = self.pop_action().to_string();
+            if action.is_empty() {
+                break;
+            }
+            let model = self.model.as_ref().expect("guild preview");
+            let texts = crate::guild_ranks::read_inputs_for_registry(&model.registry, &state);
+            if let Some(next) = state.click(&action, &texts) {
+                request = Some(next);
+            }
+        }
         let result = request
             .as_ref()
             .map_or_else(String::new, |request| format!("{request:?}"));

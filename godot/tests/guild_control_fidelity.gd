@@ -16,6 +16,11 @@ func capture() -> void:
 		assert_rect(ui, "GuildControlUIRankOrderFrame", Rect2(454, 190, 312, 372))
 		assert_rect(ui, "GuildRankOrderName2", Rect2(536, 258, 132, 32))
 		assert_rect(ui, "GuildControlUIRankOrderFrameRank3ShiftUpButton", Rect2(669, 261, 26, 26))
+		var backdrop: Color = root.get_texture().get_image().get_pixel(457, 530)
+		if backdrop.r >= 0.1 or backdrop.g >= 0.1 or backdrop.b >= 0.1:
+			push_error("TranslucentFrameTemplate black0.9 background missing: " + str(backdrop))
+			quit(1)
+		assert(backdrop.r < 0.1 and backdrop.g < 0.1 and backdrop.b < 0.1)
 		capture_png(directory, skin + "-guild-control.png")
 		await type_text(ui, "GuildRankOrderName2", "Pathfinder")
 		var request: String = ui.call("guild_control_preview_dispatch")
@@ -23,6 +28,15 @@ func capture() -> void:
 		assert(ui.call("guild_control_preview_waiting"))
 		assert(ui.call("guild_control_preview_reply") == "")
 		await settle()
+		assert(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder")
+		await type_text(ui, "GuildRankOrderName2", "Discarded", false)
+		await key(KEY_ESCAPE)
+		await settle()
+		var escaped: String = ui.call("guild_control_preview_dispatch")
+		if escaped != "":
+			push_error("Escape must restore authoritative text without a rename request: " + escaped)
+			quit(1)
+		assert(escaped == "")
 		assert(ui.call("frame_text", "GuildRankOrderName2") == "Pathfinder")
 		await click(ui, "GuildControlUINavigationDropdown")
 		assert(ui.call("guild_control_preview_dispatch") == "")
@@ -93,7 +107,7 @@ func capture() -> void:
 		ui.call("enable_gameplay_preview_scroll_input")
 		await settle()
 		var list := control(ui, "GuildControlBankScrollBox")
-		for step in range(24):
+		for step in range(48):
 			for pressed in [true, false]:
 				var wheel := InputEventMouseButton.new()
 				wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
@@ -160,10 +174,11 @@ func key(code: int, unicode: int = 0, ctrl: bool = false) -> void:
 		Input.parse_input_event(event)
 		await process_frame
 
-func type_text(ui: Node, name: String, text: String) -> void:
+func type_text(ui: Node, name: String, text: String, submit: bool = true) -> void:
 	await click(ui, name)
 	await key(KEY_A, 0, true)
 	for character in text:
 		await key(character.unicode_at(0), character.unicode_at(0))
-	await key(KEY_ENTER)
+	if submit:
+		await key(KEY_ENTER)
 	await settle()
