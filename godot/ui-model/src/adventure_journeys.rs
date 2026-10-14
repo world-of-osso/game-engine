@@ -275,7 +275,7 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
     body.extend(label(
         "JourneyProgressName".into(),
         &faction.name,
-        (150., 66., 500., 25.),
+        (144.5, 15., 500., 25.),
         (20., WHITE, "CENTER"),
     ));
     body.extend(label(
@@ -289,9 +289,25 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
     ));
     body.extend(progress_bar(faction, maxed));
     body.extend(level_selector(level));
+    body.extend(named_atlas_texture(
+        "JourneyProgressDivider".into(),
+        "ui-journeys-renown-divider",
+        (45., 177., 699., 16.),
+    ));
     body.extend(reward_cards(faction, level));
     body.extend(unlock_notice(&faction.unlock));
-    body
+    let background = named_atlas_texture(
+        "EncounterJournalInstanceSelectBackground".into(),
+        "ui-journeys-bg",
+        (3., 1., 792., 432.),
+    );
+    rsx! {r#frame {
+        name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
+        pos_type:"absolute",{background},r#frame {
+            name:"JourneyProgress",left:0.0,top:0.0,width:789.0,height:429.0,
+            pos_type:"absolute",{body}
+        }
+    }}
 }
 
 fn progress_bar(faction: &MajorFactionSnapshot, maxed: bool) -> Element {
@@ -350,7 +366,7 @@ fn level_selector(level: u32) -> Element {
     row
 }
 
-/// JourneyProgressFrameMixin:SetRewards layout: one card centered, otherwise two columns.
+/// SetRewards: one card centered +50; two stacked; >2 in two columns below divider.
 fn reward_cards(faction: &MajorFactionSnapshot, level: u32) -> Element {
     let rewards: Vec<_> = faction
         .rewards
@@ -358,38 +374,59 @@ fn reward_cards(faction: &MajorFactionSnapshot, level: u32) -> Element {
         .filter(|reward| reward.level == level)
         .take(MAX_REWARD_CARDS)
         .collect();
-    let single = rewards.len() == 1;
     rewards
         .iter()
         .enumerate()
         .flat_map(|(index, reward)| {
-            let left = if single {
-                (800. - REWARD_CARD.0) / 2.
-            } else {
-                75. + (index % 2) as f32 * (REWARD_CARD.0 + 8.)
-            };
-            let top = 200. + (index / 2) as f32 * REWARD_CARD.1;
-            let prefix = format!("JourneyReward{}", reward.id);
-            let mut card = fill(
-                format!("{prefix}Card"),
-                (left, top, REWARD_CARD.0, REWARD_CARD.1 - 6.),
-                "0.12,0.10,0.08,1.0",
-            );
-            card.extend(texture(
-                format!("{prefix}Icon"),
-                reward.icon,
-                (left + 20., top + 28., 45., 45.),
-                WHITE,
-            ));
-            card.extend(label(
-                format!("{prefix}Name"),
-                &reward.name,
-                (left + 80., top + 30., 200., 40.),
-                (13., WHITE, "LEFT"),
-            ));
-            card
+            let (left, top) = reward_card_position(rewards.len(), index);
+            reward_card(reward, left, top)
         })
         .collect()
+}
+
+fn reward_card_position(count: usize, index: usize) -> (f32, f32) {
+    // Renown track TOP90,height72 -> divider TOP177,height16 -> BOTTOM193.
+    match count {
+        1 => ((789. - REWARD_CARD.0) / 2., 243.),
+        2 => (
+            (789. - REWARD_CARD.0) / 2.,
+            193. + index as f32 * REWARD_CARD.1,
+        ),
+        _ => (
+            75. + (index % 2) as f32 * (REWARD_CARD.0 + 8.),
+            193. + (index / 2) as f32 * REWARD_CARD.1,
+        ),
+    }
+}
+
+fn reward_card(reward: &shared::protocol::RenownReward, left: f32, top: f32) -> Element {
+    let prefix = format!("JourneyReward{}", reward.id);
+    let mut parts = named_atlas_texture(
+        format!("{prefix}BG"),
+        "ui-journeys-delve-card",
+        (0., 0., 317., 106.),
+    );
+    parts.extend(texture(
+        format!("{prefix}Icon"),
+        reward.icon,
+        (30., 30.5, 45., 45.),
+        WHITE,
+    ));
+    parts.extend(named_atlas_texture(
+        format!("{prefix}IconBorder"),
+        "ui-journeys-delve-rewardicon-square-frame",
+        (24.5, 25., 56., 56.),
+    ));
+    parts.extend(label(
+        format!("{prefix}Name"),
+        &reward.name,
+        (85., 33., 200., 40.),
+        (13., WHITE, "LEFT"),
+    ));
+    rsx! {r#frame {
+        name:{DynName(format!("{prefix}Card"))},left,top,width:{REWARD_CARD.0},height:{REWARD_CARD.1},
+        pos_type:"absolute",{parts}
+    }}
 }
 
 fn unlock_notice(unlock: &RenownUnlock) -> Element {
