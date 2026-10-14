@@ -13,6 +13,7 @@ pub const MODEL: &str = "MountJournalModelScene";
 const LIST: &str = "MountJournalScrollBox";
 const ROW_HEIGHT: f32 = 46.0;
 const LIST_HEIGHT: f32 = 478.0;
+const FILTER_WIDTH: f32 = 90.0; // MountJournal_InitFilterDropdown.
 // TrinityCore a352b1fa DBCEnums.h MountFlags: ServerOnly and ExcludeUntilCollected.
 const SERVER_ONLY: u32 = 0x1;
 const EXCLUDE_UNTIL_COLLECTED: u32 = 0x40;
@@ -440,7 +441,7 @@ fn filter_dropdown(view: &MountJournalView) -> Element {
             label_name: "MountJournalFilterText",
             arrow_name: "MountJournalFilterArrow",
             text: "Filter",
-            width: 90.0,
+            width: FILTER_WIDTH,
             height: 22.0,
             x: 169.0,
             y: -70.0,
@@ -459,10 +460,9 @@ fn filter_dropdown(view: &MountJournalView) -> Element {
     )
 }
 
-fn filter_menu(view: &MountJournalView) -> Element {
-    if !view.filters_open {
-        return Vec::new();
-    }
+fn filter_entries(
+    view: &MountJournalView,
+) -> Vec<(String, String, crate::menu_primitives::MenuElementKind)> {
     use crate::menu_primitives::MenuElementKind as Kind;
     let checkbox = |checked| Kind::Checkbox { checked };
     let mut entries: Vec<(String, String, Kind)> = if view.submenu.as_deref() == Some("sources") {
@@ -532,37 +532,48 @@ fn filter_menu(view: &MountJournalView) -> Element {
         );
         entries.push(("mount:sources".into(), "Sources".into(), Kind::Submenu));
     }
-    // MenuTemplates.CreateSpacer() defaults to ten pixels before Mount Type.
-    let spacer = if view.submenu.is_none() { 10.0 } else { 0.0 };
-    let children: Element = entries
-        .iter()
-        .enumerate()
-        .flat_map(|(index, (action, title, kind))| {
-            let name = format!("MountJournalFilter{index}");
-            crate::menu_primitives::menu_element(
-                crate::menu_primitives::ContextMenuItem {
-                    name: &name,
-                    label: title,
-                    action,
-                },
-                *kind,
-                true,
-                (
-                    8.0,
-                    8.0 + index as f32 * 20.0 + if index >= 3 { spacer } else { 0.0 },
-                    184.0,
-                    20.0,
-                ),
-            )
-        })
+    entries
+}
+
+fn filter_menu(view: &MountJournalView) -> Element {
+    if !view.filters_open {
+        return Vec::new();
+    }
+    use crate::menu_primitives::{ContextMenuItem, MenuElementKind, context_menu_description};
+    let entries = filter_entries(view);
+    let names: Vec<_> = (0..entries.len())
+        .map(|index| format!("MountJournalFilter{index}"))
         .collect();
-    let height = 23.0 + entries.len() as f32 * 20.0 + spacer;
-    let background = crate::selection_list::menu_background(
-        "MountJournalFilterMenuBackground".into(),
-        (200.0, height),
-    );
-    rsx! { r#frame { name: "MountJournalFilterMenu", width: 200.0,height,left: 169.0,top: 92.0,pos_type: "absolute",
-    strata: crate::ui::strata::FrameStrata::FullscreenDialog,mouse_enabled: true,{background}{children} } }
+    let mut descriptions = Vec::new();
+    for (index, ((action, label, kind), name)) in entries.iter().zip(&names).enumerate() {
+        // Keep public row identities stable around the source's ten-pixel spacer.
+        if index == 3 && view.submenu.is_none() {
+            descriptions.push((
+                ContextMenuItem {
+                    name: "MountJournalFilterSpacer",
+                    label: "",
+                    action: "",
+                },
+                MenuElementKind::Spacer,
+                true,
+            ));
+        }
+        descriptions.push((
+            ContextMenuItem {
+                name,
+                label,
+                action,
+            },
+            *kind,
+            true,
+        ));
+    }
+    context_menu_description(
+        "MountJournalFilterMenu",
+        (169.0, 92.0),
+        FILTER_WIDTH,
+        &descriptions,
+    )
 }
 fn context_menu(view: &MountJournalView) -> Element {
     let Some((id, [left, top])) = view.context else {

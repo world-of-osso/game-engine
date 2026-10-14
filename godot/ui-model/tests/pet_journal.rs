@@ -93,6 +93,50 @@ fn uncollected_species_cannot_summon_and_search_filters_names() {
 }
 
 #[test]
+fn pet_filter_menu_fits_owner_and_preserves_source_divider_in_both_skins() {
+    use ui_toolkit::{
+        frame::Dimension, text_measure::measure_text, widgets::font_string::GameFont,
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.filters.open = true;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pet_journal_screen).sync(&shared, &mut registry);
+        let labels = [
+            ("Collected", 19.0),
+            ("Not Collected", 19.0),
+            ("Pet Types", 0.0),
+            ("Battle Pets", 19.0),
+            ("Non-Combat Pets", 19.0),
+            ("Pet Families", 16.0),
+            ("Sources", 16.0),
+            ("Sort By", 16.0),
+        ];
+        let widest = labels
+            .into_iter()
+            .map(|(label, inset)| {
+                measure_text(label, GameFont::FrizQuadrata, 12.0).unwrap().0 + inset
+            })
+            .fold(0.0, f32::max);
+        let menu = registry
+            .get(registry.get_by_name("PetJournalFilterMenu").unwrap())
+            .unwrap();
+        assert_eq!(
+            menu.width,
+            Dimension::Fixed((widest.ceil() + 16.0).max(90.0))
+        );
+        assert_eq!(menu.height, Dimension::Fixed(196.0));
+    }
+}
+
+#[test]
 fn pet_filters_toggle_ownership_families_and_reset_without_changing_authority() {
     let mut view = view();
     assert!(view.apply_filter("pet:collected"));
