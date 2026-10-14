@@ -229,13 +229,6 @@ impl GameClient {
     fn journey_tooltip_for_frame(&self, frame: &Frame) -> Option<(GameTooltip, bool)> {
         let view = &self.adventure_guide.view;
         let name = frame.name.as_deref()?;
-        if name == "JourneyProgressUnlock" {
-            return game_engine_ui_model::adventure_journeys::unlock_tooltip(
-                &view.journeys,
-                view.renown.as_deref(),
-            )
-            .map(|tooltip| (tooltip, true));
-        }
         game_engine_ui_model::adventure_journeys::reward_tooltip(
             &view.journeys,
             view.renown.as_deref(),

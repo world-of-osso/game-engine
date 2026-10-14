@@ -1,6 +1,17 @@
 ## 2026-10-14 — Close-camera observation
 
 [Read-only framing73/74](systems/character-rendering.md#close-camera-observation--2026-10-14) identifies the actual visible mailbox collider pulling in the Goldshire camera. Post-AV fresh login is dead; standing-body acceptance remains open. Both-skin front/rear originals and loaded portraits are observations only; no camera/material/gameplay change or retrospective old-capture cause claim.
+## 2026-10-14 — Journeys player-facing progress header
+
+[Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.
+
+## 2026-10-14 — Journeys native kit and positive watch
+
+[Exact71a checkpoint](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14): both skins pass the complete physical kit/track/Home fixture and authentic Covenant55 watch ACK/HUD/query/clear;24 original full-HD PNGs inspected and hashed. PSI/swap recorded, owned runtimes stopped. Headless dummy audio excludes playback proof; collection/overview and the separately observed one-pixel Journeys-list wheel pan remain open.
+
+## 2026-10-14 — Journeys input reconciliation and watch cues
+
+[Watch/input](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persistent boundary re-enabling and Home pointer-policy updates pass the complete physical fixture in both skins at exactabbd1b9b6 runtime;18 originals inspected. Later watch ON/OFF cues use authored856/857 gains and the existing567407 clip; core3/UI20/check/fmt pass, without optimistic checked state or a native playback claim. Lead-published faction icon sheets are linked read-only; the later native kit checkpoint above supersedes the pending-paint status.
 
 ## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
 
