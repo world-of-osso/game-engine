@@ -581,14 +581,70 @@ fn unevaluated_unlock_notice_uses_the_source_locked_state_anchor_in_both_skins()
 }
 
 fn data_view() -> View {
-    game_engine_ui_model::paths::set_data_root(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-    )
-    .unwrap();
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
     View {
         visible: true,
+        journey_presentation: Arc::new(
+            game_engine_core::adventure_guide::read_journey_presentation(&data).unwrap(),
+        ),
         ..Default::default()
     }
+}
+
+#[test]
+fn journeys_cards_use_published_priority_and_centered_texture_kit_icons() {
+    use ui_toolkit::{atlas::AtlasSource, widgets::texture::TextureSource};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = data_view();
+        let mut data = snapshot();
+        data.factions = vec![
+            faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+            faction(13, 2507, "Dragonscale Expedition", 9, 0, 0),
+            faction(14, 2511, "Iskaara Tuskarr", 9, 0, 0),
+            faction(15, 2510, "Valdrakken Accord", 9, 0, 0),
+        ];
+        view.renown = Some(Arc::new(data));
+        view.apply("journal:tab:journeys").unwrap();
+        view.apply("journal:journey-expansion:9").unwrap();
+        let registry = render_skin(&view, skin);
+        for (id, kit, position) in [
+            (13, "Expedition", [14., 40.]),
+            (12, "Centaur", [393., 40.]),
+            (14, "Tuskarr", [14., 157.]),
+            (15, "Valdrakken", [393., 157.]),
+        ] {
+            assert_eq!(rect(&registry, &format!("JourneyCard{id}"))[..2], position);
+            let name = format!("JourneyCard{id}Icon");
+            assert_eq!(rect(&registry, &name), [30., 36., 40., 40.]);
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(icon)) = &frame.widget_data else {
+                panic!("{name} has no icon");
+            };
+            let atlas = format!("majorfactions_icons_{kit}512");
+            let region = ui_toolkit::atlas::resolve_region(&atlas, skin).unwrap();
+            let AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("{atlas} has no authored sheet");
+            };
+            assert_eq!(icon.source, TextureSource::FileDataId(fdid));
+            assert_eq!(
+                icon.tex_coords,
+                [region.left, region.right, region.top, region.bottom]
+            );
+        }
+    }
+}
+
+#[test]
+fn journeys_missing_covenant_presentation_is_an_explicit_error() {
+    let mut view = data_view();
+    Arc::make_mut(&mut view.journey_presentation).remove(&12);
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    let registry = render(&view);
+    assert!(text(&registry, "JournalJourneysPresentationError").contains("12"));
+    assert!(registry.get_by_name("JourneyCard12").is_none());
 }
 
 #[test]
