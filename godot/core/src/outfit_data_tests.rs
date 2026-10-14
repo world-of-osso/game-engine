@@ -658,6 +658,14 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
         )
         .unwrap();
     }
+    std::os::unix::fs::symlink(
+        source
+            .join("db2/HelmetGeosetData.db2")
+            .canonicalize()
+            .unwrap(),
+        fixture.join("db2/HelmetGeosetData.db2"),
+    )
+    .unwrap();
     let barrier = Arc::new(Barrier::new(2));
     std::thread::scope(|scope| {
         let workers = (0..2)
