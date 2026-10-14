@@ -1,6 +1,10 @@
+## 2026-10-14 — Journeys native kit and positive watch
+
+[Exact71a checkpoint](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14): both skins pass the complete physical kit/track/Home fixture and authentic Covenant55 watch ACK/HUD/query/clear;24 original full-HD PNGs inspected and hashed. PSI/swap recorded, owned runtimes stopped. Headless dummy audio excludes playback proof; collection/overview and the separately observed one-pixel Journeys-list wheel pan remain open.
+
 ## 2026-10-14 — Journeys input reconciliation and watch cues
 
-[Watch/input](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persistent boundary re-enabling and Home pointer-policy updates pass the complete physical fixture in both skins at exactabbd1b9b6 runtime;18 originals inspected. Later watch ON/OFF cues use authored856/857 gains and the existing567407 clip; core3/UI20/check/fmt pass, without optimistic checked state or a native playback claim. Lead-published faction icon sheets are linked read-only; current kit painting still awaits its window.
+[Watch/input](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persistent boundary re-enabling and Home pointer-policy updates pass the complete physical fixture in both skins at exactabbd1b9b6 runtime;18 originals inspected. Later watch ON/OFF cues use authored856/857 gains and the existing567407 clip; core3/UI20/check/fmt pass, without optimistic checked state or a native playback claim. Lead-published faction icon sheets are linked read-only; the later native kit checkpoint above supersedes the pending-paint status.
 
 ## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
 
