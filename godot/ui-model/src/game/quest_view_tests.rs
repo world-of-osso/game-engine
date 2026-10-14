@@ -61,6 +61,34 @@ fn threat_within_details() -> QuestGiverQuestDetails {
 }
 
 #[test]
+fn relogged_owned_quest_shows_authoritative_story_and_rewards_without_giver_cache() {
+    let mut wire = serde_json::to_value(entry(783, "A Threat Within", 9)).unwrap();
+    wire["description"] = serde_json::json!("Welcome, $n.$B$BSpeak with Marshal McBride.");
+    wire["rewards"] = serde_json::json!({ "money": 2000, "items": [], "choice_items": [] });
+    wire["pushable"] = serde_json::json!(true);
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![serde_json::from_value(wire).unwrap()],
+        watched_quest_ids: vec![783],
+    });
+    let state = quest_log_state(
+        &runtime,
+        &QuestUiState::default(),
+        &QuestDetailsCache::new(),
+        &theron(),
+        &mut |_| "Northshire".into(),
+        1,
+        true,
+    );
+    let details = state.details.unwrap();
+    assert_eq!(
+        details.description.as_deref(),
+        Some("Welcome, Theron.\n\nSpeak with Marshal McBride.")
+    );
+    assert_eq!(details.rewards.unwrap().money, 2000);
+}
+
+#[test]
 fn uifixes_npc_articles_and_player_tokens_resolve_for_a_human_paladin() {
     use shared::protocol::QuestGiverRequestItems;
     let raw = "Hey, $Gmister:miss;. You look like |5$C, $N.$B$B|5^ $R $r $c. Bring |5 apple and |5 banana.";
