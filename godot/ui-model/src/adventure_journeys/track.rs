@@ -40,7 +40,7 @@ fn level_art(faction: &MajorFactionSnapshot, selected: u32, level: u32, prefix: 
     };
     let reward = faction.rewards.iter().find(|reward| reward.level == level);
     let shape = reward.map_or("square", reward_shape);
-    let mut contents = level_icon(reward, prefix);
+    let mut contents = level_icon(reward, prefix, shape);
     contents.extend(level_border(prefix, shape, suffix));
     contents.extend(level_caption(prefix, level, earned));
     contents
@@ -54,10 +54,14 @@ fn reward_shape(reward: &shared::protocol::RenownReward) -> &'static str {
     }
 }
 
-fn level_icon(reward: Option<&shared::protocol::RenownReward>, prefix: &str) -> Element {
+fn level_icon(
+    reward: Option<&shared::protocol::RenownReward>,
+    prefix: &str,
+    shape: &str,
+) -> Element {
     reward.map_or_else(Vec::new, |reward| {
         texture(
-            format!("{prefix}Icon"),
+            format!("{prefix}{shape}Icon"),
             reward.icon,
             (6.5, 6.5, 42., 42.),
             WHITE,
