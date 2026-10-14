@@ -1,6 +1,7 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Source-qualified current cloak geometry for item-material regression fixtures.
-cache/model-asset-index-bg-equipment-material-fixture-70391.json
+cache/model-asset-index-bg-equipment-material-70391.json
+cache/model-asset-index-npc-appearance-retail.json
 products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/1360817.blp
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2429553.m2
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2429554.m2
@@ -16,7 +17,6 @@ products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431589.skin
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/2431590.skin
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3512290.m2
 products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/3514198.blp
-products/wow/334a36cf5f3c32a5f7a167405487fa14/textures/3514210.blp
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3514213.skin
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3719257.skin
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/3719264.skin
