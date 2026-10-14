@@ -287,12 +287,29 @@ fn model_panel(view: &StableFrameView) -> Element {
                     .find(|spec| Some(spec.id) == pet.specialization)
             })
             .map_or("", |spec| spec.name.as_str());
-        children.extend(panel_button(
-            "StableSpecButton".into(),
-            name,
-            "stable_spec_picker",
-            !view.pending && !view.rename,
-            (370.0, 150.0, 180.0, 22.0),
+        use crate::menu_primitives::*;
+        // PetModelScene BOTTOMRIGHT(-2,5), 708x550; PetInfo +10, Favorite +20,+18;
+        // NameBox centered -2 from Favorite, 40 high; specialization below NameBox +1.
+        children.extend(dropdown_button_with_state(
+            DropdownButton {
+                frame_name: "StableSpecButton",
+                label_name: "StableSpecText",
+                arrow_name: "StableSpecArrow",
+                text: name,
+                width: 135.0,
+                height: 25.0,
+                x: 350.0,
+                y: -143.0,
+                background_color: "",
+                text_color: "",
+                arrow_color: "",
+                onclick: Some("stable_spec_picker"),
+            },
+            DropdownState {
+                open: view.spec_picker,
+                enabled: !view.pending && !view.rename,
+                ..Default::default()
+            },
         ));
         let toggle = if usize::from(pet.slot) < PET_ACTIVE_SLOTS {
             "Stable"
@@ -315,19 +332,48 @@ fn model_panel(view: &StableFrameView) -> Element {
         ));
     }
     if view.spec_picker {
-        if let Some(contents) = &view.contents {
-            for (index, spec) in contents.specializations.iter().enumerate() {
-                children.extend(panel_button(
-                    format!("StableSpec{}", spec.id),
-                    &spec.name,
-                    &format!("stable_spec:{}", spec.id),
-                    !view.pending,
-                    (370.0, 174.0 + index as f32 * 24.0, 180.0, 22.0),
-                ));
-            }
-        }
+        children.extend(specialization_menu(view));
     }
     children
+}
+
+fn specialization_menu(view: &StableFrameView) -> Element {
+    use crate::menu_primitives::*;
+    let Some(contents) = &view.contents else {
+        return Vec::new();
+    };
+    let height = 43.0 + contents.specializations.len() as f32 * 20.0;
+    let mut body =
+        crate::selection_list::menu_background("StableSpecMenuBackground".into(), (151.0, height));
+    body.extend(menu_element(
+        ContextMenuItem {
+            name: "StableSpecMenuTitle",
+            label: "Specialization",
+            action: "",
+        },
+        MenuElementKind::Title,
+        true,
+        (8.0, 8.0, 135.0, 20.0),
+    ));
+    let selected = view.selected_pet().and_then(|pet| pet.specialization);
+    for (index, spec) in contents.specializations.iter().enumerate() {
+        let name = format!("StableSpec{}", spec.id);
+        let action = format!("stable_spec:{}", spec.id);
+        body.extend(menu_element(
+            ContextMenuItem {
+                name: &name,
+                label: &spec.name,
+                action: &action,
+            },
+            MenuElementKind::Radio {
+                checked: selected == Some(spec.id),
+            },
+            !view.pending,
+            (8.0, 28.0 + index as f32 * 20.0, 135.0, 20.0),
+        ));
+    }
+    rsx! { r#frame { name: "StableSpecMenu", width: 151.0, height, left: 350.0, top: 168.0,
+    pos_type: "absolute", strata: FrameStrata::FullscreenDialog, mouse_enabled: true, {body} } }
 }
 
 fn active_slots(view: &StableFrameView) -> Element {

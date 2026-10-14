@@ -23,14 +23,20 @@ use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
 
 use super::{RegistryModel, RegistryUi};
 
-/// The scroll list frame `id` is, or is inside.
+/// The ScrollBox or its explicitly named `<list>ScrollBar` owning frame `id`.
+/// Retail anchors scrollbars beside their ScrollBoxes, so ownership is not ancestry alone.
 pub(super) fn list_containing(registry: &FrameRegistry, mut id: u64) -> Option<String> {
     loop {
         let frame = registry.get(id)?;
-        if let Some(name) = &frame.name
-            && registry.scroll_lists.get(name).is_some()
-        {
-            return Some(name.clone());
+        if let Some(name) = &frame.name {
+            if registry.scroll_lists.get(name).is_some() {
+                return Some(name.clone());
+            }
+            if let Some(list) = name.strip_suffix("ScrollBar")
+                && registry.scroll_lists.get(list).is_some()
+            {
+                return Some(list.into());
+            }
         }
         // Retail controllers are siblings of their clipped ScrollBox, not descendants.
         if let Some(name) = &frame.name {
@@ -77,6 +83,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
     if list == REPUTATION_SCROLL {
         let pan = reputation_pan_extent();
         return (pan * 2, pan);
+    }
+    if list == "EncounterJournalLore" {
+        // ScrollingFontMixin:SetFontObject sets pan extent to GameFontBlack's12px font height.
+        return (12, 12);
     }
     if [
         game_engine_ui_model::achievements::ROWS_SCROLLBOX,
@@ -384,3 +394,7 @@ mod battleground_tests;
 #[cfg(test)]
 #[path = "character_reputation_scroll_lists_tests.rs"]
 mod character_reputation_tests;
+
+#[cfg(test)]
+#[path = "adventure_guide_scroll_tests.rs"]
+mod adventure_guide_tests;

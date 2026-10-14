@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn uifixes_quest_counter_flows_below_measured_wine_ticket_paragraph() {
         use game_engine_ui_model::quest_log_frame_component::{
-            QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine, quest_log_frame_screen,
+            QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine,
         };
         use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
         use ui_toolkit::screen::{Screen, SharedContext};
@@ -397,7 +397,7 @@ mod tests {
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
             set_thread_skin(skin);
             let mut shared = SharedContext::new();
-            shared.insert(QuestLogFrameState {
+            let log = QuestLogFrameState {
                 visible: true,
                 details: Some(QuestLogDetails {
                     quest_id: 332,
@@ -407,9 +407,14 @@ mod tests {
                     description: None, rewards: None, watched: false,
                 }),
                 ..Default::default()
-            });
+            };
             let mut registry = FrameRegistry::new(1920.0, 1080.0);
-            Screen::new(quest_log_frame_screen).sync(&shared, &mut registry);
+            shared.insert(
+                game_engine_ui_model::world_map_frame_component::WorldMapFrameState::default()
+                    .with_quest_panel(log, true),
+            );
+            Screen::new(game_engine_ui_model::world_map_frame_component::world_map_frame_screen)
+                .sync(&shared, &mut registry);
             let paragraph = registry
                 .get_by_name("QuestLogDetailsObjectivesText")
                 .unwrap();

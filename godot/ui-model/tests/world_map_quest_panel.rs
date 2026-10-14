@@ -92,8 +92,12 @@ fn render(state: WorldMapFrameState) -> FrameRegistry {
     configure_assets();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
-    shared.insert(state);
+    shared.insert(state.clone());
     Screen::new(world_map_frame_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::world_map_frame_component::apply_world_map_postsetup(
+        &state,
+        &mut registry,
+    );
     registry
 }
 
@@ -127,14 +131,20 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
 }
 
 fn top(registry: &FrameRegistry, name: &str) -> f32 {
-    match frame(registry, name)
-        .unwrap_or_else(|| panic!("{name} missing"))
-        .position
-        .top
-    {
-        Val::Px(px) => px,
-        other => panic!("{name}: top {other:?}"),
+    let mut frame = frame(registry, name).unwrap_or_else(|| panic!("{name} missing"));
+    let mut top = 0.0;
+    while frame.name.as_deref() != Some("WorldMapBorderFrame") {
+        top += match frame.position.top {
+            Val::Px(px) => px,
+            Val::Auto => 0.0,
+            other => panic!("{name}: top {other:?}"),
+        };
+        let Some(parent) = frame.parent_id else {
+            break;
+        };
+        frame = registry.get(parent).unwrap();
     }
+    top
 }
 
 fn onclick(registry: &FrameRegistry, name: &str) -> String {
@@ -178,11 +188,11 @@ fn windowed_map_is_retail_size_with_and_without_the_quest_log() {
 #[test]
 fn quest_panel_lists_log_quests_under_their_zone_headers() {
     let registry = render(map_state(WorldMapDisplay::default()));
-    let northshire = top(&registry, "QuestLogHeader9Text");
-    let beating = top(&registry, "QuestLogTitle28762Text");
-    let lions = top(&registry, "QuestLogTitle28763Text");
-    let elwynn = top(&registry, "QuestLogHeader12Text");
-    let candles = top(&registry, "QuestLogTitle60Text");
+    let northshire = top(&registry, "QuestLogHeader9");
+    let beating = top(&registry, "QuestLogTitle28762");
+    let lions = top(&registry, "QuestLogTitle28763");
+    let elwynn = top(&registry, "QuestLogHeader12");
+    let candles = top(&registry, "QuestLogTitle60");
     assert!(northshire < beating && beating < lions && lions < elwynn && elwynn < candles);
     assert_eq!(text(&registry, "QuestLogHeader9Text").0, "Northshire");
     assert_eq!(text(&registry, "QuestLogHeader12Text").0, "Elwynn Forest");
@@ -202,7 +212,7 @@ fn quest_panel_lists_log_quests_under_their_zone_headers() {
 fn clicking_a_quest_shows_its_details_and_back_returns_to_the_list() {
     let mut display = WorldMapDisplay::default();
     let list = render(map_state(display));
-    let (details, forwarded) = click(&mut display, &list, "QuestLogTitle28762Text");
+    let (details, forwarded) = click(&mut display, &list, "QuestLogTitle28762");
     assert_eq!(forwarded, "quest_log:select:28762");
     assert_eq!(
         text(&details, "QuestLogDetailsTitle").0,
@@ -223,6 +233,50 @@ fn clicking_a_quest_shows_its_details_and_back_returns_to_the_list() {
     assert_eq!(forwarded, "");
     assert!(shown(&list, "QuestLogTitle28763Text"));
     assert!(!shown(&list, "QuestLogDetailsTitle"));
+}
+
+#[test]
+fn quest_map_geometry_and_selection_art_match_source_in_both_skins() {
+    use ui_toolkit::atlas::resolve_region;
+    use ui_toolkit::widgets::texture::BlendMode;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = map_state(WorldMapDisplay::default());
+        state.quest_panel.as_mut().unwrap().log.groups[0].quests[0].selected = true;
+        let list = render(state);
+        assert_eq!(size(&list, "QuestMapFrame"), [330.0, 506.0]);
+        assert_eq!(top(&list, "QuestMapFrame"), 25.0);
+        assert_eq!(size(&list, "QuestScrollFrame"), [308.0, 477.0]);
+        assert_eq!(top(&list, "QuestScrollFrame"), 54.0);
+        assert_eq!(size(&list, "QuestLogHeader9"), [289.0, 22.0]);
+        let selected = frame(&list, "QuestLogTitle28762Selected").unwrap();
+        assert_eq!(selected.background_color, None);
+        let Some(WidgetData::Texture(texture)) = &selected.widget_data else {
+            panic!("selection art texture");
+        };
+        assert_eq!(texture.blend_mode, BlendMode::Additive);
+        assert_eq!(texture.vertex_color[3], 0.4);
+        let details = render(map_state(WorldMapDisplay {
+            quest_details: true,
+            ..Default::default()
+        }));
+        assert_eq!(size(&details, "QuestMapDetailsScrollFrame"), [298.0, 430.0]);
+        assert_eq!(top(&details, "QuestMapDetailsScrollFrame"), 69.0);
+        assert_eq!(
+            size(&details, "QuestMapDetailsBackground"),
+            [
+                308.0,
+                resolve_region("QuestDetailsBackgrounds", skin)
+                    .unwrap()
+                    .height
+            ]
+        );
+        assert_eq!(size(&details, "QuestMapFrameBackButton"), [90.0, 22.0]);
+        assert_eq!(
+            onclick(&details, "QuestMapFrameShareButton"),
+            "quest_log:share"
+        );
+    }
 }
 
 #[test]

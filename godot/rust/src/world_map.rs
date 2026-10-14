@@ -60,6 +60,10 @@ impl WorldMap {
         self.ui.is_some()
     }
 
+    pub(super) fn quest_log_is_open(&self) -> bool {
+        self.is_open() && !self.display.maximized
+    }
+
     pub(super) fn data(&self) -> Option<&WorldMapData> {
         self.data.as_ref()?.as_ref().ok()
     }
@@ -564,6 +568,30 @@ impl GameClient {
         Ok(())
     }
 
+    /// QuestLogOwnerMixin.lua:54-61: L closes a shown dock, otherwise opens minimized with log.
+    pub(super) fn toggle_quest_map(&mut self) -> Result<(), String> {
+        if self.world_map.quest_log_is_open() {
+            self.close_world_map();
+            Ok(())
+        } else {
+            self.open_quest_map()
+        }
+    }
+
+    pub(super) fn open_quest_details(&mut self) -> Result<(), String> {
+        self.world_map.display.quest_details = true;
+        self.open_quest_map()
+    }
+
+    pub(super) fn open_quest_map(&mut self) -> Result<(), String> {
+        self.world_map.display.maximized = false;
+        if self.world_map.is_open() {
+            self.sync_world_map()
+        } else {
+            self.open_world_map()
+        }
+    }
+
     /// `ToggleWorldMap`: the M binding and the minimap zone text button.
     pub(super) fn toggle_world_map(&mut self) -> Result<(), String> {
         if self.world_map.is_open() {
@@ -699,6 +727,16 @@ impl GameClient {
         }
         if self.game_menu_ui.is_some() {
             return false;
+        }
+        if let Some(ui) = self.world_map.ui.as_mut() {
+            match ui.bind_mut().scroll_list_input(event) {
+                Ok(true) => return true,
+                Ok(false) => {}
+                Err(error) => {
+                    godot_error!("Quest map scroll: {error}");
+                    return true;
+                }
+            }
         }
         let viewport = self.world_map_viewport();
         let layout = placed_map_layout(

@@ -21,6 +21,7 @@ enum Mask {
     Round,
     AuctionItem,
     PerksProduct,
+    GroupFinder,
     Glyph,
     TalentCircle,
     TalentChoice,
@@ -156,13 +157,15 @@ impl IconMasks {
             | Mask::TalentChoiceLeft
             | Mask::TalentChoiceRight
             | Mask::TalentChoiceFlyout => compose_masked_icon(source, &load_atlas_mask(mask)?),
-            Mask::Round | Mask::AuctionItem => {
+            Mask::Round | Mask::AuctionItem | Mask::GroupFinder => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
                     empty => empty.insert(mask_alpha(&load_rgba(PORTRAIT_MASK_FDID, "mask")?)),
                 };
                 if mask == Mask::AuctionItem {
                     compose_auction_item_icon(source, round)
+                } else if mask == Mask::GroupFinder {
+                    compose_group_finder_icon(source, round)
                 } else {
                     compose_masked_icon(source, round)
                 }
@@ -233,6 +236,8 @@ fn is_round_icon(name: &str) -> bool {
                 | "ProfessionsPortrait"
                 | "CooldownSettingsPortrait"
                 | "ProfessionsOutputIcon"
+                | "EncounterJournalPortrait"
+                | "EncounterJournalInstanceButtonIcon"
         );
     let talent = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
     creation || bag || portrait || talent
@@ -281,6 +286,8 @@ fn mask_of(name: &str) -> Option<Mask> {
         Some(Mask::TalentChoiceFlyout)
     } else if name == "AuctionHouseFrameItemBuyFrameItemDisplayItemButtonIcon" {
         Some(Mask::AuctionItem)
+    } else if name.starts_with("GroupFinderFrameGroupButton") && name.ends_with("Icon") {
+        Some(Mask::GroupFinder)
     } else if is_round_icon(name) {
         Some(Mask::Round)
     } else if FOREVER_CHAT_HEADER_ICONS.contains(&name) {
@@ -310,6 +317,16 @@ fn compose_perks_product_icon(source: RgbaImage, mask: &GrayImage) -> RgbaImage 
     let inset = (MASK_PX - ICON_PX) / 2;
     let coverage = crop_imm(&coverage, inset, inset, ICON_PX, ICON_PX).to_image();
     compose_masked_icon(icon, &coverage)
+}
+
+/// PVEFrame.xml GroupFinderGroupButtonTemplate:66px icon,62px mask inset2.
+fn compose_group_finder_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage {
+    use image::imageops::{FilterType, replace, resize};
+    let source = resize(&source, 66, 66, FilterType::Triangle);
+    let circle = resize(round, 62, 62, FilterType::Triangle);
+    let mut mask = GrayImage::new(66, 66);
+    replace(&mut mask, &circle, 2, 2);
+    compose_masked_icon(source, &mask)
 }
 
 /// The (left, right, top, bottom) normalized region of `image`.

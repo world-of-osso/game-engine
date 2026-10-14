@@ -12,7 +12,7 @@ func live_run() -> void:
 		fail("Battleground proof requires private UDP5710–5712")
 		return
 	directory = OS.get_environment("BG_DIRECTORY")
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var last := ""

@@ -134,6 +134,7 @@ pub fn static_popup_screen(ctx: &SharedContext) -> Element {
         r#frame {
             name: STATIC_POPUP_ROOT,
             stretch: true,
+            mouse_enabled: false,
             strata: FrameStrata::Dialog,
             {popups}
         }

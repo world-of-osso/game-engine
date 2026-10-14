@@ -2,7 +2,7 @@ extends "res://tests/world_ui_ownership_flow.gd"
 
 # native_input_fixture keybinds: physical key presses of the Retail default bag,
 # targeting and minimap zoom bindings, the world map tiled at three zones, and QuestFrame /
-# QuestLogFrame raise-on-click over the MerchantFrame. Every check fails the run.
+# WorldMapBorderFrame raise-on-click over the MerchantFrame. Every check fails the run.
 # KEYBINDS_SHOTS=<dir> saves screenshots (needs GODOT_TEST_VISUAL=1).
 const KB_BAGS := [0, 1, 2, 4]
 const KB_MAP := "WorldMapUI"
@@ -292,7 +292,7 @@ func kb_world_map_cases() -> bool:
 	await kb_tap(KEY_M)
 	return await uo_wait(func(): return kb_client.get_node_or_null(KB_MAP) == null, 5000) or fail_false("M did not close the world map")
 
-# ---------- QuestFrame / QuestLogFrame raise-on-click (toplevel) ----------
+# ---------- QuestFrame / WorldMapBorderFrame raise-on-click (toplevel) ----------
 
 func kb_rect(ui_name: String, control_name: String) -> Rect2:
 	var control := uo_ctl(kb_client, ui_name, control_name)
@@ -360,16 +360,16 @@ func kb_quest_raise_cases() -> bool:
 		return false
 	await kb_capture("quest-frame-raised.png")
 	await kb_tap(KEY_L)
-	if not await uo_wait(func(): return kb_client.quest_state().log_open and uo_visible(uo_ctl(kb_client, "QuestLogUI", "QuestLogFrame")), 5000):
-		fail("L did not open QuestLogFrame: " + str(kb_client.quest_state()))
+	if not await uo_wait(func(): return kb_client.quest_state().log_open and uo_visible(uo_ctl(kb_client, "WorldMapUI", "WorldMapBorderFrame")), 5000):
+		fail("L did not open WorldMapBorderFrame: " + str(kb_client.quest_state()))
 		return false
 	await uo_settle(300)
 	cover = kb_rect(UO_MERCHANT, "MerchantFrame")
-	var log := kb_rect("QuestLogUI", "QuestLogFrame")
+	var log := kb_rect("WorldMapUI", "WorldMapBorderFrame")
 	if not log.intersects(cover):
-		fail("Q2 geometry: QuestLogFrame %s does not overlap MerchantFrame %s" % [log, cover])
+		fail("Q2 geometry: WorldMapBorderFrame %s does not overlap MerchantFrame %s" % [log, cover])
 		return false
-	if not await kb_raise_case("Q2_QUESTLOG_RAISE_ON_CLICK", "QuestLogUI", log, cover, log.intersection(cover).get_center()):
+	if not await kb_raise_case("Q2_QUESTLOG_RAISE_ON_CLICK", "WorldMapUI", log, cover, log.intersection(cover).get_center()):
 		return false
 	await kb_capture("quest-log-raised.png")
 	return true

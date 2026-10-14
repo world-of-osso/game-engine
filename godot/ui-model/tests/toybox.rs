@@ -57,6 +57,90 @@ fn visible_frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
 }
 
 #[test]
+fn toy_filters_use_retail_checkbox_submenu_and_reset_controls_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = journal(skin);
+        let mut model = ToyBox::default();
+        model.receive(vec![toy(1, "Picnic Basket", true)]);
+        model.filters_open = true;
+        model.filters.uncollected = false;
+        let mut shared = SharedContext::new();
+        shared.insert(ToyBoxView {
+            model,
+            viewport: [1920.0, 1080.0],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(toybox_screen).sync(&shared, &mut registry);
+        let filter = visible_frame(&registry, "ToyBoxFilterDropdown");
+        assert_eq!(filter.width.value(), 90.0);
+        let first = visible_frame(&registry, "ToyFilter0");
+        assert_eq!(first.height.value(), 20.0);
+        assert_eq!(first.onclick.as_deref(), Some("toy_filter:collected"));
+        assert!(registry.get_by_name("ToyFilter0Box").is_some());
+        assert!(registry.get_by_name("ToyFilter3SubmenuArrow").is_some());
+        let reset = visible_frame(&registry, "ToyBoxFilterDropdownResetButton");
+        assert_eq!(reset.onclick.as_deref(), Some("toy_filter:reset"));
+    }
+}
+
+#[test]
+fn collections_portrait_shell_uses_source_background_in_both_skins() {
+    // CollectionsJournal inherits PortraitFrameTemplate; SharedUIPanelTemplates.xml:597-614.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        let root = visible_frame(&registry, "CollectionsJournal");
+        assert_eq!(root.background_color, None);
+        let background = visible_frame(&registry, "CollectionsJournalBg");
+        assert_eq!(background.width, Dimension::Fixed(699.0));
+        assert_eq!(background.height, Dimension::Fixed(583.0));
+        assert_eq!(
+            background.position.left,
+            ui_toolkit::layout_values::Val::Px(2.0)
+        );
+        assert_eq!(
+            background.position.top,
+            ui_toolkit::layout_values::Val::Px(21.0)
+        );
+        assert_eq!(
+            visible_frame(&registry, "CollectionsJournalTopTileStreaks")
+                .position
+                .left,
+            ui_toolkit::layout_values::Val::Px(6.0)
+        );
+    }
+}
+
+#[test]
+fn toybox_allpoints_and_background_match_retail_anchors() {
+    // ToyBox.xml:25,47; SharedCollectionTemplates.xml:56-67.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        for (name, size, at) in [
+            ("ToyBox", [703.0, 606.0], [0.0, 0.0]),
+            ("ToyBoxIconsFrame", [693.0, 541.0], [4.0, 60.0]),
+            ("ToyBoxBackground", [685.0, 533.0], [4.0, 4.0]),
+        ] {
+            let frame = visible_frame(&registry, name);
+            assert_eq!(frame.width, Dimension::Fixed(size[0]));
+            assert_eq!(frame.height, Dimension::Fixed(size[1]));
+            assert_eq!(
+                frame.position.left,
+                ui_toolkit::layout_values::Val::Px(at[0])
+            );
+            assert_eq!(
+                frame.position.top,
+                ui_toolkit::layout_values::Val::Px(at[1])
+            );
+        }
+        let background = visible_frame(&registry, "ToyBoxBackground");
+        let Some(WidgetData::Texture(texture)) = &background.widget_data else {
+            panic!("background texture");
+        };
+        assert!(texture.horiz_tile && texture.vert_tile);
+    }
+}
+
+#[test]
 fn names_are_visible_for_collected_and_uncollected_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = journal(skin);

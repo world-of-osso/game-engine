@@ -1070,6 +1070,28 @@ impl GameClient {
                 .map(|transform| transform.origin.to_variant())
                 .unwrap_or_default(),
         );
+        match serde_json::to_string(&self.battleground.view.snapshot) {
+            Ok(snapshot) => state.set("pvp_snapshot_json", &snapshot.to_variant()),
+            Err(error) => {
+                godot_error!("Cannot serialize native PvP diagnostic snapshot: {error}");
+            }
+        }
+        state.set(
+            "local_player_epoch",
+            &self
+                .world
+                .local_player_epoch()
+                .map(|epoch| i64::from(epoch).to_variant())
+                .unwrap_or_default(),
+        );
+        state.set(
+            "local_server_epoch",
+            &self
+                .world
+                .local_player_server_epoch()
+                .map(|epoch| i64::from(epoch).to_variant())
+                .unwrap_or_default(),
+        );
         state.set(
             "local_server_position",
             &self
@@ -2323,6 +2345,22 @@ impl GameClient {
             }
             AccountEvent::Lfg(update) => self.follower_dungeons.view.receive(update),
             AccountEvent::Pvp(update) => {
+                if std::env::var_os("BG_DIRECTORY").is_some()
+                    && let Some(bg) = update
+                        .snapshot
+                        .as_ref()
+                        .and_then(|state| state.battleground.as_ref())
+                {
+                    godot_print!(
+                        "BG_NATIVE_PVP_RECEIVED unix_ms={:.3} match={} bg={} phase={:?} score_a={} score_b={}",
+                        godot::classes::Time::singleton().get_unix_time_from_system() * 1000.0,
+                        bg.match_id,
+                        bg.battleground_id,
+                        bg.phase,
+                        bg.score_a,
+                        bg.score_b
+                    );
+                }
                 self.battleground.view.receive(update);
                 self.sync_spellbook()?;
             }

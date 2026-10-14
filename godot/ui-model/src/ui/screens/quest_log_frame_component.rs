@@ -1,45 +1,27 @@
-//! Quest log window (L): quest list grouped by zone header on the left, the selected
-//! quest's details on `questlogbackground` parchment on the right, with Abandon and
-//! Track/Untrack. Retail `QuestMapFrame` list and details content in a Panel window.
+//! Retail QuestMapFrame data, list rows and detail content shared by WorldMapFrame.
+//! L uses that owner; no standalone QuestLogFrame.
 
 use ui_toolkit::rsx;
-use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 
-use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
 use crate::ui::screens::quest_art::{
-    DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
-    QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
-    named_atlas_texture, panel_button, window_chrome,
+    DynName, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN, QUEST_TEXT_COLOR, atlas_texture,
+    named_atlas_texture,
 };
 use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
-use crate::ui::strata::FrameStrata;
 
-pub const QUEST_LOG_DETAILS_SCROLL: &str = "QuestLogDetailsScrollFrame";
+pub const QUEST_LOG_DETAILS_SCROLL: &str = "QuestMapDetailsScrollFrame";
 
-pub const QUEST_LOG_FRAME: &str = "QuestLogFrame";
-pub const FRAME_W: f32 = 640.0;
-pub const FRAME_H: f32 = 496.0;
-const PANE_TOP: f32 = 62.0;
-const PANE_BOTTOM: f32 = FRAME_H - 32.0;
-const LIST_X: f32 = 12.0;
-const LIST_W: f32 = 300.0;
-/// Details pane on `QuestBG-Parchment`, like the quest giver frame.
-const DETAILS_X: f32 = 330.0;
-const DETAILS_W: f32 = 287.0;
-const DETAILS_INSET: f32 = 12.0;
-const DETAILS_TEXT_W: f32 = DETAILS_W - 2.0 * DETAILS_INSET;
-const HEADER_H: f32 = 26.0;
-const ROW_H: f32 = 18.0;
+const HEADER_H: f32 = 22.0; // QuestLogHeaderTemplate.
+// QuestMapFrame.lua:1792,1798,1866: text height +8 top +4 no objectives +6 POI room.
+const ROW_H: f32 = ROW_FONT + 18.0;
 const ROW_FONT: f32 = 12.0;
 const TITLE_FONT: f32 = 18.0;
 const BODY_FONT: f32 = 13.0;
 const GAP: f32 = 6.0;
-/// `Interface\QuestFrame\UI-QuestLog-BookIcon` in the portrait ring.
-const BOOK_ICON: u32 = 136_797;
 /// `QUEST_OBJECTIVE_FONT_COLOR` for finished objective lines on parchment.
 const DONE_OBJECTIVE_COLOR: &str = "0.35,0.35,0.35,1.0";
 
@@ -150,66 +132,6 @@ pub struct QuestPane {
     pub width: f32,
 }
 
-const LIST_PANE: QuestPane = QuestPane {
-    x: LIST_X,
-    y: PANE_TOP,
-    width: LIST_W,
-};
-
-pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
-    let state = ctx
-        .get::<QuestLogFrameState>()
-        .expect("QuestLogFrameState must be in SharedContext");
-    let hide = !state.visible;
-    let chrome = window_chrome(
-        QUEST_LOG_FRAME,
-        (FRAME_W, FRAME_H),
-        "Quest Log",
-        CLOSE_ACTION,
-    );
-    let list = quest_list(state, LIST_PANE);
-    let details = details_pane(state.details.as_ref(), ctx);
-    let count_text = format!("Quests: {}/{}", state.quest_count, state.max_quests);
-    rsx! {
-        r#frame {
-            name: {DynName(QUEST_LOG_FRAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: hide,
-            mouse_enabled: true,
-            pos_type: "absolute",
-            left: 16.0,
-            top: 104.0,
-            {chrome}
-            texture {
-                name: "QuestLogFramePortrait",
-                width: 60.0,
-                height: 60.0,
-                texture_fdid: BOOK_ICON,
-                pos_type: "absolute",
-                left: -4.0,
-                top: -6.0,
-            }
-            fontstring {
-                name: "QuestLogCount",
-                width: LIST_W,
-                height: 16.0,
-                text: {count_text.as_str()},
-                font: GameFont::FrizQuadrata,
-                font_size: ROW_FONT,
-                font_color: HIGHLIGHT_FONT_COLOR,
-                justify_h: "RIGHT",
-                pos_type: "absolute",
-                left: LIST_X,
-                top: 36.0,
-            }
-            {list}
-            {details}
-        }
-    }
-}
-
 /// The zone headers and quest titles of `state`, from the top of `pane`.
 pub fn quest_list(state: &QuestLogFrameState, pane: QuestPane) -> Element {
     if state.groups.is_empty() {
@@ -247,62 +169,59 @@ pub fn quest_list(state: &QuestLogFrameState, pane: QuestPane) -> Element {
 
 /// Zone header on the `questlog_divider` plate with a +/- collapse marker.
 fn group_header(group: &QuestLogGroup, pane: QuestPane, y: f32) -> Element {
-    let QuestPane {
-        x: list_x,
-        width: list_w,
-        ..
-    } = pane;
+    let left = pane.x;
+    let top = y;
+    let list_x = 0.0;
+    let y = 0.0;
     let name = format!("QuestLogHeader{}", group.sort_id);
     let action = format!("{HEADER_PREFIX}{}", group.sort_id);
-    let marker = if group.collapsed { "+" } else { "-" };
+    let marker_atlas = if group.collapsed {
+        "common-button-list-plus"
+    } else {
+        "common-button-list-minus"
+    };
+    let collapse = named_atlas_texture(
+        format!("{name}Marker"),
+        marker_atlas,
+        (list_x + 263.0, y + 1.0, 20.0, 20.0),
+    );
     let mut elements = named_atlas_texture(
         format!("{name}Background"),
-        QUEST_LOG_DIVIDER,
-        (list_x, y - 5.0, list_w, 37.0),
+        "common-button-list-collapseExpand",
+        (list_x, y, 289.0, HEADER_H),
     );
     elements.extend(rsx! {
-        fontstring {
-            name: {DynName(format!("{name}Marker"))},
-            width: 14.0,
-            height: HEADER_H,
-            text: marker,
-            font: GameFont::FrizQuadrata,
-            font_size: 14.0,
-            font_color: NORMAL_FONT_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: {list_x + 8.0},
-            top: y,
-        }
+        {collapse}
         fontstring {
             name: {DynName(format!("{name}Text"))},
-            width: {list_w - 30.0},
+            width: {289.0 - 38.0},
             height: HEADER_H,
             text: {group.name.as_str()},
             font: GameFont::FrizQuadrata,
-            font_size: 13.0,
+            font_size: 15.0,
             font_color: NORMAL_FONT_COLOR,
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "LEFT",
-            onclick: {action.as_str()},
             pos_type: "absolute",
-            left: {list_x + 26.0},
+            left: {list_x + 8.0},
             top: y,
         }
     });
-    elements
+    rsx! { button { name: {DynName(name)}, width: 289.0, height: HEADER_H,
+    left, top, pos_type: "absolute", button_default_skin: false,
+    onclick: {action.as_str()}, {elements} } }
 }
 
 /// A quest title in its `QuestDifficultyColors` colour (QuestMapFrame.lua:1750-1751);
 /// Forever prefixes `[level] ` (Camelot/QuestMapFrameOverrides.lua:13-16, used at
 /// Forever Mainline/QuestMapFrame.lua:1631).
 fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
-    let QuestPane {
-        x: list_x,
-        width: list_w,
-        ..
-    } = pane;
+    let left = pane.x;
+    let top = y;
+    let list_x = 0.0;
+    let list_w = 290.0;
+    let y = 0.0;
     let name = format!("QuestLogTitle{}", row.quest_id);
     let action = format!("{SELECT_PREFIX}{}", row.quest_id);
     let icon = if row.complete {
@@ -317,116 +236,42 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
     };
     let mut elements = Vec::new();
     if row.selected {
-        elements.extend(rsx! {
-            r#frame {
-                name: {DynName(format!("{name}Selected"))},
-                width: list_w,
-                height: ROW_H,
-                background_color: "1.0,0.82,0.0,0.2",
-                pos_type: "absolute",
-                left: list_x,
-                top: y,
-            }
-        });
+        elements.extend(named_atlas_texture(
+            format!("{name}Selected"),
+            "questlog-quest-glow-yellow",
+            (list_x + 31.0, y + 4.0, list_w - 31.0, ROW_H + 8.0),
+        ));
     }
     elements.extend(atlas_texture(
         format!("{name}Icon"),
         &icon,
-        (list_x + 22.0, y + 1.0, 16.0, 16.0),
+        (list_x + 6.0, y + 4.0, 16.0, 16.0),
     ));
     elements.extend(rsx! {
         fontstring {
             name: {DynName(format!("{name}Text"))},
-            width: {list_w - 64.0},
-            height: ROW_H,
+            width: 241.0,
+            height: ROW_FONT,
             text: {title.as_str()},
             font: GameFont::FrizQuadrata,
             font_size: ROW_FONT,
             font_color: color,
             justify_h: "LEFT",
-            onclick: {action.as_str()},
             pos_type: "absolute",
-            left: {list_x + 42.0},
-            top: {y + 2.0},
+            left: {list_x + 31.0},
+            top: {y + 8.0},
         }
     });
     if row.watched {
-        elements.extend(atlas_texture(
+        elements.extend(named_atlas_texture(
             format!("{name}Check"),
-            &TRACKER_CHECK,
-            (list_x + list_w - 20.0, y + 1.0, 16.0, 16.0),
+            "questlog-icon-checkmark-yellow",
+            (list_x + 277.0, y + 7.0, 14.0, 14.0),
         ));
     }
-    elements
-}
-
-const DETAILS_TEXT_PANE: QuestPane = QuestPane {
-    x: DETAILS_X + DETAILS_INSET,
-    y: PANE_TOP + DETAILS_INSET,
-    width: DETAILS_TEXT_W,
-};
-
-fn details_pane(details: Option<&QuestLogDetails>, ctx: &SharedContext) -> Element {
-    let mut elements = named_atlas_texture(
-        "QuestLogDetailsBackground".into(),
-        QUEST_PARCHMENT,
-        (DETAILS_X, PANE_TOP, DETAILS_W, PANE_BOTTOM - PANE_TOP),
-    );
-    let Some(details) = details else {
-        return elements;
-    };
-    let text = quest_details_elements(details, DETAILS_TEXT_PANE);
-    let content = rsx! {
-        r#frame {
-            name: "QuestLogDetailsContent",
-            width: DETAILS_TEXT_W,
-            height: "auto",
-            layout: "flex-column",
-            align: "start",
-            margin_left: DETAILS_INSET,
-            margin_top: DETAILS_INSET,
-            margin_bottom: DETAILS_INSET,
-            {text}
-        }
-    };
-    elements.extend(quest_scroll_frame(
-        ctx,
-        QUEST_LOG_DETAILS_SCROLL,
-        content,
-        QuestScrollPane {
-            x: DETAILS_X,
-            y: PANE_TOP,
-            width: DETAILS_W,
-            height: PANE_BOTTOM - PANE_TOP,
-            bar_x: DETAILS_W + 5.0,
-            bar_top: 2.0,
-            bar_bottom: 5.0,
-        },
-    ));
-    let track_label = if details.watched { "Untrack" } else { "Track" };
-    let button_y = FRAME_H - 4.0 - 22.0;
-    elements.extend(panel_button(
-        "QuestLogAbandonButton".into(),
-        "Abandon",
-        ABANDON_ACTION,
-        true,
-        (DETAILS_X, button_y, 100.0, 22.0),
-    ));
-    elements.extend(panel_button(
-        "QuestLogShareButton".into(),
-        "Share",
-        SHARE_ACTION,
-        true,
-        (DETAILS_X + 105.0, button_y, 75.0, 22.0),
-    ));
-    elements.extend(panel_button(
-        "QuestLogTrackButton".into(),
-        track_label,
-        TRACK_ACTION,
-        true,
-        (DETAILS_X + DETAILS_W - 100.0, button_y, 100.0, 22.0),
-    ));
-    elements
+    rsx! { button { name: {DynName(name)}, width: 290.0, height: ROW_H,
+    left, top, pos_type: "absolute", button_default_skin: false,
+    onclick: {action.as_str()}, {elements} } }
 }
 
 /// The quest's title, objectives, description and rewards, top-down in `pane`.
@@ -447,7 +292,7 @@ pub fn quest_details_text(details: &QuestLogDetails, pane: QuestPane) -> Element
     }
 }
 
-fn quest_details_elements(details: &QuestLogDetails, pane: QuestPane) -> Element {
+pub(crate) fn quest_details_elements(details: &QuestLogDetails, pane: QuestPane) -> Element {
     let mut elements = details_text(
         pane,
         "QuestLogDetailsTitle",

@@ -126,6 +126,6 @@ func clear_housing_bindings() -> bool:
 	return await close_binding_page()
 
 func close_binding_page() -> bool:
-	if not await click_exposed_control(menu_control("OptionsDoneButton")): return false
-	if not await wait_housing(func(): return client.get_node_or_null("GameMenuUI")==null,"Options Done closes menu"): return false
+	if not await click_exposed_control(menu_control("OptionsCloseButton")): return false
+	if not await wait_housing(func(): return client.get_node_or_null("GameMenuUI")==null,"Options Close closes menu"): return false
 	return await open_cleanup_house()
