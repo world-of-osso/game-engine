@@ -81,10 +81,16 @@ pub(crate) fn shared_shader(code: &str) -> Gd<Shader> {
     })
 }
 
-/// Ribbon materials use the same authored GX/depth/cull state as M2 batches.
+/// CRibbonEmitter preserves authored state but promotes opaque ribbons to alpha.
 pub(crate) fn ribbon_material_shader(material: &m2::Material) -> Result<(Gd<Shader>, u8), String> {
+    let authored_blend = m2_material::gx_blend(material.blend_mode)?;
+    let ribbon_blend = if authored_blend == 0 {
+        2
+    } else {
+        authored_blend
+    };
     let pipeline = Pipeline {
-        gx_blend: m2_material::gx_blend(material.blend_mode)?,
+        gx_blend: ribbon_blend,
         two_sided: material.flags & 0x4 != 0,
         depth_test: material.flags & 0x8 == 0,
         depth_write: material.flags & 0x10 == 0,

@@ -239,11 +239,17 @@ fn load_ribbon_material(
 fn create_ribbon_material(
     authored: &m2::Material,
     image: &Gd<godot::classes::ImageTexture>,
-    _priority: i16,
+    priority: i16,
 ) -> Result<Gd<ShaderMaterial>, String> {
+    if !(-128..=127).contains(&priority) {
+        return Err(format!(
+            "Ribbon priority{priority} exceeds native render priority range"
+        ));
+    }
     let (shader, blend) = material::ribbon_material_shader(authored)?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
+    material.set_render_priority(i32::from(priority));
     material.set_shader_parameter("ribbon_texture", &image.to_variant());
     material.set_shader_parameter("gx_blend", &i32::from(blend).to_variant());
     Ok(material)
