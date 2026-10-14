@@ -1,7 +1,20 @@
 //! Authoritative guild settings decisions; requests never optimistically edit state.
 use shared::protocol::*;
 
-pub const ROSTER_PAGE_SIZE: usize = 9;
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CommunitiesTab {
+    Chat,
+    #[default]
+    Roster,
+    Benefits,
+    Info,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuildRosterSort {
+    Name,
+    Rank,
+}
 
 pub fn guild_creation_notice(created_at: Option<u64>) -> String {
     let Some(seconds) = created_at else {
@@ -42,13 +55,14 @@ pub struct GuildRanksSession {
     pub invitation_waiting: bool,
     pub profile: Option<GuildSnapshot>,
     pub commands: Vec<GuildCommand>,
-    pub info_open: bool,
+    pub communities_tab: CommunitiesTab,
+    pub roster_sort: Option<GuildRosterSort>,
+    pub roster_sort_descending: bool,
     pub invite_open: bool,
     pub profile_editor: Option<GuildProfileField>,
     pub profile_waiting: bool,
     state: Option<GuildRanksState>,
     selected_rank: usize,
-    roster_page: usize,
 }
 
 impl GuildRanksSession {
@@ -62,9 +76,6 @@ impl GuildRanksSession {
         self.awaiting_state = false;
         self.error = state.error.map(|error| error.message().to_owned());
         self.selected_rank = self.selected_rank.min(state.ranks.len().saturating_sub(1));
-        self.roster_page = self
-            .roster_page
-            .min(state.members.len().saturating_sub(1) / ROSTER_PAGE_SIZE);
         self.state = Some(state);
     }
 
@@ -88,8 +99,12 @@ impl GuildRanksSession {
     }
     fn click_profile(&mut self, action: &str, texts: &crate::bank::InputTexts) {
         match action {
-            "guild:info_open" => self.info_open = true,
-            "guild:roster_open" => self.info_open = false,
+            "guild:info_open" => self.communities_tab = CommunitiesTab::Info,
+            "guild:roster_open" => self.communities_tab = CommunitiesTab::Roster,
+            "guild:chat_open" => self.communities_tab = CommunitiesTab::Chat,
+            "guild:benefits_open" => self.communities_tab = CommunitiesTab::Benefits,
+            "guild:roster-sort:name" => self.sort_roster(GuildRosterSort::Name),
+            "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,
             "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {
@@ -148,14 +163,11 @@ impl GuildRanksSession {
         }
     }
 
-    pub fn roster_page(&self) -> usize {
-        self.roster_page
-    }
-
-    pub fn roster_has_next(&self) -> bool {
-        self.state
-            .as_ref()
-            .is_some_and(|state| state.members.len() > (self.roster_page + 1) * ROSTER_PAGE_SIZE)
+    fn sort_roster(&mut self, column: GuildRosterSort) {
+        self.roster_sort_descending =
+            self.roster_sort == Some(column) && !self.roster_sort_descending;
+        self.roster_sort = Some(column);
+        self.member_menu = None;
     }
 
     pub fn saved_input_text(&self, name: &str) -> Option<String> {
@@ -220,18 +232,6 @@ impl GuildRanksSession {
             }
             "guild:settings_close" => {
                 self.settings_open = false;
-                None
-            }
-            "guild:roster_previous" => {
-                self.roster_page = self.roster_page.saturating_sub(1);
-                self.member_menu = None;
-                None
-            }
-            "guild:roster_next" => {
-                if self.roster_has_next() {
-                    self.roster_page += 1;
-                }
-                self.member_menu = None;
                 None
             }
             "guild:add" => self.add_rank("New Rank"),

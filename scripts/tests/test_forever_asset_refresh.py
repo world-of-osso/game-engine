@@ -43,9 +43,10 @@ class RefreshTests(unittest.TestCase):
             root = Path(temporary)
             staging = root / "staging"
             staging.mkdir()
-            (root / "db2/12.1.0.69933").mkdir(parents=True)
+            (root / "db2/active").mkdir(parents=True)
             (root / "db2" / importer.BUILD).mkdir()
-            (root / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
+            (root / "db2/active/Map.csv").write_text("ID\n0\n")
+            (root / "db2/active/receipt.json").write_text('{"identity":{"product":"wow","build":"12.1.5.70391"}}')
             for name, raw in current.items():
                 folder = root / ("textures" if name.endswith(".blp") else "models")
                 folder.mkdir(exist_ok=True)

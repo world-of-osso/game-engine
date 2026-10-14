@@ -346,7 +346,7 @@ impl GameClient {
     fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
         if self.quests.poi_catalog.is_none() {
             let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
-                &self.data_root.join("db2/12.1.0.69933"),
+                &self.data_root.join("db2/active"),
             )?;
             for error in &catalog.unresolved {
                 godot_warn!("{error}");

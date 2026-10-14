@@ -28,24 +28,13 @@ fn source_fixture(name: &str) -> PathBuf {
         std::fs::remove_dir_all(&root).unwrap();
     }
     let forever = root.join("db2/1.60.1.70205");
-    let retail = root.join("db2/12.1.0.69933");
+    let retail = root.join("db2/active");
     std::fs::create_dir_all(forever.join("items")).unwrap();
     std::fs::create_dir_all(&retail).unwrap();
     let write = |dir: &Path, name: &str, text: &str| {
         std::fs::write(dir.join(format!("{name}.csv")), text).unwrap();
     };
     let display_header = "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1\n";
-    write(
-        &root,
-        "CharStartOutfit",
-        &format!(
-            "RaceID,ClassID,SexID,{}\n",
-            (0..12)
-                .map(|i| format!("ItemID_{i}"))
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-    );
     write(
         &root,
         "ItemModifiedAppearance",
@@ -77,7 +66,7 @@ fn source_fixture(name: &str) -> PathBuf {
         "ItemDisplayInfoMaterialRes",
         "ItemDisplayInfoID,ComponentSection,MaterialResourcesID\n1542,5,8\n",
     );
-    // Owned Retail equipment reads the pinned export; starter outfits keep the root copies.
+    // Owned and NPC Retail equipment read the active export.
     for name in [
         "ItemModifiedAppearance",
         "ItemAppearance",
@@ -382,7 +371,7 @@ fn owned_item_requires_paired_definition_source_but_display_only_remains_legacy(
 fn owned_retail_missing_material_never_borrows_forever_group() {
     let root = source_fixture("missing-retail-material");
     std::fs::write(
-        root.join("db2/12.1.0.69933/TextureFileData.csv"),
+        root.join("db2/active/TextureFileData.csv"),
         "FileDataID,UsageType,MaterialResourcesID\n",
     )
     .unwrap();

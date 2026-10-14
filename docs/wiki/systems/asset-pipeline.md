@@ -39,6 +39,20 @@ is explicitly nonauthentic, not accepted asset proof. Evidence:
 Canonical assets/tables/install were not mutated; canonical regeneration remains
 lead-owned. This is extraction/startup proof, not a DB2 re-export or full closure.
 
+## DB2 and live asset-index following — implementation 2026-10-13
+
+### Scalar versus array pallets — 2026-10-14
+
+Installed PlayerCondition layout `1D743D99` interleaves a storage-4 MovementFlags descriptor before storage-3 WeaponSubclassMask/ContentTuningID descriptors. Raw CASC bytes put scalar pallets first, then array pallets, not descriptor order across both types. The former decoder incorrectly advanced those scalar offsets by MovementFlags' 44 bytes, yielding 1048866/958 instead of authored 0/0 for ID923. `read_fields` now tracks separate scalar/array cursors. A compressed unchanged installed payload and pinned DBD in `scripts/tests/fixtures/playercondition-12.1.5.70391/` reproduce the CSV boundary; their receipt records hashes and the 15 unreadable encrypted rows, none synthesized. Canonical re-publication remains lead-owned.
+
+[Contract and lead command](../../specs/db2-follow-install.md) own current publication policy. The private refresh follows active Retail70391, exports365 consumed tables against exact pinned DBD layouts, regenerates eight caches/catalogs and native legacy CSV translations, and compares302 tables with former69933 exports. Census:276020 added,1447 removed,159495 changed and201 identity changes; zero newly missing TDB join IDs. Layout-label/width corrections are not automatically gameplay patch changes. TDB1210 is not imported or rewritten.
+
+A new model receipt updates its owning base/fragment index; older staged receipts cannot reverse the refresh. Runtime `ModelAssetIndex` already resolves the receipt's qualified path and its reload test proves the new namespace. Player assembly selects indexed assets/aliases instead of copying historical product directories. The lead migration authenticates the installed root, reuses identical content through new namespace hard links, extracts changed content locally and removes absent current-root mappings. Private metadata census:191253 identical content keys,808 changed,12 absent;1297 non-Retail receipts preserved. This census is not changed-payload extraction or canonical publication proof.
+
+Native acceptance: authenticated private UDP5821 fb_db2_follow/Dbtwofollow entered Elwynn in Modern and Forever. Both inspected1920×1080 captures draw all twelve7508739 hotkeys plus wildbattlepet/left-right rotation samples through normal named-atlas projection. All30 native regions exactly match current CSV coordinates; sheet SHA256 receipts and visible-pixel counts are recorded. PNGs: `/syncthing/AgentShared/2026-10-13/db2-follow-install/`; private proof: `/home/osso/.worktrees/db2-follow-proof/captures/atlas-region-proof.json`. No client fatal errors; a QuestPOIBlob519073 point-count warning remains, not claimed as pristine startup.
+
+First native RED exposed `LightSkybox.csv`'s new `Name` column: fixed-position parsing prevented world attachment. Named-column parsing handles quoted names and preserves Flags/FDID; focused RED/GREEN and successful native reruns cover the boundary. The fixture now observes the production `Parts/Part0` texture, not the outer frame. Parallel all-table translation import was killed by global OOM at7.5GiB RSS; one CSV per native process finished78 current inputs/678 resources. Legacy translation lookup is tested natively. Current DB2 manifest dry proof covers1509 files/2links, with TDB/auth excluded. These are private preparation proofs; canonical publication remains lead-only.
+
 ## Local Extraction
 
 ```bash
@@ -114,6 +128,8 @@ External tools such as `Frostshake/WDBx` can open DBC/DB2 from CASC and export C
 Some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData` — not from the M2's own TXID chunk. Auto-extraction is not fully reliable for these paths. If a model shows untextured, verify the FDID exists under `data/textures/` and extract it manually.
 
 ## Sources
+
+- [DB2/current-index contract](../../specs/db2-follow-install.md) — exact-layout exports, consumer identity and guarded lead migration
 
 - [casc-architecture.md](../casc-architecture.md) — lookup chain, listfile, FDID chunks, encrypted files
 - [casc-extraction.md](../casc-extraction.md) — casc-local tool, refresh procedure, cascette-rs library

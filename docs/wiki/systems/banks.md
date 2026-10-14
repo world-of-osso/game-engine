@@ -51,7 +51,15 @@ tabs; only `tab_names` entries are mounted or accepted for editing.
 Control methods return `GuildRankRequest` without editing cached state;
 only `apply` replaces it. Gold input converts whole gold to copper. The model validates
 GM-only editing, immutable rank zero, occupied deletion and member hierarchy.
-`guild_rank_frame.rs` renders the communities entry; `guild_control.rs` switches
+`guild_rank_frame.rs` mounts CommunitiesFrame; `guild_communities.rs` renders the
+Mainline814×426 shell, right-edge icon tabs and expanded20px roster rows. Scroll
+positions belong to the registry, not a session page. Name/rank sorting reorders
+references for painting without changing authoritative member/rank state. Optional
+GuildSnapshot metadata fills level/class/last-online fields; officer notes are never
+painted into the public Note column. Settings and Invite share the source footer
+anchor but appear in Roster and Chat respectively. Unsupported Communities services
+remain [named contract gaps](../../specs/guild-ranks.md#communities-presentation).
+`guild_control.rs` switches
 Mainline's 338×444 GuildControlUI between order, permission and bank panes. Its
 159px navigation and180px rank dropdowns use shared Retail menus; rank zero is
 excluded from editable rank menus. `guild_control_art.rs` projects the source
