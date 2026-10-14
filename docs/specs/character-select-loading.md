@@ -29,7 +29,7 @@ Native character selection prepares its campsite and selected character before r
 ## Known gaps (current cycle)
 
 - [x] Published-base Windows process-frame regression and inspected 1920×1080 login/loading/camp/world captures accepted on 2026-10-14. Covered selection: Windows 1.706 s, Linux 2.398 s; differing release/debug builds do not establish cross-platform speed parity.
-- [ ] Current-master Linux process-frame reveal regression after preserving its SFID/SKID loader changes.
+- [x] Current-master Linux process-frame reveal regression after preserving its SFID/SKID loader changes: PASS at `92e8f2d8e`, inspected 1920×1080 camp/model. Existing sky skin525143 bytes authenticate against current CASC and require an FDID alias in packaging; private proof supplied that alias without a loader fallback.
 
 ## Out of scope
 
