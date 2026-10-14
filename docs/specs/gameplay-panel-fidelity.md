@@ -24,6 +24,10 @@ Named gaps: GroupBuffs has no current category data; named layouts, alerts, cros
 
 Inspected after captures in `after-review/` include actual talent choices, HUD menu/naming dialog, cooldown open/hidden states and PvP rated/Specific/skirmish rows. Native HUD/cooldown fixtures assert exact rendered rectangles alongside physical actions and file reload. Source gaps remain explicit; captures of disabled or missing-data controls do not establish supported behavior.
 
+## Communities guild portrait
+
+CommunitiesFrame PortraitOverlay follows Mainline XML328–353 and GuildUtil.lua115–127,180–202. Guilds without a registered design show GuildLogo-NoLogo460904 at64×64 (not the designed56×64 width), white full-file UVs; GuildFrame410251 background/border use the source UVs and no-design colors. No fabricated emblem data. Real persisted design, vendor registration, snapshot appearance and equipped-tabard rendering are the subsequent guild feature.
+
 ## Proof owners
 
 - [Customer-order source/control proof](../wiki/systems/crafting-ui.md#customer-control-fidelity--verified-2026-10-13).

@@ -4734,6 +4734,8 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
+# Mainline GuildUtil no-design portrait (GuildFrame already included).
+textures/460904.blp
 # Mainline Communities right-edge tabs, column strips/highlight and class sprite.
 textures/136831.blp
 textures/2056011.blp
