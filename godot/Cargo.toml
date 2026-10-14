@@ -12,6 +12,8 @@ ui-toolkit-macros = { path = "../../ui-toolkit-macros" }
 [patch.crates-io]
 ktx2-rw = { path = "../vendor/ktx2-rw" }
 taffy = { path = "../vendor/taffy" }
+# Provision client UDP queues for real catalog/replication bursts.
+lightyear_udp = { path = "../../shared-protocol/vendor/lightyear_udp" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../../shared-protocol" }
