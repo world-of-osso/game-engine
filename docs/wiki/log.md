@@ -1,3 +1,7 @@
+## 2026-10-14 — Installed-source Expert native matrix
+
+[Bound icon proof](systems/housing.md#bound-icon-control-text--implementation2026-10-14): both skins pass paid1693/2330 transforms, cancel/commit/relog/conservation, readonly visitors and native assigned/unbound icon keys on70391. Repaired fixture waits for revealed/hit-testable character controls instead of clicking hidden roster nodes. Actual7508739 bytes match current localCASC; full pixel parity stays separate. Owned processes stopped; PSI/swap receipts retained. Full housing remains open.
+
 ## 2026-10-14 — Assigned housing icon keys
 
 [Bound icon control text](systems/housing.md#bound-icon-control-text--implementation2026-10-14): source mode/submode font strings now show assigned abbreviated keys and disappear on unbind. Missing-label behavioral RED; both-skin binding lifecycle plus housing registry GREEN24. Native Options/render acceptance, tooltips and active-glow remain open.

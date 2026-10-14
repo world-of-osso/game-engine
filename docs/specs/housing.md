@@ -26,7 +26,7 @@ Basic uses source64px mode controls at bottom center and Snap/Free Place submode
 
 Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates.lua/xml` and `Blizzard_HouseEditorModeButtons.xml`. Native visual/physical acceptance remains a separate gate.
 
-Named gap: hotkey visual acceptance remains withheld until both-skin native proof uses the installed70391 bytes and member metadata now published by `db2-follow-install`. No further export request is needed. F3 functional placement, user bindings/unbind, preview rotation and visitor/refusal/relog remain landable at their recorded runtime revisions without that visual gate. Do not publish/use obsolete hotkey payloads, pin the resolver or guess replacement UV coordinates.
+Installed70391 source qualification now includes both-skin native Expert proofs and current atlas metadata. Hotkey7508739 bytes used by those runs match a fresh active-build local-CASC extraction (SHA256778ae560d08253c0ad1cfb709ec31a9d4a9105690c4e5b6d86787e3da0f7eaae). Full hotkey pixel parity remains a separate visual acceptance claim; current captures are available, not a claim of complete UI fidelity. No export request is needed. F3 proof retains its historical runtime boundary. Do not publish/use obsolete payloads, pin the resolver or guess replacement UV coordinates.
 
 ## Housing editor bindings
 
@@ -36,7 +36,7 @@ Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and select
 
 Supported Basic/Expert mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Cleanup's separate screen, unsupported submode actions, tooltips and active-glow animation remain separate work.
 
-Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`; native both-skin acceptance is separate from registry tests.
+Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`. Both-skin native70391 acceptance proves normal Options assignments/unbinds and displayed labels; registry tests additionally cover modifier abbreviations and rebinding. Native source actions, real1693/2330 conservation and readonly refusal/relog passed in both skins. Other locales, active glow and complete appearance parity remain separate.
 
 ## Expert editor actions — continuation
 
