@@ -7,7 +7,8 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func stop(reason: String) -> void:
-	push_error("JOURNEYS_LAYOUT_FAIL: " + reason)
+	var state: Dictionary = client.adventure_guide_state() if client != null else {}
+	push_error("JOURNEYS_LAYOUT_FAIL: " + reason + " journal=" + str(state))
 	quit(1)
 
 func settle() -> void:
