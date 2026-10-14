@@ -51,6 +51,11 @@ func verify_settings() -> void:
 			return
 		await settle()
 		assert(fixture.call("selected", 27, 71))
+		assert(fixture.call("frame_rect", "CooldownViewerSettings") == Rect2(16,116,399,609), "Retail settings shell")
+		assert(fixture.call("frame_rect", "CooldownSettingsSearch") == Rect2(88,146,184,30), "Retail SearchBox")
+		assert(fixture.call("frame_rect", "CooldownSettingsSearchIcon") == Rect2(89,157,10,10), "SearchBoxTemplate glyph")
+		assert(fixture.call("frame_rect", "CooldownSettingsSettingsDropdown") == Rect2(277,153,15,16), "Source icon dropdown")
+		assert(fixture.call("frame_rect", "CooldownSettingsUndo") == Rect2(248,699,164,22), "Source Revert anchor")
 		capture(skin, "open")
 		await click_frame("CooldownSettingsSearch")
 		for letter in "Mortal":
