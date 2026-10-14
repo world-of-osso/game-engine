@@ -131,10 +131,13 @@ fn selection_lists_both_skins_keep_selection_through_scroll_and_refresh_without_
 #[test]
 fn selection_lists_generic_search_rows_use_search_select_and_search_highlight() {
     set_thread_skin(ActiveSkin::Modern);
-    let mut session = guild_session();
-    session.click("guild:settings", &Default::default());
-    let registry = guild_registry(session);
-    let selected = texture(&registry, "GuildRankRow0RowSelected");
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut registry = FrameRegistry::new(1600.0, 1000.0);
+    Screen::new(search_rows).sync(&SharedContext::new(), &mut registry);
+    let selected = texture(&registry, "SearchRow0RowSelected");
     assert_eq!(
         (selected.0, selected.1, selected.3),
         (
@@ -144,8 +147,8 @@ fn selection_lists_generic_search_rows_use_search_select_and_search_highlight() 
         ),
         "LFGList.xml:133 persistent selection"
     );
-    assert!(!texture(&registry, "GuildRankRow1RowSelected").3);
-    let hover = texture(&registry, "GuildRankRow1RowHighlight");
+    assert!(!texture(&registry, "SearchRow1RowSelected").3);
+    let hover = texture(&registry, "SearchRow1RowHighlight");
     assert_eq!(
         (hover.0, hover.1),
         (
@@ -154,6 +157,23 @@ fn selection_lists_generic_search_rows_use_search_select_and_search_highlight() 
         ),
         "LFGList.xml:138 hover"
     );
+}
+
+// Guild Control now uses Mainline panes/dropdowns, not generic search rows.
+// Mount the actual search row producer independently of that retired fixture.
+fn search_rows(_: &SharedContext) -> ui_toolkit::widget_def::Element {
+    (0..2)
+        .flat_map(|index| {
+            game_engine_ui_model::selection_list::row(
+                format!("SearchRow{index}"),
+                "search:select",
+                true,
+                (0.0, index as f32 * 24.0, 180.0, 24.0),
+                (&game_engine_ui_model::selection_list::SEARCH, index == 0),
+                vec![],
+            )
+        })
+        .collect()
 }
 
 #[test]

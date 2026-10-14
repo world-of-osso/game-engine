@@ -283,7 +283,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1),(910017,1,1);
     ")?;
     // Default player hair is not among any NPC's explicit choices, preserving missing-type-6 cases.
-    write_sqlite_fixture(data, "customization-v4.sqlite", "
+    write_sqlite_fixture(data, "customization-v5.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE chr_models (id INTEGER PRIMARY KEY, layout_id INTEGER NOT NULL, customize_scale REAL NOT NULL, camera_distance_offset REAL NOT NULL);
         CREATE TABLE options (id INTEGER PRIMARY KEY, name TEXT NOT NULL, chr_model_id INTEGER NOT NULL, category_id INTEGER NOT NULL, order_index INTEGER NOT NULL, ui_type INTEGER NOT NULL, requirement_id INTEGER NOT NULL);

@@ -22,6 +22,14 @@ Diagnostics/commands/revisions/image hashes: `data/diagnostics/ui-questlog-colle
 
 **ModelScene default FOV unsourced**; existing projection remains. No all-model framing, clipping-overflow, complete menu-action/server-state, or projection-parity claim. Numeric unresolved toy names are the existing source ItemID behavior, not fabricated labels. Final merged runs retain one startup character-preview diagnostic per skin: missing skybox companion525143.skin; all requested journal controls and three model hosts still pass. No skybox asset repair is claimed.
 
+## Mount selected/hover compositing follow-up
+
+Retail Mount XML:128/183 and Pet XML:130 leave selected/hover art on default alpha blending. Both shared row declarations incorrectly classified `PetList-ButtonHighlight` as ADD; native matching is global by atlas, so both declarations must change together. Uncollected rows remain enabled/selectable with grey names. No fabricated selected tint or ownership state is introduced.
+
+Native source exports show a yellow selected rim and blue hover rim with transparent centres (209×46). The accepted pre-fix screenshot's overlapping rim was pale from additive compositing, not an opaque white centre. At the identical four-pixel top-border band, both skins change from0/700 blue-dominant pixels to350/700 after source BLEND; interior near-white samples remain0/1666. `check_mount_row_highlight` repeats search→selection→filter/reset→right-click and asserts the source blue rim, preserving idle/hover/context PNGs plus source regions under `after/collections-fidelity-2026-10-14/mount-row-pixel-final/`. These six full-frame views and four source regions were inspected.
+
+The source-blend regression fails before the two-line correction, then all14 Mount and18 Pet tests pass. Expanded selection-list command reports34 passes/1 failure: an unrelated guild fixture cannot find `GuildRankRow0RowSelected`; no overall-suite pass is claimed or guild code changed. Build/check/fmt pass at31ed1a63d; subsequent changes are fixture/docs only. Logs: `mount-row-blend-red.log`, `mount-row-green.log`, `mount-row-{build,check,fmt}.log` in the diagnostics directory above. Existing skybox startup diagnostic remains recorded.
+
 ## Sources
 
 - Retail `Blizzard_Collections.xml:14`, `SharedUIPanelTemplates.xml:544–640` — PortraitFrame shell.

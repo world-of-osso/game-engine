@@ -7,11 +7,12 @@ use crate::customization_data::{
     RawOption, RawSkinnedModel,
 };
 
-type HairGeosetKey = (u32, u16, u16);
+type HairGeosetKey = (u32, u16, i32);
 
 /// Cache schema; the version is in the file name because checkouts and the two
 /// clients share `data/cache`, and one name made each rebuild over the other's.
-pub(crate) const CACHE_SCHEMA_VERSION: u32 = 4;
+// v5 retains signed GeosetID values; v4 silently stored authored -1 as 0.
+pub(crate) const CACHE_SCHEMA_VERSION: u32 = 5;
 
 pub fn customization_cache_file() -> String {
     format!("customization-v{CACHE_SCHEMA_VERSION}.sqlite")
@@ -21,34 +22,20 @@ pub(crate) fn query_customization_raw_data(
     conn: &Connection,
     race_models: RaceModels,
 ) -> Result<RawData, String> {
-    query_customization_rows(
-        conn,
-        race_models,
-        "SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models",
-    )
+    query_customization_rows(conn, race_models, None)
 }
 
-/// Only Skyborne collection rows are interpreted by the Forever overlay. Other
+/// Only Skyborne-referenced geoset and collection rows are interpreted by the Forever overlay. Other
 /// Forever models may use GeosetID representations outside this renderer's u16 IDs.
 /// Keep those original values in the source cache; never truncate a selected row.
 pub(crate) fn query_skyborne_customization_raw_data(
     conn: &Connection,
     race_models: RaceModels,
 ) -> Result<RawData, String> {
-    query_customization_rows(
-        conn,
-        race_models,
-        "SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models
-         WHERE id IN (
-             SELECT e.skinned_model_id FROM elements e
-             JOIN choices c ON c.id = e.choice_id
-             JOIN options o ON o.id = c.option_id
-             WHERE o.chr_model_id IN (218, 219)
-         )",
-    )
+    query_customization_rows(conn, race_models, Some("218,219"))
 }
 
-/// Interpret collections only for the displayed NPC model and its authored other form.
+/// Interpret geosets and collections only for the displayed NPC model and its authored other form.
 pub(crate) fn query_npc_customization_raw_data(
     conn: &Connection,
     race_models: RaceModels,
@@ -59,20 +46,26 @@ pub(crate) fn query_npc_customization_raw_data(
         .map(u32::to_string)
         .collect::<Vec<_>>()
         .join(",");
-    let sql = format!(
-        "SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models
-        WHERE id IN (SELECT e.skinned_model_id FROM elements e
-        JOIN choices c ON c.id=e.choice_id JOIN options o ON o.id=c.option_id
-        WHERE o.chr_model_id IN ({models}))"
-    );
-    query_customization_rows(conn, race_models, &sql)
+    query_customization_rows(conn, race_models, Some(&models))
 }
 
 fn query_customization_rows(
     conn: &Connection,
     race_models: RaceModels,
-    skinned_model_sql: &str,
+    model_ids: Option<&str>,
 ) -> Result<RawData, String> {
+    let geoset_sql = model_effect_sql(
+        "geosets",
+        "id, geoset_type, geoset_id",
+        "geoset_id",
+        model_ids,
+    );
+    let skinned_model_sql = model_effect_sql(
+        "skinned_models",
+        "id, collection_fdid, geoset_type, geoset_id",
+        "skinned_model_id",
+        model_ids,
+    );
     Ok(RawData {
         chr_models: load_chr_models(conn)?,
         options: load_options(conn)?,
@@ -80,12 +73,33 @@ fn query_customization_rows(
         choices: load_choices(conn)?,
         elements: load_elements(conn)?,
         materials: load_materials(conn)?,
-        geosets: load_geosets(conn)?,
-        skinned_models: load_skinned_models(conn, skinned_model_sql)?,
+        geosets: load_geosets(conn, &geoset_sql)?,
+        skinned_models: load_skinned_models(conn, &skinned_model_sql)?,
         hair_geosets: load_hair_geosets(conn)?,
         texture_fdids: load_texture_fdids(conn)?,
         race_models,
     })
+}
+
+/// The model scope applies equally to ordinary geosets and collection effects.
+fn model_effect_sql(
+    table: &str,
+    columns: &str,
+    element_column: &str,
+    model_ids: Option<&str>,
+) -> String {
+    let select = format!("SELECT {columns} FROM {table}");
+    let Some(models) = model_ids else {
+        return select;
+    };
+    format!(
+        "{select} WHERE id IN (
+        SELECT e.{element_column} FROM elements e
+        JOIN choices c ON c.id = e.choice_id
+        JOIN options o ON o.id = c.option_id
+        WHERE o.chr_model_id IN ({models})
+    )"
+    )
 }
 
 fn load_chr_models(conn: &Connection) -> Result<Vec<RawChrModel>, String> {
@@ -207,9 +221,21 @@ fn load_materials(conn: &Connection) -> Result<HashMap<u32, RawMaterial>, String
         .map_err(|err| format!("read materials row: {err}"))
 }
 
-fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
+/// Preserve signed sentinels without widening the existing unsigned render-ID range.
+fn read_signed_geoset_id(row: &rusqlite::Row<'_>, column: usize) -> rusqlite::Result<i32> {
+    let value: i32 = row.get(column)?;
+    if value > i32::from(u16::MAX) {
+        return Err(rusqlite::Error::IntegralValueOutOfRange(
+            column,
+            i64::from(value),
+        ));
+    }
+    Ok(value)
+}
+
+fn load_geosets(conn: &Connection, sql: &str) -> Result<HashMap<u32, RawGeoset>, String> {
     let mut geosets_stmt = conn
-        .prepare("SELECT id, geoset_type, geoset_id FROM geosets")
+        .prepare(sql)
         .map_err(|err| format!("prepare geosets lookup: {err}"))?;
     geosets_stmt
         .query_map([], |row| {
@@ -217,7 +243,7 @@ fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
                 row.get::<_, u32>(0)?,
                 RawGeoset {
                     geoset_type: row.get(1)?,
-                    geoset_id: row.get(2)?,
+                    geoset_id: read_signed_geoset_id(row, 2)?,
                 },
             ))
         })
@@ -239,7 +265,7 @@ fn load_skinned_models(
             RawSkinnedModel {
                 collection_fdid: row.get(1)?,
                 geoset_type: row.get(2)?,
-                geoset_id: row.get(3)?,
+                geoset_id: read_signed_geoset_id(row, 3)?,
             },
         ))
     })
@@ -258,7 +284,7 @@ fn load_hair_geosets(conn: &Connection) -> Result<HashMap<HairGeosetKey, bool>, 
                 (
                     row.get::<_, u32>(0)?,
                     row.get::<_, u16>(1)?,
-                    row.get::<_, u16>(2)?,
+                    read_signed_geoset_id(row, 2)?,
                 ),
                 row.get::<_, bool>(3)?,
             ))

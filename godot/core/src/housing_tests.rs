@@ -322,3 +322,13 @@ fn housing_names_neighborhood_art_by_its_authored_texture_kit() {
     );
     std::fs::remove_file(&kits).unwrap();
 }
+
+#[test]
+fn db2_header_housing_rejects_invalid_canonical_atlas_id() {
+    let db = catalog_connection();
+    let mut catalog =
+        load_connection(&db, "12.1.0.69933", "dcfc90fffd79ba00406ae46f5f657592").unwrap();
+    let fixture = crate::db2_test_support::ExportFixture::copy("UiTextureAtlasElement", Some("ID"));
+    let error = catalog.resolve_icons(&fixture.0).unwrap_err();
+    assert!(error.contains("UiTextureAtlasElement.csv:2:"), "{error}");
+}
