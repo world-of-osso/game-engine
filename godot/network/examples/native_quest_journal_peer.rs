@@ -220,8 +220,29 @@ impl Peer {
             "PASS QUEST_PEER_ACCEPT character={} quest={} pushable={} rewards={}",
             self.character, quest, entry.pushable, entry.rewards.money
         );
+        self.disconnect()
+    }
+    fn disconnect(&mut self) -> Result<(), String> {
         self.bridge.disconnect()?;
-        Ok(())
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
+            for event in self.bridge.drain_events()? {
+                if matches!(event, Event::Disconnected(_)) {
+                    return Ok(());
+                }
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        Err("Quest peer disconnect was not acknowledged".into())
+    }
+    fn close_party(&mut self, leave_sent: bool) -> Result<(), String> {
+        if !self.roster.is_empty() {
+            if !leave_sent {
+                self.bridge.send::<_, GroupChannel>(LeaveGroup)?;
+            }
+            self.wait("party cleanup roster empty", |peer| peer.roster.is_empty())?;
+        }
+        self.disconnect()
     }
     fn find_giver(&self, entry: u32) -> Option<u64> {
         self.replica
@@ -287,8 +308,7 @@ impl Peer {
                     .map_err(|e| e.to_string())?;
             }
             if directory.join("stop").exists() {
-                self.bridge.disconnect()?;
-                return Ok(());
+                return self.close_party(sent_leave);
             }
             thread::sleep(Duration::from_millis(10));
         }
