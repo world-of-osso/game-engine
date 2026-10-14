@@ -340,7 +340,9 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
             .collect::<Vec<_>>()
             .join(" ");
         assert!(
-            prompt.contains("175") && prompt.contains("2 items"),
+            prompt.contains("175")
+                && prompt.split_whitespace().any(|word| word == "2")
+                && prompt.contains("items?"),
             "Captured prompt changed after cart clear: {prompt}"
         );
         for name in [
