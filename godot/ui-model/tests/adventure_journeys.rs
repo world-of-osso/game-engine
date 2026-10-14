@@ -286,6 +286,55 @@ fn journeys_home_breadcrumb_returns_from_progress_to_the_list() {
     assert!(render(&view).get_by_name("JourneyCard12").is_some());
 }
 
+#[test]
+fn selected_journey_reward_tooltip_uses_authored_text_without_invented_claim_state() {
+    use game_engine_ui_model::adventure_journeys::reward_tooltip;
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    let tooltip = reward_tooltip(
+        &view.journeys,
+        view.renown.as_deref(),
+        "JourneyReward622Card",
+    )
+    .unwrap();
+    assert_eq!(tooltip.content.title, "Centaur Hunting Trophies");
+    let lines: Vec<_> = tooltip
+        .content
+        .lines
+        .iter()
+        .map(|line| line.left_text.as_str())
+        .collect();
+    assert_eq!(lines, vec!["", "Centaur Hunting Trophies description"]);
+    assert!(
+        reward_tooltip(
+            &view.journeys,
+            view.renown.as_deref(),
+            "JourneyReward621Card"
+        )
+        .is_none(),
+        "a reward not on selected level must not create a tooltip"
+    );
+    assert!(
+        reward_tooltip(
+            &view.journeys,
+            view.renown.as_deref(),
+            "JourneyReward622CardExtra"
+        )
+        .is_none()
+    );
+    view.apply("journal:journey-back").unwrap();
+    assert!(
+        reward_tooltip(
+            &view.journeys,
+            view.renown.as_deref(),
+            "JourneyReward622Card"
+        )
+        .is_none()
+    );
+}
+
 fn data_view() -> View {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

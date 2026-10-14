@@ -107,7 +107,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 29] = [
+        const SOURCES: [Source; 30] = [
+            GameClient::journal_reward_tooltip,
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
             GameClient::transmog_source_tooltip,
@@ -206,6 +207,22 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    /// Journeys SetRewards OnEnter: reward title/description at ANCHOR_RIGHT.
+    fn journal_reward_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let view = &self.adventure_guide.view;
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_journeys::reward_tooltip(
+                &view.journeys,
+                view.renown.as_deref(),
+                frame.name.as_deref()?,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_set_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
