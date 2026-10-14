@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the Retail 12.1.0.69933 renown catalog for the realm's Journeys service.
+"""Export source-identified Retail renown for the realm's Journeys service.
 
 Major factions are Covenant rows whose Faction has a RenownCurrencyID (TrinityCore
 a352b1fa ReputationMgr::IsRenownReputation). Renown level is that currency, capped at
