@@ -15,6 +15,17 @@
 
 [Disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14): run60 peer reports `ConnectionTimedOut`; last native incoming socket batch08:32:13.043UTC, outgoing worker Pings continue through08:32:22.978, server max frame13.139s reported08:32:26.284. Run67 reproduces the actual native `ConnectionTimedOut` event after10 gathers/1000, alongside25.173s server/41.647s native pauses and memory-full PSI86.38%; system/process attribution remains open. Run69 reports297.768s server/284.237s native pauses, memory-full PSIavg60=90.85 and rising faults across unrelated compiler/verifier/server processes; a sustainable native window is required. No timeout/guard change. Published equipment closure verified20/20; portable manifest now uses the lead's two published indexes. Obsolete Forever no-portrait fixture follows the decided Retail60×60 player slot; Modern shared-menu golden remains untouched.
 
+## 2026-10-14 — Watched reputation native baseline
+
+[Reputation bar](systems/reputation-status-bar.md): small owner-only state independent of Journeys catalog, persisted login/clear/refusal/committed-quest backing, source geometry/XP priority and physical hover/leave. Forever overlap reproduced in pixels, then fixed with approved relative top-XP anchor; both skins pass at3010f78da with four inspected1920×1080 originals and exact receipt. Positive MajorFaction watch and full manager parity remain open; current Journeys displays remain unloaded after90s; the received cache must be observed separately before inferring delivery failure.
+
+## 2026-10-14 — Journeys watch and fractional left boundary
+
+[Watch/left proof](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persisted Faction-ID watch/clear and refusal feedback, no optimistic checkmark; offset51.6 keeps the left arrow enabled despite selected1. Current native snapshots missing in both skins; no new capture PASS or production eligibility claim.
+
+## 2026-10-14 — Journeys held arrows and native masks
+
+[Held-arrow proof](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14): sourced fractional scrolling and directional release;12/12 focused UI tests, both-skin physical hold/outside release/stop plus icon-mask pixels PASS at executablecb706aab3. Fourteen inspected original full-HD captures and hashed receipt. Cross-agent snapshot latency is timestamped separately; no retry/workaround. Claim/watch/overview backing and70391 metadata remain open.
 ## 2026-10-14 — Unnamed equipped component attachment
 
 [Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.

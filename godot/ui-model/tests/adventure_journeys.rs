@@ -30,10 +30,17 @@ fn reward(id: u32, level: u32, name: &str) -> RenownReward {
     }
 }
 
-fn faction(id: u32, name: &str, expansion: u8, level: u32, standing: u32) -> MajorFactionSnapshot {
+fn faction(
+    id: u32,
+    faction_id: u32,
+    name: &str,
+    expansion: u8,
+    level: u32,
+    standing: u32,
+) -> MajorFactionSnapshot {
     MajorFactionSnapshot {
         id,
-        faction_id: 2400 + id,
+        faction_id,
         name: name.into(),
         description: String::new(),
         expansion,
@@ -60,10 +67,12 @@ fn faction(id: u32, name: &str, expansion: u8, level: u32, standing: u32) -> Maj
 fn snapshot() -> RenownSnapshot {
     RenownSnapshot {
         factions: vec![
-            faction(12, "Maruuk Centaur", 9, 2, 1000),
-            faction(37, "Amani Tribe", 11, 0, 0),
+            faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+            faction(37, 2696, "Amani Tribe", 11, 0, 0),
         ],
         source_error: None,
+        watched_faction: None,
+        watch_error: None,
     }
 }
 
@@ -119,13 +128,224 @@ fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 #[test]
+fn journeys_watch_uses_source_hover_geometry_and_authoritative_checked_state() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = data_view();
+        let mut data = snapshot();
+        data.factions[0].unlock = RenownUnlock::Ungated;
+        data.watched_faction = Some(2503);
+        view.renown = Some(Arc::new(data));
+        view.apply("journal:tab:journeys").unwrap();
+        view.apply("journal:journey-expansion:9").unwrap();
+        view.journeys.hovered = Some(12);
+        let registry = render_skin(&view, skin);
+        assert_eq!(
+            rect(&registry, "JourneyCard12Watch"),
+            [204., 76., 200., 20.]
+        );
+        assert_eq!(
+            rect(&registry, "JourneyCard12WatchCheckbox"),
+            [0., -3., 26., 26.]
+        );
+        let checkbox = registry
+            .get(registry.get_by_name("JourneyCard12WatchCheckbox").unwrap())
+            .unwrap();
+        assert_eq!(
+            checkbox.onclick.as_deref(),
+            Some("journal:journey-watch:12:0")
+        );
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_some()
+        );
+        let mut unchecked = snapshot();
+        unchecked.factions[0].unlock = RenownUnlock::Ungated;
+        view.renown = Some(Arc::new(unchecked));
+        let registry = render_skin(&view, skin);
+        let checkbox = registry
+            .get(registry.get_by_name("JourneyCard12WatchCheckbox").unwrap())
+            .unwrap();
+        assert_eq!(
+            checkbox.onclick.as_deref(),
+            Some("journal:journey-watch:12:2503")
+        );
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_none()
+        );
+        let mut refused = snapshot();
+        refused.factions[0].unlock = RenownUnlock::Ungated;
+        refused.watched_faction = Some(2503);
+        refused.watch_error = Some("Watched faction write refused.".into());
+        view.renown = Some(Arc::new(refused));
+        let registry = render_skin(&view, skin);
+        assert!(registry.get_by_name("JourneyCard12WatchCheckbox").is_some());
+        assert!(
+            registry
+                .get_by_name("JourneyCard12WatchCheckboxCheck")
+                .is_some()
+        );
+        view.journeys.hovered = None;
+        assert!(
+            render_skin(&view, skin)
+                .get_by_name("JourneyCard12Watch")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn journeys_watch_child_hover_keeps_the_card_not_the_clear_target_selected() {
+    use game_engine_ui_model::adventure_journeys::hovered_faction;
+    for (action, faction) in [
+        ("journal:journey:12", Some(12)),
+        ("journal:journey-watch:12:0", Some(12)),
+        ("journal:journey-watch:12:2503", Some(12)),
+        ("journal:journey-level:next", None),
+        ("journal:journey:invalid", None),
+    ] {
+        assert_eq!(hovered_faction(action), faction);
+    }
+}
+
+#[test]
+fn journeys_watch_unevaluated_unlock_never_exposes_a_toggle() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    view.journeys.hovered = Some(12);
+    assert!(render(&view).get_by_name("JourneyCard12Watch").is_none());
+}
+
+#[test]
+fn journeys_held_arrow_moves_fractionally_then_snaps_on_release() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(1);
+    view.journeys.advance_scroll(0.5, 25);
+    assert_eq!(view.journeys.level, 2);
+    assert_eq!(rect(&render(&view), "JourneyRenownLevel2")[0], 257.5);
+    view.journeys.advance_scroll(0.2, 25);
+    let moving_left = rect(&render(&view), "JourneyRenownLevel2")[0];
+    assert!((moving_left - 256.1).abs() < 0.01);
+    view.apply("journal:journey-select-level:9").unwrap();
+    assert_eq!(view.journeys.level, 2, "Clicks cannot interfere while held");
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 3);
+    assert_eq!(rect(&render(&view), "JourneyRenownLevel3")[0], 257.5);
+    view.journeys.advance_scroll(3., 25);
+    assert_eq!(view.journeys.level, 3, "Release stops movement");
+}
+
+#[test]
+fn journeys_boundary_arrows_reenable_after_selection_moves_inward() {
+    use ui_toolkit::widgets::button::ButtonState;
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    let mut registry = FrameRegistry::new(1280., 720.);
+    let mut screen = Screen::new(adventure_guide_screen);
+    for level in [2, 1, 2, 25, 24, 1, 3] {
+        view.apply(&format!("journal:journey-select-level:{level}"))
+            .unwrap();
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        for (name, disabled) in [
+            ("JourneyLevelPrev", level == 1),
+            ("JourneyLevelFirst", level == 1),
+            ("JourneyLevelNext", level == 25),
+            ("JourneyLevelLast", level == 25),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                panic!("{name} is not a button");
+            };
+            assert_eq!(
+                button.state == ButtonState::Disabled,
+                disabled,
+                "{name} at level {level}"
+            );
+        }
+    }
+}
+
+#[test]
+fn journeys_left_arrow_stays_enabled_until_the_fractional_offset_reaches_zero() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.7, 25);
+    assert_eq!(view.journeys.level, 1);
+    assert!(view.journeys.track_offset() > 0.);
+    let registry = render(&view);
+    for name in ["JourneyLevelPrev", "JourneyLevelFirst"] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Button(button)) = &frame.widget_data else {
+            panic!("arrow")
+        };
+        assert_ne!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled,
+            "{name} uses offset/original selection, not centre index"
+        );
+    }
+    view.journeys.stop_scroll(25);
+    let registry = render(&view);
+    let frame = registry
+        .get(registry.get_by_name("JourneyLevelPrev").unwrap())
+        .unwrap();
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        panic!("arrow")
+    };
+    assert_eq!(
+        button.state,
+        ui_toolkit::widgets::button::ButtonState::Disabled,
+        "Release at1 disables the boundary arrow"
+    );
+}
+
+#[test]
+fn journeys_short_hold_steps_once_and_boundary_stops() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.1, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 1);
+    view.journeys.start_scroll(1);
+    for _frame in 0..240 {
+        view.journeys.advance_scroll(0.1, 25);
+    }
+    assert_eq!(view.journeys.level, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 25);
+    view.journeys.start_scroll(-1);
+    view.journeys.advance_scroll(0.7, 25);
+    view.journeys.stop_scroll(25);
+    assert_eq!(view.journeys.level, 24, "Left release rounds down");
+}
+
+#[test]
 fn journeys_cards_use_sequence_padding_and_spacing_from_retail() {
     let mut view = data_view();
     let mut catalog = snapshot();
     catalog.factions = vec![
-        faction(12, "Maruuk Centaur", 9, 2, 1000),
-        faction(13, "Valdrakken Accord", 9, 1, 0),
-        faction(14, "Iskaara Tuskarr", 9, 1, 0),
+        faction(12, 2503, "Maruuk Centaur", 9, 2, 1000),
+        faction(13, 2507, "Dragonscale Expedition", 9, 1, 0),
+        faction(14, 2511, "Iskaara Tuskarr", 9, 1, 0),
     ];
     view.renown = Some(Arc::new(catalog));
     view.apply("journal:tab:journeys").unwrap();

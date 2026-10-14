@@ -28,6 +28,9 @@ enum Mask {
     TalentChoiceLeft,
     TalentChoiceRight,
     TalentChoiceFlyout,
+    JourneyRing,
+    JourneySquare,
+    JourneyReward,
 }
 
 #[derive(Default)]
@@ -156,7 +159,10 @@ impl IconMasks {
             | Mask::TalentChoice
             | Mask::TalentChoiceLeft
             | Mask::TalentChoiceRight
-            | Mask::TalentChoiceFlyout => compose_masked_icon(source, &load_atlas_mask(mask)?),
+            | Mask::TalentChoiceFlyout
+            | Mask::JourneyRing
+            | Mask::JourneySquare => compose_masked_icon(source, &load_atlas_mask(mask)?),
+            Mask::JourneyReward => compose_journey_reward_icon(source, &load_atlas_mask(mask)?),
             Mask::Round | Mask::AuctionItem | Mask::GroupFinder => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
@@ -250,6 +256,9 @@ fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
         Mask::TalentChoiceLeft => "talents-node-choice-mask-half",
         Mask::TalentChoice | Mask::TalentChoiceRight => "talents-node-choice-mask",
         Mask::TalentChoiceFlyout => "talents-node-choiceflyout-mask",
+        Mask::JourneyRing => "ui-journeys-delve-rewardicon-ring-mask",
+        Mask::JourneySquare => "ui-journeys-delve-rewardicon-square-mask",
+        Mask::JourneyReward => "talents-node-choice-mask",
         _ => unreachable!("atlas mask only"),
     };
     let region =
@@ -262,6 +271,11 @@ fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     if mask == Mask::TalentChoiceRight {
         image = image::imageops::rotate180(&image);
     }
+    if matches!(mask, Mask::JourneyRing | Mask::JourneySquare) {
+        // RenownLevelTemplate:42px icon inside the atlas-sized64px centered mask.
+        // Refresh changes mask atlas with IgnoreAtlasSize, preserving that64px rect.
+        image = crop_normalized(image, [11. / 64., 53. / 64., 11. / 64., 53. / 64.]);
+    }
     Ok(mask_alpha(&image))
 }
 fn mask_of(name: &str) -> Option<Mask> {
@@ -272,7 +286,13 @@ fn mask_of(name: &str) -> Option<Mask> {
         || name
             .strip_prefix("PerksProgramIcon")
             .is_some_and(|id| id.parse::<u32>().is_ok());
-    if perks {
+    if name.starts_with("JourneyRenownLevel") && name.ends_with("ringIcon") {
+        Some(Mask::JourneyRing)
+    } else if name.starts_with("JourneyRenownLevel") && name.ends_with("squareIcon") {
+        Some(Mask::JourneySquare)
+    } else if name.starts_with("JourneyReward") && name.ends_with("Icon") {
+        Some(Mask::JourneyReward)
+    } else if perks {
         Some(Mask::PerksProduct)
     } else if talent_circle || profession_circle {
         Some(Mask::TalentCircle)
@@ -326,6 +346,17 @@ fn compose_group_finder_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage 
     let circle = resize(round, 62, 62, FilterType::Triangle);
     let mut mask = GrayImage::new(66, 66);
     replace(&mut mask, &circle, 2, 2);
+    compose_masked_icon(source, &mask)
+}
+
+/// JourneyProgressRewardCardTemplate:45px icon, centered40px choice mask.
+/// Compose at2x to retain its authored2.5px inset rather than rounding one edge.
+fn compose_journey_reward_icon(source: RgbaImage, choice: &GrayImage) -> RgbaImage {
+    use image::imageops::{FilterType, replace, resize};
+    let source = resize(&source, 90, 90, FilterType::Triangle);
+    let choice = resize(choice, 80, 80, FilterType::Triangle);
+    let mut mask = GrayImage::new(90, 90);
+    replace(&mut mask, &choice, 5, 5);
     compose_masked_icon(source, &mask)
 }
 
@@ -417,6 +448,68 @@ mod tests {
                 IconMasks::default().apply(&mut registry);
                 for name in ["PerksProgramIcon4", "PerksProgramFrozenIcon"] {
                     assert_perks_mask_alpha(&registry, name, fdid, skin);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn journeys_real_icons_cut_mask_corners_and_preserve_the_centre() {
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture {name:"JourneyRenownLevel2ringIcon",texture_fdid:135729,width:42.0,height:42.0}
+                texture {name:"JourneyRenownLevel3squareIcon",texture_fdid:135729,width:42.0,height:42.0}
+                texture {name:"JourneyReward622Icon",texture_fdid:135729,width:45.0,height:45.0}
+            }).sync(&SharedContext::new(),&mut registry);
+            IconMasks::default().apply(&mut registry);
+            for name in [
+                "JourneyRenownLevel2ringIcon",
+                "JourneyRenownLevel3squareIcon",
+                "JourneyReward622Icon",
+            ] {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let Some(WidgetData::Texture(rendered)) = &frame.widget_data else {
+                    panic!("icon")
+                };
+                let image = match rendered.source {
+                    TextureSource::FileDataId(fdid) => texture(fdid),
+                    TextureSource::Dynamic(id) => {
+                        let pixels = registry.dynamic_texture(id).unwrap();
+                        RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone())
+                            .unwrap()
+                    }
+                    _ => panic!("authored icon must retain centre pixels"),
+                };
+                assert_eq!(image.get_pixel(0, 0)[3], 0, "{skin:?} {name} corner");
+                assert_eq!(
+                    image.get_pixel(image.width() - 1, image.height() - 1)[3],
+                    0,
+                    "{name} opposite corner"
+                );
+                assert!(
+                    image.get_pixel(image.width() / 2, image.height() / 2)[3] > 200,
+                    "{name} centre"
+                );
+                if name == "JourneyRenownLevel2ringIcon" {
+                    assert_eq!(
+                        image.get_pixel(image.width() / 10, image.height() / 10)[3],
+                        0,
+                        "ring diagonal outside circle"
+                    );
+                }
+                if name == "JourneyReward622Icon" {
+                    assert_eq!(
+                        image.get_pixel(0, image.height() / 2)[3],
+                        0,
+                        "40px mask inside45px icon"
+                    );
                 }
             }
         }
