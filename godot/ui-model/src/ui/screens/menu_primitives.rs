@@ -279,6 +279,7 @@ pub enum MenuElementKind {
     Radio { checked: bool },
     Title,
     Divider,
+    Spacer,
     Submenu,
 }
 
@@ -290,6 +291,9 @@ pub fn menu_element(
     rect: (f32, f32, f32, f32),
 ) -> Element {
     let (x, y, width, height) = rect;
+    if kind == MenuElementKind::Spacer {
+        return rsx! { r#frame { name:{DynName(item.name.into())},left:x,top:y,width,height,pos_type:"absolute" } };
+    }
     if kind == MenuElementKind::Divider {
         return texture(item.name.into(), MENU_DIVIDER, rect, NORMAL);
     }
@@ -382,6 +386,71 @@ fn menu_tick(name: &str, kind: MenuElementKind) -> (f32, Element) {
         ));
     }
     (inset, contents)
+}
+
+/// Menu description elements: item, template kind, enabled state.
+pub type DescribedMenuElement<'a> = (ContextMenuItem<'a>, MenuElementKind, bool);
+
+/// DropdownButton.lua minimum owner width; Menu.lua content-fit compositor;
+/// MenuTemplates.CreateSpacer defaults to10. No synthetic title/divider is inserted.
+pub fn context_menu_description(
+    name: &str,
+    (x, y): (f32, f32),
+    minimum_width: f32,
+    entries: &[DescribedMenuElement<'_>],
+) -> Element {
+    use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
+    let content_width = entries
+        .iter()
+        .filter(|(_, kind, _)| *kind != MenuElementKind::Spacer)
+        .map(|(item, kind, _)| {
+            let label_width = measure_text(item.label, GameFont::FrizQuadrata, 12.)
+                .expect("menu font")
+                .0;
+            let tick_width = match kind {
+                MenuElementKind::Checkbox { .. } => 19.,
+                MenuElementKind::Radio { .. } => 16.,
+                _ => 0.,
+            };
+            let arrow_width = if *kind == MenuElementKind::Submenu {
+                16.
+            } else {
+                0.
+            };
+            label_width + tick_width + arrow_width
+        })
+        .fold(0., f32::max);
+    let width = minimum_width.max(content_width.ceil() + MENU_INSET * 2.);
+    let height = MENU_INSET
+        + MENU_BOTTOM
+        + entries
+            .iter()
+            .map(|(_, kind, _)| {
+                if *kind == MenuElementKind::Spacer {
+                    10.
+                } else {
+                    ROW_HEIGHT
+                }
+            })
+            .sum::<f32>();
+    let mut contents =
+        crate::selection_list::menu_background(format!("{name}Background"), (width, height));
+    let mut top = MENU_INSET;
+    for (item, kind, enabled) in entries {
+        let row_height = if *kind == MenuElementKind::Spacer {
+            10.
+        } else {
+            ROW_HEIGHT
+        };
+        contents.extend(menu_element(
+            *item,
+            *kind,
+            *enabled,
+            (MENU_INSET, top, width - 2. * MENU_INSET, row_height),
+        ));
+        top += row_height;
+    }
+    rsx! { r#frame { name:{DynName(name.into())},width,height,left:x,top:y,pos_type:"absolute",strata:FrameStrata::Dialog,frame_level:60.0,{contents} } }
 }
 
 pub fn menu_height_for_items(item_count: usize) -> f32 {
