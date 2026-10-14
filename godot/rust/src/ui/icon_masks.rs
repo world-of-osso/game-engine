@@ -88,6 +88,9 @@ impl IconMasks {
             "PerksProgramLeaveButton",
             "PerksProgramPurchaseButton",
             "PerksProgramRefundButton",
+            "PerksProgramAddToCartButton",
+            "PerksProgramRemoveFromCartButton",
+            "PerksProgramCartPurchaseButton",
         ];
         if !names
             .iter()

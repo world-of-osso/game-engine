@@ -2,6 +2,8 @@
 //! Forever changes atlas art only; ToyOverlayFrame uses the authored item icon/details.
 #[path = "trading_post_cart.rs"]
 mod cart;
+#[path = "trading_post_cart_ui.rs"]
+mod cart_ui;
 #[path = "trading_post_filter.rs"]
 mod filter_menu;
 use crate::{
@@ -34,6 +36,7 @@ pub struct View {
     pub selected: Option<u32>,
     pub cart: Vec<u32>,
     pub cart_visible: bool,
+    pub cart_hover: Option<u32>,
     pub dropdown: bool,
     pub submenu: Option<FilterSubmenu>,
     pub sort: Sort,
@@ -332,8 +335,13 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     children.extend(footer(view));
     if let Some(snapshot) = &view.snapshot {
         children.extend(catalog_controls(ctx, view, snapshot));
-        children.extend(selected_details(view));
-        children.extend(currency(snapshot.tender));
+        if view.cart_visible {
+            children.extend(cart_ui::panel(ctx, view));
+            children.extend(rsx! {r#frame{name:{DynName(MODEL.into())},left:0.0,top:0.0,width:WIDTH,height:HEIGHT,pos_type:"absolute",frame_level:500.0}});
+        } else {
+            children.extend(selected_details(view));
+        }
+        children.extend(currency(snapshot.tender, view.cart_visible));
     } else {
         children.extend(label(
             "PerksProgramLoading".into(),
@@ -746,7 +754,9 @@ fn hold_art() -> Element {
 // PerksProgramFooterFrame: BOTTOMLEFT/BOTTOMRIGHT, height100; buttons BOTTOM+20.
 fn footer(view: &View) -> Element {
     let mut children = leave_button();
-    if let Some(row) = view.selected_item() {
+    let purchase_left = WIDTH - 46. - 180.;
+    children.extend(cart_ui::footer_controls(view, purchase_left));
+    if let Some(row) = view.selected_item().filter(|_| !view.cart_visible) {
         let x = WIDTH - 46. - 180.;
         if row.refund_seconds > 0 {
             children.extend(perks_button(
@@ -827,16 +837,37 @@ fn purchase_button(view: &View, row: &TradingPostItem, x: f32) -> Element {
 
 /// SharedButtonLargeTemplate; native template-art pass composes all three slice states.
 fn perks_button(name: &str, text: &str, action: &str, enabled: bool, x: f32) -> Element {
+    perks_button_at(
+        name,
+        text,
+        action,
+        enabled,
+        (x, 100. - 20. - 46., 180., 46.),
+    )
+}
+
+fn perks_button_at(
+    name: &str,
+    text: &str,
+    action: &str,
+    enabled: bool,
+    (left, top, width, height): (f32, f32, f32, f32),
+) -> Element {
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
-    rsx! {button{name:{DynName(name.into())},left:x,top:{100.0-20.0-46.0},width:180.0,height:46.0,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
+    rsx! {button{name:{DynName(name.into())},left,top,width,height,pos_type:"absolute",frame_level:2000.0,text,font_size:16.0,font_color:"1,0.82,0,1",button_default_skin:false,disabled,onclick:action,button_atlas_highlight:"128-RedButton-Highlight"}}
 }
 
 const TENDER_ICON: u32 = 4696085; // verified CurrencyTypes 2032 iconFileDataID
-fn currency(tender: u32) -> Element {
-    // CurrencyFrame RIGHT=container.RIGHT, BOTTOM=container.TOP+15, size200x50.
-    let x = CONTAINER_X + 527. - 200.;
-    let y = CONTAINER_Y - 15. - 50.;
+fn currency(tender: u32, cart_visible: bool) -> Element {
+    // CurrencyFrame reanchors to the cart's RIGHT/TOP while it is shown (Products.lua:825).
+    let (right, top) = if cart_visible {
+        (cart_ui::CART_LEFT + cart_ui::CART_WIDTH, cart_ui::CART_TOP)
+    } else {
+        (CONTAINER_X + 527., CONTAINER_Y)
+    };
+    let x = right - 200.;
+    let y = top - 15. - 50.;
     let mut content = texture(
         "PerksProgramCurrencyIcon".into(),
         TENDER_ICON,
@@ -979,6 +1010,20 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
 }
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if kind == "clear-cart" {
+        let count = view.cart.len();
+        let noun = if count == 1 { "item" } else { "items" };
+        let prompt = format!("Are you sure you want to remove {count} {noun} from the cart?");
+        return item_confirmation(ItemConfirmation {
+            name: "PerksProgramConfirm",
+            prompt: (&prompt, ""),
+            currency_icon: None,
+            item: None,
+            accept: ("Remove", "perks:confirm"),
+            cancel_action: "perks:cancel",
+            screen: (WIDTH, HEIGHT),
+        });
+    }
     let Some(row) = view.selected_item() else {
         return vec![];
     };
@@ -999,8 +1044,8 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
                 "for the following item?"
             },
         ),
-        currency_icon: TENDER_ICON,
-        item: (&row.name, row.icon_fdid, row.quality),
+        currency_icon: Some(TENDER_ICON),
+        item: Some((&row.name, row.icon_fdid, row.quality)),
         accept: (if refund { "Refund" } else { "Purchase" }, "perks:confirm"),
         cancel_action: "perks:cancel",
         screen: (WIDTH, HEIGHT),

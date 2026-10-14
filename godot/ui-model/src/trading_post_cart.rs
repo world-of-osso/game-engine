@@ -29,6 +29,17 @@ impl View {
     }
 
     pub(super) fn click_cart(&mut self, action: &str) -> Result<(), String> {
+        if let Some(id) = action.strip_prefix("perks:cart:select:") {
+            let id = id.parse().map_err(|_| "Invalid Trading Post cart item")?;
+            if self.cart.contains(&id) {
+                self.selected = Some(id);
+            }
+            return Ok(());
+        }
+        if let Some(id) = action.strip_prefix("perks:cart:remove:") {
+            self.remove_from_cart(id.parse().map_err(|_| "Invalid Trading Post cart item")?);
+            return Ok(());
+        }
         match action {
             "perks:cart:add" if self.can_add_to_cart() => {
                 let id = self.selected.expect("cartable selection");
@@ -61,5 +72,6 @@ impl View {
     pub fn clear_cart(&mut self) {
         self.cart.clear();
         self.cart_visible = false;
+        self.cart_hover = None;
     }
 }

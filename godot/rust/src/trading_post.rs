@@ -65,6 +65,7 @@ impl GameClient {
     pub(super) fn close_trading_post(&mut self) -> bool {
         let visible = self.trading_post.view.visible;
         self.trading_post.view.visible = false;
+        self.trading_post.view.clear_cart();
         self.clear_trading_model();
         for mut layer in std::mem::take(&mut self.trading_post.hidden_layers) {
             if layer.is_instance_valid() {
@@ -184,6 +185,11 @@ impl GameClient {
                 return Ok(());
             }
         }
+        self.trading_post.view.cart_hover = ui.bind().hovered_button().and_then(|(name, _)| {
+            name.strip_prefix("PerksProgramCartItem")
+                .map(|id| id.strip_suffix("Remove").unwrap_or(id))
+                .and_then(|id| id.parse().ok())
+        });
         if self.trading_post.view.dropdown && self.trading_post.view.confirm.is_none() {
             if let Some((name, _)) = ui.bind().hovered_button() {
                 match name.as_str() {
