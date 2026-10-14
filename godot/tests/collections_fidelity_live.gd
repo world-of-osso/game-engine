@@ -31,6 +31,25 @@ func select_collection_tab(index: int) -> bool:
 	await frames(5)
 	return true
 
+# Viewport.push_input dispatches controls but leaves the engine cursor at (0, 0).
+# Context menus read that cursor, so use the real Input ingestion boundary here.
+func click(point: Vector2, button: MouseButton, settle_frames := 3) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	Input.parse_input_event(motion)
+	await process_frame
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.button_mask = (1 << (button - 1)) if pressed else 0
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		await process_frame
+	await frames(settle_frames)
+
 func check_shell() -> bool:
 	var shell := control("CollectionsJournal")
 	if shell == null or shell.size.distance_to(Vector2(703, 606)) > 1.0 or not root.get_visible_rect().encloses(shell.get_global_rect()):
