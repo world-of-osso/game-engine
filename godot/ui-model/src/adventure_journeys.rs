@@ -375,6 +375,18 @@ fn watch_toggle(
     pos_type:"absolute",{contents}}}
 }
 
+/// WatchedFactionToggleFrameMixin:OnClick plays the cue for the requested checked state.
+pub fn watch_click_sound(faction_id: u32) -> u32 {
+    use game_engine_core::ui_sound_kits::{
+        IG_MAINMENU_OPTION_CHECKBOX_OFF, IG_MAINMENU_OPTION_CHECKBOX_ON,
+    };
+    if faction_id == 0 {
+        IG_MAINMENU_OPTION_CHECKBOX_OFF
+    } else {
+        IG_MAINMENU_OPTION_CHECKBOX_ON
+    }
+}
+
 /// Native hit testing supplies the card or its watch child action, including clipped rows.
 pub fn hovered_faction(action: &str) -> Option<u32> {
     action
