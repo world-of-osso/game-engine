@@ -17,6 +17,31 @@ use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+#[test]
+fn world_map_share_reflects_owned_eligibility_in_both_skins() {
+    use ui_toolkit::widgets::button::ButtonState;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for can_share in [false, true] {
+            let mut state = map_state(WorldMapDisplay::default());
+            let panel = state.quest_panel.as_mut().unwrap();
+            panel.details = true;
+            panel.log.details.as_mut().unwrap().can_share = can_share;
+            let registry = render(state);
+            let button = frame(&registry, "QuestMapFrameShareButton").unwrap();
+            let Some(WidgetData::Button(data)) = &button.widget_data else {
+                panic!("Share button");
+            };
+            let expected = if can_share {
+                ButtonState::Normal
+            } else {
+                ButtonState::Disabled
+            };
+            assert_eq!(data.state, expected);
+        }
+    }
+}
+
 fn configure_assets() {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -70,6 +95,7 @@ fn quest_log() -> QuestLogFrameState {
             description: None,
             rewards: None,
             watched: true,
+            can_share: false,
         }),
     }
 }
@@ -264,17 +290,15 @@ fn quest_map_geometry_and_selection_art_match_source_in_both_skins() {
         assert_eq!(top(&details, "QuestMapDetailsScrollFrame"), 69.0);
         assert_eq!(
             size(&details, "QuestMapDetailsBackground"),
-            [
-                308.0,
-                resolve_region("QuestDetailsBackgrounds", skin)
-                    .unwrap()
-                    .height
-            ]
+            [308.0, {
+                let atlas = resolve_region("QuestDetailsBackgrounds", skin).unwrap();
+                (atlas.height * 308.0 / atlas.width).min(440.0)
+            }]
         );
         assert_eq!(size(&details, "QuestMapFrameBackButton"), [90.0, 22.0]);
         assert_eq!(
             onclick(&details, "QuestMapFrameShareButton"),
-            "quest_log:share"
+            "" // Solo fixture: no enabled Share action.
         );
     }
 }

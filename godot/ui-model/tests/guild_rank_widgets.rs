@@ -1,5 +1,5 @@
 //! Own test binary: every test holds SKIN while switching process-wide atlases.
-use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, NAME_BOX, guild_screen};
+use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, guild_screen};
 use game_engine_ui_model::guild_ranks::GuildRanksSession;
 use shared::protocol::*;
 use std::sync::Mutex;
@@ -63,6 +63,72 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_control_retail_shell_and_officer_flag_use_source_geometry_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut snapshot = state(0);
+        snapshot.ranks[1].rights = GUILD_RIGHT_OFFICER_LISTEN | GUILD_RIGHT_EDIT_MOTD;
+        session.apply(snapshot);
+        session.select_rank(1);
+        session.click("guild:settings", &Default::default());
+        session.click("guild:control-page:1", &Default::default());
+        let reg = mounted(&session);
+        let shell = reg.get(reg.get_by_name("GuildControlUI").unwrap()).unwrap();
+        assert_eq!((shell.width.value(), shell.height.value()), (338.0, 444.0));
+        let officer = reg
+            .get(
+                reg.get_by_name("GuildControlUIRankSettingsFrameOfficerCheckbox")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (officer.width.value(), officer.height.value()),
+            (20.0, 20.0)
+        );
+        assert_eq!(
+            (officer.position.left, officer.position.top),
+            (Val::Px(11.0), Val::Px(61.0))
+        );
+        assert!(
+            reg.get_by_name("GuildControlUIRankSettingsFrameOfficerCheckboxCheck")
+                .is_some()
+        );
+        let toggle = action(&reg, "GuildControlUIRankSettingsFrameOfficerCheckbox");
+        let request = session.click(&toggle, &Default::default()).unwrap();
+        assert_eq!(
+            request,
+            GuildRankRequest::SetPermissions {
+                rank: 1,
+                rights: GUILD_RIGHT_EDIT_MOTD,
+                gold_per_day: 30_000
+            }
+        );
+        assert_eq!(
+            session.selected().unwrap().rights,
+            GUILD_RIGHT_OFFICER_LISTEN | GUILD_RIGHT_EDIT_MOTD
+        );
+        assert!(session.click(&toggle, &Default::default()).is_none());
+        let mut reply = state(0);
+        reply.ranks[1].rights = GUILD_RIGHT_EDIT_MOTD;
+        session.apply(reply);
+        assert_eq!(
+            session.click(&toggle, &Default::default()),
+            Some(GuildRankRequest::SetPermissions {
+                rank: 1,
+                rights: GUILD_RIGHT_EDIT_MOTD
+                    | GUILD_RIGHT_OFFICER_LISTEN
+                    | GUILD_RIGHT_OFFICER_SPEAK,
+                gold_per_day: 30_000
+            })
+        );
+    }
+}
+
+#[test]
 fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both_skins() {
     use game_engine_ui_model::guild_ranks::GuildCommand;
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -79,6 +145,12 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
             info_text: "Raid Tuesdays".into(),
             members: vec![],
         });
+        assert!(
+            mounted(&session)
+                .get_by_name("GuildRosterInviteButton")
+                .is_none()
+        );
+        session.click("guild:chat_open", &Default::default());
         let registry = mounted(&session);
         assert_eq!(
             action(&registry, "GuildRosterInviteButton"),
@@ -219,7 +291,7 @@ fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
 
 #[test]
 fn guild_rank_widgets_render_only_purchased_bank_tabs() {
-    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
@@ -230,6 +302,7 @@ fn guild_rank_widgets_render_only_purchased_bank_tabs() {
         session.apply(snapshot);
         session.select_rank(2);
         session.click("guild:settings", &Default::default());
+        session.click("guild:control-page:2", &Default::default());
         let reg = mounted(&session);
         assert!(reg.get_by_name("GuildTabName0").is_some());
         assert!(reg.get_by_name("GuildTabName1").is_none());
@@ -244,9 +317,7 @@ fn guild_rank_widgets_render_only_purchased_bank_tabs() {
             "Your guild has not purchased any guild bank space."
         );
     }
-    set_thread_skin(ActiveSkin::Modern);
 }
-
 #[test]
 fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -257,9 +328,13 @@ fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
         session.apply(state(0));
         session.select_rank(2);
         session.click("guild:settings", &Default::default());
+        session.click("guild:control-page:1", &Default::default());
         let old = mounted(&session);
         let first = session
-            .click(&action(&old, "GuildPermission4"), &Default::default())
+            .click(
+                &action(&old, "GuildControlUIRankSettingsFrameCheckbox7"),
+                &Default::default(),
+            )
             .unwrap();
         assert_eq!(
             first,
@@ -272,10 +347,19 @@ fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
         // Second queued click precedes the first wire reply: never overwrite its bit.
         assert!(
             session
-                .click(&action(&old, "GuildPermission5"), &Default::default())
+                .click(
+                    &action(&old, "GuildControlUIRankSettingsFrameCheckbox8"),
+                    &Default::default()
+                )
                 .is_none()
         );
-        assert!(action(&mounted(&session), "GuildPermission5").is_empty());
+        assert!(
+            action(
+                &mounted(&session),
+                "GuildControlUIRankSettingsFrameCheckbox8"
+            )
+            .is_empty()
+        );
         assert_eq!(
             session.selected().unwrap().rights,
             GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD
@@ -285,7 +369,10 @@ fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
         session.apply(reply);
         let fresh = mounted(&session);
         assert_eq!(
-            session.click(&action(&fresh, "GuildPermission5"), &Default::default()),
+            session.click(
+                &action(&fresh, "GuildControlUIRankSettingsFrameCheckbox8"),
+                &Default::default()
+            ),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
                 rights: GUILD_RIGHT_CHAT_LISTEN
@@ -303,15 +390,21 @@ fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
             session.error.as_deref(),
             Some("You don't have permission to do that.")
         );
-        assert!(!action(&mounted(&session), "GuildPermission5").is_empty());
+        assert!(
+            !action(
+                &mounted(&session),
+                "GuildControlUIRankSettingsFrameCheckbox8"
+            )
+            .is_empty()
+        );
         assert_eq!(session.selected().unwrap().rights & GUILD_RIGHT_REMOVE, 0);
     }
     set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
-fn guild_rank_widgets_guild_master_limits_render_unlimited() {
-    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+fn guild_rank_widgets_source_rank_menu_excludes_immutable_guild_master() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
@@ -319,17 +412,24 @@ fn guild_rank_widgets_guild_master_limits_render_unlimited() {
         session.apply(state(0));
         session.click("guild:settings", &Default::default());
         let reg = mounted(&session);
-        assert_eq!(text(&reg, GOLD_BOX), "Unlimited");
-        assert_eq!(text(&reg, "GuildTabItems0"), "Unlimited");
-        assert!(action(&reg, "GuildGoldSave").is_empty());
-        assert!(action(&reg, "GuildTabSave0").is_empty());
+        assert!(matches!(
+            reg.get(reg.get_by_name("GuildRankOrderName0").unwrap())
+                .unwrap()
+                .widget_data,
+            Some(WidgetData::FontString(_))
+        ));
+        assert!(action(&reg, "GuildControlUIRankOrderFrameRank1ShiftUpButton").is_empty());
+        session.click("guild:control-page:1", &Default::default());
+        session.click("guild:rank-menu", &Default::default());
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildControlRankChoice0").is_none());
+        assert_eq!(action(&reg, "GuildControlRankChoice1"), "guild:rank:1");
+        assert_eq!(session.selected_index(), 1);
     }
-    set_thread_skin(ActiveSkin::Modern);
 }
-
 #[test]
 fn guild_rank_widgets_gold_is_readonly_without_withdraw_or_repair_permission() {
-    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
@@ -337,20 +437,22 @@ fn guild_rank_widgets_gold_is_readonly_without_withdraw_or_repair_permission() {
         let mut snapshot = state(0);
         snapshot.ranks[2].rights = GUILD_RIGHT_CHAT_LISTEN;
         session.apply(snapshot);
-        session.click("guild:settings", &Default::default());
         session.select_rank(2);
+        session.click("guild:settings", &Default::default());
+        session.click("guild:control-page:1", &Default::default());
         let reg = mounted(&session);
-        assert!(action(&reg, "GuildGoldSave").is_empty());
         assert!(matches!(
             reg.get(reg.get_by_name(GOLD_BOX).unwrap())
                 .unwrap()
                 .widget_data,
             Some(WidgetData::FontString(_))
         ));
+        assert!(
+            reg.get_by_name("GuildGoldSave").is_none(),
+            "No invented Save control"
+        );
     }
-    set_thread_skin(ActiveSkin::Modern);
 }
-
 #[test]
 fn guild_rank_widgets_entry_is_available_in_the_native_micro_menu() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -360,7 +462,7 @@ fn guild_rank_widgets_entry_is_available_in_the_native_micro_menu() {
 }
 #[test]
 fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
-    let _lock = SKIN.lock().unwrap();
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
@@ -369,57 +471,53 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         session.click("guild:settings", &Default::default());
         session.select_rank(2);
         let reg = mounted(&session);
-        assert_eq!(text(&reg, "GuildRankRow2Name"), "Member");
-        assert!(
-            reg.get(reg.get_by_name("GuildRankRow2RowSelected").unwrap())
-                .unwrap()
-                .visible
-        );
-        session.apply(state(0));
-        assert_eq!(
-            session.selected_index(),
-            2,
-            "authoritative refresh preserves rank selection"
-        );
-        assert_eq!(text(&reg, GOLD_BOX), "3");
-        assert_eq!(text(&reg, "GuildTabItems0"), "2");
+        assert_eq!(text(&reg, "GuildRankOrderName2"), "Member");
         let inputs = [
-            (NAME_BOX.to_owned(), "Raider".into()),
-            (GOLD_BOX.to_owned(), "7".into()),
+            ("GuildRankOrderName2".into(), "Raider".into()),
+            (GOLD_BOX.into(), "7".into()),
             ("GuildTabItems0".into(), "5".into()),
         ]
         .into();
+        let rename =
+            game_engine_ui_model::guild_control::input_action("GuildRankOrderName2").unwrap();
         assert_eq!(
-            session
-                .clone()
-                .click(&action(&reg, "GuildRankRename"), &inputs),
+            session.clone().click(&rename, &inputs),
             Some(GuildRankRequest::Rename {
                 rank: 2,
                 name: "Raider".into()
             })
         );
         assert_eq!(
-            session
-                .clone()
-                .click(&action(&reg, "GuildRankAdd"), &inputs),
+            session.clone().click(
+                &action(&reg, "GuildControlUIRankOrderFrameNewButton"),
+                &inputs
+            ),
             Some(GuildRankRequest::Add {
-                name: "Raider".into()
+                name: "New Rank".into()
             })
         );
         assert_eq!(
-            session.clone().click(&action(&reg, "GuildRankUp"), &inputs),
+            session.clone().click(
+                &action(&reg, "GuildControlUIRankOrderFrameRank3ShiftUpButton"),
+                &inputs
+            ),
             Some(GuildRankRequest::Move { rank: 2, up: true })
         );
         assert_eq!(
-            session
-                .clone()
-                .click(&action(&reg, "GuildRankDown"), &inputs),
+            session.clone().click(
+                &action(&reg, "GuildControlUIRankOrderFrameRank3ShiftDownButton"),
+                &inputs
+            ),
             Some(GuildRankRequest::Move { rank: 2, up: false })
         );
+        session.click("guild:control-page:1", &Default::default());
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, GOLD_BOX), "3");
         assert_eq!(
-            session
-                .clone()
-                .click(&action(&reg, "GuildGoldSave"), &inputs),
+            session.clone().click(
+                &game_engine_ui_model::guild_control::input_action(GOLD_BOX).unwrap(),
+                &inputs
+            ),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
                 rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD,
@@ -427,15 +525,19 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             })
         );
         assert_eq!(
-            session
-                .clone()
-                .click(&action(&reg, "GuildPermission4"), &inputs),
+            session.clone().click(
+                &action(&reg, "GuildControlUIRankSettingsFrameCheckbox7"),
+                &inputs
+            ),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
                 rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD | GUILD_RIGHT_INVITE,
                 gold_per_day: 30_000
             })
         );
+        session.click("guild:control-page:2", &Default::default());
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildTabItems0"), "2");
         assert_eq!(
             session
                 .clone()
@@ -449,9 +551,10 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             })
         );
         assert_eq!(
-            session
-                .clone()
-                .click(&action(&reg, "GuildTabSave0"), &inputs),
+            session.clone().click(
+                &game_engine_ui_model::guild_control::input_action("GuildTabItems0").unwrap(),
+                &inputs
+            ),
             Some(GuildRankRequest::SetTab {
                 rank: 2,
                 tab: 0,
@@ -464,13 +567,14 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         let mut reply = state(0);
         reply.ranks[2].name = "Raider".into();
         session.apply(reply);
-        assert_eq!(text(&mounted(&session), "GuildRankRow2Name"), "Raider");
+        session.click("guild:control-page:0", &Default::default());
+        assert_eq!(session.selected_index(), 2);
+        assert_eq!(text(&mounted(&session), "GuildRankOrderName2"), "Raider");
     }
-    set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
 fn guild_rank_widgets_disable_unauthorized_and_occupied_controls_both_skins() {
-    let _lock = SKIN.lock().unwrap();
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
@@ -480,58 +584,245 @@ fn guild_rank_widgets_disable_unauthorized_and_occupied_controls_both_skins() {
         session.select_rank(2);
         let reg = mounted(&session);
         for name in [
-            "GuildRankAdd",
-            "GuildRankRename",
-            "GuildRankRemove",
-            "GuildRankUp",
-            "GuildRankDown",
-            "GuildPermission4",
-            "GuildTabView0",
-            "GuildTabDeposit0",
-            "GuildTabSave0",
-            "GuildGoldSave",
+            "GuildControlUIRankOrderFrameNewButton",
+            "GuildControlUIRankOrderFrameRank3DeleteButton",
+            "GuildControlUIRankOrderFrameRank3ShiftUpButton",
+            "GuildControlUIRankOrderFrameRank3ShiftDownButton",
         ] {
-            assert!(action(&reg, name).is_empty(), "{name} {skin:?}");
+            assert!(action(&reg, name).is_empty());
         }
+        session.click("guild:control-page:1", &Default::default());
+        assert!(
+            action(
+                &mounted(&session),
+                "GuildControlUIRankSettingsFrameCheckbox7"
+            )
+            .is_empty()
+        );
         assert!(
             session
-                .click("guild:permission:4", &Default::default())
+                .click("guild:retail-permission:7", &Default::default())
                 .is_none()
         );
-        session.apply(state(0));
-        assert!(action(&mounted(&session), "GuildRankRemove").is_empty());
-        session.select_rank(3);
+        session.click("guild:control-page:2", &Default::default());
         let reg = mounted(&session);
+        for name in ["GuildTabView0", "GuildTabDeposit0"] {
+            assert!(action(&reg, name).is_empty());
+        }
+        session.apply(state(0));
+        session.click("guild:control-page:0", &Default::default());
+        let reg = mounted(&session);
+        assert!(action(&reg, "GuildControlUIRankOrderFrameRank3DeleteButton").is_empty());
         assert_eq!(
-            session.click(&action(&reg, "GuildRankRemove"), &Default::default()),
+            session.click(
+                &action(&reg, "GuildControlUIRankOrderFrameRank4DeleteButton"),
+                &Default::default()
+            ),
             Some(GuildRankRequest::Remove { rank: 3 })
         );
     }
-    set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
-fn guild_rank_roster_pages_keep_all_members_reachable() {
+fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes_as_public_notes() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    session.apply(state(0));
+    session.profile = Some(GuildSnapshot {
+        guild_id: 7,
+        guild_name: "Raid Team".into(),
+        created_at: None,
+        motd: String::new(),
+        info_text: String::new(),
+        members: vec![GuildMemberSnapshot {
+            character_name: "Cara".into(),
+            level: 80,
+            class_name: "Paladin".into(),
+            rank_name: "Member".into(),
+            is_online: false,
+            officer_note: "Private strategy".into(),
+            last_online: "Yesterday".into(),
+        }],
+    });
+    let reg = mounted(&session);
+    assert_eq!(text(&reg, "GuildMember0Level"), "80");
+    assert_eq!(text(&reg, "GuildMember0Zone"), "Yesterday");
+    assert_eq!(text(&reg, "GuildMember0Note"), "");
+    assert_eq!(text(&reg, "GuildMember0Name"), "Cara");
+    assert!(reg.get_by_name("GuildMember0Class").is_some());
+}
+
+#[test]
+fn guild_communities_no_design_portrait_matches_retail_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    use ui_toolkit::widgets::texture::TextureSource;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        let reg = mounted(&session);
+        // CommunitiesFrame.xml328–353; GuildUtil.lua115–127,180–202.
+        for (name, fdid, rect, uv, color) in [
+            (
+                "CommunitiesTabardBackground",
+                410251,
+                (-5.0, -8.0, 60.0, 60.0),
+                [0.63183594, 0.69238281, 0.61914063, 0.74023438],
+                [0.2245, 0.2088, 0.1794, 1.0],
+            ),
+            (
+                "CommunitiesTabardEmblem",
+                460904,
+                (-7.0, -9.0, 64.0, 64.0),
+                [0.0, 1.0, 0.0, 1.0],
+                [1.0; 4],
+            ),
+            (
+                "CommunitiesTabardBorder",
+                410251,
+                (-5.0, -7.0, 60.0, 59.0),
+                [0.63183594, 0.69238281, 0.74414063, 0.86523438],
+                [0.2, 0.2, 0.2, 1.0],
+            ),
+        ] {
+            let frame = reg.get(reg.get_by_name(name).expect(name)).unwrap();
+            assert_eq!(
+                (frame.position.left, frame.position.top),
+                (Val::Px(rect.0), Val::Px(rect.1))
+            );
+            assert_eq!(
+                (frame.width.value(), frame.height.value()),
+                (rect.2, rect.3)
+            );
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name} must render texture");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid));
+            assert_eq!(texture.tex_coords, uv);
+            assert_eq!(texture.vertex_color, color);
+        }
+    }
+}
+
+#[test]
+fn guild_communities_column_sort_keeps_authoritative_rank_identity() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    let mut session = GuildRanksSession::default();
+    session.open();
+    let mut snapshot = state(0);
+    snapshot.members = vec![
+        GuildRankMember {
+            character_name: "Zara".into(),
+            rank: 1,
+        },
+        GuildRankMember {
+            character_name: "Alessio".into(),
+            rank: 2,
+        },
+    ];
+    session.apply(snapshot.clone());
+    let reg = mounted(&session);
+    session.click(
+        &action(&reg, "CommunitiesRosterColumn2"),
+        &Default::default(),
+    );
+    assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Alessio");
+    session.click("guild:member:Alessio", &Default::default());
+    assert_eq!(
+        session.promote("Alessio"),
+        Some(GuildRankRequest::Promote {
+            character_name: "Alessio".into()
+        })
+    );
+    session.click("guild:roster-sort:name", &Default::default());
+    assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Zara");
+    session.click("guild:roster-sort:rank", &Default::default());
+    assert_eq!(text(&mounted(&session), "GuildMember0Name"), "Zara");
+    assert_eq!(
+        session.state().unwrap(),
+        &snapshot,
+        "Sorting never mutates authoritative ranks or member positions"
+    );
+}
+
+#[test]
+fn guild_communities_retail_scroll_reaches_last_member_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         let mut snapshot = state(0);
-        snapshot.members = (0..13)
+        snapshot.members = (0..32)
             .map(|index| GuildRankMember {
                 character_name: format!("Member{index}"),
                 rank: 2,
             })
             .collect();
         session.apply(snapshot);
-        let reg = mounted(&session);
-        assert!(reg.get_by_name("GuildMember9").is_none());
-        session.click(&action(&reg, "GuildRosterNext"), &Default::default());
-        let reg = mounted(&session);
-        session.click(&action(&reg, "GuildMember12"), &Default::default());
-        assert_eq!(session.member_menu.as_deref(), Some("Member12"));
-        session.click(&action(&reg, "GuildRosterPrevious"), &Default::default());
-        assert!(mounted(&session).get_by_name("GuildMember0").is_some());
+        let mut reg = mounted(&session);
+        let root = reg
+            .get(reg.get_by_name("CommunitiesFrame").unwrap())
+            .unwrap();
+        assert_eq!((root.width.value(), root.height.value()), (814.0, 426.0));
+        assert!(reg.get_by_name("GuildRosterNext").is_none());
+        assert!(reg.get_by_name("GuildRosterPrevious").is_none());
+        assert!(reg.get_by_name("GuildRosterPage").is_none());
+        let list = reg
+            .get(reg.get_by_name("CommunitiesMemberListScrollBox").unwrap())
+            .unwrap();
+        assert_eq!((list.width.value(), list.height.value()), (592.0, 315.0));
+        assert!(
+            reg.scroll_lists
+                .scroll_to("CommunitiesMemberListScrollBox", 10000)
+        );
+        let mut shared = SharedContext::new();
+        shared.insert(session.clone());
+        Screen::new(guild_screen).sync(&shared, &mut reg);
+        assert_eq!(
+            reg.scroll_lists
+                .get("CommunitiesMemberListScrollBox")
+                .unwrap()
+                .first_row,
+            325
+        );
+        let row = reg.get(reg.get_by_name("GuildMember31").unwrap()).unwrap();
+        assert_eq!((row.width.value(), row.height.value()), (592.0, 20.0));
+        session.click(&action(&reg, "GuildMember31"), &Default::default());
+        assert_eq!(session.member_menu.as_deref(), Some("Member31"));
+        assert_eq!(text(&reg, "GuildMember31Name"), "Member31");
+        assert_eq!(text(&reg, "GuildMember31Rank"), "Member");
+        for (name, top, action_name) in [
+            ("GuildRosterTab", 88.0, "guild:roster_open"),
+            ("GuildInfoTab", 192.0, "guild:info_open"),
+        ] {
+            let tab = reg.get(reg.get_by_name(name).unwrap()).unwrap();
+            assert_eq!((tab.width.value(), tab.height.value()), (32.0, 32.0));
+            assert_eq!(tab.position.top, ui_toolkit::layout_values::Val::Px(top));
+            assert_eq!(action(&reg, name), action_name);
+        }
+        for (name, tab_action) in [
+            ("CommunitiesChatTab", "guild:chat_open"),
+            ("CommunitiesGuildBenefitsTab", "guild:benefits_open"),
+        ] {
+            assert_eq!(action(&reg, name), tab_action);
+            session.click(tab_action, &Default::default());
+            assert!(
+                session.commands.is_empty(),
+                "Tab navigation does not fabricate service requests"
+            );
+        }
+        for (index, title) in ["Lvl", "Class", "Name", "Zone", "Rank", "Note"]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                text(&reg, &format!("CommunitiesRosterColumn{index}Label")),
+                *title
+            );
+        }
     }
     set_thread_skin(ActiveSkin::Modern);
 }

@@ -15,8 +15,6 @@ mod outfit_cache_load;
 mod outfit_links_cache;
 #[path = "world_db/outfit_query.rs"]
 mod outfit_query;
-#[path = "world_db/outfit_resolve.rs"]
-mod outfit_resolve;
 pub(crate) use outfit_query::{
     query_display_info, query_material_texture_fdids, query_model_fdids,
 };
@@ -55,24 +53,19 @@ pub(crate) fn query_item_display_id(conn: &Connection, item_id: u32) -> Result<u
     .map_err(|err| format!("resolve item {item_id} display: {err}"))
 }
 
-type OutfitKey = (u8, u8, u8);
-type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 /// Versioned by schema: checkouts with an older schema keep reading their own file.
 fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cache/outfit_links-v4.sqlite")
+    data_dir.join("cache/outfit_links-v5.sqlite")
 }
-fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
-    // WORKAROUND: CharStartOutfit (FDID 1237591) is absent from the local
-    // 12.1.0.69933 CASC root. Keep this importer's existing source set until an
-    // authentic pinned CharStartOutfit export is available, then pin all seven.
+fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 6] {
+    let source = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);
     [
-        data_dir.join("CharStartOutfit.csv"),
-        data_dir.join("ItemModifiedAppearance.csv"),
-        data_dir.join("ItemAppearance.csv"),
-        data_dir.join("ItemDisplayInfo.csv"),
-        data_dir.join("TextureFileData.csv"),
-        data_dir.join("ItemDisplayInfoMaterialRes.csv"),
-        data_dir.join("ModelFileData.csv"),
+        source.join("ItemModifiedAppearance.csv"),
+        source.join("ItemAppearance.csv"),
+        source.join("ItemDisplayInfo.csv"),
+        source.join("TextureFileData.csv"),
+        source.join("ItemDisplayInfoMaterialRes.csv"),
+        source.join("ModelFileData.csv"),
     ]
 }
 
@@ -118,97 +111,6 @@ fn outfit_cache_is_fresh(
 
 pub fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     outfit_links_cache::import_outfit_links_cache(data_dir)
-}
-
-fn populate_starter_outfits(conn: &Connection, path: &Path) -> Result<(), String> {
-    let mut reader = open_reader(path)?;
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    let race_col = header_index(&headers, "RaceID", path)?;
-    let class_col = header_index(&headers, "ClassID", path)?;
-    let sex_col = header_index(&headers, "SexID", path)?;
-    let item_cols = (0..12)
-        .map(|i| header_index(&headers, &format!("ItemID_{i}"), path))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut insert = conn
-        .prepare(
-            "INSERT INTO starter_outfits (race_id, class_id, sex_id, item_order, item_id)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
-        .map_err(|err| format!("prepare starter_outfits insert: {err}"))?;
-    insert_starter_outfit_rows(
-        &mut reader,
-        path,
-        race_col,
-        class_col,
-        sex_col,
-        &item_cols,
-        &mut insert,
-    )?;
-    Ok(())
-}
-
-fn insert_starter_outfit_rows(
-    reader: &mut dyn BufRead,
-    path: &Path,
-    race_col: usize,
-    class_col: usize,
-    sex_col: usize,
-    item_cols: &[usize],
-    insert: &mut Statement<'_>,
-) -> Result<(), String> {
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", path.display()))?
-            == 0
-        {
-            break;
-        }
-        let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let race_id = fields
-            .get(race_col)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
-        let class_id = fields
-            .get(class_col)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
-        let sex_id = fields
-            .get(sex_col)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
-        insert_starter_outfit_items(insert, &fields, item_cols, race_id, class_id, sex_id)?;
-    }
-    Ok(())
-}
-
-fn insert_starter_outfit_items(
-    insert: &mut Statement<'_>,
-    fields: &[String],
-    item_cols: &[usize],
-    race_id: u8,
-    class_id: u8,
-    sex_id: u8,
-) -> Result<(), String> {
-    for (item_order, &column) in item_cols.iter().enumerate() {
-        let item_id = fields
-            .get(column)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        if item_id == 0 || item_id == 6948 {
-            continue;
-        }
-        insert
-            .execute((race_id, class_id, sex_id, item_order as u32, item_id))
-            .map_err(|err| format!("insert starter_outfits row: {err}"))?;
-    }
-    Ok(())
 }
 
 fn populate_item_modified_appearance_map(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -526,19 +428,6 @@ fn insert_model_to_fdid_rows(
 
 fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBuf, String> {
     outfit_links_cache::imported_outfit_links_cache_path(data_dir)
-}
-
-pub fn load_cached_char_start_outfits(data_dir: &Path) -> Result<StarterOutfits, String> {
-    outfit_cache_load::load_cached_char_start_outfits(data_dir)
-}
-
-pub fn resolve_cached_outfit_display_ids(
-    data_dir: &Path,
-    race: u8,
-    class: u8,
-    sex: u8,
-) -> Result<Vec<u32>, String> {
-    outfit_resolve::resolve_cached_outfit_display_ids(data_dir, race, class, sex)
 }
 
 pub(crate) fn load_cached_display_info(

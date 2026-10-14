@@ -39,7 +39,7 @@ use crate::{
 };
 
 const SHADER_PATH: &str = "res://shaders/ground_detail.gdshader";
-const DB2_DIR: &str = "db2/12.1.0.69933";
+const DB2_DIR: &str = "db2/active";
 /// An MCNK's edge, in yards.
 const CHUNK_SIZE: f32 = 100.0 / 3.0;
 /// A chunk is detailed while its centre is this close to the camera (horizontally).

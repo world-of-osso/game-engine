@@ -163,8 +163,7 @@ fn saved_instance_selection_extends_unextends_and_reactivates_without_unsaving_a
 }
 #[test]
 fn catalog_reads_authentic_raid_names_difficulty_and_extension_flag_and_selects_fourth_save() {
-    let db2 =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let db2 = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
     let catalog = RaidCatalog::load(&db2).unwrap();
     let lock = InstanceLockInfo {
         map_id: 409,

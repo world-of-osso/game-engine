@@ -268,6 +268,9 @@ pub mod bank_frame_component;
 pub mod guild_bank;
 #[path = "ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
+pub mod guild_communities;
+pub mod guild_control;
+mod guild_control_art;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]
@@ -391,7 +394,7 @@ pub mod wow_cursor_data;
 /// the core spell catalog the aura model reads.
 mod spell_catalog {
     pub(crate) use crate::csv_records;
-    pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
+    pub const SPELL_DB2_BUILD: &str = "active";
     pub(crate) use game_engine_core::spell_catalog::{SpellCatalogData, SpellTextContext};
 }
 
