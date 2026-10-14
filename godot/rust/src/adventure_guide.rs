@@ -153,6 +153,7 @@ impl GameClient {
     pub(super) fn close_adventure_guide(&mut self) -> bool {
         let shown = self.adventure_guide.view.visible;
         self.adventure_guide.view.visible = false;
+        self.adventure_guide.view.journeys.scroll = None;
         self.adventure_guide.view.loading = false;
         self.adventure_guide.queued_encounter = None;
         self.clear_journal_model();
@@ -213,6 +214,8 @@ impl GameClient {
         self.adventure_guide.view.activities = self.account.adventure_guide.clone();
         self.adventure_guide.view.trading_post = self.account.trading_post.clone();
         self.adventure_guide.view.renown = self.account.renown.clone();
+        self.update_journey_hover()?;
+        self.advance_journey_scroll();
         self.update_journal_lockouts();
         self.adventure_guide.view.challenge = self.account.challenge.run.clone();
         self.adventure_guide.view.keys = self.account.challenge.keys.clone();
@@ -230,6 +233,7 @@ impl GameClient {
         if self.game_menu_ui.is_some() || !self.adventure_guide.view.visible {
             return false;
         }
+        self.journey_arrow_input(event);
         if self.journey_progress_wheel(event) {
             return true;
         }
@@ -249,6 +253,94 @@ impl GameClient {
             }
         }
     }
+    fn update_journey_hover(&mut self) -> Result<(), String> {
+        use game_engine_ui_model::adventure_guide::Tab;
+        let view = &mut self.adventure_guide.view;
+        if view.tab != Tab::Journeys || view.journeys.selected.is_some() {
+            view.journeys.hovered = None;
+            return Ok(());
+        }
+        let action = self
+            .hovered_ui_frame()?
+            .and_then(|hit| hit.ui.bind().frame_click_action(hit.frame));
+        self.adventure_guide.view.journeys.hovered = action
+            .as_deref()
+            .and_then(game_engine_ui_model::adventure_journeys::hovered_faction);
+        Ok(())
+    }
+
+    fn journey_max_level(&self) -> Option<u32> {
+        let state = &self.adventure_guide.view.journeys;
+        self.account
+            .renown
+            .as_ref()?
+            .factions
+            .iter()
+            .find(|faction| Some(faction.id) == state.selected)
+            .map(|faction| faction.max_level)
+    }
+
+    fn advance_journey_scroll(&mut self) {
+        use game_engine_ui_model::adventure_guide::Tab;
+        if self.adventure_guide.view.tab != Tab::Journeys || self.game_menu_ui.is_some() {
+            self.adventure_guide.view.journeys.scroll = None;
+            return;
+        }
+        let Some(max) = self.journey_max_level() else {
+            return;
+        };
+        let elapsed = self.base().get_process_delta_time() as f32;
+        self.adventure_guide
+            .view
+            .journeys
+            .advance_scroll(elapsed, max);
+    }
+
+    fn journey_arrow_input(&mut self, event: &Gd<godot::classes::InputEvent>) {
+        use game_engine_ui_model::adventure_guide::Tab;
+        use godot::{classes::InputEventMouseButton, global::MouseButton};
+        let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return;
+        };
+        if mouse.get_button_index() != MouseButton::LEFT {
+            return;
+        }
+        let Some(max) = self.journey_max_level() else {
+            return;
+        };
+        if !mouse.is_pressed() {
+            self.adventure_guide.view.journeys.stop_scroll(max);
+            return;
+        }
+        if self.adventure_guide.view.tab != Tab::Journeys {
+            return;
+        }
+        let Some(direction) = self.journey_arrow_at(mouse.get_position()) else {
+            return;
+        };
+        let level = self.adventure_guide.view.journeys.level;
+        if (direction == -1 && level > 1) || (direction == 1 && level < max) {
+            self.adventure_guide.view.journeys.start_scroll(direction);
+        }
+    }
+
+    fn journey_arrow_at(&self, point: Vector2) -> Option<i32> {
+        let ui = self.adventure_guide.ui.as_ref()?.bind();
+        for (name, direction) in [("JourneyLevelPrev", -1), ("JourneyLevelNext", 1)] {
+            let Some((rect, _)) = ui.frame_rect(name) else {
+                continue;
+            };
+            let bounds = Rect2::new(
+                Vector2::new(rect[0], rect[1]),
+                Vector2::new(rect[2], rect[3]),
+            );
+            if bounds.contains_point(point) {
+                return Some(direction);
+            }
+        }
+        None
+    }
+
     /// JourneyProgressFrameMixin:OnMouseWheel changes selection, not list offset.
     fn journey_progress_wheel(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         let Some(action) = self.journey_wheel_action(event) else {
@@ -311,6 +403,20 @@ impl GameClient {
             })
             .collect();
     }
+    fn send_journey_watch(&self, action: &str) -> Result<bool, String> {
+        let Some(watch) = action.strip_prefix("journal:journey-watch:") else {
+            return Ok(false);
+        };
+        let (_, faction_id) = watch.split_once(':').ok_or("Missing watched faction ID")?;
+        let faction_id = faction_id
+            .parse()
+            .map_err(|_| "Invalid watched faction ID")?;
+        self.account
+            .send_renown(shared::protocol::RenownRequest::SetWatchedFaction { faction_id })
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    }
+
     fn poll_adventure_inputs(&mut self) -> Result<(), String> {
         let Some(mut ui) = self.adventure_guide.ui.clone() else {
             return Ok(());
@@ -342,6 +448,9 @@ impl GameClient {
                         },
                     })
                     .map_err(|error| error.to_string())?;
+                continue;
+            }
+            if self.send_journey_watch(&action)? {
                 continue;
             }
             let previous_filters = self.adventure_guide.view.activity_filters.clone();
@@ -486,6 +595,21 @@ impl GameClient {
         let mut state = VarDictionary::new();
         state.set("visible", view.visible);
         state.set("loaded", self.adventure_guide.loaded);
+        state.set(
+            "renown_received_faction_count",
+            self.account
+                .renown
+                .as_ref()
+                .map_or(-1, |snapshot| snapshot.factions.len() as i64),
+        );
+        state.set(
+            "journal_spell_catalog_ready",
+            self.spells.catalog().is_some(),
+        );
+        state.set(
+            "journal_item_catalog_ready",
+            game_engine_ui_model::item_catalog::item_catalog().is_some(),
+        );
         state.set("tab", format!("{:?}", view.tab));
         state.set("page", format!("{:?}", view.page));
         state.set("tier", view.tier);
@@ -507,10 +631,20 @@ impl GameClient {
         );
         state.set("journey_expansion", view.journeys.expansion);
         state.set(
+            "watched_faction",
+            view.renown
+                .as_ref()
+                .and_then(|r| r.watched_faction)
+                .map(i64::from)
+                .unwrap_or(-1),
+        );
+        state.set(
             "journey",
             view.journeys.selected.map(i64::from).unwrap_or(-1),
         );
         state.set("journey_level", view.journeys.level);
+        state.set("journey_track_offset", view.journeys.track_offset());
+        state.set("journey_scrolling", view.journeys.is_scrolling());
         state.set("activity_snapshot_received", view.activities.is_some());
         if let Some(snapshot) = &view.activities {
             state.set("activity_count", snapshot.activities.len() as i64);

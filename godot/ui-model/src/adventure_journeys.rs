@@ -1,6 +1,7 @@
 //! Retail Mainline Journeys (Blizzard_Journeys.lua/.xml) over realm renown snapshots.
 //! Renown cards and the reward track only; unsourced journey/encounter categories,
 //! texture kits, claim state and Delves companions are not shown.
+mod sliding;
 mod track;
 use crate::adventure_guide::{scroll_in, text};
 use crate::auction_mail::text as global_string;
@@ -21,12 +22,14 @@ const MAX_REWARD_CARDS: usize = 4;
 const CARD: (f32, f32) = (374., 112.);
 const REWARD_CARD: (f32, f32) = (317., 106.);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Journeys {
     pub expansion: u8,
     pub expansion_open: bool,
     pub selected: Option<u32>,
+    pub hovered: Option<u32>,
     pub level: u32,
+    pub scroll: Option<sliding::Scroll>,
 }
 impl Default for Journeys {
     fn default() -> Self {
@@ -34,7 +37,9 @@ impl Default for Journeys {
             expansion: CURRENT_EXPANSION,
             expansion_open: false,
             selected: None,
+            hovered: None,
             level: 0,
+            scroll: None,
         }
     }
 }
@@ -51,6 +56,10 @@ pub fn apply(
     key: &str,
     value: Option<&str>,
 ) -> Result<(), String> {
+    if state.is_scrolling() && matches!(key, "journey-select-level" | "journey-level") {
+        return Ok(());
+    }
+    state.scroll = None;
     let number = || {
         value
             .ok_or("Missing journey value")?
@@ -128,7 +137,7 @@ pub fn journeys(
         .selected
         .and_then(|id| snapshot.factions.iter().find(|f| f.id == id))
     {
-        Some(faction) => progress(faction, state.level),
+        Some(faction) => progress(faction, state),
         None => journey_list(ctx, state, snapshot),
     }
 }
@@ -143,7 +152,7 @@ fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot
         .iter()
         .filter(|faction| faction.expansion == state.expansion)
         .collect();
-    let contents = list_contents(ctx, &factions);
+    let contents = list_contents(ctx, &factions, state, snapshot);
     let mut body = rsx! {r#frame {
         name:"EncounterJournalInstanceSelect",left:4.0,top:62.0,width:789.0,height:429.0,
         pos_type:"absolute",{contents}
@@ -162,7 +171,12 @@ fn journey_list(ctx: &SharedContext, state: &Journeys, snapshot: &RenownSnapshot
 }
 
 /// JourneysList sequence: category20, padding15/10/14/10, horizontal/vertical gaps5.
-fn list_contents(ctx: &SharedContext, factions: &[&MajorFactionSnapshot]) -> Element {
+fn list_contents(
+    ctx: &SharedContext,
+    factions: &[&MajorFactionSnapshot],
+    state: &Journeys,
+    snapshot: &RenownSnapshot,
+) -> Element {
     let mut content = label(
         "JournalJourneysCategory".into(),
         global_string("JOURNEYS_RENOWN_LABEL"),
@@ -172,7 +186,7 @@ fn list_contents(ctx: &SharedContext, factions: &[&MajorFactionSnapshot]) -> Ele
     for (index, faction) in factions.iter().enumerate() {
         let left = 14. + (index % 2) as f32 * (CARD.0 + 5.);
         let top = 40. + (index / 2) as f32 * (CARD.1 + 5.);
-        content.extend(renown_card(faction, left, top));
+        content.extend(renown_card(faction, left, top, state, snapshot));
     }
     let rows_height = factions.len().div_ceil(2) as f32 * (CARD.1 + 5.);
     let height = 40. + rows_height - 5. + 10.;
@@ -242,8 +256,26 @@ fn expansion_menu(state: &Journeys, snapshot: &RenownSnapshot) -> Element {
     )
 }
 
-fn renown_card(faction: &MajorFactionSnapshot, left: f32, top: f32) -> Element {
+fn renown_card(
+    faction: &MajorFactionSnapshot,
+    left: f32,
+    top: f32,
+    state: &Journeys,
+    snapshot: &RenownSnapshot,
+) -> Element {
     let prefix = format!("JourneyCard{}", faction.id);
+    let mut parts = card_art(faction, &prefix);
+    parts.extend(watch_toggle(faction, state, snapshot));
+    let action = format!("journal:journey:{}", faction.id);
+    rsx! {button {
+        name:{DynName(prefix)},left,top,width:{CARD.0},height:{CARD.1},pos_type:"absolute",
+        onclick:{action.as_str()},button_default_skin:false,
+        button_atlas_up:"ui-journeys-renown-button",button_atlas_pressed:"ui-journeys-renown-button-pressed",
+        {parts}
+    }}
+}
+
+fn card_art(faction: &MajorFactionSnapshot, prefix: &str) -> Element {
     let mut parts = named_atlas_texture(
         format!("{prefix}IconBorder"),
         "ui-journeys-renown-radial-bar",
@@ -261,16 +293,47 @@ fn renown_card(faction: &MajorFactionSnapshot, left: f32, top: f32) -> Element {
         (85., 61., 220., 15.),
         (13., NORMAL_FONT_COLOR, "LEFT"),
     ));
-    let action = format!("journal:journey:{}", faction.id);
-    rsx! {button {
-        name:{DynName(prefix)},left,top,width:{CARD.0},height:{CARD.1},pos_type:"absolute",
-        onclick:{action.as_str()},button_default_skin:false,
-        button_atlas_up:"ui-journeys-renown-button",button_atlas_pressed:"ui-journeys-renown-button-pressed",
-        {parts}
-    }}
+    parts
 }
 
-fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
+/// RenownCard OnEnter/OnLeave show the source toggle only for known unlocked factions.
+fn watch_toggle(
+    faction: &MajorFactionSnapshot,
+    state: &Journeys,
+    snapshot: &RenownSnapshot,
+) -> Element {
+    let eligible = matches!(faction.unlock, RenownUnlock::Ungated);
+    if !eligible || state.hovered != Some(faction.id) {
+        return Vec::new();
+    }
+    let name = format!("JourneyCard{}Watch", faction.id);
+    let checked = snapshot.watched_faction == Some(faction.faction_id);
+    let target = if checked { 0 } else { faction.faction_id };
+    let action = format!("journal:journey-watch:{}:{target}", faction.id);
+    let contents = crate::bank_art::checkbox_sized(
+        &format!("{name}Checkbox"),
+        global_string("SHOW_FACTION_ON_MAINSCREEN"),
+        checked,
+        &action,
+        (0., -3., 26., -2.),
+    );
+    rsx! {r#frame {name:{DynName(name)},left:204.0,top:76.0,width:200.0,height:20.0,
+    pos_type:"absolute",{contents}}}
+}
+
+/// Native hit testing supplies the card or its watch child action, including clipped rows.
+pub fn hovered_faction(action: &str) -> Option<u32> {
+    action
+        .strip_prefix("journal:journey:")
+        .or_else(|| action.strip_prefix("journal:journey-watch:"))?
+        .split(':')
+        .next()?
+        .parse()
+        .ok()
+}
+
+fn progress(faction: &MajorFactionSnapshot, state: &Journeys) -> Element {
+    let level = state.level;
     let mut body = label(
         "JourneyProgressName".into(),
         &faction.name,
@@ -278,7 +341,7 @@ fn progress(faction: &MajorFactionSnapshot, level: u32) -> Element {
         (20., WHITE, "CENTER"),
     );
     body.extend(progress_details(faction));
-    body.extend(track::track(faction, level));
+    body.extend(track::track(faction, state));
     body.extend(named_atlas_texture(
         "JourneyProgressDivider".into(),
         "ui-journeys-renown-divider",

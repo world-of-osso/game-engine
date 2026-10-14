@@ -1580,6 +1580,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
     }
 
+    /// Retail's watched reputation status-bar canvas, sharing the HUD skin/scale mirror.
+    pub fn show_reputation_status_bar(
+        &mut self,
+        state: game_engine_ui_model::reputation_status_bar::ReputationBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::reputation_status_bar::reputation_bar_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the experience bar.
     pub fn show_xp_bar(
         &mut self,

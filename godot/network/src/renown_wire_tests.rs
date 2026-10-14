@@ -50,6 +50,8 @@ fn catalog_sized_snapshot() -> RenownSnapshot {
     RenownSnapshot {
         factions,
         source_error: None,
+        watched_faction: Some(2503),
+        watch_error: None,
     }
 }
 
