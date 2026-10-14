@@ -61,6 +61,9 @@ func open_pet_details() -> void:
 	if not await wait_frames(func(): return client.get_node_or_null("CollectionsJournalUI") != null, "Pet Journal"):
 		return
 	var journal := client.get_node("CollectionsJournalUI")
+	await frames(30)
+	await capture("owned-combat-open-before-row-wait.png")
+	print("PET_COMBAT_CONTROL_NAMES ", journal.find_children("*owned*", "Control", true, false))
 	if not await wait_frames(func(): return not journal.find_children("pet_select_owned_*", "Control", true, false).is_empty(), "owned pets"):
 		return
 	for row in journal.find_children("pet_select_owned_*", "Control", true, false):
