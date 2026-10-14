@@ -26,6 +26,7 @@ const LIST_HEIGHT: f32 = 573.;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct View {
     pub visible: bool,
+    pub horde: bool,
     pub snapshot: Option<Arc<TradingPostSnapshot>>,
     pub filters: Filters,
     pub selected: Option<u32>,
@@ -293,14 +294,26 @@ pub fn trading_post_screen(ctx: &SharedContext) -> Element {
     let Some(view) = ctx.get::<View>().filter(|view| view.visible) else {
         return vec![];
     };
+    // PerksProgramProducts.lua:23-30: only Horde selects Orgrimmar.
+    let (left_gradient, right_gradient) = if view.horde {
+        (
+            "perks-gradient-orgrimmar-left",
+            "perks-gradient-orgrimmar-right",
+        )
+    } else {
+        (
+            "perks-gradient-stormwind-left",
+            "perks-gradient-stormwind-right",
+        )
+    };
     let mut children = named_atlas_texture(
         "PerksProgramLeftGradient".into(),
-        "perks-gradient-stormwind-left",
+        left_gradient,
         (0., 0., 950., HEIGHT),
     );
     children.extend(named_atlas_texture(
         "PerksProgramRightGradient".into(),
-        "perks-gradient-stormwind-right",
+        right_gradient,
         (WIDTH - 600., 0., 600., HEIGHT),
     ));
     children.extend(footer(view));

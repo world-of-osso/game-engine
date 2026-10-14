@@ -84,6 +84,49 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 #[test]
+fn trading_post_renders_player_faction_gradients_in_both_skins() {
+    use ui_toolkit::atlas::{AtlasSource, resolve_region};
+    use ui_toolkit::widgets::texture::TextureSource;
+    // PerksProgramProducts.lua:23-30, UnitFactionGroup("player").
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (horde, city) in [(false, "stormwind"), (true, "orgrimmar")] {
+            let registry = render(
+                skin,
+                View {
+                    visible: true,
+                    horde,
+                    ..Default::default()
+                },
+            );
+            for (name, side) in [
+                ("PerksProgramLeftGradient", "left"),
+                ("PerksProgramRightGradient", "right"),
+            ] {
+                let region =
+                    resolve_region(&format!("perks-gradient-{city}-{side}"), skin).unwrap();
+                let AtlasSource::FileDataId(fdid) = region.source else {
+                    panic!("source atlas");
+                };
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                    panic!("gradient");
+                };
+                assert_eq!(
+                    texture.source,
+                    TextureSource::FileDataId(fdid),
+                    "{skin:?} {city} {side}"
+                );
+                assert_eq!(
+                    texture.tex_coords,
+                    [region.left, region.right, region.top, region.bottom],
+                    "{skin:?} {city} {side}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn trading_post_controls_wait_for_server_and_confirm_purchase_without_local_debit() {
     use game_engine_ui_model::trading_post::Action;
     let mut view = View {
