@@ -1,5 +1,8 @@
 import importlib.util
+import hashlib
 import json
+import sqlite3
+import sys
 import shutil
 import tempfile
 import subprocess
@@ -80,6 +83,46 @@ class PlayerBundleTest(unittest.TestCase):
             bundle.copy_data(root, target)
             self.assertEqual((target / 'data' / new).read_bytes(), b'new')
             self.assertFalse((target / 'data' / old).exists())
+
+    def test_mutable_catalog_staging_retains_preparation_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
+            catalogs = ['cache/catalog.sqlite', 'local-listfile-cache.sqlite']
+            for name in catalogs:
+                with sqlite3.connect(data / name) as connection:
+                    connection.execute('CREATE TABLE names (name TEXT)')
+                    connection.execute("INSERT INTO names VALUES ('prepared')")
+            target = root / 'player'
+            bundle.copy_data(root, target)
+            for name in catalogs:
+                with sqlite3.connect(data / name) as connection:
+                    connection.execute("UPDATE names SET name = 'changed'")
+                with sqlite3.connect(target / 'data' / name) as connection:
+                    self.assertEqual(connection.execute('SELECT name FROM names').fetchall(), [('prepared',)])
+
+    def test_manifest_check_uses_staged_bytes_and_rejects_later_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            staged = root / 'player'
+            path = staged / 'data/cache/catalog.sqlite'
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b'expected')
+            manifest = {'version': 'fixture', 'files': [{'path': 'data/cache/catalog.sqlite',
+                        'size': 8, 'sha256': hashlib.sha256(b'expected').hexdigest()}]}
+            (staged / 'manifest.json').write_text(json.dumps(manifest))
+            command = [sys.executable, str(Path(bundle.__file__)), '--root', str(root),
+                       '--bundle', str(staged), '--platform', 'linux-x86_64', '--verify-manifest']
+            valid = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+            path.write_bytes(b'mutated!')
+            invalid = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertIn('SHA256 mismatch', invalid.stderr)
+            self.assertIn('data/cache/catalog.sqlite', invalid.stderr)
 
     def test_project_keeps_resources_but_excludes_crates_and_tests(self):
         with tempfile.TemporaryDirectory() as directory:
