@@ -1,6 +1,6 @@
 //! Retail ExpertDecorMode XML rows and submode controls; no invented keys or save button.
 use crate::housing_basic_component::{
-    binding_text, icon_control, instruction_rows, mode_bar, update_icon_control,
+    binding_text, icon_control, instruction_rows, mode_bar, mode_button_center, update_icon_control,
 };
 use crate::housing_component::HousingView;
 use crate::housing_editor::{EditorMode, PrecisionSubmode};
@@ -129,17 +129,16 @@ fn submode_instructions(view: &HousingView, disabled: bool) -> Vec<InstructionRo
         .collect()
 }
 
-fn submode_bar(view: &HousingView) -> Element {
+fn submode_controls(view: &HousingView) -> Element {
     let editor = &view.model.editor;
     let disabled = editor_disabled(view);
-    let controls = SUBMODES
+    let cannot_scale_selection = editor.selected.is_some() && !editor.scale_allowed;
+    SUBMODES
         .into_iter()
         .enumerate()
         .flat_map(|(index, (name, atlas, action, mode))| {
-            let restricted = disabled
-                || (mode == PrecisionSubmode::Scale
-                    && editor.selected.is_some()
-                    && !editor.scale_allowed);
+            let restricted =
+                disabled || (mode == PrecisionSubmode::Scale && cannot_scale_selection);
             icon_control(
                 (name, atlas, action),
                 (index as f32 * SUBMODE_STEP, 0.0),
@@ -147,10 +146,13 @@ fn submode_bar(view: &HousingView) -> Element {
                 editor.submode == mode,
             )
         })
-        .collect::<Element>();
+        .collect()
+}
+
+fn submode_bar(view: &HousingView) -> Element {
+    let controls = submode_controls(view);
     // BOTTOM anchored18 above the shared64px Expert mode button's TOP.
-    let mode_bar_left = (view.viewport[0] - 266.0) / 2.0;
-    let left = mode_bar_left + 96.0 - SUBMODE_WIDTH / 2.0;
+    let left = mode_button_center(view, "ExpertDecorMode") - SUBMODE_WIDTH / 2.0;
     let top = view.viewport[1] - 64.0 - 18.0 - SUBMODE_HEIGHT;
     let arrow = named_atlas_texture(
         "HouseEditorExpertSubmodeBarArrow".into(),
