@@ -246,7 +246,11 @@ func run() -> void:
 	await journal_key()
 	trace_open(1, "after-first-open")
 	deadline = Time.get_ticks_msec() + 90000
+	var received_logged := false
 	while (not client.adventure_guide_state().loaded or client.adventure_guide_state().renown_faction_count < 0) and Time.get_ticks_msec() < deadline:
+		if not received_logged and client.adventure_guide_state().renown_received_faction_count >= 0:
+			trace_open(1, "received-cache-first-observed")
+			received_logged = true
 		await process_frame
 	trace_open(1, "snapshot-wait-complete")
 	if client.adventure_guide_state().renown_faction_count != 29:
