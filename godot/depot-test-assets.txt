@@ -1,4 +1,6 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Installed Retail source scene flags; existing atlas/catalog source pins stay unchanged.
+db2/12.1.5.70391/UiModelScene.csv
 # Source-qualified current cloak geometry for item-material regression fixtures.
 cache/model-asset-index-bg-equipment-material-70391.json
 cache/model-asset-index-npc-appearance-retail.json
@@ -27,6 +29,13 @@ products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7321940.m2
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7530107.skin
 # Trading Post SharedButtonLargeTemplate source three-slice state art (canonical).
 textures/7367529.blp
+# Trading Post cart's56px square mask and UIButton atlas (70391 local-CASC receipt).
+textures/6715404.blp
+textures/5933889.blp
+# Source GameDialog SpinnerTemplate Ring/Sparks.
+textures/5413429.blp
+# Source minimal checkbox atlas for Retail Hide Armor.
+textures/5891357.blp
 # Trading Post authored icon mask, HoldPanel vertical edges, and source button atlas.
 textures/4626072.blp
 textures/4331660.blp
@@ -337,6 +346,8 @@ WarbandScenePlacement.csv
 WarbandScenePlacementOption.csv
 textures/6375814.blp
 db2/active/UiTextureKit.csv
+# Journeys faction icon prefixes and source list ordering.
+db2/active/UiCovenantDisplayInfo.csv
 db2/active/UiTextureAtlasElement.csv
 db2/active/UiTextureAtlas.csv
 db2/active/UiTextureAtlasMember.csv

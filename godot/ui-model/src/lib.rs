@@ -3,6 +3,8 @@
 #[path = "../../core/src/db2_test_support.rs"]
 mod db2_test_support;
 
+pub mod reputation_status_bar;
+
 pub mod ui {
     pub use ui_toolkit::{anchor, strata};
 
