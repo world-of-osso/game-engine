@@ -48,6 +48,10 @@ Socket evidence (`delivery-peer4-socket-samples.log`, `delivery-peer4-socket-ss.
 
 Native Modern then Forever on one preserved UDP5791 server lifetime both pass the full layout-proof at engine2e13fa4b3/server71c44ffc/protocolb4735da. Effective buffer logging reports8388608 bytes; 47 Modern and53 Forever socket samples retain zero drops. Matched purchase744 server-receive→client-typed delivery is583.268ms/99.536ms, with enqueue→receipt31.145ms/25.519ms. Evidence `udp-queue-*-native.log`, `udp-queue-*-native-sockets.log`, `udp-queue-native-purchase-timings.json` lives under the diagnostic root above. These measurements exclude host-click/network-enqueue latency and do not control concurrent full Guide traffic; no Renown or Windows acceptance follows.
 
+## Cart local state
+
+Retail `PerksProgramShoppingCartMixin` owns an ordered, duplicate-free list of vendor IDs. Shared `View` now models that list, visibility, selected-item add/remove and confirmation-bound clear without debiting Tender. Empty cart closes automatically. Native cart widgets, checkout authority and composite preview are separate continuation gates; local state alone is not end-to-end cart acceptance.
+
 ## Canonical-write boundary
 
 Runtime cache misses write to the source data path (`<checkout>/data/textures`), not `ASSET_RESOLVER_SHARED_DATA_DIR`. With the normal [shared slot links](../../headless-live-run.md) they reach canonical data. This task forbade canonical writes, so its slot replaced the asset directories with per-entry symlink unions that also overlay the unpublished package.
