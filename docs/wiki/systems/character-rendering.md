@@ -351,3 +351,14 @@ is freed and the fixture origin-restoration receipt succeeds. This proves this
 player/head/portrait boundary, not full battleground gameplay or natural transport
 lifecycle. Whole battleground coverage remains open.
 Contract: [item definition sources](../../specs/item-definition-sources.md).
+
+### FDID companion loading — active2026-10-14
+
+Lead rejects the numbered732194000.skin publication. The observed parser/cache
+still rewrote SFID7530107 to that alias, and SKID to a model-named skeleton. Both
+are now addressed by their actual FDIDs inside the same product/build directory;
+required SKID files cannot silently select embedded bones. Scene export reads the
+actual SFID path instead of reporting a guessed alias. The portable test manifest
+lists the two verified FDID files and index only. An isolated extracted-only process
+containing7321940.m2 +7530107.skin reproduces missing-alias RED before the change;
+GREEN/native follow-up remains pending. No canonical bytes are changed.
