@@ -3651,3 +3651,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).
 
 - 2026-10-13: [Follower Group Finder](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) restores source combat-role backgrounds and visible leadership-controlled guide; both-skin1920×1080 role capture and14 targeted cases pass. Full dungeon proof remains open.
+
+- 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
