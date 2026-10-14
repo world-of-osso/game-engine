@@ -8,6 +8,8 @@ mod cart_ui;
 mod filter_menu;
 #[path = "trading_post_history.rs"]
 mod history;
+#[path = "trading_post_outfit.rs"]
+mod outfit;
 use crate::{
     bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
@@ -19,6 +21,7 @@ use crate::{
         strata::FrameStrata,
     },
 };
+pub use outfit::load_scene_autodress;
 use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -39,6 +42,8 @@ pub struct View {
     pub cart: Vec<u32>,
     pub cart_visible: bool,
     pub cart_hover: Option<u32>,
+    /// Retail resets this override on vendor open, not on product changes.
+    pub hide_armor_setting: Option<bool>,
     pub dropdown: bool,
     pub submenu: Option<FilterSubmenu>,
     pub sort: Sort,
@@ -186,6 +191,7 @@ impl View {
         }
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
+            "perks:hide-armor" => self.hide_armor_setting = Some(!self.hide_armor()?),
             "perks:filter" => {
                 self.dropdown = !self.dropdown;
                 self.submenu = None;
@@ -779,6 +785,7 @@ fn footer(view: &View) -> Element {
     let mut children = leave_button();
     let purchase_left = WIDTH - 46. - 180.;
     children.extend(cart_ui::footer_controls(view, purchase_left));
+    children.extend(outfit::footer(view));
     if let Some(row) = view.selected_item().filter(|_| !view.cart_visible) {
         let x = WIDTH - 46. - 180.;
         if view.remaining_refund_seconds() > 0 {

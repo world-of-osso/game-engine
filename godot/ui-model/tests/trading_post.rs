@@ -84,6 +84,46 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 #[test]
+fn trading_post_hide_armor_uses_authored_default_and_persists_toggle_between_products() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(snapshot())),
+            selected: Some(4),
+            ..Default::default()
+        };
+        render(skin, view.clone()); // Initialize the same data root as the host.
+        assert!(!view.hide_armor().unwrap()); // Scene583 flags6 includes Autodress4.
+        assert!(game_engine_ui_model::trading_post::load_scene_autodress(430).unwrap());
+        assert!(!game_engine_ui_model::trading_post::load_scene_autodress(418).unwrap());
+        assert!(game_engine_ui_model::trading_post::load_scene_autodress(u32::MAX).is_err());
+        view.click("perks:hide-armor").unwrap();
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            text(&registry, "PerksProgramToggleHideArmorText"),
+            "Hide Armor"
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramToggleHideArmorChecked")
+                .is_some()
+        );
+        view.receive(Arc::new(snapshot()));
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramToggleHideArmorChecked")
+                .is_some()
+        );
+        view.click("perks:hide-armor").unwrap();
+        assert!(
+            render(skin, view)
+                .get_by_name("PerksProgramToggleHideArmorChecked")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn trading_post_cart_add_remove_and_confirmed_clear_follow_retail_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();

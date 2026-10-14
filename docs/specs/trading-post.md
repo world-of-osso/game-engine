@@ -30,7 +30,7 @@ Independent verification of `51f659ccd` failed D1–D6; earlier native gameplay 
 
 - [ ] Resolve live catalog delivery under production startup/request ordering (isolated1321-row UDP round-trip passes; private delivery intermittently exceeds60s).
 - [ ] Native multi-product cart and server-authoritative purchase/refund across protocol and persisted collections, sourced from Retail Lua; no invented policy.
-- [ ] Outfit/character preview toggle and native purchase-history widgets.
+- [ ] Outfit/character preview toggle and native purchase-history widgets. Hide Armor must use installed70391 UiModelScene Autodress bit4 as its default, retain user override across selections and reset on vendor open; never derive default dress from category.
 
 ## How it works
 
