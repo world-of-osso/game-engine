@@ -19,6 +19,9 @@ Guild tabard appearance and registration follow Retail Mainline `Blizzard_UIPane
 ## Implementation inventory
 
 - `godot/ui-model/src/guild_communities.rs`: Communities portrait and shell.
+- `godot/ui-model/src/guild_tabards.rs`: palette loading, five-variation drafts and pending authority.
+- `godot/ui-model/src/guild_tabard_frame.rs`: exact TabardFrame XML art/anchors and source button postsetup.
+- Current RSX macro truncates bare float literals (`ui-toolkit-macros/src/lib.rs:364–371`). Fractional authored attributes use the supported expression form until the lead-owned macro fix lands; no source values are rounded.
 - `godot/network/src/replica/codec.rs`: authoritative design component decoding.
 - Shared `guild_tabards::GuildTabardCatalog`: installed palette and torso-layer resolution.
 
