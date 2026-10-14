@@ -85,6 +85,11 @@ of the full feature. Forever changes presentation, not Retail mechanics.
 
 ## Retail sources
 
+Pinned authority: TrinityCore `a352b1fa`, `src/server/game/Guilds/Guild.h:102–127`
+(`GuildRankRights`) and `Guild.cpp:2935–2938,3732–3735` (Moderator when either
+officer-chat bit is present). These named integer rights are mapped individually;
+unsupported/unnamed TC rights are not accepted or fabricated.
+
 Root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
 
 - `Blizzard_GuildControlUI/Blizzard_GuildControlUI.lua:4,536–620`: rank count/order and occupied deletion.
