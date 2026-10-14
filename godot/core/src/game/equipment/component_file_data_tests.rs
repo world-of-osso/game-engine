@@ -9,7 +9,7 @@ fn data() -> ComponentFileData {
     } else {
         manifest.join("../..")
     };
-    let dir: PathBuf = repo.join("data/db2/12.1.0.69933");
+    let dir: PathBuf = repo.join("data/db2/active");
     ComponentFileData::load(&dir).unwrap()
 }
 

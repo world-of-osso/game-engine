@@ -7,7 +7,7 @@ use crate::asset::adt::CHUNK_SIZE;
 use crate::csv_util::{header_index, parse_csv_line as parse_csv_fields};
 
 /// Build whose UI atlas and texture kit tables live under `data/db2/`.
-const UI_DB2_DIR: &str = "db2/12.1.0.69933";
+const UI_DB2_DIR: &str = "db2/active";
 
 /// WoW Forever build whose UI atlas tables live under `data/db2/` (Wago DB2CSV exports; see
 /// `scripts/import_forever_atlas.py`).
@@ -95,7 +95,14 @@ pub fn read_texture_kit_art(
     let prefixes: HashMap<u32, String> =
         read_columns(&dir.join("UiTextureKit.csv"), &["ID", "KitPrefix"])?
             .into_iter()
-            .filter_map(|row| Some((row[0].parse().ok()?, row[1].to_ascii_lowercase())))
+            .map(|row| {
+                Ok((
+                    crate::csv_util::parse_field(&row, 0)?,
+                    row[1].to_ascii_lowercase(),
+                ))
+            })
+            .collect::<Result<HashMap<u32, String>, String>>()?
+            .into_iter()
             .filter(|(id, _)| kits.contains(id))
             .collect();
     let wanted: HashSet<&str> = prefixes.values().map(String::as_str).collect();
@@ -104,8 +111,8 @@ pub fn read_texture_kit_art(
             .into_iter()
             .map(|row| (row[0].to_ascii_lowercase(), row))
             .filter(|(name, _)| wanted.contains(name.as_str()))
-            .filter_map(|(name, row)| Some((name, row[1].parse().ok()?)))
-            .collect();
+            .map(|(name, row)| Ok((name, crate::csv_util::parse_field(&row, 1)?)))
+            .collect::<Result<_, String>>()?;
     let members = read_base_members(&dir, &elements)?;
     Ok(prefixes
         .into_iter()
@@ -138,8 +145,8 @@ pub fn read_forever_atlas_art(
     )?
     .into_iter()
     .filter(|row| row[1] == FOREVER_ATLAS_SET)
-    .filter_map(|row| row[0].parse().ok())
-    .collect();
+    .map(|row| crate::csv_util::parse_field(&row, 0))
+    .collect::<Result<_, _>>()?;
     read_atlas_art_in(&dir, names, Some(&set_atlases))
 }
 
@@ -155,8 +162,13 @@ fn read_atlas_art_in(
         read_columns(&dir.join("UiTextureAtlasElement.csv"), &["Name", "ID"])?
             .into_iter()
             .filter(|row| wanted.contains(&row[0].to_ascii_lowercase()))
-            .filter_map(|row| Some((row[1].parse().ok()?, row[0].to_ascii_lowercase())))
-            .collect();
+            .map(|row| {
+                Ok((
+                    crate::csv_util::parse_field(&row, 1)?,
+                    row[0].to_ascii_lowercase(),
+                ))
+            })
+            .collect::<Result<_, String>>()?;
     let atlases = read_atlas_sizes(dir)?;
     let columns = [
         "CommittedName",
@@ -171,12 +183,12 @@ fn read_atlas_art_in(
     // Per element: (exact name, member width, art) of the best member so far.
     let mut best: HashMap<u32, (bool, u32, AtlasArt)> = HashMap::new();
     for row in read_columns(&dir.join("UiTextureAtlasMember.csv"), &columns)? {
-        let parsed: Option<Vec<u32>> = row[1..].iter().map(|field| field.parse().ok()).collect();
-        let Some([element, atlas, width, left, right, top, bottom]) =
-            parsed.and_then(|values| <[u32; 7]>::try_from(values).ok())
-        else {
-            continue;
-        };
+        let parsed = row[1..]
+            .iter()
+            .map(|field| field.parse::<u32>().map_err(|error| error.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let [element, atlas, width, left, right, top, bottom] = <[u32; 7]>::try_from(parsed)
+            .map_err(|_| "malformed atlas member columns".to_string())?;
         let Some(name) = elements.get(&element) else {
             continue;
         };
@@ -218,17 +230,17 @@ fn read_atlas_sizes(dir: &Path) -> Result<HashMap<u32, [u32; 3]>, String> {
         &["ID", "FileDataID", "AtlasWidth", "AtlasHeight"],
     )?
     .into_iter()
-    .filter_map(|row| {
-        Some((
-            row[0].parse().ok()?,
+    .map(|row| {
+        Ok((
+            crate::csv_util::parse_field(&row, 0)?,
             [
-                row[1].parse().ok()?,
-                row[2].parse().ok()?,
-                row[3].parse().ok()?,
+                crate::csv_util::parse_field(&row, 1)?,
+                crate::csv_util::parse_field(&row, 2)?,
+                crate::csv_util::parse_field(&row, 3)?,
             ],
         ))
     })
-    .collect())
+    .collect::<Result<_, String>>()?)
 }
 
 /// A member's `[left, right, top, bottom]` pixels normalized by its atlas size.
@@ -273,12 +285,12 @@ fn read_base_members(
         let Some(&element) = elements.get(&row[0].to_ascii_lowercase()) else {
             continue;
         };
-        let parsed: Option<Vec<u32>> = row[1..].iter().map(|field| field.parse().ok()).collect();
-        let Some([member_element, atlas, left, right, top, bottom]) =
-            parsed.and_then(|values| <[u32; 6]>::try_from(values).ok())
-        else {
-            return Err(format!("malformed UiTextureAtlasMember row {row:?}"));
-        };
+        let parsed = row[1..]
+            .iter()
+            .map(|field| field.parse::<u32>().map_err(|error| error.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let [member_element, atlas, left, right, top, bottom] = <[u32; 6]>::try_from(parsed)
+            .map_err(|_| "malformed atlas member columns".to_string())?;
         if member_element != element {
             continue;
         }
@@ -298,21 +310,45 @@ fn read_columns(path: &Path, columns: &[&str]) -> Result<Vec<Vec<String>>, Strin
         .iter()
         .map(|column| header_index(&headers, column, path))
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(lines
-        .map(parse_csv_fields)
-        .map(|fields| {
-            indices
+    lines
+        .enumerate()
+        .map(|(line, text)| {
+            let fields = parse_csv_fields(text);
+            columns
                 .iter()
-                .map(|&index| fields.get(index).cloned().unwrap_or_default())
+                .zip(&indices)
+                .map(|(column, &index)| {
+                    let value = fields.get(index).ok_or_else(|| {
+                        format!("{}:{}: missing {column}", path.display(), line + 2)
+                    })?;
+                    if !matches!(*column, "Name" | "KitPrefix" | "CommittedName") {
+                        value.parse::<u32>().map_err(|error| {
+                            format!(
+                                "{}:{}: {column}={value:?}: {error}",
+                                path.display(),
+                                line + 2
+                            )
+                        })?;
+                    }
+                    Ok(value.clone())
+                })
                 .collect()
         })
-        .collect())
+        .collect()
 }
 
-fn read_rows<T>(path: &Path, parse: fn(&str) -> Option<T>) -> Result<Vec<T>, String> {
-    let contents =
-        std::fs::read_to_string(path).map_err(|err| format!("read {}: {err}", path.display()))?;
-    Ok(contents.lines().skip(1).filter_map(parse).collect())
+fn read_rows<T>(
+    path: &Path,
+    parse: fn(&crate::csv_util::Db2Row<'_>) -> Result<Option<T>, String>,
+) -> Result<Vec<T>, String> {
+    let mut rows = Vec::new();
+    crate::csv_util::read_db2_rows(path, |row| {
+        if let Some(value) = parse(row)? {
+            rows.push(value);
+        }
+        Ok(())
+    })?;
+    Ok(rows)
 }
 
 impl WarbandSceneEntry {
@@ -339,71 +375,72 @@ impl WarbandScenePlacement {
     }
 }
 
-pub(crate) fn parse_scene_line(line: &str) -> Option<WarbandSceneEntry> {
-    // CSV with quoted strings: Name_lang,Description_lang,Position_0..2,LookAt_0..2,ID,MapID,Fov,...,Flags,...
-    let fields = parse_csv_fields(line);
-    if fields.len() < 13 {
-        return None;
-    }
-    let flags: u32 = fields[12].parse().ok()?;
-    // Flags & 7 means test/internal entries (values 1, 3, 7)
-    if flags & 7 != 0 {
-        return None;
-    }
-    Some(WarbandSceneEntry {
-        id: fields[8].parse().ok()?,
-        name: fields[0].trim_matches('"').to_string(),
-        description: fields[1].trim_matches('"').to_string(),
+fn parse_scene_line(
+    row: &crate::csv_util::Db2Row<'_>,
+) -> Result<Option<WarbandSceneEntry>, String> {
+    let flags: u32 = row.parse("Flags")?;
+    let scene = WarbandSceneEntry {
+        id: row.parse("ID")?,
+        name: row.field("Name_lang")?.to_string(),
+        description: row.field("Description_lang")?.to_string(),
         position: [
-            fields[2].parse().ok()?,
-            fields[3].parse().ok()?,
-            fields[4].parse().ok()?,
+            row.parse("Position_0")?,
+            row.parse("Position_1")?,
+            row.parse("Position_2")?,
         ],
         look_at: [
-            fields[5].parse().ok()?,
-            fields[6].parse().ok()?,
-            fields[7].parse().ok()?,
+            row.parse("LookAt_0")?,
+            row.parse("LookAt_1")?,
+            row.parse("LookAt_2")?,
         ],
-        map_id: fields[9].parse().ok()?,
-        fov: fields[10].parse().ok()?,
-        texture_kit: fields[15].parse().ok()?,
-    })
+        map_id: row.parse("MapID")?,
+        fov: row.parse("Fov")?,
+        texture_kit: row.parse("TextureKit")?,
+    };
+    // Authored flags mark test/internal scenes; parse them before intentional filtering.
+    Ok((flags & 7 == 0).then_some(scene))
 }
 
-pub(crate) fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> {
-    // Position_0,Position_1,Position_2,ID,WarbandSceneID,SlotType,Rotation,Scale,...,SlotID,...
-    let fields: Vec<&str> = line.split(',').collect();
-    if fields.len() < 12 {
-        return None;
-    }
-    Some(WarbandScenePlacement {
-        id: fields[3].parse().ok()?,
-        scene_id: fields[4].parse().ok()?,
-        slot_type: fields[5].parse().ok()?,
+fn parse_placement_line(
+    row: &crate::csv_util::Db2Row<'_>,
+) -> Result<Option<WarbandScenePlacement>, String> {
+    Ok(Some(WarbandScenePlacement {
+        id: row.parse("ID")?,
+        scene_id: row.parse("WarbandSceneID")?,
+        slot_type: row.parse("SlotType")?,
         position: [
-            fields[0].parse().ok()?,
-            fields[1].parse().ok()?,
-            fields[2].parse().ok()?,
+            row.parse("Position_0")?,
+            row.parse("Position_1")?,
+            row.parse("Position_2")?,
         ],
-        rotation: fields[6].parse().ok()?,
-        slot_id: fields[11].parse().ok()?,
-    })
+        rotation: row.parse("Rotation")?,
+        slot_id: row.parse("SlotID")?,
+    }))
 }
 
-pub(crate) fn parse_placement_option_line(line: &str) -> Option<WarbandScenePlacementOption> {
-    let fields: Vec<&str> = line.split(',').collect();
-    if fields.len() < 8 {
-        return None;
-    }
-    Some(WarbandScenePlacementOption {
-        placement_id: fields[1].parse().ok()?,
-        layout_key: fields[2].parse().ok()?,
+fn parse_placement_option_line(
+    row: &crate::csv_util::Db2Row<'_>,
+) -> Result<Option<WarbandScenePlacementOption>, String> {
+    Ok(Some(WarbandScenePlacementOption {
+        placement_id: row.parse("WarbandScenePlacementID")?,
+        layout_key: row.parse("LayoutKey")?,
         position: [
-            fields[3].parse().ok()?,
-            fields[4].parse().ok()?,
-            fields[5].parse().ok()?,
+            row.parse("Position_0")?,
+            row.parse("Position_1")?,
+            row.parse("Position_2")?,
         ],
-        orientation: fields[6].parse().ok()?,
-        scale: fields[7].parse().ok()?,
-    })
+        orientation: row.parse("Orientation")?,
+        scale: row.parse("Scale")?,
+    }))
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_atlas_rejects_invalid_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("UiTextureAtlas", Some("ID"));
+        let error = read_atlas_sizes(fixture.0.parent().unwrap()).unwrap_err();
+        assert!(error.contains("UiTextureAtlas.csv:2:"), "{error}");
+    }
 }

@@ -9,6 +9,11 @@ use ui_toolkit::{
     widget_def::Element,
 };
 
+const SLOT_WIDTH: f32 = 399.0;
+const SLOT_HEIGHT: f32 = 106.0;
+const QUALITY_BORDER: u32 = 651_080; // interface/common/whiteiconframe.blp
+const DEAD_PET_ICON: u32 = 629_739; // interface/petbattles/deadpeticon.blp
+
 pub(super) fn battle_slots(view: &PetJournalView) -> Element {
     let mut out: Element = (0..3).flat_map(|slot| battle_slot(view, slot)).collect();
     out.extend(loadout_border());
@@ -23,6 +28,13 @@ fn battle_slot(view: &PetJournalView, slot: usize) -> Element {
         "PetJournal-BattleSlot-Active",
         [-3.0, 0.0],
     );
+    let shadow = resolve_region("PetJournal-BattleSlot-Shadow", thread_skin())
+        .expect("loadout shadow atlas");
+    children.extend(source_atlas(
+        format!("{name}Shadow"),
+        "PetJournal-BattleSlot-Shadow",
+        [SLOT_WIDTH - 125.0, 120.0 - shadow.height],
+    ));
     if let Some(pet) = pet {
         children.extend(owned_slot(view, slot, &name, pet));
     } else {
@@ -44,7 +56,7 @@ fn battle_slot(view: &PetJournalView, slot: usize) -> Element {
         || view.queue != shared::protocol::PetBattleQueueState::Idle;
     let action = format!("pet:equip:{slot}");
     let top = 255.0 + slot as f32 * 107.0;
-    rsx! { button { name: {DynName(name.clone())}, width: 399.0, height: 106.0,
+    rsx! { button { name: {DynName(name.clone())}, width: SLOT_WIDTH, height: SLOT_HEIGHT,
         left: 291.0, top, pos_type: "absolute", button_default_skin: false,
         disabled, onclick: {action.as_str()}, {children}
         r#frame { name: {DynName(format!("{name}ModelScene"))}, width: 130.0, height: 96.0,
@@ -54,12 +66,7 @@ fn battle_slot(view: &PetJournalView, slot: usize) -> Element {
 
 fn owned_slot(view: &PetJournalView, slot: usize, name: &str, pet: &OwnedPet) -> Element {
     let species = &view.catalog[&pet.species_id];
-    let mut out = label(
-        format!("{name}Name"),
-        pet.custom_name.as_deref().unwrap_or(&species.name),
-        (57.0, 15.0, 210.0, 12.0),
-        (12.0, NORMAL_FONT_COLOR, "LEFT"),
-    );
+    let mut out = slot_names(name, pet, &species.name);
     if let Some(icon) = view.icons.get(&pet.species_id) {
         out.extend(texture(
             format!("{name}Icon"),
@@ -75,6 +82,7 @@ fn owned_slot(view: &PetJournalView, slot: usize, name: &str, pet: &OwnedPet) ->
         "PetJournal-BattleSlot-IconBorder",
         [26.0 - border.width / 2.0, 30.0 - border.height / 2.0],
     ));
+    out.extend(owned_decoration(view, name, pet));
     let bubble = resolve_region("PetJournal-LevelBubble", thread_skin()).expect("slot level atlas");
     let left = 50.0 - bubble.width;
     let top = 54.0 - bubble.height;
@@ -95,6 +103,57 @@ fn owned_slot(view: &PetJournalView, slot: usize, name: &str, pet: &OwnedPet) ->
         (11.0, NORMAL_FONT_COLOR, "CENTER"),
     ));
     out.extend(super::combat::slot_stats(view, slot, name, pet));
+    out
+}
+
+// CompanionLoadOutTemplate + PetJournal_UpdatePetLoadOut: custom names have a
+// species subtitle; ordinary names occupy 28px at icon RIGHT +12,+5.
+fn slot_names(name: &str, pet: &OwnedPet, species: &str) -> Element {
+    let (height, top) = if pet.custom_name.is_some() {
+        (12.0, 19.0)
+    } else {
+        (28.0, 11.0)
+    };
+    let mut out = label(
+        format!("{name}Name"),
+        pet.custom_name.as_deref().unwrap_or(species),
+        (57.0, top, 210.0, height),
+        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+    );
+    if pet.custom_name.is_some() {
+        out.extend(label(
+            format!("{name}SubName"),
+            species,
+            (57.0, top + height + 2.0, 215.0, 12.0),
+            (12.0, WHITE, "LEFT"),
+        ));
+    }
+    out
+}
+
+fn owned_decoration(view: &PetJournalView, name: &str, pet: &OwnedPet) -> Element {
+    let mut out = texture(
+        format!("{name}QualityBorder"),
+        QUALITY_BORDER,
+        (7.0, 11.0, 38.0, 38.0),
+        crate::merchant_data::quality_color(pet.quality as u8),
+    );
+    if let Some(visual) = view.visuals.get(&pet.species_id) {
+        out.extend(crate::bank_art::cropped(
+            format!("{name}PetTypeIcon"),
+            visual.type_icon(),
+            "0.0078125,0.4765625,0.50390625,0.73828125",
+            (0.0, 46.0, 60.0, 60.0),
+        ));
+    }
+    if view.combat.get(&pet.id).is_some_and(|pet| pet.health <= 0) {
+        out.extend(texture(
+            format!("{name}Dead"),
+            DEAD_PET_ICON,
+            (7.0, 11.0, 38.0, 38.0),
+            WHITE,
+        ));
+    }
     out
 }
 

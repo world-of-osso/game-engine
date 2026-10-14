@@ -27,7 +27,7 @@ use crate::ui::RegistryUi;
 const TOOLTIP_UI: &str = "GameTooltipUI";
 // Tooltip strata must cover dialog/launcher canvases (10/20), below held cursor(100).
 const TOOLTIP_LAYER: i32 = 30;
-const FACTION_CSV: &str = "db2/12.1.0.69933/Faction.csv";
+const FACTION_CSV: &str = "db2/active/Faction.csv";
 
 /// The tooltip host, the server's creature answers and the account's appearances.
 #[derive(Default)]

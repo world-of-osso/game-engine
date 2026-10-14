@@ -3,7 +3,9 @@
 
 import argparse
 import fnmatch
+import hashlib
 import itertools
+import json
 import os
 import shutil
 import subprocess
@@ -22,12 +24,37 @@ LIBRARIES = {
 }
 
 
+def model_asset_files(data):
+    cache = data / 'cache'
+    indexes = [cache / 'model-asset-index.json', *sorted(cache.glob('model-asset-index-*.json'))]
+    paths = set()
+    for index in indexes:
+        document = json.loads(index.read_text())
+        if document['version'] != 1:
+            raise ValueError(f'Unsupported model asset index version: {index}')
+        for row in [*document['assets'], *document.get('aliases', [])]:
+            path = Path(row['path'])
+            namespace = Path('products') / row['product'] / row['build_key']
+            if not path.is_relative_to(namespace) or '..' in path.parts:
+                raise ValueError(f'Invalid asset namespace: {path}')
+            if not (data / path).is_file():
+                raise FileNotFoundError(f'Missing indexed model asset: {path}')
+            paths.add(path)
+            sidecar = Path(str(path) + '.receipt.json')
+            if (data / sidecar).is_file():
+                paths.add(sidecar)
+    return sorted(paths)
+
+
 def data_files(root):
     data = root / 'data'
     for name in DATA_DIRS:
         source = data / name
         if not source.is_dir():
             raise FileNotFoundError(f'Missing runtime data directory: {source}')
+        if name == 'products':
+            yield from model_asset_files(data)
+            continue
         for directory, subdirs, files in os.walk(source, followlinks=True):
             if Path(directory) == data / 'cache':
                 subdirs[:] = [name for name in subdirs if name != 'casc' and not fnmatch.fnmatch(name, 'pre-retail-*')]
@@ -65,9 +92,36 @@ def copy_selected(root, destination, files, link=False):
 def copy_data(root, bundle):
     for name in DATA_DIRS:
         (bundle / 'data' / name).mkdir(parents=True, exist_ok=True)
-    # Hard links: the ~190 GiB data set is only read by the publish, and the host's ext4
-    # cannot reflink, so copies would double its disk use. Nothing writes bundle data.
-    copy_selected(root / 'data', bundle / 'data', data_files(root), link=True)
+    # Catalogs can change while the client runs; only immutable payloads share storage.
+    files = iter(data_files(root))
+    while batch := list(itertools.islice(files, 512)):
+        copied, linked = [], []
+        for relative in batch:
+            selected = copied if is_mutable_data(relative) else linked
+            selected.append(relative)
+        copy_selected(root / 'data', bundle / 'data', copied)
+        copy_selected(root / 'data', bundle / 'data', linked, link=True)
+
+
+def is_mutable_data(relative):
+    catalog_directory = relative.parts[0] in (
+        'cache', 'db2', 'dbfilesclient', 'gametables', 'reference',
+    )
+    catalog_file = relative.suffix.lower() in ('.sqlite', '.csv', '.ron', '.json', '.txt')
+    return catalog_directory or catalog_file
+
+
+def verify_manifest(bundle):
+    manifest = json.loads((bundle / 'manifest.json').read_text())
+    for entry in manifest['files']:
+        path = bundle / entry['path']
+        if path.stat().st_size != entry['size']:
+            raise ValueError(f"Staged file size mismatch: {entry['path']}")
+        with path.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        if digest != entry['sha256']:
+            raise ValueError(f"Staged file SHA256 mismatch: {entry['path']}")
+    return len(manifest['files'])
 
 
 def project_files(root):
@@ -118,7 +172,15 @@ def main():
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--platform', choices=LIBRARIES, required=True)
     parser.add_argument('--windows-artifacts', type=Path)
+    parser.add_argument('--verify-manifest', action='store_true')
     args = parser.parse_args()
+    if args.verify_manifest:
+        try:
+            count = verify_manifest(args.bundle)
+        except (OSError, ValueError) as error:
+            parser.exit(1, f'{error}\n')
+        print(f'Verified {count} staged files against manifest.json')
+        return
     copy_project(args.root, args.bundle, args.platform)
     copy_data(args.root, args.bundle)
     if args.windows_artifacts:

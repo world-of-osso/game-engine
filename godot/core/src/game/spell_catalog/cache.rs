@@ -2,7 +2,6 @@
 
 use std::path::Path;
 
-use super::SPELL_DB2_BUILD;
 use super::build::SOURCE_TABLES;
 use crate::db2_cache::CacheKey;
 
@@ -13,5 +12,6 @@ pub(super) fn cache_key(source_dir: &Path) -> Result<CacheKey, String> {
     let sources = SOURCE_TABLES
         .iter()
         .map(|table| (table.to_string(), source_dir.join(format!("{table}.csv"))));
-    CacheKey::new(CACHE_FORMAT, SPELL_DB2_BUILD, sources)
+    let build = crate::db2_source::read_build(source_dir)?;
+    CacheKey::new(CACHE_FORMAT, &build, sources)
 }

@@ -113,6 +113,67 @@ fn db2_source(old: AtlasSource) -> AtlasSource {
     }
 }
 
+fn installed_atlas_rows(table: &str) -> Vec<std::collections::HashMap<String, String>> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data/db2/active")
+        .join(format!("{table}.csv"));
+    let text = std::fs::read_to_string(path).unwrap();
+    let records = game_engine_core::csv_util::parse_csv_records(&text);
+    records[1..]
+        .iter()
+        .map(|row| {
+            records[0]
+                .iter()
+                .cloned()
+                .zip(row.iter().cloned())
+                .collect()
+        })
+        .collect()
+}
+
+fn assert_installed_member(name: &str, region: &AtlasRegion) {
+    let elements = installed_atlas_rows("UiTextureAtlasElement");
+    let element = elements.iter().find(|row| row["Name"] == name).unwrap();
+    let members = installed_atlas_rows("UiTextureAtlasMember");
+    let member = members
+        .iter()
+        .find(|row| row["UiTextureAtlasElementID"] == element["ID"])
+        .unwrap();
+    let atlases = installed_atlas_rows("UiTextureAtlas");
+    let atlas = atlases
+        .iter()
+        .find(|row| row["ID"] == member["UiTextureAtlasID"])
+        .unwrap();
+    let number = |row: &std::collections::HashMap<String, String>, field: &str| {
+        row[field].parse::<f32>().unwrap()
+    };
+    assert_eq!(
+        region.source,
+        AtlasSource::FileDataId(atlas["FileDataID"].parse().unwrap())
+    );
+    assert_eq!(
+        rect(
+            region,
+            [number(atlas, "AtlasWidth"), number(atlas, "AtlasHeight")]
+        ),
+        [
+            number(member, "CommittedLeft"),
+            number(member, "CommittedTop"),
+            number(member, "CommittedRight"),
+            number(member, "CommittedBottom")
+        ],
+        "{name} must use installed-build pixels"
+    );
+    assert_eq!(
+        (region.width, region.height),
+        (
+            number(member, "OverrideWidth"),
+            number(member, "OverrideHeight")
+        ),
+        "{name} authored display size"
+    );
+}
+
 /// Every name of the old baked table resolves under Modern:
 /// - `exact`: project art and the DB2-joined crops, bit-identical;
 /// - `rounded`: hand-copied crops whose UVs were rounded to 6 decimals resolve to the
@@ -127,6 +188,12 @@ fn every_old_baked_atlas_name_resolves_the_same_under_modern() {
     for OldRegion { name, region, kind } in &old {
         let new = resolve_region(name, ActiveSkin::Modern)
             .unwrap_or_else(|| panic!("{name} does not resolve"));
+        // UiTextureAtlasMember 10066 moved in 12.1.5.70391. The baked
+        // fixture is historical; installed DB2 owns the runtime crop.
+        if name == "common-icon-rotateright" {
+            assert_installed_member(name, &new);
+            continue;
+        }
         match kind.as_str() {
             "exact" => assert_eq!(new, *region, "{name}"),
             "rounded" => {

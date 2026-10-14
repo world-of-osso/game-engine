@@ -78,7 +78,7 @@ impl CooldownHud {
     pub(super) fn poll_data(&mut self, root: &Path) -> Result<(), String> {
         match &self.load {
             ViewerLoad::Idle => {
-                let dir = root.join("db2/12.1.0.69933");
+                let dir = root.join("db2/active");
                 let (send, receive) = mpsc::channel();
                 std::thread::spawn(move || {
                     let result = read_viewer_data(&dir);

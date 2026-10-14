@@ -20,7 +20,9 @@ pub(crate) fn configure() -> Result<(), String> {
     SUBSCRIBER
         .get_or_init(|| {
             tracing_subscriber::fmt()
-                .with_env_filter("lightyear_debug::message=trace,lightyear_udp=trace")
+                .with_env_filter(
+                    "lightyear_debug::message=trace,lightyear_udp=trace,lightyear_netcode=debug,lightyear_connection=debug",
+                )
                 .with_ansi(false)
                 .with_writer(std::io::stderr)
                 .try_init()
@@ -57,6 +59,18 @@ pub(crate) fn record_socket_receive(
         if let Some(unix_ms) = read_unix_millis() {
             eprintln!("BG_TRACE_SOCKET_BATCH unix_ms={unix_ms} packets={packets}");
         }
+    }
+}
+
+/// Record the exact reason delivered to the host before it resets the world.
+pub(crate) fn record_disconnect(reason: Option<&str>, handshake_timed_out: bool) {
+    if !enabled() {
+        return;
+    }
+    if let Some(unix_ms) = read_unix_millis() {
+        eprintln!(
+            "BG_TRACE_DISCONNECTED unix_ms={unix_ms} handshake_timed_out={handshake_timed_out} reason={reason:?}"
+        );
     }
 }
 
