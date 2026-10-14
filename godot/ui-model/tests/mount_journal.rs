@@ -158,6 +158,52 @@ fn mount_context_menu_fits_its_rendered_labels_in_both_skins() {
     }
 }
 
+#[test]
+fn mount_filter_menu_fits_owner_and_keeps_source_spacer_in_both_skins() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+        layout_values::Val,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        text_measure::measure_text,
+        widgets::font_string::GameFont,
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.visible = true;
+        state.filters_open = true;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+        let frame = |name| {
+            registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap()
+        };
+        let widest = measure_text("Not Collected", GameFont::FrizQuadrata, 12.0)
+            .unwrap()
+            .0
+            + 19.0;
+        assert_eq!(
+            frame("MountJournalFilterMenu").width,
+            Dimension::Fixed((widest.ceil() + 16.0).max(90.0))
+        );
+        assert_eq!(frame("MountJournalFilter3").position.top, Val::Px(78.0));
+        assert_eq!(
+            frame("MountJournalFilterMenu").height,
+            Dimension::Fixed(153.0)
+        );
+    }
+}
+
 fn view() -> MountJournalView {
     let mut view = MountJournalView::default();
     let mut horse = mare();
