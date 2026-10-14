@@ -12,6 +12,18 @@ Retail XML/Lua under `Blizzard_*/retail/AddOns` defines controls, sizes, anchors
 
 Each finished group requires behavior tests, XML-geometry assertions, native1920×1080 before/after captures in both skins, and inspection alongside the corresponding XML. Source screening alone is not visual acceptance. Each landable report names its commit group; incomplete groups remain explicit.
 
+## Cooldown settings source boundary
+
+`Blizzard_CooldownViewer/CooldownViewerSettings.xml` supplies the399×609 shell, LargeSideTab controls,38×38 icons,317×38 bars, pixel scroll viewport and Revert UIPanelButtonTemplate. Settings preserve per-specialization choices/order and a reopen restore point; the native fixture physically picks/drops, assigns visibility, reloads from disk and reverts in both skins. Modern Revert projects the authored sheet strips; Forever changes art only.
+
+Named gaps: GroupBuffs has no current category data; named layouts, alerts, cross-category assignment and the unlearned/reset settings menu have no backing state. Disabled controls do not establish parity. Published atlas textures now load cleanly. Both-skin physical SearchBox typing/clear plus reorder/assignment/reload/Revert pass; four refreshed1920×1080 open/hidden captures under `AgentShared/2026-10-13/ui-gameplay-panels/after-review/` are inspected. Retrospective before captures use unmodified dc7c36424 renderers in the current native host; temporary renderers are removed after capture. Final integration verification remains open.
+
+## Capture provenance (2026-10-13)
+
+`AgentShared/2026-10-13/ui-gameplay-panels/before-review/` contains both-skin1920×1080 HUD/cooldown baselines from dc7c36424 and raid/scoreboard/rated/casual baselines from642fcee41. These are archived control renderers in the current native host/data, **not complete historical client builds**. PvP uses its original host SharedContext so physical wheel state reaches the old skirmish controls. Temporary baseline code is removed after capture; source and recipes remain in the private proof folder.
+
+Inspected after captures in `after-review/` include actual talent choices, HUD menu/naming dialog, cooldown open/hidden states and PvP rated/Specific/skirmish rows. Native HUD/cooldown fixtures assert exact rendered rectangles alongside physical actions and file reload. Source gaps remain explicit; captures of disabled or missing-data controls do not establish supported behavior.
+
 ## Proof owners
 
 - [Customer-order source/control proof](../wiki/systems/crafting-ui.md#customer-control-fidelity--verified-2026-10-13).
