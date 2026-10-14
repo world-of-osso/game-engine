@@ -35,7 +35,15 @@ func check_owned_combat_details() -> bool:
 		fail("Expected one unlocked and one level-locked authored choice")
 		return false
 	await capture("owned-combat-flyout.png")
+	var chosen_name := String(unlocked.name)
+	print("PET_COMBAT_CLICK_TARGET ", chosen_name, " rect=", unlocked.get_global_rect())
+	unlocked.pressed.connect(func(): print("PET_COMBAT_BUTTON_PRESSED ", chosen_name))
 	await click_control(unlocked)
+	print("PET_COMBAT_HOVER_AFTER_CLICK ", root.gui_get_hovered_control())
+	var pending_button := client.find_child(chosen_name, true, false) as BaseButton
+	if pending_button != null:
+		print("PET_COMBAT_BUTTON_AFTER_CLICK disabled=", pending_button.disabled)
+	await capture("owned-combat-after-click.png")
 	if not await wait_frames(func(): return client.find_child("PetJournalSpellSelect", true, false) == null, "ability server acknowledgement"):
 		return false
 	if (client.find_child("PetJournalPetCardHealthValue", true, false) as Label).text != owned_health:
