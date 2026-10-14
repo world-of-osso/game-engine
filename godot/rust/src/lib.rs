@@ -2407,9 +2407,25 @@ impl GameClient {
                 self.refresh_transmog()?;
             }
             AccountEvent::Housing(reply) => self.receive_housing_reply(reply)?,
-            AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
+            AccountEvent::Toys(update) => {
+                eprintln!(
+                    "TOY26_APPLY_CATALOG count={} bauble={:?}",
+                    update.toys.len(),
+                    update
+                        .toys
+                        .iter()
+                        .find(|toy| toy.item_id == 140309)
+                        .map(|toy| toy.learned)
+                );
+                self.toybox.model.receive(update.toys);
+            }
             AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
-            AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
+            AccountEvent::ToyCooldown(update) => {
+                if update.spell_id == 223143 {
+                    eprintln!("TOY26_APPLY_CD {update:?}");
+                }
+                self.toybox.model.cooldowns.apply(&update);
+            }
         }
         Ok(())
     }
