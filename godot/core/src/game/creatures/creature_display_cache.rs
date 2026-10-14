@@ -234,6 +234,7 @@ fn import_display_rows(
     let cols = read_display_columns(&mut reader, display_info_path)?;
     let mut insert = prepare_display_insert(conn)?;
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -243,13 +244,15 @@ fn import_display_rows(
         {
             break;
         }
+        line_number += 1;
         insert_display_row(
             &mut insert,
             line.trim_end_matches(['\r', '\n']),
             &cols,
             model_data,
             excluded_ids,
-        )?;
+        )
+        .map_err(|error| format!("{}:{line_number}: {error}", display_info_path.display()))?;
     }
     Ok(())
 }
@@ -282,7 +285,7 @@ fn insert_display_row(
     model_data: &HashMap<u32, CreatureModelData>,
     excluded_ids: &HashSet<u32>,
 ) -> Result<(), String> {
-    let Some((display_id, entry)) = parse_display_entry(line, cols, model_data) else {
+    let Some((display_id, entry)) = parse_display_entry(line, cols, model_data)? else {
         return Ok(());
     };
     if excluded_ids.contains(&display_id) {
@@ -315,15 +318,16 @@ fn parse_model_data(
     reader
         .read_line(&mut header)
         .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers: Vec<&str> = header.trim_end_matches(['\r', '\n']).split(',').collect();
+    let headers = crate::csv_util::parse_csv_line(header.trim_end_matches(['\r', '\n']));
     let columns = ModelDataColumns {
         id: header_index(&headers, "ID", path)?,
         fdid: header_index(&headers, "FileDataID", path)?,
-        scale: headers.iter().position(|col| col.trim() == "ModelScale"),
+        scale: Some(header_index(&headers, "ModelScale", path)?),
         geosets: header_index(&headers, "CreatureGeosetDataID", path)?,
     };
 
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -333,13 +337,14 @@ fn parse_model_data(
         {
             break;
         }
+        line_number += 1;
         insert_model_entry(
             &mut map,
             line.trim_end_matches(['\r', '\n']),
             &columns,
             source_product,
         )
-        .map_err(|error| format!("{}: {error}", path.display()))?;
+        .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
     }
     Ok(map)
 }
@@ -350,27 +355,25 @@ fn insert_model_entry(
     columns: &ModelDataColumns,
     source_product: AssetProduct,
 ) -> Result<(), String> {
-    let cols: Vec<&str> = line.split(',').collect();
-    let Some(id) = cols.get(columns.id).and_then(|s| s.parse::<u32>().ok()) else {
-        return Ok(());
-    };
-    let Some(fdid) = cols.get(columns.fdid).and_then(|s| s.parse::<u32>().ok()) else {
-        return Ok(());
-    };
+    let cols = crate::csv_util::parse_csv_line(line);
+    let id = crate::csv_util::parse_field::<u32>(&cols, columns.id)?;
+    let fdid = crate::csv_util::parse_field::<u32>(&cols, columns.fdid)?;
+    let geoset_data_id = crate::csv_util::parse_field::<u32>(&cols, columns.geosets)?;
+    let scale = columns
+        .scale
+        .and_then(|index| cols.get(index))
+        .map(String::as_str);
+    let scale_milli = parse_scale_milli(scale)?;
     if fdid == 0 {
         return Ok(());
     }
-    let geoset_data_id = cols
-        .get(columns.geosets)
-        .and_then(|s| s.parse::<u32>().ok())
-        .ok_or_else(|| format!("model {id}: invalid CreatureGeosetDataID"))?;
 
     map.insert(
         id,
         CreatureModelData {
             source_product,
             fdid,
-            scale_milli: parse_scale_milli(columns.scale.and_then(|idx| cols.get(idx).copied())),
+            scale_milli,
             uses_display_geosets: geoset_data_id != 0,
         },
     );
@@ -378,7 +381,7 @@ fn insert_model_entry(
 }
 
 fn find_display_info_columns(header: &str) -> Option<DisplayInfoColumns> {
-    let headers: Vec<&str> = header.split(',').collect();
+    let headers = crate::csv_util::parse_csv_line(header);
     let find = |name: &str| headers.iter().position(|h| h.trim() == name);
     Some(DisplayInfoColumns {
         id: find("ID")?,
@@ -398,44 +401,47 @@ fn parse_display_entry(
     line: &str,
     cols: &DisplayInfoColumns,
     model_data: &HashMap<u32, CreatureModelData>,
-) -> Option<(u32, CreatureDisplay)> {
-    let values: Vec<&str> = line.split(',').collect();
-    let display_id = values.get(cols.id)?.parse::<u32>().ok()?;
-    let model_id = values.get(cols.model)?.parse::<u32>().ok()?;
-    let model = model_data.get(&model_id)?;
-    let parse_fdid = |idx: usize| {
-        values
-            .get(idx)
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(0)
+) -> Result<Option<(u32, CreatureDisplay)>, String> {
+    let values = crate::csv_util::parse_csv_line(line);
+    let display_id = crate::csv_util::parse_field::<u32>(&values, cols.id)?;
+    let model_id = crate::csv_util::parse_field::<u32>(&values, cols.model)?;
+    let skin_fdids = [
+        crate::csv_util::parse_field(&values, cols.tex_var[0])?,
+        crate::csv_util::parse_field(&values, cols.tex_var[1])?,
+        crate::csv_util::parse_field(&values, cols.tex_var[2])?,
+        crate::csv_util::parse_field(&values, cols.tex_var[3])?,
+    ];
+    let display_scale_milli = parse_scale_milli(values.get(cols.scale).map(String::as_str))?;
+    let pet_instance_scale_milli =
+        parse_scale_milli(values.get(cols.pet_instance_scale).map(String::as_str))?;
+    // Models without a FileDataID have no visual; malformed cells are not this case.
+    let Some(model) = model_data.get(&model_id) else {
+        return Ok(None);
     };
-    let display_scale_milli = parse_scale_milli(values.get(cols.scale).copied());
-    Some((
+    Ok(Some((
         display_id,
         CreatureDisplay {
             source_product: model.source_product,
             model_fdid: model.fdid,
             uses_display_geosets: model.uses_display_geosets,
-            skin_fdids: [
-                parse_fdid(cols.tex_var[0]),
-                parse_fdid(cols.tex_var[1]),
-                parse_fdid(cols.tex_var[2]),
-                parse_fdid(cols.tex_var[3]),
-            ],
+            skin_fdids,
             scale_milli: combine_scale_milli(display_scale_milli, model.scale_milli),
-            pet_instance_scale_milli: parse_scale_milli(
-                values.get(cols.pet_instance_scale).copied(),
-            ),
+            pet_instance_scale_milli,
         },
-    ))
+    )))
 }
 
-fn parse_scale_milli(value: Option<&str>) -> u32 {
-    let scale = value
-        .and_then(|s| s.parse::<f32>().ok())
-        .filter(|scale| *scale > 0.0)
-        .unwrap_or(1.0);
-    (scale * 1000.0).round() as u32
+fn parse_scale_milli(value: Option<&str>) -> Result<u32, String> {
+    let value = value.ok_or("missing model scale")?;
+    let scale: f32 = value
+        .parse()
+        .map_err(|error| format!("invalid model scale {value:?}: {error}"))?;
+    if !scale.is_finite() {
+        return Err(format!("non-finite model scale {value:?}"));
+    }
+    // Preserve the existing authored zero-scale normalization, not parse-error recovery.
+    let scale = if scale > 0.0 { scale } else { 1.0 };
+    Ok((scale * 1000.0).round() as u32)
 }
 
 fn combine_scale_milli(display_scale_milli: u32, model_scale_milli: u32) -> u32 {
@@ -450,7 +456,7 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     Ok(BufReader::new(file))
 }
 
-fn header_index(headers: &[&str], column: &str, path: &Path) -> Result<usize, String> {
+fn header_index(headers: &[String], column: &str, path: &Path) -> Result<usize, String> {
     headers
         .iter()
         .position(|header| header.trim() == column)
@@ -765,5 +771,58 @@ mod tests {
         assert_eq!(skins, [21, 22, 23, 24]);
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_creature_rejects_invalid_canonical_row() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("CreatureModelData", Some("ID"));
+        let error = parse_model_data(&fixture.0, AssetProduct::Retail)
+            .err()
+            .expect("invalid model ID must fail");
+        assert!(error.contains("CreatureModelData.csv:2:"), "{error}");
+    }
+    #[test]
+    fn db2_header_creature_reads_canonical_models() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("CreatureModelData", None);
+        let models = parse_model_data(&fixture.0, AssetProduct::Retail).unwrap();
+        assert!(!models.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_creatures_read_installed_model_display_chain() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let models =
+            parse_model_data(&source.join("CreatureModelData.csv"), AssetProduct::Retail).unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        init_cache_schema(&conn).unwrap();
+        import_display_rows(
+            &conn,
+            &source.join("CreatureDisplayInfo.csv"),
+            &models,
+            &HashSet::new(),
+        )
+        .unwrap();
+        let count: usize = conn
+            .query_row("SELECT COUNT(*) FROM creature_displays", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert!(count > 0);
+        let expected: u32 = conn
+            .query_row(
+                "SELECT model_fdid FROM creature_displays WHERE display_id=328",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(expected, 1112735);
     }
 }
