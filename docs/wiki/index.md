@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
+
 - [Owned pet combat details](systems/battle-pets.md#owned-combat-details--2026-10-13) — persisted injuries/choices, owner-only native snapshots and acknowledged Retail ability flyout; focused tests and inspected both-skin native flyout/ack/reopen proof.
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.

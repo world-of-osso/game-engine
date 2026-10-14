@@ -35,11 +35,11 @@ func check_quest_log_fidelity() -> bool:
 	await click_control(quest_control("WorldMapUI", "QuestMapFrameTrackButton"))
 	if not await wait_quest(func(s): return Array(s.watched).has(QUEST), "server track"):
 		return false
-	await click_control(quest_control("WorldMapUI", "QuestMapFrameShareButton"))
-	# QuestPushResult is a system/chat notice, not a UIErrorsFrame line.
-	if not await wait_quest(func(s): return Array(s.system_lines).has("That quest cannot be shared."), "authoritative non-shareable quest rejection"):
+	var share := quest_control("WorldMapUI", "QuestMapFrameShareButton") as BaseButton
+	if share == null or not share.disabled:
+		fail("Retail Share must be disabled for this non-pushable solo quest")
 		return false
-	await capture("fidelity-share-rejection.png")
+	await capture("fidelity-share-disabled.png")
 
 	await click_control(quest_control("WorldMapUI", "QuestMapFrameBackButton"))
 	if not await wait_frames(func(): return not client.world_map_state().get("quest_details", true), "Back returns list"):
@@ -76,7 +76,7 @@ func check_quest_log_fidelity() -> bool:
 	await tap(KEY_L)
 	if not await wait_quest(func(s): return not s.log_open, "final L closes map owner"):
 		return false
-	print("PASS QUEST_LOG_FIDELITY skin=", OS.get_environment("QF_SKIN"), " L/list/details/Back/track/non-shareable-denial/POI/maximize/abandon")
+	print("PASS QUEST_LOG_FIDELITY skin=", OS.get_environment("QF_SKIN"), " L/list/details/Back/track/non-shareable-disabled/POI/maximize/abandon")
 	return true
 
 # Optional independent slice: real item4401 learning, owned selection/equip, slot model.
