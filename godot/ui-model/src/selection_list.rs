@@ -171,6 +171,25 @@ pub const TRANSMOG_OUTFIT: RowTemplate = RowTemplate {
     selected: None,
 };
 
+/// CommunitiesTabs.xml:45-46: source square hover and checked textures, both ADD.
+pub const COMMUNITIES_TAB: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(fill(Art::File(130718, FULL_CROP), true)),
+    selected: Some(fill(Art::File(130724, FULL_CROP), true)),
+};
+
+/// SharedUIPanelTemplates.xml:1217-1223 `ColumnDisplayButtonTemplate` ADD highlight.
+pub const COLUMN_HEADER: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(RowArt {
+        art: Art::File(136580, FULL_CROP),
+        insets: [0.0, -5.0, 0.0, -7.0],
+        alpha: 1.0,
+        additive: true,
+    }),
+    selected: None,
+};
+
 /// CommunitiesMemberList.xml:238-241 `CommunitiesMemberListEntryTemplate`: GuildFrame
 /// NormalTexture crop backs every member line; UI-FriendsFrame-HighlightBar ADD on hover.
 pub const GUILD_MEMBER: RowTemplate = RowTemplate {
@@ -279,7 +298,7 @@ pub const PET_BATTLE_SELECTION: RowTemplate = RowTemplate {
     }),
 };
 
-const TEMPLATES: [&RowTemplate; 17] = [
+const TEMPLATES: [&RowTemplate; 19] = [
     &SEARCH,
     &RAID_INSTANCE,
     &PVP_INSTANCE,
@@ -292,6 +311,8 @@ const TEMPLATES: [&RowTemplate; 17] = [
     &AUCTION_CATEGORY,
     &TRANSMOG_OUTFIT,
     &GUILD_MEMBER,
+    &COMMUNITIES_TAB,
+    &COLUMN_HEADER,
     &NEIGHBORHOOD,
     &MOUNT,
     &PET,
