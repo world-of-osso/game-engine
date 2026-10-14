@@ -168,7 +168,7 @@ impl UnitNode {
     pub(super) fn equipment(&self) -> Option<&EquipmentAppearance> {
         match self.appearance.as_ref()? {
             UnitAppearance::Creature { items, .. } => Some(items),
-            UnitAppearance::Player(_, equipment) => Some(equipment),
+            UnitAppearance::Player(_, equipment, _) => Some(equipment),
         }
     }
 }

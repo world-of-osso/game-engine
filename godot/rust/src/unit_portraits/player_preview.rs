@@ -60,7 +60,7 @@ impl PlayerPortraitFixture {
             class: 8,
             appearance: CharacterAppearance::default(),
         };
-        let appearance = UnitAppearance::Player(player, EquipmentAppearance::default());
+        let appearance = UnitAppearance::Player(player, EquipmentAppearance::default(), None);
         GString::from(
             self.portrait
                 .sync(&mut self.world, host, Some(appearance))

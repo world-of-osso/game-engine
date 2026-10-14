@@ -263,14 +263,28 @@ pub(crate) fn prepare_player_parts(
     data_root: &Path,
     player: &Player,
     equipment: &EquipmentAppearance,
+    tabard: Option<shared::guild_creation::GuildTabardDesign>,
 ) -> Result<PlayerParts, String> {
     let (resolver, model) = load_player_body(data_root, player)?;
-    let equipment = resolve_equipment_appearance(
-        equipment,
-        &OutfitData::load(data_root),
-        player.race,
-        player.appearance.sex,
-    )?;
+    let outfit = OutfitData::load(data_root);
+    let equipment = if let Some(design) = tabard.filter(|_| {
+        equipment
+            .entries
+            .iter()
+            .any(|entry| crate::equipment_appearance_data::guild_tabard_tier(entry).is_some())
+    }) {
+        let catalog =
+            shared::guild_tabards::GuildTabardCatalog::load(&data_root.join("db2/active"))?;
+        crate::equipment_appearance_data::resolve_equipment_with_guild_tabard(
+            equipment,
+            &outfit,
+            player.race,
+            player.appearance.sex,
+            (design, &catalog),
+        )?
+    } else {
+        resolve_equipment_appearance(equipment, &outfit, player.race, player.appearance.sex)?
+    };
     let appearance = prepare_player_appearance(data_root, player, &equipment)?;
     let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &model.model)?;
     let mut textures = decode_new_textures(model_asset_root(&model)?, &fdids)?;
@@ -355,7 +369,7 @@ pub(crate) fn load_player_model(
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
-    let parts = prepare_player_parts(data_root, player, equipment)?;
+    let parts = prepare_player_parts(data_root, player, equipment, None)?;
     build_player_model(data_root, parts)
 }
 

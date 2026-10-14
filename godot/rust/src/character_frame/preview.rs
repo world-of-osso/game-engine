@@ -487,7 +487,7 @@ fn bind_preview_batch(mut material: Gd<ShaderMaterial>, rays: Vector3) {
 /// Visual slots of a player appearance, for automation.
 pub(super) fn appearance_slots(appearance: Option<&UnitAppearance>) -> VarArray {
     let mut slots = VarArray::new();
-    if let Some(UnitAppearance::Player(_, equipment)) = appearance {
+    if let Some(UnitAppearance::Player(_, equipment, _)) = appearance {
         for entry in &equipment.entries {
             slots.push(&format!("{:?}", entry.slot).to_variant());
         }

@@ -157,7 +157,7 @@ impl CharacterLoad {
         Self {
             entry: entry.clone(),
             parts: BackgroundLoad::start("character-preview", move || {
-                prepare_player_parts(&data_root, &player, &equipment)
+                prepare_player_parts(&data_root, &player, &equipment, None)
             }),
         }
     }
