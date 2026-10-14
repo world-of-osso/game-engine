@@ -123,7 +123,9 @@ fn place_ribbon(
         .texture_indices
         .iter()
         .zip(&source.material_indices)
-        .map(|(&texture, &material)| load_ribbon_material(model, texture, material, texture_dir))
+        .map(|(&texture, &material)| {
+            load_ribbon_material(model, source.priority_plane, texture, material, texture_dir)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let geometry = ArrayMesh::new_gd();
     let meshes = materials
@@ -215,6 +217,7 @@ fn validate_texture_transform(model: &m2::Model, source: &M2RibbonEmitter) -> Re
 
 fn load_ribbon_material(
     model: &m2::Model,
+    priority: i16,
     texture_index: u16,
     material_index: u16,
     dir: &Path,
@@ -230,6 +233,14 @@ fn load_ribbon_material(
     let mut missing = PackedInt32Array::new();
     let image = material::shared_texture(texture, dir, &mut missing)?
         .ok_or_else(|| format!("Ribbon texture{texture} has no verified local image"))?;
+    create_ribbon_material(authored, &image, priority)
+}
+
+fn create_ribbon_material(
+    authored: &m2::Material,
+    image: &Gd<godot::classes::ImageTexture>,
+    _priority: i16,
+) -> Result<Gd<ShaderMaterial>, String> {
     let (shader, blend) = material::ribbon_material_shader(authored)?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
@@ -272,6 +283,10 @@ fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
     arrays.set(mesh::ArrayType::COLOR.ord() as usize, &colors.to_variant());
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
 }
+
+#[cfg(debug_assertions)]
+#[path = "ribbons/material_fixture.rs"]
+mod material_fixture;
 
 fn wow_vector([x, y, z]: [f32; 3]) -> Vector3 {
     Vector3::new(x, z, -y)
