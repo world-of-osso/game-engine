@@ -1,6 +1,6 @@
 ## 2026-10-14 — Forever Seething functional victory
 
-[Seething70](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14):15 normal gathers/1500, Winner B, automatic results and ten normal return ACKs before save; lead accepts functional evidence. Natural departure (`drop_proof:false`), direct persisted row/relogin and full-body framing remain open. PSI maxima exclude timing acceptance; the run used actual ADD after the offered window expired. Canonical `7184c3dd` supplies all175746 item definitions; private table matches exactly and derived-row preparation is removed.
+[Seething70](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14):15 normal gathers/1500, Winner B, automatic results and ten normal return ACKs before save; lead accepts functional evidence. Frozen redb row and normal native relog verify the identical map0 return position with no baseline reset or position command. Natural departure (`drop_proof:false`) and full-body framing remain open. PSI maxima exclude timing acceptance; the run used actual ADD after the offered window expired. Canonical `7184c3dd` supplies all175746 item definitions; private table matches exactly and derived-row preparation is removed.
 
 ## 2026-10-14 — Seething disconnect boundary
 
