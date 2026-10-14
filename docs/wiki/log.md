@@ -1,3 +1,7 @@
+## 2026-10-13 — Source ribbon semantic counterexamples
+
+[Bauble boundary](systems/toy-box.md#prismatic-bauble-rendering-boundary-2026-10-13): rate/lifetime, long-frame movement and animated tiles reproduce3RED→5GREEN. Native production material raster reproduces blend0 opaque and ignored priority, then passes alpha-red0.5333/farther high-priority green. Current moving source trail passes Modern2359/Forever1805 pixels, four bands each; requested PNGs published. Initial catalog/delivery failures and Forever natural-removal gate remain open.
+
 ## 2026-10-13 — Real-source ribbon scalar parsing
 
 [Format](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13): actual1417024 RED demonstrates incorrect track-overlap reads; source50 edges/s and0.5s lifetime fix. Native ribbon rendering remains open.
