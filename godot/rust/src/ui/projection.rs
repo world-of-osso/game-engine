@@ -522,13 +522,7 @@ impl UiProjection {
                     if atlas.starts_with("common-dropdown-")));
         node.set_mouse_filter(if passive_dropdown_art {
             godot::classes::control::MouseFilter::IGNORE
-        } else if frame.mouse_enabled
-            || frame.onclick.is_some()
-            || matches!(
-                frame.widget_type,
-                WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
-            )
-        {
+        } else if frame.mouse_enabled {
             godot::classes::control::MouseFilter::STOP
         } else {
             godot::classes::control::MouseFilter::IGNORE
