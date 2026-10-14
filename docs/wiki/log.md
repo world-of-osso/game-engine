@@ -1,3 +1,7 @@
+## 2026-10-14 — Seething disconnect boundary
+
+[Disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14): run60 peer reports `ConnectionTimedOut`; last native incoming socket batch08:32:13.043UTC, outgoing worker Pings continue through08:32:22.978, server max frame13.139s reported08:32:26.284. Exact native disconnect-reason tracing added before account world reset; tick-system cause and fresh reproduction remain open. No timeout/guard change. Published equipment closure verified20/20; portable manifest now uses the lead's two published indexes. Obsolete Forever no-portrait fixture follows the decided Retail60×60 player slot; Modern shared-menu golden remains untouched.
+
 ## 2026-10-14 — Unnamed equipped component attachment
 
 [Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
