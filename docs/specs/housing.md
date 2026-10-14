@@ -32,6 +32,12 @@ Named gap: hotkey visual acceptance remains withheld until both-skin native proo
 
 Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Saved `InputAction` variants roundtrip to the same Retail lookup strings exposed by `key()`/`from_key()`; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels only active selection/placement; otherwise it leaves normal menu handling intact. An open native Options menu owns pointer/key capture ahead of housing world editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
 
+### Mode and Expert submode hotkey labels
+
+Supported Basic/Expert mode bars and Expert submode icons show only the player's assigned abbreviated binding (`GetBindingText(key, true)`), using the existing hotkey formatter. Assignment/rebinding updates the label; unbinding hides it. Unlike instruction rows, icon labels never display `[UNBOUND]`. Main mode labels inherit ArialNarrow14/normal outline at source8,10 and height10; Expert submode labels inherit ArialNarrow10/black shadow1,-1 at12,12 with source40×10 bounds. No new default keys or authority changes. Cleanup's separate screen, unsupported submode actions, tooltips and active-glow animation remain separate work.
+
+Source: `Blizzard_HousingActionButton.lua` UpdateKeybind and `HouseEditorModeButtonTemplate`/`HouseEditorSubmodeButtonTemplate`; native both-skin acceptance is separate from registry tests.
+
 ## Expert editor actions — continuation
 
 Retail Expert submode switching, six translation increments, rotate-left/right, scale-up/down and next rotation axis use their `HOUSING_EXPERTDECOR*` action identities in native Housing bindings. No unsourced default keys: arrows/PageUp/PageDown/Q/E/1–3/X cannot substitute for actual assignments. Increment bindings follow native down/up held lifecycle; leaving the mode or cancelling clears holds. Transform staging/cancel/explicit commit and visitor authority remain unchanged.
