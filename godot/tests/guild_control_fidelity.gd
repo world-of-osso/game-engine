@@ -187,6 +187,7 @@ func type_text(ui: Node, name: String, text: String, submit: bool = true) -> voi
 	await key(KEY_A, 0, true)
 	for character in text:
 		await key(character.unicode_at(0), character.unicode_at(0))
+		assert(ui.call("sync_input") == "", "Mirror production host input polling before observing paint")
 	if submit:
 		await key(KEY_ENTER)
 	await settle()
