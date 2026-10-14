@@ -13,6 +13,13 @@
 
 [Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal16, dispatch1 and server battle17 focused tests GREEN; six inspected both-skin native flyout/ack/reopened frames. Pending loadout gates ability edits; source ADD blend applied through existing postsetup.
 
+## 2026-10-13 — Trading Post D1–D6 native source proof
+
+[Rework](systems/trading-post.md#d1d6-rework--verified-native-2026-10-13): authored mask/hold/button art, C_Item base-appearance icon resolution, shared GameDialog, effective145px filter description, source header/freeze/footer details and global-rect/positive-pixel gates. Both1920×1080 skins pass transactions/cancel/freeze/Leave with28 saved PNGs. Failed PNG writes now fail proof; Leave stops polling its freed RegistryUi. Historical51f captures remain rejected. Snapshot/delta timing and cart/outfit/history stay open.
+
+## 2026-10-13 — Retail Trading Post layout
+
+[Trading Post](systems/trading-post.md#retail-layout-proof--2026-10-13): shared WowStyle2/menu primitives, XML list/frozen/details/footer art and native freeze/replace/drag-off; Modern and Forever1920×1080 transaction/cancel/Leave proof inspected. Decorative-button input and duplicate popup-decoration roots fixed. Canonical art gaps and cart/outfit/history remain explicit.
 ## 2026-10-13 — Adventure Guide independent-gate corrections
 
 [Ten-defect proof](systems/adventure-guide.md#ten-defect-correction-proof--2026-10-13): shared tabs/navigation/menu controls, full search input state, source paper headers/role ordering and clipped XML parents replace the failed stand-ins. Native clear-focus and viewport-covered-by-art failures fixed at their actual boundaries. Final shared context shell/row geometry, RGB0.35 instructions and hidden Loot title pass Guide41/shared6 tests and both-skin24 full-HD capture at7d99b7225. Code/binary/PNG receipt and source XML inspection are recorded; extra tooltip-font and inherited Options-wheel test failures remain explicit.
