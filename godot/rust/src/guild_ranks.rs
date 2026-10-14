@@ -132,7 +132,7 @@ impl GameClient {
     }
 
     pub(super) fn guild_ranks_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
-        if self.game_menu_ui.is_some() || !self.guild_ranks.session.settings_open {
+        if !guild_pointer_enabled(&self.guild_ranks.session, self.game_menu_ui.is_some()) {
             return false;
         }
         let Some(ui) = self.guild_ranks.ui.as_mut() else {
@@ -279,6 +279,10 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
         .collect()
 }
 
+pub(crate) fn guild_pointer_enabled(session: &GuildRanksSession, game_menu_open: bool) -> bool {
+    !game_menu_open && session.settings_open
+}
+
 pub(crate) fn read_inputs_for_registry(
     registry: &ui_toolkit::registry::FrameRegistry,
     session: &GuildRanksSession,
@@ -319,6 +323,26 @@ fn guild_input_names(session: &GuildRanksSession) -> impl Iterator<Item = String
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn guild_roster_pointer_is_enabled_while_settings_are_closed() {
+        let mut session = GuildRanksSession::default();
+        session.open();
+        assert!(!session.settings_open);
+        assert!(guild_pointer_enabled(&session, false));
+    }
+
+    #[test]
+    fn guild_pointer_respects_closed_communities_and_game_menu() {
+        let mut session = GuildRanksSession::default();
+        assert!(!guild_pointer_enabled(&session, false));
+        session.open();
+        session.settings_open = true;
+        assert!(guild_pointer_enabled(&session, false));
+        assert!(!guild_pointer_enabled(&session, true));
+        session.visible = false;
+        assert!(!guild_pointer_enabled(&session, false));
+    }
+
     #[test]
     fn guild_pending_invitation_survives_loading_but_not_logout() {
         let invitation = shared::protocol::GuildInvitation {
