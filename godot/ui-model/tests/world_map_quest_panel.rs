@@ -17,6 +17,24 @@ use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+#[test]
+fn world_map_share_is_disabled_for_an_ineligible_selected_quest_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = map_state(WorldMapDisplay::default());
+        state.quest_panel.as_mut().unwrap().details = true;
+        let registry = render(state);
+        let button = frame(&registry, "QuestMapFrameShareButton").unwrap();
+        let Some(WidgetData::Button(data)) = &button.widget_data else {
+            panic!("Share button");
+        };
+        assert_eq!(
+            data.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
+    }
+}
+
 fn configure_assets() {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
