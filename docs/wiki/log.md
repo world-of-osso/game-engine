@@ -1,3 +1,7 @@
+## 2026-10-13 — Mainline Communities roster native proof
+
+[Communities data flow](systems/banks.md#rank-settings-model): source814×426 frame, right-edge icon tabs,20px scrolling roster/column headers and source footer modes replace paging. Production settings-only pointer admission reproduced RED2 and corrected; native right-click fixture now mirrors the alt-click consumer. Pixel inspection reproduced selected-icon erasure; registering source row templates restores ADD glows. Model33/native8/check/fmt PASS; both-skin1920×1080 wheel/steppers/thumb,32-member overflow, sorting, hierarchy menu and invitation reducer PASS. Chat/benefits services and unsupported column sorting remain [named contract gaps](../specs/guild-ranks.md#communities-presentation); no new live-server/deployment claim.
+
 ## 2026-10-14 — Client UDP receive queue
 
 [Receive queue](systems/trading-post.md#client-udp-receive-queue--2026-10-14): production socket drops reproduced by a 512-datagram pre-drain burst. Shared UDP transport now requests 4 MiB and reports effective OS allocation. Burst retention RED 92/512 → GREEN 512/512; pacing, Windows and sub-second application delivery remain separate transport gates.
