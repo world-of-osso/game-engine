@@ -52,6 +52,17 @@ func verify_settings() -> void:
 		await settle()
 		assert(fixture.call("selected", 27, 71))
 		capture(skin, "open")
+		await click_frame("CooldownSettingsSearch")
+		for letter in "Mortal":
+			var key := InputEventKey.new()
+			key.pressed = true
+			key.unicode = letter.unicode_at(0)
+			Input.parse_input_event(key)
+			await process_frame
+		await settle()
+		assert(fixture.call("frame_rect", "CooldownSettingsItem26").size == Vector2.ZERO, "Search filters Colossus Smash")
+		await click_frame("CooldownSettingsSearchClearButton")
+		assert(fixture.call("frame_rect", "CooldownSettingsItem26").size.x > 0, "Clear restores the source category entries")
 		await click_frame("CooldownSettingsItem26")
 		assert(fixture.call("picked") == 26, "Left release begins Retail order change")
 		await click_frame("CooldownSettingsItem27")
