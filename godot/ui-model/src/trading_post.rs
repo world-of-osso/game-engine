@@ -410,6 +410,7 @@ fn retail_filter(view: &View) -> Element {
         },
         DropdownState {
             style: DropdownStyle::WowStyle2,
+            resize_to_text: false,
             open: view.dropdown,
             reset_action: if view.filters.is_default() {
                 None
