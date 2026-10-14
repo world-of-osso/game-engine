@@ -72,8 +72,8 @@ func verify_xml_geometry(ui: Node) -> bool:
 			push_error("XML geometry mismatch " + name + ": " + str(node.get_global_rect() if node else null) + " expected " + str(rects[name]))
 			return false
 	var leader = ui.find_child("LFDQueueFrameRoleButtonLeader", true, false)
-	if not leader.disabled or ui.find_child("LFDQueueFrameRoleButtonLeaderCheckBox", true, false) != null:
-		push_error("Solo leader must remain visible, disabled, without its checkbox")
+	if leader.disabled or ui.find_child("LFDQueueFrameRoleButtonLeaderCheckBox", true, false) == null:
+		push_error("Retail solo leader must remain visible and enabled, with its checkbox")
 		return false
 	var highlight = ui.find_child("GroupFinderFrameGroupButton1Highlight", true, false)
 	if highlight == null or not is_equal_approx(highlight.modulate.a, 0.8):

@@ -51,12 +51,12 @@ fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgro
         assert_eq!((leader.width.value(), leader.height.value()), (48.0, 48.0));
         assert_eq!(
             button(&registry, "LFDQueueFrameRoleButtonLeader").0,
-            ButtonState::Disabled
+            ButtonState::Normal
         );
         assert!(
             registry
                 .get_by_name("LFDQueueFrameRoleButtonLeaderCheckBox")
-                .is_none()
+                .is_some()
         );
         for role in ["Tank", "Healer", "DPS"] {
             let background = registry
@@ -86,8 +86,19 @@ fn follower_group_finder_leader_selection_tracks_leadership_without_changing_com
             ..Default::default()
         };
         view.action("follower:leader");
-        assert!(!view.volunteer_leader);
-        view.group_leader = true;
+        assert!(view.volunteer_leader, "solo guide selection follows Retail");
+        view.leader_available = false;
+        view.volunteer_leader = false;
+        assert_eq!(
+            button(&render(view.clone(), skin), "LFDQueueFrameRoleButtonLeader").0,
+            ButtonState::Disabled
+        );
+        view.action("follower:leader");
+        assert!(
+            !view.volunteer_leader,
+            "grouped non-leader cannot volunteer"
+        );
+        view.leader_available = true;
         let registry = render(view.clone(), skin);
         assert_eq!(
             button(&registry, "LFDQueueFrameRoleButtonLeader").0,

@@ -306,7 +306,7 @@ fn roles(view: &View) -> Element {
 /// Leader inherits the base template, not the three combat-role backgrounds.
 fn leader_button(view: &View) -> Element {
     let name = "LFDQueueFrameRoleButtonLeader";
-    let disabled = !view.group_leader || view.pending || view.matched();
+    let disabled = !view.leader_available || view.pending || view.matched();
     let atlas = if disabled {
         "UI-LFG-RoleIcon-Leader-Disabled"
     } else {
