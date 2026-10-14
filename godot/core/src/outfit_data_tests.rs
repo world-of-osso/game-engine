@@ -649,6 +649,7 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
         "ItemDisplayInfo.csv",
         "TextureFileData.csv",
         "ItemDisplayInfoMaterialRes.csv",
+        "ItemDisplayInfoModelMatRes.csv",
         "ModelFileData.csv",
     ] {
         std::os::unix::fs::symlink(
