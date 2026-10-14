@@ -45,6 +45,7 @@ mod gameplay;
 mod ground;
 mod guild_charters;
 mod guild_ranks;
+mod guild_tabards;
 mod housing;
 mod housing_decor;
 mod housing_editor;
@@ -348,6 +349,7 @@ pub struct GameClient {
     combat_stable: pet_stable::CombatPetStable,
     guild_ranks: guild_ranks::GuildRanks,
     guild_charters: guild_charters::GuildCharters,
+    guild_tabards: guild_tabards::GuildTabards,
     achievements: achievements::Achievements,
     raid_info: raid_info::RaidInfo,
     game_objects: game_objects::GameObjects,
@@ -497,6 +499,7 @@ impl INode3D for GameClient {
             combat_stable: pet_stable::CombatPetStable::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
             guild_charters: guild_charters::GuildCharters::default(),
+            guild_tabards: guild_tabards::GuildTabards::default(),
             achievements: achievements::Achievements::default(),
             raid_info: raid_info::RaidInfo::new(&data_root),
             game_objects,
@@ -1563,6 +1566,7 @@ impl GameClient {
         self.combat_stable.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
         self.guild_charters.visit_uis(&mut visit)?;
+        self.guild_tabards.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
         self.mount_journal.visit_uis(&mut visit)?;
@@ -2148,6 +2152,7 @@ impl GameClient {
             ("CombatPetStable", |c, _| c.update_combat_stable()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
             ("Guild charters", |c, _| c.update_guild_charters()),
+            ("Guild tabards", |c, delta| c.update_guild_tabards(delta)),
             ("Achievements", |c, d| c.update_achievements(d)),
             ("RaidInfo", |c, d| c.update_raid_info(d)),
             ("Loot", |c, _| c.update_loot()),
@@ -2391,6 +2396,7 @@ impl GameClient {
             AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,
             AccountEvent::GuildProfile(update) => self.receive_guild_profile(update)?,
             AccountEvent::GuildCharter(reply) => self.receive_guild_charter(reply)?,
+            AccountEvent::GuildTabard(reply) => self.receive_guild_tabard(reply)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -2413,7 +2419,8 @@ impl GameClient {
                 }
                 let orders_opened = self.receive_crafting_order_interaction(&message)?;
                 let stable_opened = self.stable_npc_message(&message);
-                if !self.charter_npc_message(&message)?
+                if !self.tabard_npc_message(&message)?
+                    && !self.charter_npc_message(&message)?
                     && !self.receive_quest_npc_message(&message)?
                     && !self.bank_npc_message(&message)
                     && !stable_opened

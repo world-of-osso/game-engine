@@ -83,6 +83,7 @@ pub(crate) struct UnitPortraits {
     trade: Portrait,
     trainer: Portrait,
     registrar: Portrait,
+    tabard_vendor: Portrait,
     customer_orders: Portrait,
     party: PartyPortraits,
 }
@@ -102,6 +103,7 @@ impl Default for UnitPortraits {
             trade: Portrait::new(TRADE_PORTRAIT),
             trainer: Portrait::new(TRAINER_PORTRAIT),
             registrar: Portrait::new(REGISTRAR_PORTRAIT),
+            tabard_vendor: Portrait::new(game_engine_ui_model::guild_tabard_frame::PORTRAIT),
             customer_orders: Portrait::new(
                 game_engine_ui_model::professions_frame::orders::PORTRAIT,
             ),
@@ -557,6 +559,11 @@ impl GameClient {
             &REGISTRAR_PORTRAIT,
             self.guild_charters.portrait_unit(),
         );
+        let (tabard_host, tabard_vendor) = self.npc_portrait(
+            self.guild_tabards.ui.as_ref(),
+            &game_engine_ui_model::guild_tabard_frame::PORTRAIT,
+            self.guild_tabards.portrait_unit(),
+        );
         let (customer_orders_host, customer_orders_npc) = self.npc_portrait(
             self.professions.ui.as_ref(),
             &game_engine_ui_model::professions_frame::orders::PORTRAIT,
@@ -599,6 +606,10 @@ impl GameClient {
         let registrar_result = portraits
             .registrar
             .sync(&mut self.world, registrar_host, registrar);
+        let tabard_result =
+            portraits
+                .tabard_vendor
+                .sync(&mut self.world, tabard_host, tabard_vendor);
         let customer_orders_result = portraits.customer_orders.sync(
             &mut self.world,
             customer_orders_host,
@@ -617,6 +628,7 @@ impl GameClient {
             .and(trade_result)
             .and(trainer_result)
             .and(registrar_result)
+            .and(tabard_result)
     }
 
     /// The window's portrait slot and `npc`'s appearance while the window shows that NPC.
@@ -675,6 +687,7 @@ impl GameClient {
         portraits.trade.clear(&mut self.world);
         portraits.trainer.clear(&mut self.world);
         portraits.registrar.clear(&mut self.world);
+        portraits.tabard_vendor.clear(&mut self.world);
         portraits.customer_orders.clear(&mut self.world);
         portraits.party.clear(&mut self.world);
     }
@@ -702,6 +715,7 @@ impl GameClient {
             &portraits.trade,
             &portraits.trainer,
             &portraits.registrar,
+            &portraits.tabard_vendor,
             &portraits.customer_orders,
         ]
         .into_iter()
