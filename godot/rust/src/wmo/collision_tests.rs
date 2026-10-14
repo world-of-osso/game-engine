@@ -256,6 +256,17 @@ fn ragefire_entrance_baked_corner_can_be_walked_with_real_wmo_walls() {
             1.0 / 60.0,
         );
     }
+    if feet.x >= -16.0 {
+        let origin = feet + Vec3::Y * game_engine_core::player_physics_data::WALL_RAY_HEIGHT;
+        for triangle in &triangles {
+            if let Some(distance) = ray_hit(&[*triangle], origin, direction, 1.0) {
+                let normal = (triangle[1] - triangle[0])
+                    .cross(triangle[2] - triangle[0])
+                    .normalize();
+                eprintln!("blocking distance={distance} normal={normal:?} triangle={triangle:?}");
+            }
+        }
+    }
     assert!(feet.x < -16.0, "baked corridor stopped at {feet:?}");
 }
 
