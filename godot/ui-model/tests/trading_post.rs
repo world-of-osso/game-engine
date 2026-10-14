@@ -9,6 +9,11 @@ use ui_toolkit::{
 };
 
 fn snapshot() -> TradingPostSnapshot {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     TradingPostSnapshot {
         npc_net_id: Some(185468),
         tender: 500,
@@ -66,12 +71,14 @@ fn render(skin: ActiveSkin, view: View) -> FrameRegistry {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     set_thread_skin(skin);
     let mut ctx = SharedContext::new();
     ctx.insert(skin);
     ctx.insert(view);
     let mut registry = FrameRegistry::new(1920., 1080.);
     Screen::new(trading_post_screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::trading_post::apply_cart_art(ctx.get::<View>().unwrap(), &mut registry);
     registry
 }
 fn text(registry: &FrameRegistry, name: &str) -> String {
@@ -83,6 +90,568 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
         other => panic!("Expected text, got {other:?}"),
     }
 }
+#[test]
+fn trading_post_other_cart_preview_dims_wearables_but_keeps_remove_colored_and_clickable() {
+    let mut data = snapshot();
+    let mut mount = data.items[0].clone();
+    mount.id = 5;
+    mount.category_id = 2;
+    mount.item_id = 117;
+    data.items.push(mount);
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        cart: vec![4, 5],
+        cart_visible: true,
+        selected: Some(4),
+        cart_selected: std::collections::BTreeMap::from([(0, 117), (16, 189869)]),
+        cart_hover: Some(4),
+        ..Default::default()
+    };
+    let registry = render(ActiveSkin::Modern, view.clone());
+    let frame = registry
+        .get(registry.get_by_name("PerksProgramCartItem4").unwrap())
+        .unwrap();
+    assert!(
+        (frame.alpha - 0.7).abs() < 0.01,
+        "Retail disabled-preview row alpha is0.7, not1"
+    );
+    let icon = registry
+        .get(registry.get_by_name("PerksProgramCartItem4Icon").unwrap())
+        .unwrap();
+    assert!(matches!(&icon.widget_data,Some(WidgetData::Texture(texture)) if texture.desaturated));
+    let remove = registry
+        .get(
+            registry
+                .get_by_name("PerksProgramCartItem4RemoveIcon")
+                .unwrap(),
+        )
+        .unwrap();
+    assert!(
+        matches!(&remove.widget_data,Some(WidgetData::Texture(texture)) if !texture.desaturated)
+    );
+    view.click("perks:cart:item:189869").unwrap();
+    assert!(
+        view.cart_selected.get(&0).is_none(),
+        "Disabled wearable click must clear OTHER first"
+    );
+    assert_eq!(
+        view.cart_preview_item_ids(),
+        [189869],
+        "Do not deselect the hidden wearable while clearing OTHER"
+    );
+}
+
+#[test]
+fn trading_post_cart_total_never_ellipsizes_four_digit_authored_prices() {
+    let mut data = snapshot();
+    data.items[0].price = 6546;
+    data.tender = 10000;
+    let view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        cart: vec![4],
+        cart_visible: true,
+        selected: Some(4),
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        let price = rect(&registry, "PerksProgramCartPriceText");
+        let (width, _) = ui_toolkit::text_measure::measure_text(
+            "6546",
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            20.,
+        )
+        .unwrap();
+        assert!(
+            price[2] >= width,
+            "Retail right-anchored natural text must not be ellipsized: {price:?} versus{width}"
+        );
+        assert!(
+            (price[0] + price[2] - 44.).abs() < 0.01,
+            "PriceContainer44 keeps right edge, not a44px text clip"
+        );
+    }
+}
+
+#[test]
+fn trading_post_cart_hover_shows_source_preview_status_and_dimming_mask() {
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(snapshot())),
+        selected: Some(4),
+        cart: vec![4],
+        cart_visible: true,
+        cart_hover: Some(4),
+        cart_selected: std::collections::BTreeMap::from([(16, 189869)]),
+        ..Default::default()
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, view.clone());
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4PreviewStatus")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4Vignette")
+                .is_some()
+        );
+        view.cart_hover = None;
+        let registry = render(skin, view.clone());
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4PreviewStatus")
+                .is_none()
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramCartItem4Vignette")
+                .is_none()
+        );
+        view.cart_hover = Some(4);
+    }
+}
+
+#[test]
+fn trading_post_cart_ensemble_expands_header_members_and_source_list_padding() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.items[0].category_id = 8;
+        data.items[0].preview_item_ids = vec![25, 876];
+        let view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data)),
+            selected: Some(4),
+            cart: vec![4],
+            cart_visible: true,
+            ..Default::default()
+        };
+        let registry = render(skin, view);
+        assert_eq!(rect(&registry, "PerksProgramCartSet4")[3], 56.);
+        assert_eq!(
+            text(&registry, "PerksProgramCartSubItem4_25Name"),
+            "Worn Shortsword"
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramCartSubItem4_876Name"),
+            "Worn Wooden Buckler"
+        );
+        assert_eq!(rect(&registry, "PerksProgramCartItemList")[2], 322.);
+        assert_eq!(rect(&registry, "PerksProgramCartSet4")[..2], [12., 4.]);
+        assert_eq!(
+            rect(&registry, "PerksProgramCartSubItem4_25")[..2],
+            [12., 68.]
+        );
+        assert_eq!(rect(&registry, "PerksProgramCartSubItem4_876")[3], 104.);
+    }
+}
+
+#[test]
+fn trading_post_cart_selects_exclusive_hand_slots_and_deselects_clicked_item() {
+    let mut data = snapshot();
+    data.frozen_item_id = None;
+    data.items.clear();
+    for (index, item_id) in [25, 35, 876, 1190].into_iter().enumerate() {
+        let mut row = snapshot().items[0].clone();
+        row.id = index as u32 + 10;
+        row.item_id = item_id;
+        row.preview_item_ids = vec![item_id];
+        data.items.push(row);
+    }
+    let mut view = View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        cart: vec![10, 11, 12, 13],
+        selected: Some(10),
+        ..Default::default()
+    };
+    render(ActiveSkin::Modern, view.clone());
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    view.click("perks:cart:show").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190, 25, 876]);
+    view.click("perks:cart:item:35").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190, 35]);
+    view.click("perks:cart:item:35").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190]);
+    view.click("perks:cart:item:876").unwrap();
+    assert_eq!(view.cart_preview_item_ids(), [1190, 876]);
+    assert_eq!(view.cart, [10, 11, 12, 13]); // Preview never removes/charges a cart product.
+}
+
+#[test]
+fn trading_post_retail_rotate_buttons_match_footer_anchors_and_hide_for_non_model_products() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(snapshot())),
+            selected: Some(4),
+            ..Default::default()
+        };
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            rect(&registry, "PerksProgramRotateButtonContainer"),
+            [1050., 10., 100., 48.]
+        );
+        for (name, left, atlas) in [
+            ("PerksProgramRotateLeftButton", 0., "perks-icon-rotate-left"),
+            (
+                "PerksProgramRotateRightButton",
+                52.,
+                "perks-icon-rotate-right",
+            ),
+        ] {
+            assert_eq!(rect(&registry, name), [left, 0., 48., 48.]);
+            assert_eq!(
+                rect(&registry, &format!("{name}Icon")),
+                [11., 11.5, 26., 25.]
+            );
+            let icon = registry
+                .get(registry.get_by_name(&format!("{name}Icon")).unwrap())
+                .unwrap();
+            let Some(WidgetData::Texture(icon)) = &icon.widget_data else {
+                panic!("rotate icon must be authored art")
+            };
+            let region =
+                ui_toolkit::atlas::resolve_region(atlas, skin).expect("Retail rotate atlas");
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("rotate art needs FDID")
+            };
+            assert_eq!(
+                icon.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(fdid)
+            );
+            assert_eq!(
+                icon.tex_coords,
+                [region.left, region.right, region.top, region.bottom]
+            );
+        }
+        assert_eq!(view.click("perks:rotate-left").unwrap(), None);
+        assert_eq!(view.click("perks:rotate-right").unwrap(), None);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        for (category, unavailable) in [(5, None), (1, Some("Source model unavailable".into()))] {
+            let data = Arc::make_mut(view.snapshot.as_mut().unwrap());
+            data.items[0].category_id = category;
+            data.items[0].grant_unavailable = unavailable;
+            assert!(
+                render(skin, view.clone())
+                    .get_by_name("PerksProgramRotateButtonContainer")
+                    .is_none()
+            );
+        }
+    }
+}
+
+#[test]
+fn trading_post_hide_armor_uses_authored_default_and_persists_toggle_between_products() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(snapshot())),
+            selected: Some(4),
+            ..Default::default()
+        };
+        render(skin, view.clone()); // Initialize the same data root as the host.
+        assert!(!view.hide_armor().unwrap()); // Scene583 flags6 includes Autodress4.
+        assert!(game_engine_ui_model::trading_post::load_scene_autodress(430).unwrap());
+        assert!(!game_engine_ui_model::trading_post::load_scene_autodress(418).unwrap());
+        assert!(game_engine_ui_model::trading_post::load_scene_autodress(u32::MAX).is_err());
+        view.click("perks:hide-armor").unwrap();
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            text(&registry, "PerksProgramToggleHideArmorText"),
+            "Hide Armor"
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramToggleHideArmorChecked")
+                .is_some()
+        );
+        view.receive(Arc::new(snapshot()));
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramToggleHideArmorChecked")
+                .is_some()
+        );
+        view.click("perks:hide-armor").unwrap();
+        assert!(
+            render(skin, view)
+                .get_by_name("PerksProgramToggleHideArmorChecked")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn trading_post_cart_add_remove_and_confirmed_clear_follow_retail_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.frozen_item_id = None;
+        let mut wrap = data.items[0].clone();
+        wrap.id = 5;
+        wrap.name = "Arcanofire Wrap".into();
+        wrap.price = 75;
+        data.items.push(wrap);
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data)),
+            selected: Some(4),
+            ..Default::default()
+        };
+        assert_eq!(view.click("perks:cart:add").unwrap(), None);
+        assert_eq!(view.click("perks:cart:add").unwrap(), None);
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "1"
+        );
+        view.click("perks:select:5").unwrap();
+        view.click("perks:cart:add").unwrap();
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "2"
+        );
+        view.click("perks:cart:show").unwrap();
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramShoppingCartFrame")
+                .is_some()
+        );
+        view.click("perks:cart:close").unwrap();
+        view.click("perks:cart:remove").unwrap();
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "1"
+        );
+        view.click("perks:cart:show").unwrap();
+        view.click("perks:cart:clear").unwrap();
+        view.click("perks:cancel").unwrap();
+        view.click("perks:cart:close").unwrap();
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "1"
+        );
+        view.click("perks:cart:show").unwrap();
+        view.click("perks:cart:clear").unwrap();
+        assert_eq!(view.click("perks:confirm").unwrap(), None);
+        let registry = render(skin, view);
+        assert!(
+            registry
+                .get_by_name("PerksProgramShoppingCartFrame")
+                .is_none()
+        );
+        assert_eq!(text(&registry, "PerksProgramViewCartItemCountText"), "0");
+    }
+}
+
+#[test]
+fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_local_debit() {
+    use game_engine_ui_model::trading_post::Action;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.frozen_item_id = None;
+        data.tender = 150;
+        let mut wrap = data.items[0].clone();
+        wrap.id = 5;
+        wrap.name = "Arcanofire Wrap".into();
+        wrap.price = 75;
+        data.items.push(wrap);
+        let mut view = View {
+            visible: true,
+            snapshot: Some(Arc::new(data.clone())),
+            selected: Some(4),
+            ..Default::default()
+        };
+        view.click("perks:cart:add").unwrap();
+        view.click("perks:select:5").unwrap();
+        view.click("perks:cart:add").unwrap();
+        view.click("perks:cart:show").unwrap();
+        assert_eq!(view.click("perks:cart:checkout").unwrap(), None);
+        assert!(
+            view.confirm.is_none(),
+            "whole cart costs175, not just selected75"
+        );
+        data.tender = 500;
+        view.receive(Arc::new(data.clone()));
+        view.click("perks:cart:checkout").unwrap();
+        let dialog = render(skin, view.clone());
+        assert!(dialog.get_by_name("PerksProgramConfirmDialog").is_some());
+        assert!(
+            dialog.get_by_name("PerksProgramConfirmItemFrame").is_none(),
+            "Retail cart confirmation has no single-item frame"
+        );
+        view.click("perks:cancel").unwrap();
+        assert_eq!(
+            text(&render(skin, view.clone()), "PerksProgramCartPriceText"),
+            "175"
+        );
+        view.click("perks:cart:checkout").unwrap();
+        assert_eq!(
+            view.click("perks:confirm").unwrap(),
+            Some(Action::Request(TradingPostRequest::Checkout {
+                vendor_item_ids: vec![4, 5]
+            }))
+        );
+        assert!(view.pending);
+        let pending = render(skin, view.clone());
+        assert!(
+            pending
+                .get_by_name("PerksProgramConfirmSpinnerRing")
+                .is_some(),
+            "Source accept keeps confirmation covered by SpinnerTemplate until reply"
+        );
+        let prompt: String = pending
+            .frames_iter()
+            .filter_map(|frame| match &frame.widget_data {
+                Some(WidgetData::FontString(text))
+                    if frame
+                        .name
+                        .as_deref()
+                        .is_some_and(|name| name.starts_with("PerksProgramConfirm")) =>
+                {
+                    Some(text.text.as_str())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            prompt.contains("175")
+                && prompt.split_whitespace().any(|word| word == "2")
+                && prompt.contains("items?"),
+            "Captured prompt changed after cart clear: {prompt}"
+        );
+        for name in [
+            "PerksProgramConfirmButton",
+            "PerksProgramConfirmCancelButton",
+        ] {
+            let frame = pending.get(pending.get_by_name(name).unwrap()).unwrap();
+            assert!(
+                matches!(&frame.widget_data,Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+            );
+        }
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(
+            view.snapshot
+                .as_ref()
+                .unwrap()
+                .items
+                .iter()
+                .all(|row| !row.purchased)
+        );
+        assert!(!view.cart_visible);
+        assert_eq!(
+            text(
+                &render(skin, view.clone()),
+                "PerksProgramViewCartItemCountText"
+            ),
+            "0"
+        );
+        data.tender = 325;
+        for row in &mut data.items {
+            row.purchased = true;
+            row.collected = true;
+            row.refund_seconds = 600;
+        }
+        view.receive(Arc::new(data));
+        assert!(!view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 325);
+        assert!(view.selected_item().unwrap().purchased);
+    }
+}
+
+#[test]
+fn trading_post_purchase_history_shows_owned_or_refund_time_instead_of_a_purchase_button() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.items[0].purchased = true;
+        data.items[0].collected = true;
+        let view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(data.clone())),
+            ..Default::default()
+        };
+        let owned = render(skin, view);
+        assert_eq!(
+            text(&owned, "PerksProgramHistoryPurchasedText"),
+            "You own this item"
+        );
+        assert!(owned.get_by_name("PerksProgramPurchaseButton").is_none());
+        assert!(
+            owned
+                .get_by_name("PerksProgramHistoryPurchasedIcon")
+                .is_some()
+        );
+        data.items[0].refund_seconds = 600;
+        let view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(data)),
+            ..Default::default()
+        };
+        let refundable = render(skin, view);
+        assert_eq!(
+            text(&refundable, "PerksProgramHistoryRefundPrefix"),
+            "Time remaining to refund this item:"
+        );
+        assert_eq!(text(&refundable, "PerksProgramHistoryRefundTime"), "10m");
+        assert!(refundable.get_by_name("PerksProgramRefundButton").is_some());
+        assert!(
+            refundable
+                .get_by_name("PerksProgramHistoryPurchasedText")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn trading_post_refund_history_expires_without_refresh_or_local_refund() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.items[0].purchased = true;
+        data.items[0].collected = true;
+        data.items[0].refund_seconds = 600;
+        let mut view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(data)),
+            refund_elapsed: 541,
+            ..Default::default()
+        };
+        let almost = render(skin, view.clone());
+        assert_eq!(
+            text(&almost, "PerksProgramHistoryRefundTime"),
+            "0m",
+            "source minimum-minute formatter floors the remaining59s"
+        );
+        assert!(view.can_refund());
+        view.refund_elapsed = 600;
+        let expired = render(skin, view.clone());
+        assert!(!view.can_refund());
+        assert!(expired.get_by_name("PerksProgramRefundButton").is_none());
+        assert_eq!(
+            text(&expired, "PerksProgramHistoryPurchasedText"),
+            "You own this item"
+        );
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+        assert!(view.selected_item().unwrap().purchased && view.selected_item().unwrap().collected);
+    }
+}
+
 #[test]
 fn trading_post_renders_player_faction_gradients_in_both_skins() {
     use ui_toolkit::atlas::{AtlasSource, resolve_region};

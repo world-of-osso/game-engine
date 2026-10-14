@@ -1,11 +1,18 @@
 # Wiki Index
 
+- [Collections source layout](systems/collections-ui.md) — shared PortraitFrame/Filter/context menus, source pet decoration and ToyBox composition; inspected both-skin1920×1080 native controls/models,52 focused regressions and explicit projection boundary.
+
+- [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
 - [Watched reputation status bar](systems/reputation-status-bar.md) — independent authoritative login/progress, Retail container priority and approved relative XP preset; four inspected both-skin full-HD restoration/hover captures.
 
 - [Journeys watch and held-left boundary](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14) — persisted authority/refusal, fractional-left regression and explicit current native delivery blocker.
 
 - [Journeys held arrows and native masks](systems/adventure-guide.md#journeys-held-arrows-and-icon-masks--2026-10-14) — fractional held scrolling, outside-arrow release/stop, both-skin icon alpha and fourteen inspected full-HD captures; snapshot latency separated from presentation proof.
 - [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
+- [Forever Seething70 functional victory](systems/battlegrounds.md#forever-seething70--functional-acceptance-2026-10-14) —15 gathers/1500, normal return ACK/save, frozen persisted row and no-reset native relog; natural departure/full-body framing open; pressure excludes timing acceptance.
+
+- [Seething disconnect diagnosis](systems/battlegrounds.md#seething-disconnect-diagnosis--instrumentation-2026-10-14) — actual native packet timeout reproduced with25.173s server/41.647s native pauses and severe host memory pressure; system/process attribution pending.
+
 - [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins/order replace filename rejection; real7321940 RED→GREEN30, both-skin equipped-player and HUD-portrait pixels; Forever bronze bars retained, old shared-menu golden drift reported.
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
 
@@ -153,7 +160,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 - [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
 - [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab; [v2 companion proof](systems/battle-pets.md#collections-integration-correction--2026-10-10) and [bounded wild PvE](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10), both-skin private win/capture with isolated HUD and [Retail HUD v2](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10).
 
-- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
+- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; mutable bundle snapshots and pre-upload staged hash checks are separate packaging proof; complete closure and deployment remain later phases.
 
 - [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
 
@@ -169,7 +176,7 @@ Engine subsystems and how they work.
 
 - [meeting-stones](systems/meeting-stones.md) — native stone/ritual picking and shared summon popup lifecycle; contract owns current proof and gaps.
 
-- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/authored addon timeline and rendered warning text, clickable compact boss frames, managed tracker/audio/Edit Mode; private both-skin two-encounter proof, native-input data gaps.
+- [boss-encounters](systems/boss-encounters.md) — ordered lifecycle/authored addon timeline and rendered warning text, source timer-bar background/fill/spark, clickable compact boss frames, managed tracker/audio/Edit Mode; private both-skin two-encounter proof, native-input/default timer-color data gaps.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; replicated remote corpse/ghost presentation and Dead status labels; stable viewer-relative taps and both-skin health greying.
 - [forever-data](systems/forever-data.md) — [Readable-section correction](systems/forever-data.md#readable-section-correction-2026-10-09): all seven previously missing Extras are readable; encrypted option/geoset parent ownership remains unknown, no deactivation authorized after corrected audit. [Local NPC source/cape investigation](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08): CDI-membership catalog separation and required cape binding; offline source/asset error table, native batches blocked by local data. [Retained native checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.
@@ -232,7 +239,7 @@ WoW file format specifications as used by the engine.
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
 - [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule, MODF 0x80 MWDS sets and MDDI
-- [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer
+- [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer; [header-order failures and signed geoset gaps](formats/db2-format.md#installed-csv-column-order-and-signed-selections).
 
 ## Design
 
@@ -270,7 +277,7 @@ Architecture decisions and feature designs.
 
 - [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
 - [godot-torch-rendering](investigations/godot-torch-rendering.md) — particledebug torch vs solarity/WebWowViewerCpp: halo quad needed bone billboarding and the flame's M2 point light was never rendered; both added, remaining gaps listed.
-- [world-entry-stalls](investigations/world-entry-stalls.md) — historical synchronous-loading fix and retained integrated run1/run2 failures; readiness predicate GREEN4/4, both nominal settled windows invalid, no retained baseline; catalog waits and character select / Enter World loads moved off the main thread; scene light as global uniforms (settle 488 s → 32 s in Stormwind).
+- [world-entry-stalls](investigations/world-entry-stalls.md) — historical synchronous-loading fix and retained integrated run1/run2 failures; readiness predicate GREEN4/4, both nominal settled windows invalid, no retained baseline; catalog waits and character select / Enter World loads moved off the main thread; scene light as global uniforms (settle 488 s → 32 s in Stormwind); Windows selection uses retained outfit catalogs and opaque loading until real scene drawables attach.
 - [godot-stormwind-fps](investigations/godot-stormwind-fps.md) — Godot Stormwind at 13–20 FPS: per-frame doodad/NPC animation outweighed ~6.4k draws; retail scenery distance, NPC animation LOD and WMO portal culling bring it to ~20–25 FPS and ~4.3–5k draws; drawn-doodad animation remains.
 - [campsite-fog-and-wmo-selection](investigations/campsite-fog-and-wmo-selection.md) — Campsites 7/25 fully fogged by FogEnd-0 LightData read as a linear range; now the reference exponential fog. Cultists' Quay lost its WMO to an origin-distance radius; now selected by extents. Its blue is WMO MFOG fog, not Light/ZoneLight.
 - [native-audio-shutdown-leaks](investigations/native-audio-shutdown-leaks.md) — `741344ca` native audio fixture passes bounded headless playback/state behavior; pure-GDScript timing comparison links shutdown leaks to deferred audio cleanup without proving every native reference owner or supporting a delay.

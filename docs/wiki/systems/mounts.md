@@ -10,6 +10,8 @@ Animation: the rider holds Mount (91). The mount plays the rider's locomotion cl
 
 ## Mount Journal
 
+[Collections source layout](collections-ui.md) owns shared chrome/menu composition and the2026-10-14 both-skin native fidelity proof.
+
 Verified2026-10-12; acceptance and remaining gaps are owned by the [contract](../../specs/mount-journal.md). Native `mount_journal.rs` receives account catalog snapshots, drives the shared Collections shell, and requests detached real creature visuals into the existing character-preview Scene. Drag rotates the independent model; native row right-clicks use the existing frame-click routing. The server owns learning, favourites, summon/random/dismount; the client never invents ownership.
 
 `MountJournalEntry` carries Mount IDs, source spells/text, display/icon IDs, authored visibility flags and journal categories. Ground/flying/aquatic derive from terrain flags and positive swim-speed auras; skyriding from FlightCapability; Ride Along from the existing enter/exit non-control seat join. These are data-derived categories, not a claim that unpublished C_MountJournal classification code was reproduced. Source labels decode color/newline escapes and express money textures as g/s/c; no raw texture tags appear in the native label.

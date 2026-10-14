@@ -360,26 +360,14 @@ pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, St
 
 /// LightSkybox `(SkyboxFileDataID, Flags)` of each LightParams in `params_skybox`.
 fn read_light_skybox_rows(path: &Path) -> Result<HashMap<u32, (u32, u32)>, String> {
-    use game_engine_core::csv_util::{header_index, parse_csv_records};
-    let records = parse_csv_records(&read_text(path)?);
-    let header = records
-        .first()
-        .ok_or_else(|| format!("{} is empty", path.display()))?;
-    let id = header_index(header, "ID", path)?;
-    let fdid = header_index(header, "SkyboxFileDataID", path)?;
-    let flags = header_index(header, "Flags", path)?;
-    let mut rows = HashMap::new();
-    for row in records.iter().skip(1) {
-        let number = |column: usize| -> Result<u32, String> {
-            let value = row
-                .get(column)
-                .ok_or_else(|| format!("{}: missing {}", path.display(), header[column]))?;
-            value.parse().map_err(|error| {
-                format!("{}: {}={value:?}: {error}", path.display(), header[column])
-            })
-        };
-        rows.insert(number(id)?, (number(fdid)?, number(flags)?));
-    }
+    let mut rows: HashMap<u32, (u32, u32)> = HashMap::new();
+    game_engine_core::csv_util::read_db2_rows(path, |row| {
+        rows.insert(
+            row.parse("ID")?,
+            (row.parse("SkyboxFileDataID")?, row.parse("Flags")?),
+        );
+        Ok(())
+    })?;
     Ok(rows)
 }
 
@@ -491,4 +479,19 @@ fn retail_colors(sky: &SkyColorSet<[f32; 3]>) -> RetailLightColors {
 
 fn lerp_rgb(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     std::array::from_fn(|index| lerp(a[index], b[index], t))
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+
+    #[test]
+    fn db2_header_skyboxes_read_installed_export_with_name_column() {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active/LightSkybox.csv");
+        let rows =
+            read_light_skyboxes(&path, &std::collections::HashMap::from([(1, 1), (2, 2)])).unwrap();
+        assert_eq!(rows[&1], (130636, 0));
+        assert_eq!(rows[&2], (130609, 0));
+    }
 }
