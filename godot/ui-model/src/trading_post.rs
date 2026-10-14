@@ -44,6 +44,8 @@ pub struct View {
     pub sort: Sort,
     pub ascending: bool,
     pub pending: bool,
+    /// Monotonic seconds since observing the current authoritative snapshot.
+    pub refund_elapsed: u32,
     pub confirm: Option<String>,
     pub error: String,
 }
@@ -102,6 +104,7 @@ impl View {
         self.error = snapshot.error.clone().unwrap_or_default();
         self.snapshot = Some(snapshot);
         self.pending = false;
+        self.refund_elapsed = 0;
         self.confirm = None;
         self.reselect();
     }
@@ -164,9 +167,14 @@ impl View {
                 && row.price <= snapshot.tender
         })
     }
+    pub fn remaining_refund_seconds(&self) -> u32 {
+        self.selected_item().map_or(0, |row| {
+            row.refund_seconds.saturating_sub(self.refund_elapsed)
+        })
+    }
+
     pub fn can_refund(&self) -> bool {
-        self.selected_item()
-            .is_some_and(|row| !self.pending && row.refund_seconds > 0)
+        !self.pending && self.remaining_refund_seconds() > 0
     }
     pub fn click(&mut self, action: &str) -> Result<Option<Action>, String> {
         if self.confirm.is_some() && !matches!(action, "perks:confirm" | "perks:cancel") {
@@ -773,7 +781,7 @@ fn footer(view: &View) -> Element {
     children.extend(cart_ui::footer_controls(view, purchase_left));
     if let Some(row) = view.selected_item().filter(|_| !view.cart_visible) {
         let x = WIDTH - 46. - 180.;
-        if row.refund_seconds > 0 {
+        if view.remaining_refund_seconds() > 0 {
             children.extend(perks_button(
                 "PerksProgramRefundButton",
                 "Refund",
