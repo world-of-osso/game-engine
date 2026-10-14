@@ -393,7 +393,7 @@ mod tests {
             set_thread_skin(skin);
             for fdid in [135729u32, 2957417, 135411] {
                 let mut registry = FrameRegistry::new(1920., 1080.);
-                Screen::new(|_| ui_toolkit::rsx! {
+                Screen::new(move |_| ui_toolkit::rsx! {
                     texture { name:"PerksProgramIcon4", texture_fdid:fdid, width:32.0, height:32.0 }
                     texture { name:"PerksProgramFrozenIcon", texture_fdid:fdid, width:32.0, height:32.0 }
                 }).sync(&SharedContext::new(), &mut registry);
