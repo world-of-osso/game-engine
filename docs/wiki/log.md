@@ -1,3 +1,7 @@
+## 2026-10-14 — Shared Cleanup controls
+
+[Cleanup source controls](systems/housing.md#cleanup-shared-source-controls--implementation2026-10-14): removed separate three-button chrome; shared mode art/bound labels and source45px Remove Decor row. Two behavioral REDs; scoped housing registry GREEN24. Existing authority/tooltip behavior preserved; native chrome gate pending.
+
 ## 2026-10-14 — Installed-source Expert native matrix
 
 [Bound icon proof](systems/housing.md#bound-icon-control-text--implementation2026-10-14): both skins pass paid1693/2330 transforms, cancel/commit/relog/conservation, readonly visitors and native assigned/unbound icon keys on70391. Repaired fixture waits for revealed/hit-testable character controls instead of clicking hidden roster nodes. Actual7508739 bytes match current localCASC; full pixel parity stays separate. Owned processes stopped; PSI/swap receipts retained. Full housing remains open.
