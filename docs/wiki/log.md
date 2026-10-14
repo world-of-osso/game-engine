@@ -1,6 +1,6 @@
 ## 2026-10-13 — Owned pet combat details
 
-[Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal15, dispatch1 and server battle17 focused tests GREEN; native payload captures pending.
+[Combat follow-up](systems/battle-pets.md#owned-combat-details--2026-10-13): persisted health/choices consumed by PvE/PvP; native owner snapshot/request wiring and Retail stats/level-locked ability flyout. Journal16, dispatch1 and server battle17 focused tests GREEN; six inspected both-skin native flyout/ack/reopened frames. Pending loadout gates ability edits; source ADD blend applied through existing postsetup.
 
 ## 2026-10-13 — Adventure Guide independent-gate corrections
 
