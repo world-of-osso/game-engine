@@ -68,11 +68,17 @@ fn snapshot() -> RenownSnapshot {
 }
 
 fn render(view: &View) -> FrameRegistry {
+    render_skin(view, ActiveSkin::Modern)
+}
+
+fn render_skin(view: &View, skin: ActiveSkin) -> FrameRegistry {
+    ui_toolkit::atlas::set_thread_skin(skin);
     let mut context = SharedContext::new();
-    context.insert(ActiveSkin::Modern);
+    context.insert(skin);
     context.insert(view.clone());
     let mut registry = FrameRegistry::new(1280., 720.);
     Screen::new(adventure_guide_screen).sync(&context, &mut registry);
+    game_engine_ui_model::adventure_guide_art::apply_postsetup(view, &mut registry);
     registry
 }
 
@@ -333,6 +339,25 @@ fn selected_journey_reward_tooltip_uses_authored_text_without_invented_claim_sta
         )
         .is_none()
     );
+}
+
+#[test]
+fn unevaluated_unlock_notice_uses_the_source_locked_state_anchor_in_both_skins() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render_skin(&view, skin);
+        assert_eq!(
+            rect(&registry, "JourneyProgressUnlock"),
+            [144.5, 50., 500., 25.]
+        );
+        assert_eq!(
+            text(&registry, "JourneyProgressUnlock"),
+            "Unlock condition is not evaluated by this realm."
+        );
+    }
 }
 
 fn data_view() -> View {
