@@ -172,8 +172,17 @@ impl GuildTabardFixture {
         } else {
             ui_toolkit::atlas::ActiveSkin::Modern
         });
+        self.mount_roster_ui(&data)?;
+        let mut stage = Node3D::new_alloc();
+        stage.set_name("CharacterSelectStage");
+        self.base_mut().add_child(&stage);
+        self.character_stage = Some(stage);
+        self.character_select = Some(CharacterPreview::new(data));
+        Ok(())
+    }
+    fn mount_roster_ui(&mut self, data: &std::path::Path) -> Result<(), String> {
         let entry = registered_roster_entry();
-        let names = CharSelectNames::load(&data)?;
+        let names = CharSelectNames::load(data)?;
         let state = char_select_state_from_roster(std::slice::from_ref(&entry), Some(0), &names)?;
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("CharacterSelectUI");
@@ -185,11 +194,6 @@ impl GuildTabardFixture {
         }
         ui.bind_mut().set_state(state)?;
         self.ui = Some(ui);
-        let mut stage = Node3D::new_alloc();
-        stage.set_name("CharacterSelectStage");
-        self.base_mut().add_child(&stage);
-        self.character_stage = Some(stage);
-        self.character_select = Some(CharacterPreview::new(data));
         Ok(())
     }
     fn update_character_selection(&mut self) -> Result<(), String> {
