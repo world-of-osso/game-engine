@@ -34,7 +34,7 @@ impl NpcAppearanceCatalogs {
     pub fn load(data_root: &Path) -> Result<Self, String> {
         let mut retail_displays = HashSet::new();
         crate::csv_util::read_numeric_rows(
-            &data_root.join("db2/12.1.0.69933/CreatureDisplayInfo.csv"),
+            &data_root.join("db2/active/CreatureDisplayInfo.csv"),
             ["ID"],
             |[id]| {
                 retail_displays.insert(id as u32);

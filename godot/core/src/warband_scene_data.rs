@@ -4,10 +4,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::asset::adt::CHUNK_SIZE;
-use crate::csv_util::{header_index, parse_csv_line as parse_csv_fields};
+use crate::csv_util::{header_index, parse_csv_line as parse_csv_fields, parse_csv_records};
 
 /// Build whose UI atlas and texture kit tables live under `data/db2/`.
-const UI_DB2_DIR: &str = "db2/12.1.0.69933";
+const UI_DB2_DIR: &str = "db2/active";
 
 /// WoW Forever build whose UI atlas tables live under `data/db2/` (Wago DB2CSV exports; see
 /// `scripts/import_forever_atlas.py`).
@@ -69,9 +69,8 @@ pub fn read_authored_catalog(data_root: &Path) -> Result<WarbandSceneCatalog, St
             &data_root.join("WarbandScenePlacement.csv"),
             parse_placement_line,
         )?,
-        placement_options: read_rows(
+        placement_options: read_placement_options(
             &data_root.join("WarbandScenePlacementOption.csv"),
-            parse_placement_option_line,
         )?,
     })
 }
@@ -390,20 +389,41 @@ pub(crate) fn parse_placement_line(line: &str) -> Option<WarbandScenePlacement> 
     })
 }
 
-pub(crate) fn parse_placement_option_line(line: &str) -> Option<WarbandScenePlacementOption> {
-    let fields: Vec<&str> = line.split(',').collect();
-    if fields.len() < 8 {
-        return None;
-    }
-    Some(WarbandScenePlacementOption {
-        placement_id: fields[1].parse().ok()?,
-        layout_key: fields[2].parse().ok()?,
-        position: [
-            fields[3].parse().ok()?,
-            fields[4].parse().ok()?,
-            fields[5].parse().ok()?,
-        ],
-        orientation: fields[6].parse().ok()?,
-        scale: fields[7].parse().ok()?,
-    })
+fn read_placement_options(path: &Path) -> Result<Vec<WarbandScenePlacementOption>, String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| format!("read {}: {error}", path.display()))?;
+    let records = parse_csv_records(&text);
+    let header = records
+        .first()
+        .ok_or_else(|| format!("{} has no header", path.display()))?;
+    records
+        .iter()
+        .skip(1)
+        .map(|fields| {
+            Ok(WarbandScenePlacementOption {
+                placement_id: parse_option_value(header, fields, "WarbandScenePlacementID", path)?,
+                layout_key: parse_option_value(header, fields, "LayoutKey", path)?,
+                position: [
+                    parse_option_value(header, fields, "Position_0", path)?,
+                    parse_option_value(header, fields, "Position_1", path)?,
+                    parse_option_value(header, fields, "Position_2", path)?,
+                ],
+                orientation: parse_option_value(header, fields, "Orientation", path)?,
+                scale: parse_option_value(header, fields, "Scale", path)?,
+            })
+        })
+        .collect()
+}
+
+fn parse_option_value<T: std::str::FromStr>(
+    header: &[String],
+    fields: &[String],
+    name: &str,
+    path: &Path,
+) -> Result<T, String> {
+    let index = header_index(header, name, path)?;
+    fields
+        .get(index)
+        .and_then(|value| value.parse().ok())
+        .ok_or_else(|| format!("{} invalid {name}: {fields:?}", path.display()))
 }

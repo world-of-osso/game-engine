@@ -28,7 +28,7 @@ pub struct VehicleSeat {
 }
 
 pub fn read_vehicle_seat(data_root: &Path, id: u32) -> Result<VehicleSeat, String> {
-    let path = data_root.join("db2/12.1.0.69933/VehicleSeat.csv");
+    let path = data_root.join("db2/active/VehicleSeat.csv");
     let text =
         std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     let mut lines = text.lines();

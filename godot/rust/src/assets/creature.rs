@@ -364,14 +364,14 @@ pub(crate) fn cache_model_files(
     cache_required(
         resolver,
         skin_fdid,
-        &models.join(format!("{model_fdid}00.skin")),
+        &models.join(format!("{skin_fdid}.skin")),
     )?;
     let skeleton = match references.skeleton_fdid {
         Some(skeleton_fdid) => {
             let skel_path = cache_required(
                 resolver,
                 skeleton_fdid,
-                &models.join(format!("{model_fdid}.skel")),
+                &models.join(format!("{skeleton_fdid}.skel")),
             )?;
             Some(
                 fs::read(&skel_path)

@@ -13,7 +13,7 @@ pub(crate) struct RaidInfo {
 }
 impl RaidInfo {
     pub(crate) fn new(data: &std::path::Path) -> Self {
-        let db2 = data.join("db2/12.1.0.69933");
+        let db2 = data.join("db2/active");
         Self {
             catalog: BackgroundLoad::start("raid-info", move || RaidCatalog::load(&db2)),
             ui: None,

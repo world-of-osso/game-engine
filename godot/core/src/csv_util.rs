@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn numeric_rows_reads_local_pet_species_with_multiline_description_fields() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../data/db2/12.1.0.69933/BattlePetSpecies.csv");
+            .join("../../data/db2/active/BattlePetSpecies.csv");
         let mut icons = std::collections::BTreeMap::new();
         let result = read_numeric_rows(&path, ["ID", "IconFileDataID"], |[id, icon]| {
             icons.insert(id, icon);

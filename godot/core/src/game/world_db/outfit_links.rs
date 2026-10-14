@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 
 const OUTFIT_LINKS_SCHEMA_SQL: &str = "DROP TABLE IF EXISTS source_files;
-DROP TABLE IF EXISTS starter_outfits;
 DROP TABLE IF EXISTS item_modified_appearance_map;
 DROP TABLE IF EXISTS item_appearance_map;
 DROP TABLE IF EXISTS display_info;
@@ -18,13 +17,6 @@ CREATE TABLE asset_resource_sources (
     PRIMARY KEY (table_name, resource_id)
 );
 CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
-CREATE TABLE starter_outfits (
-    race_id INTEGER NOT NULL,
-    class_id INTEGER NOT NULL,
-    sex_id INTEGER NOT NULL,
-    item_order INTEGER NOT NULL,
-    item_id INTEGER NOT NULL
-);
 CREATE TABLE item_modified_appearance_map (
     item_id INTEGER PRIMARY KEY,
     appearance_id INTEGER NOT NULL
@@ -130,22 +122,24 @@ fn record_source_files(
 }
 
 fn import_rows(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
-    super::populate_starter_outfits(conn, &csv_paths[0])?;
-    super::populate_item_modified_appearance_map(conn, &csv_paths[1])?;
-    super::populate_item_appearance_map(conn, &csv_paths[2])?;
-    super::populate_display_info(conn, &csv_paths[3])?;
-    super::material_links::populate_material_textures(conn, &csv_paths[4])?;
-    super::material_links::populate_display_materials(conn, &csv_paths[5])?;
-    super::populate_model_to_fdid(conn, &csv_paths[6])?;
+    super::populate_item_modified_appearance_map(conn, &csv_paths[0])?;
+    super::populate_item_appearance_map(conn, &csv_paths[1])?;
+    super::populate_display_info(conn, &csv_paths[2])?;
+    super::material_links::populate_material_textures(conn, &csv_paths[3])?;
+    super::material_links::populate_display_materials(conn, &csv_paths[4])?;
+    super::populate_model_to_fdid(conn, &csv_paths[5])?;
     record_resource_products(conn, crate::asset_product::AssetProduct::Retail)?;
-    if csv_paths.len() > 7 {
-        import_forever_gear_rows(conn, &csv_paths[7..])?;
+    if csv_paths.len() > 6 {
+        import_forever_gear_rows(conn, &csv_paths[6..])?;
     }
     Ok(())
 }
 
 fn outfit_source_paths(data_dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut paths = super::required_outfit_csv_paths(data_dir).to_vec();
+    for path in &paths {
+        super::csv_mtime(path)?;
+    }
     let dir = data_dir.join("db2/1.60.1.70205");
     if !dir.join("ItemDisplayInfo.csv").exists() {
         return Ok(paths);
