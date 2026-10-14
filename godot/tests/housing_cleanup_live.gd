@@ -92,7 +92,23 @@ func open_cleanup_house() -> bool:
 func enter_cleanup() -> bool:
 	await frames(5)
 	if not await click_exposed_control(housing_control("HouseEditorCleanupModeButton")): return false
-	return await wait_housing(func(): return housing_control("HouseEditorStorageFrame") == null and housing_text("HouseEditorInstructions") == "Left-click decor to return it to storage.", "Cleanup hides storage")
+	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") == null and housing_text("HouseEditorSelectInstructionText") == "Remove Decor", "Cleanup source instructions hide storage"): return false
+	var button: Control = housing_control("HouseEditorCleanupModeButton")
+	var scale: float = button.get_global_rect().size.x / 64.0
+	var bar: Rect2 = housing_control("HouseEditorModeBar").get_global_rect()
+	var row: Rect2 = housing_control("HouseEditorSelectInstruction").get_global_rect()
+	var instructions: Rect2 = housing_control("HouseEditorInstructions").get_global_rect()
+	var customize: BaseButton = housing_control("HouseEditorCustomizeModeButton") as BaseButton
+	if absf(bar.size.x-266.0*scale)>1.0 or absf(bar.get_center().x-root.size.x/2.0)>1.0 or absf(bar.end.y-root.size.y)>1.0:
+		fail("Cleanup source mode bar bounds/anchor drifted")
+		return false
+	if absf(row.size.y-45.0*scale)>0.1 or absf(instructions.end.x-(root.size.x-30.0*scale))>1.0 or housing_control("HouseEditorSelectInstructionControlIcon")==null:
+		fail("Cleanup source instruction row/glyph drifted")
+		return false
+	if customize==null or not customize.disabled or housing_control("HouseEditorBasicSubmodeBar")!=null or housing_control("HouseEditorExpertSubmodeBar")!=null:
+		fail("Cleanup invented an available unsupported mode/submode")
+		return false
+	return true
 
 func highlighted_meshes() -> int:
 	var node: Node3D = placed_node()
