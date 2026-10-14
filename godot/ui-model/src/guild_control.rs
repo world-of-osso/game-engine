@@ -456,7 +456,8 @@ fn bank(session: &GuildRanksSession, shared: &ui_toolkit::screen::SharedContext)
     let editable = session.rename_rank(&rank.name).is_some();
     let mut rows = Vec::new();
     for (index, (name, tab)) in state.tab_names.iter().zip(&rank.tabs).enumerate() {
-        let y = index as f32 * 77.0;
+        // BankTabPermissionTemplate height74 + Lua BANK_TAB_OFFSET4.
+        let y = index as f32 * 78.0;
         let mut contents = panel(&format!("GuildTab{index}Bg"), (0.0, 0.0, 254.0, 74.0));
         contents.extend(label(
             format!("GuildTabName{index}"),
@@ -505,7 +506,7 @@ fn bank(session: &GuildRanksSession, shared: &ui_toolkit::screen::SharedContext)
     use crate::minimal_scroll_bar::{
         MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
     };
-    let content_height = (state.tab_names.len() as f32 * 77.0 - 4.0).max(294.0);
+    let content_height = (state.tab_names.len() as f32 * 78.0 - 4.0).max(294.0);
     let geometry = pixel_geometry(294.0, content_height, 289.0);
     let offset = geometry.clamp(shared.scroll_first_row("GuildControlBankScrollBox"));
     let config = scroll_list_attr(&geometry);
