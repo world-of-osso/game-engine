@@ -317,6 +317,14 @@ fn trading_post_cart_checkout_confirms_total_then_waits_for_authority_without_lo
             }))
         );
         assert!(view.pending);
+        let pending = render(skin, view.clone());
+        assert!(
+            pending
+                .get_by_name("PerksProgramConfirmSpinnerRing")
+                .is_some(),
+            "Source accept keeps confirmation covered by SpinnerTemplate until reply"
+        );
+        assert!(text(&pending, "PerksProgramConfirmTextBefore").contains("175"));
         assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
         assert!(
             view.snapshot

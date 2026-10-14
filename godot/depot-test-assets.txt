@@ -6,6 +6,8 @@ textures/7367529.blp
 # Trading Post cart's56px square mask and UIButton atlas (70391 local-CASC receipt).
 textures/6715404.blp
 textures/5933889.blp
+# Source GameDialog SpinnerTemplate Ring/Sparks.
+textures/5413429.blp
 # Trading Post authored icon mask, HoldPanel vertical edges, and source button atlas.
 textures/4626072.blp
 textures/4331660.blp
