@@ -363,17 +363,14 @@ fn parse_light_skyboxes(
     path: &Path,
     params_skybox: &HashMap<u32, u32>,
 ) -> Result<HashMap<u32, (u32, u32)>, String> {
-    let text = read_text(path)?;
-    let mut lines = text.lines();
-    if lines.next() != Some("ID,Flags,SkyboxFileDataID,CelestialSkyboxFileDataID") {
-        return Err(format!("{} has an unexpected header", path.display()));
-    }
-    let mut rows = HashMap::new();
-    for line in lines.filter(|line| !line.is_empty()) {
-        let values: Result<Vec<u32>, _> = line.split(',').map(str::parse).collect();
-        let values = values.map_err(|error| format!("{}: {line:?}: {error}", path.display()))?;
-        rows.insert(values[0], (values[2], values[1]));
-    }
+    let mut rows: HashMap<u32, (u32, u32)> = HashMap::new();
+    game_engine_core::csv_util::read_db2_rows(path, |row| {
+        rows.insert(
+            row.parse("ID")?,
+            (row.parse("SkyboxFileDataID")?, row.parse("Flags")?),
+        );
+        Ok(())
+    })?;
     params_skybox
         .iter()
         .map(|(&params, skybox)| {
@@ -477,4 +474,19 @@ fn retail_colors(sky: &SkyColorSet<[f32; 3]>) -> RetailLightColors {
 
 fn lerp_rgb(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     std::array::from_fn(|index| lerp(a[index], b[index], t))
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+
+    #[test]
+    fn db2_header_skyboxes_read_installed_export_with_name_column() {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active/LightSkybox.csv");
+        let rows = parse_light_skyboxes(&path, &std::collections::HashMap::from([(1, 1), (2, 2)]))
+            .unwrap();
+        assert_eq!(rows[&1], (130636, 0));
+        assert_eq!(rows[&2], (130609, 0));
+    }
 }
