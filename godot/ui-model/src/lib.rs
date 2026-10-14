@@ -1,5 +1,7 @@
 //! Registry-authoritative login UI model. Rendering and authentication belong to the host.
 
+pub mod reputation_status_bar;
+
 pub mod ui {
     pub use ui_toolkit::{anchor, strata};
 
