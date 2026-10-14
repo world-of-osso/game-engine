@@ -186,6 +186,8 @@ impl RegistryUi {
             "difficulty",
             "raid",
             "scoreboard",
+            "arena-quick",
+            "arena-rated",
             "talent-menu",
             "talent-dialog",
             "talent-choice",
@@ -207,6 +209,21 @@ impl RegistryUi {
             }
             if page == "scoreboard" {
                 return self.show_pvp(scoreboard_view());
+            }
+            if page.starts_with("arena-") {
+                let mut view = scoreboard_view();
+                view.visible = true;
+                view.scoreboard = false;
+                view.snapshot
+                    .as_mut()
+                    .expect("Offline PvP snapshot")
+                    .battleground = None;
+                view.category = if page == "arena-rated" {
+                    game_engine_ui_model::battleground::PvpCategory::Rated
+                } else {
+                    game_engine_ui_model::battleground::PvpCategory::QuickMatch
+                };
+                return self.show_pvp(view);
             }
             if page.starts_with("talent-") {
                 let data = game_engine_ui_model::paths::resolve_data_path("");
