@@ -371,6 +371,14 @@ pub fn navigation(view: &View) -> Element {
     let encounter = view.encounter.and_then(|id| view.catalog.encounter(id));
     let instance_action = instance.map(|i| format!("journal:instance:{}", i.id));
     let encounter_action = encounter.map(|e| format!("journal:encounter:{}", e.id));
+    let journey = view.renown.as_ref().and_then(|snapshot| {
+        (view.tab == Tab::Journeys)
+            .then_some(snapshot)?
+            .factions
+            .iter()
+            .find(|faction| Some(faction.id) == view.journeys.selected)
+    });
+    let journey_action = journey.map(|faction| format!("journal:journey:{}", faction.id));
     let mut buttons = vec![NavButton {
         name: "EncounterJournalBack",
         text: crate::auction_mail::text("HOME"),
@@ -391,6 +399,14 @@ pub fn navigation(view: &View) -> Element {
             text: &encounter.name,
             action: encounter_action.as_deref().unwrap(),
             text_width: navigation_text_width(&encounter.name),
+        });
+    }
+    if let Some(journey) = journey {
+        buttons.push(NavButton {
+            name: "JourneyProgressNav",
+            text: &journey.name,
+            action: journey_action.as_deref().unwrap(),
+            text_width: navigation_text_width(&journey.name),
         });
     }
     nav_bar(NavBar {

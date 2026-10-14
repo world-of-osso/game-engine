@@ -446,6 +446,9 @@ impl View {
         match key {
             "close" => self.visible = false,
             "back" => {
+                if self.tab == Tab::Journeys {
+                    self.journeys.selected = None;
+                }
                 self.instance = None;
                 self.encounter = None;
                 self.search.clear();

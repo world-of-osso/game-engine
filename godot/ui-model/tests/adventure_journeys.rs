@@ -268,6 +268,24 @@ fn renown_track_selects_levels_and_disables_boundary_arrows() {
     assert_eq!(view.journeys.level, 25);
 }
 
+#[test]
+fn journeys_home_breadcrumb_returns_from_progress_to_the_list() {
+    let mut view = data_view();
+    view.renown = Some(Arc::new(snapshot()));
+    view.apply("journal:tab:journeys").unwrap();
+    view.apply("journal:journey-expansion:9").unwrap();
+    view.apply("journal:journey:12").unwrap();
+    let registry = render(&view);
+    assert_eq!(text(&registry, "JourneyProgressNavText"), "Maruuk Centaur");
+    let home = registry
+        .get(registry.get_by_name("EncounterJournalBack").unwrap())
+        .unwrap();
+    assert_eq!(home.onclick.as_deref(), Some("journal:back"));
+    view.apply(home.onclick.as_deref().unwrap()).unwrap();
+    assert!(view.journeys.selected.is_none());
+    assert!(render(&view).get_by_name("JourneyCard12").is_some());
+}
+
 fn data_view() -> View {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
