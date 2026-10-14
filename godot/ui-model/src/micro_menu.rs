@@ -139,7 +139,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         art: Some("Achievements"),
         unavailable: Some(Unavailable::MinLevel(10)),
     },
-    // `ToggleQuestLog`: the native QuestLogFrame.
+    // `ToggleQuestLog`: WorldMapFrame's Retail quest dock.
     MicroButton {
         name: "QuestLogMicroButton",
         title: "Quest Log",
@@ -175,7 +175,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
     MicroButton {
         name: "CollectionsMicroButton",
         title: "Warband Collections",
-        binding: None,
+        binding: Some(InputAction::ToggleCollections),
         art: Some("Collections"),
         unavailable: None,
     },

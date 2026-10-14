@@ -228,6 +228,46 @@ mod tests {
     }
 
     #[test]
+    fn stable_specialization_uses_retail_dropdown_and_radio_menu_in_both_skins() {
+        use crate::pet_stable_component::{StableFrameView, pet_stable_screen};
+        use ui_toolkit::{
+            atlas::{ActiveSkin, set_thread_skin},
+            registry::FrameRegistry,
+            screen::{Screen, SharedContext},
+        };
+        crate::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut session = StableSession::default();
+            session.open(42);
+            session.receive(contents());
+            session.spec_picker = true;
+            let mut shared = SharedContext::new();
+            shared.insert(StableFrameView::from_session(
+                &session,
+                [1920.0, 1080.0],
+                false,
+            ));
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(pet_stable_screen).sync(&shared, &mut registry);
+            let dropdown = registry
+                .get(registry.get_by_name("StableSpecButton").unwrap())
+                .unwrap();
+            assert_eq!(dropdown.width.value(), 135.0);
+            assert_eq!(dropdown.onclick.as_deref(), Some("stable_spec_picker"));
+            let choice = registry
+                .get(registry.get_by_name("StableSpec74").unwrap())
+                .unwrap();
+            assert_eq!(choice.height.value(), 20.0);
+            assert_eq!(choice.onclick.as_deref(), Some("stable_spec:74"));
+            assert!(registry.get_by_name("StableSpec74Box").is_some());
+        }
+    }
+
+    #[test]
     fn stable_toggle_targets_first_non_secondary_stabled_slot_and_waits_for_server() {
         let mut session = StableSession::default();
         assert_eq!(session.open(42).operation, PetStableOperation::List);

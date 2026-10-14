@@ -70,6 +70,27 @@ impl RegistryUi {
     }
 
     #[func]
+    fn show_buttonfit_settings_pending_preview(&mut self, forever: bool) -> GString {
+        use game_engine_ui_model::{
+            options_menu_component::OptionsCategory, options_menu_data as policy,
+        };
+        let result = party_preview::load_data_root().and_then(|()| {
+            let skin = if forever {
+                ActiveSkin::Forever
+            } else {
+                ActiveSkin::Modern
+            };
+            set_thread_skin(skin);
+            self.set_ui_scale(1.0)?;
+            let mut model = super::hud_edit_preview::extra_bar_options_model(skin);
+            model.category = OptionsCategory::Sound;
+            policy::apply_slider_value(policy::SliderField::MasterVolume, 0.25, &mut model);
+            self.show_game_menu_view(policy::build_view_model(&model))
+        });
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
     fn show_buttonfit_service_preview(&mut self, case: GString, forever: bool) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(if forever {

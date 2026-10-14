@@ -19,14 +19,15 @@ class PlayerBundleTest(unittest.TestCase):
                 (data / name).mkdir(parents=True)
             for name in ('cache/catalog.sqlite', 'cache/casc/root.bin', 'cache/pre-retail-old/a',
                          'textures/12.blp', 'textures/13.blp.missing', 'cache/a.lock',
-                         'auth_token.realm', 'diagnostics/run.log', 'Map.csv', 'local-listfile-cache.sqlite',
+                         'auth_token.realm', 'auth_token.private.json', 'diagnostics/run.log', 'Map.csv', 'local-listfile-cache.sqlite',
+                         'battle-pet-model-scenes.json',
                          'forever-1.60.1.70205/models/a.m2', 'gametables/classes.txt',
                          'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
                          'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2.receipt.json'):
                 path = data / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(name)
-            expected = {'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv',
+            expected = {'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv', 'battle-pet-model-scenes.json',
                         'local-listfile-cache.sqlite', 'forever-1.60.1.70205/models/a.m2',
                         'gametables/classes.txt',
                         'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
