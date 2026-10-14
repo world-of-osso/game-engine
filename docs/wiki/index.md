@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Installed DB2 and live asset-index refresh](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13) — exact-layout current exports/census, guarded lead migration and inspected authenticated both-skin7508739/changed-sheet native proof.
+- [FDID-only equipped component binding](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14) — source joins/order replace filename rejection; real7321940 RED→GREEN30, both-skin equipped-player and HUD-portrait pixels; Forever bronze bars retained, old shared-menu golden drift reported.
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
 
 - [Owned pet combat details](systems/battle-pets.md#owned-combat-details--2026-10-13) — persisted injuries/choices, owner-only native snapshots and acknowledged Retail ability flyout; focused tests and inspected both-skin native flyout/ack/reopen proof.

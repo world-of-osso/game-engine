@@ -9,7 +9,7 @@ fn data_root() -> PathBuf {
 fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material() {
     let data = data_root();
     let catalogs = MapLiquidCatalog::read(&data).unwrap();
-    let retail = LiquidCatalog::read(&data.join("db2/12.1.0.69933")).unwrap();
+    let retail = LiquidCatalog::read(&data.join("db2/active")).unwrap();
     let forever = LiquidCatalog::read(&data.join("db2/1.60.1.70205")).unwrap();
     for (kind, object) in [(1251, 18420), (1279, 18563), (1279, 18615), (1279, 21229)] {
         let actual = catalogs.liquid_material(2991, kind, object).unwrap();
@@ -19,7 +19,7 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
         assert!(!actual.texture_slots[3].is_empty());
         assert!(catalogs.liquid_material(0, kind, object).is_err());
     }
-    let csv = fs::read_to_string(data.join("db2/12.1.0.69933/LiquidType.csv")).unwrap();
+    let csv = fs::read_to_string(data.join("db2/active/LiquidType.csv")).unwrap();
     for row in game_engine_core::csv_util::parse_csv_records(&csv)
         .into_iter()
         .skip(1)
@@ -77,7 +77,7 @@ fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_i
 fn forever_liquids_are_isolated_from_colliding_retail_ids_and_missing_tables() {
     let data = data_root();
     let scratch = std::env::temp_dir().join(format!("forever-liquids-{}", std::process::id()));
-    let retail_dir = scratch.join("db2/12.1.0.69933");
+    let retail_dir = scratch.join("db2/active");
     let forever_dir = scratch.join("db2/1.60.1.70205");
     fs::create_dir_all(&retail_dir).unwrap();
     fs::create_dir_all(&forever_dir).unwrap();
@@ -87,7 +87,7 @@ fn forever_liquids_are_isolated_from_colliding_retail_ids_and_missing_tables() {
         "LiquidObject",
         "LiquidTypeXTexture",
     ] {
-        let source = data.join(format!("db2/12.1.0.69933/{table}.csv"));
+        let source = data.join(format!("db2/active/{table}.csv"));
         fs::copy(&source, retail_dir.join(format!("{table}.csv"))).unwrap();
         fs::copy(&source, forever_dir.join(format!("{table}.csv"))).unwrap();
     }

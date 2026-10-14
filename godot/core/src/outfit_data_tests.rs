@@ -207,7 +207,7 @@ mod baked_display {
     fn model_asset_owned_equipment_columns_keep_model_and_material_products() {
         let root = write_catalog("owned-replacements");
         let forever = root.join("db2/1.60.1.70205");
-        let components = root.join("db2/12.1.0.69933");
+        let components = root.join("db2/active");
         std::fs::create_dir_all(&components).unwrap();
         for name in [
             "ItemModifiedAppearance.csv",
@@ -394,7 +394,6 @@ fn forever_npc_gear_reports_declared_missing_resources() {
     }
     std::fs::create_dir_all(fixture.join("db2/1.60.1.70205")).unwrap();
     for name in [
-        "CharStartOutfit",
         "ItemModifiedAppearance",
         "ItemAppearance",
         "ItemDisplayInfo",
@@ -409,11 +408,7 @@ fn forever_npc_gear_reports_declared_missing_resources() {
         )
         .unwrap();
     }
-    std::os::unix::fs::symlink(
-        source.join("db2/12.1.0.69933"),
-        fixture.join("db2/12.1.0.69933"),
-    )
-    .unwrap();
+    std::os::unix::fs::symlink(source.join("db2/active"), fixture.join("db2/active")).unwrap();
     std::os::unix::fs::symlink(
         source.join("db2/HelmetGeosetData.db2"),
         fixture.join("db2/HelmetGeosetData.db2"),
@@ -477,8 +472,8 @@ fn model_asset_forever_npc_gear_cache_keeps_retail_groups_and_their_sources() {
         std::fs::remove_dir_all(&fixture).unwrap();
     }
     std::fs::create_dir_all(fixture.join("db2")).unwrap();
+    std::os::unix::fs::symlink(source.join("db2/active"), fixture.join("db2/active")).unwrap();
     for name in [
-        "CharStartOutfit",
         "ItemModifiedAppearance",
         "ItemAppearance",
         "ItemDisplayInfo",
@@ -584,10 +579,17 @@ fn selected_human_warrior_items_resolve_original_displays_and_resources() {
     }
     // Recruit's Pants: `leather_a_05yellow_pant_lu_m` 157713 for a man,
     // `..._lu_f` 157712 (listed first in TextureFileData) for a woman.
-    let outfit = catalog.try_resolve_outfit(1, 1, 0).unwrap();
+    let outfit = catalog
+        .try_resolve_display_info(6050, 1, 0)
+        .unwrap()
+        .unwrap();
     assert!(outfit.item_textures.contains(&(5, 157713)));
     assert!(!outfit.item_textures.contains(&(5, 157712)));
-    assert!(outfit.model_fdids.contains(&(16810, 148132)));
+    let sword = catalog
+        .try_resolve_display_info(1542, 1, 0)
+        .unwrap()
+        .unwrap();
+    assert!(sword.model_fdids.contains(&(16810, 148132)));
     let pants = |sex| {
         catalog
             .try_resolve_display_info(6050, 1, sex)
@@ -635,14 +637,19 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
     if fixture.exists() {
         std::fs::remove_dir_all(&fixture).unwrap();
     }
-    std::fs::create_dir_all(&fixture).unwrap();
+    std::fs::create_dir_all(fixture.join("db2")).unwrap();
+    std::os::unix::fs::symlink(
+        source.join("db2/active").canonicalize().unwrap(),
+        fixture.join("db2/active"),
+    )
+    .unwrap();
     for name in [
-        "CharStartOutfit.csv",
         "ItemModifiedAppearance.csv",
         "ItemAppearance.csv",
         "ItemDisplayInfo.csv",
         "TextureFileData.csv",
         "ItemDisplayInfoMaterialRes.csv",
+        "ItemDisplayInfoModelMatRes.csv",
         "ModelFileData.csv",
     ] {
         std::os::unix::fs::symlink(
@@ -651,6 +658,14 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
         )
         .unwrap();
     }
+    std::os::unix::fs::symlink(
+        source
+            .join("db2/HelmetGeosetData.db2")
+            .canonicalize()
+            .unwrap(),
+        fixture.join("db2/HelmetGeosetData.db2"),
+    )
+    .unwrap();
     let barrier = Arc::new(Barrier::new(2));
     std::thread::scope(|scope| {
         let workers = (0..2)
@@ -660,11 +675,8 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
                 scope.spawn(move || {
                     barrier.wait();
                     crate::outfit_catalog_db::import_outfit_links_cache(fixture).unwrap();
-                    let ids = crate::outfit_catalog_db::resolve_cached_outfit_display_ids(
-                        fixture, 1, 1, 0,
-                    )
-                    .unwrap();
-                    assert!(ids.contains(&1542));
+                    let outfit = OutfitData::load(fixture);
+                    assert_eq!(outfit.resolve_item_display_id(25).unwrap(), 1542);
                 })
             })
             .collect::<Vec<_>>();
@@ -672,7 +684,7 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
             worker.join().unwrap();
         }
     });
-    let cache = fixture.join("cache/outfit_links-v4.sqlite");
+    let cache = fixture.join("cache/outfit_links-v5.sqlite");
     let before = std::fs::metadata(&cache).unwrap().modified().unwrap();
     let alias = fixture.join("..").join(fixture.file_name().unwrap());
     crate::outfit_catalog_db::import_outfit_links_cache(&alias).unwrap();
@@ -687,7 +699,7 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
 #[test]
 fn missing_data_root_is_an_error_not_an_empty_outfit() {
     let catalog = OutfitData::load(Path::new("/nonexistent/outfit-data-root"));
-    assert!(catalog.try_resolve_outfit(1, 1, 0).is_err());
+    assert!(catalog.try_resolve_display_info(1542, 1, 0).is_err());
 }
 
 /// Item models resolve from the DB2 tables alone (`ModelFileData` maps a model resource to

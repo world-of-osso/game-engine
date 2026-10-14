@@ -35,7 +35,7 @@ const ROLL_HIGH: u32 = u32::MAX;
 fn catalog() -> &'static SpellVisualCatalog {
     static CATALOG: OnceLock<SpellVisualCatalog> = OnceLock::new();
     CATALOG.get_or_init(|| {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/db2/12.1.0.69933");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/db2/active");
         SpellVisualCatalog::build(&dir).expect("spell visual CSVs load")
     })
 }

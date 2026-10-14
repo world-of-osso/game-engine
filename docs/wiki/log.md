@@ -1,6 +1,9 @@
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
+## 2026-10-14 — Unnamed equipped component attachment
+
+[Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
 ## 2026-10-13 — Mainline Communities roster native proof
 
 [Communities data flow](systems/banks.md#rank-settings-model): source814×426 frame, right-edge icon tabs,20px scrolling roster/column headers and source footer modes replace paging. Production settings-only pointer admission reproduced RED2 and corrected; native right-click fixture now mirrors the alt-click consumer. Pixel inspection reproduced selected-icon erasure; registering source row templates restores ADD glows. Model33/native8/check/fmt PASS; both-skin1920×1080 wheel/steppers/thumb,32-member overflow, sorting, hierarchy menu and invitation reducer PASS. Chat/benefits services and unsupported column sorting remain [named contract gaps](../specs/guild-ranks.md#communities-presentation); no new live-server/deployment claim.
@@ -70,6 +73,10 @@
 ## 2026-10-13 — Game Menu controls and Settings header follow-up
 
 [Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Actual registry-scroll/production-wheel Graphics proof passes in both skins, all13 targeted native scroll cases pass; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
+
+## 2026-10-13 — DB2 and live asset-index refresh implementation
+
+[Asset pipeline](systems/asset-pipeline.md#db2-and-live-asset-index-following--implementation-2026-10-13): active70391 exact-layout exports and eight cache/catalog outputs;302-table census and zero newly missing TDB join IDs. New-build mappings supersede their owning receipt without duplicates; current-only bundle selection and guarded lead migration pass concrete old-index fixtures. Native RED exposed LightSkybox's new Name column; named-field GREEN passes. All-table translation import hit global OOM; serial native regeneration finished78inputs/678resources. Inspected authenticated Modern/Forever captures prove12hotkeys plus3changed-sheet samples; all30 native regions match current CSVs. Canonical publication is lead-only.
 
 ## 2026-10-13 — Basic editor source continuation
 

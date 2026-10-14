@@ -1,14 +1,15 @@
 # Client cache import sources
 
-Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Source selection lives in `godot/core/src/`; [source policy and export limitations](../wiki/systems/cache-import-sources.md) describe the implementation.
+Client cache importers consume the authenticated active Retail DB2 export at `data/db2/active`. The publication alias points to a build-version directory with `receipt.json`; no unqualified/root CSV fallback exists.
 
 ## What it must do
 
-- [x] Creature displays, customization and character textures read Retail inputs only from `data/db2/12.1.0.69933/`; missing inputs fail even when root CSVs or caches remain.
-- [x] Source receipts include build-relative paths. Changing from root inputs invalidates old caches; customization receipts also include race/model dependencies.
-- [x] Forever inputs remain product-local, with existing Retail collision precedence and Skyborne overlay behavior.
-- [x] Runtime customization race/requirement readers, creation backgrounds and owned Retail equipment/resource catalogs use pinned Retail inputs.
-- [ ] Import tools accept an optional data-root argument for isolated regeneration without changing canonical caches.
+- Creature displays, customization, character textures and outfit links read Retail inputs only from the active export. Missing sources fail even when root CSVs or usable caches remain.
+- Source receipts identify the resolved build-relative directory, invalidating cached results after an active alias swap even when CSV sizes and coarse mtimes match.
+- Spell cache keys read the actual source build receipt; visual cache filenames include that build and format version.
+- Forever inputs stay product-local. Existing Retail collision precedence and the Skyborne overlay remain unchanged.
+- Importers accept a diagnostic data root and never require canonical cache mutation to verify a new export.
+- Outfit links v5 uses six active gear tables. Retired `CharStartOutfit` starter-cache APIs and the discarded native warm-up are removed; equipped items retain their owned-item/resource path. Server starting items remain `CharacterLoadout` Purpose9 plus TDB adjustments.
 
 ## CSV parsing contract
 
@@ -16,35 +17,17 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 - [x] Validate rows before intentional scene-flag, product, faction or zero-resource filtering. Keep those authored filters distinct from parse failures.
 - [x] Test current canonical exports and malformed copies of those records without modifying canonical data.
 
-## How it works
+## Proof
 
-- [Cache sources](../wiki/systems/cache-import-sources.md)
+- `godot/core/tests/cache_import_sources.rs`: actual active-alias patch ordering, explicit root-only rejection, concrete item25/display1542/model148132 without legacy starter inputs.
+- `godot/core/src/outfit_data_tests.rs`: owned item/model/material behavior and concurrent first import.
+- `scripts/tests/test_db2_install_export.py`: exact new layout, stable CSV symbols and narrow pallet-array decoding.
+- `godot/network/examples/db2_cache_import.rs`: private regeneration through the same importer implementations used by tools.
+
+## Related
+
+- [Installed-build DB2 contract](db2-follow-install.md)
+- [Cache source implementation](../wiki/systems/cache-import-sources.md)
 - [Local CASC extraction](../casc-extraction.md)
 
-## Implementation inventory
-
-- `godot/core/src/game/creatures/creature_display_cache.rs` — display import and receipts.
-- `godot/core/src/rendering/character/{customization_cache,char_texture_cache}.rs` — Retail and explicitly selected Forever imports.
-- `godot/core/src/npc_appearance_assets.rs` — product-selected runtime catalogs.
-- `godot/core/src/scenes/char_create/background_data.rs` — pinned creation background catalog.
-- `godot/core/src/game/outfit_catalog_db.rs` — temporary outfit source workaround.
-- `godot/core/src/game/equipment/outfit_catalog.rs` — pinned owned Retail gear sources, independent of starter outfits.
-- `scripts/export_db2_csv.py` — exact-layout local DB2 exports.
-- `tools/src/bin/*_cache_import.rs` — optional diagnostic data-root argument.
-
-## Tests asserting this spec
-
-- `godot/core/tests/cache_import_sources.rs`
-- `godot/core/tests/unit/customization_catalog_cache_tests.rs`
-- Existing cache-module and creation-background fixture tests.
-- `scripts/tests/test_cache_import_exports.py`
-- `godot/core/src/outfit_data_tests.rs` — owned-product material/model fixture with divergent root inputs.
-
-## Known gaps (current cycle)
-
-- [ ] Outfit importer keeps its existing seven root inputs: local Retail CASC root lacks `CharStartOutfit` FDID 1237591. Retire workaround when an authentic pinned export becomes available; never relabel the old CSV.
-
-## Out of scope
-
-- Canonical cache replacement and master merge belong to the lead.
-- Root runtime tables without a comparable pinned export are not silently relabeled as `69933`.
+Canonical publication and world.db content changes belong to the lead.
