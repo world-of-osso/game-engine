@@ -48,6 +48,22 @@ pub fn parse_csv_records(text: &str) -> Vec<Vec<String>> {
     records
 }
 
+/// CSV records paired with their starting physical line, including quoted newlines.
+pub fn parse_csv_records_with_lines(text: &str) -> Vec<(usize, Vec<String>)> {
+    let mut line = 1;
+    parse_csv_records(text)
+        .into_iter()
+        .map(|fields| {
+            let start = line;
+            line += 1 + fields
+                .iter()
+                .map(|field| field.matches('\n').count())
+                .sum::<usize>();
+            (start, fields)
+        })
+        .collect()
+}
+
 pub fn parse_csv_line_trimmed(line: &str) -> Vec<String> {
     parse_csv_line(line)
         .into_iter()
@@ -95,6 +111,19 @@ impl Db2Row<'_> {
             )
         })
     }
+}
+
+/// Parse a resolved column without replacing missing or invalid cells with zero.
+pub fn parse_field<T: std::str::FromStr>(fields: &[String], index: usize) -> Result<T, String>
+where
+    T::Err: std::fmt::Display,
+{
+    let value = fields
+        .get(index)
+        .ok_or_else(|| format!("missing column {index}"))?;
+    value
+        .parse()
+        .map_err(|error| format!("column {index}={value:?}: {error}"))
 }
 
 /// Read every exported record, retaining physical line numbers for diagnostics.
@@ -186,26 +215,23 @@ pub fn read_numeric_rows<const N: usize>(
 ) -> Result<(), String> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| format!("read {}: {error}", path.display()))?;
-    let mut records = parse_csv_records(&text).into_iter();
-    let header = records
+    let mut records = parse_csv_records_with_lines(&text).into_iter();
+    let (_, headers) = records
         .next()
-        .ok_or_else(|| format!("{} has no header", path.display()))?;
-    let mut indexes = [0; N];
-    for (index, column) in indexes.iter_mut().zip(columns) {
-        *index = header
-            .iter()
-            .position(|name| *name == column)
-            .ok_or_else(|| format!("{} has no column {column}", path.display()))?;
+        .ok_or_else(|| format!("{}:1: missing header", path.display()))?;
+    for column in columns {
+        header_index(&headers, column, path)?;
     }
-    for fields in records.filter(|row| row != &[String::new()]) {
+    for (line, fields) in records {
+        let record = Db2Row {
+            path,
+            line,
+            headers: &headers,
+            fields: &fields,
+        };
         let mut values = [0; N];
-        for (value, index) in values.iter_mut().zip(indexes) {
-            let field = fields
-                .get(index)
-                .ok_or_else(|| format!("{}: short row {fields:?}", path.display()))?;
-            *value = field
-                .parse()
-                .map_err(|error| format!("{}: bad value {field:?}: {error}", path.display()))?;
+        for (value, column) in values.iter_mut().zip(columns) {
+            *value = record.parse(column)?;
         }
         row(values);
     }

@@ -10,6 +10,12 @@ Client cache importers consume the pinned Retail `12.1.0.69933` CSV export. Sour
 - [x] Runtime customization race/requirement readers, creation backgrounds and owned Retail equipment/resource catalogs use pinned Retail inputs.
 - [ ] Import tools accept an optional data-root argument for isolated regeneration without changing canonical caches.
 
+## CSV parsing contract
+
+- [x] Resolve consumed DB2 columns by header name, not export position. Invalid consumed numeric cells and short records fail with table/path and line diagnostics; never substitute zero or drop malformed records.
+- [x] Validate rows before intentional scene-flag, product, faction or zero-resource filtering. Keep those authored filters distinct from parse failures.
+- [x] Test current canonical exports and malformed copies of those records without modifying canonical data.
+
 ## How it works
 
 - [Cache sources](../wiki/systems/cache-import-sources.md)
