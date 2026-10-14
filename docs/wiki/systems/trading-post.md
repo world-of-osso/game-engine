@@ -38,6 +38,10 @@ Both1920×1080 native layout-proof runs at engine`0a1936eee`/server`fc0e8eb7`/pr
 
 Corrected-mask native proofs: Modern `modern-relative-mask-trace.log` at38ebc745e and Forever `forever-relative-mask-first-session.log` at049b05ea0, server667dba9ee/protocol2666f12. Both pass full16-PNG1920×1080 layout-proof, each as the first client of a fresh owned server lifetime with the same preserved private DB and refund policy3600. This is proof setup, not a delivery fix. The fixture now reacquires named header Controls after yields because asynchronous snapshot projection can replace them; color/pixel assertions remain. Earlier pointer-lifetime and delivery timeouts stay in the ledger. Snapshot/delta production timing remains unresolved.
 
+## Unsolicited Guide delivery — 2026-10-14
+
+Trading Post requests formerly published a full Guide snapshot before their own reply on the same ordered channel. The production Freeze trace released its Guide and vendor reply together 34.24 seconds after enqueue (`delivery-peer3-wire.log`). Server settlement and Guide publication are now separate: Trading Post retains current monthly progress/threshold settlement without sending the unsolicited Guide. The purchase regression observes both reply types every frame and detects the old extra snapshot; purchase, refund, gameplay credit and rollover tests pass after removal. This removes the explicit ordering dependency, not proof of sub-second native delivery. Separate channels and packet-level latency acceptance remain coordinated transport work.
+
 ## Canonical-write boundary
 
 Runtime cache misses write to the source data path (`<checkout>/data/textures`), not `ASSET_RESOLVER_SHARED_DATA_DIR`. With the normal [shared slot links](../../headless-live-run.md) they reach canonical data. This task forbade canonical writes, so its slot replaced the asset directories with per-entry symlink unions that also overlay the unpublished package.
