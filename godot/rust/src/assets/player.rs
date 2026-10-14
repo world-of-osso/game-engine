@@ -548,6 +548,7 @@ mod catalog_lifetime_tests {
     fn prepared_player_reuses_outfit_rows_after_source_csv_leaves() {
         let source =
             std::path::PathBuf::from(std::env::var("WINDOWS_FLOW_PUBLISHED_DATA").unwrap());
+        let retail_dir = Path::new(game_engine_core::player_model_data::RETAIL_DB2_DIR);
         let root =
             std::env::temp_dir().join(format!("player-outfit-lifetime-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
@@ -557,21 +558,18 @@ mod catalog_lifetime_tests {
                 std::os::unix::fs::symlink(entry.path(), root.join(entry.file_name())).unwrap();
             }
         }
-        std::fs::create_dir_all(root.join("db2/12.1.0.69933")).unwrap();
+        std::fs::create_dir_all(root.join(retail_dir)).unwrap();
         for entry in std::fs::read_dir(source.join("db2")).unwrap() {
             let entry = entry.unwrap();
-            if entry.file_name() != "12.1.0.69933" {
+            if entry.file_name() != retail_dir.file_name().unwrap() {
                 std::os::unix::fs::symlink(entry.path(), root.join("db2").join(entry.file_name()))
                     .unwrap();
             }
         }
-        for entry in std::fs::read_dir(source.join("db2/12.1.0.69933")).unwrap() {
+        for entry in std::fs::read_dir(source.join(retail_dir)).unwrap() {
             let entry = entry.unwrap();
-            std::os::unix::fs::symlink(
-                entry.path(),
-                root.join("db2/12.1.0.69933").join(entry.file_name()),
-            )
-            .unwrap();
+            std::os::unix::fs::symlink(entry.path(), root.join(retail_dir).join(entry.file_name()))
+                .unwrap();
         }
         let player = Player {
             name: "CatalogLifetime".into(),
@@ -591,7 +589,7 @@ mod catalog_lifetime_tests {
         };
         let initial = prepare_player_parts(&root, &player, &equipment).unwrap();
         assert!(!initial.equipment.outfit.item_textures.is_empty());
-        std::fs::remove_file(root.join("db2/12.1.0.69933/ItemDisplayInfo.csv")).unwrap();
+        std::fs::remove_file(root.join(retail_dir).join("ItemDisplayInfo.csv")).unwrap();
         let next = prepare_player_parts(&root, &player, &equipment)
             .expect("prepared outfit rows must survive in the player catalog");
         assert_eq!(
