@@ -22,14 +22,19 @@ func check_relog_details() -> bool:
 	if scroll == null:
 		fail("Owned details have no source scrolling viewport")
 		return false
+	var reward_container := client.find_child("QuestMapRewardsFrameContainer", true, false) as Control
+	if reward_container == null or not reward_container.clip_contents:
+		fail("Owned rewards have no source bottom clipping container")
+		return false
+	var money_before := money.get_global_rect()
 	for step in range(24):
 		await click(scroll.get_global_rect().get_center(), MOUSE_BUTTON_WHEEL_DOWN, 1)
-	print("QUEST_RELOG_SCROLL_RECTS viewport=", scroll.get_global_rect(), " money=", money.get_global_rect())
-	if not scroll.get_global_rect().encloses(money.get_global_rect()):
-		fail("Fresh-login rewards are not reachable by native wheel scrolling")
+	print("QUEST_RELOG_SCROLL_RECTS viewport=", scroll.get_global_rect(), " rewards=", reward_container.get_global_rect(), " money=", money.get_global_rect())
+	if not reward_container.get_global_rect().encloses(money.get_global_rect()) or money.get_global_rect() != money_before:
+		fail("Single-row fresh-login reward moved with story or escaped its bottom container")
 		return false
 	await capture("quest-relog-rewards-scrolled.png")
-	print("PASS QUEST_RELOG_DETAILS skin=", OS.get_environment("QF_SKIN"), " source story/rewards; native wheel reaches rewards; no giver interaction; Share disabled")
+	print("PASS QUEST_RELOG_DETAILS skin=", OS.get_environment("QF_SKIN"), " source story/rewards; fixed bottom rewards during native wheel; no giver interaction; Share disabled")
 	return true
 
 func check_live_party_share() -> bool:
