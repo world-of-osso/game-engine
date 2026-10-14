@@ -667,6 +667,24 @@ impl RegistryModel {
             }
             _ => {}
         }
+        if matches!(self.postsetup, ScreenPostsetup::Guild) {
+            game_engine_ui_model::guild_control::refresh_button_art(&mut self.registry);
+        }
+    }
+
+    fn guild_field_action(&self, id: u64) -> Option<String> {
+        let state = self
+            .shared
+            .get::<game_engine_ui_model::guild_ranks::GuildRanksSession>()?;
+        let frame = self.registry.get(id)?;
+        let name = frame.name.as_deref()?;
+        let Some(WidgetData::EditBox(edit)) = &frame.widget_data else {
+            return None;
+        };
+        if state.saved_input_text(name).as_deref() == Some(edit.text.as_str()) {
+            return None;
+        }
+        game_engine_ui_model::guild_control::input_action(name)
     }
 
     fn set_button(
@@ -733,6 +751,14 @@ impl RegistryModel {
                 actions.push_back("talent:loadout_save".into());
             }
             ScreenPostsetup::Guild => {
+                if let Some(action) = self
+                    .registry
+                    .focused_frame
+                    .and_then(|id| self.guild_field_action(id))
+                {
+                    actions.push_back(action);
+                    return;
+                }
                 use game_engine_ui_model::guild_ranks::{GuildProfileField, GuildRanksSession};
                 if self.registry.focused_frame
                     == self
@@ -2910,6 +2936,12 @@ impl RegistryUi {
                 if model.pointer_click_eligible(id) {
                     self.pointer_clicks += 1;
                 }
+            }
+            UiInput::Blur(id) if matches!(model.postsetup, ScreenPostsetup::Guild) => {
+                if let Some(action) = model.guild_field_action(id) {
+                    self.actions.push_back(action);
+                }
+                model.update_input_widgets(UiInput::Blur(id), &mut self.slider_events);
             }
             UiInput::Submit => model.submit(&mut self.actions),
             UiInput::SearchPreviewStep(step) => {

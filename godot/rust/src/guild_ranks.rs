@@ -255,7 +255,11 @@ fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTex
         PROFILE_BOX.to_owned(),
     ]
     .into_iter()
-    .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
+    .chain((0..tabs).map(|index| format!("GuildTabItems{index}")))
+    .chain(
+        (0..session.state().map_or(0, |state| state.ranks.len()))
+            .map(|index| format!("GuildRankOrderName{index}")),
+    );
     names
         .map(|name| {
             let text = ui

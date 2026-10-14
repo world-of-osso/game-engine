@@ -63,6 +63,72 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_control_retail_shell_and_officer_flag_use_source_geometry_both_skins() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut snapshot = state(0);
+        snapshot.ranks[1].rights = GUILD_RIGHT_OFFICER_LISTEN | GUILD_RIGHT_EDIT_MOTD;
+        session.apply(snapshot);
+        session.select_rank(1);
+        session.click("guild:settings", &Default::default());
+        session.click("guild:control-page:1", &Default::default());
+        let reg = mounted(&session);
+        let shell = reg.get(reg.get_by_name("GuildControlUI").unwrap()).unwrap();
+        assert_eq!((shell.width.value(), shell.height.value()), (338.0, 444.0));
+        let officer = reg
+            .get(
+                reg.get_by_name("GuildControlUIRankSettingsFrameOfficerCheckbox")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            (officer.width.value(), officer.height.value()),
+            (20.0, 20.0)
+        );
+        assert_eq!(
+            (officer.position.left, officer.position.top),
+            (Val::Px(11.0), Val::Px(61.0))
+        );
+        assert!(
+            reg.get_by_name("GuildControlUIRankSettingsFrameOfficerCheckboxCheck")
+                .is_some()
+        );
+        let toggle = action(&reg, "GuildControlUIRankSettingsFrameOfficerCheckbox");
+        let request = session.click(&toggle, &Default::default()).unwrap();
+        assert_eq!(
+            request,
+            GuildRankRequest::SetPermissions {
+                rank: 1,
+                rights: GUILD_RIGHT_EDIT_MOTD,
+                gold_per_day: 30_000
+            }
+        );
+        assert_eq!(
+            session.selected().unwrap().rights,
+            GUILD_RIGHT_OFFICER_LISTEN | GUILD_RIGHT_EDIT_MOTD
+        );
+        assert!(session.click(&toggle, &Default::default()).is_none());
+        let mut reply = state(0);
+        reply.ranks[1].rights = GUILD_RIGHT_EDIT_MOTD;
+        session.apply(reply);
+        assert_eq!(
+            session.click(&toggle, &Default::default()),
+            Some(GuildRankRequest::SetPermissions {
+                rank: 1,
+                rights: GUILD_RIGHT_EDIT_MOTD
+                    | GUILD_RIGHT_OFFICER_LISTEN
+                    | GUILD_RIGHT_OFFICER_SPEAK,
+                gold_per_day: 30_000
+            })
+        );
+    }
+}
+
+#[test]
 fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both_skins() {
     use game_engine_ui_model::guild_ranks::GuildCommand;
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
