@@ -31,6 +31,10 @@ func capture() -> void:
 		assert(String(ui.call("guild_communities_preview_receipt")).contains("pointer_enabled=true"), "Production admission permits settings-closed Communities")
 		await wheel(ui, 1)
 		assert(is_equal_approx(control(ui, "GuildMember0").get_global_rect().position.y, 370.0), "Wheel uses two20px pan extents")
+		await click(ui, "CommunitiesMemberListScrollBoxScrollBack")
+		assert(is_equal_approx(control(ui, "GuildMember0").get_global_rect().position.y, 390.0), "Back stepper moves one20px row")
+		await click(ui, "CommunitiesMemberListScrollBoxScrollForward")
+		assert(is_equal_approx(control(ui, "GuildMember0").get_global_rect().position.y, 370.0), "Forward stepper moves one20px row")
 		await drag_to_bottom(ui)
 		var viewport := control(ui, "CommunitiesMemberListScrollBox").get_global_rect()
 		assert(viewport.encloses(control(ui, "GuildMember31").get_global_rect()), "Last of32 members reachable without paging")
@@ -68,7 +72,7 @@ func capture() -> void:
 		assert_rect(ui, "GuildControlUI", Rect2(440, 130, 338, 444))
 		ui.queue_free()
 		await settle()
-	print("PASS: both-skin Communities source rectangles, physical wheel/thumb overflow,32 members, column sorting, right-click hierarchy, tabs and invitation reducer;1920x1080 captures. Chat/benefits services remain unbacked.")
+	print("PASS: both-skin Communities source rectangles, physical wheel/steppers/thumb overflow,32 members, column sorting, right-click hierarchy, tabs and invitation reducer;1920x1080 captures. Chat/benefits services remain unbacked.")
 	quit(0)
 
 # Source CheckedTexture/HighlightTexture are ADD: selected glow must not erase icon pixels.
