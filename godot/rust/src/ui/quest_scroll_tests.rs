@@ -305,7 +305,7 @@ fn questoverflow_rewards_stay_fixed_while_long_story_scrolls_in_both_skins() {
 }
 
 #[test]
-fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
+fn questoverflow_long_log_scrolls_to_its_last_story_line_in_both_skins() {
     use game_engine_ui_model::world_map_frame_component::{
         WorldMapFrameState, world_map_frame_screen,
     };
@@ -338,13 +338,60 @@ fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
         );
         model.registry.scroll_lists.scroll_to(LIST, usize::MAX);
         rebuild(&mut model);
-        let area = rect(&model, LIST).unwrap();
+        let area = rect(&model, "QuestMapRewardsFrameContainer").unwrap();
         let money = rect(&model, "QuestInfoMoneyText").unwrap();
         assert!(
             inside(&money, &area),
             "{skin:?} money {money:?} area {area:?}"
         );
+        let story = rect(&model, "QuestLogDetailsDescription").unwrap();
+        assert!(
+            story.y + story.height <= area.y,
+            "story must clear fixed rewards"
+        );
         assert!(!wheel(&mut model, LIST, false));
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn questoverflow_many_reward_rows_reveal_toward_scroll_end_in_both_skins() {
+    use game_engine_ui_model::world_map_frame_component::{
+        WorldMapFrameState, world_map_frame_screen,
+    };
+    const LIST: &str = "QuestMapDetailsScrollFrame";
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut log = long_log();
+        log.details
+            .as_mut()
+            .unwrap()
+            .rewards
+            .as_mut()
+            .unwrap()
+            .items = (1..=8)
+            .map(|index| RewardItemView {
+                name: format!("Recruit reward {index}"),
+                count: 1,
+                icon_fdid: None,
+            })
+            .collect();
+        let mut model = quest_model(
+            WorldMapFrameState::default().with_quest_panel(log, true),
+            world_map_frame_screen,
+        );
+        let start = rect(&model, "QuestMapRewardsFrameContainer").unwrap();
+        assert_eq!(start.height, 124.0);
+        model.registry.scroll_lists.scroll_to(LIST, usize::MAX);
+        rebuild(&mut model);
+        let end = rect(&model, "QuestMapRewardsFrameContainer").unwrap();
+        assert!(end.height > start.height);
+        assert_eq!(start.y + start.height, end.y + end.height);
+        assert_eq!(
+            end.height,
+            rect(&model, "QuestMapRewardsFrame").unwrap().height
+        );
+        assert!(inside(&rect(&model, "QuestInfoMoneyText").unwrap(), &end));
     }
     set_thread_skin(ActiveSkin::Modern);
 }

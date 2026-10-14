@@ -28,6 +28,7 @@ use crate::ui::strata::FrameStrata;
 pub mod canvas;
 #[path = "world_map_frame_component/chrome.rs"]
 mod chrome;
+mod rewards;
 
 use canvas::canvas;
 use chrome::{border, close_button, maximize_button, nav_bar, title};
@@ -585,10 +586,24 @@ fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) ->
         ui_toolkit::atlas::thread_skin(),
     )
     .expect("quest details background atlas");
-    let mut elements = named_atlas_texture(
+    // AdjustBackgroundTexture scales proportionally, then crops at 440px.
+    let natural_height = background.height * DETAILS_W / background.width;
+    let background_height = natural_height.min(440.0);
+    let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = background.source else {
+        panic!("quest details background FDID");
+    };
+    let uv = format!(
+        "{},{},{},{}",
+        background.left,
+        background.right,
+        background.top,
+        background.top + (background.bottom - background.top) * background_height / natural_height
+    );
+    let mut elements = crate::bank_art::cropped(
         "QuestMapDetailsBackground".into(),
-        "QuestDetailsBackgrounds",
-        (left, top, DETAILS_W, background.height),
+        fdid,
+        &uv,
+        (left, top, DETAILS_W, background_height),
     );
     let top_region = ui_toolkit::atlas::resolve_region(
         "questlog-reward-top-frame",
@@ -620,9 +635,11 @@ fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) ->
             width: DETAILS_TEXT_W - 2.0 * DETAILS_TEXT_INSET,
         },
     );
+    let rewards = rewards::Rewards::new(details.rewards.as_ref());
+    let spacer = rewards::spacer(rewards.height);
     let content = rsx! { r#frame { name: "QuestLogDetailsContent", width: {DETAILS_TEXT_W - 2.0 * DETAILS_TEXT_INSET},
     height: "auto", layout: "flex-column", align: "start",
-    margin_left: DETAILS_TEXT_INSET, {text} } };
+    margin_left: DETAILS_TEXT_INSET, {text} {spacer} } };
     elements.extend(quest_scroll_frame(
         ctx,
         QUEST_LOG_DETAILS_SCROLL,
@@ -637,6 +654,7 @@ fn details_page(details: &QuestLogDetails, panel_x: f32, ctx: &SharedContext) ->
             bar_bottom: 27.0,
         },
     ));
+    elements.extend(rewards.element(left, top, ctx));
     let button_y = top + DETAILS_H + 2.0 - BUTTON_H;
     let track = if details.watched { "Untrack" } else { "Track" };
     let buttons = [

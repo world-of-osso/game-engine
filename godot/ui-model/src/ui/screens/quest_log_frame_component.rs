@@ -11,7 +11,7 @@ use crate::ui::screens::quest_art::{
     DynName, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN, QUEST_TEXT_COLOR, atlas_texture,
     named_atlas_texture,
 };
-use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
+use crate::ui::screens::quest_frame_component::RewardView;
 
 pub const QUEST_LOG_DETAILS_SCROLL: &str = "QuestMapDetailsScrollFrame";
 
@@ -342,21 +342,6 @@ pub(crate) fn quest_details_elements(details: &QuestLogDetails, pane: QuestPane)
             QUEST_TEXT_COLOR,
             GAP,
         ));
-    }
-    if let Some(rewards) = &details.rewards {
-        let column = Column {
-            x: 0.0,
-            width: pane.width,
-        };
-        let mut rewards_height = 0.0;
-        let rewards = rewards_section(rewards, false, column, &mut rewards_height);
-        elements.extend(rsx! {
-            r#frame {
-                width: {pane.width},
-                height: rewards_height,
-                {rewards}
-            }
-        });
     }
     elements
 }

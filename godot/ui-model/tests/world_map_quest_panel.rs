@@ -290,12 +290,10 @@ fn quest_map_geometry_and_selection_art_match_source_in_both_skins() {
         assert_eq!(top(&details, "QuestMapDetailsScrollFrame"), 69.0);
         assert_eq!(
             size(&details, "QuestMapDetailsBackground"),
-            [
-                308.0,
-                resolve_region("QuestDetailsBackgrounds", skin)
-                    .unwrap()
-                    .height
-            ]
+            [308.0, {
+                let atlas = resolve_region("QuestDetailsBackgrounds", skin).unwrap();
+                (atlas.height * 308.0 / atlas.width).min(440.0)
+            }]
         );
         assert_eq!(size(&details, "QuestMapFrameBackButton"), [90.0, 22.0]);
         assert_eq!(

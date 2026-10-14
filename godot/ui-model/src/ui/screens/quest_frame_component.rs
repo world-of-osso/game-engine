@@ -642,6 +642,18 @@ pub fn rewards_section(
         column,
         y,
     );
+    elements.extend(reward_contents(rewards, choosable, column, y));
+    elements
+}
+
+/// Shared item/money content; the map supplies its own source reward header/chrome.
+pub(crate) fn reward_contents(
+    rewards: &RewardView,
+    choosable: bool,
+    column: Column,
+    y: &mut f32,
+) -> Element {
+    let mut elements = Vec::new();
     let mut index = 0;
     if !rewards.choices.is_empty() {
         *y += TITLE_GAP;
