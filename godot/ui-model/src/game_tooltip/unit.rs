@@ -318,7 +318,9 @@ impl FactionNames {
     pub fn load(path: &Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path)
             .map_err(|err| format!("read {}: {err}", path.display()))?;
-        parse_faction_csv(&text).map(Self)
+        parse_faction_csv(&text)
+            .map(Self)
+            .map_err(|error| format!("{}: {error}", path.display()))
     }
 
     pub fn get(&self, faction: u32) -> Option<&str> {
@@ -341,14 +343,17 @@ fn parse_faction_csv(text: &str) -> Result<HashMap<u32, String>, String> {
         column("ReputationIndex")?,
     );
     let mut names = HashMap::new();
-    for line in lines {
+    for (line_number, line) in lines.enumerate() {
         let fields = parse_csv_line(line);
-        let field = |index: usize| fields.get(index).map(String::as_str).unwrap_or("");
-        let has_reputation = field(reputation)
-            .parse::<i32>()
-            .is_ok_and(|index| index >= 0);
-        if let (true, Ok(faction)) = (has_reputation, field(id).parse::<u32>()) {
-            names.insert(faction, field(name).to_owned());
+        let reputation = game_engine_core::csv_util::parse_field::<i32>(&fields, reputation)
+            .map_err(|error| format!("Faction.csv:{}: {error}", line_number + 2))?;
+        let faction = game_engine_core::csv_util::parse_field::<u32>(&fields, id)
+            .map_err(|error| format!("Faction.csv:{}: {error}", line_number + 2))?;
+        let name = fields
+            .get(name)
+            .ok_or_else(|| format!("Faction.csv:{}: missing name", line_number + 2))?;
+        if reputation >= 0 {
+            names.insert(faction, name.clone());
         }
     }
     Ok(names)
@@ -632,5 +637,23 @@ mod tests {
             .expect("Faction.csv");
         assert_eq!(names.get(72), Some("Stormwind"));
         assert_eq!(names.get(7), None, "Creature has no reputation");
+    }
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_faction_names_reject_invalid_canonical_row() {
+        let fixture =
+            crate::db2_test_support::ExportFixture::copy("db2/active/Faction", Some("ID"));
+        let error = FactionNames::load(&fixture.0).unwrap_err();
+        assert!(error.contains("Faction.csv:2:"), "{error}");
+    }
+    #[test]
+    fn db2_header_faction_names_read_canonical_stormwind() {
+        let fixture = crate::db2_test_support::ExportFixture::copy("db2/active/Faction", None);
+        let names = FactionNames::load(&fixture.0).unwrap();
+        assert_eq!(names.get(72), Some("Stormwind"));
     }
 }

@@ -17,6 +17,16 @@
 ## 2026-10-13 — War Banner team condition and native combat removal
 
 [War Banner presentation](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13): source scalar decoder/context/parser,54 condition contexts and both faction models in both skins; four physical AttackSwing/native aura-kit removal proofs,8 inspected effect PNGs. Cloth/physics remain explicitly uncertified.
+## 2026-10-14 — Header-aware DB2 CSV catalogs
+
+[CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.
+## 2026-10-14 — Character-selection reveal
+
+[Selection reveal](investigations/world-entry-stalls.md#windows-character-select-reveal--2026-10-14): fresh outfit imports dominated preparation; retain/prewarm owned catalogs and cover asynchronous camp/model construction with loading UI. Published-base process-frame RED→GREEN and inspected1920×1080 Windows camp/world accepted. Covered selection Windows1.706s/Linux2.398s, differing build profiles; current-master process proof pending.
+## 2026-10-14 — Mutable player-bundle snapshots
+
+[Publication staging](systems/shipped-assets.md#publication-staging--2026-10-14): independent catalog copies prevent later source SQLite writes from changing staged bytes. Manifest hashes staged files; verifier checks size/SHA256 before upload. Two new regressions RED; packaging suite GREEN8/8. No production publication or full asset-closure claim.
+
 ## 2026-10-14 — Unnamed equipped component attachment
 
 [Character rendering](systems/character-rendering.md#fdid-only-equipped-component-binding--implementation2026-10-14): FDID joins/source model order replace filename rejection. Actual70391 helm7321940 RED→GREEN30; warning-free build/check and scoped fmt pass. Both-skin equipped-player and HUD-portrait originals61/62 inspected after the authorized Forever portrait addition; original bronze bars/percentages retained with no overlap. Scoped Flare13 cases pass; old Modern tree golden fails on unrelated shared-menu drift and is reported, not refreshed. Four missing current textures authenticated/imported privately; no canonical publication or full-body/battleground-layout claim. Corrected reference is wow.export, not WebWowViewerCpp.
@@ -3749,3 +3759,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [[quest-ui#Fresh login and real-party eligibility — 2026-10-14]] records both-skin fresh owned story/55-copper fixed reward and real invite/roster-driven Share eligibility. Landed UDP receive queue integrated, no empty-log retry. Fourteen inspected PNGs; stale private schema refreshed read-only. World-model receipt diagnostics and general latency/recipient acceptance remain outside proof.
 
 - 2026-10-14: [[collections-ui]] records source shared menus/cursor positioning and pet decoration, preserving already-source shell/inset/card/ToyBox layout. Both-skin native controls/models pass;26 inspected1920×1080 PNGs and52 focused regressions. Initial synthetic-cursor failures rejected as product RED evidence; Input ingestion corrected. Default ModelScene FOV remains unsourced.
+
+- 2026-10-14: [[collections-ui#Mount selected/hover compositing follow-up]] corrects shared Mount/Pet highlight ADD→source BLEND. Both-skin native source-region/pixel proof restores blue rim over yellow selection; no opaque white centre reproduced. Mount14/Pet18 pass, expanded command34pass/1 unrelated guild-fixture failure retained; build/check/fmt pass.

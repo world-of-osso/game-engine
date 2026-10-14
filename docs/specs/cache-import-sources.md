@@ -12,6 +12,12 @@ Client cache importers consume the authenticated active Retail DB2 export at `da
 - Outfit links v5 uses six active gear tables. Retired `CharStartOutfit` starter-cache APIs and the discarded native warm-up are removed; equipped items retain their owned-item/resource path. Server starting items remain `CharacterLoadout` Purpose9 plus TDB adjustments.
 - `SpellCastingRequirements` and `AreaGroupMember` exports preserve source region/facing fields and parent-linked membership, count encrypted omissions and reject layout drift before output.
 
+## CSV parsing contract
+
+- [x] Resolve consumed DB2 columns by header name, not export position. Invalid consumed numeric cells and short records fail with table/path and line diagnostics; never substitute zero or drop malformed records.
+- [x] Validate rows before intentional scene-flag, product, faction or zero-resource filtering. Keep those authored filters distinct from parse failures.
+- [x] Test current canonical exports and malformed copies of those records without modifying canonical data.
+
 ## Proof
 
 - `godot/core/tests/cache_import_sources.rs`: actual active-alias patch ordering, explicit root-only rejection, concrete item25/display1542/model148132 without legacy starter inputs.

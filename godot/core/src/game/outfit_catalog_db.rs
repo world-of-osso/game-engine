@@ -140,6 +140,7 @@ fn insert_item_modified_appearance_rows(
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -149,15 +150,12 @@ fn insert_item_modified_appearance_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let item_id = fields
-            .get(item_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let appearance_id = fields
-            .get(appearance_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let item_id = crate::csv_util::parse_field::<u32>(&fields, item_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
+        let appearance_id = crate::csv_util::parse_field::<u32>(&fields, appearance_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if item_id == 0 || appearance_id == 0 {
             continue;
         }
@@ -195,6 +193,7 @@ fn insert_item_appearance_rows(
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -204,11 +203,10 @@ fn insert_item_appearance_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let appearance_id = fields
-            .get(id_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let appearance_id = crate::csv_util::parse_field::<u32>(&fields, id_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if appearance_id == 0 {
             continue;
         }
@@ -304,6 +302,7 @@ fn insert_display_info_rows(
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -313,8 +312,11 @@ fn insert_display_info_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let Some(row) = parse_display_info_row(&fields, columns) else {
+        let Some(row) = parse_display_info_row(&fields, columns)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?
+        else {
             continue;
         };
         insert
@@ -327,38 +329,28 @@ fn insert_display_info_rows(
 fn parse_display_info_row(
     fields: &[String],
     columns: &DisplayInfoColumns,
-) -> Option<DisplayInfoRow> {
-    let get_u32 = |idx: usize| {
-        fields
-            .get(idx)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0)
-    };
-    let get_i16 = |idx: usize| {
-        fields
-            .get(idx)
-            .and_then(|v| v.parse::<i32>().ok())
-            .unwrap_or(0) as i16
-    };
-    let display_id = get_u32(columns.id);
+) -> Result<Option<DisplayInfoRow>, String> {
+    let get_u32 = |index| crate::csv_util::parse_field::<u32>(fields, index);
+    let get_i16 = |index| crate::csv_util::parse_field::<i16>(fields, index);
+    let display_id = get_u32(columns.id)?;
     if display_id == 0 {
-        return None;
+        return Ok(None);
     }
-    Some((
+    Ok(Some((
         display_id,
-        get_u32(columns.model_res_0),
-        get_u32(columns.model_res_1),
-        get_u32(columns.model_mat_res_0),
-        get_u32(columns.model_mat_res_1),
-        get_i16(columns.geoset_groups[0]),
-        get_i16(columns.geoset_groups[1]),
-        get_i16(columns.geoset_groups[2]),
-        get_i16(columns.geoset_groups[3]),
-        get_i16(columns.geoset_groups[4]),
-        get_i16(columns.geoset_groups[5]),
-        get_u32(columns.helmet_vis_0),
-        get_u32(columns.helmet_vis_1),
-    ))
+        get_u32(columns.model_res_0)?,
+        get_u32(columns.model_res_1)?,
+        get_u32(columns.model_mat_res_0)?,
+        get_u32(columns.model_mat_res_1)?,
+        get_i16(columns.geoset_groups[0])?,
+        get_i16(columns.geoset_groups[1])?,
+        get_i16(columns.geoset_groups[2])?,
+        get_i16(columns.geoset_groups[3])?,
+        get_i16(columns.geoset_groups[4])?,
+        get_i16(columns.geoset_groups[5])?,
+        get_u32(columns.helmet_vis_0)?,
+        get_u32(columns.helmet_vis_1)?,
+    )))
 }
 
 fn populate_model_to_fdid(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -393,6 +385,7 @@ fn insert_model_to_fdid_rows(
     let mut seen = HashSet::new();
     let mut next_order: HashMap<u32, u32> = HashMap::new();
     let mut line = String::new();
+    let mut line_number = 1;
     loop {
         line.clear();
         if reader
@@ -402,15 +395,12 @@ fn insert_model_to_fdid_rows(
         {
             break;
         }
+        line_number += 1;
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let file_data_id = fields
-            .get(file_data_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let model_resource_id = fields
-            .get(model_resource_col)
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let file_data_id = crate::csv_util::parse_field::<u32>(&fields, file_data_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
+        let model_resource_id = crate::csv_util::parse_field::<u32>(&fields, model_resource_col)
+            .map_err(|error| format!("{}:{line_number}: {error}", path.display()))?;
         if file_data_id == 0
             || model_resource_id == 0
             || !seen.insert((model_resource_id, file_data_id))
@@ -471,4 +461,66 @@ pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u
 
 pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
     outfit_cache_load::load_cached_item_appearance(data_dir)
+}
+
+#[cfg(test)]
+mod db2_header_tests {
+    use super::*;
+    #[test]
+    fn db2_header_outfit_rejects_invalid_canonical_row() {
+        let fixture =
+            crate::db2_test_support::ExportFixture::copy("ItemModifiedAppearance", Some("ItemID"));
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE item_modified_appearance_map(item_id INTEGER, appearance_id INTEGER)",
+        )
+        .unwrap();
+        let error = populate_item_modified_appearance_map(&conn, &fixture.0).unwrap_err();
+        assert!(error.contains("ItemModifiedAppearance.csv:2:"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod db2_canonical_tests {
+    use super::*;
+    #[test]
+    fn db2_header_outfits_read_all_installed_tables() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let conn = Connection::open_in_memory().unwrap();
+        outfit_links_cache::init_schema(&conn).unwrap();
+        for (file, table, populate) in [
+            (
+                "ItemModifiedAppearance",
+                "item_modified_appearance_map",
+                populate_item_modified_appearance_map
+                    as fn(&Connection, &Path) -> Result<(), String>,
+            ),
+            (
+                "ItemAppearance",
+                "item_appearance_map",
+                populate_item_appearance_map,
+            ),
+            ("ItemDisplayInfo", "display_info", populate_display_info),
+            ("ModelFileData", "model_to_fdid", populate_model_to_fdid),
+            (
+                "TextureFileData",
+                "material_textures",
+                material_links::populate_material_textures,
+            ),
+            (
+                "ItemDisplayInfoMaterialRes",
+                "display_materials",
+                material_links::populate_display_materials,
+            ),
+        ] {
+            populate(&conn, &source.join(format!("{file}.csv"))).unwrap();
+            let count: usize = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert!(count > 0, "{file} imported no rows");
+        }
+        assert!(query_item_display_id(&conn, 5580).unwrap() > 0);
+    }
 }
