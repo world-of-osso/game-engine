@@ -48,6 +48,21 @@ func prove_materials() -> void:
 		push_error("Higher authored priority must draw farther green over nearer red, got %s" % ordered_pixel)
 		failed = true
 	assert_input(strip.add_strip(2, 128, Color.BLUE, 0.0), true)
+	strip.queue_free()
+	await process_frame
+	strip = ClassDB.instantiate("RibbonMaterialFixture")
+	scene.add_child(strip)
+	assert_input(strip.add_strip(0, 0, Color.WHITE, 0.0))
+	assert_input(strip.sample_real_uv(0))
+	await settle()
+	var uv_start := center_pixel()
+	assert_input(strip.sample_real_uv(633))
+	await settle()
+	var uv_middle := center_pixel()
+	if uv_start.g < 0.9 or uv_start.r > 0.1 or uv_middle.r < 0.9 or uv_middle.g > 0.1:
+		push_error("Real1865728 UV translation must move green to red: %s → %s" % [uv_start, uv_middle])
+		failed = true
+	print("Real ribbon UV raster source1865728 global0=", uv_start, " global633=", uv_middle)
 	print("Ribbon material raster alpha=", alpha_pixel, " priority=", ordered_pixel)
 	if not failed: print("PASS native ribbon source opaque-alpha and priority raster")
 	quit(1 if failed else 0)

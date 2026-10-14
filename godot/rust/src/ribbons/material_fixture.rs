@@ -1,10 +1,46 @@
 //! Debug-only raster fixture through the production ribbon material/mesh path.
-use super::{create_ribbon_material, spawn_ribbon_mesh, upload_geometry};
-use game_engine_core::{m2, m2_ribbons::RibbonVertex};
+use super::{
+    create_ribbon_material, spawn_ribbon_mesh, update_texture_transforms, upload_geometry,
+};
+use game_engine_core::{
+    m2,
+    m2_material::{MaterialTime, MaterialTracks},
+    m2_ribbons::{self, RibbonVertex},
+};
 use godot::{
-    classes::{ArrayMesh, Image, ImageTexture, Node3D, image},
+    classes::{
+        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, ShaderMaterial,
+        image,
+    },
     prelude::*,
 };
+
+fn read_real_uv_model() -> Result<m2::Model, String> {
+    let directory = ProjectSettings::singleton()
+        .globalize_path("res://../data/models")
+        .to_string();
+    let read = |filename: &str| {
+        std::fs::read(std::path::Path::new(&directory).join(filename))
+            .map_err(|error| format!("Read real ribbon UV fixture {filename}: {error}"))
+    };
+    m2::parse_model(&read("1865728.m2")?, &read("186572800.skin")?)
+}
+
+fn create_uv_fixture_texture() -> Result<Gd<ImageTexture>, String> {
+    // Two red pixels above two green pixels; the source track shifts V by -0.5.
+    let pixels = [
+        255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
+    ];
+    let image = Image::create_from_data(
+        2,
+        2,
+        false,
+        image::Format::RGBA8,
+        &PackedByteArray::from(&pixels[..]),
+    )
+    .ok_or("UV fixture image creation failed")?;
+    ImageTexture::create_from_image(&image).ok_or_else(|| "UV fixture texture upload failed".into())
+}
 
 #[derive(GodotClass)]
 #[class(base = Node3D, init)]
@@ -21,9 +57,42 @@ impl RibbonMaterialFixture {
             Err(error) => error.as_str().into(),
         }
     }
+
+    #[func]
+    fn sample_real_uv(&mut self, global_ms: u32) -> GString {
+        match self.update_real_uv(global_ms) {
+            Ok(()) => GString::new(),
+            Err(error) => error.as_str().into(),
+        }
+    }
 }
 
 impl RibbonMaterialFixture {
+    fn update_real_uv(&mut self, global_ms: u32) -> Result<(), String> {
+        let model = read_real_uv_model()?;
+        let index = m2_ribbons::texture_transform_index(&model, &model.ribbon_emitters[0], 0)?;
+        let mesh = self
+            .base()
+            .try_get_node_as::<MeshInstance3D>("M2RibbonStrip")
+            .ok_or("Real-UV fixture strip missing")?;
+        let mut material = mesh
+            .get_material_override()
+            .and_then(|material| material.try_cast::<ShaderMaterial>().ok())
+            .ok_or("Real-UV fixture material missing")?;
+        let texture = create_uv_fixture_texture()?;
+        material.set_shader_parameter("ribbon_texture", &texture.to_variant());
+        let mut materials = [(material, index)];
+        update_texture_transforms(
+            &mut materials,
+            &MaterialTracks::of(&model),
+            MaterialTime {
+                global_ms,
+                ..Default::default()
+            },
+        );
+        Ok(())
+    }
+
     fn spawn_strip(
         &mut self,
         blend: i32,
@@ -58,7 +127,7 @@ impl RibbonMaterialFixture {
         .iter()
         .map(|&[x, y]| RibbonVertex {
             position: [x, y, depth],
-            uv: [0.5, 0.5],
+            uv: [0.75, 0.75],
             color: [color.r, color.g, color.b, color.a],
         })
         .collect();

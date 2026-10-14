@@ -28,8 +28,8 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 - `godot/rust/src/spell_effects/models.rs` and `godot/shaders/m2_ribbon.gdshader` — ordinary kit lifecycle and source material state.
 
 ## Tests asserting this spec
-- `godot/core/tests/m2_ribbons.rs` — authenticated1417024 scalar/reference/track values and concrete fractional rate, minimum lifetime, long-frame movement and changing-tile regressions.
-- `godot/tests/m2_ribbon_material_pixels.gd` — production shader/mesh raster: source blend0 with0.25 alpha, farther high-priority green over nearer low-priority red, explicit out-of-range priority refusal. `RIBBON_MATERIAL_OUTPUT` selects the required output directory; the fixture saves `native-ribbon-alpha.png`, `native-ribbon-priority.png`, and sanitized `material-raster-receipts.json` with pixels, inputs, dimensions and `RIBBON_MATERIAL_REVISION`.
+- `godot/core/tests/m2_ribbons.rs` — authenticated1417024 scalar/reference/track values; real1865728 enabled per-pass UV lookup/global translation; concrete fractional rate, minimum lifetime, long-frame movement and rows2/cols1 current-tile regressions.
+- `godot/tests/m2_ribbon_material_pixels.gd` — production shader/mesh raster: source blend0 with0.25 alpha, farther high-priority green over nearer low-priority red, explicit out-of-range priority refusal. `RIBBON_MATERIAL_OUTPUT` selects the required output directory; the fixture saves `native-ribbon-alpha.png`, `native-ribbon-priority.png`, and sanitized `material-raster-receipts.json` with pixels, inputs, dimensions and `RIBBON_MATERIAL_REVISION`. The same production update path samples real1865728 global-sequence translation at0/633ms and moves a synthetic red/green test texture from green to red; this proves texture-matrix application, not that fixture model's art.
 - `godot/tests/toy_effects26_rainbow_live.gd` — physical movement and rendered trailing rainbow pixels.
 - `godot/tests/toy_effects26_bauble_live.gd` — native aura/kit/recovery observations and natural removal.
 
