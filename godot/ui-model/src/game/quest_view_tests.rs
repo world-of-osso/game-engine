@@ -1,7 +1,7 @@
 use crate::quest_runtime::QuestDialog;
 use shared::protocol::{
-    GossipMenuOption, QuestGiverOfferReward, QuestGiverQuestEntry, QuestLogSnapshot,
-    QuestObjectiveKind, QuestObjectiveSnapshot, QuestRepeatability,
+    GossipMenuOption, QuestGiverOfferReward, QuestGiverQuestDetails, QuestGiverQuestEntry,
+    QuestLogSnapshot, QuestObjectiveKind, QuestObjectiveSnapshot, QuestRepeatability,
 };
 
 use super::*;
@@ -80,7 +80,7 @@ fn relogged_owned_quest_shows_authoritative_story_and_rewards_without_giver_cach
     let state = quest_log_state(
         &runtime,
         &QuestUiState::default(),
-        &QuestDetailsCache::new(),
+        false,
         &theron(),
         &mut |_| "Northshire".into(),
         1,
@@ -92,6 +92,38 @@ fn relogged_owned_quest_shows_authoritative_story_and_rewards_without_giver_cach
         Some("Welcome, Theron.\n\nSpeak with Marshal McBride.")
     );
     assert_eq!(details.rewards.unwrap().money, 2000);
+}
+
+#[test]
+fn quest_share_requires_owned_pushability_and_current_group_membership() {
+    for (pushable, in_group, expected) in [
+        (false, false, false),
+        (false, true, false),
+        (true, false, false),
+        (true, true, true),
+    ] {
+        let mut owned = entry(62, "The Fargodeep Mine", 12);
+        owned.pushable = pushable;
+        let mut runtime = QuestRuntime::default();
+        runtime.apply_snapshot(QuestLogSnapshot {
+            entries: vec![owned],
+            watched_quest_ids: vec![],
+        });
+        let state = quest_log_state(
+            &runtime,
+            &QuestUiState::default(),
+            in_group,
+            &theron(),
+            &mut |_| "Elwynn".into(),
+            1,
+            true,
+        );
+        assert_eq!(
+            state.details.unwrap().can_share,
+            expected,
+            "pushable={pushable} in_group={in_group}"
+        );
+    }
 }
 
 #[test]
@@ -263,25 +295,25 @@ fn reward_page_carries_the_selected_choice_and_resolved_icons() {
 }
 
 #[test]
-fn log_groups_by_sort_id_and_uses_cached_giver_text() {
+fn log_groups_by_sort_id_and_uses_owned_story_text() {
+    let mut owned = entry(783, "A Threat Within", 9);
+    owned.description = threat_within_details().description;
     let mut runtime = QuestRuntime::default();
     runtime.apply_snapshot(QuestLogSnapshot {
         entries: vec![
-            entry(783, "A Threat Within", 9),
+            owned,
             entry(7, "Kobold Camp Cleanup", 9),
             entry(60, "Kobold Candles", 87),
         ],
         watched_quest_ids: vec![7],
     });
-    let mut cache = QuestDetailsCache::new();
-    cache.insert(783, threat_within_details());
     let ui = QuestUiState::default();
     let mut names = |sort_id: i32| match sort_id {
         9 => "Northshire Valley".to_string(),
         other => format!("Area {other}"),
     };
 
-    let state = quest_log_state(&runtime, &ui, &cache, &theron(), &mut names, 5, true);
+    let state = quest_log_state(&runtime, &ui, false, &theron(), &mut names, 5, true);
 
     assert_eq!(state.quest_count, 3);
     assert_eq!(state.max_quests, 35);
@@ -305,10 +337,13 @@ fn log_groups_by_sort_id_and_uses_cached_giver_text() {
         log_selected: Some(60),
         ..QuestUiState::default()
     };
-    let state = quest_log_state(&runtime, &selected, &cache, &theron(), &mut names, 5, true);
+    let state = quest_log_state(&runtime, &selected, false, &theron(), &mut names, 5, true);
     let details = state.details.unwrap();
     assert_eq!(details.quest_id, 60);
-    assert_eq!(details.description, None, "no giver text seen this session");
+    assert_eq!(
+        details.description, None,
+        "empty authoritative story stays empty"
+    );
 }
 
 /// `GetRelativeDifficultyColor` bands for a level 12 player: a scaling quest (-1)
@@ -333,7 +368,7 @@ fn log_rows_carry_level_and_relative_difficulty() {
     let state = quest_log_state(
         &runtime,
         &QuestUiState::default(),
-        &QuestDetailsCache::new(),
+        false,
         &theron(),
         &mut |_| "Elwynn Forest".into(),
         12,

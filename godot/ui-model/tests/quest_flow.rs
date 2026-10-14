@@ -8,7 +8,7 @@ use game_engine_ui_model::quest_runtime::{
     NpcInteractionRequest as R, QuestRuntime, QuestTextTokens, QuestUiState, quest_marker_model,
 };
 use game_engine_ui_model::quest_view::{
-    QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
+    frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
 };
 use game_engine_ui_model::world_map_frame_component::{WorldMapFrameState, world_map_frame_screen};
 use shared::protocol::*;
@@ -103,7 +103,7 @@ fn render_log(runtime: &QuestRuntime, ui: &QuestUiState) -> FrameRegistry {
     let state = quest_log_state(
         runtime,
         ui,
-        &QuestDetailsCache::new(),
+        false,
         &aldric(),
         &mut |_| "Northshire".into(),
         1,
@@ -706,32 +706,22 @@ fn reward_buttons_name_the_choices_then_the_fixed_items_their_tooltips_show() {
 }
 
 #[test]
-fn log_reward_tooltips_come_from_the_rewards_the_giver_showed() {
+fn log_reward_tooltips_come_from_owned_rewards_after_relog() {
     let mut runtime = QuestRuntime::default();
     let ui = QuestUiState::default();
     runtime.apply_snapshot(QuestLogSnapshot {
         entries: vec![worgs(2)],
         watched_quest_ids: vec![BEATING_THEM_BACK],
     });
-    let mut cache = QuestDetailsCache::new();
-    assert!(log_reward_item(&runtime, &ui, &cache, 1).is_none());
-    cache.insert(
-        BEATING_THEM_BACK,
-        QuestGiverQuestDetails {
-            npc: MCBRIDE,
-            quest_id: BEATING_THEM_BACK,
-            title: "Beating Them Back!".into(),
-            description: String::new(),
-            objectives_text: String::new(),
-            level: -1,
-            min_level: 1,
-            suggested_group: 0,
-            objectives: Vec::new(),
-            rewards: buckler_pants_and_hammer(),
-        },
-    );
+    assert!(log_reward_item(&runtime, &ui, 1).is_none());
+    let mut owned = worgs(2);
+    owned.rewards = buckler_pants_and_hammer();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![owned],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
     assert_eq!(
-        log_reward_item(&runtime, &ui, &cache, 2).map(|item| item.name.as_str()),
+        log_reward_item(&runtime, &ui, 2).map(|item| item.name.as_str()),
         Some("Urchin's Pants")
     );
 }

@@ -18,20 +18,27 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
-fn world_map_share_is_disabled_for_an_ineligible_selected_quest_in_both_skins() {
+fn world_map_share_reflects_owned_eligibility_in_both_skins() {
+    use ui_toolkit::widgets::button::ButtonState;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        let mut state = map_state(WorldMapDisplay::default());
-        state.quest_panel.as_mut().unwrap().details = true;
-        let registry = render(state);
-        let button = frame(&registry, "QuestMapFrameShareButton").unwrap();
-        let Some(WidgetData::Button(data)) = &button.widget_data else {
-            panic!("Share button");
-        };
-        assert_eq!(
-            data.state,
-            ui_toolkit::widgets::button::ButtonState::Disabled
-        );
+        for can_share in [false, true] {
+            let mut state = map_state(WorldMapDisplay::default());
+            let panel = state.quest_panel.as_mut().unwrap();
+            panel.details = true;
+            panel.log.details.as_mut().unwrap().can_share = can_share;
+            let registry = render(state);
+            let button = frame(&registry, "QuestMapFrameShareButton").unwrap();
+            let Some(WidgetData::Button(data)) = &button.widget_data else {
+                panic!("Share button");
+            };
+            let expected = if can_share {
+                ButtonState::Normal
+            } else {
+                ButtonState::Disabled
+            };
+            assert_eq!(data.state, expected);
+        }
     }
 }
 
@@ -88,6 +95,7 @@ fn quest_log() -> QuestLogFrameState {
             description: None,
             rewards: None,
             watched: true,
+            can_share: false,
         }),
     }
 }

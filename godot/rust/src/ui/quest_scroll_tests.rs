@@ -268,6 +268,7 @@ fn long_log() -> QuestLogFrameState {
                 ..Default::default()
             }),
             watched: false,
+            can_share: false,
         }),
         ..Default::default()
     }
