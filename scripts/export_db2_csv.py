@@ -1158,11 +1158,15 @@ def read_fields(data, field_count, sections):
     fields = [
         struct.unpack_from("<HH5I", data, start + i * 24) for i in range(field_count)
     ]
-    # Pallet (3, 4) and common (2) fields each index their own block, in field order.
-    palette_offsets, offset = [], 0
+    # Scalar pallets precede array pallets, each in field order. PlayerCondition
+    # 1D743D99 interleaves storage 4 before storage 3 in its field descriptors.
+    offsets = {3: 0, 4: sum(field[2] for field in fields if field[3] == 3)}
+    palette_offsets = []
     for field in fields:
-        palette_offsets.append(offset)
-        offset += field[2] if field[3] in (3, 4) else 0
+        storage = field[3]
+        palette_offsets.append(offsets.get(storage, 0))
+        if storage in offsets:
+            offsets[storage] += field[2]
     return fields, palette_offsets, start + field_count * 24
 
 
@@ -1305,64 +1309,25 @@ def read_string(data, record_offset, field, value):
 
 
 def main():
-    table, db2_path, out_path = sys.argv[1:4]
-    layout, columns = TABLES[table]
-    with open(db2_path, "rb") as handle:
-        data = handle.read()
-    rows, dropped, fields, sections = read_wdc5(
-        data, layout, INLINE_ID_FIELD.get(table, 0)
-    )
-    with open(out_path, "w", newline="") as handle:
-        out = csv.writer(handle)
-        out.writerow([name for name, _ in columns])
-        for row_id in sorted(rows):
-            values, parent, record_offset = rows[row_id]
+    import argparse
+    import db2_dbd
 
-            def column(s):
-                if isinstance(s, tuple) and s[0] in NARROW:
-                    signed, width = NARROW[s[0]]
-                    value = values[s[1]]
-                    if len(s) == 3:
-                        value = (
-                            value[s[2]]
-                            if isinstance(value, tuple)
-                            else value >> (width * s[2])
-                        )
-                    value &= (1 << width) - 1
-                    return (
-                        value - (1 << width)
-                        if signed and value >> (width - 1)
-                        else value
-                    )
-                if isinstance(s, tuple) and s[0] in ("float", "int"):
-                    value = values[s[1]]
-                    bits = (
-                        value[s[2]]
-                        if isinstance(value, tuple)
-                        else (value >> (32 * s[2])) & 0xFFFFFFFF
-                    )
-                    bits &= 0xFFFFFFFF
-                    if s[0] == "int":
-                        return struct.unpack("<i", struct.pack("<I", bits))[0]
-                    return "%.9g" % struct.unpack("<f", struct.pack("<I", bits))[0]
-                if isinstance(s, tuple):
-                    field, value = fields[s[1]], values[s[1]]
-                    if len(s) == 3:
-                        element = s[2]
-                        value = (value >> (32 * element)) & 0xFFFFFFFF
-                        field = (field[0] + 32 * element, *field[1:])
-                    return read_string(data, record_offset, field, value)
-                return (
-                    {"id": row_id, "parent": parent}[s]
-                    if isinstance(s, str)
-                    else values[s]
-                )
-
-            out.writerow([column(s) for _, s in columns])
-    print(
-        f"{table}: {len(rows)} rows, {dropped} encrypted records dropped",
-        file=sys.stderr,
-    )
+    parser = argparse.ArgumentParser(description='Export local WDC5 using exact WoWDBDefs layout')
+    parser.add_argument('table')
+    parser.add_argument('db2_path', type=Path)
+    parser.add_argument('out_path', type=Path)
+    parser.add_argument('--definitions', type=Path, required=True)
+    parser.add_argument('--server-scripts', type=Path)
+    args = parser.parse_args()
+    sparse_reader = None
+    if args.server_scripts:
+        sys.path.insert(0, str(args.server_scripts))
+        import db2_casc
+        sparse_reader = db2_casc
+    result = db2_dbd.export(args.db2_path.read_bytes(),
+                            args.definitions / f'{args.table}.dbd', args.out_path,
+                            sys.modules[__name__], sparse_reader)
+    print(f'{args.table}: {result}', file=sys.stderr)
 
 
 if __name__ == "__main__":
