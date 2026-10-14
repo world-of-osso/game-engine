@@ -68,6 +68,12 @@ pub struct Drag {
     pub grab: [f32; 2],
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LayoutNameOperation {
+    New,
+    Rename,
+}
+
 #[derive(Default)]
 pub struct EditDraft {
     pub active: bool,
@@ -78,6 +84,9 @@ pub struct EditDraft {
     pub panel_position: Option<[f32; 2]>,
     pub panel_grab: Option<[f32; 2]>,
     pub pending_delete: Option<String>,
+    pub layout_menu_open: bool,
+    pub name_dialog: Option<LayoutNameOperation>,
+    pub name_draft: String,
 }
 
 impl EditDraft {
@@ -87,6 +96,9 @@ impl EditDraft {
         self.selected = None;
         self.drag = None;
         self.pending_delete = None;
+        self.layout_menu_open = false;
+        self.name_dialog = None;
+        self.name_draft.clear();
     }
 
     /// Clear transient editor state after the host persists pending changes.

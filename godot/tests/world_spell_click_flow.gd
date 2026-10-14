@@ -184,7 +184,7 @@ func check_action_bar_visibility(client: Node, bar: Node, action: Control, effec
 	if action.is_visible_in_tree() or bar.get_instance_id() != original_id:
 		fail("Committed HUD toggle did not hide cached whole main bar immediately")
 		return false
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")
 	var sent_before: int = client.spells_state().sent.size()
@@ -209,7 +209,7 @@ func check_action_bar_visibility(client: Node, bar: Node, action: Control, effec
 	if not action.is_visible_in_tree() or bar.get_instance_id() != original_id or client.spells_state().bar[0] != SLAM:
 		fail("Restoring HUD toggle did not restore cached main bar and slot")
 		return false
-	await click_option(client, "OptionsDoneButton")
+	await click_option(client, "OptionsCloseButton")
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")
 	if not await assert_click(client, effects, completed, action, "restored action bar"):

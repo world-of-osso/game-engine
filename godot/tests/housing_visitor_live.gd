@@ -26,13 +26,14 @@ func run_test() -> void:
 	if not await wait_housing(func(): return client.housing_state().get("house_id",0) == editor_house and client.housing_state().get("can_edit",true) == false and client.housing_state().get("decor",[]).size() == 1, "read-only other-account layout"): return
 	await click_control(housing_control("HousingDecorateButton"), MOUSE_BUTTON_LEFT)
 	if not await wait_housing(func(): return housing_text("HouseEditorStorageTitle") == "Visitor — read-only" and placed_node() != null, "native read-only inspect scene"): return
+	if not await editor_configure_bindings(false): return
 	var before: Dictionary = client.housing_state()
 	if int(placed_node().get_meta("model_file_data_id")) != 1096761:
 		fail("Visitor did not render the owner's authentic bookcase model")
 		return
 	if not await select_saved_decor(): return
-	await click_control(housing_control("HouseEditorRotateRight"), MOUSE_BUTTON_LEFT)
-	await click_control(housing_control("HouseEditorRemove"), MOUSE_BUTTON_LEFT)
+	await editor_key(KEY_F6)
+	await editor_key(KEY_F7)
 	await click(ground_point(8.0), MOUSE_BUTTON_LEFT)
 	await frames(20)
 	var after: Dictionary = client.housing_state()
@@ -40,6 +41,7 @@ func run_test() -> void:
 		fail("Read-only visitor changed decor or storage: " + str(after))
 		return
 	if not await record_editor("visitor-readonly"): return
+	if not await editor_configure_bindings(true): return
 	if not await connect_housing_account(): return
 	if int(client.account_state().world_map_id) != 2783:
 		fail("Visitor relog lost the saved house map")
