@@ -5,6 +5,8 @@
 - [Native source Toy area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13) — actual both-skin journal rejection, permitted activation and exit removal with retained cooldown.
 
 - [War Banner faction/combat rendering](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13) — replicated team condition, both faction models in both skins, physical source combat removes native back attachments; no cloth certification.
+- [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--implementation-live-gate-open) — required owned story/rewards, player-scaled entries and roster eligibility; source bottom reward clip/small rows have both-skin offline native proof, while intermittent initial delivery keeps fresh-login/party acceptance open.
+
 - [Owned pet combat details](systems/battle-pets.md#owned-combat-details--2026-10-13) — persisted injuries/choices, owner-only native snapshots and acknowledged Retail ability flyout; focused tests and inspected both-skin native flyout/ack/reopen proof.
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture.
