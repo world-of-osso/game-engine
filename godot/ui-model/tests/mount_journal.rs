@@ -67,6 +67,53 @@ fn mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening() {
     }
 }
 
+#[test]
+fn mount_display_follows_retail_inset_allpoints_in_both_skins() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        atlas::{ActiveSkin, set_thread_skin},
+        frame::Dimension,
+        layout_values::Val,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.visible = true;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+        for (name, at, size) in [
+            ("MountJournalRightInset", [284.0, 60.0], [413.0, 520.0]),
+            ("MountJournalMountDisplay", [3.0, 3.0], [407.0, 514.0]),
+            ("MountJournalModelScene", [0.0, 0.0], [407.0, 514.0]),
+            ("MountJournalBackground", [0.0, 0.0], [407.0, 514.0]),
+        ] {
+            let frame = registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap();
+            assert_eq!(frame.width, Dimension::Fixed(size[0]));
+            assert_eq!(frame.height, Dimension::Fixed(size[1]));
+            assert_eq!(frame.position.left, Val::Px(at[0]));
+            assert_eq!(frame.position.top, Val::Px(at[1]));
+        }
+        assert_eq!(
+            registry
+                .get(registry.get_by_name("MountJournalModelScene").unwrap())
+                .unwrap()
+                .parent_id,
+            registry.get_by_name("MountJournalMountDisplay")
+        );
+        assert!(registry.get_by_name("MountJournalShadowTopLeft").is_some());
+    }
+}
+
 fn view() -> MountJournalView {
     let mut view = MountJournalView::default();
     let mut horse = mare();
@@ -210,6 +257,58 @@ fn mount_journal_search_source_type_and_collected_filters_reselect() {
     view.apply_filter("mount:type:1");
     assert_eq!(view.rows().len(), 1);
 }
+#[test]
+fn mount_search_keeps_query_when_filter_rebuilds_and_renders_search_template() {
+    use game_engine_ui_model::mount_journal::mount_journal_screen;
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = view();
+    view.visible = true;
+    view.search = "Brown".into();
+    view.apply_filter("mount:filters");
+    let mut shared = SharedContext::new();
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+    let search = registry
+        .get(registry.get_by_name("MountJournalSearchBox").unwrap())
+        .unwrap();
+    let Some(WidgetData::EditBox(edit)) = &search.widget_data else {
+        panic!("search editbox")
+    };
+    assert_eq!(edit.text, "Brown");
+    assert!(registry.get_by_name("MountJournalSearchLeft").is_some());
+    let clear = registry
+        .get(registry.get_by_name("MountJournalSearchClear").unwrap())
+        .unwrap();
+    assert_eq!(clear.onclick.as_deref(), Some("mount:search-clear"));
+    let title = registry
+        .get(registry.get_by_name("MountJournalFilter3").unwrap())
+        .unwrap();
+    assert_eq!(title.position.top, ui_toolkit::layout_values::Val::Px(78.0));
+}
+
+#[test]
+fn mount_filters_reset_and_source_bulk_controls_reselect_real_rows() {
+    let mut view = view();
+    assert!(view.apply_filter("mount:sources:none"));
+    assert!(view.rows().is_empty());
+    assert_eq!(view.selected, None);
+    assert!(view.apply_filter("mount:sources:all"));
+    assert_eq!(view.rows().len(), 2);
+    assert!(view.apply_filter("mount:unusable"));
+    assert!(view.rows().iter().all(|mount| mount.usable));
+    assert!(view.apply_filter("mount:reset"));
+    assert_eq!(view.rows().len(), 2);
+}
+
 #[test]
 fn mount_journal_hidden_until_collected_and_server_only_rows_do_not_leak_into_list() {
     let mut view = view();

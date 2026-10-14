@@ -42,6 +42,9 @@ pub mod ui {
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod adventure_activities;
 pub mod adventure_guide;
+pub mod adventure_guide_art;
+mod adventure_guide_menus;
+mod adventure_guide_sections;
 pub mod adventure_guide_tooltip;
 pub mod adventure_journeys;
 pub mod assisted_highlight;
@@ -190,6 +193,8 @@ pub mod faction_reaction {
 pub mod inworld_unit_frames_component;
 #[path = "ui/screens/menu_primitives.rs"]
 pub mod menu_primitives;
+#[path = "ui/screens/search_box_template.rs"]
+pub mod search_box_template;
 #[path = "status_unit_resource_data.rs"]
 pub mod status;
 
