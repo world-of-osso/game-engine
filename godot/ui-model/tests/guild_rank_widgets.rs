@@ -141,6 +141,7 @@ fn guild_communities_invite_and_profile_controls_send_authoritative_actions_both
             guild_id: 7,
             guild_name: "Raid Team".into(),
             created_at: None,
+            tabard: None,
             motd: "Meeting tonight".into(),
             info_text: "Raid Tuesdays".into(),
             members: vec![],
@@ -202,6 +203,7 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
             guild_id: 7,
             guild_name: "Raid Team".into(),
             created_at: None,
+            tabard: None,
             motd: "Meeting".into(),
             info_text: "Tuesday raid\nThursday dungeon".into(),
             members: vec![],
@@ -632,6 +634,7 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
         guild_id: 7,
         guild_name: "Raid Team".into(),
         created_at: None,
+        tabard: None,
         motd: String::new(),
         info_text: String::new(),
         members: vec![GuildMemberSnapshot {
