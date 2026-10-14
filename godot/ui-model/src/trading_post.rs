@@ -204,6 +204,8 @@ impl View {
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
             "perks:hide-armor" => self.hide_armor_setting = Some(!self.hide_armor()?),
+            // Rotation is held pointer input, not a server request or a click increment.
+            "perks:rotate-left" | "perks:rotate-right" => {}
             "perks:filter" => {
                 self.dropdown = !self.dropdown;
                 self.submenu = None;
@@ -797,6 +799,7 @@ fn footer(view: &View) -> Element {
     let purchase_left = WIDTH - 46. - 180.;
     children.extend(cart_ui::footer_controls(view, purchase_left));
     children.extend(outfit::footer(view));
+    children.extend(outfit::rotation_controls(view));
     if let Some(row) = view.selected_item().filter(|_| !view.cart_visible) {
         let x = WIDTH - 46. - 180.;
         if view.remaining_refund_seconds() > 0 {

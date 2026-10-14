@@ -80,6 +80,33 @@ impl View {
     }
 }
 
+pub(super) fn rotation_controls(view: &View) -> Element {
+    if !view
+        .preview_product()
+        .is_some_and(|row| row.category_id != 5 && row.grant_unavailable.is_none())
+    {
+        return vec![];
+    }
+    // PerksProgram.xml: BOTTOM(+140,+42), 100x48 in the 100px footer.
+    let left = WIDTH / 2. + 140. - 50.;
+    let mut children = rotation_button("Left", 0., "perks-icon-rotate-left", "perks:rotate-left");
+    children.extend(rotation_button(
+        "Right",
+        52.,
+        "perks-icon-rotate-right",
+        "perks:rotate-right",
+    ));
+    rsx! {frame{name:"PerksProgramRotateButtonContainer",left,top:10.0,width:100.0,height:48.0,pos_type:"absolute",{children}}}
+}
+
+fn rotation_button(direction: &str, left: f32, atlas: &str, action: &str) -> Element {
+    let name = DynName(format!("PerksProgramRotate{direction}Button"));
+    let icon = named_atlas_texture(format!("{}Icon", name.0), atlas, (11., 11.5, 26., 25.));
+    rsx! {button{name,left,top:0.0,width:48.0,height:48.0,pos_type:"absolute",button_default_skin:false,
+    button_atlas_up:"perks-button-up",button_atlas_pressed:"perks-button-down",
+    button_atlas_highlight:"perks-button-up",button_highlight_alpha:0.6,onclick:action,{icon}}}
+}
+
 pub(super) fn footer(view: &View) -> Element {
     if !view
         .preview_product()
