@@ -15,6 +15,7 @@ pub(crate) mod castbar_fx;
 mod castbar_preview;
 mod dungeon_preview;
 mod flight_map_preview;
+mod follower_layout_preview;
 mod forevergaps_preview;
 mod gameplay_panels_preview;
 mod guild_preview;
@@ -179,6 +180,7 @@ enum ScreenPostsetup {
     PetActionBar,
     PortraitParty,
     CastingBar,
+    FollowerDungeons,
 }
 
 impl RegistryModel {
@@ -397,6 +399,12 @@ impl RegistryModel {
                     &mut self.registry,
                 );
                 // The NPC canvas's own backpack portrait.
+                self.icon_masks.apply(&mut self.registry);
+            }
+            ScreenPostsetup::FollowerDungeons => {
+                game_engine_ui_model::follower_dungeons::apply_follower_postsetup(
+                    &mut self.registry,
+                );
                 self.icon_masks.apply(&mut self.registry);
             }
             ScreenPostsetup::CharacterFrame => {
@@ -1854,7 +1862,7 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::follower_dungeons::follower_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::FollowerDungeons,
             registry,
             parent,
         )?;

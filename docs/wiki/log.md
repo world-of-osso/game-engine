@@ -1,3 +1,10 @@
+## 2026-10-13 — Follower type radio fidelity
+
+[Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): LFDFrame.lua CreateRadio/no-header replaces invented Type title/divider/button row. Incoming shared WithRows API retained; heading-aware geometry supports43px radio popup without changing titled consumers. Native76→43 RED/GREEN;12 registry/menu cases, library checks/fmt and replaced inspected1920×1080 both-skin closed/open PNGs pass at46cdad1cf.
+
+## 2026-10-13 — Group Finder Retail layout repair
+
+[Follower Group Finder](systems/follower-dungeons.md#retail-template-layout-repair--2026-10-13): shared PanelTab/WowStyle1 controls, XML blue-menu category art/insets and native512×256 clipped quest paper replace generic tabs/stretched wall. Native geometry and covered-description pixel RED→GREEN; both-skin1920×1080 before/after closed/open PNGs inspected against XML. Targeted UI5/native-mask5, library build/check and fmt pass at5b6f57417. Source UI extracts remain private; full follower gameplay still open.
 ## 2026-10-13 — Game Menu controls and Settings header follow-up
 
 [Menu follow-up](investigations/glue-menu-fidelity.md#menu-follow-up--2026-10-13): existing HUD Edit Mode/Macros/Support routes, shared MinimalTabs and category-set/setting search; RED missing controls/unfiltered categories, model32+2 GREEN and source header geometry. Native eight1920x1080 captures/source anchors/menu-tab-clear clicks inspected in both skins; scoped check/fmt pass, source-sized wheel clipping/clamping proven. Actual registry-scroll/production-wheel Graphics proof passes in both skins, all13 targeted native scroll cases pass; unsupported Shop/Splash/Ratings remain named capability/localization gaps.
@@ -3642,3 +3649,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-12: Authenticated category tooltip names and explicit source owner offsets, zero-offset/clamp RED→GREEN, both-skin actual owned-root/child-All title/offset/leave/conservation proof; four inspected PNGs. Actual owner bounds retained.
 
 - 2026-10-13 — Shared Retail menu/dropdown/NavBar implementation and native fractional-alpha regression recorded in [menu primitives](systems/menu-primitives.md).
+
+- 2026-10-13: [Follower Group Finder](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) restores source combat-role backgrounds and visible leadership-controlled guide; both-skin1920×1080 role capture and14 targeted cases pass. Full dungeon proof remains open.
+
+- 2026-10-13: [Follower Group Finder role policy](systems/follower-dungeons.md#binding-role-template-repair--2026-10-13) corrected to Retail solo-enable/grouped-non-leader disablement; two RED cases,14 GREEN cases/check/fmt and four recaptured after PNGs pass.
