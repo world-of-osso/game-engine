@@ -596,7 +596,10 @@ fn journal_owned_stats_and_locked_ability_flyout_render_in_both_skins() {
         let Some(WidgetData::Button(button)) = &option.widget_data else {
             panic!("ability button");
         };
-        assert!(!button.enabled);
+        assert_eq!(
+            button.state,
+            ui_toolkit::widgets::button::ButtonState::Disabled
+        );
         let requirement = registry
             .get(
                 registry

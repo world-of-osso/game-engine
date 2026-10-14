@@ -148,17 +148,16 @@ fn loadout_ability(
 ) -> Element {
     let details = &view.combat[&pet.id];
     let selected = details.selected_abilities[usize::from(slot - 1)];
-    let choice = details
-        .choices
-        .iter()
-        .find(|choice| choice.id == selected)
-        .or_else(|| {
-            details
-                .choices
-                .iter()
-                .filter(|choice| choice.slot == slot)
-                .min_by_key(|choice| (choice.required_level, choice.id))
-        });
+    // Zero is an explicitly locked slot: show its first authored option and requirement.
+    let choice = if selected == 0 {
+        details
+            .choices
+            .iter()
+            .filter(|choice| choice.slot == slot)
+            .min_by_key(|choice| (choice.required_level, choice.id))
+    } else {
+        details.choices.iter().find(|choice| choice.id == selected)
+    };
     let Some(choice) = choice else { return vec![] };
     let name = format!("{name}Spell{slot}");
     let mut children = cropped(
