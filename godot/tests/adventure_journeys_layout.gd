@@ -222,9 +222,10 @@ func wait_screen(screen: String) -> bool:
 func run() -> void:
 	var server := OS.get_environment("ADVENTURE_GUIDE_SERVER")
 	var account := OS.get_environment("ADVENTURE_GUIDE_ACCOUNT")
+	var expected_count := int(OS.get_environment("ADVENTURE_GUIDE_FACTION_COUNT"))
 	shots = OS.get_environment("ADVENTURE_GUIDE_SHOTS")
-	if server != "127.0.0.1:5771" or not account.begins_with("fb_") or shots.is_empty():
-		stop("Explicit private5771/fb_* account and screenshot directory required")
+	if server != "127.0.0.1:5771" or not account.begins_with("fb_") or shots.is_empty() or expected_count <= 0:
+		stop("Explicit private5771/fb_* account, published catalog count and screenshot directory required")
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
@@ -253,7 +254,7 @@ func run() -> void:
 			received_logged = true
 		await process_frame
 	trace_open(1, "snapshot-wait-complete")
-	if client.adventure_guide_state().renown_faction_count != 29:
+	if client.adventure_guide_state().renown_faction_count != expected_count:
 		stop("Journeys did not become display-ready; received authority and local prerequisites are separate")
 		return
 	if not await click("EncounterJournalJourneysTab") or not await shot("journeys-midnight"):

@@ -27,7 +27,7 @@ class JournalImportTests(unittest.TestCase):
                 self.assertEqual(section[0], 663)
                 self.assertGreater(conn.execute('SELECT COUNT(*) FROM JournalEncounterItem WHERE JournalEncounterID=663').fetchone()[0], 0)
                 self.assertGreater(conn.execute('SELECT COUNT(*) FROM JournalItemXDifficulty d JOIN JournalEncounterItem i ON i.ID=d.JournalEncounterItemID').fetchone()[0], 1000)
-                self.assertEqual(conn.execute('SELECT build FROM source').fetchone()[0], '12.1.0.69933')
+                self.assertEqual(conn.execute('SELECT build FROM source').fetchone()[0], module.source_identity(source / 'db2')['build'])
                 self.assertIsNotNone(conn.execute("SELECT name FROM sqlite_master WHERE name='challenge_dungeon'").fetchone(), 'Owned keystones require authentic challenge-to-Journal map data')
                 self.assertEqual(conn.execute('SELECT map_id,name,time_limit_ms FROM challenge_dungeon WHERE ID=401').fetchone(), (2515, 'The Azure Vault', 2250000))
                 self.assertIsNotNone(conn.execute("SELECT name FROM sqlite_master WHERE name='ItemSetSpell'").fetchone(), 'Retail set tooltip bonus thresholds must come from ItemSetSpell')
