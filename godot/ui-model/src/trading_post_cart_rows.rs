@@ -1,6 +1,61 @@
 //! Source PerksProgramSetDetailsScrollHeader + independently selectable ensemble members.
 use super::*;
 
+/// PerksProgramDisableableScrollItemMixin: preview-disabled rows still receive clicks.
+pub fn apply_cart_art(view: &View, registry: &mut ui_toolkit::registry::FrameRegistry) {
+    if !view.cart_visible {
+        return;
+    }
+    let other = view.cart_selected.get(&0);
+    for row in view.cart_items() {
+        let ensemble = row.category_id == 8 && !row.preview_item_ids.is_empty();
+        let prefix = format!(
+            "PerksProgramCart{}{}",
+            if ensemble { "Set" } else { "Item" },
+            row.id
+        );
+        apply_row_preview_art(registry, &prefix, other.is_none_or(|id| *id == row.item_id));
+        if ensemble {
+            for id in &row.preview_item_ids {
+                let prefix = format!("PerksProgramCartSubItem{}_{}", row.id, id);
+                apply_row_preview_art(registry, &prefix, other.is_none_or(|other| other == id));
+            }
+        }
+    }
+}
+
+fn apply_row_preview_art(
+    registry: &mut ui_toolkit::registry::FrameRegistry,
+    prefix: &str,
+    enabled: bool,
+) {
+    let Some(id) = registry.get_by_name(prefix) else {
+        return;
+    }; // Virtualized rows not on this page.
+    registry.set_alpha(id, if enabled { 1.0 } else { 0.7 });
+    // All source row textures; RemoveFromCartItemButton explicitly stays colored.
+    for suffix in [
+        "Background",
+        "Icon",
+        "IconBorder",
+        "Vignette",
+        "PreviewStatus",
+        "PriceIcon",
+        "Brace",
+    ] {
+        let Some(id) = registry.get_by_name(&format!("{prefix}{suffix}")) else {
+            continue;
+        };
+        if let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            texture.desaturated = !enabled;
+            texture.desaturation = if enabled { 0.0 } else { 1.0 };
+        }
+    }
+}
+
 pub(super) struct Row {
     pub item: TradingPostItem,
     pub name: String,

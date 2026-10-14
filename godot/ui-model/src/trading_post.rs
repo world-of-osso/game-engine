@@ -4,6 +4,7 @@
 mod cart;
 #[path = "trading_post_cart_rows.rs"]
 mod cart_rows;
+pub use cart_rows::apply_cart_art;
 #[path = "trading_post_cart_ui.rs"]
 mod cart_ui;
 #[path = "trading_post_filter.rs"]
