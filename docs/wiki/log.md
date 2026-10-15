@@ -24,6 +24,9 @@
 ## 2026-10-14 — Guild tabard authority and roster appearance
 
 [Guild tabards](systems/guilds.md#guild-tabard-data-flow): additive durable design/payment, live vendor validation, optional profile/replica/roster wire and source torso tiers have focused CPU proofs. Actual character-selection preparation retains registered layers after lead publication of all7274 authenticated body receipts. Arrow hover RED erased the normal icon; source base plus ADD overlay GREEN. Physical native fixture uses production screen/reducer/loader with simulated replies; both-skin pixels and live networking are not inferred from these tests.
+## 2026-10-14 — Close-camera observation
+
+[Read-only framing73/74](systems/character-rendering.md#close-camera-observation--2026-10-14) identifies the actual visible mailbox collider pulling in the Goldshire camera. Post-AV fresh login is dead; standing-body acceptance remains open. Both-skin front/rear originals and loaded portraits are observations only; no camera/material/gameplay change or retrospective old-capture cause claim.
 ## 2026-10-14 — Journeys player-facing progress header
 
 [Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.
