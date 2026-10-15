@@ -121,3 +121,48 @@ fn talent_string_rejects_lua_encoded_invalid_choices_ranks_and_allocations() {
         );
     }
 }
+
+#[test]
+fn talent_string_fully_spent_real_mage_can_be_exported_for_live_proof() {
+    let tree = mage();
+    let mut purchases: Vec<Purchase> = Vec::new();
+    for _ in 0..20 {
+        let before = purchases.clone();
+        for node in &tree.nodes {
+            for entry in &node.entries {
+                let mut candidate = purchases.clone();
+                if let Some(purchase) = candidate
+                    .iter_mut()
+                    .find(|purchase| purchase.node_id == node.id && purchase.entry_id == entry.id)
+                {
+                    purchase.ranks += 1;
+                } else {
+                    candidate.push(Purchase {
+                        node_id: node.id,
+                        entry_id: entry.id,
+                        ranks: 1,
+                    });
+                }
+                if build_config(&tree, CONTEXT, &candidate).is_ok() {
+                    purchases = candidate;
+                }
+            }
+        }
+        if purchases == before {
+            break;
+        }
+    }
+    purchases.sort_by_key(|purchase| (purchase.node_id, purchase.entry_id));
+    let config = build_config(&tree, CONTEXT, &purchases).unwrap();
+    let unspent = game_engine_core::talent_data::rules::unspent(&tree, CONTEXT, &config);
+    // Selected Sunfury currency2987 is spent; inactive hero currencies do not
+    // represent points the current spec/subtree can spend (TalentView.hero_points).
+    assert_eq!(
+        unspent,
+        vec![(2801, 0), (2800, 0), (2986, 10), (2987, 0), (2988, 10)]
+    );
+    let code = encode(&tree, 62, &config).unwrap();
+    assert_eq!(code, include_str!("fixtures/talent_mage_full.txt").trim());
+    println!("FULL_MAGE_RETAIL_CODE={code}");
+    assert_eq!(decode(&tree, CONTEXT, &code).unwrap(), config);
+}

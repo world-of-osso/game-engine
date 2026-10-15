@@ -616,6 +616,30 @@ impl GameClient {
 
     fn talent_gate_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
+        if let Some((owner, ())) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "TalentExportLoadout").then_some(())
+        }) {
+            let view = self.spells.projected_talents()?;
+            if view.editor.can_export(view) {
+                return None;
+            }
+            drop(ui);
+            let tooltip = GameTooltip::new(
+                TooltipPresentation {
+                    title: "You must spend all available talent points to share this loadout"
+                        .into(),
+                    title_color: game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE,
+                    ..TooltipPresentation::hidden()
+                },
+                None,
+            );
+            return Some(HoveredTooltip::text(self.owned_by(
+                hit,
+                owner,
+                OwnerSide::Right,
+                tooltip,
+            )?));
+        }
         let (owner, condition) = named_ancestor(ui.registry()?, hit.frame, |frame| {
             name_of(frame)?
                 .strip_prefix("TalentGate")?
