@@ -307,45 +307,70 @@ fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details()
     }
 }
 
+fn tooltip_lines(data: &AdventureGuideSnapshot, id: u32) -> String {
+    game_engine_ui_model::adventure_activities::activity_tooltip(
+        data,
+        &format!("JournalActivity{id}"),
+    )
+    .unwrap()
+    .content
+    .lines
+    .iter()
+    .map(|line| line.left_text.as_str())
+    .collect::<Vec<_>>()
+    .join("\n")
+}
+
 #[test]
-fn monthly_unavailable_is_not_zero_progress_in_both_skins() {
+fn monthly_unavailable_remains_unknown_in_source_tooltip_and_shift_request() {
+    use game_engine_ui_model::adventure_activities::{activity_tooltip, tracking_request};
+    use shared::protocol::AdventureGuideRequest;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(
-            skin,
-            Some(snapshot()),
-            ActivityFilters {
-                selected: Some(3),
-                ..Default::default()
-            },
-            "",
-        );
+        let data = snapshot();
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
         assert!(
             registry.get_by_name("JournalMonthlyProgress").is_none(),
-            "No threshold maximum received; do not invent one"
+            "Do not invent a missing threshold maximum"
         );
-        let progress = text(&registry, "JournalActivity3Progress");
-        assert!(progress.contains("Unavailable"));
-        assert!(progress.contains("135693"));
-        assert!(!progress.contains("0 /"));
-        assert!(
-            text(&registry, "JournalActivityDetails")
-                .contains("Complete quests that grant experience.")
-        );
-        assert_eq!(text(&registry, "JournalActivity3Points"), "200 points");
-        assert_eq!(action(&registry, "JournalActivity3"), "journal:activity:3");
+        for old in [
+            "JournalActivity3Progress",
+            "JournalActivity3Track",
+            "JournalActivityDetails",
+        ] {
+            assert!(registry.get_by_name(old).is_none());
+        }
+        let tooltip = activity_tooltip(&data, "JournalActivity3").unwrap();
+        assert_eq!(tooltip.content.title, "Complete 30 Quests");
+        assert!(matches!(
+            tooltip.anchor,
+            game_engine_ui_model::game_tooltip::TooltipAnchor::CursorRight
+        ));
+        let lines = tooltip_lines(&data, 3);
+        assert!(lines.contains("Complete quests that grant experience."));
+        assert!(lines.contains("Unavailable") && lines.contains("135693"));
+        assert!(lines.contains("Shift click") && !lines.contains("0/"));
+        let action = action(&registry, "JournalActivity3");
         assert_eq!(
-            action(&registry, "JournalActivity3Track"),
-            "journal:activity-track:3:1"
+            tracking_request(&data, &action, false, true),
+            Some(AdventureGuideRequest::TrackActivity {
+                activity_id: 3,
+                tracked: true
+            })
         );
-        assert!(registry.get_by_name("JournalMonthlyNotice").is_none());
+        assert!(tracking_request(&data, &action, false, false).is_none());
+        assert!(tracking_request(&data, &action, true, true).is_none());
+        assert!(
+            !data.activities[0].tracked,
+            "Request construction must not change authoritative state"
+        );
     }
 }
 
 #[test]
 fn available_progress_and_unevaluated_criteria_remain_distinct() {
+    use game_engine_ui_model::adventure_activities::tracking_request;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
-        // Deliberately supplied Available wire state: not a claim tree135693 is supported.
         data.activities[0].progress = PerksActivityProgress::Available {
             current: 7,
             required: 30,
@@ -361,18 +386,10 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
                 progress_supported: false,
             }],
         };
-        let filters = ActivityFilters {
-            selected: Some(3),
-            ..Default::default()
-        };
-        let registry = render(skin, Some(data.clone()), filters.clone(), "");
-        assert_eq!(
-            text(&registry, "JournalActivity3Progress"),
-            "7 / 30 — In progress"
-        );
-        let details = text(&registry, "JournalActivityDetails");
-        assert!(details.contains("Unavailable"));
-        assert!(!details.contains("0 / 30"));
+        render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        let lines = tooltip_lines(&data, 3);
+        assert!(lines.contains("7/30") && lines.contains("Unavailable"));
+        assert!(!lines.contains("0/30"));
         data.activities[0].progress = PerksActivityProgress::Available {
             current: 30,
             required: 30,
@@ -388,19 +405,25 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
                 progress_supported: true,
             }],
         };
-        data.points = 200;
-        let registry = render(skin, Some(data), filters, "");
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        assert!(registry.get_by_name("JournalActivity3Check").is_some());
+        assert!(tooltip_lines(&data, 3).contains("30/30"));
+        assert!(!tooltip_lines(&data, 3).contains("Shift click"));
+        assert!(tracking_request(&data, "journal:activity:3", false, true).is_none());
+        data.activities[0].tracked = true;
         assert_eq!(
-            text(&registry, "JournalActivity3Progress"),
-            "30 / 30 — Complete"
+            tracking_request(&data, "journal:activity:3", false, true),
+            Some(shared::protocol::AdventureGuideRequest::TrackActivity {
+                activity_id: 3,
+                tracked: false
+            })
         );
-        assert!(text(&registry, "JournalActivityDetails").contains("30 / 30 — Complete"));
-        assert!(registry.get_by_name("JournalMonthlyProgress").is_none());
     }
 }
 
 #[test]
-fn filtering_selection_and_tracking_use_source_rows_and_parent_actions() {
+fn source_tag_and_text_filters_preserve_tracking_marks_without_an_invented_toolbar() {
+    use game_engine_ui_model::adventure_activities::tracking_request;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
         data.activities[0].tags = vec![1];
@@ -411,17 +434,12 @@ fn filtering_selection_and_tracking_use_source_rows_and_parent_actions() {
             name: "Quests".into(),
         }];
         let filters = ActivityFilters {
-            tracked_only: true,
             tag: 1,
-            selected: Some(3),
+            ..Default::default()
         };
         let registry = render(skin, Some(data.clone()), filters.clone(), "EXPERIENCE");
-        assert!(registry.get_by_name("JournalActivity3").is_some());
+        assert!(registry.get_by_name("JournalActivity3Tracked").is_some());
         assert!(registry.get_by_name("JournalActivity4").is_none());
-        assert_eq!(
-            action(&registry, "JournalActivity3Track"),
-            "journal:activity-track:3:0"
-        );
         assert_eq!(
             action(&registry, "JournalActivityTag0"),
             "journal:activity-tag:0"
@@ -430,38 +448,30 @@ fn filtering_selection_and_tracking_use_source_rows_and_parent_actions() {
             action(&registry, "JournalActivityTag1"),
             "journal:activity-tag:1"
         );
-        let registry = render(
-            skin,
-            Some(data.clone()),
-            ActivityFilters {
-                tag: 1,
-                ..Default::default()
-            },
-            "",
+        assert_eq!(
+            tracking_request(&data, "journal:activity:3", false, true),
+            Some(shared::protocol::AdventureGuideRequest::TrackActivity {
+                activity_id: 3,
+                tracked: false
+            })
         );
-        assert!(registry.get_by_name("JournalActivity4").is_none());
+        assert!(tooltip_lines(&data, 3).contains("stop tracking"));
         let registry = render(
             skin,
             Some(data.clone()),
-            ActivityFilters {
-                selected: Some(3),
-                ..Default::default()
-            },
-            "dungeon",
+            ActivityFilters::default(),
+            "DUNGEON",
         );
         assert!(registry.get_by_name("JournalActivity3").is_none());
-        assert!(registry.get_by_name("JournalActivityDetails").is_none());
         assert!(registry.get_by_name("JournalActivity4").is_some());
         let registry = render(skin, Some(data), filters, "no matching authored name");
-        assert_eq!(
-            text(&registry, "JournalMonthlyEmpty"),
-            "No activities match these filters."
-        );
+        assert!(registry.get_by_name("JournalActivity3").is_none());
+        assert!(registry.get_by_name("JournalMonthlyEmpty").is_none());
     }
 }
 
 #[test]
-fn monthly_loading_source_error_and_empty_catalog_are_explicit() {
+fn monthly_loading_source_error_and_empty_catalog_are_distinct() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, None, ActivityFilters::default(), "");
         assert_eq!(
@@ -479,79 +489,71 @@ fn monthly_loading_source_error_and_empty_catalog_are_explicit() {
         data.source_error = None;
         data.activities.clear();
         let registry = render(skin, Some(data), ActivityFilters::default(), "");
-        assert_eq!(
-            text(&registry, "JournalMonthlyEmpty"),
-            "No source activities available."
+        assert!(registry.get_by_name("JournalMonthlyEmpty").is_none());
+        assert!(registry.get_by_name("JournalActivity3").is_none());
+        assert!(
+            registry
+                .get_by_name("EncounterJournalMonthlyActivitiesFrame")
+                .is_some()
         );
     }
 }
 
 #[test]
-fn superseded_activities_are_grouped_without_hiding_source_progress() {
+fn completed_parent_promotes_unfinished_superseding_activity_to_source_parent_row() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
         data.activities = vec![activity(81), activity(4), activity(6)];
-        let registry = render(
-            skin,
-            Some(data),
-            ActivityFilters {
-                selected: Some(81),
-                ..Default::default()
-            },
-            "",
+        data.activities[2].progress = PerksActivityProgress::Available {
+            current: 5,
+            required: 5,
+            completed: true,
+            criteria: vec![],
+        };
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        let promoted = frame(&registry, "JournalActivity81");
+        assert_eq!(promoted.height, ui_toolkit::frame::Dimension::Fixed(78.));
+        assert_eq!(
+            promoted.position.left,
+            ui_toolkit::layout_values::Val::Px(0.)
         );
-        assert!(registry.get_by_name("JournalActivity6").is_some());
-        assert!(registry.get_by_name("JournalActivity81").is_some());
-        assert!(
-            text(&registry, "JournalActivityDetails")
-                .contains("Follows: Complete 5 Mythic+ Dungeons")
-        );
+        assert!(registry.get_by_name("JournalActivity6Check").is_some());
+        assert!(!tooltip_lines(&data, 81).contains("Follows:"));
     }
 }
 
 #[test]
 fn monthly_virtualization_reaches_later_real_rows_and_clamps_after_filtering() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let ctx = context(skin);
+        let mut ctx = context(skin);
         let mut data = snapshot();
         data.activities = [3, 4, 6, 7, 8, 9, 81].into_iter().map(activity).collect();
-        ctx_fixture_virtualization(ctx, data);
+        ctx.insert(data);
+        ctx.insert(ActivityFilters::default());
+        let mut registry = FrameRegistry::new(800., 496.);
+        let mut screen = Screen::new(|ctx| monthly(ctx, ctx.get(), ctx.get().unwrap(), ""));
+        screen.sync(&ctx, &mut registry);
+        let list = "EncounterJournalContent";
+        assert!(
+            registry
+                .scroll_lists
+                .get(list)
+                .unwrap()
+                .geometry
+                .max_first_row()
+                > 0
+        );
+        assert!(registry.scroll_lists.scroll_to(list, usize::MAX));
+        screen.sync(&ctx, &mut registry);
+        assert!(registry.get_by_name("JournalActivity7").is_some());
+        assert!(registry.get_by_name("JournalActivity3").is_none());
+        let mut data = snapshot();
+        data.activities[0].tracked = true;
+        ctx.insert(data);
+        screen.sync(&ctx, &mut registry);
+        assert_eq!(registry.scroll_lists.get(list).unwrap().first_row, 0);
+        assert!(registry.get_by_name("JournalActivity3Tracked").is_some());
     }
-}
-fn ctx_fixture_virtualization(mut ctx: SharedContext, data: AdventureGuideSnapshot) {
-    // Seven distinct authored rows exceed one viewport even without expanded details.
-    ctx.insert(data);
-    ctx.insert(ActivityFilters {
-        selected: Some(3),
-        ..Default::default()
-    });
-    let mut registry = FrameRegistry::new(800., 496.);
-    let mut screen = Screen::new(|ctx| monthly(ctx, ctx.get(), ctx.get().unwrap(), ""));
-    screen.sync(&ctx, &mut registry);
-    let list = "EncounterJournalContent";
-    assert!(
-        registry
-            .scroll_lists
-            .get(list)
-            .unwrap()
-            .geometry
-            .max_first_row()
-            > 0
-    );
-    assert!(registry.scroll_lists.scroll_to(list, usize::MAX));
-    screen.sync(&ctx, &mut registry);
-    assert!(registry.get_by_name("JournalActivity7").is_some());
-    assert!(registry.get_by_name("JournalActivity3").is_none());
-    let mut data = snapshot();
-    data.activities[0].tracked = true;
-    ctx.insert(data);
-    ctx.insert(ActivityFilters {
-        tracked_only: true,
-        ..Default::default()
-    });
-    screen.sync(&ctx, &mut registry);
-    assert_eq!(registry.scroll_lists.get(list).unwrap().first_row, 0);
-    assert!(registry.get_by_name("JournalActivity3").is_some());
 }
 
 #[test]

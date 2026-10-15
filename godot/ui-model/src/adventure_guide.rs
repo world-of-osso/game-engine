@@ -477,22 +477,18 @@ impl View {
                 self.encounter = None;
                 self.filter_menu = None;
                 self.search.clear();
+                self.activity_filters.expanded.clear();
             }
-            "activity-filter" => {
-                self.activity_filters.tracked_only = match value {
-                    Some("all") => false,
-                    Some("tracked") => true,
-                    _ => return Err("Unknown activity filter".into()),
-                };
+            "activity-tag" => {
+                let tag = number()?;
+                if self.activity_filters.tag != tag {
+                    self.activity_filters.tag = tag;
+                    self.activity_filters.expanded.clear();
+                }
             }
-            "activity-tag" => self.activity_filters.tag = number()?,
             "activity" => {
-                let id = number()?;
-                self.activity_filters.selected = if self.activity_filters.selected == Some(id) {
-                    None
-                } else {
-                    Some(id)
-                };
+                self.activity_filters
+                    .toggle_group(self.activities.as_deref(), number()?);
             }
             "owned-keys" => {
                 self.owned_keys_only = !self.owned_keys_only;
