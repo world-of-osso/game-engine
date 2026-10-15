@@ -61,7 +61,6 @@ pub fn monthly(
     ctx: &SharedContext,
     snapshot: Option<&AdventureGuideSnapshot>,
     filters: &ActivityFilters,
-    search: &str,
 ) -> Element {
     let _ = ctx.get::<ActiveSkin>();
     let Some(snapshot) = snapshot else {
@@ -85,7 +84,7 @@ pub fn monthly(
     out.extend(presentation::header(snapshot));
     out.extend(presentation::thresholds(snapshot, tender));
     out.extend(filter_controls(ctx, snapshot, filters));
-    out.extend(activity_viewport(ctx, snapshot, filters, search));
+    out.extend(activity_viewport(ctx, snapshot, filters));
     rsx! { r#frame { name: "EncounterJournalMonthlyActivitiesFrame", left: 4., top: 60., width: 792., height: 431., pos_type: "absolute", {out} } }
 }
 
@@ -93,9 +92,8 @@ fn activity_viewport(
     ctx: &SharedContext,
     snapshot: &AdventureGuideSnapshot,
     filters: &ActivityFilters,
-    search: &str,
 ) -> Element {
-    let rows = rows::layout(snapshot, filters, search);
+    let rows = rows::layout(snapshot, filters);
     let content_height = rows
         .last()
         .map_or(HEIGHT, |row| row.top + row.height)

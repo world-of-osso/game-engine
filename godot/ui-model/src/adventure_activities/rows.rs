@@ -78,19 +78,16 @@ fn group_chain<'a>(
     let mut parent = 0;
     let mut current = root;
     while let Some(child) = children.get(&current.id).copied() {
-        if completed(groups[parent].activity) {
+        let promote_successor = completed(groups[parent].activity);
+        if promote_successor || completed(child) {
             groups.push(ActivityGroup {
                 source_root: root,
                 activity: child,
                 children: Vec::new(),
             });
-            parent = groups.len() - 1;
-        } else if completed(child) {
-            groups.push(ActivityGroup {
-                source_root: root,
-                activity: child,
-                children: Vec::new(),
-            });
+            if promote_successor {
+                parent = groups.len() - 1;
+            }
         } else {
             groups[parent].children.push(child);
         }
@@ -105,27 +102,12 @@ pub(super) fn has_children(snapshot: &AdventureGuideSnapshot, id: u32) -> bool {
         .any(|group| group.activity.id == id && !group.children.is_empty())
 }
 
-fn matches_search(activity: &PerksActivitySnapshot, search: &str) -> bool {
-    activity.name.to_lowercase().contains(search)
-        || activity.description.to_lowercase().contains(search)
-}
-
 pub(super) fn layout<'a>(
     snapshot: &'a AdventureGuideSnapshot,
     filters: &ActivityFilters,
-    search: &str,
 ) -> Vec<ActivityRow<'a>> {
-    let search = search.to_lowercase();
     let mut groups = activity_groups(snapshot);
-    groups.retain(|group| {
-        let tag_matches = filters.tag == 0 || group.source_root.tags.contains(&filters.tag);
-        let text_matches = matches_search(group.activity, &search)
-            || group
-                .children
-                .iter()
-                .any(|child| matches_search(child, &search));
-        tag_matches && text_matches
-    });
+    groups.retain(|group| filters.tag == 0 || group.source_root.tags.contains(&filters.tag));
     groups.sort_by(|a, b| compare_activities(a.activity, b.activity));
     groups
         .into_iter()

@@ -97,13 +97,10 @@ fn render(
     skin: ActiveSkin,
     data: Option<AdventureGuideSnapshot>,
     filters: ActivityFilters,
-    search: &str,
 ) -> FrameRegistry {
     let ctx = context(skin);
-    let search = search.to_owned();
     let mut registry = FrameRegistry::new(800., 496.);
-    Screen::new(move |ctx| monthly(ctx, data.as_ref(), &filters, &search))
-        .sync(&ctx, &mut registry);
+    Screen::new(move |ctx| monthly(ctx, data.as_ref(), &filters)).sync(&ctx, &mut registry);
     registry
 }
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
@@ -140,7 +137,7 @@ fn monthly_uses_retail_inset_header_options_filters_and_list_rects() {
                 name: "Quests".into(),
             },
         ];
-        let registry = render(skin, Some(data), ActivityFilters::default(), "");
+        let registry = render(skin, Some(data), ActivityFilters::default());
         for (name, [left, top, width, height]) in [
             (
                 "EncounterJournalMonthlyActivitiesFrame",
@@ -227,7 +224,7 @@ fn monthly_thresholds_use_received_points_not_claimed_currency_state() {
             ..Default::default()
         });
         let mut registry = FrameRegistry::new(800., 496.);
-        Screen::new(move |ctx| monthly(ctx, Some(&data), &ActivityFilters::default(), ""))
+        Screen::new(move |ctx| monthly(ctx, Some(&data), &ActivityFilters::default()))
             .sync(&ctx, &mut registry);
         assert_eq!(text(&registry, "JournalMonthlyPoints"), "Travel Points");
         assert_eq!(text(&registry, "JournalMonthlyProgress"), "400 / 1000");
@@ -263,7 +260,7 @@ fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details()
             activities: Some(Arc::new(data.clone())),
             ..Default::default()
         };
-        let registry = render(skin, Some(data.clone()), view.activity_filters.clone(), "");
+        let registry = render(skin, Some(data.clone()), view.activity_filters.clone());
         assert!(
             registry.get_by_name("JournalActivity81").is_none(),
             "Source trees start collapsed"
@@ -278,7 +275,7 @@ fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details()
         );
         assert!(registry.get_by_name("JournalActivity6Track").is_none());
         view.apply("journal:activity:6").unwrap();
-        let registry = render(skin, Some(data.clone()), view.activity_filters.clone(), "");
+        let registry = render(skin, Some(data.clone()), view.activity_filters.clone());
         assert_eq!(
             frame(&registry, "JournalActivity81").height,
             ui_toolkit::frame::Dimension::Fixed(48.)
@@ -299,7 +296,7 @@ fn monthly_source_rows_collapse_children_and_leaf_clicks_do_not_expand_details()
         );
         view.apply("journal:activity-tag:1").unwrap();
         view.apply("journal:activity-tag:0").unwrap();
-        let registry = render(skin, Some(data), view.activity_filters, "");
+        let registry = render(skin, Some(data), view.activity_filters);
         assert!(
             registry.get_by_name("JournalActivity81").is_none(),
             "Changing source filter collapses the tree"
@@ -327,7 +324,7 @@ fn monthly_unavailable_remains_unknown_in_source_tooltip_and_shift_request() {
     use shared::protocol::AdventureGuideRequest;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let data = snapshot();
-        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default());
         assert!(
             registry.get_by_name("JournalMonthlyProgress").is_none(),
             "Do not invent a missing threshold maximum"
@@ -386,7 +383,7 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
                 progress_supported: false,
             }],
         };
-        render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        render(skin, Some(data.clone()), ActivityFilters::default());
         let lines = tooltip_lines(&data, 3);
         assert!(lines.contains("7/30") && lines.contains("Unavailable"));
         assert!(!lines.contains("0/30"));
@@ -405,7 +402,7 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
                 progress_supported: true,
             }],
         };
-        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default());
         assert!(registry.get_by_name("JournalActivity3Check").is_some());
         assert!(tooltip_lines(&data, 3).contains("30/30"));
         assert!(!tooltip_lines(&data, 3).contains("Shift click"));
@@ -422,7 +419,7 @@ fn available_progress_and_unevaluated_criteria_remain_distinct() {
 }
 
 #[test]
-fn source_tag_and_text_filters_preserve_tracking_marks_without_an_invented_toolbar() {
+fn source_tag_filters_preserve_tracking_marks_without_an_invented_toolbar() {
     use game_engine_ui_model::adventure_activities::tracking_request;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut data = snapshot();
@@ -437,7 +434,7 @@ fn source_tag_and_text_filters_preserve_tracking_marks_without_an_invented_toolb
             tag: 1,
             ..Default::default()
         };
-        let registry = render(skin, Some(data.clone()), filters.clone(), "EXPERIENCE");
+        let registry = render(skin, Some(data.clone()), filters.clone());
         assert!(registry.get_by_name("JournalActivity3Tracked").is_some());
         assert!(registry.get_by_name("JournalActivity4").is_none());
         assert_eq!(
@@ -456,24 +453,16 @@ fn source_tag_and_text_filters_preserve_tracking_marks_without_an_invented_toolb
             })
         );
         assert!(tooltip_lines(&data, 3).contains("stop tracking"));
-        let registry = render(
-            skin,
-            Some(data.clone()),
-            ActivityFilters::default(),
-            "DUNGEON",
-        );
-        assert!(registry.get_by_name("JournalActivity3").is_none());
+        let registry = render(skin, Some(data), ActivityFilters::default());
+        assert!(registry.get_by_name("JournalActivity3").is_some());
         assert!(registry.get_by_name("JournalActivity4").is_some());
-        let registry = render(skin, Some(data), filters, "no matching authored name");
-        assert!(registry.get_by_name("JournalActivity3").is_none());
-        assert!(registry.get_by_name("JournalMonthlyEmpty").is_none());
     }
 }
 
 #[test]
 fn monthly_loading_source_error_and_empty_catalog_are_distinct() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(skin, None, ActivityFilters::default(), "");
+        let registry = render(skin, None, ActivityFilters::default());
         assert_eq!(
             text(&registry, "JournalMonthlyLoading"),
             "Loading Traveler's Log…"
@@ -481,14 +470,14 @@ fn monthly_loading_source_error_and_empty_catalog_are_distinct() {
         assert!(registry.get_by_name("JournalMonthlyTitle").is_none());
         let mut data = snapshot();
         data.source_error = Some("PerksActivity catalog missing".into());
-        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default());
         assert!(
             text(&registry, "JournalMonthlyNotice")
                 .contains("Missing source data: PerksActivity catalog missing")
         );
         data.source_error = None;
         data.activities.clear();
-        let registry = render(skin, Some(data), ActivityFilters::default(), "");
+        let registry = render(skin, Some(data), ActivityFilters::default());
         assert!(registry.get_by_name("JournalMonthlyEmpty").is_none());
         assert!(registry.get_by_name("JournalActivity3").is_none());
         assert!(
@@ -510,7 +499,7 @@ fn completed_parent_promotes_unfinished_superseding_activity_to_source_parent_ro
             completed: true,
             criteria: vec![],
         };
-        let registry = render(skin, Some(data.clone()), ActivityFilters::default(), "");
+        let registry = render(skin, Some(data.clone()), ActivityFilters::default());
         let promoted = frame(&registry, "JournalActivity81");
         assert_eq!(promoted.height, ui_toolkit::frame::Dimension::Fixed(78.));
         assert_eq!(
@@ -531,7 +520,7 @@ fn monthly_virtualization_reaches_later_real_rows_and_clamps_after_filtering() {
         ctx.insert(data);
         ctx.insert(ActivityFilters::default());
         let mut registry = FrameRegistry::new(800., 496.);
-        let mut screen = Screen::new(|ctx| monthly(ctx, ctx.get(), ctx.get().unwrap(), ""));
+        let mut screen = Screen::new(|ctx| monthly(ctx, ctx.get(), ctx.get().unwrap()));
         screen.sync(&ctx, &mut registry);
         let list = "EncounterJournalContent";
         assert!(
@@ -802,12 +791,15 @@ fn monthly_source_hides_encounter_search() {
         let mut ctx = context(skin);
         ctx.insert(View {
             visible: true,
-            loading: true,
+            loading: false,
             tab: Tab::Monthly,
+            search: "no matching authored name".into(),
+            activities: Some(std::sync::Arc::new(snapshot())),
             ..Default::default()
         });
         let mut registry = FrameRegistry::new(800., 496.);
         Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
         assert!(registry.get_by_name("EncounterJournalSearchBox").is_none());
+        assert!(registry.get_by_name("JournalActivity3").is_some());
     }
 }
