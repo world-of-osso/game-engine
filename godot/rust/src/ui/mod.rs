@@ -311,6 +311,7 @@ impl RegistryModel {
             .get::<game_engine_ui_model::trading_post::View>()
         {
             game_engine_ui_model::trading_post::apply_cart_art(view, &mut self.registry);
+            game_engine_ui_model::trading_post::apply_rotation_icon_positions(&mut self.registry);
         }
         if let Some(view) = self
             .shared

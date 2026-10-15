@@ -102,6 +102,8 @@ pub mod m2_texture_composite_data;
 pub mod map_catalog;
 pub mod minimap_data;
 pub mod model_asset_index;
+pub mod model_scene_actor;
+pub mod mount_preview;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
 #[path = "movement_input_data.rs"]
