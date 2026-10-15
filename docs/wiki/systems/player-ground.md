@@ -14,7 +14,7 @@ A face is walkable when its world normal satisfies `|n.y| >= cos(MAX_SLOPE_ANGLE
 
 ## Native grounded steps — 2026-10-15
 
-`TerrainGround::validate_move` admits the destination floor at the current feet height before wall collision. The ordinary low wall ray retains its existing corridor. Only an actually wall-blocked grounded snapped rise attempts a lifted ray; unobstructed ramps and airborne proposals retain the original admission. After wall clamping, the final support column is sampled again rather than retaining an unreached landing's height.
+`TerrainGround::validate_move` admits the destination floor at the current feet height before wall collision. The ordinary low wall ray retains its existing corridor. Only an actually wall-blocked grounded snapped rise attempts a lifted ray; unobstructed ramps and airborne proposals retain the original admission. When a wall clamp is retained, its final support column is sampled and its covered/slope rules run there rather than retaining an unreached landing's height. Rejecting a high/steep original destination cannot cancel an otherwise reachable wall approach, and a clamped column under an out-of-reach floor remains blocked.
 
 Stockade WMO108631/group15/FDID108647 face3153 is a vertical lip whose top is0.6557564yd above captured feet `(108.2204,-26.26199,3.454892)`. The old feet+0.6 wall ray hit it0.04996yd away, less than the0.05 stop margin, before face3041's reachable upper floor was sampled. The shared1.6 step budget and wall constants are unchanged.
 
