@@ -515,6 +515,24 @@ func authored_camera_proof() -> void:
 		await wait_frames(10)
 		if not camera.transform.is_equal_approx(released): fail("Released orbit continued moving"); return
 		await capture("authored-orbit-released-" + direction.to_lower())
+	var drag_start := Vector2(900,500)
+	var yaw_before_drag := float(client.trading_post_state().camera_yaw)
+	await motion(drag_start, false)
+	await button_event(drag_start, MOUSE_BUTTON_LEFT, true)
+	await motion(drag_start + Vector2(60,0), true, Vector2(60,0))
+	await button_event(drag_start + Vector2(60,0), MOUSE_BUTTON_LEFT, false)
+	var ui_scale := control("PerksProgramMainModelScene").get_global_rect().size.x / 1920.0
+	var expected_drag := yaw_before_drag - 60.0 / ui_scale * 0.008
+	if absf(float(client.trading_post_state().camera_yaw) - expected_drag) > 0.0001: fail("Drag did not orbit with source effective-scale delta"); return
+	if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Drag rotated authored actors"); return
+	await capture("authored-drag-camera-only")
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_UP, true)
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_UP, false)
+	if not is_equal_approx(camera.position.length(), 13.1): fail("Wheel did not change source zoom percent by0.1"); return
+	await capture("authored-wheel-zoom")
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_DOWN, true)
+	await button_event(drag_start, MOUSE_BUTTON_WHEEL_DOWN, false)
+	if not is_equal_approx(camera.position.length(), 23.0): fail("Wheel did not restore authored base zoom"); return
 	await click("PerksProgramTogglePlayerPreview")
 	if not await wait_until(func(): return client.trading_post_state().rider_ready, "restored rider under authored camera", 120000): return
 	if group.basis != initial_basis or group.get_node("MountActor").transform != initial_actor: fail("Rider restore changed authored actor"); return
@@ -700,22 +718,22 @@ func rotate_control_proof() -> void:
 		var target := control(name)
 		if target == null: fail("Missing Retail rotation button " + name); return
 		var point: Vector2 = target.get_global_rect().get_center()
-		var before := float(client.trading_post_state().model_yaw)
+		var before := float(client.trading_post_state().camera_yaw)
 		await motion(point, false)
 		await button_event(point, MOUSE_BUTTON_LEFT, true)
 		await wait_frames(10)
-		var held := float(client.trading_post_state().model_yaw)
+		var held := float(client.trading_post_state().camera_yaw)
 		if not assert_rotate_icon(name, true): return
-		var sign := -1.0 if direction == "Left" else 1.0
+		var sign := 1.0 if direction == "Left" else -1.0
 		if sign * (held - before) < 0.5: fail("Held %s did not continuously rotate sourced direction: %s -> %s" % [direction, before, held]); return
 		await capture("rotate-held-" + direction.to_lower())
 		await motion(Vector2(1800, 500), true, Vector2(1, 0))
 		await button_event(Vector2(1800, 500), MOUSE_BUTTON_LEFT, false)
 		await wait_frames(3)
-		var released := float(client.trading_post_state().model_yaw)
+		var released := float(client.trading_post_state().camera_yaw)
 		if not assert_rotate_icon(name, false): return
 		await wait_frames(10)
-		if absf(float(client.trading_post_state().model_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
+		if absf(float(client.trading_post_state().camera_yaw) - released) > 0.0001: fail("Release outside did not stop rotation"); return
 		await capture("rotate-released-" + direction.to_lower())
 	if not await choose_category(5): return
 	if not await select_first_available(): return
