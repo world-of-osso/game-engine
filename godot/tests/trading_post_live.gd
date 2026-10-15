@@ -459,15 +459,19 @@ func mount_rider_proof() -> void:
 	while mount_group != null and mount_group.name != "TradingPostMountPreview":
 		mount_group = mount_group.get_parent()
 	if mount_group == null: fail("Rider is not owned by mounted preview"); return
+	var mount_camera: Camera3D = mount_group.get_viewport().get_camera_3d()
+	var camera_transform: Transform3D = mount_camera.transform
 	await capture("mounted-dressed-default")
 	await click("PerksProgramTogglePlayerPreview")
 	if not await wait_until(func(): return client.trading_post_state().hide_player_preview and not client.trading_post_state().rider_ready and not client.trading_post_state().rider_pending, "Hide Character frees rider"): return
 	if is_instance_valid(rider) or not is_instance_valid(mount_group): fail("Hide Character freed mount or retained rider"); return
+	if not mount_camera.transform.is_equal_approx(camera_transform): fail("Hide Character refitted mount camera"); return
 	await capture("mount-only-hidden")
 	await click("PerksProgramTogglePlayerPreview")
 	if not await wait_until(func(): return client.trading_post_state().rider_ready, "restored current player", 120000): return
 	rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
 	if not assert_seated_rider(rider): return
+	if not mount_camera.transform.is_equal_approx(camera_transform): fail("Show Character refitted mount camera"); return
 	await capture("mounted-restored")
 	var actor_transform: Transform3D = mount_group.get_node("MountActor").transform
 	if not await rotate_model(): return
