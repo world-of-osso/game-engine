@@ -118,12 +118,9 @@ impl TerrainGround<'_> {
     /// would put the feet under the world's surface, with nothing to land on.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
         let target = self.sample(proposed.with_y(current.y));
-        if target.is_none() && self.covered(proposed.with_y(current.y)) {
-            return current;
-        }
         let candidate = self.apply_floor_rules(current, proposed, target, snap);
-        let clamped = clamp_movement_to_walls(current, candidate, self.walls);
-        let reached = clamped.x == candidate.x && clamped.z == candidate.z;
+        let clamped = clamp_movement_to_walls(current, proposed, self.walls);
+        let reached = clamped.x == proposed.x && clamped.z == proposed.z;
         if reached {
             return candidate;
         }
@@ -133,9 +130,8 @@ impl TerrainGround<'_> {
         }
         // A blocked step keeps the ordinary wall clamp. Never retain the height
         // of a landing that the player did not actually reach.
-        let proposed = clamped.with_y(proposed.y);
-        let target = self.sample(proposed.with_y(current.y));
-        self.apply_floor_rules(current, proposed, target, snap)
+        let target = self.sample(clamped.with_y(current.y));
+        self.apply_floor_rules(current, clamped, target, snap)
     }
 
     /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
@@ -154,6 +150,9 @@ impl TerrainGround<'_> {
         target: Option<Ground>,
         snap: bool,
     ) -> Vec3 {
+        if target.is_none() && self.covered(proposed.with_y(current.y)) {
+            return current;
+        }
         validate_movement_slope(
             current,
             proposed,
