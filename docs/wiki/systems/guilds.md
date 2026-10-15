@@ -14,7 +14,7 @@ Server persistence links owned item GUIDs to petitions and signing account IDs. 
 
 ## Member details and notes
 
-[Member-note contract](../../specs/guild-member-notes.md): public notes use an additive string table without changing existing bitcode officer records; the authenticated request rechecks membership, target and independent note rights. Mainline self-public editing is allowed; officer fields remain recipient-filtered. Roster public notes never reuse officer text. Native details and31-letter popup wait for authoritative replies. Source implementation2026-10-15; current native/live/relog proof remains pending.
+[Member-note contract](../../specs/guild-member-notes.md): public notes use an additive string table without changing existing bitcode officer records; the authenticated request rechecks membership, target and independent note rights. Mainline self-public editing is allowed; officer fields remain recipient-filtered. Roster public notes never reuse officer text. Native details open on left-click; right-click retains the hierarchy menu. The31-letter popup waits for authoritative profile replacement even after an earlier rank ACK; native Enter and Group Invite reach existing real services. Source implementation2026-10-15; current native/live/relog proof remains pending.
 
 ## Guild tabard data flow
 

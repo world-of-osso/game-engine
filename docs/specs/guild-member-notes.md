@@ -1,14 +1,40 @@
 # Guild member details and notes
 
-Retail Mainline defines mechanics for both Modern and Forever. Sources: installed `Blizzard_Communities/GuildRoster.lua`, `GuildRoster.xml`, `Blizzard_StaticPopup_Game/GameDialogDefs.lua:1834` and pinned TrinityCore a352b1fa `Guild.cpp:1597`.
+Retail Mainline member details and public/officer notes in Modern and Forever. Sources: installed `Blizzard_Communities/GuildRoster.lua`, `GuildRoster.xml`, `Blizzard_StaticPopup_Game/GameDialogDefs.lua:1834` and pinned TrinityCore a352b1fa `Guild.cpp:1597`. [Data flow](../wiki/systems/guilds.md#member-details-and-notes).
 
-- [x] Member detail shows authoritative name, class/level, rank, public note and permitted officer note; unknown zone and exact last-online times remain blank/unknown, not invented.
-- [x] Public notes are distinct from officer notes and populate the roster Note column.
-- [x] A member can edit their own public note (Mainline Lua); other public writes require public-note permission. Officer writes require officer-note permission; the native editor additionally requires view permission.
-- [x] Authenticated actor and same-guild target are revalidated server-side;31 Unicode characters maximum, no control characters. Popup accepts/cancels without optimistic profile replacement.
-- [x] Public notes persist separately from existing bitcode officer-note records, so preexisting officer notes remain readable. Leaving/removal deletes both notes before rejoin.
-- [x] Officer-note data remains stripped from unauthorized recipients. Group Invite uses the actual group service; member Remove uses existing hierarchy authority.
-- [ ] Direct rank-assignment dropdown, online zone and exact last-online elapsed metadata remain gaps.
-- [ ] Targeted tests, current checks and both-skin private5891 live/relog PNG proof are pending; source implementation is not acceptance.
+## What it must do
 
-Wire: `GuildRankRequest::SetMemberNote`, `GuildMemberSnapshot::{public_note,is_self}`. Changed peers must land together. Public edit permission follows pinned TC0x2000, distinct from view/edit officer rights0x4000/0x8000.
+- [ ] Member details show authoritative name, class/level, rank, public note and permitted officer note. Unknown zone and exact last-online times must not be invented. Public notes populate the roster Note column independently of officer text.
+- [ ] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
+- [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
+- [ ] Both note types survive server restart/relog, preserving existing officer records. Leave/removal deletes both before rejoin. Group Invite uses the actual group service and Remove uses existing hierarchy authority.
+
+## How it works
+
+- [Guild state and member notes](../wiki/systems/guilds.md#member-details-and-notes).
+- [Existing ranks/lifecycle](guild-ranks.md).
+
+## Implementation inventory
+
+| Files | Role |
+|---|---|
+| `godot/ui-model/src/guild_member_detail.rs`, `guild_ranks.rs`, `guild_communities.rs` | Shared both-skin view, note reducer and public roster column |
+| `godot/rust/src/guild_ranks.rs`, `account.rs`, `ui/mod.rs` | Native input, Enter dispatch, group invite and authoritative reply |
+| shared-protocol `src/protocol/guild_rank_messages.rs`, `protocol_snapshots.rs` | Note request, validator and per-recipient public/self fields |
+| server `guild_ranks.rs`, `guild.rs`, `persistence_character.rs` | Authenticated validation, private/public projection and durable storage |
+
+## Tests asserting this spec
+
+- `godot/ui-model/tests/guild_rank_widgets.rs`: both-skin detail/public-note/privacy, self-edit, pending-authority and cancellation decisions.
+- `godot/network/src/guild_rank_wire_tests.rs`: actual loopback note requests on GuildChannel.
+- server `guild_ranks_tests.rs`: per-recipient privacy; Unicode31/32, same-guild/outside actor, restart and leave/rejoin cleanup.
+- `godot/tests/guild_member_notes_live.gd`: private real-input master/self/restart readback and full-HD captures.
+
+## Known gaps (current cycle)
+
+- [ ] Current targeted tests/checks and both-skin private5891 live/relog PNG acceptance. The initial UI RED→GREEN2/2 predates later routing/art changes; server --lib selected0 guild tests and is not proof.
+- [ ] Source direct rank-assignment dropdown, online zone and elapsed-last-online metadata.
+
+## Out of scope
+
+News, lifecycle history, benefits/perks and sourced rewards are separate subsequent guild-completion slices, not waived from the overall goal.
