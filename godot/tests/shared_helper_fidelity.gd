@@ -11,7 +11,7 @@ func capture_panels() -> void:
 	var output := OS.get_environment("SHARED_HELPER_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set SHARED_HELPER_CAPTURE_PATH")
 	for forever in [false, true]:
-		for panel in ["quest", "mail", "raid", "bank"]:
+		for panel in ["quest", "mail", "raid", "bank", "settings"]:
 			var probe = ClassDB.instantiate("UiAuditProbe")
 			root.add_child(probe)
 			var error: String = probe.mount_shared_helper_panel(forever, panel)
@@ -19,7 +19,7 @@ func capture_panels() -> void:
 			for frame in range(90):
 				await process_frame
 				await RenderingServer.frame_post_draw
-			var button_name: String = {"quest": "QuestFrameAcceptButton", "mail": "SendMailCancelButton", "raid": "RaidInfoExtendButton", "bank": "BankFrameDepositAllButton"}[panel]
+			var button_name: String = {"quest": "QuestFrameAcceptButton", "mail": "SendMailCancelButton", "raid": "RaidInfoExtendButton", "bank": "BankFrameDepositAllButton", "settings": "CooldownSettingsUndo"}[panel]
 			var button := probe.find_child(button_name, true, false) as Control
 			assert(button != null and button.size.x > 0, "Missing representative button " + button_name)
 			var skin := "forever" if forever else "modern"

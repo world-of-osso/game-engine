@@ -226,7 +226,7 @@ impl UiAuditProbe {
         result.err().unwrap_or_default().as_str().into()
     }
 
-    /// Four real window callsites for shared-helper before/after raster proof.
+    /// Real window callsites for shared-helper before/after raster proof.
     #[func]
     fn mount_shared_helper_panel(&mut self, forever: bool, panel: GString) -> GString {
         use game_engine_ui_model::bank_frame_component::BankFrameState;
@@ -234,6 +234,7 @@ impl UiAuditProbe {
         match panel.to_string().as_str() {
             "quest" => return self.mount_quest_overflow(forever, "detail".into(), false),
             "mail" => return self.mount_mail(forever),
+            "settings" => return self.mount_cooldown_settings(forever, false),
             _ => {}
         }
         if let Err(error) = set_audit_data_and_skin(forever) {
