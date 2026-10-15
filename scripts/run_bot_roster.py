@@ -17,6 +17,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
+from bot_harness import balance
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
@@ -53,6 +54,7 @@ def record_inputs(args):
                "db2_directory": str((args.engine / "data/db2/active").resolve()),
                "binary_source": "Binary hashes identify running artifacts; driver revision does not establish their Rust build revision."}
     (args.output / "inputs.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    return receipt
 
 
 def wait_capacity(args, gpu=False):
@@ -161,6 +163,58 @@ def verified_dummy_target(state, npc_info):
     return target
 
 
+def dummy_fixture(npc_info, target):
+    pattern = r"Training Dummy \(entity (\d+)\) level (\d+) health [\d.]+/([\d.]+) difficulty (\d+)"
+    for line in npc_info.splitlines():
+        match = re.fullmatch(pattern, line)
+        if match and int(match[1]) == target:
+            return {"entry": 44548, "level": int(match[2]),
+                    "max_health": float(match[3]), "difficulty": int(match[4])}
+    raise ValueError(f"Live dummy fixture for entity {target} was not observed")
+
+
+def read_roster_reports(output, specs, repeat):
+    rows, missing = [], []
+    for spec in specs:
+        for index in range(1, repeat + 1):
+            relative = Path(str(spec)) / f"run-{index:03d}/report.json"
+            path = output / relative
+            if not path.exists():
+                missing.append(str(relative))
+                continue
+            row = json.loads(path.read_text())
+            rows.append(row)
+            if not row.get("measurement_complete"):
+                missing.append(str(relative))
+    return rows, missing
+
+
+def compare_roster_reports(rows, specs, missing):
+    if len(specs) < 3:
+        return {"available": False, "reason": "Three complete DPS specs are required for the MVP comparison"}
+    if missing:
+        return {"available": False, "reason": "Expected DPS runs are missing or incomplete"}
+    try:
+        return {"available": True, **balance(rows)}
+    except ValueError as error:
+        return {"available": False, "reason": str(error)}
+
+
+def write_roster_comparison(output, bots, repeat):
+    specs = [bot["spec"] for bot in bots if bot["role"] == 2]
+    rows, missing = read_roster_reports(output, specs, repeat)
+    result = compare_roster_reports(rows, specs, missing)
+    result.update(expected_specs=specs, missing_runs=missing)
+    (output / "balance.json").write_text(json.dumps(result, indent=2) + "\n")
+    if result["available"]:
+        summary = (f"Median {result['median_dps']:.2f} DPS; "
+                   f"max/median {result['max_over_median']:.3f}; min/median {result['min_over_median']:.3f}. "
+                   "No tolerance or balance pass/fail.")
+    else:
+        summary = "Comparison unavailable: " + result["reason"]
+    (output / "comparison.md").write_text("# Dummy comparison\n\n" + summary + "\n\nFull receipts: balance.json and each spec's fixture-receipt.json.\n")
+
+
 def native_ready(state, spec, requires_authored):
     player_ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == spec
     evaluator_ready = not requires_authored or (state["assisted"].get("available", False) and state["spells"].get("catalog_ready", False))
@@ -258,6 +312,15 @@ def run_bot(args, bot):
                                   target=target, duration=args.duration, comparison=None, server_log=args.server_log)
         stats = command(args.output, [options.cli, "--socket", sockets[0], "status", "character-stats"])
         (output / "character-stats.txt").write_text(stats)
+        native_level = re.search(r"(?m)^level: (\d+)$", stats)
+        if native_level is None or int(native_level[1]) != bot["level"]:
+            raise ValueError("Native character level does not match the fixed fixture")
+        dummy = dummy_fixture(npcs, target)
+        dummy["world_sha256"] = args.input_receipt["sha256"][str(args.world_db)]
+        comparison = {"level": int(native_level[1]), "stats": fixture["budget"],
+                      "dummy": dummy, "duration_ms": int(args.duration * 1000)}
+        options.comparison = output / "comparison.json"
+        options.comparison.write_text(json.dumps(comparison, indent=2) + "\n")
         for index in range(args.repeat):
             collect(options, output / f"run-{index + 1:03d}")
         (output / "equipment-after.txt").write_text(admin(args, "list-equipment", bot["name"]))
@@ -283,7 +346,7 @@ def main():
     if args.duration <= 0 or args.repeat < 1:
         parser.error("Positive duration and repeat required")
     args.output.mkdir(mode=0o700, parents=True, exist_ok=False)
-    record_inputs(args)
+    args.input_receipt = record_inputs(args)
     admin(args, "ping")
     bots = build_roster(args.engine / "data/db2/active", args.level)
     bots = [bot for bot in bots if args.all_specs or bot["spec"] in args.specs]
@@ -299,6 +362,7 @@ def main():
             (directory / "setup-error.json").write_text(json.dumps(failure, indent=2) + "\n")
             (directory / "summary.md").write_text(f"# Spec {bot['spec']} — setup blocked\n\n{error}\n\nNo complete DPS measurement or balance claim.\n")
     (args.output / "failures.json").write_text(json.dumps(failures, indent=2) + "\n")
+    write_roster_comparison(args.output, bots, args.repeat)
     return int(bool(failures))
 
 

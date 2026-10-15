@@ -42,6 +42,10 @@ Pre-merge root51533 produced four wolves because script and generic summon count
 
 ## Damage comparison
 
+The native driver now writes comparison.json only after owner equipment receipt validation and an observed CharacterStats level matching the fixture. The shared comparison key contains the equipment budget, actual dummy level/max-health/difficulty, source world.db SHA-256 and full duration; each spec's exact item IDs/GUIDs and visible stats remain in fixture-receipt.json. Current dummy damage does not change its max-health fixture identity.
+
+The roster writes balance.json plus comparison.md, computing medians only when all expected DPS repetitions are complete; missing/incomplete specs are not silently dropped. Fewer than three DPS specs or mismatched receipts explicitly withhold the MVP comparison.
+
 Comparison requires equal explicit receipts for level, stats, dummy and duration. ChrSpecialization.Role2 alone enters the DPS median. Equal-duration repetitions first produce one mean DPS per spec; unequal repeat counts and tank/healer damage cannot weight that median. Reports give max/median and min/median with no tolerance or pass/fail. No external DPS numbers are used. Comparable gear/stat receipts remain open; ordinary source-derived starting characters alone do not establish them.
 
 ## Recorded native proof and remaining gates
