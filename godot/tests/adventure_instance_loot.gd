@@ -54,6 +54,28 @@ func verify_loot_scroll() -> bool:
 		return false
 	return true
 
+func probe_shift_comparison() -> bool:
+	for pressed in [true, false]:
+		var key := InputEventKey.new()
+		key.keycode = KEY_SHIFT
+		key.physical_keycode = KEY_SHIFT
+		key.pressed = pressed
+		root.push_input(key, true)
+		await settle()
+		var tooltip: Dictionary = client.tooltip_state()
+		if tooltip.get("title", "") != "Buzzer Blade":
+			stop("Physical Shift lost the current item tooltip")
+			return false
+		var shopping: Array = tooltip.get("shopping", [])
+		if pressed:
+			print("INSTANCE_LOOT_SHIFT actual_shopping=" + str(shopping))
+			if not shopping.is_empty() and not await shot("instance-loot-shift-comparison"):
+				return false
+		elif not shopping.is_empty():
+			stop("Shift release retained comparison tooltip")
+			return false
+	return true
+
 func choose_slot(slot: int) -> bool:
 	if not await click("JournalSlotFilter") or not await click("JournalSlot%s" % slot):
 		return false
@@ -103,7 +125,7 @@ func run() -> void:
 	if not await move_to("JournalLoot2169") or not client.tooltip_state().get("visible", false) or client.tooltip_state().get("title", "") != "Buzzer Blade":
 		stop("Shared actual item tooltip missing")
 		return
-	if not await shot("instance-loot-item-tooltip") or not await verify_loot_scroll():
+	if not await shot("instance-loot-item-tooltip") or not await probe_shift_comparison() or not await verify_loot_scroll():
 		return
 	if not await choose_slot(10):
 		return
