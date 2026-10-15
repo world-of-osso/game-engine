@@ -17,9 +17,7 @@ func run_test() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	await wait_frames(30)
-	var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
-	if error != "":
-		fail(error)
+	if not await connect_private_account():
 		return
 	if not await enter_world(OS.get_environment("BANK_CHARACTER")):
 		return
@@ -37,6 +35,32 @@ func run_test() -> void:
 	print("PASS GUILD_LIFECYCLE_LIVE mode=", mode, " count=", last_log.events.size(), " build=", OS.get_environment("GUILD_LOG_BUILD"))
 	client.free()
 	quit(0)
+
+func connect_private_account() -> bool:
+	# Retry only the SDK's terminal transport timeout, before any character/world mutation.
+	const TRANSPORT_TIMEOUT := "Failed to connect: the server did not answer within 5 seconds."
+	for attempt in range(3):
+		var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
+		if error != "":
+			return fail(error)
+		var deadline := Time.get_ticks_msec() + WAIT_MS
+		var transient := false
+		while Time.get_ticks_msec() < deadline:
+			await process_frame
+			await RenderingServer.frame_post_draw
+			var state: Dictionary = client.account_state()
+			if state.reply_received:
+				return true if state.screen == "CharacterSelect" else fail("Actual login refusal: " + str(state.status))
+			if state.status == TRANSPORT_TIMEOUT:
+				transient = true
+				break
+		if not transient:
+			return fail("Authentication reply did not arrive: " + str(client.account_state()))
+		if attempt < 2:
+			var delay := pow(2.0, attempt) + randf_range(0.0, 0.25)
+			print("LIFECYCLE_LOGIN_RETRY attempt=", attempt + 1, " delay=", delay)
+			await create_timer(delay).timeout
+	return fail("Private transport handshake exhausted three attempts")
 
 # Bank's ten-frame settling delay per successful wait multiplies across100 UI actions.
 # Readiness here requires the actual drawn frame instead of an arbitrary sleep.
