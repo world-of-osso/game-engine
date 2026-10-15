@@ -1,5 +1,8 @@
 //! Four real-UDP party peers beside the single native proof camera.
 //! Setup and combat commands use ordinary client messages; no server/admin API.
+#[path = "native_dungeon_party_peers/sight.rs"]
+mod sight;
+
 use game_engine_network::{BridgeConfig, Event, NetworkBridge, ProtocolMessage, replica::Replica};
 use serde::{Deserialize, Serialize};
 use shared::{
@@ -72,6 +75,8 @@ struct Peer {
     inventory: Option<InventorySnapshot>,
     equipment: Option<EquipmentSnapshot>,
     inventory_delta: Option<InventoryDelta>,
+    known_spells: Vec<u32>,
+    sight: sight::CastSight,
 }
 
 fn decode<M: lightyear::prelude::Message>(message: ProtocolMessage) -> Result<M, String> {
@@ -93,6 +98,7 @@ fn connect_bridge(index: usize, endpoint: SocketAddr) -> Result<NetworkBridge, S
         .receive::<GroupInvitePrompt>()
         .receive::<GroupRosterSnapshot>()
         .receive::<SpecializationChanged>()
+        .receive::<KnownSpellsSnapshot>()
         .receive::<CombatLogEvent>()
         .receive::<CastFailed>()
         .receive::<EncounterStart>()
@@ -138,6 +144,8 @@ impl Peer {
             inventory: None,
             equipment: None,
             inventory_delta: None,
+            known_spells: Vec::new(),
+            sight: sight::CastSight::load()?,
         })
     }
 
@@ -261,7 +269,11 @@ impl Peer {
     }
 
     fn receive_party_and_combat(&mut self, message: ProtocolMessage) -> Result<(), String> {
-        if message.is::<GroupRosterSnapshot>() {
+        if message.is::<KnownSpellsSnapshot>() {
+            let reply: KnownSpellsSnapshot = decode(message)?;
+            self.record("known_spells", &reply)?;
+            self.known_spells = reply.spells;
+        } else if message.is::<GroupRosterSnapshot>() {
             let reply: GroupRosterSnapshot = decode(message)?;
             self.record("group", &reply)?;
             self.group = Some(reply);
@@ -335,7 +347,7 @@ impl Peer {
         Ok(())
     }
 
-    fn send_action(&self, action: &Action) -> Result<(), String> {
+    fn send_action(&mut self, action: &Action) -> Result<(), String> {
         match action {
             Action::Register => self.bridge.send::<_, AuthChannel>(RegisterRequest {
                 username: self.profile.account.clone(),
@@ -363,7 +375,7 @@ impl Peer {
         }
     }
 
-    fn send_world_action(&self, action: &Action) -> Result<(), String> {
+    fn send_world_action(&mut self, action: &Action) -> Result<(), String> {
         if !self.entered {
             return Err(format!("{} has not entered the world", self.profile.name));
         }
@@ -381,11 +393,22 @@ impl Peer {
                 .bridge
                 .send::<_, CombatChannel>(AttackSwing { target: *target }),
             Action::StopAttack => self.bridge.send::<_, CombatChannel>(AttackStop),
-            Action::Cast(intent) => self.bridge.send::<_, CombatChannel>(intent.clone()),
+            Action::Cast(intent) => self.send_cast(intent.clone()),
             Action::StopCast => self.bridge.send::<_, CombatChannel>(StopSpellCast),
             Action::Move(input) => self.bridge.send::<_, InputChannel>(input.clone()),
             _ => self.send_inventory_action(action),
         }
+    }
+
+    fn send_cast(&mut self, mut intent: SpellCastIntent) -> Result<(), String> {
+        intent.witness = self.sight.witness(
+            &self.replica,
+            &self.profile.name,
+            self.map,
+            intent.target_entity,
+        )?;
+        self.record("wire_cast", &intent)?;
+        self.bridge.send::<_, CombatChannel>(intent)
     }
 
     fn send_inventory_action(&self, action: &Action) -> Result<(), String> {
@@ -406,7 +429,8 @@ impl Peer {
             "pending_approval":self.pending_approval,"logged_in":self.logged_in,"character":self.character,
             "entered":self.entered,"map":self.map,"spec_id":self.specialization,"group":self.group,
             "last_sequence":self.last_sequence,"players":players,"bosses":bosses,
-            "inventory_snapshot":self.inventory,"equipment_snapshot":self.equipment,"last_inventory_delta":self.inventory_delta});
+            "inventory_snapshot":self.inventory,"equipment_snapshot":self.equipment,"last_inventory_delta":self.inventory_delta,
+            "known_spells":self.known_spells});
         let path = directory.join(format!("peer{}-state.json", self.index));
         let temporary = path.with_extension("json.tmp");
         fs::write(
