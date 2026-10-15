@@ -69,6 +69,13 @@ fn mount_special_simultaneous_masks_and_visual_loop_are_not_first_segment_only()
 }
 
 #[test]
+fn mount_special_out_of_range_one_shot_offset_is_an_explicit_named_gap() {
+    let catalog = catalog();
+    let error = KitTimeline::resolve(catalog.kit(19345).unwrap(), |_| Some(1000.0)).unwrap_err();
+    assert!(error.contains("one-shot offset 2000"), "{error}");
+}
+
+#[test]
 fn mount_special_missing_rider_clip_is_an_explicit_error_not_a_stand_pose() {
     let catalog = catalog();
     let error = KitTimeline::resolve(catalog.kit(23323).unwrap(), |id| {
