@@ -50,8 +50,10 @@ func verify_controls(ui: Node, opened: bool) -> void:
 		var row := ui.find_child(prefix, true, false) as Control
 		assert(row != null and row.size == Vector2(99, 20), "Source row size")
 		assert(row.global_position.is_equal_approx(menu.global_position + Vector2(8, 8 + index * 20)), "Source row anchor")
-		var box := ui.find_child(prefix + "Box", true, false) as TextureRect
-		assert(box != null and box.texture != null, "Radio texture loaded")
+		var box := ui.find_child(prefix + "Box", true, false)
+		assert(box != null, "Radio region present")
+		var part := box.get_node_or_null("Parts/Part0") as TextureRect
+		assert(part != null and part.texture != null, "Radio texture loaded")
 		assert((ui.find_child(prefix + "Tick", true, false) != null) == (index == 1), "Only Medium checked")
 		var text := ui.find_child(prefix + "Text", true, false) as Label
 		assert(text != null and text.get_theme_font_size("font_size") == 12, "Radio Number12Font")
