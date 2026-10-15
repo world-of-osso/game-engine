@@ -130,6 +130,7 @@ func run() -> void:
 	var scale := pane.get_global_rect().size.x / 792.0
 	verify(pane.clip_contents, "native monthly pane must clip authored overhang")
 	verify(control("EncounterJournalSearchBox") == null, "source Monthly tab must hide encounter search")
+	verify(control("EncounterJournalNavBar") == null, "source Monthly tab must hide encounter navbar")
 	for entry in [["JournalMonthlyThresholdContainer", Rect2(46,74,663,33)], ["EncounterJournalFilterList", Rect2(5,137,220,290)], ["EncounterJournalContent", Rect2(241,138,521,291)]]:
 		var node := control(entry[0])
 		var expected: Rect2 = entry[1]
