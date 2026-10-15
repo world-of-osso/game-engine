@@ -1,6 +1,6 @@
 ## 2026-10-15 — Stockade ramp lip movement
 
-[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order plus continuous zero-radius upright-body clearance, unchanged step/wall constants. Exact-face RED and raised-ray counterexample RED recorded; native acceptance tracked by the movement owner.
+[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap; native acceptance tracked by the movement owner.
 
 ## 2026-10-15 — AH duration source menu
 
