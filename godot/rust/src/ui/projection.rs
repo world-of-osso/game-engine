@@ -941,6 +941,7 @@ impl UiProjection {
             rect.width
         };
         let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
+        let bounded_wrapping = data.word_wrap && data.max_lines.is_some_and(|lines| lines > 1);
         let fit_multiline = fixed_rectangle && data.text.contains('\n');
         // A height cap hides single-line captions whose font metrics exceed their
         // authored height; only cap lines whose spacing we fit into that height.
@@ -965,7 +966,9 @@ impl UiProjection {
         // ending in "…". Godot's plain `TRIM_ELLIPSIS` drops the ellipsis when fewer than six
         // characters would remain, which in a 32-wide hotkey is always; the `_FORCE` mode
         // adds it however short the rest.
-        let one_line = fixed_rectangle && !fit_multiline && rect.height < 2.0 * data.font_size;
+        let short_rectangle = fixed_rectangle && rect.height < 2.0 * data.font_size;
+        let multiline = fit_multiline || bounded_wrapping;
+        let one_line = short_rectangle && !multiline;
         let (wrap, overrun) = if one_line {
             (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS_FORCE)
         } else {
@@ -974,7 +977,10 @@ impl UiProjection {
         node.set_autowrap_mode(wrap);
         node.set_max_lines_visible(data.max_lines.map_or(-1, |lines| lines as i32));
         node.set_text_overrun_behavior(overrun);
-        if fit_multiline {
+        let fit_wrapped = fixed_rectangle && bounded_wrapping && node.get_line_count() > 1;
+        if fit_multiline || fit_wrapped {
+            // WoW's bounded FontString keeps its authored height, also after automatic wrapping.
+            node.set_custom_maximum_size(Vector2::new(maximum_width, rect.height));
             fit_multiline_label_spacing(&mut node, data, rect.height)?;
         }
         // Styling can raise Control's minimum size before tighter spacing lowers it.
@@ -1001,12 +1007,12 @@ fn fit_multiline_label_spacing(
     };
     let available_height = height - shadow_reserved_height(data.justify_v, shadow_y);
     let themed_spacing = node.get_theme_constant("line_spacing");
-    let spacing = multiline_line_spacing(
-        available_height,
-        font_height,
-        node.get_line_count(),
-        themed_spacing,
-    );
+    let line_count = node.get_line_count();
+    let visible_lines = data
+        .max_lines
+        .map_or(line_count, |limit| line_count.min(limit as i32));
+    let spacing =
+        multiline_line_spacing(available_height, font_height, visible_lines, themed_spacing);
     node.add_theme_constant_override("line_spacing", spacing);
     Ok(())
 }

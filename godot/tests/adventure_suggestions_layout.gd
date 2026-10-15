@@ -34,6 +34,9 @@ func check_suggestions_layout() -> bool:
 		if limit == 2:
 			var description := control(str(title.name).trim_suffix("Name") + "DescriptionFrame")
 			print("SUGGESTED_PRIMARY_TEXT_METRICS title_rect=%s line_height=%s lines=%s font_size=%s spacing=%s description_rect=%s" % [title.get_global_rect(), title.get_line_height(), title.get_line_count(), title.get_theme_font_size("font_size"), title.get_theme_constant("line_spacing"), description.get_global_rect()])
+			if title.get_visible_line_count() != mini(2, title.get_line_count()):
+				stop("Primary source title line was clipped instead of fitted")
+				return false
 			if description.get_global_rect().position.y < title.get_global_rect().end.y + 8.0 * scale - 1.0:
 				stop("Primary native title exceeds its authored frame and overlaps description")
 				return false
