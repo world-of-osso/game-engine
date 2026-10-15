@@ -14,7 +14,7 @@
 
 ## P2: Follow-position is ignored
 
-**Reference.** Authored `0x4000` maps to emitter-internal `0x80000` at `W/Engine/Source/Model2/M2Model.cpp:7377–7379`; do not confuse these two flag namespaces. Follow control points are passed at `:7486`. `W/Engine/Source/Services/ParticleSystem2.cpp:342–354` derives a speed-dependent linear factor; `:2480–2503` clamps it to [0,1] and multiplies emitter displacement. `:582–586` adds the resulting per-step burst offset to sufficiently old particles; `:1037–1063` distributes it over replay steps.
+**Reference.** Authored `0x4000` maps to emitter-internal `0x80000` at `W/Engine/Source/Model2/M2Model.cpp:7376–7379`; do not confuse these two flag namespaces. Follow control points are passed at `:7486`. `W/Engine/Source/Services/ParticleSystem2.cpp:342–354` derives a speed-dependent linear factor; `:2480–2503` clamps it to [0,1] and multiplies emitter displacement. `:582–586` adds the resulting per-step burst offset to sufficiently old particles; `:1037–1063` distributes it over replay steps.
 
 **Current.** Four follow values are parsed at `E/godot/core/src/asset/m2_format/m2_particle.rs:544–554`. `E/godot/core/src/m2_particles.rs:516–540,549–594` stores the current emitter frame and performs ordinary ballistic movement, but has no previous-frame follow displacement or speed-to-follow application. Neither these fields nor a follow-position branch is consumed in native `particles.rs`.
 
@@ -24,23 +24,23 @@
 
 ## P3: Emitter velocity is not inherited
 
-**Reference.** Authored `0x40` maps to internal `0x800` at `W/Engine/Source/Model2/M2Model.cpp:7342–7344`. `W/Engine/Source/Services/ParticleSystem2.cpp:2508–2528` updates parent velocity using its timer and `m_ivelScale`. New particle velocity includes that parent velocity at `:521–523`; the model supplies the authored scale at `W/Engine/Source/Model2/M2Model.cpp:7470`.
+**Reference.** Authored `0x40` maps to internal `0x800` at `W/Engine/Source/Model2/M2Model.cpp:7342–7344`. `W/Engine/Source/Services/ParticleSystem2.cpp:2508–2528` updates parent velocity using its timer and `m_ivelScale`. Reachable plane and sphere particle-creation overrides add parent velocity at `:2934–2939,3005–3010`, multiplied by `1 + random_signed × variation`; dispatch is shown at `:1873–1882` and `W/Engine/Source/Services/ParticleSystem2.h:205–206,281,300`. The model supplies the authored scale at `W/Engine/Source/Model2/M2Model.cpp:7470`.
 
 **Current.** `E/godot/core/src/m2_particles.rs:615–644` transforms generator velocity into world axes, but never adds a measured parent velocity or uses the inherited-velocity flag. `E/godot/core/src/asset/m2_format/m2_particle.rs:107–111` exposes `inherit_velocity_scale` while explicitly noting the persisted modern header field has not been established. Presence of that field is not runtime support.
 
 **Required change.** Implement the flag's birth-velocity contribution with the correct displacement/time convention and scale for the target format. Resolve the modern scale's data provenance before claiming parity; do not blindly equate the reference's timer-normalized quantity with ordinary yd/s. Keep this distinct from P2: inherited velocity changes subsequent trajectory, while follow-position carries already-live particles.
 
-**Acceptance.** For identical seeded generator output, compare stationary and moving-parent births with `0x40` on/off. The on/moving fixture must contain exactly the reference-derived parent contribution and retain its changed trajectory after parent motion stops. Test the reference timer boundary and no-live-particle reset. Asset decoding of the modern scale is an explicit dependency, not a reason to invent a constant.
+**Acceptance.** Set speed variation to zero to isolate the parent contribution. For identical seeded generator output, compare stationary and moving-parent births with `0x40` on/off. The on/moving fixture must contain exactly the reference-derived parent contribution and retain its changed trajectory after parent motion stops. Test the reference timer boundary and no-live-particle reset. Asset decoding of the modern scale is an explicit dependency, not a reason to invent a constant.
 
 ## P4: Spline emitters are filtered out
 
 **Reference.** `W/Engine/Source/Model2/M2Model.cpp:7276–7284` creates `CSplineParticleEmitter` for type 3 and `:7489–7491` supplies its spline. `W/Engine/Source/Services/ParticleSystem2.cpp:2861–2873,3059–3130` contains spline setup and particle creation rather than treating type 3 as a sphere.
 
-**Current.** `E/godot/core/src/m2_particles.rs:119–134` recognizes only plane and sphere. `E/godot/rust/src/particles.rs:315–326` filters out all other shapes before placement; `EmitterSim::update` also rejects them at `E/godot/core/src/m2_particles.rs:525–526`. The parser identifies type 3 as spline (`E/godot/core/src/asset/m2_format/m2_particle.rs:55–56`), but naming the type does not simulate it.
+**Current.** `E/godot/core/src/m2_particles.rs:119–134` recognizes only plane and sphere. `E/godot/rust/src/particles.rs:315–326` filters out all other shapes before placement; `EmitterSim::update` also rejects them at `E/godot/core/src/m2_particles.rs:524–526`. The parser identifies type 3 as spline (`E/godot/core/src/asset/m2_format/m2_particle.rs:55–56`), but naming the type does not simulate it.
 
 **Required change.** Decode and preserve the spline controls for the applicable asset layout, then generate positions/velocities and emission density along the authored curve. Do not approximate unsupported splines as plane/sphere emitters.
 
-**Acceptance.** An emitter with a known bent three-control-point curve, positive rate and no refraction reaches native placement, emits along the curve and changes when the curve changes. Check width/height and rate-per-unit behavior against the reference. Establish real asset and spline-layout provenance before treating this as a shipped-asset fix.
+**Acceptance.** An emitter with four explicitly supplied control points defining one bent cubic Bézier segment, positive rate and no refraction reaches native placement, emits along the curve and changes when the curve changes. The reference owns `C3Spline_Bezier3` (`W/Engine/Source/Services/ParticleSystem2.h:317`); point-count normalization and four-point evaluation are at `W/Engine/Source/Tempest/C3Spline_Bezier3.cpp:124–134` and `W/Engine/Source/Tempest/C3Spline.cpp:128–145`. Check width/height and rate-per-unit behavior against the reference. Establish real asset and spline-layout provenance before treating this as a shipped-asset fix.
 
 ## P5: Model particles and recursive emitters have no native path
 
@@ -56,7 +56,7 @@
 
 **Reference.** `W/Engine/Source/Model2/M2Model.cpp:7431–7432` maps authored particle flag `0x1` into a material flag. `W/Engine/Source/Services/ParticleSystem2.cpp:254–261` copies that flag into emitter parameters. `W/Engine/Source/Model2/CM2SceneRender.cpp:720–728` chooses the lit versus unlit particle effect and calls `SetupLighting`; `:733–738` chooses normal-bearing `GxVBF_PNCT` versus `GxVBF_PCT` vertices. **Reference ambiguity:** the authored-to-material assignment inverts bit 0 while the effect selector tests the resulting bit directly. This audit establishes that two lighting paths exist, not that the reconstruction's authored-bit polarity is faithful to the original binary.
 
-**Current.** `E/godot/shaders/particle.gdshader:1–3,48–97` always renders unshaded texture/color plus fog. The variant binder preserves `unshaded` for every blend type (`E/godot/rust/src/particles.rs:56–64`); there is no authored-lit branch. Fog alone is not lighting.
+**Current.** `E/godot/shaders/particle.gdshader:1–3,48–91` always renders unshaded texture/color plus fog. The variant binder preserves `unshaded` for every blend type (`E/godot/rust/src/particles.rs:56–64`); there is no authored-lit branch. Fog alone is not lighting.
 
 **Required change.** Honor the target-validated authored lit/unlit distinction with appropriate particle normals and lighting; establish flag polarity from a known asset or original/target-client evidence before implementation. Preserve authored unlit effects and their existing blend/fog behavior. Do not globally brighten particles or enable generic PBR as a substitute for matching the effect's light response.
 
