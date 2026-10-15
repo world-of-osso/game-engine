@@ -1152,6 +1152,9 @@ impl Account {
                     target_character_name,
                 })
             }
+            GuildCommand::GroupInvite(name) => {
+                bridge.send::<_, GroupChannel>(GroupInviteIntent { name })
+            }
             GuildCommand::AcceptInvite => bridge.send::<_, AuthChannel>(GuildAcceptInviteRequest),
             GuildCommand::DeclineInvite => bridge.send::<_, AuthChannel>(GuildDeclineInviteRequest),
             GuildCommand::SetMotd(text) => bridge.send::<_, GuildChannel>(SetGuildMotd { text }),
