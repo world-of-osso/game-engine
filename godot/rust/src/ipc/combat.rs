@@ -110,6 +110,7 @@ fn event_kind(event: &CombatLogEvent) -> &'static str {
         CombatLogKind::Dispel => "dispel",
         CombatLogKind::CastStart => "cast_start",
         CombatLogKind::CastSuccess => "cast_success",
+        CombatLogKind::Summon => "summon",
     }
 }
 
@@ -172,6 +173,19 @@ mod tests {
             19647 => "Spell Lock".into(),
             _ => panic!("unexpected spell {id}"),
         }
+    }
+
+    #[test]
+    fn combatipc_summon_keeps_summoner_unit_and_actual_spell() {
+        let mut event = damage(42, 3110);
+        event.kind = serde_json::from_str("\"Summon\"").expect("SPELL_SUMMON protocol kind");
+        event.spell_id = Some(228562);
+        event.amount = 0;
+        let log = format_combat_log(&VecDeque::from([event]), 20, |_| "Feral Spirit".into());
+        assert_eq!(
+            log,
+            "combat_log: 1\nsummon src=42 dst=99 spell=228562 amount=- aura=- text=42 Summon 99 timestamp_unix_ms=1791210000123 spell_name=\"Feral Spirit\""
+        );
     }
 
     #[test]
