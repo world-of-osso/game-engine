@@ -303,7 +303,10 @@ impl GameClient {
     }
 }
 
-fn sync_toy_swipes(host: &mut RegistryUi, state: &MainActionBarState) -> Result<(), String> {
+pub(crate) fn sync_toy_swipes(
+    host: &mut RegistryUi,
+    state: &MainActionBarState,
+) -> Result<(), String> {
     for bar in ActionBar::ALL {
         for (index, button) in state.bar(bar).iter().enumerate() {
             let name = format!("{}Cooldown", bar.button_name(index));
