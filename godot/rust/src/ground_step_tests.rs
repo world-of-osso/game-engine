@@ -40,7 +40,10 @@ fn collision_tile(faces: &[[Vec3; 3]]) -> LosTile {
 fn walk(faces: &[[Vec3; 3]], snap: bool) -> Vec3 {
     let tile = collision_tile(faces);
     let terrain = StreamedTerrain::new(PathBuf::new());
-    let walls = |origin, direction, length| tile.first_hit(origin, origin + direction * length);
+    let walls = |origin, direction, length| {
+        tile.first_hit(origin, origin + direction * length)
+            .map(|fraction| fraction * length)
+    };
     let floor = |feet| tile.floor_height(feet);
     TerrainGround {
         terrain: &terrain,
