@@ -30,6 +30,8 @@ Server timestamps delimit a fixed half-open window. Only the bot and its owned c
 
 Rejection strings currently lack spell IDs, so `native_cast_error` uses null attribution. Charge/resource/aura-effect/reset violations are not certified from combat text or aura presence alone. Existing native assisted/cooldown/aura snapshots are retained for further detection; these checks remain explicitly unobserved.
 
+Readiness and collector reads require observed positive local_player_health, independently of gameplay_input_allowed. The latter only permits input and was observed true for Ret70 with health0/8208; native all-spec batch1 consequently captured36 dead-player rejections per window without an in-window death event. Those two raw zero-DPS records are invalid living-player measurements and must be excluded from qualification, not called successful Ret runs. Ret's persistent dead state is not healed/reset by the harness. The actual captured state reproduces the readiness bug before the health gate; the already-loaded all-spec collector remains the old implementation. bot_health.py now qualifies its retained reports from native-before.json and native-samples.jsonl; missing/unobserved/dead health yields derived DPSnull and measurement_complete=false, preserving reported_dps/reported_measurement_complete and an explicit health_qualification error. No original file is rewritten. Roster comparison exposes health_failures and withholds the affected repetition; per-ability summaries use the same qualifier. MVP samples independently show positive health throughout all six windows (mvp-alive-proof.json), so that evidence is unaffected.
+
 Incomplete collection exposes DPS as null. Setup failures also receive JSON/Markdown. Summaries remain short; full per-ability findings live in JSON.
 
 ## Spell-driven ownership events
@@ -40,17 +42,35 @@ Native regression proof: corrected root51533 and child228562 each create two wol
 
 Pre-merge root51533 produced four wolves because script and generic summon count both applied. Upstream master now casts child228562 once; this harness branch made no gameplay correction. Those server/client CPU fixtures do not establish an all-spec rendered live run or balance acceptance.
 
+## Per-ability triage
+
+`python3 scripts/bot_ability_summary.py <run-root> <summary-output>` reads the configured roster and retained run/report pairs without controlling clients or changing collection. abilities.json/md report each spell's request/success counts, actual event-spell damage, missing-cast/zero-damage/unused findings and separate untagged native error totals. Trigger child damage keeps its actual spell ID; source damage_ids remain relationships, not duplicated root credit. Missing specs/repeats and partial artifact pairs remain explicit. The actual native Arms excerpt proves16 requests/3 successes/1163 damage/13 missing-cast findings and12 no-charges plus1not-ready errors; those errors cannot be assigned a spell from the error payload alone.
+
 ## Damage comparison
 
-The baseline leaves Neck, Finger1/2 and Trinket1/2 empty. The gear controller finds a visible native bag button absent from the occupied owner snapshot, clicks the equipped jewelry then that empty destination, and waits for the equipment slot to disappear and the item ID to appear at that destination. Missing space or confirmation blocks setup; no admin unequip path. Bag1–4 remain equipped and receipts retain their owner identities separately from budgeted combat items. Eight focused gear tests pass, including all five jewelry refusals with four retained native storage bags; integrated harness Python50 and Godot gear parse pass. Native removal proof remains pending.
+The baseline leaves Neck, Finger1/2 and Trinket1/2 empty. The gear controller finds a visible native bag button absent from the occupied owner snapshot, clicks the equipped jewelry then that empty destination, and waits for the equipment slot to disappear and the item ID to appear at that destination. Missing space or confirmation blocks setup; no admin unequip path. Bag1–4 remain equipped and receipts retain their owner identities separately from budgeted combat items. Eight focused gear tests pass, including all five jewelry refusals with four retained native storage bags; integrated harness Python50 and Godot gear parse pass. Native-equal-budget2 proves all five Havoc removals into bag0 slot15 and bag1 slots0–3. Before/after snapshots preserve storage-bag IDs/GUIDs/counts; names/icons resolve asynchronously and are not item identity.
 
 The native driver now writes comparison.json only after owner equipment receipt validation and an observed CharacterStats level matching the fixture. The shared comparison key contains the equipment budget, actual dummy level/max-health/difficulty, source world.db SHA-256 and full duration; each spec's exact item IDs/GUIDs and visible stats remain in fixture-receipt.json. Current dummy damage does not change its max-health fixture identity.
 
 The roster writes balance.json plus comparison.md, computing medians only when all expected DPS repetitions are complete; missing/incomplete specs are not silently dropped. Fewer than three DPS specs or mismatched receipts explicitly withhold the MVP comparison.
 
-Comparison requires equal explicit receipts for level, stats, dummy and duration. ChrSpecialization.Role2 alone enters the DPS median. Equal-duration repetitions first produce one mean DPS per spec; unequal repeat counts and tank/healer damage cannot weight that median. Reports give max/median and min/median with no tolerance or pass/fail. No external DPS numbers are used. Comparable gear/stat receipts remain open; ordinary source-derived starting characters alone do not establish them.
+Comparison requires equal explicit receipts for level, stats, dummy and duration. ChrSpecialization.Role2 alone enters the DPS median. Equal-duration repetitions first produce one mean DPS per spec; unequal repeat counts and tank/healer damage cannot weight that median. Reports give max/median and min/median with no tolerance or pass/fail. No external DPS numbers are used. All-spec comparable gear/stat receipts remain open beyond the three-spec MVP below; ordinary source-derived starting characters alone do not establish them.
 
 ## Recorded native proof and remaining gates
+
+### Common-budget three-DPS MVP — verified2026-10-15
+
+`native-equal-budget2` completes two60s windows per spec with the same character32, ilvl30/quality2/era0 and dummy44548 level30/max-health13137/difficulty0/source-world SHA-256. Arms10 items, Fury/Havoc11; jewelry is empty for each. Fury equips both25129 weapons normally, confirming the learned Titan's Grip path rather than replacing them with one-hand weapons.
+
+| Spec | Damage, run1/run2 | DPS, run1/run2 |
+|---|---:|---:|
+| Arms71 | 1163 / 1131 | 19.3833 / 18.85 |
+| Fury72 | 5518 / 7641 | 91.9667 / 127.35 |
+| Havoc577 | 235 / 188 | 3.9167 / 3.1333 |
+
+`balance.json` is available with six complete expected runs: equal-spec mean median19.1167, max/median5.7363 and min/median0.1844. No tolerance or balance pass/fail. Actual native cast rejections/unmatched requests/unused abilities remain findings; complete duration is not spell correctness. `receipt-verification.json` checks all empty jewelry slots, unchanged owned bag identities and measurement_complete manifests. Matching artifacts are enginee540887ac/server80993678/protocol7313ec4, recorded in equal-budget2-build-revisions.json. Driverexit0, failures[], owned server2787944 and cages2842507/3013170/3072683 confirmed stopped. This clears the three-DPS phase gate only; all40 execution, missing detector observability and repeated Stockade/follower runs remain open.
+
+### Earlier captures (not current comparable-budget evidence)
 
 - Ret32, sourced talents and physical melee approach: first complete60s run deals2406 own-dummy damage,40.1DPS, with15 unmatched submissions and15 native rejections. Two later60s windows record33.9333 and20DPS. These are actual measurements, not bug-free or balanced-class claims.
 - Ret talent fresh-login evidence retains12/12 previously positive source-plan ranks. Stopped/started client PIDs, account identity, source manifests and realized ranks are preserved.
@@ -70,7 +90,7 @@ Durable evidence: `/home/osso/.worktrees/bot-harness-2026-10-15/`, linked from s
 
 ## Spec-correct source gear fixture
 
-`bot_gear.py` derives weapon kinds from source starter Item references and each installed ChrSpecialization preferred-weapon description; those references are not the newly equipped items. Exact private-world Item/ItemSparse rows select the lowest eligible ID at the [contract's common budget](../../specs/bot-harness.md#comparable-equipment-budget), with positive appropriate primary-stat allocation, valid class/level, no race restriction and a single raw squish era. ChrClasses.ArmorTypeMask selects the native armor subclass; SpecTabInfo/TC Player::GetPrimaryStat defines the specialization priority mapping. All nine body/cloak slots and preferred weapons share this budget; missing source coverage blocks rather than selecting a different tier. All40 source plans are checked against61 authentic Item/ItemSparse row pairs, not claimed as40 live equips. Fury retains dual-two-hand and its existing Titan's Grip boundary; no one-hand substitute.
+`bot_gear.py` derives weapon kinds from source starter Item references and each installed ChrSpecialization preferred-weapon description; those references are not the newly equipped items. Exact private-world Item/ItemSparse rows select the lowest eligible ID at the [contract's common budget](../../specs/bot-harness.md#comparable-equipment-budget), with positive appropriate primary-stat allocation, valid class/level, no race restriction and a single raw squish era. ChrClasses.ArmorTypeMask selects the native armor subclass; SpecTabInfo/TC Player::GetPrimaryStat defines the specialization priority mapping. All nine body/cloak slots and preferred weapons share this budget; missing source coverage blocks rather than selecting a different tier. All40 source plans are checked against61 authentic Item/ItemSparse row pairs, not claimed as40 live equips. Fury retains dual-two-hand and requires learned Titan's Grip; native-equal-budget2 confirms both25129 equipment swaps after source-backed spec acquisition. No one-hand substitute.
 
 The ordinary bag-to-paperdoll controller now handles all planned slots. Before comparison, `equipment_receipt` requires the native owner snapshot to match every planned item ID, rejects extra stat-bearing slots, and retains item GUIDs, ilvl/quality and observed native primary stats. Cosmetic Shirt/Tabard do not enter the stat budget. Native full-budget equip remains the gate; the following weapon-only captures predate this standardization.
 

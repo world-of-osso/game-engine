@@ -469,7 +469,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn update_cleanup_hover(&mut self, point: Vector2) -> Result<(), String> {
+    pub(super) fn update_cleanup_hover(&mut self, point: Vector2) -> Result<(), String> {
         use game_engine_ui_model::housing_editor::EditorMode;
         let Some(model) = &self.housing.model else {
             return Ok(());

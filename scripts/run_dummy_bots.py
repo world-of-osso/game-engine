@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from bot_harness import analyze, merge_polls, poll_has_gap, write_report
+from bot_health import require_living_player
 from bot_rotation import authored_next, authored_order, choose, load_spells, read_rows
 
 
@@ -30,6 +31,7 @@ def read_state(path):
         raise RuntimeError(state["spec_request_error"])
     if not state["account"].get("gameplay_input_allowed"):
         raise RuntimeError("Native player disconnected, dead or not in world")
+    require_living_player(state["account"])
     return state
 
 

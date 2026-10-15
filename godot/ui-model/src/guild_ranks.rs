@@ -14,6 +14,8 @@ pub enum CommunitiesTab {
 pub enum GuildRosterSort {
     Name,
     Rank,
+    Level,
+    Class,
 }
 
 pub fn guild_creation_notice(created_at: Option<u64>) -> String {
@@ -28,6 +30,7 @@ pub fn guild_creation_notice(created_at: Option<u64>) -> String {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GuildCommand {
     Invite(String),
+    GroupInvite(String),
     AcceptInvite,
     DeclineInvite,
     SetMotd(String),
@@ -50,6 +53,10 @@ pub struct GuildRanksSession {
     pub control_menu_open: bool,
     pub rank_menu_open: bool,
     pub member_menu: Option<String>,
+    pub member_detail: Option<String>,
+    pub removal_target: Option<String>,
+    /// StaticPopup data captures the target identity independently of roster selection.
+    pub note_editor: Option<(String, bool)>,
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
     pub invitation_waiting: bool,
@@ -72,8 +79,31 @@ impl GuildRanksSession {
         GuildRankRequest::Query
     }
 
+    pub fn close(&mut self) -> bool {
+        let visible = self.visible;
+        self.visible = false;
+        self.settings_open = false;
+        self.invite_open = false;
+        self.profile_editor = None;
+        self.member_menu = None;
+        self.member_detail = None;
+        self.note_editor = None;
+        self.removal_target = None;
+        visible
+    }
+
+    pub fn dismiss_member_popup(&mut self) -> bool {
+        if self.removal_target.take().is_some() {
+            return true;
+        }
+        self.note_editor.take().is_some()
+    }
+
     pub fn apply(&mut self, state: GuildRanksState) {
         self.awaiting_state = false;
+        if state.error.is_some() {
+            self.profile_waiting = false;
+        }
         self.error = state.error.map(|error| error.message().to_owned());
         self.selected_rank = self.selected_rank.min(state.ranks.len().saturating_sub(1));
         self.state = Some(state);
@@ -105,6 +135,8 @@ impl GuildRanksSession {
             "guild:benefits_open" => self.communities_tab = CommunitiesTab::Benefits,
             "guild:roster-sort:name" => self.sort_roster(GuildRosterSort::Name),
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
+            "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),
+            "guild:roster-sort:class" => self.sort_roster(GuildRosterSort::Class),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,
             "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {
@@ -222,8 +254,7 @@ impl GuildRanksSession {
                 None
             }
             "guild:close" => {
-                self.visible = false;
-                self.settings_open = false;
+                self.close();
                 None
             }
             "guild:settings" => {
@@ -245,10 +276,52 @@ impl GuildRanksSession {
                 self.control_menu_open = false;
                 None
             }
+            "guild:detail_group_invite" => {
+                if let Some(member) = self.detail_member().filter(|member| member.is_online) {
+                    self.commands
+                        .push(GuildCommand::GroupInvite(member.character_name.clone()));
+                }
+                None
+            }
+            "guild:detail_remove" => {
+                self.open_member_removal(self.member_detail.clone()?);
+                None
+            }
+            "guild:remove_confirm" => {
+                let request = self.remove_member(self.removal_target.as_deref()?)?;
+                self.removal_target = None;
+                self.member_detail = None;
+                Some(request)
+            }
+            "guild:remove_cancel" => {
+                self.removal_target = None;
+                None
+            }
+            "guild:detail_close" => {
+                self.member_detail = None;
+                self.note_editor = None;
+                None
+            }
+            "guild:note_public" | "guild:note_officer" => {
+                let officer = action == "guild:note_officer";
+                if self.can_edit_note(officer) && !self.awaiting_state && !self.profile_waiting {
+                    self.removal_target = None;
+                    self.note_editor = self.member_detail.clone().map(|name| (name, officer));
+                }
+                None
+            }
+            "guild:note_close" => {
+                self.note_editor = None;
+                None
+            }
+            "guild:note_accept" => self.submit_note(input(crate::guild_member_detail::NOTE_BOX)),
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
-            "guild:remove_member" => self.remove_member(self.member_menu.as_deref()?),
+            "guild:remove_member" => {
+                self.open_member_removal(self.member_menu.clone()?);
+                None
+            }
             _ => self.indexed_click(action, texts),
         };
         if request.is_some() {
@@ -257,13 +330,78 @@ impl GuildRanksSession {
         request
     }
 
+    fn open_member_removal(&mut self, name: String) {
+        if self.remove_member(&name).is_some() {
+            self.removal_target = Some(name);
+            self.member_menu = None;
+            self.note_editor = None;
+        }
+    }
+
+    pub fn detail_member(&self) -> Option<&GuildMemberSnapshot> {
+        let name = self.member_detail.as_ref()?;
+        self.profile
+            .as_ref()?
+            .members
+            .iter()
+            .find(|member| &member.character_name == name)
+    }
+
+    pub fn can_edit_note(&self, officer: bool) -> bool {
+        let Some(member) = self.detail_member() else {
+            return false;
+        };
+        self.can_edit_member_note(member, officer)
+    }
+
+    fn can_edit_member_note(&self, member: &GuildMemberSnapshot, officer: bool) -> bool {
+        if officer {
+            self.can(GUILD_RIGHT_EDIT_OFFICER_NOTE) && self.can(GUILD_RIGHT_VIEW_OFFICER_NOTE)
+        } else {
+            member.is_self || self.can(GUILD_RIGHT_EDIT_PUBLIC_NOTE)
+        }
+    }
+
+    pub fn note_member(&self) -> Option<&GuildMemberSnapshot> {
+        let (name, _) = self.note_editor.as_ref()?;
+        self.profile
+            .as_ref()?
+            .members
+            .iter()
+            .find(|member| &member.character_name == name)
+    }
+
+    fn submit_note(&mut self, note: &str) -> Option<GuildRankRequest> {
+        let (character_name, officer) = self.note_editor.clone()?;
+        if self.awaiting_state
+            || self.profile_waiting
+            || !self.can_edit_member_note(self.note_member()?, officer)
+            || !valid_guild_member_note(note)
+        {
+            return None;
+        }
+        self.note_editor = None;
+        self.profile_waiting = true;
+        Some(GuildRankRequest::SetMemberNote {
+            character_name,
+            note: note.to_owned(),
+            officer,
+        })
+    }
+
     fn indexed_click(
         &mut self,
         action: &str,
         texts: &crate::bank::InputTexts,
     ) -> Option<GuildRankRequest> {
         if let Some(name) = action.strip_prefix("guild:member:") {
+            self.member_detail = Some(name.to_owned());
+            self.member_menu = None;
+            return None;
+        }
+        if let Some(name) = action.strip_prefix("guild:member-menu:") {
             self.member_menu = Some(name.to_owned());
+            self.member_detail = None;
             return None;
         }
         let (kind, index) = action.strip_prefix("guild:")?.split_once(':')?;

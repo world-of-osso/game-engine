@@ -117,15 +117,47 @@ fn spell_button_shows_icon_cooldown_swipe_and_countdown() {
         source(&registry, "ActionButton1Icon"),
         TextureSource::FileDataId(SLAM_ICON)
     );
-    // The swipe covers half of the 39 px cooldown square, from the bottom.
+    // CooldownFrameTemplate keeps the full inset square; native projection draws a radial swipe.
     let swipe = frame(&registry, "ActionButton1Cooldown");
     assert!(!swipe.hidden);
-    assert_eq!(swipe.height, Dimension::Fixed(20.0));
-    assert_eq!(swipe.position.top, Val::Px(22.0));
+    assert_eq!(swipe.height, Dimension::Fixed(39.0));
+    assert_eq!(swipe.position.top, Val::Px(3.0));
     assert_eq!(text(&registry, "ActionButton1CooldownText"), "3");
     assert!(!frame(&registry, "ActionButton1PushedTexture").hidden);
     assert!(frame(&registry, "ActionButton1NormalTexture").hidden);
     assert!(frame(&registry, "ActionButton2Cooldown").hidden);
+}
+
+#[test]
+fn action_cooldown_keeps_full_transparent_square_for_every_fraction_in_both_skins() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let scale = if skin == ActiveSkin::Forever {
+            game_engine_ui_model::hud_layout::FOREVER_ACTION_BUTTON_SCALE
+        } else {
+            1.0
+        };
+        for fraction in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            let mut state = MainActionBarState::default();
+            state.buttons[0] = ActionButtonView {
+                icon_fdid: SLAM_ICON,
+                cooldown_fraction: fraction,
+                ..Default::default()
+            };
+            let mut shared = SharedContext::new();
+            shared.insert(skin);
+            shared.insert(state);
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(main_action_bar_screen).sync(&shared, &mut registry);
+            let swipe = frame(&registry, "ActionButton1Cooldown");
+            assert_eq!(swipe.width, Dimension::Fixed(39.0 * scale));
+            assert_eq!(swipe.height, Dimension::Fixed(39.0 * scale));
+            assert_eq!(swipe.position.left, Val::Px(3.0 * scale));
+            assert_eq!(swipe.position.top, Val::Px(3.0 * scale));
+            assert_eq!(swipe.background_color, Some([0.0, 0.0, 0.0, 0.0]));
+            assert_eq!(swipe.hidden, fraction == 0.0);
+        }
+    }
 }
 
 #[test]

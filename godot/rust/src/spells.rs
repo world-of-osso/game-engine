@@ -41,7 +41,7 @@ use floating_text::FloatingText;
 
 #[cfg(test)]
 use crate::world_map::title_hit;
-pub(crate) use action_bar::cooldown_text;
+pub(crate) use action_bar::{cooldown_text, sync_action_bar_swipes};
 #[cfg(test)]
 use floating_text::combat_text_size;
 #[cfg(test)]
@@ -65,6 +65,8 @@ pub(crate) struct SpellsHud {
     pub(crate) vigor_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
     book_ui: Option<Gd<RegistryUi>>,
+    /// Exact last text handed to DisplayServer; diagnostics, not OS delivery proof.
+    pub(crate) talent_export_clipboard: Option<String>,
     book_position: Option<[f32; 2]>,
     book_drag: Option<WindowDrag>,
     book: SpellbookFrameState,
@@ -99,6 +101,7 @@ impl Default for SpellsHud {
             vigor_ui: None,
             cast_ui: None,
             book_ui: None,
+            talent_export_clipboard: None,
             book_position: None,
             book_drag: None,
             book: SpellbookFrameState::default(),
