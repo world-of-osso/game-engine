@@ -275,12 +275,32 @@ impl View {
     }
     pub(crate) fn page_enabled(&self, page: Page) -> bool {
         match page {
-            Page::Overview => self.instance.is_some(),
+            Page::Overview => {
+                self.instance.is_some()
+                    && self.encounter.is_none_or(|id| {
+                        self.catalog
+                            .encounter(id)
+                            .is_some_and(|encounter| encounter.root != 0)
+                    })
+            }
             Page::Loot => self
                 .instance_loot_entries()
                 .any(|loot| self.catalog.items.contains_key(&loot.item)),
             Page::Abilities => self.encounter.is_some() && self.instance_has_overview(),
             Page::Model => self.encounter.is_some(),
+        }
+    }
+    /// EncounterJournal_ValidateSelectedTab: retain a valid tab, otherwise select
+    /// the first enabled source tab in Overview/Loot/Abilities/Model order.
+    fn validate_selected_page(&mut self) {
+        if self.page_enabled(self.page) {
+            return;
+        }
+        if let Some(page) = [Page::Overview, Page::Loot, Page::Abilities, Page::Model]
+            .into_iter()
+            .find(|page| self.page_enabled(*page))
+        {
+            self.page = page;
         }
     }
     pub(crate) fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
@@ -325,6 +345,7 @@ impl View {
         if let Some(difficulty) = difficulty {
             self.difficulty = difficulty;
         }
+        self.validate_selected_page();
         Ok(())
     }
     pub fn select_encounter(&mut self, id: u32) -> Result<(), String> {
@@ -351,6 +372,8 @@ impl View {
         if !instance.tiers.contains(&self.tier) {
             self.tier = *instance.tiers.first().ok_or("Instance tier data missing")?;
         }
+        // Initialize overview role groups independently of the retained info tab.
+        let previous_page = self.page;
         self.page = Page::Overview;
         self.visible = true;
         self.search.clear();
@@ -367,6 +390,8 @@ impl View {
             .map(|(section, _)| section.id)
             .collect();
         self.collapsed.extend(collapsed);
+        self.page = previous_page;
+        self.validate_selected_page();
         Ok(())
     }
     pub fn model_creatures(&self) -> Vec<&game_engine_core::adventure_guide::Creature> {
@@ -594,7 +619,7 @@ impl View {
                     self.difficulty =
                         *difficulties.first().ok_or("Instance has no difficulties")?;
                 }
-                self.page = Page::Overview;
+                self.validate_selected_page();
                 self.search.clear();
             }
             "encounter" => {
@@ -646,6 +671,7 @@ impl View {
                 }
                 self.difficulty = difficulty;
                 self.difficulty_open = false;
+                self.validate_selected_page();
             }
             "role" => self.role = number()?,
             "filter" => {

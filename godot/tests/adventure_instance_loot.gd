@@ -129,15 +129,21 @@ func run() -> void:
 		return
 	if not await choose_slot(10):
 		return
+	if client.tooltip_state().get("title", "") == "Buzzer Blade":
+		stop("Filtered-out item retained its tooltip")
+		return
 	if not await verify_loot_row("JournalLoot5195", 64, "Boss: Glubtok") or not await move_to("JournalLoot5195") or not await shot("instance-loot-slot-filter"):
 		return
-	if not await choose_slot(0) or not await click("JournalBoss89") or not await click("EncounterJournalPage2"):
+	if not await choose_slot(0) or not await click("JournalBoss89"):
+		return
+	if client.adventure_guide_state().page != "Loot":
+		stop("Boss selection lost the source retained Loot tab")
 		return
 	if not await verify_loot_row("JournalLoot2169", 45, "") or not await shot("encounter-loot-source-row"):
 		return
-	if not await open_loot_instance("EncounterJournalRaidTab", 396, 1180) or not await click("EncounterJournalPage2"):
+	if not await open_loot_instance("EncounterJournalRaidTab", 396, 1180):
 		return
-	if client.adventure_guide_state().encounter != -1 or client.adventure_guide_state().loot_count * 64 <= 382:
+	if client.adventure_guide_state().page != "Loot" or client.adventure_guide_state().encounter != -1 or client.adventure_guide_state().loot_count * 64 <= 382:
 		stop("Genuine Ny'alotha instance loot absent or insufficient for overflow")
 		return
 	var raid_item := first_visible_loot()
