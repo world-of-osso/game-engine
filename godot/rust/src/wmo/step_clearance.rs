@@ -1,5 +1,5 @@
-//! Broad-phase nearby live collision meshes, then exact zero-radius body-plane sweep.
-use game_engine_core::step_clearance::BODY_HEIGHT;
+//! Live authored meshes intersecting the interval below the admitted low wall ray.
+use game_engine_core::player_physics_data::WALL_RAY_HEIGHT;
 use glam::Vec3;
 use godot::{
     classes::{
@@ -9,14 +9,14 @@ use godot::{
     prelude::*,
 };
 
-pub(crate) fn step_body_blocked(
+pub(crate) fn step_wall_blocked(
     space: &Gd<PhysicsDirectSpaceState3D>,
     from: Vec3,
     to: Vec3,
     support_top: f32,
 ) -> bool {
-    let triangles = query_body_triangles(space, from, to);
-    game_engine_core::step_clearance::step_body_blocked(
+    let triangles = query_wall_triangles(space, from, to);
+    game_engine_core::step_clearance::step_wall_blocked(
         &triangles,
         from,
         to,
@@ -25,12 +25,12 @@ pub(crate) fn step_body_blocked(
     )
 }
 
-fn query_body_triangles(
+fn query_wall_triangles(
     space: &Gd<PhysicsDirectSpaceState3D>,
     from: Vec3,
     to: Vec3,
 ) -> Vec<[Vec3; 3]> {
-    let mut query = body_neighbour_query(from, to);
+    let mut query = wall_neighbour_query(from, to);
     let mut excluded = Array::<Rid>::new();
     let mut triangles = Vec::new();
     loop {
@@ -52,13 +52,13 @@ fn query_body_triangles(
     }
 }
 
-fn body_neighbour_query(from: Vec3, to: Vec3) -> Gd<PhysicsShapeQueryParameters3D> {
+fn wall_neighbour_query(from: Vec3, to: Vec3) -> Gd<PhysicsShapeQueryParameters3D> {
     let mut shape = BoxShape3D::new_gd();
     // Deliberately over-broad XZ bounds, not a player radius or collision tolerance.
     // Only exact triangles entering the swept vertical plane decide blocking.
-    let size = (to - from).abs() + Vec3::splat(BODY_HEIGHT);
+    let size = (to - from).abs() + Vec3::splat(WALL_RAY_HEIGHT);
     shape.set_size(Vector3::from_array(size.to_array()));
-    let center = from.lerp(to, 0.5) + Vec3::Y * (BODY_HEIGHT / 2.0);
+    let center = from.lerp(to, 0.5) + Vec3::Y * (WALL_RAY_HEIGHT / 2.0);
     let mut query = PhysicsShapeQueryParameters3D::new_gd();
     query.set_shape(&shape);
     query.set_transform(Transform3D::new(

@@ -49,8 +49,8 @@ fn walk(faces: &[[Vec3; 3]], snap: bool) -> Vec3 {
     TerrainGround {
         terrain: &terrain,
         walls: &walls,
-        step_body_blocked: &|from, to, top| {
-            game_engine_core::step_clearance::step_body_blocked(
+        step_wall_blocked: &|from, to, top| {
+            game_engine_core::step_clearance::step_wall_blocked(
                 faces,
                 from,
                 to,

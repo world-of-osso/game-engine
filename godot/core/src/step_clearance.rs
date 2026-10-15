@@ -1,13 +1,12 @@
-//! Continuous, zero-radius body clearance for a grounded step.
+//! Exact low-wall interval check for a grounded step; no full-body collision.
 use glam::{Vec2, Vec3};
 
-/// TrinityCore Object.h DEFAULT_COLLISION_HEIGHT; matches server head clearance.
-pub const BODY_HEIGHT: f32 = 2.03128;
+use crate::player_physics_data::WALL_RAY_HEIGHT;
 
 /// Reconstruct the admitted destination support plane before sweeping. Ground ray
 /// interpolation can round feet below that plane; floor contact must not turn its
 /// adjoining vertical edge into an obstruction. This uses authored support, not an epsilon.
-pub fn step_body_blocked(
+pub fn step_wall_blocked(
     triangles: &[[Vec3; 3]],
     from: Vec3,
     to: Vec3,
@@ -25,7 +24,7 @@ pub fn step_body_blocked(
         .any(|&triangle| blocks_step_sweep(triangle, from.with_y(support), to.with_y(support)))
 }
 
-/// Whether an authored triangle enters the raised body's horizontal sweep.
+/// Whether an authored triangle enters the interval below the existing low wall ray.
 fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
     let movement = (to - from).with_y(0.0);
     let distance = movement.length();
@@ -33,18 +32,18 @@ fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
         return false;
     }
     let direction = movement / distance;
-    let mut section = intersect_body_plane(triangle, from, direction);
+    let mut section = intersect_wall_plane(triangle, from, direction);
     for (axis, boundary, sign) in [
         (0, 0.0, 1.0),
         (0, distance, -1.0),
         (1, 0.0, 1.0),
-        (1, BODY_HEIGHT, -1.0),
+        (1, WALL_RAY_HEIGHT, -1.0),
     ] {
         section = clip_section(&section, axis, boundary, sign);
     }
     let above_feet = section.iter().any(|point| point.y > 0.0);
-    let below_head = section.iter().any(|point| point.y < BODY_HEIGHT);
-    above_feet && below_head
+    let below_ray = section.iter().any(|point| point.y < WALL_RAY_HEIGHT);
+    above_feet && below_ray
 }
 
 fn destination_support_height(
@@ -70,7 +69,7 @@ fn destination_support_height(
     inside.then_some(height)
 }
 
-fn intersect_body_plane(triangle: [Vec3; 3], from: Vec3, direction: Vec3) -> Vec<Vec2> {
+fn intersect_wall_plane(triangle: [Vec3; 3], from: Vec3, direction: Vec3) -> Vec<Vec2> {
     let normal = direction.cross(Vec3::Y);
     let sides = triangle.map(|point| (point - from).dot(normal));
     let project = |point: Vec3| Vec2::new((point - from).dot(direction), point.y - from.y);
