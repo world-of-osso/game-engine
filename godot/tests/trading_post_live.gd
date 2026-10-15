@@ -526,6 +526,7 @@ func pet_comparison_proof() -> void:
 	if not await choose_category(3): return
 	if not await select_first_available(): return
 	if int(client.trading_post_state().selected) != 224: fail("Pet fixture requires Garrlok224/scene640"); return
+	if not await wait_until(func(): return client.trading_post_state().preview_ready, "actual pet visual before comparison assertion", 120000): return
 	if not client.trading_post_state().has("comparison_ready"):
 		await capture("single-pet-before")
 		fail("Trading Post pet has no dedicated comparison player scene")
