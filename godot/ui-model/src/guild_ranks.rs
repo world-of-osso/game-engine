@@ -251,10 +251,6 @@ impl GuildRanksSession {
                 self.control_menu_open = false;
                 None
             }
-            "guild:member_details" => {
-                self.member_detail = self.member_menu.take();
-                None
-            }
             "guild:detail_group_invite" => {
                 if let Some(member) = self
                     .detail_member()
@@ -341,7 +337,13 @@ impl GuildRanksSession {
         texts: &crate::bank::InputTexts,
     ) -> Option<GuildRankRequest> {
         if let Some(name) = action.strip_prefix("guild:member:") {
+            self.member_detail = Some(name.to_owned());
+            self.member_menu = None;
+            return None;
+        }
+        if let Some(name) = action.strip_prefix("guild:member-menu:") {
             self.member_menu = Some(name.to_owned());
+            self.member_detail = None;
             return None;
         }
         let (kind, index) = action.strip_prefix("guild:")?.split_once(':')?;

@@ -276,12 +276,6 @@ fn member_menu(session: &GuildRanksSession) -> Element {
     use crate::menu_primitives::{ContextMenu, ContextMenuItem, context_menu};
     let items: Vec<_> = [
         (
-            true,
-            "GuildMemberDetails",
-            "Details",
-            "guild:member_details",
-        ),
-        (
             session.promote(name).is_some(),
             "GuildMemberPromote",
             "Promote",
