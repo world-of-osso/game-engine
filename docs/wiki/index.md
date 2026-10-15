@@ -1,6 +1,13 @@
 # Wiki Index
 
+- [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.
+
 - [Shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) — source state files, fixed12px caps, five redundant caller repairs removed; four real-window both-skin before/after proof, with background tiling separate.
+- [Source ribbon scalar parsing](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13) — actual rainbow1417024 density/lifetime RED, corrected Retail offsets and strip semantics; both-skin moving raster, native alpha and priority counterexamples pass. Real-byte animated UV and non-square tile regressions cover subsequent bindings.
+
+- [Native source Toy area lifecycle](systems/toy-box.md#native-source-area-lifecycle-2026-10-13) — actual both-skin journal rejection, permitted activation and exit removal with retained cooldown.
+
+- [War Banner faction/combat rendering](systems/toy-box.md#war-banner-faction-and-combat-presentation-2026-10-13) — replicated team condition, both faction models in both skins, physical source combat removes native back attachments; no cloth certification.
 - [Cleanup cursor tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14) — source GameTooltip title/anchor/lifetime, both-skin owner/readonly inspection and classified stale-pixel pick boundary; pet/lock/exterior metadata remains unavailable.
 - [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) — source inset/art, shared Morpheus and disabled Start Experience; four inspected both-skin native captures, focused layout4/4 and native check/format pass.
 
@@ -369,3 +376,5 @@ External resources and asset lists.
 - [Talents](systems/talents.md) — native DB2 graph and snapshot/commit wiring; [Retail placement](systems/talents.md#retail-placement-correction-2026-10-11) owns class pan, node centers, page/footer anchors and Ret/Arcane regressions; [all-spec layout](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10), [rank/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) and [Retail footer controls](systems/talents.md#footer-controls--2026-10-10): staged reset, search previews/keyboard/badges, bounded loadout UI,17 tests and four inspected v3 captures; server/serialization gaps explicit.
 
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.
+
+- [Group-private owner capture fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13) — source doll/gong lifecycle and actual UDP membership proof fixtures, execution pending.

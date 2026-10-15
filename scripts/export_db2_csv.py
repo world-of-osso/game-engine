@@ -668,6 +668,16 @@ TABLES = {
             ("ZoneLightID", "parent"),
         ],
     ),
+    # Retail69933 source cast/location prerequisites (TC a352b1fa metadata).
+    "SpellCastingRequirements": (0x02074290, [
+        ("ID", "id"), ("SpellID", ("int", 0, 0)), ("FacingCasterFlags", ("int", 1, 0)),
+        ("MinFactionID", ("u16", 2)), ("MinReputation", ("int", 3, 0)),
+        ("RequiredAreasID", ("u16", 4)), ("RequiredAuraVision", ("u8", 5)),
+        ("RequiresSpellFocus", ("u16", 6)),
+    ]),
+    "AreaGroupMember": (0x6746D145, [
+        ("ID", "id"), ("AreaID", ("u16", 0)), ("AreaGroupID", "parent"),
+    ]),
     # Spell visuals (WoWDBDefs layouts of build 12.1.0.69933). Floats are exported as
     # ("float", field, element); `<8>` fields are signed, so AttachmentID -1 stays -1.
     "AnimationData": (
