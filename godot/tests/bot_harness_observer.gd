@@ -50,6 +50,7 @@ func sample() -> void:
         "target_attempts": target_attempts, "spec_requested": spec_requested,
         "talent_status": talent_status, "gear_status": gear_status,
         "inventory": client.merchant_state(), "auras": client.aura_state(),
+        "pet": client.pet_bar_state(),
         "assisted": client.assisted_combat_state(), "cooldowns": client.cooldown_viewer_state()}
     var destination := output.path_join("native-state.json")
     var temporary := destination + ".writing"
