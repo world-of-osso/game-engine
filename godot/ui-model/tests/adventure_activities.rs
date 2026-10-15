@@ -800,6 +800,7 @@ fn monthly_source_hides_encounter_search() {
         let mut registry = FrameRegistry::new(800., 496.);
         Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
         assert!(registry.get_by_name("EncounterJournalSearchBox").is_none());
+        assert!(registry.get_by_name("EncounterJournalNavBar").is_none());
         assert!(registry.get_by_name("JournalActivity3").is_some());
     }
 }
