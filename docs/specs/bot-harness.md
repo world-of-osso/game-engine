@@ -18,6 +18,10 @@ Private real player characters exercise the native controller path and measure c
 - [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once. Own private Ret32 fixture retains actual submitted20271 request1792056099829 without a success, three real successes and899 damage.
 - [x] Merge overlapping combat polls without double counting or collapsing real duplicate events; identify overflow using observed ring retention.
 
+## Comparable equipment budget
+
+Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSparse at the same raw item-level30, quality2 and squish-era0, within the character's level requirement. Armor follows ChrClasses.ArmorTypeMask (cloaks use their native cloth class); positive primary-stat allocation follows ChrSpecialization.PrimaryStatPriority. Record item IDs, raw ilvl, quality, native owner GUIDs and visible native primary stats per spec. Missing source slots, mismatched native equipment or unbudgeted stat-bearing equipment block comparison; no changed item/stat definitions or alternate budget.
+
 ## How it works
 
 - [Evidence and detection boundaries](../wiki/systems/bot-harness.md)
