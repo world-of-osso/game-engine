@@ -14,6 +14,8 @@ ARMOR_SLOTS = {"Head": (1,), "Shoulder": (3,), "Chest": (5, 20), "Waist": (6,),
                "Legs": (7,), "Feet": (8,), "Wrist": (9,), "Hands": (10,), "Back": (16,)}
 PRIMARY_MODIFIERS = {3: {3, 71, 72, 73}, 4: {4, 71, 72, 74}, 5: {5, 71, 73, 74}}
 PRIMARY_LABELS = {3: "Agility:", 4: "Strength:", 5: "Intellect:"}
+EMPTY_SLOTS = ["Neck", "Finger1", "Finger2", "Trinket1", "Trinket2"]
+STORAGE_SLOTS = {"Bag1", "Bag2", "Bag3", "Bag4"}
 WEAPON_REFERENCES = {
     62: (35,), 63: (35,), 64: (35,),
     65: (36, 2362), 66: (36, 2362), 70: (2361,),
@@ -116,7 +118,7 @@ def load_plan(database, db2, spec, level=32):
         items = read_fixture_items(connection, candidates, spec, armor)
     return {"spec": spec, "items": items, "source_specialization": specialization,
             "source_class": source_class, "primary_stat": primary, "armor_subclass": armor,
-            "fixture_budget": FIXTURE_BUDGET.copy(),
+            "fixture_budget": FIXTURE_BUDGET.copy(), "empty_slots": EMPTY_SLOTS.copy(),
             "policy": "lowest eligible source ID per preferred kind; same quality/item-level/squish-era; native class stats unchanged",
             "known_boundary": "Fury dual two-hand equipment requires unmodelled Titans Grip; do not substitute one-hand weapons" if spec == 72 else None}
 
@@ -127,7 +129,7 @@ def equipment_receipt(plan, native, sheet_stats):
         raise ValueError(f"Native primary stat {label} was not observed")
     expected = {item["slot"]: item for item in plan["items"]}
     equipped = {item["slot"]: item for item in native["equipment"]}
-    extra = set(equipped) - set(expected) - {"Shirt", "Tabard"}
+    extra = set(equipped) - set(expected) - STORAGE_SLOTS - {"Shirt", "Tabard"}
     if extra:
         raise ValueError(f"Unbudgeted equipment: {', '.join(sorted(extra))}")
     for slot, item in expected.items():
@@ -139,7 +141,8 @@ def equipment_receipt(plan, native, sheet_stats):
              for slot, item in expected.items()]
     return {"spec": plan["spec"], "budget": plan["fixture_budget"], "items": items,
             "primary_stat": plan["primary_stat"], "armor_subclass": plan["armor_subclass"],
-            "native_stats": sheet_stats}
+            "native_stats": sheet_stats,
+            "retained_bags": [equipped[slot] for slot in sorted(STORAGE_SLOTS) if slot in equipped]}
 
 
 def required_grants(plan, equipment):
