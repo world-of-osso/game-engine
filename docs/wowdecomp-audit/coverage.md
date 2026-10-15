@@ -7,7 +7,7 @@
 | Slice | Mismatched / missing behavior | Implemented or matching evidence | Uncertain / still unreviewed | Proof |
 |---|---|---|---|---|
 | Generic M2 track evaluation | A1–A3 | Material sampler separately honors interpolation and short-table rules | Asset census, spline interpolation families, native outputs | Paired functions + explicit counterexamples |
-| Model events / replay | A4–A5 | Six selected action/missile IDs, variation families and crossfades have native paths | General event fields/array selection; finite repeat residence; independent event-clock/pose semantics require separate proof | Paired runtime paths; no execution |
+| Model events / replay | A4–A5 | Six selected action/missile IDs, variation families and crossfades have native paths | Other event handlers and real finite-repeat usage; independent event-clock/pose semantics and original-binary fidelity need separate proof | Paired runtime paths; no execution |
 | Bone transforms / attachments / skinning | None established | Both sides have hierarchy/billboard mechanisms; E retains bone flags | Ignore-parent flags, IK, animated attachment lifecycle and weighted normal transforms not fully traced | Partial source review only |
 | Authored model cameras | None promoted to finding | W animates camera position/target/roll; E parses first-key snapshots | E native consumers and intended dynamic-camera contract incomplete; animated FOV not established | Located source mechanisms; incomplete pair |
 | Particle geometry / birth / motion | P1–P5, P7 | Plane/sphere simulation, force integration, model/world axes, keyframed emitters, head quads, several appearance flags | Asset/layout provenance for spline/model/velocity scale; full flag census | Paired native consumer paths |
