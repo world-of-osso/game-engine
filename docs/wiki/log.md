@@ -1,6 +1,17 @@
 ## 2026-10-15 — Suggested literal partial-record source proof
 
 [Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) preserve Lua's count-dependent geometry, including initial lower1px text frames and first-pass font at one/two records. Corrected engine628 native captures pass both skins with genuine record852; source line limits now reach native Labels. UI8/8, check/fmt pass; exact source/binary/PNG receipt retained. Lead rejected the one-record pixels. Installed-CSV/bonus provider correction is now under joint verification; require a populated primary and both small cards. No new native acceptance claim.
+## 2026-10-15 — Housing pressed hover
+
+[Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
+
+## 2026-10-15 — Housing control tooltips
+
+[Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
+
+## 2026-10-14 — Shared window tiling implementation
+
+[Shared window tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment): source-one-region origin and streak anchors, paired toolkit repeat attributes, genuine RED→GREEN toolkit1/source6 and twelve scoped golden blocks. Source/Quest/small-window3 plus unchanged character golden1 pass; merged engine/network check and extension build pass. Native10PASS, eight inspected both-skin before/after window pairs, two comparisons and byte-identical Raid controls. Captured binaryc8c2d819f/toolkit06eb00c; unrelated later Housing merge excluded from pixel revision. No server, whole-tree or every-caller acceptance claim.
 
 ## 2026-10-14 — Trading Post post-landing native acceptance
 

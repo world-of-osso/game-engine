@@ -355,8 +355,9 @@ pub(super) fn update_icon_control(
         panic!("Housing mode control must be a Button")
     };
     let disabled = button.state == ButtonState::Disabled;
-    let hovered = button.hovered && !disabled;
-    let state = if button.state == ButtonState::Pushed {
+    let pressed = button.state == ButtonState::Pushed;
+    let hovered = button.hovered && !disabled && !pressed;
+    let state = if pressed {
         "pressed"
     } else if active {
         "active"
