@@ -55,14 +55,109 @@ fn auction_search_uses_inherited_small_font_and_instruction_colour() {
 
 #[test]
 fn auction_duration_uses_retail_dropdown_geometry() {
-    // Blizzard_Menu/Mainline/MenuTemplates.xml:3-28; AH SellFrame.xml:124-130.
+    // SellFrame.lua:159-170 overrides the shared template's width/font/alignment.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, "duration");
         let dropdown = frame(&registry, "AuctionHouseFrameItemSellFrameDurationDropdown");
         assert_eq!(
             (dropdown.width.value(), dropdown.height.value()),
-            (120.0, 25.0)
+            (115.0, 25.0)
         );
+        let Some(WidgetData::FontString(text)) = &frame(
+            &registry,
+            "AuctionHouseFrameItemSellFrameDurationDropdownText",
+        )
+        .widget_data
+        else {
+            panic!("duration text missing")
+        };
+        assert_eq!(
+            text.font,
+            ui_toolkit::widgets::font_string::GameFont::ArialNarrow
+        );
+        assert_eq!(text.font_size, 12.0);
+        assert_eq!(
+            text.justify_h,
+            ui_toolkit::widgets::font_string::JustifyH::Right
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn auction_duration_radios_follow_selection_and_preserve_actions() {
+    use game_engine_ui_model::auction::{AuctionSession, view::InputTexts};
+    use shared::protocol::AuctionDuration;
+    use ui_toolkit::{
+        layout_values::Val,
+        widgets::font_string::{GameFont, JustifyH},
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _ = render(skin, "sell");
+        for buyout in [false, true] {
+            for (selected, duration) in [
+                AuctionDuration::Short,
+                AuctionDuration::Medium,
+                AuctionDuration::Long,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let mut view = preview_view("duration").unwrap();
+                view.frame.sell.duration = duration;
+                view.frame.sell.buyout_mode = buyout;
+                let mut shared = SharedContext::new();
+                shared.insert(view);
+                let mut registry = FrameRegistry::new(1920.0, 1080.0);
+                Screen::new(native_auction_screen).sync(&shared, &mut registry);
+                let menu = frame(&registry, "AuctionHouseFrameDurationMenu");
+                let owner = frame(&registry, "AuctionHouseFrameItemSellFrameDurationDropdown");
+                assert_eq!(menu.width.value(), 115.0);
+                assert_eq!(menu.height.value(), 83.0);
+                assert_eq!(menu.position.left, owner.position.left);
+                let Val::Px(top) = owner.position.top else {
+                    panic!("owner position")
+                };
+                assert_eq!(menu.position.top, Val::Px(top + 25.0));
+                for (index, token) in ["12", "24", "48"].into_iter().enumerate() {
+                    let name = format!("AuctionHouseFrameDurationMenuOption{}", index + 1);
+                    let row = frame(&registry, &name);
+                    assert_eq!(row.position.top, Val::Px(8.0 + index as f32 * 20.0));
+                    assert_eq!(row.height.value(), 20.0);
+                    assert!(
+                        registry.get_by_name(&format!("{name}Box")).is_some(),
+                        "radio outline {name}"
+                    );
+                    assert_eq!(
+                        registry.get_by_name(&format!("{name}Tick")).is_some(),
+                        index == selected
+                    );
+                    let Some(WidgetData::FontString(text)) =
+                        &frame(&registry, &format!("{name}Text")).widget_data
+                    else {
+                        panic!("radio text")
+                    };
+                    assert_eq!(
+                        (text.font, text.font_size, text.justify_h),
+                        (GameFont::ArialNarrow, 12.0, JustifyH::Left)
+                    );
+                    let action = row.onclick.as_deref().expect("duration action");
+                    assert_eq!(action, format!("auction_duration:{token}"));
+                    let mut session = AuctionSession::default();
+                    session.ui.duration_menu_open = true;
+                    session.click(action, &InputTexts::new());
+                    assert!(!session.ui.duration_menu_open);
+                    assert_eq!(
+                        session.ui.duration,
+                        [
+                            AuctionDuration::Short,
+                            AuctionDuration::Medium,
+                            AuctionDuration::Long
+                        ][index]
+                    );
+                }
+            }
+        }
     }
     set_thread_skin(ActiveSkin::Modern);
 }
