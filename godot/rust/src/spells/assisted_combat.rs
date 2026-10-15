@@ -244,6 +244,80 @@ impl GameClient {
         Ok(charges.current > 0)
     }
 
+    pub(crate) fn spell_priority_snapshot(&self, target: i64, requested: &[i32]) -> VarDictionary {
+        let mut result = VarDictionary::new();
+        let query = self
+            .read_priority_state(target, requested)
+            .and_then(|state| serde_json::to_string(&state).map_err(|error| error.to_string()));
+        match query {
+            Ok(state) => result.set("state_json", state.as_str()),
+            Err(error) => result.set("error", error.as_str()),
+        };
+        result
+    }
+
+    fn read_priority_state(
+        &self,
+        target: i64,
+        requested: &[i32],
+    ) -> Result<serde_json::Value, String> {
+        let target = u64::try_from(target)
+            .ok()
+            .filter(|id| *id > 0)
+            .ok_or("Priority target must be positive")?;
+        let needed = parse_priority_spell_ids(requested)?;
+        let mut facts = self.read_assisted_facts(&needed, target)?;
+        facts.target_hostile = Some(self.reaction_to(target) != Reaction::Friendly);
+        let player = self
+            .world
+            .local_player_id()
+            .ok_or("Priority player not replicated")?;
+        let stats = self
+            .replica
+            .unit(player)
+            .and_then(|unit| unit.get::<shared::components::DerivedStats>())
+            .ok_or("Priority player derived stats not received")?;
+        Ok(serde_json::json!({
+            "target": target,
+            "facts": facts,
+            "player_haste_pct": stats.haste_pct,
+            "spell_gcd_ms": self.read_priority_gcds(&needed)?,
+            "target_cast": self.priority_target_cast(target),
+        }))
+    }
+
+    fn read_priority_gcds(
+        &self,
+        needed: &BTreeSet<u32>,
+    ) -> Result<std::collections::BTreeMap<u32, u32>, String> {
+        let catalog = self
+            .spells
+            .catalog()
+            .ok_or("Priority spell catalog not loaded")?;
+        needed
+            .iter()
+            .map(|id| {
+                let spell = catalog
+                    .get(self.effective_spell(*id))
+                    .ok_or_else(|| format!("Priority spell metadata {id} absent"))?;
+                Ok((*id, spell.cooldown.gcd_ms))
+            })
+            .collect()
+    }
+
+    fn priority_target_cast(&self, target: u64) -> serde_json::Value {
+        let bar = self.cast_bars.get(target);
+        serde_json::json!({
+            "casting": bar.is_some_and(|bar| bar.casting),
+            "channeling": bar.is_some_and(|bar| bar.channeling),
+            "interruptible": bar.is_some_and(|bar| {
+                (bar.casting || bar.channeling)
+                    && bar.bar_type != crate::nameplate_casts::BarType::Uninterruptable
+            }),
+            "spell_id": bar.filter(|bar| bar.casting || bar.channeling).map(|bar| bar.spell_id),
+        })
+    }
+
     pub(crate) fn assisted_snapshot(&self) -> VarDictionary {
         let hud = &self.spells.cooldowns;
         let mut state = VarDictionary::new();
@@ -296,6 +370,21 @@ impl GameClient {
             }
         }
     }
+}
+
+fn parse_priority_spell_ids(requested: &[i32]) -> Result<BTreeSet<u32>, String> {
+    if requested.is_empty() {
+        return Err("Priority query requires at least one spell".into());
+    }
+    requested
+        .iter()
+        .map(|id| {
+            u32::try_from(*id)
+                .ok()
+                .filter(|id| *id > 0)
+                .ok_or_else(|| format!("Priority spell must be positive: {id}"))
+        })
+        .collect()
 }
 
 fn position_distance(a: &Position, b: &Position) -> f32 {

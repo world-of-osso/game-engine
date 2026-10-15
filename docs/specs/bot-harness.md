@@ -5,6 +5,8 @@ Private real player characters exercise the native controller path and measure c
 ## What it must do
 
 - [ ] Maintain one real player per class/spec, including player stats, talents and sourced rotations.
+- [ ] An explicitly selected, user-approved pinned SimulationCraft APL provider may supply priorities; record raw URL, commit and SHA-256. It is not an alternate path after a native authored-evaluator error. Unknown potentially applicable predicates block; spells remain constrained by actual learned/native usability facts, with no buffs, kit or budget changes.
+- [ ] Read-only native `spell_priority_state(target, spell_ids)` exposes requested learned/readiness/affordability/range facts, owner haste, native spell GCD metadata and observed target casting. Invalid queries or unavailable native data return explicit errors; querying an unselected unit must neither select/cast at it nor alter its health.
 - [ ] Deliver three DPS-spec dummy runs first, then all specs and repeated Stockade runs with followers, headless on private UDP 5871.
 - [x] Derive generic direct-target abilities from SpellMisc, SpellPower, SpellCooldowns, SpellEffect and SpellCastTimes; preserve coefficients and exclude passive spells.
 - [x] Where installed AssistedCombatStep orders a spec, consume the existing native authored evaluator; unsupported/loading predicates block rather than silently enabling generic behavior. Only absent authored order permits the labeled generic coefficient rule.
@@ -30,6 +32,8 @@ Private real player characters exercise the native controller path and measure c
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
 - `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
 - `godot/tests/bot_harness_observer.gd`: existing native account/spell/aura/charge/assisted observation and private spec selection.
+- `godot/rust/src/spells/assisted_combat.rs`: shared native usability facts and read-only requested-spell snapshot; no target mutation.
+- `godot/tests/spell_priority_facts_live.gd`: native selected/unselected query and invalid-input response fixture.
 - `scripts/tests/fixtures/bot_harness/`: authentic native Stockade and own private dummy combat with provenance. Stockade's absent request is a labeled injection; Ret's missing request is an actual captured submission.
 - `scripts/bot_roster.py` / `scripts/run_bot_roster.py`: source40-spec census and isolated private provisioning/client lifecycle.
 
