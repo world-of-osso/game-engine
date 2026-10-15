@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Initial local-player facing](systems/networking.md#initial-local-player-facing-2026-10-15) — native first-root source yaw is later overwritten by PI prediction; constructor uses authoritative yaw, native GREEN pending.
+
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
 - [Player-bot measurement](systems/bot-harness.md) — native combat detection, fixed-window own-target DPS and comparable-fixture spread; live three-spec/all-spec/Stockade gates remain open.

@@ -4,6 +4,11 @@ The Godot client predicts the local player's movement and reports each moved pos
 
 ## What it must do
 
+### Initial facing
+- Prediction starts from the first replicated player Rotation yaw, not a fixed PI default. Entering idle gameplay must not replace the authoritative spawn facing before any player turn/move input.
+- Later ordinary rotation snapshots do not overwrite local turns; existing controlled and forced-facing updates retain their authority.
+- Native first-root and post-gameplay poses are separate observations; correct NPC replication does not certify local-player prediction.
+
 ### Speed
 - [x] Predicted speed = the server's `compute_movement_speed` without auras: swim (`SWIM_SPEED`, while swimming), run or walk base × direction multiplier (backpedal 0.6, strafe 0.8), × the aura multiplier.
 - [x] The aura multiplier is the local player's replicated `MovementSpeed` over the unmodified speed of the newest reported input, re-derived only when the replicated value changes (the server rewrites it only when it applies an input). 3.5 after a forward run input is a 50% snare: run 3.5, backpedal 2.1, strafe 2.8, walk 1.25, swim 2.36.
