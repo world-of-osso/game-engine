@@ -25,6 +25,21 @@ fn set_audit_data_and_skin(forever: bool) -> Result<(), String> {
     Ok(())
 }
 
+fn build_action_cooldown_fixture(
+    fraction: f32,
+) -> game_engine_ui_model::main_action_bar_component::MainActionBarState {
+    use game_engine_ui_model::main_action_bar_component::{ActionButtonView, MainActionBarState};
+    let mut state = MainActionBarState::default();
+    for button in &mut state.buttons[..2] {
+        *button = ActionButtonView {
+            icon_fdid: 132340,
+            cooldown_fraction: fraction,
+            ..Default::default()
+        };
+    }
+    state
+}
+
 fn build_encounter_timer_fixture()
 -> game_engine_ui_model::encounter_timeline_component::EncounterTimelineScreen {
     use game_engine_ui_model::encounter_timeline::EncounterTimeline;
@@ -153,24 +168,67 @@ impl UiAuditProbe {
         if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
             return error.as_str().into();
         }
-        let result = match journal.to_string().as_str() {
-            "mounts" => ui.bind_mut().show_mount_journal(
-                game_engine_ui_model::mount_journal::MountJournalView {
-                    visible: true,
-                    viewport,
-                    ..Default::default()
-                },
-            ),
-            "pets" => {
-                ui.bind_mut()
-                    .show_pet_journal(game_engine_ui_model::pet_journal::PetJournalView {
+        let result =
+            match journal.to_string().as_str() {
+                "mounts" => ui.bind_mut().show_mount_journal(
+                    game_engine_ui_model::mount_journal::MountJournalView {
                         visible: true,
                         viewport,
                         ..Default::default()
-                    })
-            }
-            other => return format!("Unknown audit journal {other}").as_str().into(),
-        };
+                    },
+                ),
+                "pets" => ui.bind_mut().show_pet_journal(
+                    game_engine_ui_model::pet_journal::PetJournalView {
+                        visible: true,
+                        viewport,
+                        ..Default::default()
+                    },
+                ),
+                "pet-queue" => ui.bind_mut().show_pet_journal(
+                    game_engine_ui_model::pet_journal::PetJournalView {
+                        visible: false,
+                        viewport,
+                        queue: shared::protocol::PetBattleQueueState::Proposal {
+                            proposal_id: 91,
+                            accepted: false,
+                        },
+                        ..Default::default()
+                    },
+                ),
+                other => return format!("Unknown audit journal {other}").as_str().into(),
+            };
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn mount_action_cooldown_bars(&mut self, forever: bool) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("ActionCooldownAuditUI");
+        self.base_mut().add_child(&ui);
+        let result = (|| {
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(1.0)?;
+            let state = build_action_cooldown_fixture(0.0);
+            host.show_main_action_bar(state.clone())?;
+            crate::spells::sync_action_bar_swipes(&mut host, &state)
+        })();
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn set_action_cooldown_fraction(&mut self, fraction: f32) -> GString {
+        let mut ui = self
+            .base()
+            .get_node_as::<RegistryUi>("ActionCooldownAuditUI");
+        let state = build_action_cooldown_fixture(fraction);
+        let result = (|| {
+            let mut host = ui.bind_mut();
+            host.set_state(state.clone())?;
+            crate::spells::sync_action_bar_swipes(&mut host, &state)
+        })();
         result.err().unwrap_or_default().as_str().into()
     }
 

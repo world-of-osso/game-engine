@@ -21,6 +21,8 @@ mod follower_layout_preview;
 mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
+#[cfg(debug_assertions)]
+mod guild_invite_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
@@ -774,9 +776,11 @@ impl RegistryModel {
                 actions.push_back("talent:search_submit".into());
             }
             ScreenPostsetup::Spellbook
-                if self.registry.focused_frame
-                    == self.registry.get_by_name("TalentLoadoutNameInput")
-                    && self.registry.focused_frame.is_some() =>
+                if self.registry.focused_frame.is_some()
+                    && (self.registry.focused_frame
+                        == self.registry.get_by_name("TalentLoadoutNameInput")
+                        || self.registry.focused_frame
+                            == self.registry.get_by_name("TalentLoadoutCodeInput")) =>
             {
                 actions.push_back("talent:loadout_save".into());
             }
@@ -1487,6 +1491,7 @@ impl RegistryUi {
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
         )?;
+        register_auction_popup_style(&mut registry);
         self.show_viewport_screen_in(
             state,
             spellbook_frame_screen,

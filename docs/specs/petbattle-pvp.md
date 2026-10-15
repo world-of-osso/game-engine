@@ -6,6 +6,7 @@ Retail Pet Journal Find Battle queues account-owned teams. Mainline sources: loc
 
 - [x] Find Battle sends Join; queued/proposal states show Leave Queue; pending sends wait for authority.
 - [x] Queue-ready popup appears even with journal closed; Accept/Decline carry the current proposal ID.
+- [x] Ready caption renders as a FontString, not an untyped Frame (StaticPopupSpecial.xml:13). Tag-only correction preserves authored caption text, geometry, typography and buttons; it does not certify remaining popup source parity. Exact missing-caption RED→GREEN2 and two inspected both-skin1920×1080 native after samples pass; all pixels outside the caption rectangle match before.
 - [x] Both art skins use identical Retail controls and geometry (98 native battle rectangles match).
 - [x] PvP rounds use the existing battle HUD, no trap eligibility, owner-oriented teams and terminal results.
 

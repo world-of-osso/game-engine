@@ -28,6 +28,20 @@ Verified2026-10-11 on leased guilds branches: Retail Aldwin Laughlin, actual pur
 
 GuildInviteFrame has Join/Decline, guild and inviter. Guild tabard appearance now has the separate data flow above; invitation achievement display remains a named gap. Legacy creation dates remain unknown. Independent artifact verification was unavailable because the configured backend's OAuth session expired; native tests/build and inspected private live evidence are recorded separately.
 
+## Communities metadata sorting — verified2026-10-15
+
+Level/Class headers now select `GuildRosterSort::Level/Class`; `sorted_members` joins the existing profile members by character name once, then sorts by numeric level or the existing class-icon mapping's numeric class ID. It never edits either authoritative snapshot. Missing profiles/classes remain absent, not synthesized. Existing Name/Rank behavior and member-action names remain unchanged.
+
+Retail `CommunitiesMemberList.lua:97–108,798–819,822–836,905–914` supplies the level/classID columns and comparator: the initial numeric override swaps comparator operands, giving ascending order; repeat clicks reverse it. Missing attributes begin first and move last in reverse. Numeric ties have no explicit Retail tie order, so none is claimed. `CommunitiesUtil.lua:173–185` applies the default comparator only when the override returns nil, not on equal numeric values.
+
+Observable header-action RED became seven focused Communities controls GREEN atfac28dbcb. Both native scripts passed in both skins: new physical Level/Class sorting and the existing wheel/stepper/thumb/member-menu/tab/invite regression. Ten inspected1920×1080 before/after PNGs: `AgentShared/2026-10-15/ui-gameplay-panels/communities-roster-sort/`; private exact commands, binary hash and manifest: worktree `logs/ui-gameplay-panels/communities-roster-sort/`. Baseline used the old extension's32 level80 fixture members; the updated fixture varies80/20/60/40 for numeric ordering. This is production UI/input with synthetic offline snapshots, not new live guild authority, tie-order parity or service acceptance. Requirements and remaining service gaps stay in the [contract](../../specs/guild-ranks.md).
+
+## Invitation chrome — verified2026-10-15
+
+`GuildInviteFrame.xml:3` inherits TranslucentFrameTemplate, not StaticPopup. `guild_rank_frame::invitation_chrome` now emits the source black0.9 background inset10px, four32px quadrant corners from407329 and tiled16px strips407328/407330/407331/407332. Source: Mainline `UIPanelTemplates.xml:384–399,437–442,495–500,984–1043`; local community-listfile maps those FDIDs to DialogFrame files. The old static_popup style is removed from this popup only. Existing root/content/button rectangles and reducer behavior are unchanged.
+
+Actual missing-inset RED at37c31d967 retained the invitation action control PASS. Both controls pass at mergedce5740844; a matching native extension verifies source rectangles and physical Join/Decline/pending pacing in both skins. Four inspected1920×1080 before/after PNGs: `AgentShared/2026-10-15/ui-gameplay-panels/guild-invite-chrome/`; exact commands, binary hashes and manifest live in private worktree `logs/ui-gameplay-panels/guild-invite-chrome/`. The fixture is debug-only and supplies an offline payload; no fresh network/authority acceptance. Inner GuildExtra art, tabard/achievement payload, other content geometry and reputation/expiry/Escape remain separate [contract gaps](../../specs/guild-ranks.md#invitation-and-guild-profile).
+
 ## Sources
 
 - [Charter contract](../../specs/guild-charters.md) — local Retail XML/Lua and pinned TrinityCore PetitionsHandler.cpp/defaults.
