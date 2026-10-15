@@ -95,11 +95,11 @@ func enter_world(character: String) -> bool:
 
 func entry_diagnostic(stage: String) -> void:
 	await RenderingServer.frame_post_draw
-	var receipt := {"stage": stage, "window": str(root.size), "viewport": str(root.get_visible_rect()), "state": client.account_state(), "hover": str(root.gui_get_hovered_control())}
+	var receipt := {"stage": stage, "window": str(root.size), "viewport": str(root.get_visible_rect()), "state": client.account_state(), "hover": str(root.gui_get_hovered_control()), "pointer": str(root.get_mouse_position())}
 	for name in ["CharCard_0", "EnterWorld"]:
 		var node := control(name)
 		if node != null:
-			receipt[name] = {"rect": str(node.get_global_rect()), "canvas_transform": str(node.get_global_transform_with_canvas()), "visible": node.is_visible_in_tree(), "disabled": node.disabled if node is BaseButton else false}
+			receipt[name] = {"class": node.get_class(), "mouse_filter": node.mouse_filter, "rect": str(node.get_global_rect()), "canvas_transform": str(node.get_global_transform_with_canvas()), "visible": node.is_visible_in_tree(), "disabled": node.disabled if node is BaseButton else false}
 	var directory := OS.get_environment("GUILD_NOTE_DIAGNOSTICS")
 	assert(not directory.is_empty(), "Owned diagnostic directory required")
 	var prefix := directory.path_join(role + "-" + stage + "-" + str(Time.get_unix_time_from_system()))
