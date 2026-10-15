@@ -529,7 +529,7 @@ fn run() -> Result<(), String> {
         .enumerate()
         .map(|(index, profile)| Peer::connect(index, profile, endpoint, &directory))
         .collect::<Result<_, _>>()?;
-    let deadline = Instant::now() + Duration::from_secs(1200);
+    let deadline = Instant::now() + Duration::from_secs(3600);
     while Instant::now() < deadline {
         if directory.join("stop").exists() {
             return Ok(());
