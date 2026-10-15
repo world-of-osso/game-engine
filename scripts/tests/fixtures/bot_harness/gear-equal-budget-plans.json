@@ -1,0 +1,660 @@
+{
+  "source": "private native world.db Item/ItemSparse; raw itemlevel30/quality2/era0, req<=32; class ArmorTypeMask and spec PrimaryStatPriority from installed12.1.5.70391",
+  "plans": {
+    "62": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "63": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "64": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "65": {
+      "primary_stat": 5,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25032,
+        "MainHand": 23498,
+        "OffHand": 25073
+      }
+    },
+    "66": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25115,
+        "OffHand": 25073
+      }
+    },
+    "70": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25129
+      }
+    },
+    "71": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25129
+      }
+    },
+    "72": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25129,
+        "OffHand": 25129
+      }
+    },
+    "73": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25144,
+        "OffHand": 25073
+      }
+    },
+    "102": {
+      "primary_stat": 5,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "103": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25325
+      }
+    },
+    "104": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25325
+      }
+    },
+    "105": {
+      "primary_stat": 5,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "250": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25157
+      }
+    },
+    "251": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25144,
+        "OffHand": 25144
+      }
+    },
+    "252": {
+      "primary_stat": 4,
+      "armor_subclass": 4,
+      "items": {
+        "Head": 24930,
+        "Shoulder": 24932,
+        "Chest": 24928,
+        "Waist": 24926,
+        "Legs": 24931,
+        "Feet": 24927,
+        "Wrist": 24933,
+        "Hands": 24929,
+        "Back": 25031,
+        "MainHand": 25157
+      }
+    },
+    "253": {
+      "primary_stat": 3,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25033,
+        "MainHand": 25241
+      }
+    },
+    "254": {
+      "primary_stat": 3,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25033,
+        "MainHand": 25241
+      }
+    },
+    "255": {
+      "primary_stat": 3,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25033,
+        "MainHand": 25228
+      }
+    },
+    "256": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "257": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "258": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "259": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25101,
+        "OffHand": 25101
+      }
+    },
+    "260": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25143,
+        "OffHand": 25143
+      }
+    },
+    "261": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25101,
+        "OffHand": 25101
+      }
+    },
+    "262": {
+      "primary_stat": 5,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25032,
+        "MainHand": 23498,
+        "OffHand": 25073
+      }
+    },
+    "263": {
+      "primary_stat": 3,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25033,
+        "MainHand": 25116,
+        "OffHand": 25116
+      }
+    },
+    "264": {
+      "primary_stat": 5,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25032,
+        "MainHand": 23498,
+        "OffHand": 25073
+      }
+    },
+    "265": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "266": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "267": {
+      "primary_stat": 5,
+      "armor_subclass": 1,
+      "items": {
+        "Head": 23587,
+        "Shoulder": 24595,
+        "Chest": 24591,
+        "Waist": 24589,
+        "Legs": 24594,
+        "Feet": 24590,
+        "Wrist": 24596,
+        "Hands": 24592,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "268": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25325
+      }
+    },
+    "269": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25116,
+        "OffHand": 25116
+      }
+    },
+    "270": {
+      "primary_stat": 5,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "577": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25143,
+        "OffHand": 25143
+      }
+    },
+    "581": {
+      "primary_stat": 3,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25033,
+        "MainHand": 25143,
+        "OffHand": 25143
+      }
+    },
+    "1467": {
+      "primary_stat": 5,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "1468": {
+      "primary_stat": 5,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "1473": {
+      "primary_stat": 5,
+      "armor_subclass": 3,
+      "items": {
+        "Head": 24818,
+        "Shoulder": 24820,
+        "Chest": 24816,
+        "Waist": 24814,
+        "Legs": 24819,
+        "Feet": 24815,
+        "Wrist": 24821,
+        "Hands": 24817,
+        "Back": 25032,
+        "MainHand": 25171
+      }
+    },
+    "1480": {
+      "primary_stat": 5,
+      "armor_subclass": 2,
+      "items": {
+        "Head": 24705,
+        "Shoulder": 24707,
+        "Chest": 24703,
+        "Waist": 24701,
+        "Legs": 24706,
+        "Feet": 24702,
+        "Wrist": 24708,
+        "Hands": 24704,
+        "Back": 25032,
+        "MainHand": 25145,
+        "OffHand": 25145
+      }
+    }
+  }
+}

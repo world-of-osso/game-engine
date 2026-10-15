@@ -76,7 +76,7 @@ impl RegistryUi {
                 .enumerate()
                 .map(|(index, member)| shared::protocol::GuildMemberSnapshot {
                     character_name: member.character_name.clone(),
-                    level: 80,
+                    level: [80, 20, 60, 40][index % 4],
                     class_name: ["Paladin", "Mage", "Druid", "Warrior"][index % 4].into(),
                     rank_name: "Raider".into(),
                     is_online: index % 3 != 1,
