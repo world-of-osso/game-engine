@@ -77,7 +77,7 @@ fn ray_hit(triangles: &[[Vec3; 3]], origin: Vec3, direction: Vec3, length: f32) 
 }
 
 fn triangles_block_step(triangles: &[[Vec3; 3]], from: Vec3, to: Vec3, top: f32) -> bool {
-    game_engine_core::step_clearance::step_body_blocked(
+    game_engine_core::step_clearance::step_wall_blocked(
         triangles,
         from,
         to,
@@ -105,7 +105,7 @@ fn ramp_lip_full_stockade_walks_from_captured_feet_onto_landing() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
-        step_body_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let mut movement = crate::gameplay::PlayerMovement::default();
@@ -286,7 +286,7 @@ fn player_on_the_stockade_stairs_is_blocked_by_the_stairwell_wall() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
-        step_body_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let current = wow(-8774.0, 838.0, 92.1);
@@ -310,7 +310,7 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
-        step_body_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let mut movement = crate::gameplay::PlayerMovement::default();
@@ -456,7 +456,7 @@ fn walk_into_jasperlode(delta: f32) {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
-        step_body_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     let (feet, lowest) = run_route(&ground, JASPERLODE_OUTSIDE, &JASPERLODE_ROUTE, delta, 60.0);
@@ -507,7 +507,7 @@ fn walking_into_the_jasperlode_hillside_never_drops_the_player() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
-        step_body_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
         game_object_floor: &|_| None,
     };
     for delta in [1.0 / 60.0, 0.5, 2.0] {
