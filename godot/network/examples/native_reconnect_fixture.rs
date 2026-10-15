@@ -72,6 +72,7 @@ fn send<M: network::Message, C: network::Channel>(app: &mut App, link: Entity, m
 
 fn character(id: u64, name: &str) -> CharacterListEntry {
     CharacterListEntry {
+        tabard: None,
         character_id: id,
         name: name.into(),
         level: 10,

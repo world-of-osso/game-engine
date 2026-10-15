@@ -222,7 +222,7 @@ fn mark(name: &str, mark: Option<ItemMark>, top: f32) -> Element {
 
 /// `TooltipDefaultLayout` over a `width`×`height` tooltip: corners at their size, edges
 /// stretched between them in `border_color`, the centre inset 3 in `center_color`.
-fn nine_slice(
+pub(crate) fn nine_slice(
     prefix: &str,
     (width, height): (f32, f32),
     border_color: &str,

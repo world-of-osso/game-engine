@@ -370,7 +370,8 @@ impl GameClient {
                 items: Default::default(),
             }));
         }
-        let Some(UnitAppearance::Player(player, equipped)) = self.world.local_player_appearance()
+        let Some(UnitAppearance::Player(player, equipped, tabard)) =
+            self.world.local_player_appearance()
         else {
             return Ok(None);
         };
@@ -404,7 +405,11 @@ impl GameClient {
                 hidden: false,
             });
         }
-        Ok(Some(UnitAppearance::Player(player.clone(), equipment)))
+        Ok(Some(UnitAppearance::Player(
+            player.clone(),
+            equipment,
+            *tabard,
+        )))
     }
     fn clear_trading_model(&mut self) {
         if let Some((id, _)) = self.trading_post.pending.take() {

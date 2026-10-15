@@ -491,7 +491,8 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
     part.overlay = true;
     // Blizzard_TransmogTemplates.xml: model-card BorderHighlight uses ADD;
     // its black centre must not cover the separately composited 3D preview.
-    part.additive = matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
+    part.additive = matches!(source, TextureSource::FileDataId(130757 | 130717))
+        || matches!(source, TextureSource::Atlas(name) if matches!(name.as_str(),
         "transmog-itemcard-default" | "transmog-setcard-default" | "transmog-setcard-incomplete"
         | "transmog-gearslot-default" | "transmog-gearslot-transmogrified" | "transmog-gearslot-pending"
         | "transmog-gearslot-default-small" | "transmog-gearslot-transmogrified-small"
@@ -504,6 +505,13 @@ fn button_skin(frame: &Frame) -> Option<TextureSource> {
     let Some(WidgetData::Button(button)) = &frame.widget_data else {
         return None;
     };
+    // TabardFrame.xml authored arrows keep Normal/Pushed art under a separate ADD highlight.
+    if matches!(
+        button.normal_texture,
+        Some(TextureSource::FileDataId(130869 | 130866 | 130845 | 130847))
+    ) {
+        return None;
+    }
     if !button.use_default_skin
         && (frame.three_slice.is_some()
             || frame.nine_slice.is_some()

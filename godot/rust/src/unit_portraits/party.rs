@@ -26,7 +26,7 @@ pub(super) fn roster_appearances(group: &GroupState) -> HashMap<String, UnitAppe
             };
             (
                 member.name.clone(),
-                UnitAppearance::Player(player, equipment),
+                UnitAppearance::Player(player, equipment, None),
             )
         })
         .collect()
@@ -205,6 +205,7 @@ mod tests {
                         appearance: group.members[0].portrait.appearance.clone(),
                     },
                     EquipmentAppearance::default(),
+                    None,
                 )),
             "unseen member has roster head"
         );
@@ -257,7 +258,7 @@ mod tests {
             loot_threshold: 2,
         });
         let appearances = roster_appearances(&group);
-        let Some(UnitAppearance::Player(player, equipment)) = appearances.get("Ann") else {
+        let Some(UnitAppearance::Player(player, equipment, _)) = appearances.get("Ann") else {
             panic!("offline member must build from the received roster");
         };
         assert_eq!(player.race, 52);

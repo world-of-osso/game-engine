@@ -363,7 +363,7 @@ impl GameClient {
             viewport_width: size.x / scale,
             sheathed: self.transmog.sheathed,
             race_id: match self.world.local_player_appearance() {
-                Some(UnitAppearance::Player(player, _)) => player.race,
+                Some(UnitAppearance::Player(player, _, _)) => player.race,
                 _ => 0,
             },
         };
@@ -388,13 +388,16 @@ impl GameClient {
     }
 
     fn sync_transmog_model(&mut self) -> Result<(), String> {
-        let Some(UnitAppearance::Player(player, equipment)) =
+        let Some(UnitAppearance::Player(player, equipment, tabard)) =
             self.world.local_player_appearance().cloned()
         else {
             return Ok(());
         };
-        let appearance =
-            UnitAppearance::Player(player, self.transmog.book.preview_equipment(&equipment));
+        let appearance = UnitAppearance::Player(
+            player,
+            self.transmog.book.preview_equipment(&equipment),
+            tabard,
+        );
         if self.transmog.scene.is_none() {
             let host = self
                 .transmog
