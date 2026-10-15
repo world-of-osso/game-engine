@@ -81,6 +81,8 @@ impl RegistryUi {
                     rank_name: "Raider".into(),
                     is_online: index % 3 != 1,
                     officer_note: "Officer-only fixture note".into(),
+                    public_note: String::new(),
+                    is_self: false,
                     last_online: "Yesterday".into(),
                 })
                 .collect(),
