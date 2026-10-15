@@ -136,50 +136,68 @@ pub fn apply_rotation_icon_positions(registry: &mut ui_toolkit::registry::FrameR
 }
 
 pub(super) fn footer(view: &View) -> Element {
-    if !view
-        .preview_product()
-        .is_some_and(|row| matches!(row.category_id, 1 | 8))
-    {
+    let Some(row) = view.preview_product() else {
+        return vec![];
+    };
+    if row.category_id == 2 {
+        return preview_checkbox(
+            "PerksProgramTogglePlayerPreview",
+            "Hide Character",
+            view.hide_player_preview,
+            "perks:hide-character",
+        );
+    }
+    if !matches!(row.category_id, 1 | 8) {
         return vec![];
     }
-    let checked = match view.hide_armor() {
-        Ok(checked) => checked,
-        Err(error) => {
-            return label(
-                "PerksProgramOutfitError".into(),
-                &error,
-                (WIDTH / 2., 0., 400., 29.),
-                (14., "1,0.1,0.1,1", "LEFT"),
-            );
-        }
-    };
-    // RotateButtonContainer is BOTTOM(+140,+42), width100 height48.
-    // HideArmor BOTTOM to container.TOP+10; LEFT to container.LEFT-18.
+    match view.hide_armor() {
+        Ok(checked) => preview_checkbox(
+            "PerksProgramToggleHideArmor",
+            "Hide Armor",
+            checked,
+            "perks:hide-armor",
+        ),
+        Err(error) => label(
+            "PerksProgramOutfitError".into(),
+            &error,
+            (WIDTH / 2., 0., 400., 29.),
+            (14., "1,0.1,0.1,1", "LEFT"),
+        ),
+    }
+}
+
+fn preview_checkbox(name: &str, text: &str, checked: bool, action: &str) -> Element {
+    // Both source checkboxes: BOTTOM to RotateButtonContainer.TOP+10, LEFT to LEFT-18.
     let left = WIDTH / 2. + 140. - 50. - 18.;
     let top = 100. - 42. - 48. - 10. - 29.;
     let mut children = named_atlas_texture(
-        "PerksProgramToggleHideArmorBackground".into(),
+        format!("{name}Background"),
         "checkbox-minimal",
         (0., 0., 30., 29.),
     );
     if checked {
         children.extend(named_atlas_texture(
-            "PerksProgramToggleHideArmorChecked".into(),
+            format!("{name}Checked"),
             "checkmark-minimal",
             (0., 0., 30., 29.),
         ));
     }
+    children.extend(preview_checkbox_label(name, text));
+    let name = DynName(name.to_owned());
+    rsx! {button{name,left,top,width:30.0,height:29.0,pos_type:"absolute",button_default_skin:false,onclick:action,{children}}}
+}
+
+fn preview_checkbox_label(name: &str, text: &str) -> Element {
     let (width, height) = ui_toolkit::text_measure::measure_text(
-        "Hide Armor",
+        text,
         ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
         16.,
     )
     .expect("SystemFont_Large metrics");
-    children.extend(label(
-        "PerksProgramToggleHideArmorText".into(),
-        "Hide Armor",
+    label(
+        format!("{name}Text"),
+        text,
         (35., (29. - height) / 2., width, height),
         (16., WHITE, "LEFT"),
-    ));
-    rsx! {button{name:"PerksProgramToggleHideArmor",left,top,width:30.0,height:29.0,pos_type:"absolute",button_default_skin:false,onclick:"perks:hide-armor",{children}}}
+    )
 }
