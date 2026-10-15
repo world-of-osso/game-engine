@@ -33,7 +33,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 ## Known gaps (current cycle)
 
-- [ ] Network/native checks and both-skin private5891 live/relog PNG acceptance. UI guild_rank_widgets passes21/21 at889142b41, including immutable-target RED→GREEN. Server main-binary guild subset passes11/11 at10c5d019, including durable reopen/privacy/rank rights. Earlier server --lib0-test invocation is not proof.
+- [ ] Native checks and both-skin private5891 live/relog PNG acceptance. Current combined engine gate at067b5bfc4 passes28 UI/decision tests and4 actualUDP guild tests, including both note requests and public_note/is_self snapshot fields. Server guild subset passes11/11 at10c5d019, including durable reopen/privacy/rank rights. Earlier --lib0-test invocation is not proof.
 - [ ] Source direct rank-assignment dropdown, online zone and elapsed-last-online metadata.
 
 ## Out of scope
