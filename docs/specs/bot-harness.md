@@ -49,7 +49,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 ## Known gaps (current cycle)
 
 - [ ] Complete three-DPS sustained dummy MVP before all-spec/Stockade phase expansion. Native provisioning/spec selection/dummy casts work, but source evaluator stops Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67. No fallback and no sustained-DPS claim.
-- [ ] Comparable spec-correct gear/stat receipts. Sourced native talent purchase and Ret fresh-login12/12-rank persistence are verified. Ret/Arms ordinary native2361 equip is verified; Arms has two complete60s windows, while source-geared Ret again stops6425. Other weapon plans remain unverified. Fury's dual-two-hand kit is blocked by unmodelled Titan's Grip; no gear fallback.
+- [ ] Comparable spec-correct gear/stat receipts. Sourced native talent purchase and Ret fresh-login12/12-rank persistence are verified. Ret/Arms ordinary native2361 equip is verified; Arms has two complete60s windows, while source-geared Ret again stops6425. Other weapon plans remain unverified. Fury's dual-two-hand kit requires native learned Titan's Grip and equipment proof; server hand-rule support is integrated, but full-budget bot acquisition/equip remains unverified. No gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] Three-spec and all-spec comparable damage receipts.
 
