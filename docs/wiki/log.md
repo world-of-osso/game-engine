@@ -1,3 +1,7 @@
+## 2026-10-15 — Native summon lifetime proofs
+
+[Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+
 ## 2026-10-15 — Active housing mode preservation
 
 [Active mode](systems/housing.md#active-mode-activation--implementation2026-10-15): native Basic active-click selection-loss RED; source no-op before transition teardown fixes pointer/assigned-key reactivation. Both skins preserve Basic selection/owned Tesla preview and Expert staged bookcase draft/render/open list, then Escape restores paid state. Launch binary SHA receipts replace revision assumptions; earlier F8/F9 exact server labels remain explicitly withdrawn, not retroactively certified. No numeric-rate/different-mode redesign or full parity claim.
