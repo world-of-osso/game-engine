@@ -1,5 +1,5 @@
 //! Broad-phase nearby live collision meshes, then exact zero-radius body-plane sweep.
-use game_engine_core::step_clearance::{BODY_HEIGHT, blocks_step_sweep};
+use game_engine_core::step_clearance::BODY_HEIGHT;
 use glam::Vec3;
 use godot::{
     classes::{
@@ -15,21 +15,35 @@ pub(crate) fn step_body_blocked(
     to: Vec3,
     support_top: f32,
 ) -> bool {
+    let triangles = query_body_triangles(space, from, to);
+    game_engine_core::step_clearance::step_body_blocked(
+        &triangles,
+        from,
+        to,
+        support_top,
+        shared::ground::min_walkable_normal_y(),
+    )
+}
+
+fn query_body_triangles(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    from: Vec3,
+    to: Vec3,
+) -> Vec<[Vec3; 3]> {
     let mut query = body_neighbour_query(from, to);
     let mut excluded = Array::<Rid>::new();
+    let mut triangles = Vec::new();
     loop {
         let hits = space.clone().intersect_shape(&query);
         if hits.is_empty() {
-            return false;
+            return triangles;
         }
         for hit in hits.iter_shared() {
             let body = hit
                 .get("collider")
                 .expect("Step query collider")
                 .to::<Gd<StaticBody3D>>();
-            if body_blocks_step(&body, from, to, support_top) {
-                return true;
-            }
+            append_body_triangles(&body, &mut triangles);
             // Inspect every shape on this body before excluding it. Repeating the
             // query consumes all bodies even when Godot fills its result batch.
             excluded.push(body.get_rid());
@@ -55,33 +69,28 @@ fn body_neighbour_query(from: Vec3, to: Vec3) -> Gd<PhysicsShapeQueryParameters3
     query
 }
 
-fn body_blocks_step(body: &Gd<StaticBody3D>, from: Vec3, to: Vec3, support_top: f32) -> bool {
-    body.get_children().iter_shared().any(|child| {
-        let Ok(collision) = child.try_cast::<CollisionShape3D>() else {
-            return false;
-        };
-        if collision.is_disabled() {
-            return false;
+fn append_body_triangles(body: &Gd<StaticBody3D>, triangles: &mut Vec<[Vec3; 3]>) {
+    for child in body.get_children().iter_shared() {
+        if let Ok(collision) = child.try_cast::<CollisionShape3D>()
+            && !collision.is_disabled()
+        {
+            append_shape_triangles(&collision, triangles);
         }
-        let shape = collision
-            .get_shape()
-            .expect("Live collision shape")
-            .try_cast::<ConcavePolygonShape3D>()
-            .expect("WMO/GO authored triangle collision");
-        let transform = collision.get_global_transform();
-        let faces = shape.get_faces();
-        faces.as_slice().chunks_exact(3).any(|face| {
-            let triangle = [face[0], face[1], face[2]].map(|point| {
-                let world = transform * point;
-                Vec3::new(world.x, world.y, world.z)
-            });
-            blocks_step_sweep(
-                triangle,
-                from,
-                to,
-                support_top,
-                shared::ground::min_walkable_normal_y(),
-            )
+    }
+}
+
+fn append_shape_triangles(collision: &Gd<CollisionShape3D>, triangles: &mut Vec<[Vec3; 3]>) {
+    let shape = collision
+        .get_shape()
+        .expect("Live collision shape")
+        .try_cast::<ConcavePolygonShape3D>()
+        .expect("WMO/GO authored triangle collision");
+    let transform = collision.get_global_transform();
+    let faces = shape.get_faces();
+    triangles.extend(faces.as_slice().chunks_exact(3).map(|face| {
+        [face[0], face[1], face[2]].map(|point| {
+            let world = transform * point;
+            Vec3::new(world.x, world.y, world.z)
         })
-    })
+    }));
 }
