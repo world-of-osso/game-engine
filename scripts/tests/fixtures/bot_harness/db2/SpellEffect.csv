@@ -1,0 +1,10 @@
+ID,EffectAura,DifficultyID,EffectIndex,Effect,EffectAmplitude,EffectAttributes,EffectAuraPeriod,EffectBonusCoefficient,EffectChainAmplitude,EffectChainTargets,EffectItemType,EffectMechanic,EffectPointsPerResource,EffectPos_facing,EffectRealPointsPerLevel,EffectTriggerSpell,BonusCoefficientFromAP,PvpMultiplier,Coefficient,Variance,ResourceCoefficient,GroupSizeBasePointsCoefficient,EffectBasePointsF,ScalingClass,Node__Field_12_0_0_63534_001,EffectMiscValue_0,EffectMiscValue_1,EffectRadiusIndex_0,EffectRadiusIndex_1,EffectSpellClassMask_0,EffectSpellClassMask_1,EffectSpellClassMask_2,EffectSpellClassMask_3,ImplicitTarget_0,ImplicitTarget_1,SpellID
+75,0,0,0,32,0,133120,0,0,1,1,0,0,0,0,0,228597,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,6,0,116
+91,0,0,0,2,0,133248,0,3.8812499,1,1,0,0,0,0,0,0,0,2.59200001,0,0.0500000007,0,1,0,0,0,0,0,0,0,0,0,0,0,6,0,133
+20028,0,0,0,2,0,131232,0,1.48699999,1,1,0,0,0,0,0,0,0,1.83000004,0,0.0500000007,0,1,0,0,0,0,0,0,0,0,0,0,0,6,0,30451
+20029,0,0,1,30,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0,16,0,0,0,0,0,0,0,1,0,30451
+36330,0,0,0,2,0,131072,0,0.879519999,1,1,0,0,0,0,0,0,0,1.28789997,0,0.0500000007,0,1,0,0,0,0,0,0,0,0,0,0,0,6,0,44425
+172453,457,0,1,6,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1500,0,0,0,0,0,0,0,1,0,137018
+179701,416,0,0,6,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,32768,0,-2147483644,1,0,137018
+726826,0,0,1,3,0,0,0,0,1,-10,0,0,0,0,0,0,0,1,0,0,0,1,40,0,0,0,0,0,0,0,0,0,0,6,0,44425
+344284,0,0,0,2,0,0,0,2.44799995,1,0,0,0,0,0,0,0,0,2,0,0.0500000007,0,1,0,0,0,0,0,0,0,0,0,0,0,6,0,228597

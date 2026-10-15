@@ -42,6 +42,7 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 ### Sell (Shared/Blizzard_AuctionHouseSellFrame.xml, …ItemSellFrame.xml)
 
 - [x] Item sell frame (4,69) 363×442 on `auctionhouse-background-sell-left` with the Create Auction tab, item display, Quantity (+ Max), Buyout Price, Bid Price (only with Buyout Mode unchecked), Duration 1 Day / 1 Week / 2 Weeks (default 1 Week), Deposit, Total Price, Create Auction, Buyout Mode check (default checked).
+- [x] Duration uses the shared WowStyle1 dropdown and three radio menu entries (SellFrame.lua:159-170): width115, Number12Font/Arial Narrow12, closed caption RIGHT; menu anchored directly below its owner, current duration checked. Existing labels, duration tokens12/24/48 and reducer remain unchanged. Targeted10/10 source/reducer controls and four inspected both-skin1920×1080 supplied snapshots pass; no fresh server/trading claim.
 - [x] Prices are per item; posting sends `CreateAuction` for the stack with bid and buyout × quantity (buyout mode: bid = buyout); Create Auction is enabled only with an item, 1..stack quantity, a price, buyout ≥ bid and money for the deposit. Posting clears the item.
 - [x] Deposit shows the server's deposit: vendor price × quantity × 1 / 2 / 4.
 - [x] Right-hand list (368,69) 427×442: without an item, the sellable items from `QueryAuctionInventory` (click to put one in the sell slot); with an item, that item's current auctions (a search by its name). Clicking the item display clears the item.
