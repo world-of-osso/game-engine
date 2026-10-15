@@ -198,6 +198,7 @@ mod sqlite_util;
 pub mod startup_args_data;
 #[cfg(test)]
 mod startup_args_data_tests;
+pub mod step_clearance;
 #[path = "rendering/ui/target_selection_data.rs"]
 pub mod target_selection_data;
 #[cfg(test)]
