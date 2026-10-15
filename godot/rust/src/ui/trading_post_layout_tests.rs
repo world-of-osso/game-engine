@@ -86,6 +86,92 @@ fn assert_rect(
 }
 
 #[test]
+fn trading_post_frozen_slot_uses_effective_container_icon_and_frost_geometry() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut snapshot = vendor();
+        snapshot.frozen_item_id = Some(4);
+        let mut candidate = snapshot.items[0].clone();
+        candidate.id = 5;
+        snapshot.items.push(candidate);
+        let view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(snapshot)),
+            ..Default::default()
+        };
+        let (registry, bounds) = render(view.clone());
+        // Products.lua FrozenProductContainer.OnLoad overrides the ordinary32px row:
+        // icon64 at LEFT+32, centred95px mask, label233x45 at icon.RIGHT+8.
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenIcon",
+            [78., 801.5, 64., 64.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenArtContainer",
+            [78., 801.5, 64., 64.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenFrame",
+            [78., 801.5, 64., 64.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenSlotArt",
+            [75., 798.5, 70., 70.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenLabel",
+            [150., 811., 233., 45.],
+        );
+        let frame = rect(&registry, &bounds, "PerksProgramFrozenFrame");
+        let row = rect(&registry, &bounds, "PerksProgramFrozenSlot");
+        let label = rect(&registry, &bounds, "PerksProgramFrozenLabel");
+        assert!(
+            frame[0] + frame[2] <= label[0] - 7.5,
+            "frost frame overlaps label"
+        );
+        assert!(
+            frame[1] >= row[1] && frame[1] + frame[3] <= row[1] + row[3],
+            "frost frame escapes row"
+        );
+        let mut pending = view;
+        pending.drop_item(5, false, true);
+        let (registry, bounds) = render(pending);
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenIcon",
+            [78., 801.5, 64., 64.],
+        );
+        assert_rect(
+            &registry,
+            &bounds,
+            "PerksProgramFrozenItemGlow",
+            [66., 789.5, 88., 88.],
+        );
+        assert!(
+            registry.get_by_name("PerksProgramFrozenFrame").is_none(),
+            "pending candidate must glow, not look confirmed frozen"
+        );
+    }
+}
+
+#[test]
 fn trading_post_rotation_controls_project_source_bounds_and_visible_icons_in_both_skins() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
