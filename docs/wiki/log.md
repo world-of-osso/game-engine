@@ -3922,6 +3922,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
 
+## 2026-10-15 — Talent loadout strings
+
+Installed Blizzard Lua and approved installed addon version2 pair establish exact wire layout; full-class Mage codec4/4 including actual-Lua fixtures passes. Import/Create/clipboard native integration implemented; live proof pending. Hash-comparison gap and separate Starter authority slice documented in [talents](systems/talents.md#retail-loadout-strings--2026-10-15).
 - 2026-10-15: [MountSpecial frame provenance](systems/mounts.md#spelltome-attachment-and-rendered-body): actual clip-phase captures replace frame counts; Spelltome attachment lift and opaque foreground book identified by data and reversible body isolation; living three-quarter peer proof in both skins. Pixel acceptance/integration remain lead-owned.
 ## 2026-10-15 — Traveler’s Log source rows
 
@@ -3930,3 +3933,7 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
 - 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
+
+## 2026-10-15 — Native talent Import/Export proof
+
+Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exact source labels/fonts and modal-only error host. Core5/5, ui-model9/9, native build/format pass; both-skin real private UDP full-code reimport/relog and12 inspected native1920×1080 PNGs, with source-hash and OS clipboard delivery gaps explicit. [Contract and receipts](../specs/talent-loadouts.md); [implementation and source](systems/talents.md#retail-loadout-strings--2026-10-15). Starter remains a separate server-authoritative slice.

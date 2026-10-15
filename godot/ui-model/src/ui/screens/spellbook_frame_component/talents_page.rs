@@ -556,6 +556,19 @@ fn icon_name(node: &TalentNode, entry: u32, view: &TalentView) -> String {
     format!("TalentNode{}Entry{entry}{suffix}", node.id)
 }
 pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
+    if let Some(id) = registry.get_by_name("TalentLoadoutCodeInput")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
+    {
+        edit.multi_line = true;
+        edit.max_letters = Some(1000);
+    }
+    if let Some(id) = registry.get_by_name("TalentLoadoutNameInput")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
+    {
+        edit.max_letters = Some(30);
+    }
     let Some(view) = &state.talents else {
         return;
     };
@@ -656,7 +669,13 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     children.extend(footer::controls(view, scale));
     children.extend(war_mode_control(view, scale));
     children.extend(pvp_talent_controls::render(view, scale));
-    if let Some(reason) = view.editor.error_text.as_ref().or(view.pvp_error.as_ref()) {
+    // ImportExport.ShowImportError owns a StaticPopup, not the commit footer.
+    let talent_error = view
+        .editor
+        .error_text
+        .as_ref()
+        .filter(|_| view.editor.loadout_dialog != Some(crate::talents::LoadoutDialog::Import));
+    if let Some(reason) = talent_error.or(view.pvp_error.as_ref()) {
         children.extend(label(
             Label {
                 name: "TalentError".into(),
