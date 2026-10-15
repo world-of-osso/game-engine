@@ -61,7 +61,7 @@ func apply_plan(tree: SceneTree, plan: Dictionary) -> Dictionary:
         else:
             await click_control(tree, button)
             record["after"] = rank_text(tree, int(step["node"]))
-            record["outcome"] = "native click; staged rank observed"
+            record["outcome"] = "native click requested"
         observations.append(record)
     var apply_button := tree.root.find_child("TalentApply", true, false)
     var clicked_apply := false
@@ -73,6 +73,25 @@ func apply_plan(tree: SceneTree, plan: Dictionary) -> Dictionary:
     for step: Dictionary in plan["steps"]:
         realized[str(step["node"])] = rank_text(tree, int(step["node"]))
     await press_key(tree, KEY_N)
-    return {"loadout": plan["loadout"], "spec": plan["spec"], "steps": observations,
-        "clicked_apply": clicked_apply, "native_ranks_after_apply": realized,
+    var sheet := await capture_sheet(tree)
+    var receipt := {"loadout": plan["loadout"], "spec": plan["spec"], "steps": observations,
+        "clicked_apply": clicked_apply, "native_ranks_after_apply": realized, "sheet_stats": sheet,
         "proof": "native input and UI ranks only; server persistence requires fresh-login receipt"}
+    if sheet.is_empty():
+        receipt["error"] = "Native CharacterFrame stats were not observed"
+    return receipt
+
+func capture_sheet(tree: SceneTree) -> Dictionary:
+    await press_key(tree, KEY_C)
+    var result := {}
+    for attempt in range(100):
+        for index in range(1, 16):
+            var label := tree.root.find_child("CharacterStatsPaneStat%dLabel" % index, true, false)
+            var value := tree.root.find_child("CharacterStatsPaneStat%dValue" % index, true, false)
+            if label is Label and value is Label and label.is_visible_in_tree():
+                result[label.text] = value.text
+        if not result.is_empty():
+            break
+        await tree.create_timer(0.1).timeout
+    await press_key(tree, KEY_C)
+    return result
