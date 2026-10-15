@@ -81,6 +81,8 @@ impl RegistryUi {
                     rank_name: "Raider".into(),
                     is_online: index % 3 != 1,
                     officer_note: "Officer-only fixture note".into(),
+                    public_note: String::new(),
+                    is_self: false,
                     last_online: "Yesterday".into(),
                 })
                 .collect(),
@@ -133,7 +135,10 @@ impl RegistryUi {
         // Mirror GameClient::update_guild_ranks: right releases use the alt-click queue.
         while let Some((action, right, _)) = self.pop_alt_click() {
             if right && action.starts_with("guild:member:") {
-                state.click(&action, &Default::default());
+                state.click(
+                    &action.replacen("guild:member:", "guild:member-menu:", 1),
+                    &Default::default(),
+                );
             }
         }
         let result = request

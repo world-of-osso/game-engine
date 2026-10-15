@@ -52,7 +52,7 @@ impl RegistryUi {
                 model,
                 viewport: [size.x, size.y],
             })?;
-            self.update_toy_swipe("ToySpellButton1Cooldown", 0.5)
+            self.update_cooldown_swipe("ToySpellButton1Cooldown", 0.5, 0.8)
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }

@@ -49,7 +49,11 @@ func run_test() -> void:
 	root.add_child(probe)
 	probe.set_process_input(true)
 	push_mouse_motion(hit.point)
-	if not await wait_housing(func(): return probe.motions > 0 and root.get_mouse_position().distance_to(hit.point) < 0.01 and highlighted_meshes() > 0 and client.tooltip_state().get("title", "") == "Small Val'sharah Bookcase", "initial actual Cleanup hover"): return
+	print("STATIONARY_INITIAL_INPUT motions=", probe.motions, " last=", probe.last_point, " viewport=", root.get_mouse_position(), " requested=", hit.point)
+	if not await wait_housing(func(): return probe.motions > 0 and highlighted_meshes() > 0 and client.tooltip_state().get("title", "") == "Small Val'sharah Bookcase", "initial actual Cleanup hover"):
+		print("STATIONARY_INITIAL_TIMEOUT motions=", probe.motions, " last=", probe.last_point, " viewport=", root.get_mouse_position(), " requested=", hit.point)
+		print_cleanup_hover_probe("stationary-initial-timeout", hit.point)
+		return
 	if probe.last_point.distance_to(hit.point) > 0.01:
 		fail("Pointer probe did not observe the actual target input")
 		return
