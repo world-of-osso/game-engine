@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "spell_db2_build": "12.1.0.69933",
+  "spell_db2_build": "12.1.5.70391",
   "exceptions": [
     {
       "fdid": 3937156,
@@ -29,6 +29,10 @@
     {
       "fdid": 7813752,
       "reason": "Local CASC resolution/listfile has no mapping for this FDID."
+    },
+    {
+      "fdid": 8201433,
+      "reason": "Missing TACT key NAME B7457365877699FC; extractor output is zero-filled .dat, not authentic BLP."
     }
   ]
 }
