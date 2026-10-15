@@ -1,6 +1,6 @@
 ## 2026-10-15 — Guild member note implementation
 
-[Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI model21/21 and server main-binary11/11 pass, including popup-target RED→GREEN, rank-right/privacy and durable reopen. Network/native/private-relog acceptance remains pending. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.
+[Member details and notes](systems/guilds.md#member-details-and-notes): additive public-note storage preserves existing officer records; authenticated self/public/officer permissions, per-recipient privacy and Mainline31-letter popup source implemented. Current UI/decision28, actualUDP4 and server main-binary11 pass, including popup-target RED→GREEN, note commands/public-self payloads, rank-right/privacy and durable reopen. Native/private-relog acceptance remains pending. Local TDB1210 contains62 guild reward rows; runtime import/eligibility, not source availability, remains a later guild gap.
 
 ## 2026-10-15 — Native summon lifetime proofs
 
