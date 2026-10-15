@@ -12,9 +12,7 @@ use crate::{
     quest_art::{DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, named_atlas_texture},
 };
 
-pub(super) fn global(key: &str) -> String {
-    crate::auction_mail::text(key).unwrap_or_else(|| panic!("Missing authored GlobalString {key}"))
-}
+pub(super) use crate::auction_mail::text as global;
 
 pub(super) fn sized_atlas(name: String, atlas: &str, center: (f32, f32)) -> Element {
     let region = resolve_region(atlas, thread_skin())
