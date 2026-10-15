@@ -34,6 +34,13 @@ class BotRotationTests(unittest.TestCase):
         self.assertEqual(bot_rotation.choose(spells, {30451: 3000}, 1000)["id"], 44425)
         self.assertIsNone(bot_rotation.choose(spells, {30451: 3000, 44425: 3000}, 1000))
 
+    def test_frostbolt_missile_damage_is_not_lost_by_parent_spell_identity(self):
+        spells = bot_rotation.load_spells(DATA, [116], direct_only=False)
+        self.assertEqual(len(spells), 1)
+        self.assertTrue(spells[0]["damage"])
+        self.assertEqual(spells[0]["damage_ids"], [228597])
+        self.assertAlmostEqual(spells[0]["coefficient"], 2.44799995)
+
     def test_db2_cast_time_and_gcd_are_preserved(self):
         spells = bot_rotation.load_spells(DATA, [30451, 44425])
         blast = next(s for s in spells if s["id"] == 30451)
