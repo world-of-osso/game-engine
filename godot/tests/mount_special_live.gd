@@ -180,7 +180,7 @@ func pose_record() -> Dictionary:
 	var model := animation.get_parent() as Node3D if animation != null else null
 	var saddle := model.get_node_or_null("Skeleton3D/AttachmentBone0/Attachment0") as Node3D if model != null else null
 	var rider := skeleton.get_parent() as Node3D if skeleton != null else null
-	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "mount_phase": animation.animation_phase() if animation != null else {}, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "mount_source": model.get_meta("m2_source_path") if model != null else "", "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
+	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "mount_phase": animation.animation_phase() if animation != null else {}, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "mount_source": model.get_meta("m2_source_path") if model != null else "", "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_visible": rider.is_visible_in_tree() if rider != null else false, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
 
 func capture(file: String) -> void:
 	if role != "observer":
@@ -231,7 +231,7 @@ func capture_spelltome_diagnostic() -> void:
 		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null, "mesh_color": material.get_shader_parameter("mesh_color") if material != null else null, "gx_blend": material.get_shader_parameter("gx_blend") if material != null else null, "base_input": texture_snapshot(material, "base_texture"), "second_input": texture_snapshot(material, "second_texture")})
 	write_record("spelltome-materials", materials)
 	# Single-batch diagnostic isolation; every visibility edit is restored immediately.
-	for batch in ["Batch0", "Batch1", "Batch8", "Batch9", "Batch10"]:
+	for batch in ["Batch3", "Batch4", "Batch8", "Batch10"]:
 		var mesh := model.get_node_or_null(batch) as MeshInstance3D
 		if mesh != null and mesh.visible:
 			mesh.hide()
