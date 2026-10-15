@@ -8,6 +8,7 @@ var proof_skin := OS.get_environment("MOUNT_SPECIAL_SKIN")
 var mounts := [[18, "Chestnut Mare"], [129, "Golden Gryphon"], [1532, "Soaring Spelltome"]]
 
 func run_test() -> void:
+	print("MOUNT_SPECIAL_BEGIN ", role, " ", proof_skin)
 	root.size = Vector2i(1920, 1080)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if server.is_empty() or server.ends_with(":5000") or proof_dir.is_empty() or not OS.get_environment("EMOTE_ACCOUNT").begins_with("fb_mount_"):
@@ -20,9 +21,12 @@ func run_test() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
+	print("MOUNT_SPECIAL_ASSETS_READY ", client.account_state())
 	var error: String = client.connect_account(server, OS.get_environment("EMOTE_ACCOUNT"), PASSWORD, false)
 	if not error.is_empty(): fail(error); return
+	print("MOUNT_SPECIAL_CONNECT ", error)
 	if not await enter_world(): return
+	print("MOUNT_SPECIAL_WORLD_READY ", client.account_state())
 	var skin_error: String = client.preview_world_skin(proof_skin == "forever")
 	if not skin_error.is_empty(): fail(skin_error); return
 	var expected_skin := "Modern" if proof_skin == "modern" else "Forever"
