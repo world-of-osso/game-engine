@@ -78,7 +78,7 @@
 
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
 - [Native transmog application](systems/transmog-apply.md) — Retail12.1 both-skin selected outfit icons, popup isolation, eight-piece tooltips, two-page presets and exact paid Apply with fresh-process gold/appearance relog; PvE/PvP classifier and conditional/enchant-effect boundaries remain explicit.
-- [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
+- [Native guilds](systems/guilds.md) — authoritative lifecycle/profile/vault and Retail charters; guild-tabard vendor persistence, optional roster/replica appearance and receipted torso compositing, with CPU/physical/live proof boundaries explicit.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
 - [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
 - [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
@@ -236,7 +236,7 @@ WoW file format specifications as used by the engine.
 
 - [m2-format](formats/m2-format.md) — MD21 chunks, bones, animations, geosets, skin files, 156-byte modern light records, first-key authored camera snapshots, particles, texture types, retail batch shaders, texture transforms and wrap flags
 - [adt-format](formats/adt-format.md) — Split files, MCNK MCVT row/column axes and center-fan topology, texture layers, MDDF/MODF placement
-- [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
+- [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, BGRA palette normalization, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
 - [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule, MODF 0x80 MWDS sets and MDDI
 - [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer; [header-order failures and signed geoset gaps](formats/db2-format.md#installed-csv-column-order-and-signed-selections).

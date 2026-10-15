@@ -13,6 +13,17 @@
 ## 2026-10-14 — Housing installed-source qualification
 
 [Housing source boundary](systems/housing.md#catalog-and-actual-acquisition): published70391 cache/GlobalStrings/atlas metadata are available; fourteen Expert enUS binding labels match. Private housing catalog/world snapshots refreshed without changing paid property state. Earlier source/runtime proof remains historical; both-skin installed-source native and hotkey pixel acceptance still pending. No export request or obsolete payload publication.
+## 2026-10-14 — Guild tabard final focused acceptance
+
+[Guild tabards](systems/guilds.md#guild-tabard-data-flow): approved catalog-valid arrows skip real missing border combinations without changing the other four fields; four model tests pass. Requested three source-verified goldens pass with only tab Button rows and fractional clear-button anchors changed. Final merged all-target checks/formatting and both native scripts pass; fourteen refreshed full-HD PNGs inspected. Server durability and offline rendering remain separate proofs; lead owns the full protocol landing gate.
+
+## 2026-10-14 — Tabard pixels exposed BGRA palette reversal
+
+[BLP palette normalization](formats/blp-format.md#palettized-bgra-correction-2026-10-14): native vendor/worn/character-select fixtures completed in both skins, but inspected red tabard backgrounds rendered blue. Authenticated180071 RED decoded `[0,9,129,255]` instead of `[129,9,0,255]`; normalize `image-blp` Raw1 palette input. Twelve focused decoder tests pass. Corrected vendor/three worn tiers/Communities and production character-selection native fixtures pass in both skins; fourteen1920×1080 PNGs inspected. No live-network proof inferred.
+
+## 2026-10-14 — Guild tabard authority and roster appearance
+
+[Guild tabards](systems/guilds.md#guild-tabard-data-flow): additive durable design/payment, live vendor validation, optional profile/replica/roster wire and source torso tiers have focused CPU proofs. Actual character-selection preparation retains registered layers after lead publication of all7274 authenticated body receipts. Arrow hover RED erased the normal icon; source base plus ADD overlay GREEN. Physical native fixture uses production screen/reducer/loader with simulated replies; both-skin pixels and live networking are not inferred from these tests.
 ## 2026-10-14 — Journeys player-facing progress header
 
 [Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.

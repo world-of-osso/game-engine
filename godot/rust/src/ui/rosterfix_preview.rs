@@ -91,6 +91,7 @@ fn preview_roster() -> Vec<CharacterListEntry> {
     .into_iter()
     .enumerate()
     .map(|(index, (name, race, class))| CharacterListEntry {
+        tabard: None,
         character_id: index as u64 + 1,
         name: name.into(),
         level: 1,
