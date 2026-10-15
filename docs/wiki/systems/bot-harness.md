@@ -30,6 +30,8 @@ Server timestamps delimit a fixed half-open window. Only the bot and its owned c
 
 Rejection strings currently lack spell IDs, so `native_cast_error` uses null attribution. Charge/resource/aura-effect/reset violations are not certified from combat text or aura presence alone. Existing native assisted/cooldown/aura snapshots are retained for further detection; these checks remain explicitly unobserved.
 
+Readiness and collector reads require observed positive local_player_health, independently of gameplay_input_allowed. The latter only permits input and was observed true for Ret70 with health0/8208; native all-spec batch1 consequently captured36 dead-player rejections per window without an in-window death event. Those two raw zero-DPS records are invalid living-player measurements and must be excluded from qualification, not called successful Ret runs. Ret's persistent dead state is not healed/reset by the harness. The actual captured state reproduces the readiness bug before the health gate; the already-loaded all-spec collector remains the old implementation and its outputs need post-run health qualification. MVP samples independently show positive health throughout all six windows (mvp-alive-proof.json), so that evidence is unaffected.
+
 Incomplete collection exposes DPS as null. Setup failures also receive JSON/Markdown. Summaries remain short; full per-ability findings live in JSON.
 
 ## Spell-driven ownership events
