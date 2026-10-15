@@ -3,16 +3,13 @@
 //! Blizzard_EncounterJournal.{lua,xml} (authored suggestion text and art).
 use std::collections::{BTreeMap, BTreeSet};
 
-use shared::protocol::{
-    AdventureGuideSnapshot, AdventureSuggestion, PerksActivityProgress, PerksActivitySnapshot,
-};
+use shared::protocol::{AdventureGuideSnapshot, PerksActivityProgress, PerksActivitySnapshot};
 use ui_toolkit::{atlas::ActiveSkin, rsx, screen::SharedContext, widget_def::Element};
 
 use crate::{
     adventure_guide::{LIST, button, scroll, text},
-    bank_art::{WHITE, label, texture},
     minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr},
-    quest_art::{DynName, named_atlas_texture},
+    quest_art::DynName,
 };
 
 const TOP: f32 = 156.;
@@ -388,138 +385,4 @@ fn activity_row(row: &ActivityRow<'_>) -> Element {
         ));
     }
     out
-}
-
-pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>) -> Element {
-    let _ = ctx.get::<ActiveSkin>();
-    let Some(snapshot) = snapshot else {
-        return text(
-            "JournalSuggestedLoading",
-            "Loading suggested content…",
-            (15., 65., 770., 32.),
-        );
-    };
-    let mut out = text(
-        "JournalSuggestedTitle",
-        "Suggested Content",
-        (15., 65., 770., 24.),
-    );
-    let notice = snapshot
-        .source_error
-        .as_ref()
-        .map(|error| format!("Missing source data: {error}"))
-        .unwrap_or_default();
-    out.extend(text(
-        "JournalSuggestedNotice",
-        &notice,
-        (15., 93., 770., 40.),
-    ));
-    if snapshot.suggestions.is_empty() {
-        out.extend(text(
-            "JournalSuggestedEmpty",
-            "No eligible source suggestions available.",
-            (15., 140., 770., 40.),
-        ));
-        return out;
-    }
-    // Retail has one large primary and two small secondary records. Only populate
-    // authored, eligible records; additional groups scroll without invented actions.
-    let height = 341.;
-    let content_height = (snapshot.suggestions.len().div_ceil(3) as f32 * 349. - 12.).max(height);
-    let offset =
-        pixel_geometry(height, content_height, height).clamp(ctx.scroll_first_row(LIST)) as f32;
-    let content = snapshot
-        .suggestions
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| {
-            let (_, top, _, row_height) = suggestion_rect(*index);
-            top + row_height > offset && top < offset + height
-        })
-        .flat_map(|(index, suggestion)| suggestion_row(suggestion, index))
-        .collect();
-    out.extend(scroll(
-        ctx,
-        content,
-        (15., 140., 770., height),
-        content_height,
-    ));
-    out
-}
-
-fn suggestion_rect(index: usize) -> (f32, f32, f32, f32) {
-    let top = (index / 3) as f32 * 349.;
-    match index % 3 {
-        0 => (28., top, 335., 337.),
-        1 => (398., top, 344., 161.),
-        _ => (398., top + 176., 344., 161.),
-    }
-}
-
-fn suggestion_row(suggestion: &AdventureSuggestion, index: usize) -> Element {
-    let id = suggestion.id;
-    let primary = index % 3 == 0;
-    let (left, top, width, height) = suggestion_rect(index);
-    let atlas = if primary {
-        "adventureguide-pane-large"
-    } else {
-        "adventureguide-pane-small"
-    };
-    let mut body = named_atlas_texture(
-        format!("JournalSuggestion{id}Art"),
-        atlas,
-        (0., 0., width, height),
-    );
-    let icon_x = if primary { 135. } else { -10. };
-    if suggestion.texture_fdid != 0 {
-        body.extend(texture(
-            format!("JournalSuggestion{id}Texture"),
-            suggestion.texture_fdid,
-            (icon_x, 0., 64., 64.),
-            WHITE,
-        ));
-        body.extend(named_atlas_texture(
-            format!("JournalSuggestion{id}Ring"),
-            "adventureguide-ring",
-            (icon_x - 15., -15., 94., 95.),
-        ));
-    }
-    let (text_x, text_y, text_width) = if primary {
-        (35., 80., 264.)
-    } else {
-        (70., 0., 260.)
-    };
-    body.extend(suggestion_text(
-        &format!("JournalSuggestion{id}Name"),
-        &suggestion.name,
-        (text_x, text_y, text_width, 36.),
-    ));
-    let description_height = text_height(&suggestion.description, 44);
-    body.extend(suggestion_text(
-        &format!("JournalSuggestion{id}Description"),
-        &suggestion.description,
-        (text_x, text_y + 40., text_width, description_height),
-    ));
-    if !suggestion.reward_description.is_empty() {
-        body.extend(suggestion_text(
-            &format!("JournalSuggestion{id}Reward"),
-            &suggestion.reward_description,
-            (
-                text_x,
-                text_y + 44. + description_height,
-                text_width,
-                text_height(&suggestion.reward_description, 44),
-            ),
-        ));
-    }
-    rsx! { r#frame {name:{DynName(format!("JournalSuggestion{id}"))}, left, top, width, height, pos_type:"absolute", {body}} }
-}
-
-fn suggestion_text(name: &str, value: &str, rect: (f32, f32, f32, f32)) -> Element {
-    label(
-        name.into(),
-        value,
-        rect,
-        (12., "0.2824,0.0157,0.0157,1.0", "LEFT"),
-    )
 }

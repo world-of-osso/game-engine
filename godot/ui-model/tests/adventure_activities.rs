@@ -1,4 +1,5 @@
-use game_engine_ui_model::adventure_activities::{ActivityFilters, monthly, suggested};
+use game_engine_ui_model::adventure_activities::{ActivityFilters, monthly};
+use game_engine_ui_model::adventure_suggestions::suggested;
 use shared::protocol::{
     AchievementCriterionLine, AdventureGuideSnapshot, AdventureSuggestion, JournalMonth,
     PerksActivityProgress, PerksActivitySnapshot, PerksActivityTag, SuggestionCensus,
