@@ -1,3 +1,7 @@
+## 2026-10-14 — Cleanup cursor tooltip
+
+[Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
+
 ## 2026-10-14 — Shared Cleanup controls
 
 [Cleanup source controls](systems/housing.md#cleanup-shared-source-controls--implementation2026-10-14): removed separate three-button chrome; shared mode art/bound labels and source45px Remove Decor row. Two behavioral REDs; scoped housing registry GREEN24. Installed70391 both-skin source bounds/captures and paid-owner store/relog/replant plus actual readonly visitor refusal/relog PASS. Existing authority/tooltip behavior preserved; an earlier non-reproduced Forever return-hover timeout remains documented, not claimed fixed.

@@ -166,7 +166,7 @@ Use the source75px category rail,64px roots and54px subcategories. A category wi
 
 Cleanup uses the maintained GameTooltip renderer at source `ANCHOR_CURSOR`, with the authenticated placed decor name and source white title. Readonly visitors may inspect the same title; only the existing server refusal decides failed removal. No bespoke fixed280×70 black panel or invented visitor tooltip line remains. Pointer leave, UI obstruction, pending removal, mode exit and a removed authoritative instance hide stale content. No pet, lock or `canBeRemoved` fields exist in the current snapshot, so no conditional lines are fabricated from `can_edit`. Exterior hover stays unavailable. Both skins share content and cursor anchoring; only maintained tooltip art differs.
 
-Source: `Blizzard_HouseEditorCleanupMode.lua` ShowDecorInstanceTooltip. Native title/anchor/lifetime acceptance is separate from prior F6 proof; full shader/pixel parity and source sounds remain open.
+Source: `Blizzard_HouseEditorCleanupMode.lua` ShowDecorInstanceTooltip. Installed70391 native title/cursor-anchor/leave/rehover/mode-exit and unchanged-authority inspection pass for owners and readonly visitors in both skins. Prior F6 physical removal/relog proof retains its runtime boundary. Rehover re-picks a currently visible triangle: diagnostic event-time picking proved a previous pixel can hit another unit instead of the decor, so retaining that pixel is not a valid hover precondition. No timing, full shader/pixel parity or source-sound acceptance is claimed.
 
 ## Cleanup mode
 
