@@ -166,6 +166,139 @@ fn housing_control_hover_hides_while_pressed_and_restores_on_release_both_skins(
     }
 }
 
+#[test]
+fn housing_disabled_controls_use_source_default_atlas_and_darkgray_tint_both_skins() {
+    use game_engine_ui_model::housing_editor::PrecisionSubmode::{Rotate, Scale, Translate};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let cases = [
+        (
+            EditorMode::Basic,
+            Translate,
+            "HouseEditorBasicDecorModeButton",
+            "move",
+        ),
+        (
+            EditorMode::Expert,
+            Translate,
+            "HouseEditorExpertDecorModeButton",
+            "expertmode",
+        ),
+        (
+            EditorMode::Cleanup,
+            Translate,
+            "HouseEditorCleanupModeButton",
+            "cleanup",
+        ),
+        (
+            EditorMode::Expert,
+            Translate,
+            "TranslateSubmodeButton",
+            "expert-horzmove",
+        ),
+        (
+            EditorMode::Expert,
+            Rotate,
+            "RotateSubmodeButton",
+            "expert-rotate",
+        ),
+        (
+            EditorMode::Expert,
+            Scale,
+            "ScaleSubmodeButton",
+            "expert-scale",
+        ),
+    ];
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for case in cases {
+            assert_disabled_control_case(skin, case);
+        }
+    }
+}
+
+fn assert_disabled_control_case(
+    skin: ActiveSkin,
+    case: (
+        EditorMode,
+        game_engine_ui_model::housing_editor::PrecisionSubmode,
+        &str,
+        &str,
+    ),
+) {
+    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    set_thread_skin(skin);
+    let (mode, submode, name, atlas) = case;
+    let mut view = view(mode);
+    view.model.editor.set_submode(submode);
+    view.authority.state = Some(shared::protocol::HousingState {
+        layout: Some(shared::protocol::HouseLayout {
+            house_id: 1,
+            can_edit: true,
+            decor: vec![],
+        }),
+        ..Default::default()
+    });
+    for pending in [true, false] {
+        view.model.pending = pending;
+        let mut shared = SharedContext::new();
+        shared.insert(view.clone());
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(housing_screen).sync(&shared, &mut registry);
+        let id = registry.get_by_name(name).unwrap();
+        let Some(WidgetData::Button(button)) = registry.get_mut(id).unwrap().widget_data.as_mut()
+        else {
+            panic!("Mode controls must accept button input")
+        };
+        button.hovered = true;
+        apply_housing_postsetup(&view, &mut registry);
+        let expected = if pending {
+            ("default", [0.4, 0.4, 0.4, 1.0], 0.0)
+        } else {
+            ("active", [1.0; 4], 0.5)
+        };
+        assert_source_icon_visual(
+            &registry,
+            name,
+            (
+                &format!("decor-ability-{atlas}-{}", expected.0),
+                expected.1,
+                expected.2,
+            ),
+        );
+    }
+}
+
+fn assert_source_icon_visual(
+    registry: &FrameRegistry,
+    name: &str,
+    expected: (&str, [f32; 4], f32),
+) {
+    use ui_toolkit::widgets::texture::TextureSource;
+    let (atlas, color, hover_alpha) = expected;
+    let icon = registry
+        .get(registry.get_by_name(&format!("{name}Icon")).unwrap())
+        .unwrap();
+    assert_eq!(
+        icon.alpha, 1.0,
+        "{name} source tint is not frame transparency"
+    );
+    let Some(WidgetData::Texture(texture)) = &icon.widget_data else {
+        panic!("Mode icon must render a texture")
+    };
+    assert_eq!(texture.source, TextureSource::Atlas(atlas.into()));
+    assert_eq!(texture.vertex_color, color);
+    assert!(
+        !texture.desaturated,
+        "Source disabled mode color does not desaturate the artwork"
+    );
+    let hover = registry
+        .get(registry.get_by_name(&format!("{name}Hover")).unwrap())
+        .unwrap();
+    assert_eq!(hover.alpha, hover_alpha);
+}
+
 fn assert_editor_hover_states(view: &HousingView, registry: &mut FrameRegistry) {
     use game_engine_ui_model::housing_component::apply_housing_postsetup;
     use ui_toolkit::widgets::button::ButtonState;
