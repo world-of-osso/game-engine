@@ -229,7 +229,7 @@ impl UiAuditProbe {
     /// Real window callsites for shared-helper before/after raster proof.
     #[func]
     fn mount_shared_helper_panel(&mut self, forever: bool, panel: GString) -> GString {
-        use game_engine_ui_model::bank_frame_component::BankFrameState;
+        use game_engine_ui_model::bank_frame_component::{BankFrameState, SideTab};
         use game_engine_ui_model::raid_info::RaidInfoState;
         match panel.to_string().as_str() {
             "quest" => return self.mount_quest_overflow(forever, "detail".into(), false),
@@ -250,7 +250,12 @@ impl UiAuditProbe {
             "bank" => ui.bind_mut().show_bank(BankFrameState {
                 visible: true,
                 title: "Bank".into(),
-                header: "Bank".into(),
+                header: "Tab 1".into(),
+                tabs: vec![SideTab {
+                    icon_fdid: 134_400,
+                    selected: true,
+                }],
+                slots: vec![None; shared::protocol::BANK_TAB_SLOTS],
                 deposit_all_label: "Deposit All Reagents".into(),
                 ..Default::default()
             }),
