@@ -51,6 +51,8 @@ mod emotes;
 mod mount;
 #[path = "world_stand.rs"]
 pub(crate) mod stand;
+#[path = "world_vehicle_fixture.rs"]
+mod vehicle_fixture;
 use combat::MeleeWeapon;
 
 /// Main-thread time per frame for attaching loaded unit visuals.
