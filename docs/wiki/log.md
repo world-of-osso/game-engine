@@ -1,3 +1,7 @@
+## 2026-10-15 — Active housing mode preservation
+
+[Active mode](systems/housing.md#active-mode-activation--implementation2026-10-15): native Basic active-click selection-loss RED; source no-op before transition teardown fixes pointer/assigned-key reactivation. Both skins preserve Basic selection/owned Tesla preview and Expert staged bookcase draft/render/open list, then Escape restores paid state. Launch binary SHA receipts replace revision assumptions; earlier F8/F9 exact server labels remain explicitly withdrawn, not retroactively certified. No numeric-rate/different-mode redesign or full parity claim.
+
 ## 2026-10-15 — Housing pressed hover
 
 [Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
