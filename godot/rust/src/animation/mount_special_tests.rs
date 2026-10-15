@@ -96,7 +96,7 @@ fn mount_special_full_body_sequence_is_not_replaced_by_per_frame_locomotion() {
 }
 
 #[test]
-fn mount_special_spelltome_authored_attachment_diagnostic() {
+fn mount_special_spelltome_uses_authored_elevated_saddle() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
     let model = game_engine_core::m2::parse_model_with_skeleton(
         &std::fs::read(root.join("4061989.m2")).unwrap(),
@@ -143,15 +143,22 @@ fn mount_special_spelltome_authored_attachment_diagnostic() {
     println!("SPELLTOME_IDLE_SEAT {origin:?}");
     let duration = mount.play_mount_special(&HashMap::new()).unwrap();
     println!("SPELLTOME_SPECIAL_DURATION {duration}");
+    let mut highest = origin.y;
     for elapsed in [0.0, 500.0, 500.0, 500.0, 500.0, 1000.0] {
         mount.advance(elapsed).unwrap();
+        highest = highest.max(authored_seat_position(&model, &mount.poses(), seat).y);
         println!(
             "SPELLTOME_SPECIAL_SEAT time={} position={:?}",
             mount.time_ms,
             authored_seat_position(&model, &mount.poses(), seat)
         );
     }
-    assert!(duration > 0.0);
+    assert_eq!(duration, 4000.0);
+    assert!((origin.y - 1.1931734).abs() < 1e-4);
+    assert!(
+        (highest - 3.4450684).abs() < 1e-4,
+        "authored saddle did not rise: {highest}"
+    );
 }
 
 fn authored_seat_position(
