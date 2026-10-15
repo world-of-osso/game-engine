@@ -1,6 +1,10 @@
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
+## 2026-10-15 — Guild invitation source chrome
+
+[TranslucentFrameTemplate](systems/guilds.md#invitation-chrome--verified2026-10-15) replaces only GuildInviteFrame's static-popup skin. Missing-inset RED→two controls GREEN; both-skin native source rectangles and physical Join/Decline/pending pacing pass, four inspected before/after PNGs. Fixture authority and remaining inner-art/content/lifecycle boundaries remain explicit.
+
 ## 2026-10-15 — Communities numeric roster sorting
 
 [Level/Class header continuation](systems/guilds.md#communities-metadata-sorting--verified2026-10-15): actual disabled-header RED→seven focused controls GREEN, numeric class IDs and missing-value order sourced from Retail. Both-skin native physical sort and prior Communities regression pass; ten before/after PNGs inspected. Offline fixture authority only; service gaps and numeric tie-order boundary retained.
