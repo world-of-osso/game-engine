@@ -189,7 +189,7 @@ impl GameClient {
                 .housing
                 .model
                 .as_ref()?
-                .editor_control_tooltip(action)?,
+                .editor_control_tooltip(action, self.client_options.bindings.binding(action))?,
             HousingTooltipTarget::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
             HousingTooltipTarget::Decor(id) => {
                 let model = self.housing.model.as_ref()?;
