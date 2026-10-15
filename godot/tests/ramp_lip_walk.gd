@@ -19,26 +19,17 @@ func run_test() -> void:
     client = load("res://scenes/client.tscn").instantiate()
     root.add_child(client)
     current_scene = client
-    var error: String = client.connect_account("127.0.0.1:5921", "fb_movement_ramp_lip", "fbtest", false)
-    if error != "":
-        fail("connect: " + error)
-        return
-    if not await wait_for(func(state): return state.screen == "CharacterSelect" and state.reply_received, 30000):
-        return
-    # Native character-select key path (EngineRoot::handle_character_select_key).
-    push_key(KEY_DOWN, true)
-    await process_frame
-    push_key(KEY_DOWN, false)
-    if not await wait_for(func(state): return state.selected_character_name == NAME, 30000):
-        return
-    push_key(KEY_ENTER, true)
-    await process_frame
-    push_key(KEY_ENTER, false)
-    if not await wait_for(func(state): return state.screen == "InWorld" and state.terrain.pending_count == 0, 180000):
+    # Normal --server/--screen inworld/--char startup owns authentication/selection.
+    print("RAMP_LIP waiting for native startup into Stockade")
+    if not await wait_for(world_ready, 180000):
         return
     var player := client.get_node("WorldUnits/" + NAME) as Node3D
     for _frame in 240:
         await process_frame
+    var loaded: Dictionary = client.account_state()
+    if loaded.world_map_id != 34 or loaded.terrain.global_wmo_fdid != 108631:
+        fail("startup did not enter the authored Stockade WMO: " + str(loaded.terrain))
+        return
     if player.position.distance_to(FEET) > 0.05:
         fail("spawn is not captured pose: " + str(player.position))
         return
@@ -72,6 +63,14 @@ func run_test() -> void:
     print("PASS ramp_lip: native held-W crosses face3153 onto upper floor; server agrees")
     client.free()
     quit(0)
+
+func world_ready(state: Dictionary) -> bool:
+    if state.screen != "InWorld" or state.terrain.pending_count != 0:
+        return false
+    if client.get_node_or_null("WorldUnits/" + NAME) == null:
+        return false
+    var camera: Camera3D = client.get_node_or_null("WorldCamera") as Camera3D
+    return camera != null and camera.current
 
 func verify_authored_wall(player: Node3D) -> bool:
     var origin: Vector3 = player.position + Vector3.UP * 0.6
