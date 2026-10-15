@@ -391,13 +391,17 @@ class DepotBuildTests(unittest.TestCase):
             "ChrClasses": "IconFileDataID\n135875\n",
             "ChrSpecialization": "SpellIconFileID\n135875\n",
         }
+        build = "12.1.5.70391"
         for table, contents in tables.items():
-            self._put(self.root, f"data/db2/12.1.0.69933/{table}.csv", contents)
+            self._put(self.root, f"data/db2/{build}/{table}.csv", contents)
+        self._put(self.root, f"data/db2/{build}/receipt.json",
+                  json.dumps({"identity": {"product": "wow", "build": build}}))
+        (self.root / "data/db2/active").symlink_to(build, target_is_directory=True)
         texture = self.root / "data/textures/135875.blp"
         texture.parent.mkdir(parents=True)
         shutil.copy2(SCRIPT.parent.parent / "data/textures/135875.blp", texture)
         self._put(self.root, "scripts/ui-icon-exceptions.json",
-                  '{"version": 1, "spell_db2_build": "12.1.0.69933", "exceptions": []}')
+                  '{"version": 1, "spell_db2_build": "12.1.5.70391", "exceptions": []}')
 
     def test_release_installs_optimized_library_only_under_target_release(self):
         self.prepare_release_icon_fixture()
