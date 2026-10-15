@@ -1273,7 +1273,7 @@ fn guild_event_log_opens_from_info_and_closes_independently_both_skins() {
         );
         assert_eq!(
             text(&mounted(&session), "CommunitiesGuildLogFrameTitle"),
-            "Guild Event Log"
+            "Log"
         );
         session.click("guild:log_close", &Default::default());
         assert!(
@@ -1320,7 +1320,7 @@ fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
             );
             session.click(entry, &Default::default());
             session.click(remove, &Default::default());
-            assert!(session.dismiss_member_popup());
+            assert!(session.dismiss_subdialog());
             assert!(session.visible, "Escape closes popup, not the guild window");
             assert!(session.removal_target.is_none());
             assert!(!session.awaiting_state, "Cancel sends no removal request");
