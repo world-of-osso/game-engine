@@ -138,17 +138,17 @@ func select_skin(skin: String) -> bool:
 		return true
 	await press("MinimapLauncherButton")
 	await press("LauncherEntryMainMenuMicroButton")
-	if not await press_label("Options"):
-		return false
+	await press("MenuBtnOptions")
 	await press("OptionsTabhud")
-	await press("Choiceui_layout0" if skin == "Modern" else "Choiceui_layout1")
-	if not await press_label("Done"):
-		return false
+	await press("Choiceui_layout")
+	await press("Choiceui_layout0Hit" if skin == "Modern" else "Choiceui_layout1Hit")
+	await press("OptionsCloseButton")
+	if shown("MenuBtnResume"):
+		await press("MenuBtnResume")
 	return await wait_until(func(): return str(client.account_state().ui_skin) == skin, "skin switch")
 
-func press_label(value: String) -> bool:
-	for node in client.find_children("*", "Control", true, false):
-		if node.is_visible_in_tree() and (node is Label or node is Button) and node.text == value:
-			await click_at(node.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
-			return true
-	return fail("Missing visible label " + value)
+func press(name: String) -> void:
+	if not await wait_until(func(): return shown(name), "visible control " + name):
+		await entry_diagnostic("missing-" + name)
+		return
+	await click(control(name))
