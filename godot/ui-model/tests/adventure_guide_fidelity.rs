@@ -502,6 +502,28 @@ fn adventure_guide_instance_loot_uses_source_quality_icon_border() {
 }
 
 #[test]
+fn adventure_guide_instance_loot_row_opens_authored_boss_and_retains_loot() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:instance:63").unwrap();
+        v.apply("journal:difficulty:1").unwrap();
+        v.apply("journal:page:loot").unwrap();
+        let r = render(&v, skin);
+        let action = frame(&r, "JournalLoot2169")
+            .onclick
+            .as_deref()
+            .expect("Retail instance Loot row opens its authored boss");
+        v.apply(action).unwrap();
+        assert_eq!(v.encounter, Some(89));
+        assert_eq!(v.catalog.encounter(89).unwrap().name, "Glubtok");
+        assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "JournalLoot2169")[3], 45.);
+        assert!(frame(&r, "JournalLoot2169").onclick.is_none());
+    }
+}
+
+#[test]
 fn adventure_guide_instance_loot_transition_keeps_valid_loot_tab() {
     let mut v = view();
     v.apply("journal:instance:63").unwrap();
