@@ -14,7 +14,7 @@ A face is walkable when its world normal satisfies `|n.y| >= cos(MAX_SLOPE_ANGLE
 
 ## Native grounded steps — 2026-10-15
 
-`TerrainGround::validate_move` admits the destination floor at the current feet height before wall collision. The ordinary low wall ray retains its existing corridor. Only an actually wall-blocked grounded snapped rise attempts a lifted ray; unobstructed ramps and airborne proposals retain the original admission. When a wall clamp is retained, its final support column is sampled and its covered/slope rules run there rather than retaining an unreached landing's height. Rejecting a high/steep original destination cannot cancel an otherwise reachable wall approach, and a clamped column under an out-of-reach floor remains blocked.
+`TerrainGround::validate_move` admits the destination floor at the current feet height before wall collision. The ordinary low wall ray retains its existing corridor. Only an actually wall-blocked grounded snapped move attempts a lifted ray when admitted support rises within the step budget. Support considers both the destination and the existing wall ray's extra `WALL_MARGIN` reach; the higher admitted support sets the clearance height, but the returned feet retain the requested XZ and their actual destination floor height. This prevents the ray from stopping short frames before the lip reaches their destination, without moving farther or requiring support beyond an already-admitted landing. Unobstructed ramps and airborne proposals retain the original admission. When a wall clamp is retained, its final support column is sampled and its covered/slope rules run there rather than retaining an unreached landing's height. Rejecting a high/steep original destination cannot cancel an otherwise reachable wall approach, and a clamped column under an out-of-reach floor remains blocked.
 
 Stockade WMO108631/group15/FDID108647 face3153 is a vertical lip whose top is0.6557564yd above captured feet `(108.2204,-26.26199,3.454892)`. The old feet+0.6 wall ray hit it0.04996yd away, less than the0.05 stop margin, before face3041's reachable upper floor was sampled. The shared1.6 step budget and wall constants are unchanged.
 
@@ -23,6 +23,10 @@ A raised ray alone can miss a thin wall up to0.6yd above the landing. A wall-blo
 **Named gap — full-body/ceiling clearance:** the client has no full default-height body controller. A proposed2.03128-yd body/head check introduced extra restrictions above the existing wall ray; the lead explicitly excluded it from this change. Existing Stockade/Jasperlode routes remain required regressions. Their ascent trace separately exposed a walkable support face misclassified as a wall after float projection; destination-support faces are now excluded from wall admission by their existing walkable-floor semantics, not a tolerance. A future full-body contract must establish source dimensions and authored corridor compatibility separately.
 
 Server `networking_movement::land_height` already samples the destination ground from current Y before applying its land envelope; it has no earlier client-style wall ray. No server change accompanies this fix. Regression fixtures: `godot/rust/src/ground_step_tests.rs`, full-WMO `wmo/collision_tests.rs::ramp_lip_full_stockade_walks_from_captured_feet_onto_landing`, native `godot/tests/ramp_lip_walk.gd`.
+
+### Short-frame regression proof
+
+On `d3d594449`, deterministic exact-face traversal failed at 7 yd/s with 144/240 FPS and at 2.5 yd/s with 60 FPS, while the captured 7 yd/s 60-FPS case passed. Revision `18ccab0e1` passes all 13 ramp-lip/guard regressions, including those three rates and assertions that no frame adds horizontal displacement. Logs: `/home/osso/.worktrees/logs/movement-ramp-lip-rate-{red,green}-full.log`. This follow-up has deterministic geometry proof; the native proof below predates this support-reach refinement.
 
 ### Bounded native proof
 
