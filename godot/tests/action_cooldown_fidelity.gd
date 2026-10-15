@@ -47,10 +47,18 @@ func verify_quadrants(probe: Node, baseline: Image, image: Image, fraction: floa
 		var host := probe.find_child(prefix + "Cooldown", true, false) as Control
 		assert(icon != null and host != null, "Actual action icon and cooldown host")
 		var scale: float = icon.size.x / 45.0
-		assert(host.size.is_equal_approx(Vector2(39, 39) * scale), "Full source inset square")
-		assert(host.global_position.is_equal_approx(icon.global_position + Vector2(3, 3) * scale), "Source icon inset")
+		var source_rect := Rect2(icon.global_position + Vector2(3, 3) * scale, Vector2(39, 39) * scale)
+		if fraction > 0.0:
+			# Native Taffy/Godot layout snaps each edge to pixels independently.
+			assert(host.is_visible_in_tree(), "Active cooldown host visible")
+			assert(host.size.distance_to(source_rect.size) <= 1.5, "Full source inset square: actual=%s source=%s" % [host.size, source_rect.size])
+			assert(host.global_position.distance_to(source_rect.position) <= 1.5, "Source icon inset")
+			source_rect = host.get_global_rect()
+		else:
+			# Display::None has zero native bounds; sample the icon's source region.
+			assert(not host.is_visible_in_tree(), "Inactive/reset cooldown host hidden")
 		for index in range(samples.size()):
-			var point := Vector2i(host.global_position + samples[index] * host.size)
+			var point := Vector2i(source_rect.position + samples[index] * source_rect.size)
 			var original := baseline.get_pixelv(point)
 			var actual := image.get_pixelv(point)
 			var covered: bool = (float(index) + 0.5) / 4.0 < fraction
