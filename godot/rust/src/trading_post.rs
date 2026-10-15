@@ -13,20 +13,8 @@ use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquippedAppearanceEntry, SheathState};
 use shared::protocol::{EquipmentSlot, TradingPostRequest};
 
-/// PerksModelSceneControlButtonMixin:IconCENTER(1,-1)while held;0,0 on release.
-fn move_trading_rotate_icon(ui: &Gd<RegistryUi>, name: &str, pressed: bool) {
-    let Some(button) = ui.bind().frame_control(name) else {
-        return;
-    };
-    let Some(mut icon) = ui.bind().frame_control(&format!("{name}Icon")) else {
-        return;
-    };
-    let rect = button.get_global_rect();
-    let scale = rect.size.x / 48.;
-    let offset = if pressed { 1. } else { 0. };
-    let position = rect.position + Vector2::new(11. + offset, 11.5 + offset) * scale;
-    icon.set_global_position(position);
-}
+#[path = "trading_post_mount.rs"]
+mod mount_preview;
 
 fn contains_pointer([x, y, width, height]: [f32; 4], point: Vector2) -> bool {
     Rect2::new(Vector2::new(x, y), Vector2::new(width, height)).contains_point(point)
@@ -46,6 +34,12 @@ pub(crate) struct TradingPost {
     scene: Option<Scene>,
     pending: Option<(u64, UnitAppearance)>,
     shown: Option<UnitAppearance>,
+    mount_product: Option<u32>,
+    mount: Option<game_engine_core::mount_preview::MountPreview>,
+    rider_pending: Option<(u64, UnitAppearance)>,
+    rider_shown: Option<UnitAppearance>,
+    rider_actor: Option<Gd<godot::classes::Node3D>>,
+    rider_gap: String,
     yaw: f32,
     rotating: bool,
     dragged: Option<ProductDrag>,
@@ -323,7 +317,6 @@ impl GameClient {
             if down {
                 self.trading_post.yaw += increment;
             }
-            move_trading_rotate_icon(ui, name, down);
         }
     }
 
@@ -411,7 +404,20 @@ impl GameClient {
             *tabard,
         )))
     }
+    fn clear_trading_rider(&mut self) {
+        if let Some((id, _)) = self.trading_post.rider_pending.take() {
+            self.world.cancel_detached_visual(id);
+        }
+        if let Some(rider) = self.trading_post.rider_actor.take() {
+            rider.free();
+        }
+        self.trading_post.rider_shown = None;
+        self.trading_post.rider_gap.clear();
+    }
     fn clear_trading_model(&mut self) {
+        self.clear_trading_rider();
+        self.trading_post.mount = None;
+        self.trading_post.mount_product = None;
         if let Some((id, _)) = self.trading_post.pending.take() {
             self.world.cancel_detached_visual(id);
         }
@@ -428,14 +434,60 @@ impl GameClient {
             .as_ref()
             .map(|(_, appearance)| appearance)
             .or(self.trading_post.shown.as_ref());
-        if desired.as_ref() != current {
+        let mount_product = self
+            .trading_post
+            .view
+            .preview_product()
+            .filter(|row| row.category_id == 2 && desired.is_some())
+            .map(|row| row.id);
+        if desired.as_ref() != current || mount_product != self.trading_post.mount_product {
             self.clear_trading_model();
+            if let Some(product) = mount_product {
+                self.trading_post.mount = Some(self.read_trading_mount()?);
+                self.trading_post.mount_product = Some(product);
+            }
             if let Some(appearance) = desired {
                 let id = self.world.request_detached_visual(&appearance);
                 self.trading_post.pending = Some((id, appearance));
             }
         }
         Ok(())
+    }
+    fn read_trading_mount(&self) -> Result<game_engine_core::mount_preview::MountPreview, String> {
+        let view = &self.trading_post.view;
+        let row = view
+            .preview_product()
+            .ok_or("Trading Post mount selection missing")?;
+        let journal = self
+            .mount_journal
+            .view
+            .catalog
+            .values()
+            .find(|mount| mount.teaching_items.contains(&row.item_id))
+            .ok_or_else(|| {
+                format!(
+                    "Trading Post mount item{} metadata still loading",
+                    row.item_id
+                )
+            })?;
+        let category_scene = view
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| {
+                snapshot
+                    .categories
+                    .iter()
+                    .find(|category| category.id == row.category_id)
+            })
+            .map(|category| category.model_scene_id)
+            .ok_or("Trading Post mount category scene missing")?;
+        let mut mount = game_engine_core::mount_preview::MountPreview::read(
+            &self.data_root,
+            journal.mount_id,
+            category_scene,
+        )?;
+        mount.apply_display_scene(&self.data_root, view.preview_scene_id()?)?;
+        Ok(mount)
     }
     fn sync_trading_model(&mut self) -> Result<(), String> {
         if self.trading_post.pending.is_none() && self.trading_post.shown.is_none() {
@@ -453,6 +505,7 @@ impl GameClient {
             self.trading_post.scene = Some(Scene::new(host));
         }
         self.attach_trading_model()?;
+        self.sync_trading_rider()?;
         let scene = self
             .trading_post
             .scene
@@ -485,6 +538,27 @@ impl GameClient {
             }
         }
         bind_sheet_light(&model);
+        let model = if let Some(mount) = &self.trading_post.mount {
+            let animation = if mount.is_self_mount() {
+                mount_preview::SELF_MOUNT_ANIMATION
+            } else {
+                mount.actors["mount"].animation
+            };
+            let prepared = model
+                .try_get_node_as::<crate::animation::WowAnimationPlayer>("NpcModel/M2Animation")
+                .ok_or_else(|| "Trading Post mount animation owner missing".to_string())
+                .and_then(|mut player| player.bind_mut().play_clip(animation, true))
+                .and_then(|()| mount_preview::compose_mount(model.clone(), &mount.actors["mount"]));
+            match prepared {
+                Ok(group) => group,
+                Err(error) => {
+                    model.free();
+                    return Err(error);
+                }
+            }
+        } else {
+            model
+        };
         self.trading_post
             .scene
             .as_mut()
@@ -492,6 +566,109 @@ impl GameClient {
             .replace_model(model);
         self.trading_post.shown = Some(appearance);
         Ok(())
+    }
+    fn desired_trading_rider(&self) -> Option<UnitAppearance> {
+        let mut appearance = self.world.local_player_appearance()?.clone();
+        let UnitAppearance::Player(_, equipped, _) = &mut appearance else {
+            return None;
+        };
+        // SharedXML AttachPlayerToMount: autoDress=true, hideWeapons=true.
+        equipped.entries.retain(|entry| {
+            !matches!(
+                entry.slot,
+                shared::components::EquipmentVisualSlot::MainHand
+                    | shared::components::EquipmentVisualSlot::OffHand
+                    | shared::components::EquipmentVisualSlot::Ranged
+            )
+        });
+        Some(appearance)
+    }
+    fn sync_trading_rider(&mut self) -> Result<(), String> {
+        let Some(mount) = self.trading_post.mount.clone() else {
+            return Ok(());
+        };
+        if !mount.shows_rider(self.trading_post.view.hide_player_preview) {
+            self.clear_trading_rider();
+            return Ok(());
+        }
+        if mount.rider_animation_kit != 0 || mount.rider_spell_visual_kit != 0 {
+            self.clear_trading_rider();
+            self.trading_post.rider_gap = format!(
+                "Rider animation kit{} / spell visual kit{} not implemented",
+                mount.rider_animation_kit, mount.rider_spell_visual_kit
+            );
+            return Ok(());
+        }
+        self.request_trading_rider();
+        self.attach_pending_trading_rider(&mount)
+    }
+    fn request_trading_rider(&mut self) {
+        let desired = self.desired_trading_rider();
+        let current = self
+            .trading_post
+            .rider_pending
+            .as_ref()
+            .map(|(_, appearance)| appearance)
+            .or(self.trading_post.rider_shown.as_ref());
+        if desired.as_ref() != current {
+            self.clear_trading_rider();
+            if let Some(appearance) = desired {
+                let id = self.world.request_detached_visual(&appearance);
+                self.trading_post.rider_pending = Some((id, appearance));
+            }
+        }
+    }
+    fn attach_pending_trading_rider(
+        &mut self,
+        mount: &game_engine_core::mount_preview::MountPreview,
+    ) -> Result<(), String> {
+        let Some(group) = self.trading_post.scene.as_ref().and_then(Scene::model) else {
+            return Ok(());
+        };
+        let Some((id, _)) = self.trading_post.rider_pending.as_ref() else {
+            return Ok(());
+        };
+        let Some(loaded) = self.world.take_detached_visual(*id) else {
+            return Ok(());
+        };
+        let (_, appearance) = self
+            .trading_post
+            .rider_pending
+            .take()
+            .expect("pending rider");
+        let rider = loaded?;
+        let attached = self.attach_trading_rider(&group, &rider, mount);
+        match attached {
+            Ok(actor) => {
+                self.trading_post.rider_actor = Some(actor);
+                self.trading_post.rider_shown = Some(appearance);
+            }
+            Err(error) => {
+                rider.free();
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+    fn attach_trading_rider(
+        &self,
+        group: &Gd<godot::classes::Node3D>,
+        rider: &Gd<godot::classes::Node3D>,
+        mount: &game_engine_core::mount_preview::MountPreview,
+    ) -> Result<Gd<godot::classes::Node3D>, String> {
+        let mut animation = rider
+            .try_get_node_as::<crate::animation::WowAnimationPlayer>("M2Animation")
+            .ok_or("Trading Post rider animation owner missing")?;
+        animation
+            .bind_mut()
+            .play_clip(mount_preview::RIDER_ANIMATION, true)?;
+        bind_sheet_light(rider);
+        let model = group
+            .try_get_node_as::<godot::classes::Node3D>("MountActor/NpcVisualRoot")
+            .ok_or("Trading Post mount actor missing")?;
+        // CalculateMountScale's native formula is not established. Lead-authorized
+        // scope retains the authored player-rider scale1; no guessed compensation.
+        mount_preview::attach_rider(&model, rider.clone(), &mount.actors["player-rider"])
     }
     pub(super) fn trading_post_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         if !self.trading_post.view.visible {
@@ -746,6 +923,18 @@ impl GameClient {
         );
         state.set("ascending", view.ascending);
         state.set("preview_ready", self.trading_post.shown.is_some());
+        state.set("hide_player_preview", view.hide_player_preview);
+        state.set("rider_ready", self.trading_post.rider_shown.is_some());
+        state.set("rider_pending", self.trading_post.rider_pending.is_some());
+        state.set("rider_gap", self.trading_post.rider_gap.as_str());
+        state.set("rider_scale_gap", self.trading_post.mount.is_some());
+        state.set(
+            "rider_actor_id",
+            self.trading_post
+                .rider_actor
+                .as_ref()
+                .map_or(0, |node| node.instance_id().to_i64()),
+        );
         state.set(
             "preview_kind",
             match &self.trading_post.shown {

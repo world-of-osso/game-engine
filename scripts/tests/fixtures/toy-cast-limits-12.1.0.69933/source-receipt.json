@@ -1,0 +1,28 @@
+{
+  "product": "wow",
+  "build": "12.1.0.69933",
+  "build_key": "dcfc90fffd79ba00406ae46f5f657592",
+  "tc_revision": "a352b1fa9017138cc2f1dcfc0a51afaa17391ecf",
+  "tables": [
+    {
+      "table": "SpellCastingRequirements",
+      "fdid": 1002166,
+      "layout": "02074290",
+      "content_key": "620bc5c8f070933eee6c06793754fe13",
+      "raw_digest_matches": false,
+      "rows": 28152,
+      "encrypted_rows_dropped": 3,
+      "raw_sha256": "715cf66270418e45e3ed89225ce62b948b3d2e6e761c5cd9d3c88290d3041ec5"
+    },
+    {
+      "table": "AreaGroupMember",
+      "fdid": 1093406,
+      "layout": "6746D145",
+      "content_key": "bc74c1e63bf3f7201f67836da7112619",
+      "raw_digest_matches": true,
+      "rows": 27273,
+      "encrypted_rows_dropped": 0,
+      "raw_sha256": "553bda0ae122e85c3b356a460279c19b5482222358a04217aa149e4a0853cf02"
+    }
+  ]
+}

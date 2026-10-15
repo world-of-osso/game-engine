@@ -102,6 +102,7 @@ mod roster_mapping;
 mod scenarios;
 mod selection_lists;
 mod selection_lists_gossip;
+mod shared_panel_art;
 mod spell_overrides;
 mod spell_power_text;
 mod spellbook_frame;

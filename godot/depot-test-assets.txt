@@ -49,6 +49,10 @@ textures/130762.blp
 textures/130763.blp
 textures/136796.blp
 # Source Cage505683 live trapdoor hull/primary skin, already extracted from local CASC.
+models/1417024.m2
+# Existing real ribbon/global-UV translation fixture (no generated track bytes).
+models/1865728.m2
+models/186572800.skin
 models/6339134.m2
 models/6339702.skin
 # Paladin Avenging Wrath: authentic local-CASC wing/cast sheets and particle textures.
@@ -4868,3 +4872,8 @@ cache/adventure_guide.sqlite
 sounds/ui/567394.ogg
 models/6371365.wmo
 models/6371389.wmo
+
+# Installed Retail Trading Post mount actor and rider metadata.
+db2/active/UiModelSceneActor.csv
+db2/active/UiModelSceneActorDisplay.csv
+db2/active/Mount.csv

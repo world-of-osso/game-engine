@@ -24,7 +24,7 @@ use crate::{
         strata::FrameStrata,
     },
 };
-pub use outfit::load_scene_autodress;
+pub use outfit::{apply_rotation_icon_positions, load_scene_autodress};
 use shared::protocol::{TradingPostItem, TradingPostRequest, TradingPostSnapshot};
 use std::{collections::BTreeSet, sync::Arc};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -50,6 +50,8 @@ pub struct View {
     pub cart_selected: std::collections::BTreeMap<u8, u32>,
     /// Retail resets this override on vendor open, not on product changes.
     pub hide_armor_setting: Option<bool>,
+    /// PerksProgram OnLoad initializes false; product/category changes retain the choice.
+    pub hide_player_preview: bool,
     pub dropdown: bool,
     pub submenu: Option<FilterSubmenu>,
     pub sort: Sort,
@@ -204,6 +206,7 @@ impl View {
         match action {
             "perks:close" => return Ok(Some(Action::Close)),
             "perks:hide-armor" => self.hide_armor_setting = Some(!self.hide_armor()?),
+            "perks:hide-character" => self.hide_player_preview = !self.hide_player_preview,
             // Rotation is held pointer input, not a server request or a click increment.
             "perks:rotate-left" | "perks:rotate-right" => {}
             "perks:filter" => {

@@ -331,7 +331,7 @@ impl Scene {
 }
 
 /// Detached creatures wrap meshes beneath NpcVisualRoot -> NpcModel, including display transforms.
-fn pet_actor_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
+pub(crate) fn pet_actor_bounds(model: &Gd<Node3D>) -> Result<Aabb, String> {
     let mut stack = vec![(model.clone().upcast::<Node>(), Transform3D::IDENTITY)];
     let mut bounds: Option<Aabb> = None;
     while let Some((node, parent_transform)) = stack.pop() {
