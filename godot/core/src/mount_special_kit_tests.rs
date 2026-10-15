@@ -31,12 +31,22 @@ fn mount_special_spelltome_runs_every_segment_with_overlap_and_reverse() {
     let channel = timeline.sample(1100.0);
     assert!(channel.iter().any(|layer| layer.animation == 878));
     let reverse = timeline.sample(1500.0);
-    let reverse = reverse.iter().find(|layer| layer.segment_id == 46013).unwrap();
+    let reverse = reverse
+        .iter()
+        .find(|layer| layer.segment_id == 46013)
+        .unwrap();
     assert!((reverse.time_ms - 1475.0).abs() < 0.01);
     let overlap = timeline.sample(3300.0);
     assert!(overlap.iter().any(|layer| layer.segment_id == 46013));
     assert!(overlap.iter().any(|layer| layer.segment_id == 46014));
-    assert_eq!(timeline.sample(5000.0).iter().map(|layer| layer.animation).collect::<Vec<_>>(), vec![1088]);
+    assert_eq!(
+        timeline
+            .sample(5000.0)
+            .iter()
+            .map(|layer| layer.animation)
+            .collect::<Vec<_>>(),
+        vec![1088]
+    );
 }
 
 #[test]
@@ -44,7 +54,13 @@ fn mount_special_simultaneous_masks_and_visual_loop_are_not_first_segment_only()
     let catalog = catalog();
     let timeline = KitTimeline::resolve(catalog.kit(3012).unwrap(), |_| Some(1000.0)).unwrap();
     let layers = timeline.sample(2500.0);
-    assert_eq!(layers.iter().map(|layer| layer.animation).collect::<Vec<_>>(), vec![500, 484]);
+    assert_eq!(
+        layers
+            .iter()
+            .map(|layer| layer.animation)
+            .collect::<Vec<_>>(),
+        vec![500, 484]
+    );
     assert_eq!(layers[0].bones[0].root_key_bone, None);
     assert_eq!(layers[1].bones[0].root_key_bone, Some(4));
     let timeline = KitTimeline::resolve(catalog.kit(19705).unwrap(), |_| Some(3000.0)).unwrap();
@@ -55,6 +71,9 @@ fn mount_special_simultaneous_masks_and_visual_loop_are_not_first_segment_only()
 #[test]
 fn mount_special_missing_rider_clip_is_an_explicit_error_not_a_stand_pose() {
     let catalog = catalog();
-    let error = KitTimeline::resolve(catalog.kit(23323).unwrap(), |id| (id != 878).then_some(1000.0)).unwrap_err();
+    let error = KitTimeline::resolve(catalog.kit(23323).unwrap(), |id| {
+        (id != 878).then_some(1000.0)
+    })
+    .unwrap_err();
     assert!(error.contains("878"), "{error}");
 }
