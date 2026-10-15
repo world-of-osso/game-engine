@@ -144,6 +144,11 @@ fn auction_duration_radios_follow_selection_and_preserve_actions() {
                     let action = row.onclick.as_deref().expect("duration action");
                     assert_eq!(action, format!("auction_duration:{token}"));
                     let mut session = AuctionSession::default();
+                    session.open(1);
+                    session.opened(shared::protocol::AuctionHouseOpened {
+                        success: true,
+                        error: None,
+                    });
                     session.ui.duration_menu_open = true;
                     session.click(action, &InputTexts::new());
                     assert!(!session.ui.duration_menu_open);
