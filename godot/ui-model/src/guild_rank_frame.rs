@@ -17,6 +17,7 @@ pub fn apply_guild_postsetup(
 ) {
     use ui_toolkit::frame::WidgetData;
     crate::guild_control::apply_postsetup(registry);
+    crate::guild_member_detail::apply_note_art(registry);
     if let Some(id) = registry.get_by_name(crate::guild_member_detail::NOTE_BOX) {
         if let Some(WidgetData::EditBox(edit)) = &mut registry
             .get_mut(id)
