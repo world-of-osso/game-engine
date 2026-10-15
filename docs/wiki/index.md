@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--implementation-gate-pending) — source record slots/font fitting replace scrolling groups; GREEN/native gate pending, authority gaps explicit.
+
 - [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) — source inset/art, shared Morpheus and disabled Start Experience; four inspected both-skin native captures, focused layout4/4 and native check/format pass.
 
 - [Close-camera observation](systems/character-rendering.md#close-camera-observation--2026-10-14) — actual Goldshire mailbox collision; post-AV dead login prevents standing-body acceptance, no camera/material change.

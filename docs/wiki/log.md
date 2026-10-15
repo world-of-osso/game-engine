@@ -1,3 +1,7 @@
+## 2026-10-14 — Suggested fixed source panes implementation
+
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--implementation-gate-pending) record source mapping/fonts and removal of invented reward prose from body text. RED regression observed; GREEN/native masks and paging authority remain open.
+
 ## 2026-10-14 — Tutorials source presentation implementation
 
 [Adventure Guide](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) records Retail art/anchors, shared Morpheus and disabled Start Experience authority boundary; focused layout4/4 and four inspected both-skin native captures. Registered native check/format pass; shared ui-toolkit3a715d9 must land first. RPE authority remains missing.
