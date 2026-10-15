@@ -126,6 +126,74 @@ fn action(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn monthly_uses_retail_inset_header_options_filters_and_list_rects() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        data.activities[0].tags = vec![1, 2];
+        data.tags = vec![
+            PerksActivityTag {
+                id: 2,
+                name: "Other".into(),
+            },
+            PerksActivityTag {
+                id: 1,
+                name: "Quests".into(),
+            },
+        ];
+        let registry = render(skin, Some(data), ActivityFilters::default(), "");
+        for (name, [left, top, width, height]) in [
+            (
+                "EncounterJournalMonthlyActivitiesFrame",
+                [4., 60., 792., 431.],
+            ),
+            ("JournalMonthlyThresholdContainer", [46., 74., 663., 33.]),
+            ("EncounterJournalFilterList", [5., 137., 220., 290.]),
+            ("EncounterJournalContent", [241., 138., 521., 291.]),
+            ("JournalActivityTag0", [10., 10., 175., 20.]),
+            ("JournalActivityTag1", [10., 32., 175., 20.]),
+            ("JournalActivityTag2", [10., 54., 175., 20.]),
+        ] {
+            let actual = frame(&registry, name);
+            assert_eq!(
+                actual.position.left,
+                ui_toolkit::layout_values::Val::Px(left),
+                "{skin:?} {name} left"
+            );
+            assert_eq!(
+                actual.position.top,
+                ui_toolkit::layout_values::Val::Px(top),
+                "{skin:?} {name} top"
+            );
+            assert_eq!(
+                actual.width,
+                ui_toolkit::frame::Dimension::Fixed(width),
+                "{skin:?} {name} width"
+            );
+            assert_eq!(
+                actual.height,
+                ui_toolkit::frame::Dimension::Fixed(height),
+                "{skin:?} {name} height"
+            );
+        }
+        assert_eq!(text(&registry, "JournalMonthlyTitle"), "Traveler's Log");
+        assert_eq!(text(&registry, "JournalMonthlyMonth"), "October");
+        assert_eq!(text(&registry, "JournalActivityTag0Name"), "All");
+        assert_eq!(text(&registry, "JournalActivityTag1Name"), "Quests");
+        assert!(
+            registry
+                .get_by_name("JournalActivityTag0RowSelected")
+                .is_some()
+        );
+        assert!(registry.get_by_name("JournalActivityFilterAll").is_none());
+        assert!(
+            registry
+                .get_by_name("JournalActivityFilterTracked")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn monthly_unavailable_is_not_zero_progress_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(
