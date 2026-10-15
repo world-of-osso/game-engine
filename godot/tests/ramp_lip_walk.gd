@@ -41,6 +41,8 @@ func run_test() -> void:
     client.set_camera_orbit(deg_to_rad(165.0), -0.3, 8.0)
     for _frame in 30:
         await process_frame
+    if not verify_authored_wall(player):
+        return
     receipts.start = client.account_state()
     await capture("before")
     push_key(KEY_W, true)
@@ -64,6 +66,26 @@ func run_test() -> void:
     print("PASS ramp_lip: native held-W crosses face3153 onto upper floor; server agrees")
     client.free()
     quit(0)
+
+func verify_authored_wall(player: Node3D) -> bool:
+    var origin: Vector3 = player.position + Vector3.UP * 0.6
+    var direction: Vector3 = Vector3(HEADING.x, 0.0, HEADING.y)
+    var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(origin, origin + direction * (7.0 / 60.0 + 0.05))
+    query.collision_mask = 1 << 1 # wmo::collision::WMO_LAYER
+    var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(query)
+    if hit.is_empty():
+        fail("authored low wall ray missing; physics bodies are not ready")
+        return false
+    var position: Vector3 = hit.position
+    var distance: float = origin.distance_to(position)
+    receipts.wall_ray_origin = origin
+    receipts.wall_ray_hit = position
+    receipts.wall_ray_distance = distance
+    if distance > 0.05:
+        fail("low wall contact does not reproduce the captured margin clamp: " + str(distance))
+        return false
+    print("RAMP_LIP old_wall_ray hit=", position, " distance=", distance)
+    return true
 
 func wait_for(predicate: Callable, timeout_ms: int) -> bool:
     var deadline := Time.get_ticks_msec() + timeout_ms
