@@ -453,9 +453,9 @@ func mount_rider_proof() -> void:
 	if not await select_first_available(): return
 	if not await wait_until(func(): return client.trading_post_state().rider_ready, "dressed mounted rider", 120000): return
 	if not assert_native_rect("PerksProgramTogglePlayerPreview", Rect2(1032,951,30,29)): return
-	var rider = instance_from_id(int(client.trading_post_state().rider_actor_id))
+	var rider: Node3D = instance_from_id(int(client.trading_post_state().rider_actor_id)) as Node3D
 	if not assert_seated_rider(rider): return
-	var mount_group := rider.get_parent()
+	var mount_group: Node = rider.get_parent()
 	while mount_group != null and mount_group.name != "TradingPostMountPreview":
 		mount_group = mount_group.get_parent()
 	if mount_group == null: fail("Rider is not owned by mounted preview"); return

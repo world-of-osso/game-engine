@@ -9,6 +9,10 @@ func check() -> void:
 		quit(1)
 		return
 	var probe = ClassDB.instantiate("WowTradingPostMountProbe")
+	if not probe.rejects_missing_saddle():
+		push_error("Missing saddle used a fallback or took rider ownership")
+		quit(1)
+		return
 	for cycle in range(3):
 		var group: Node3D = probe.compose(root)
 		if group == null:
@@ -20,6 +24,10 @@ func check() -> void:
 		var actor: Node3D = group.get_node("MountActor")
 		if not actor.scale.is_equal_approx(Vector3.ONE * 2.8) or not actor.position.is_equal_approx(Vector3(0, -2.8, 0)):
 			push_error("Authored normalized mount transform was lost")
+			quit(1)
+			return
+		if not rider.scale.is_equal_approx(Vector3.ONE):
+			push_error("Rider did not retain authored scale1")
 			quit(1)
 			return
 		var rider_scale := rider.scale
