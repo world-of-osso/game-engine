@@ -345,6 +345,65 @@ fn trading_post_retail_rotate_buttons_match_footer_anchors_and_hide_for_non_mode
 }
 
 #[test]
+fn trading_post_mount_hide_character_checkbox_defaults_visible_and_retains_user_choice() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut data = snapshot();
+        let mut mount = data.items[0].clone();
+        mount.id = 5;
+        mount.category_id = 2;
+        mount.item_id = 54811;
+        data.items.push(mount);
+        let data = Arc::new(data);
+        let mut view = View {
+            visible: true,
+            snapshot: Some(data.clone()),
+            selected: Some(5),
+            ..Default::default()
+        };
+        let registry = render(skin, view.clone());
+        assert_eq!(
+            rect(&registry, "PerksProgramTogglePlayerPreview"),
+            [1032., -29., 30., 29.]
+        );
+        assert_eq!(
+            text(&registry, "PerksProgramTogglePlayerPreviewText"),
+            "Hide Character"
+        );
+        assert!(
+            registry
+                .get_by_name("PerksProgramTogglePlayerPreviewChecked")
+                .is_none()
+        );
+        assert_eq!(view.click("perks:hide-character").unwrap(), None);
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramTogglePlayerPreviewChecked")
+                .is_some()
+        );
+        view.click("perks:select:4").unwrap();
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramTogglePlayerPreview")
+                .is_none()
+        );
+        view.click("perks:select:5").unwrap();
+        view.receive(data);
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramTogglePlayerPreviewChecked")
+                .is_some()
+        );
+        view.click("perks:hide-character").unwrap();
+        assert!(
+            render(skin, view.clone())
+                .get_by_name("PerksProgramTogglePlayerPreviewChecked")
+                .is_none()
+        );
+        assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    }
+}
+
+#[test]
 fn trading_post_hide_armor_uses_authored_default_and_persists_toggle_between_products() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = View {
