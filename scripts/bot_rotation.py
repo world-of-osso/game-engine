@@ -8,6 +8,23 @@ from collections import defaultdict
 from pathlib import Path
 
 
+def authored_next(snapshot):
+    """Use the existing sourced native evaluator; unknown predicates block, not fall back."""
+    if not snapshot.get("available"):
+        raise ValueError("Authored native rotation not loaded")
+    if snapshot.get("failure_reason"):
+        raise ValueError(snapshot["failure_reason"])
+    return snapshot.get("next_spell") or None
+
+
+def authored_order(directory, spec):
+    identities = {int(row["ID"]) for row in read_rows(directory, "AssistedCombat")
+                  if int(row["ChrSpecializationID"]) == spec}
+    steps = [row for row in read_rows(directory, "AssistedCombatStep")
+             if int(row["AssistedCombatID"]) in identities]
+    return [int(row["SpellID"]) for row in sorted(steps, key=lambda row: int(row["OrderIndex"]))]
+
+
 def read_rows(directory, name):
     with (Path(directory) / f"{name}.csv").open() as source:
         yield from csv.DictReader(source)
@@ -22,7 +39,7 @@ def spell_rows(directory, name, known):
     return result
 
 
-def load_spells(directory, known):
+def load_spells(directory, known, direct_only=True):
     known = set(known)
     effects = spell_rows(directory, "SpellEffect", known)
     misc = spell_rows(directory, "SpellMisc", known)
@@ -36,17 +53,15 @@ def load_spells(directory, known):
         if any(int(row["Attributes_0"]) & 0x40 for row in misc[identity]):
             continue  # TC SPELL_ATTR0_PASSIVE; never cast a learned passive.
         direct = [row for row in effects[identity] if row["Effect"] == "2" and row["ImplicitTarget_0"] == "6"]
-        if not direct:
-            continue
         coefficient = sum(float(row["EffectBonusCoefficient"]) + float(row["BonusCoefficientFromAP"]) for row in direct)
-        if coefficient <= 0:
+        if direct_only and coefficient <= 0:
             continue
         result.append({
-            "id": identity, "damage": True, "damage_ids": [identity], "coefficient": coefficient,
+            "id": identity, "damage": bool(direct), "damage_ids": [identity], "coefficient": coefficient,
             "cast_ms": max(times[int(row["CastingTimeIndex"])] for row in misc[identity]),
             "gcd_ms": max((int(row["StartRecoveryTime"]) for row in cooldowns[identity]), default=0),
             "cooldown_ms": max((max(int(row["RecoveryTime"]), int(row["CategoryRecoveryTime"])) for row in cooldowns[identity]), default=0),
-            "source": {"SpellEffect": direct, "SpellMisc": misc[identity],
+            "source": {"SpellEffect": effects[identity], "SpellMisc": misc[identity],
                        "SpellCooldowns": cooldowns[identity], "SpellPower": power[identity]},
         })
     return result

@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from bot_harness import analyze, merge_polls, write_report
-from bot_rotation import choose, load_spells
+from bot_rotation import authored_next, authored_order, choose, load_spells
 
 
 def invoke(cli, socket, output, sequence, *args):
@@ -45,9 +45,13 @@ def collect(args, output):
     output.mkdir(parents=True, exist_ok=False)
     state = read_state(args.state)
     spells = state["spells"]
-    candidates = load_spells(args.db2, spells["known"])
+    order = authored_order(args.db2, spells["spec"])
+    metadata = load_spells(args.db2, spells["known"], direct_only=False)
+    candidates = [spell for spell in metadata if spell["id"] in order] if order else load_spells(args.db2, spells["known"])
     if not candidates:
-        raise RuntimeError("No sourced direct-target damage abilities for this observed kit")
+        raise RuntimeError("No sourced rotation abilities for this observed kit")
+    if order and state["target"].get("server_target") != args.target:
+        raise RuntimeError("Authored evaluator target must equal the verified dummy entity")
     (output / "native-before.json").write_text(json.dumps(state, indent=2))
     start = int(time.time() * 1000)
     run = {
@@ -55,8 +59,9 @@ def collect(args, output):
         "actor": str(state["account"]["local_player_id"]), "target": str(args.target),
         "start_ms": start, "end_ms": start + int(args.duration * 1000),
         "attempts": [], "spells": candidates, "measurement_complete": False,
-        "rotation_rule": "generic highest available DB2 SP+AP direct damage coefficient; not a sourced Retail priority",
-        "rotation_exclusions": "periodic/trigger-only, weapon, pet, AoE, utility and passive abilities",
+        "rotation_rule": "native sourced AssistedCombatStep order/rules" if order else "generic highest available DB2 SP+AP direct damage coefficient; no authored order exists",
+        "rotation_exclusions": "unsupported native predicates block the run" if order else "periodic/trigger-only, weapon, pet, AoE, utility and passive abilities",
+        "authored_order": order,
         "known_not_in_rotation": sorted(set(spells["known"]) - {s["id"] for s in candidates}),
     }
     if args.comparison:
@@ -88,7 +93,15 @@ def collect(args, output):
                 samples.write(json.dumps(state) + "\n")
             now = int(time.time() * 1000)
             ready = now >= next_cast and not current["casting"] and current["gcd_ms"] == 0
-            selected = choose(candidates, unavailable, now) if ready else None
+            selected = None
+            if ready and order:
+                identity = authored_next(state["assisted"])
+                if identity is not None:
+                    selected = next((spell for spell in metadata if spell["id"] == identity), None)
+                    if selected is None:
+                        raise RuntimeError(f"Authored recommendation {identity} lacks known DB2 metadata")
+            elif ready:
+                selected = choose(candidates, unavailable, now)
             if selected and now + max(selected["cast_ms"], selected["gcd_ms"]) + 1000 < run["end_ms"]:
                 attempt = {"spell": selected["id"], "at_ms": now,
                            "deadline_ms": min(run["end_ms"] - 1, now + max(selected["cast_ms"], 1500) + 2000)}

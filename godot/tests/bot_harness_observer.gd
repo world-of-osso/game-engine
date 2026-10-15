@@ -5,6 +5,7 @@ extends SceneTree
 var client: Node
 var output: String
 var spec_requested := false
+var target_requested := false
 
 func _initialize() -> void:
     output = OS.get_environment("BOT_HARNESS_OUTPUT")
@@ -27,6 +28,9 @@ func sample() -> void:
     if not spec_requested and account.get("gameplay_input_allowed", false):
         error = client.set_specialization(int(OS.get_environment("BOT_HARNESS_SPEC")))
         spec_requested = true
+    if not target_requested and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
+        target_requested = true
+        select_nearest()
     var snapshot := {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
         "account": account, "spells": spells, "spec_request_error": error,
         "target": client.target_state(), "auras": client.aura_state(),
@@ -46,3 +50,13 @@ func sample() -> void:
         quit(2)
         return
     create_timer(0.2).timeout.connect(sample, CONNECT_ONE_SHOT)
+
+func select_nearest() -> void:
+    var event := InputEventKey.new()
+    event.pressed = true
+    event.keycode = KEY_TAB
+    event.physical_keycode = KEY_TAB
+    root.push_input(event)
+    await process_frame
+    event.pressed = false
+    root.push_input(event)
