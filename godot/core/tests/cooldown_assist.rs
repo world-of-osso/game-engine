@@ -212,11 +212,13 @@ fn cooldown_assist_categories_preserve_authored_order_and_links() {
                 <= (pair[1].category, pair[1].order, pair[1].id))
     );
     let linked = data.entry(280).unwrap();
-    assert!(
+    assert_eq!(
         linked
             .linked_spells
             .iter()
-            .any(|link| link.spell_id == 16979)
+            .map(|link| link.spell_id)
+            .collect::<Vec<_>>(),
+        [102416, 45334, 50259]
     );
 }
 
@@ -375,14 +377,14 @@ fn cooldown_assist_all_forty_specs_preserve_exact_source_identities_and_order() 
 }
 
 /// Exact authored candidate counts, including spec-agnostic sets, before actor gates.
-/// Frost/Devourer have no authored tracked bars; do not invent entries for them.
+/// Counts reflect active CSVs; Devourer has no authored tracked bars.
 #[test]
 fn cooldown_assist_all_forty_specs_preserve_authored_category_coverage() {
     let data = catalog();
     let expected = [
-        (62, [21, 53, 69, 2]),
-        (63, [19, 53, 70, 2]),
-        (64, [22, 55, 70, 0]),
+        (62, [21, 53, 68, 2]),
+        (63, [19, 53, 69, 2]),
+        (64, [22, 55, 69, 1]),
         (65, [28, 46, 51, 1]),
         (66, [22, 51, 73, 4]),
         (70, [20, 50, 62, 7]),
@@ -396,9 +398,9 @@ fn cooldown_assist_all_forty_specs_preserve_authored_category_coverage() {
         (250, [22, 51, 71, 7]),
         (251, [23, 48, 72, 2]),
         (252, [24, 50, 78, 4]),
-        (253, [17, 55, 63, 5]),
-        (254, [17, 55, 69, 5]),
-        (255, [17, 61, 67, 4]),
+        (253, [17, 56, 63, 5]),
+        (254, [17, 56, 70, 6]),
+        (255, [17, 62, 67, 4]),
         (256, [24, 46, 62, 2]),
         (257, [29, 43, 63, 2]),
         (258, [26, 49, 80, 2]),
@@ -411,7 +413,7 @@ fn cooldown_assist_all_forty_specs_preserve_authored_category_coverage() {
         (265, [24, 48, 61, 1]),
         (266, [26, 48, 62, 5]),
         (267, [28, 48, 72, 1]),
-        (268, [24, 51, 81, 2]),
+        (268, [25, 51, 81, 2]),
         (269, [24, 49, 52, 5]),
         (270, [28, 48, 49, 5]),
         (577, [21, 48, 61, 3]),

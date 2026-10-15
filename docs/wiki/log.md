@@ -13,9 +13,25 @@
 ## 2026-10-14 — Housing installed-source qualification
 
 [Housing source boundary](systems/housing.md#catalog-and-actual-acquisition): published70391 cache/GlobalStrings/atlas metadata are available; fourteen Expert enUS binding labels match. Private housing catalog/world snapshots refreshed without changing paid property state. Earlier source/runtime proof remains historical; both-skin installed-source native and hotkey pixel acceptance still pending. No export request or obsolete payload publication.
+## 2026-10-14 — Journeys player-facing progress header
+
+[Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.
+
+## 2026-10-14 — Journeys native kit and positive watch
+
+[Exact71a checkpoint](systems/adventure-guide.md#journeys-kit-and-positive-watch--2026-10-14): both skins pass the complete physical kit/track/Home fixture and authentic Covenant55 watch ACK/HUD/query/clear;24 original full-HD PNGs inspected and hashed. PSI/swap recorded, owned runtimes stopped. Headless dummy audio excludes playback proof; collection/overview and the separately observed one-pixel Journeys-list wheel pan remain open.
+
+## 2026-10-14 — Journeys input reconciliation and watch cues
+
+[Watch/input](systems/adventure-guide.md#journeys-authoritative-watch-and-held-left-regression--2026-10-14): persistent boundary re-enabling and Home pointer-policy updates pass the complete physical fixture in both skins at exactabbd1b9b6 runtime;18 originals inspected. Later watch ON/OFF cues use authored856/857 gains and the existing567407 clip; core3/UI20/check/fmt pass, without optimistic checked state or a native playback claim. Lead-published faction icon sheets are linked read-only; the later native kit checkpoint above supersedes the pending-paint status.
+
 ## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
 
 [Cart acceptance](systems/trading-post.md#cart-acceptance--2026-10-14): stable hidden-owner instance identities fix the controlled free→replacement checkout panic. Modern/Forever checkout→new-client relog→individual refunds pass with zero panic/script-error markers, seventy1920×1080 PNGs and memory/swap boundaries.21 UI/8 native and12 server/1 admin gates pass after current-master integration; protocol3 unchanged. Mount player-preview/rotate widgets remain unchecked.
+
+## 2026-10-14 — Cooldown Settings source inset
+
+[Settings art](investigations/cooldown-assist-data.md#settings-template-art--2026-10-14): retain already-repaired399×609 shell/tabs/row geometry; restore character-panel inset background/shared border and source orange preview tint. Two source-art REDs→13 focused tests GREEN, build/check/fmt pass, four inspected both-skin full-HD Spells/Auras captures. No new authority or Settings behavior.
 
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
@@ -3781,3 +3797,5 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [[collections-ui#Mount selected/hover compositing follow-up]] corrects shared Mount/Pet highlight ADD→source BLEND. Both-skin native source-region/pixel proof restores blue rim over yellow selection; no opaque white centre reproduced. Mount14/Pet18 pass, expanded command34pass/1 unrelated guild-fixture failure retained; build/check/fmt pass.
 
 - 2026-10-14: [[boss-encounters#Source timer-bar art — 2026-10-14]] ports textured background/fill/additive spark and source runtime320×387/300px-row geometry. Missing-art and placeholder-size REDs→four model tests GREEN; both-skin1920×1080 full/half/empty native proof inspected, build/check/fmt pass. Initial placeholder-sized captures rejected; no scheduler or default-color parity claim.
+
+- 2026-10-14: [[cooldown-assist-data#Source tracked-buff bar art — 2026-10-14]] replaces gold fills with source188×19 bars/BG/cropped texture and normal-alpha pip. Missing-background/LEFT-name/Application-anchor RED→15 core+7 UI tests GREEN after current-active CSV expectation repair; build/check/fmt pass. Review recaptures ef4372c64 show both-skin full/half/empty source geometry and contained stack counts in inspected1920×1080 PNGs. Lead accepted source pip overlap/BG bounds; no invented clipping. Aura authority and icon-mask/font-family parity excluded.
