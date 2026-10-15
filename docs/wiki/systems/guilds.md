@@ -28,6 +28,14 @@ Verified2026-10-11 on leased guilds branches: Retail Aldwin Laughlin, actual pur
 
 GuildInviteFrame has Join/Decline, guild and inviter. Guild tabard appearance now has the separate data flow above; invitation achievement display remains a named gap. Legacy creation dates remain unknown. Independent artifact verification was unavailable because the configured backend's OAuth session expired; native tests/build and inspected private live evidence are recorded separately.
 
+## Communities metadata sorting — verified2026-10-15
+
+Level/Class headers now select `GuildRosterSort::Level/Class`; `sorted_members` joins the existing profile members by character name once, then sorts by numeric level or the existing class-icon mapping's numeric class ID. It never edits either authoritative snapshot. Missing profiles/classes remain absent, not synthesized. Existing Name/Rank behavior and member-action names remain unchanged.
+
+Retail `CommunitiesMemberList.lua:97–108,798–819,822–836,905–914` supplies the level/classID columns and comparator: the initial numeric override swaps comparator operands, giving ascending order; repeat clicks reverse it. Missing attributes begin first and move last in reverse. Numeric ties have no explicit Retail tie order, so none is claimed. `CommunitiesUtil.lua:173–185` applies the default comparator only when the override returns nil, not on equal numeric values.
+
+Observable header-action RED became seven focused Communities controls GREEN atfac28dbcb. Both native scripts passed in both skins: new physical Level/Class sorting and the existing wheel/stepper/thumb/member-menu/tab/invite regression. Ten inspected1920×1080 before/after PNGs: `AgentShared/2026-10-15/ui-gameplay-panels/communities-roster-sort/`; private exact commands, binary hash and manifest: worktree `logs/ui-gameplay-panels/communities-roster-sort/`. Baseline used the old extension's32 level80 fixture members; the updated fixture varies80/20/60/40 for numeric ordering. This is production UI/input with synthetic offline snapshots, not new live guild authority, tie-order parity or service acceptance. Requirements and remaining service gaps stay in the [contract](../../specs/guild-ranks.md).
+
 ## Sources
 
 - [Charter contract](../../specs/guild-charters.md) — local Retail XML/Lua and pinned TrinityCore PetitionsHandler.cpp/defaults.
