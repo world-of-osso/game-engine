@@ -35,7 +35,6 @@ pub const BAR_BOTTOM: f32 = 45.0;
 const FRAME_ART_W: f32 = 46.0;
 /// `Cooldown` is inset 3 px from the icon.
 const COOLDOWN_INSET: f32 = 3.0;
-/// Cooldown `SwipeTexture` colour 0,0,0,0.8.
 /// `HotKey` at TOPRIGHT -4,-5 (`hotkeyTextKeyboardX/Y`).
 const HOTKEY_ANCHOR: (f32, f32) = (4.0, 5.0);
 /// `HotKey` (`ActionButtonTemplate.xml:85-91`): 32×10, `justifyH="RIGHT"`, one line (its
