@@ -1,5 +1,8 @@
 extends "res://tests/toy_effects43_scarab_live.gd"
 # Same source/count/follow/23..27s expiry gate; fresh accounts select saved Options normally.
+var frame_owner: Node3D
+var frame_followers: Array[Node3D] = []
+
 func run_fixture() -> void:
 	root.size = Vector2i(1920, 1080)
 	client = load("res://scenes/client.tscn").instantiate()
@@ -42,3 +45,25 @@ func run_fixture() -> void:
 	print("PASS toy-effects14 actual release-server Scarab ", skin)
 	client.free()
 	quit(0)
+
+func capture(label: String) -> void:
+	if label == "toy64881-following-owner":
+		for unit in client.find_children(character, "Node3D", true, false):
+			if unit.get_node_or_null("PlayerModel") != null:
+				frame_owner = unit
+				break
+		if frame_owner == null: fail("owner missing from swarm composition"); return
+		frame_followers = new_scarabs()
+		if frame_followers.is_empty(): fail("swarm missing from owner composition"); return
+		receipts.append({"phase": "owner-swarm-composition", "owner": str(frame_owner.global_position), "actors": frame_followers.size()})
+	await super.capture(label)
+	frame_owner = null
+	frame_followers.clear()
+
+func subject_bounds(subject: Node3D) -> AABB:
+	var bounds := super.subject_bounds(subject)
+	if frame_owner != null:
+		bounds = bounds.merge(super.subject_bounds(frame_owner))
+		for follower in frame_followers:
+			bounds = bounds.merge(super.subject_bounds(follower))
+	return bounds
