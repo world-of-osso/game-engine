@@ -3,6 +3,6 @@ extends Camera3D
 var actor: Node3D
 
 func _process(_delta: float) -> void:
-	global_position = actor.global_position + Vector3(0, 4, 12)
+	global_position = actor.global_position + Vector3(0, 5, -12)
 	look_at(actor.global_position + Vector3(0, 2, 0))
 	make_current()

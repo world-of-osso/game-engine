@@ -38,6 +38,7 @@ func run_test() -> void:
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	write_record(role + "-ready", client.account_state())
 	if not await until(func(): return FileAccess.file_exists(path("setup-go")), "private setup", 180000): return
+	if not await until(func(): return client.account_state().local_player_health > 0, "living private character setup", 15000): return
 	if role == "observer":
 		await observe_actor()
 	else:
