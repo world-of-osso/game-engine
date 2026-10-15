@@ -1,3 +1,7 @@
+## 2026-10-15 — Both-skin native bomb chain, bounded
+
+[Forever88](systems/battlegrounds.md#forever88-functional-bomb-chain--2026-10-15) completes the same four physical normal/huge phases as Modern83: typed117284/281481 damage, exact native-picker disarm with no later hit, all20 normal return ACKs/save. All23 newPNG originals inspected; normal bomb/removal visible, huge/banner overlap and camera clipping remain.2650 nonfinite/three NPC25292 errors and PSI1.85/0.73 prevent whole-render/framing/timing acceptance. Admission failures84–87 retained; one shared capacity reservation fixes the harness admission path, not gameplay. Vehicles/siege/victory remain open; MR171 palette fixtures fixed separately by lead9de485b3c.
+
 ## 2026-10-15 — Modern native bomb chain, bounded
 
 [Modern83](systems/battlegrounds.md#modern83-functional-bomb-chain--2026-10-15) passes fresh normal/huge pickup/use, typed117284/281481 hits, exact native-picker physical disarm with no later hit, and all20 normal return ACKs plus saves.23 newPNG originals inspected; normal bomb/removal clear, huge/banner overlap and origin/pile clipping remain.2718 nonfinite-transform/three NPC25292 errors and pressure exclude whole-render/framing/timing claims. Forever remains pending; no vehicle/siege/victory claim.
