@@ -157,6 +157,7 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
             uses_display_geosets: false,
             skin_fdids: [0; 4],
             scale_milli: 1000,
+            model_alpha: 255,
             pet_instance_scale_milli: 1000,
         };
         let parsed = load_display_model_files(&root, &display).unwrap();
@@ -247,7 +248,8 @@ fn solid_palettized_blp(red: u8, green: u8) -> Vec<u8> {
     bytes[16..20].copy_from_slice(&1u32.to_le_bytes());
     bytes[20..24].copy_from_slice(&(MIP_OFFSET as u32).to_le_bytes());
     bytes[84..88].copy_from_slice(&2u32.to_le_bytes());
-    bytes[HEADER_SIZE..HEADER_SIZE + 4].copy_from_slice(&[red, green, 0, 255]);
+    // BLP palette entries are BGRA (core/src/blp.rs); this one decodes to RGBA [red, green, 0, 255].
+    bytes[HEADER_SIZE..HEADER_SIZE + 4].copy_from_slice(&[0, green, red, 255]);
     bytes.extend([0, 255]); // Palette index zero, opaque alpha.
     bytes
 }

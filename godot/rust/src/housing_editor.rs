@@ -116,6 +116,10 @@ impl GameClient {
             _ => None,
         };
         if let Some(mode) = mode {
+            // Retail mode buttons do not toggle off; shortcut activation also ignores the active mode.
+            if model.editor.mode == mode {
+                return Ok(true);
+            }
             model.editor.set_mode(mode);
             model.close_placed_list();
             self.housing.placed_list_drag = None;

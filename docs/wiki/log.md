@@ -1,3 +1,30 @@
+## 2026-10-15 — AH duration source menu
+
+Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
+## 2026-10-15 — Bot summon attribution
+
+[Bot ownership capture](systems/bot-harness.md#spell-driven-ownership-events): native combat IPC serializes Summon identities/timestamp; accounting follows event-time ancestry and replicated local-pet snapshots, excludes follower descendants, and withholds DPS for unknown damage sources. Protocol wire and focused accounting/IPC gates are revision-scoped; live/all-spec/Stockade balance acceptance remains open.
+
+## 2026-10-15 — Native summon lifetime proofs
+
+[Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+## 2026-10-15 — Disabled housing icon visuals
+
+[Source colors](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): current GlobalColor43 DARKGRAY/default atlas/full alpha replaces invented disabled-active art, desaturation and transparency. Behavioral RED/GREEN plus both-skin actual Customize/Snap/FreePlace painted-color/ignored-click/remount proof; four inspected captures. Availability and paid state unchanged; no pending-transition timing or full pixel claim.
+
+## 2026-10-15 — Active housing mode preservation
+
+[Active mode](systems/housing.md#active-mode-activation--implementation2026-10-15): native Basic active-click selection-loss RED; source no-op before transition teardown fixes pointer/assigned-key reactivation. Both skins preserve Basic selection/owned Tesla preview and Expert staged bookcase draft/render/open list, then Escape restores paid state. Launch binary SHA receipts replace revision assumptions; earlier F8/F9 exact server labels remain explicitly withdrawn, not retroactively certified. No numeric-rate/different-mode redesign or full parity claim.
+## 2026-10-15 — Source creature opacity
+
+[Creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15): Bashiok60051 alpha175 omission reproduced in real catalog import; required source byte, old-schema reimport, per-instance geometry binding and15+2 CPU regressions. Native pixel/asset acceptance remains pending.
+## 2026-10-15 — Assigned rotation predicate source gaps
+
+[Exact bot blockers](investigations/cooldown-assist-data.md#assigned-bot-rotation-blockers--2026-10-15): authenticated70391/active rule-step-spec joins12408/20,6425/38 equality and33686/67. Checked pinned TC/Retail UI defines no usable exact predicate policy; three named source gaps retain explicit refusal, not guessed comparators/prediction or a generic rotation fallback. Arcane/Ret native failures retained; no runtime change or all-spec acceptance.
+
+## 2026-10-15 — Suggested joint provider and three-pane native proof
+
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
 ## 2026-10-15 — Housing pressed hover
 
 [Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
@@ -5,6 +32,13 @@
 ## 2026-10-15 — Housing control tooltips
 
 [Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
+
+## 2026-10-14 — Empty purchased-bank sample correction
+
+[Bank sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14): capture supplied zero capacity, not a purchased-but-empty tab. One selected tab/98None repairs the fixture; native both-skin count0 RED→98GREEN, source geometry/background/no-icon assertions and inspected1920×1080 before/after proof. Production bank/purchase behavior unchanged; build/check/format pass. No live-server claim.
+## 2026-10-14 — Modern target cast source art
+
+[Target cast correction](investigations/target-cast-source-art.md): source background/textbox, cropped status-fill member and6×16 pip replace Modern-only flat stand-ins. Genuine source-region RED→9 focused GREEN; native8/source textures/geometry pass, sixteen both-skin before/after target regions inspected, four Forever controls byte-identical. Build/check/format pass; presentation only, no new server/lifecycle/phase-FX acceptance.
 
 ## 2026-10-14 — Shared window tiling implementation
 
@@ -3865,3 +3899,8 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): actual both-skin Celestial Steed223/376 mounted91/saddle0, Hide Character restore/selection/cleanup and process RED→GREEN stable camera;20 inspected full-HD PNGs, eight data tests and separate native graph proof. Native scale API/special kits remain named gaps, no guessed compensation.
 
 - 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
+
+## 2026-10-15 — Player-bot detector
+
+[Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
+- 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
