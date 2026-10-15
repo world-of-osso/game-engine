@@ -11,8 +11,8 @@ Private real player characters exercise the native controller path and measure c
 - [ ] Capture casts that error or never fire, abilities never used, zero-damage damage spells, ineffectual auras, cooldown/charge/resource violations, deaths and server errors per run.
 - [ ] Report unavailable detection evidence explicitly, never treating missing observability as passing.
 - [x] Compute DPS over the full specified dummy window, excluding follower damage and other targets; incomplete collections cannot qualify as balance evidence.
-- [ ] Attribute owned pet/guardian damage through spell-driven Summon events and observed persistent-owner relations; exclude follower roster actors and their pets. Unknown attribution withholds DPS.
-- [ ] Emit Retail-style Summon only for actual spell-created units, with source=summoner, target=spawned unit and the actual summoning spell. Non-spell/login/journal spawns do not fabricate events or spell IDs.
+- [x] Attribute owned pet/guardian damage through spell-driven Summon events and observed persistent-owner relations; exclude follower roster actors and their pets. Unknown attribution withholds DPS.
+- [x] Emit Retail-style Summon only for actual spell-created units, with source=summoner, target=spawned unit and the actual summoning spell. Non-spell/login/journal spawns do not fabricate events or spell IDs.
 - [ ] Compare DPS specs only with recorded comparable stats, level, dummy and duration. Report median-relative spread without pass/fail until lead/user chooses tolerance. Never use external DPS numbers.
 - [ ] Write JSON and short Markdown per run beneath `data/diagnostics/bot-harness-<date>/`.
 - [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once. Own private Ret32 fixture retains actual submitted20271 request1792056099829 without a success, three real successes and899 damage.
@@ -41,7 +41,7 @@ Private real player characters exercise the native controller path and measure c
 ## Known gaps (current cycle)
 
 - [ ] Complete three-DPS sustained dummy MVP before all-spec/Stockade phase expansion. Native provisioning/spec selection/dummy casts work, but source evaluator stops Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67. No fallback and no sustained-DPS claim.
-- [ ] Purchased sourced talent loadouts and comparable gear/stat receipts; current live kits have only normal default/granted talents.
+- [ ] Comparable spec-correct gear/stat receipts. Sourced native talent purchase and Ret fresh-login12/12-rank persistence are verified; source weapon-plan execution remains a separate gate. Fury's dual-two-hand kit is blocked by unmodelled Titan's Grip; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] Three-spec and all-spec comparable damage receipts.
 
