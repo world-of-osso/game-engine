@@ -1322,6 +1322,41 @@ fn trading_post_freeze_empty_slot_is_immediate_and_removes_only_frozen_cart_memb
 }
 
 #[test]
+fn trading_post_freeze_replacement_accepts_after_five_seconds_and_waits_for_authority() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = freeze_view();
+    assert_eq!(view.drop_item(5, false, true), None);
+    view.update_freeze_confirmation(4.999);
+    assert_eq!(view.click("perks:confirm").unwrap(), None);
+    assert_eq!(view.cart, vec![5, 6]);
+    view.update_freeze_confirmation(5.0);
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert!(view.pending);
+    assert!(view.confirm.is_none());
+    assert_eq!(view.cart, vec![6]);
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+    assert_eq!(
+        view.click("perks:confirm").unwrap(),
+        None,
+        "accept cannot be replayed"
+    );
+    let mut reply = view.snapshot.as_ref().unwrap().as_ref().clone();
+    reply.frozen_item_id = Some(5);
+    view.receive(Arc::new(reply));
+    assert!(!view.pending);
+    assert_eq!(
+        text(&render(ActiveSkin::Modern, view), "PerksProgramFrozenLabel"),
+        "Arcanofire Wrap"
+    );
+}
+
+#[test]
 fn trading_post_freeze_replacement_initial_accept_delay_disables_only_confirm() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut view = freeze_view();
