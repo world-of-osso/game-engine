@@ -82,7 +82,7 @@ Type2 kit models wait for pending owner visual loads while retaining their origi
   - **Aura kits.** `SpellEffects::sync_auras` (`spell_auras.rs`) starts a spell's AuraStart kits when a replicated `UnitAuras` instance appears. The aura's unit is the hit unit, and its caster (the unit when unknown) is the caster. Held kits (end AuraEnd) last until that instance leaves, which stops their loops, models and clips; the spell's AuraEnd-start kits then play. Example, Frost Nova 122: kit 266131 loops 350097 and plays 350098 while rooted, and AuraEnd kit 85719 plays 85938.
   - **Unit voice** (`spell_visual_voice.rs`).
     - A kit effect of type 10 (WoWDBDefs enum `UnitSoundType`) plays the kit's unit's own `CreatureSoundData` sound.
-    - The value → field mapping is undocumented. 34-40 are inferred from the 12.x field order: Windup, WindupCritical, Charge, ChargeCritical, BattleShout, BattleShoutCritical, Taunt. The evidence is Charge's kit 44000 using 36 and Battle Shout's 43995 using 38. Other values are not played.
+    - The value → field mapping is undocumented. 34-40 are inferred from the 12.x field order: Windup, WindupCritical, Charge, ChargeCritical, BattleShout, BattleShoutCritical, Taunt. The evidence is Charge's kit 44000 using 36 and Battle Shout's original43995 (active70391:279043) using38. Other values are not played.
     - A unit's row is `CreatureDisplayInfo.SoundID`, else its model's `CreatureModelData.SoundID`. A player's display comes from `ChrRaceXChrModel` → `ChrModel.DisplayID`. For example, Human male → display 57899 → model 7661 → CreatureSoundData 49 → BattleShout 58088 (7 files); female → 50 → 58100.
     - The cast clip's `$SCD` M2 event (the action layer reports it) plays `SpellCastDirectedSoundID`. Only 3 rows set it in 12.1.0.69933, and Human 49/50 are 0.
   - **No synthetic outcomes.** The Godot client plays no synthetic PCM for casts, impacts, heals, misses or interrupts. Spell results sound through their kits. An interrupt sounds through the interrupting spell's kits: Pummel (6552) visual 47968's impact kit 59620 plays SoundKit 53711 on its target. Melee outcomes are below.
@@ -91,7 +91,7 @@ Type2 kit models wait for pending owner visual loads while retaining their origi
     | Spell | Kit sounds |
     |---|---|
     | Slam 1H | cast 128672 → 57845, impact 62452 → 60935 |
-    | Battle Shout | cast 43995 → 114049 plus the caster's BattleShout voice |
+    | Battle Shout (active70391) | cast279043 → SoundKit368264 plus the caster's BattleShout voice |
     | Fireball | precast 349555, cast 349556, missile 349558 (looping), impact 349557 |
     | Frost Nova | cast 350096; aura 350097 (looping) and 350098; aura end 85938 |
     | Flash of Light | precast 349350 (looping), cast 349352 and 349351, impact 349357 and 349355 |
@@ -398,3 +398,7 @@ Behavioral proof is in the [contract's tests](../../specs/spell-visuals.md#tests
 - [[spellbook-action-bar]] — casting UI and messages
 - [[m2-format]] — particle emitter tracks
 - [[db2-format]] — WDC5 export
+
+## Active Battle Shout sound chain — 2026-10-15
+
+Active local-CASC12.1.5.70391 SpellXSpellVisual616/spell6673 selects visual190617. Cast event562175 selects kit279043, whose type5 effect789655 names SoundKit368264 (entries1692703–1692705, files2118812/2118811/2118810). Type10 effect789657 remains unit sound38/BattleShout, separate from the cast kit sound and unchanged caster-voice assertions. This replaces stale69933 kit43995/SoundKit114049 fixture values; no runtime sound or selection changes. Source receipt: class-completeness6-2026-10-12/battle-shout-active-source.json; [contract](../../specs/spell-visuals.md). Full-file native probe reproduced the old114049 assertion against368264; GREEN pending.
