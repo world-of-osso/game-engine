@@ -20,23 +20,9 @@ func check_suggestions_layout() -> bool:
 			return false
 	var titles := client.find_children("JournalSuggestion*Name", "Label", true, false)
 	var count := int(client.adventure_guide_state().suggestion_count)
-	if count <= 0 or titles.size() != mini(count, 3):
-		stop("Authentic eligible suggestions unavailable or displayed count differs")
+	if count < 3 or titles.size() != 3:
+		stop("Provider must supply genuine primary and both small suggestions")
 		return false
-	if count <= 2:
-		var lower := control("JournalSuggestionSlot1")
-		var block := lower.find_child("JournalSuggestion*Text", true, false) as Control
-		var title_frame := lower.find_child("JournalSuggestion*TitleFrame", true, false) as Control
-		var description_frame := lower.find_child("JournalSuggestion*DescriptionFrame", true, false) as Control
-		if block == null or title_frame == null or description_frame == null:
-			stop("Literal partial-record source text frames missing")
-			return false
-		if abs(block.get_global_rect().size.y - 152.0 * scale) > 1.0 or abs(block.get_global_rect().position.y - lower.get_global_rect().position.y - 3.5 * scale) > 1.0:
-			stop("Partial lower pane must keep source152px block/top3.5")
-			return false
-		if abs(title_frame.get_global_rect().size.y - scale) > 1.0 or abs(description_frame.get_global_rect().size.y - scale) > 1.0:
-			stop("Partial lower pane must keep source1px text frames")
-			return false
 	for title in titles:
 		var limit := 2 if control("JournalSuggestionSlot3").is_ancestor_of(title) else 1
 		if title.max_lines_visible != limit:
@@ -63,7 +49,7 @@ func check_suggestions_layout() -> bool:
 	if control("EncounterJournalContent") != null:
 		stop("Generic scrolling groups remain in Suggested")
 		return false
-	print("SUGGESTED_AUTHORITY_BOUNDARY total_eligible=%s shown=%s primary_offset_selection_unproven provider_record_count_modeling_unavailable reward_identity_and_activation_unavailable" % [count, titles.size()])
+	print("SUGGESTED_AUTHORITY_BOUNDARY total_eligible=%s shown=%s primary_offset_selection_unproven ranked_first_three_selection_inference reward_identity_and_activation_unavailable" % [count, titles.size()])
 	return true
 
 func run() -> void:
