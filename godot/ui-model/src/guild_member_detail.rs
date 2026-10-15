@@ -8,6 +8,9 @@ use ui_toolkit::{rsx, widget_def::Element};
 pub const NOTE_BOX: &str = "GuildMemberNoteEditBox";
 
 pub fn detail(session: &GuildRanksSession) -> Element {
+    if session.communities_tab != crate::guild_ranks::CommunitiesTab::Roster {
+        return vec![];
+    }
     let Some(name) = session.member_detail.as_deref() else {
         return vec![];
     };
@@ -109,7 +112,8 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
             }
         })
         .unwrap_or("");
-    let editable = session.can_edit_note(officer) && !session.awaiting_state;
+    let editable =
+        session.can_edit_note(officer) && !session.awaiting_state && !session.profile_waiting;
     let text = if value.is_empty() && editable {
         "Click here to set a note."
     } else {
@@ -136,7 +140,7 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
     let mut out = heading;
     out.extend(rsx! { button { name: {DynName(format!("GuildMemberDetail{suffix}"))}, text: "", onclick: action,
         disabled, width: 181.0, height: 40.0, left: 15.0, top: {y+12.0}, pos_type: "absolute",
-        style: "tooltip", {body} } });
+        button_default_skin: false, background_color: "0,0,0,0.25", {body} } });
     out
 }
 

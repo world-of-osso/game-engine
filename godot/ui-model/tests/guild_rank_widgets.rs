@@ -938,6 +938,95 @@ fn guild_info_reports_actual_creation_date_without_backdating_legacy_records() {
 }
 
 #[test]
+fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(2));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![GuildMemberSnapshot {
+                character_name: "Cara".into(),
+                level: 80,
+                class_name: "Priest".into(),
+                rank_name: "Member".into(),
+                is_online: true,
+                officer_note: String::new(),
+                public_note: "Alchemy".into(),
+                is_self: true,
+                last_online: "Online".into(),
+            }],
+        });
+        session.click("guild:member:Cara", &Default::default());
+        session.click("guild:member_details", &Default::default());
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMemberDetailNoteText"), "Alchemy");
+        assert!(
+            reg.get_by_name("GuildMemberDetailOfficerNoteText")
+                .is_none()
+        );
+        assert_eq!(text(&reg, "GuildMember0Note"), "Alchemy");
+        session.click("guild:note_officer", &Default::default());
+        assert_eq!(session.note_editor, None);
+        session.click("guild:note_public", &Default::default());
+        assert_eq!(session.note_editor, Some(false));
+        let mut texts = std::collections::HashMap::new();
+        texts.insert(
+            "GuildMemberNoteEditBox".to_owned(),
+            "Alchemy 100".to_owned(),
+        );
+        assert_eq!(
+            session.click("guild:note_accept", &texts),
+            Some(GuildRankRequest::SetMemberNote {
+                character_name: "Cara".into(),
+                note: "Alchemy 100".into(),
+                officer: false,
+            })
+        );
+        assert_eq!(
+            session.profile.as_ref().unwrap().members[0].public_note,
+            "Alchemy"
+        );
+        assert_eq!(session.click("guild:note_accept", &texts), None);
+        session.apply(state(2));
+        session.click("guild:note_public", &Default::default());
+        assert_eq!(
+            session.note_editor, None,
+            "Rank ACK alone must not allow a stale note write"
+        );
+        let mut profile = session.profile.clone().unwrap();
+        profile.members[0].public_note = "Alchemy 100".into();
+        session.apply_profile(GuildStateUpdate {
+            guild: Some(profile),
+            message: None,
+            error: None,
+        });
+        assert_eq!(session.detail_member().unwrap().public_note, "Alchemy 100");
+        session.profile.as_mut().unwrap().members[0].is_self = false;
+        session.click("guild:note_public", &Default::default());
+        assert_eq!(session.note_editor, None);
+        session.apply(state(0));
+        session.profile.as_mut().unwrap().members[0].officer_note = "Raid healer".into();
+        let reg = mounted(&session);
+        assert_eq!(
+            text(&reg, "GuildMemberDetailOfficerNoteText"),
+            "Raid healer"
+        );
+        session.click("guild:note_officer", &Default::default());
+        assert_eq!(session.note_editor, Some(true));
+        session.click("guild:note_close", &Default::default());
+        assert_eq!(session.click("guild:note_accept", &texts), None);
+    }
+}
+
+#[test]
 fn guild_member_detail_opens_from_roster_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

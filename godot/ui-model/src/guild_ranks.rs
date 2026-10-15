@@ -77,6 +77,9 @@ impl GuildRanksSession {
 
     pub fn apply(&mut self, state: GuildRanksState) {
         self.awaiting_state = false;
+        if state.error.is_some() {
+            self.profile_waiting = false;
+        }
         self.error = state.error.map(|error| error.message().to_owned());
         self.selected_rank = self.selected_rank.min(state.ranks.len().saturating_sub(1));
         self.state = Some(state);
@@ -270,7 +273,7 @@ impl GuildRanksSession {
             }
             "guild:note_public" | "guild:note_officer" => {
                 let officer = action == "guild:note_officer";
-                if self.can_edit_note(officer) && !self.awaiting_state {
+                if self.can_edit_note(officer) && !self.awaiting_state && !self.profile_waiting {
                     self.note_editor = Some(officer);
                 }
                 None
@@ -315,6 +318,7 @@ impl GuildRanksSession {
     fn submit_note(&mut self, note: &str) -> Option<GuildRankRequest> {
         let officer = self.note_editor?;
         if self.awaiting_state
+            || self.profile_waiting
             || !self.can_edit_note(officer)
             || note.chars().count() > 31
             || note.chars().any(char::is_control)
@@ -323,6 +327,7 @@ impl GuildRanksSession {
         }
         let character_name = self.member_detail.clone()?;
         self.note_editor = None;
+        self.profile_waiting = true;
         Some(GuildRankRequest::SetMemberNote {
             character_name,
             note: note.to_owned(),
