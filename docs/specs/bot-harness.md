@@ -38,7 +38,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 ## Implementation inventory
 
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
-- `scripts/bot_ability_summary.py`: read-only expected-roster JSON/Markdown per-ability request/success/event-damage/missing/unused breakdown. Keep child event IDs and untagged native errors unattributed; preserve absent specs/repetitions.
+- `scripts/bot_ability_summary.py` / `bot_combat_metrics.py`: read-only expected-roster per-ability requests/successes/hits/crits/misses/event damage, auto-attack share, sampled GCD/idle intervals, observed raw power net changes and raw DB2 effect/cost/cooldown/auto-attack metadata. Preserve absent specs/repetitions, real child event IDs, and unattributed native errors. Missing crit flags remain unknown, resource net change is never spending, sampled timing is not exact server occupancy.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
 - `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
@@ -53,7 +53,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 
 ## Known gaps (current cycle)
 
-- [x] Three-DPS common-budget dummy MVP: Arms71/Fury72/Havoc577 each complete two60s windows with matching fixture keys and empty jewelry; native-equal-budget2 retains receipts and findings. This qualifies only the phase gate, not balance or all-spec correctness. Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67 refusals remain recorded.
+- [ ] Native-controller-parity MVP follow-up: Arms71/Fury72/Havoc577 retain six complete common-budget diagnostic windows, but IPC raw-intent casting skipped the normal OnCast auto-attack hook. All six windows have zero swings and auto_attack=None. Fix and native remeasurement are required before representative controller/DPS acceptance; no balance or all-spec correctness claim. Source predicate refusals remain recorded.
 - [x] Comparable spec-correct gear/stat receipts for the three-spec MVP: Arms10 slots, Fury/Havoc11 slots at30/quality2/era0, visible native stats and owner GUIDs; Fury native dual-two-hand25129 succeeds. Havoc jewelry moves normally into bag0/1 and retains all four storage-bag IDs/GUIDs/counts. Other specs remain unverified; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] All-spec comparable damage receipts beyond the completed three-spec MVP.
