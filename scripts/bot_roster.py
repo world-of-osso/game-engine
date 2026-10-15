@@ -2,6 +2,15 @@
 from bot_rotation import read_rows
 
 
+def select_alliance_race(class_id, pairs, alliance):
+    available = {int(row["RaceID"]) for row in pairs
+                 if int(row["ClassID"]) == class_id and int(row["RaceID"]) in alliance}
+    race = 11 if class_id == 7 else min(available)
+    if race not in available:
+        raise ValueError(f"Authored Alliance race {race} for class {class_id} is not in source CharBaseInfo")
+    return race
+
+
 def build_roster(directory, level):
     classes = {int(row["ID"]): row for row in read_rows(directory, "ChrClasses")}
     pairs = list(read_rows(directory, "CharBaseInfo"))
@@ -12,8 +21,7 @@ def build_roster(directory, level):
     result = []
     for spec in specs:
         class_id = int(spec["ClassID"])
-        race = min(int(row["RaceID"]) for row in pairs
-                   if int(row["ClassID"]) == class_id and int(row["RaceID"]) in alliance)
+        race = select_alliance_race(class_id, pairs, alliance)
         name = "B" + classes[class_id]["Filename"][:3].lower()
         name += "".join(letter for letter in spec["Name_lang"] if letter.isalpha())[:6].lower()
         result.append({

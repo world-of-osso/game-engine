@@ -753,6 +753,7 @@ impl crate::GameClient {
             .client_options
             .bindings
             .is_just_pressed(InputAction::Jump, &input);
+        let jump = self.dispatch_jump_action(&frame, jump)?;
         if !self.player_movement.swimming
             && !self.player_movement.flying
             && self
@@ -765,6 +766,28 @@ impl crate::GameClient {
         }
         let delta = step.map_or(delta, |step| step.duration_secs);
         self.predict_player(frame, jump, yaw, delta)
+    }
+
+    /// Stationary mounted Space and /mountspecial send the same emote intent.
+    fn dispatch_jump_action(&self, frame: &MovementFrame, pressed: bool) -> Result<bool, String> {
+        use game_engine_core::mount_special::{JumpAction, jump_action};
+        if !pressed {
+            return Ok(false);
+        }
+        let grounded = self.player_movement.grounded
+            && !self.player_movement.swimming
+            && !self.player_movement.flying;
+        let action = jump_action(
+            self.world.local_player_mounted(),
+            frame.direction == [0.0; 3],
+            grounded,
+        );
+        if action == JumpAction::Jump {
+            return Ok(true);
+        }
+        self.send_emote(shared::protocol::EmoteKind::MountSpecial)
+            .map_err(|error| error.0)?;
+        Ok(false)
     }
 
     /// Retail `SitStandOrDescendStart` on land: toggle sitting.

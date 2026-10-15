@@ -455,6 +455,11 @@ db2/active/SpellVisualEffectName.csv
 db2/active/SpellVisualAnim.csv
 db2/active/SpellVisualMissile.csv
 db2/active/AnimKitSegment.csv
+db2/active/Mount.csv
+db2/active/AnimKitConfig.csv
+db2/active/AnimKitConfigBoneSet.csv
+db2/active/AnimKitBoneSet.csv
+db2/active/AnimKitPriority.csv
 db2/active/PlayerCondition.csv
 db2/active/ModifierTree.csv
 textures/6992992.blp
@@ -4877,3 +4882,6 @@ models/6371389.wmo
 db2/active/UiModelSceneActor.csv
 db2/active/UiModelSceneActorDisplay.csv
 db2/active/Mount.csv
+
+data/models/4061989.m2
+data/models/406198900.skin
