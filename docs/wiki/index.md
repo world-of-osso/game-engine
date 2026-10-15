@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Player-bot measurement](systems/bot-harness.md) — native combat detection, fixed-window own-target DPS and comparable-fixture spread; live three-spec/all-spec/Stockade gates remain open.
+
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
 
 - [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.

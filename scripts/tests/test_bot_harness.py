@@ -43,6 +43,21 @@ class BotHarnessTests(unittest.TestCase):
         findings = harness.analyze(self.run, self.events)["findings"]
         self.assertEqual(sum(f["kind"] == "cast_never_fired" for f in findings), 1)
 
+    def test_overlapping_polls_preserve_duplicate_events_without_double_counting(self):
+        text = FIXTURE.read_text()
+        lines = [line for line in text.splitlines() if line.startswith("damage ")]
+        merged = harness.merge_polls([text, text, lines[0] + "\n" + lines[0]])
+        count = sum(e["text"] == lines[0] for e in merged)
+        self.assertEqual(count, 2)
+        self.assertEqual(len(merged), len(self.events) + 1)
+
+    def test_server_error_and_cast_error_remain_findings_without_success(self):
+        self.run["attempts"][0]["error"] = "OutOfRange"
+        self.run["server_errors"] = ["ERROR failed effect"]
+        findings = harness.analyze(self.run, self.events)["findings"]
+        self.assertIn({"kind": "cast_error", "spell": 44425, "error": "OutOfRange"}, findings)
+        self.assertIn({"kind": "server_error", "error": "ERROR failed effect"}, findings)
+
     def test_outside_window_and_wrong_target_are_not_damage(self):
         self.run["target"] = "999"
         self.assertEqual(harness.analyze(self.run, self.events)["damage"], 0)

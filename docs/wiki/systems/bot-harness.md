@@ -16,3 +16,14 @@ Comparison groups require an explicit equal `comparison` receipt (level, stats, 
 - Native execution: pending; capacity HOLD has prevented builds/client launch.
 
 Related: [native follower controller proof](follower-dungeons.md), [class proof](../investigations/class-spell-live-proof.md).
+
+## Native collector
+
+`godot/tests/bot_harness_observer.gd` publishes existing account/spell/target/aura/cooldown/assisted snapshots to an owned output directory and selects its requested specialization through the existing private method. `scripts/run_dummy_bots.py` requires an explicit socket, observed state, DB2 directory and dummy entity. It collects overlapping1024-event ring snapshots, preserving duplicate multiplicity, and saves every IPC reply plus native samples. Repeats remain separate runs; no automatic stat equality is assumed. Static DB2 cooldown scheduling is a generic driver, not proof of authoritative cooldown correctness.
+
+## Sources
+
+- `godot/rust/src/ipc/combat.rs`: native text serialization and server timestamps.
+- `godot/rust/src/ipc/world.rs`: ordinary SpellCastIntent path, server validation retained.
+- `data/db2/active/{SpellEffect,SpellMisc,SpellPower,SpellCooldowns,SpellCastTimes}.csv`: retained source rows and generic direct-damage coefficients; passive flag follows pinned TC SPELL_ATTR0_PASSIVE.
+- [Follower native proof](follower-dungeons.md): owned private real-player controller precedent.
