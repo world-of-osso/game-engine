@@ -69,6 +69,7 @@ func drive_mounts() -> void:
 		await tap(KEY_ESCAPE)
 		if not await until(func(): return mount_animation().current_animation_id() == 0, "mount idle"): return
 		var prefix := "mount-%d" % mount[0]
+		await capture(prefix + "-idle.png")
 		write_record(prefix + "-stage", {"mount_id": mount[0], "skin": proof_skin, "idle": pose_record()})
 		if not await until(func(): return FileAccess.file_exists(path(prefix + "-observer-mounted")), "observer mounted model", 120000): return
 		var before: Vector3 = client.account_state().local_player_position
