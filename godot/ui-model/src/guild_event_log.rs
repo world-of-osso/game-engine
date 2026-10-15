@@ -28,15 +28,15 @@ pub fn frame(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         (FONT_SIZE, "1,0.82,0,1", "LEFT"),
     ));
     children.extend(close_buttons());
-    let backdrop = crate::guild_member_detail::tooltip_border(
+    let mut body = crate::guild_member_detail::tooltip_border(
         "CommunitiesGuildLogContainer",
         (340.0, 354.0),
         (0.0, 0.0),
     );
-    let scroll = scroll_contents(session.event_log.as_ref(), shared);
+    body.extend(scroll_contents(session.event_log.as_ref(), shared));
     children.extend(
         rsx! { r#frame { name: "CommunitiesGuildLogContainer", left: 22.0, top: 36.0,
-        width: 340.0, height: 354.0, pos_type: "absolute", {backdrop}, {scroll} } },
+        width: 340.0, height: 354.0, pos_type: "absolute", {body} } },
     );
     // UIPanelWindows.lua: left/yoffset4; window-manager slotL is16,104.
     rsx! { r#frame { name: "CommunitiesGuildLogFrame", left: 16.0, top: 108.0, width: 384.0, height: 432.0,
