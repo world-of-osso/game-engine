@@ -18,6 +18,7 @@ from types import SimpleNamespace
 
 from bot_roster import build_roster
 from bot_harness import balance
+from bot_health import qualify_report_health, require_living_player
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
@@ -182,7 +183,8 @@ def read_roster_reports(output, specs, repeat):
             if not path.exists():
                 missing.append(str(relative))
                 continue
-            row = json.loads(path.read_text())
+            row = qualify_report_health(path.parent, json.loads(path.read_text()))
+            row["source_report"] = str(relative)
             rows.append(row)
             if not row.get("measurement_complete"):
                 missing.append(str(relative))
@@ -204,7 +206,9 @@ def write_roster_comparison(output, bots, repeat):
     specs = [bot["spec"] for bot in bots if bot["role"] == 2]
     rows, missing = read_roster_reports(output, specs, repeat)
     result = compare_roster_reports(rows, specs, missing)
-    result.update(expected_specs=specs, missing_runs=missing)
+    health_failures = [{"report": row["source_report"], "error": row["health_qualification"]["error"]}
+                       for row in rows if not row["health_qualification"]["valid"]]
+    result.update(expected_specs=specs, missing_runs=missing, health_failures=health_failures)
     (output / "balance.json").write_text(json.dumps(result, indent=2) + "\n")
     if result["available"]:
         summary = (f"Median {result['median_dps']:.2f} DPS; "
@@ -221,7 +225,10 @@ def native_ready(state, spec, requires_authored):
     target = state["target"]
     talent_ready = state.get("talent_status") == "observed"
     gear_ready = state.get("gear_status") == "observed"
-    return bool(player_ready and evaluator_ready and talent_ready and gear_ready and target.get("target_name") == "Training Dummy")
+    health = state["account"].get("local_player_health")
+    alive = health is not None and health > 0
+    target_ready = target.get("target_name") == "Training Dummy"
+    return all((player_ready, alive, evaluator_ready, talent_ready, gear_ready, target_ready))
 
 
 def wait_native(args, output, bot):
@@ -242,6 +249,9 @@ def wait_native(args, output, bot):
                     receipt = output / ("native-gear.json" if phase == "gear" else "native-talents.json")
                     detail = json.loads(receipt.read_text()).get("error") if receipt.exists() else str(status)
                     raise RuntimeError(f"Native {phase} setup blocked: {detail}; receipt={receipt}")
+            setup_observed = all(state.get(phase + "_status") == "observed" for phase in ("talent", "gear"))
+            if setup_observed and state["account"].get("gameplay_input_allowed"):
+                require_living_player(state["account"])
             if native_ready(state, bot["spec"], requires_authored):
                 return state
             if state.get("target_attempts", 0) >= 32:
