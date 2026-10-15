@@ -49,7 +49,7 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
         (
             1,
             "TalentImportLoadout",
-            "Import Loadout",
+            "Import",
             "talent:loadout_import",
             enabled && list.is_some(),
         ),
@@ -139,7 +139,11 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
         contents.extend(label(
             Label {
                 name: "TalentLoadoutNameLabel".into(),
-                text: "Loadout Name",
+                text: if importing {
+                    "New Loadout Name"
+                } else {
+                    "Loadout Name"
+                },
                 rect: [40.0, if importing { 165.0 } else { 40.0 }, 380.0, 16.0],
                 size: 12.0,
                 color: TAB_TEXT,
@@ -264,7 +268,7 @@ fn import_control(text: &str) -> Element {
     let mut elements = label(
         Label {
             name: "TalentLoadoutCodeLabel".into(),
-            text: "Paste loadout code",
+            text: "Import Text",
             rect: [40.0, 40.0, 380.0, 12.0],
             size: 12.0,
             color: TAB_TEXT,
