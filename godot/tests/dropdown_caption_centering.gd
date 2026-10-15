@@ -60,3 +60,5 @@ func verify_long_caption(ui: Node, output: String, skin: String) -> void:
 	assert(image.save_png(output.path_join("dropdown-%s-long-caption.png" % skin)) == OK)
 	print("DROPDOWN_LONG ", skin, " lines=", caption.get_line_count(), " rect=", caption.get_global_rect())
 	assert(caption.get_line_count() == 1, "Source wordwrap=false must remain one line after centering")
+	var owner := ui.find_child("ClosedDropdown", true, false) as Control
+	assert(absf(caption.get_global_rect().get_center().y - owner.get_global_rect().get_center().y) <= 0.51, "Long caption remains centered")
