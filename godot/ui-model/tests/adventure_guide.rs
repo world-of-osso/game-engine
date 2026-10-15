@@ -404,8 +404,9 @@ fn authentic_dungeon_sections_and_loot_are_selectable() {
     view.apply("journal:encounter:112").unwrap();
     assert_eq!(view.tab, Tab::Dungeons);
     assert_eq!(view.catalog.encounter(112).unwrap().name, "Ozruk");
-    view.apply("journal:page:abilities").unwrap();
-    assert_eq!(view.page, Page::Abilities);
+    // No type3 overview root: Retail maps the first tab to ability details.
+    view.apply("journal:page:overview").unwrap();
+    assert_eq!(view.page, Page::Overview);
     let sections = view.sections().unwrap();
     assert!(!sections.is_empty());
     assert!(sections.iter().any(|(s, _)| s.title.contains("Shatter")));
