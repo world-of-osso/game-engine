@@ -1,3 +1,7 @@
+## 2026-10-15 — Comparable three-DPS bot MVP
+
+[Native receipts](systems/bot-harness.md#common-budget-three-dps-mvp--verified2026-10-15): Arms/Fury/Havoc each complete two60s windows with equal30/quality2/era0 equipment, empty jewelry and common observed dummy/level/world inputs. Fury ordinary dual-two-hand succeeds; Havoc five normal jewelry removals preserve four bag identities. Median19.1167 from equal-spec means, max/median5.7363, min/median0.1844; no tolerance/balance or bug-free claim. All40/detector completeness/Stockade remain open. Evidence native-equal-budget2; all owned runtime stopped.
+
 ## 2026-10-15 — Pet queue caption tag
 
 [Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
