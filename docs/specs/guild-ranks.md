@@ -31,6 +31,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 ### Invitation and guild profile
 - [x] `/ginvite` / `/guildinvite`, `/gquit` / `/guildquit`, `/gremove` / `/guildremove` send authoritative guild actions, not help.
 - [x] AuthChannel invitation delivery mounts GuildInviteFrame independently of Communities. Join waits for authoritative acceptance; Decline sends the pending-invite refusal. Both skins share controls and mechanics.
+- [ ] Decline uses the source140×22 button with right/bottom24px insets (local146,142 in the310×188 popup); Join stays110×22 at24,142. Preserve actions and pending pacing. Native both-skin geometry/pixel acceptance remains pending for this continuation.
 - [x] `/gmotd` / `/guildmotd` sends SetGuildMotd; authoritative profile replies update MOTD and info.
 - [x] `/ginfo` / `/guildinfo` sends a read-only query and reports the persisted creation date for charter-created guilds; legacy guilds remain explicitly unknown, never backdated.
 - [x] Communities exposes Invite Member and Info; MOTD/info editors send authoritative writes, keep displayed text unchanged pending reply, and hide edits without rank permission. Member menu Remove uses strict hierarchy.
