@@ -4859,3 +4859,8 @@ cache/adventure_guide.sqlite
 sounds/ui/567394.ogg
 models/6371365.wmo
 models/6371389.wmo
+
+# Installed Retail Trading Post mount actor and rider metadata.
+db2/active/UiModelSceneActor.csv
+db2/active/UiModelSceneActorDisplay.csv
+db2/active/Mount.csv
