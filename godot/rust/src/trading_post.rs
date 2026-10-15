@@ -410,9 +410,6 @@ impl GameClient {
         }
         if let Some(rider) = self.trading_post.rider_actor.take() {
             rider.free();
-            if let Some(scene) = &mut self.trading_post.scene {
-                scene.reframe_model();
-            }
         }
         self.trading_post.rider_shown = None;
         self.trading_post.rider_gap.clear();
@@ -645,9 +642,6 @@ impl GameClient {
             Ok(actor) => {
                 self.trading_post.rider_actor = Some(actor);
                 self.trading_post.rider_shown = Some(appearance);
-                if let Some(scene) = &mut self.trading_post.scene {
-                    scene.reframe_model();
-                }
             }
             Err(error) => {
                 rider.free();
