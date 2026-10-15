@@ -1113,7 +1113,6 @@ impl WowAnimationPlayer {
         self.current_action_id()
     }
 
-    /// The combat/spell clip layered over locomotion, or -1.
     /// Read-only authored clip phase for source-qualified native captures.
     #[func]
     fn animation_phase(&self) -> VarDictionary {
@@ -1126,6 +1125,7 @@ impl WowAnimationPlayer {
         phase
     }
 
+    /// The combat/spell clip layered over locomotion, or -1.
     #[func]
     fn current_action_id(&self) -> i32 {
         self.animation
