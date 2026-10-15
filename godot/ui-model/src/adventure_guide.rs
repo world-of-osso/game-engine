@@ -626,6 +626,20 @@ impl View {
                 self.select_encounter(number()?)?;
                 self.search.clear();
             }
+            "loot" => {
+                let item = number()?;
+                let encounter = self
+                    .instance_loot_entries()
+                    .find(|loot| {
+                        loot.item == item && self.encounter.is_none_or(|id| loot.encounter == id)
+                    })
+                    .map(|loot| loot.encounter)
+                    .ok_or_else(|| format!("Item {item} is not loot for this selection"))?;
+                // Retail Loot_OnClick preserves state when this boss is already open.
+                if self.encounter != Some(encounter) {
+                    self.select_encounter(encounter)?;
+                }
+            }
             "creature" => {
                 let id = number()?;
                 if !self

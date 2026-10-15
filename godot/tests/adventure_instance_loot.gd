@@ -196,10 +196,10 @@ func run() -> void:
 		return
 	if not await verify_loot_row("JournalLoot5195", 64, "Boss: Glubtok") or not await move_to("JournalLoot5195") or not await shot("instance-loot-slot-filter"):
 		return
-	if not await choose_slot(0) or not await click("JournalBoss89"):
+	if not await choose_slot(0) or not await click("JournalLoot2169"):
 		return
-	if client.adventure_guide_state().page != "Loot":
-		stop("Boss selection lost the source retained Loot tab")
+	if client.adventure_guide_state().encounter != 89 or client.adventure_guide_state().page != "Loot":
+		stop("Loot row did not open authored Glubtok with retained Loot tab")
 		return
 	if not await verify_loot_row("JournalLoot2169", 45, "") or not await shot("encounter-loot-source-row"):
 		return
