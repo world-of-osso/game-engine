@@ -14,6 +14,8 @@ pub enum CommunitiesTab {
 pub enum GuildRosterSort {
     Name,
     Rank,
+    Level,
+    Class,
 }
 
 pub fn guild_creation_notice(created_at: Option<u64>) -> String {
@@ -105,6 +107,8 @@ impl GuildRanksSession {
             "guild:benefits_open" => self.communities_tab = CommunitiesTab::Benefits,
             "guild:roster-sort:name" => self.sort_roster(GuildRosterSort::Name),
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
+            "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),
+            "guild:roster-sort:class" => self.sort_roster(GuildRosterSort::Class),
             "guild:invite_open" if self.can(GUILD_RIGHT_INVITE) => self.invite_open = true,
             "guild:invite_close" => self.invite_open = false,
             "guild:invite_send" if self.invite_open && self.can(GUILD_RIGHT_INVITE) => {

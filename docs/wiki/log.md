@@ -5,6 +5,10 @@
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
+## 2026-10-15 — Communities numeric roster sorting
+
+[Level/Class header continuation](systems/guilds.md#communities-metadata-sorting--verified2026-10-15): actual disabled-header RED→seven focused controls GREEN, numeric class IDs and missing-value order sourced from Retail. Both-skin native physical sort and prior Communities regression pass; ten before/after PNGs inspected. Offline fixture authority only; service gaps and numeric tie-order boundary retained.
+
 ## 2026-10-15 — Pet queue caption tag
 
 [Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
