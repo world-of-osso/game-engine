@@ -769,8 +769,9 @@ mod tests {
         let data = test_data_root();
         let scratch =
             std::env::temp_dir().join(format!("native-forever-liquid-{}", std::process::id()));
-        for build in ["12.1.0.69933", "1.60.1.70205"] {
-            let destination = scratch.join("db2").join(build);
+        // Match the catalog namespaces: installed Retail export and isolated Forever data.
+        for directory in ["db2/active", "db2/1.60.1.70205"] {
+            let destination = scratch.join(directory);
             fs::create_dir_all(&destination).unwrap();
             for table in [
                 "Map",
@@ -780,11 +781,7 @@ mod tests {
                 "LiquidTypeXTexture",
             ] {
                 let name = format!("{table}.csv");
-                fs::copy(
-                    data.join("db2").join(build).join(&name),
-                    destination.join(name),
-                )
-                .unwrap();
+                fs::copy(data.join(directory).join(&name), destination.join(name)).unwrap();
             }
         }
         let assets = NativeTerrainAssets::new(scratch.clone());
