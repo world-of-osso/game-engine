@@ -24,6 +24,7 @@ Named trait configurations per specialization in the Talents footer. Mainline de
 
 ## Tests asserting this spec
 - `godot/core/tests/talent_loadout_string.rs`: real Mage and Warrior data, independently executed Blizzard-Lua strings, zero/nonzero hashes, rank/choice/prerequisite/spec/version/alphabet/truncation rejection.
+- `godot/tests/talent_starter_live.gd`: private level10/11/80 activation, automatic allocation, complete relog projections and confirmed hero deviation.
 - `godot/tests/talent_import_export_live.gd`: private native Create/ACK, clipboard_set argument, Retail chat feedback, exact-string reimport and complete rank/entry projection after relog; strict1920×1080 capture assertion.
 - `godot/ui-model/tests/talent_loadouts.rs`, `talent_footer.rs`: actions and both-skin projection.
 - `godot/network/src/wire_tests.rs`: real UDP lifecycle ordering.

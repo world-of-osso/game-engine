@@ -269,9 +269,9 @@ impl TalentEditor {
             .as_ref()
             .ok_or("Loadout requires a server list")?;
         let config = list.configs.iter().find(|config| config.id == id);
-        if config.is_none()
-            && !(id == STARTER_BUILD_LOADOUT_ID && list.starter_available && verb == "_select")
-        {
+        let built_in = id == STARTER_BUILD_LOADOUT_ID && list.starter_available;
+        let selects_starter = built_in && verb == "_select";
+        if config.is_none() && !selects_starter {
             return Err("Loadout is not in the server list".into());
         }
         match verb {
