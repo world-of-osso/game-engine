@@ -1,3 +1,7 @@
+## 2026-10-15 — Merged IoC vehicle consumers
+
+[Attachment foundation](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): engine65b160b00/serverd414bb03/protocol5ce52e0 pass client28, server27, shared handshake2, runtime/extension/CLI checks, native extension build and headless2host scene proof. RealUDP retains NPC34775 host/seat5766 identity and removal. Source model/both-skin movement/fire/siege/victory still open; old bomb native receipts remain immutable.
+
 ## 2026-10-15 — IoC NPC passenger scene attachment
 
 [Native scene regression](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): actual WorldUnits.advance retains player-owned mount seating but fails NPC seat5766 at two moved/turned poses. Select NPC visual separately from player mount host; native build and both scene paths GREEN at2aa01a3fc. No model/network/pixel/control/fire or epoch2 landing claim.
