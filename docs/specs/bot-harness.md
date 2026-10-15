@@ -6,13 +6,15 @@ Private real player characters exercise the native controller path and measure c
 
 - [ ] Maintain one real player per class/spec, including player stats, talents and sourced rotations.
 - [ ] Deliver three DPS-spec dummy runs first, then all specs and repeated Stockade runs with followers, headless on private UDP 5871.
-- [ ] Derive abilities from SpellMisc, SpellPower, SpellCooldowns, SpellEffect, Retail UI cache and TrinityCore a352b1fa. Without sourced priorities, label the generic highest-DB2-damage-coefficient rule; never invent a priority list.
+- [x] Derive generic direct-target abilities from SpellMisc, SpellPower, SpellCooldowns, SpellEffect and SpellCastTimes; preserve coefficients and exclude passive spells.
+- [x] Where installed AssistedCombatStep orders a spec, consume the existing native authored evaluator; unsupported/loading predicates block rather than silently enabling generic behavior. Only absent authored order permits the labeled generic coefficient rule.
 - [ ] Capture casts that error or never fire, abilities never used, zero-damage damage spells, ineffectual auras, cooldown/charge/resource violations, deaths and server errors per run.
 - [ ] Report unavailable detection evidence explicitly, never treating missing observability as passing.
-- [ ] Measure sustained DPS over the full fixed dummy duration, excluding follower damage and other targets.
+- [x] Compute DPS over the full specified dummy window, excluding follower damage and other targets; incomplete collections cannot qualify as balance evidence.
 - [ ] Compare DPS specs only with recorded comparable stats, level, dummy and duration. Report median-relative spread without pass/fail until lead/user chooses tolerance. Never use external DPS numbers.
 - [ ] Write JSON and short Markdown per run beneath `data/diagnostics/bot-harness-<date>/`.
-- [ ] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once.
+- [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once.
+- [x] Merge overlapping combat polls without double counting or collapsing real duplicate events; identify overflow using observed ring retention.
 
 ## How it works
 
@@ -23,11 +25,15 @@ Private real player characters exercise the native controller path and measure c
 
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.
+- `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
+- `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
+- `godot/tests/bot_harness_observer.gd`: existing native account/spell/aura/charge/assisted observation and private spec selection.
 - `scripts/tests/fixtures/bot_harness/`: authentic native Stockade combat with provenance. The missing request is a labeled test injection, not a production failure claim.
 
 ## Tests asserting this spec
 
 - `scripts/tests/test_bot_harness.py`
+- `scripts/tests/test_bot_rotation.py`
 
 ## Known gaps (current cycle)
 

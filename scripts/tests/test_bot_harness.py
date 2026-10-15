@@ -51,6 +51,14 @@ class BotHarnessTests(unittest.TestCase):
         self.assertEqual(count, 2)
         self.assertEqual(len(merged), len(self.events) + 1)
 
+    def test_ring_overflow_uses_observed_retention_not_requested_lines(self):
+        self.assertTrue(harness.poll_has_gap(1000, 1201, 200))
+        self.assertFalse(harness.poll_has_gap(1000, 1200, 200))
+
+    def test_incomplete_measurements_cannot_be_balance_evidence(self):
+        with self.assertRaisesRegex(ValueError, "complete"):
+            harness.balance([{"dps": 10, "spec": 62, "comparison": {"level": 32}}])
+
     def test_server_error_and_cast_error_remain_findings_without_success(self):
         self.run["attempts"][0]["error"] = "OutOfRange"
         self.run["server_errors"] = ["ERROR failed effect"]
@@ -71,7 +79,7 @@ class BotHarnessTests(unittest.TestCase):
         self.assertIn("charges", report["unobserved"])
 
     def test_spread_has_no_pass_fail_and_rejects_unmatched_comparisons(self):
-        rows = [{"spec": s, "dps": d, "comparison": {"level": 32, "stats": "same", "dummy": 44548, "duration_ms": 60000}} for s, d in [(62, 100), (63, 200), (64, 300)]]
+        rows = [{"spec": s, "dps": d, "measurement_complete": True, "comparison": {"level": 32, "stats": "same", "dummy": 44548, "duration_ms": 60000}} for s, d in [(62, 100), (63, 200), (64, 300)]]
         result = harness.balance(rows)
         self.assertEqual(result["max_over_median"], 1.5)
         self.assertEqual(result["min_over_median"], .5)

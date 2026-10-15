@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from bot_harness import analyze, merge_polls, write_report
+from bot_harness import analyze, merge_polls, poll_has_gap, write_report
 from bot_rotation import authored_next, authored_order, choose, load_spells
 
 
@@ -82,7 +82,7 @@ def collect(args, output):
             sequence += 1
             poll = invoke(args.cli, args.socket, output, sequence, "combat", "log", "--lines", "1024")
             polls.append(poll)
-            if current["combat_log_seq"] - last_sequence > 1024:
+            if poll_has_gap(last_sequence, current["combat_log_seq"], current["combat_log_count"]):
                 capture_complete = False
             last_sequence = current["combat_log_seq"]
             errors = current["errors"]
@@ -119,6 +119,7 @@ def collect(args, output):
         failure = str(error)
         run["collection_error"] = failure
     finally:
+        run["observed_until_ms"] = int(time.time() * 1000)
         run["server_errors"] = server_errors(args.server_log, offset)
         (output / "run.json").write_text(json.dumps(run, indent=2) + "\n")
         events = merge_polls(polls)
