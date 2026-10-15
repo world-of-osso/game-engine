@@ -94,3 +94,58 @@ fn mount_special_full_body_sequence_is_not_replaced_by_per_frame_locomotion() {
     mount.update_locomotion(0, false, false).unwrap();
     assert_eq!(mount.sequences[mount.current].id, 0);
 }
+
+#[test]
+fn mount_special_spelltome_authored_attachment_diagnostic() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+    let model = game_engine_core::m2::parse_model_with_skeleton(
+        &std::fs::read(root.join("4061989.m2")).unwrap(),
+        &std::fs::read(root.join("406198900.skin")).unwrap(),
+        None,
+        |fdid| std::fs::read(root.join(format!("{fdid}.anim"))).ok(),
+    )
+    .unwrap();
+    let seat = model.attachments.iter().find(|seat| seat.id == 0).unwrap();
+    println!("SPELLTOME_AUTHORED_SEAT {seat:?}");
+    println!(
+        "SPELLTOME_TEXTURES {:?} MATERIALS {:?}",
+        model.texture_fdids, model.materials
+    );
+    for emitter in &model.particle_emitters {
+        println!(
+            "SPELLTOME_EMITTER texture={:?} blend={} position={:?} bone={}",
+            emitter.texture_fdid, emitter.blend_type, emitter.position, emitter.bone_index
+        );
+    }
+    let mut mount = AnimationState::new(&model).unwrap();
+    mount.update_locomotion(0, false, false).unwrap();
+    let origin = authored_seat_position(&model, &mount.poses(), seat);
+    println!("SPELLTOME_IDLE_SEAT {origin:?}");
+    let duration = mount.play_mount_special(&HashMap::new()).unwrap();
+    println!("SPELLTOME_SPECIAL_DURATION {duration}");
+    for elapsed in [0.0, 500.0, 500.0, 500.0, 500.0, 1000.0] {
+        mount.advance(elapsed).unwrap();
+        println!(
+            "SPELLTOME_SPECIAL_SEAT time={} position={:?}",
+            mount.time_ms,
+            authored_seat_position(&model, &mount.poses(), seat)
+        );
+    }
+    assert!(duration > 0.0);
+}
+
+fn authored_seat_position(
+    model: &game_engine_core::m2::Model,
+    poses: &[godot::builtin::Transform3D],
+    seat: &game_engine_core::asset::m2_format::m2_attach::M2Attachment,
+) -> godot::builtin::Vector3 {
+    let mut global = poses[usize::from(seat.bone)];
+    let mut parent = model.bones[usize::from(seat.bone)].parent_bone_id;
+    while parent >= 0 {
+        global = poses[parent as usize] * global;
+        parent = model.bones[parent as usize].parent_bone_id;
+    }
+    global
+        * (super::wow_vec3(seat.position)
+            - super::wow_vec3(model.bones[usize::from(seat.bone)].pivot))
+}

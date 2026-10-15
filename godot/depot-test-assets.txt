@@ -4882,3 +4882,6 @@ models/6371389.wmo
 db2/active/UiModelSceneActor.csv
 db2/active/UiModelSceneActorDisplay.csv
 db2/active/Mount.csv
+
+data/models/4061989.m2
+data/models/406198900.skin
