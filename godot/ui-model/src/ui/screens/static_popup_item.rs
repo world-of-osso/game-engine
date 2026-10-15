@@ -9,6 +9,8 @@ use ui_toolkit::{rsx, widget_def::Element};
 pub struct ItemConfirmation<'a> {
     pub name: &'a str,
     pub pending: bool,
+    /// Retail acceptDelay disables only Confirm, leaving Cancel available.
+    pub accept_enabled: bool,
     /// The two text runs around the source currency texture markup.
     pub prompt: (&'a str, &'a str),
     pub currency_icon: Option<u32>,
@@ -158,7 +160,7 @@ fn confirmation_buttons(props: &ItemConfirmation<'_>, top: f32) -> Element {
         &format!("{prefix}Button"),
         props.accept.0,
         props.accept.1,
-        props.pending,
+        props.pending || !props.accept_enabled,
         (button_x, top),
     );
     contents.extend(dialog_button(
