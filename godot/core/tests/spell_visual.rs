@@ -280,6 +280,17 @@ fn slam_uses_the_weapon_class_combat_ability_and_authored_target_impact() {
     assert_eq!(two_hand_cast[0].animation.unwrap().anim_id, 812);
 
     let impact = catalog.kits(one_hand, VisualEvent::Impact);
+    eprintln!(
+        "Slam runtime DB2 {:?} canonical {:?}; impact {:?}",
+        db2_dir(),
+        std::fs::canonicalize(db2_dir()),
+        impact
+    );
+    let events = std::fs::read_to_string(db2_dir().join("SpellVisualEvent.csv")).unwrap();
+    eprintln!(
+        "Slam raw event230297 {:?}",
+        events.lines().find(|row| row.starts_with("230297,"))
+    );
     assert_eq!(impact.len(), 1);
     assert_eq!(impact[0].target, KitTarget::PrimaryTarget);
     let model = &impact[0].models[0];
