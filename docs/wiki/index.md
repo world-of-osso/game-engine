@@ -12,7 +12,7 @@
 - [Modern target cast source art](investigations/target-cast-source-art.md) — source background/textbox, cropped four-state fills and6×16 pip;9 focused regressions and inspected both-skin before/after samples, Forever byte-identical.
 - [Active housing mode no-op](systems/housing.md#active-mode-activation--implementation2026-10-15) — active pointer/assigned-key activation preserves Basic selection/owned preview and Expert staged render/list; both-skin hash-qualified native proof.
 - [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions pass, native Bashiok pixels pending.
-- [Traveler's Log source rows](systems/adventure-guide.md#travelers-log--bounded-native-source-proof) — both-skin genuine disclosure/Options overflow, central unknown-progress tooltip and authoritative Shift tracking ACK; assignment/reward gaps remain.
+- [Traveler's Log source rows](systems/adventure-guide.md#travelers-log--bounded-native-source-proof) — both-skin genuine disclosure/Options overflow, source activity tooltip without criterion diagnostics and authoritative Shift tracking ACK; assignment/reward gaps remain.
 - [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) — joint installed-CSV/bonus provider and both-skin three-card native proof; source-height title fitting, explicit ordering/authority gaps.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
