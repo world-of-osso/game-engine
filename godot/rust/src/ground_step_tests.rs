@@ -39,6 +39,10 @@ fn collision_tile(faces: &[[Vec3; 3]]) -> LosTile {
 }
 
 fn walk(faces: &[[Vec3; 3]], snap: bool) -> Vec3 {
+    walk_frames(faces, snap, 7.0, 60.0, 1)
+}
+
+fn walk_frames(faces: &[[Vec3; 3]], snap: bool, speed: f32, fps: f32, frames: usize) -> Vec3 {
     let tile = collision_tile(faces);
     let terrain = StreamedTerrain::new(PathBuf::new());
     let walls = |origin, direction, length| {
@@ -46,7 +50,7 @@ fn walk(faces: &[[Vec3; 3]], snap: bool) -> Vec3 {
             .map(|fraction| fraction * length)
     };
     let floor = |feet| tile.floor_height(feet);
-    TerrainGround {
+    let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
         step_wall_blocked: &|from, to, top| {
@@ -59,8 +63,39 @@ fn walk(faces: &[[Vec3; 3]], snap: bool) -> Vec3 {
             )
         },
         game_object_floor: &floor,
+    };
+    let mut feet = FEET;
+    for _ in 0..frames {
+        let proposed = feet + HEADING * (speed / fps);
+        let moved = ground.validate_move(feet, proposed, snap);
+        assert!(
+            (moved.x - feet.x).abs() <= (proposed.x - feet.x).abs(),
+            "extra horizontal movement: {feet} -> {moved}, proposed {proposed}"
+        );
+        feet = moved;
     }
-    .validate_move(FEET, FEET + HEADING * (7.0 / 60.0), snap)
+    feet
+}
+
+fn assert_authored_rate_crosses(speed: f32, fps: f32, frames: usize) {
+    let moved = walk_frames(&authored_faces(), true, speed, fps, frames);
+    assert!(moved.x > 108.32, "stopped at {speed} yd/s, {fps} FPS: {moved}");
+    assert!((moved.y - UPPER_Y).abs() < 0.00001, "not on landing: {moved}");
+}
+
+#[test]
+fn ramp_lip_authored_run_144_fps() {
+    assert_authored_rate_crosses(7.0, 144.0, 3);
+}
+
+#[test]
+fn ramp_lip_authored_run_240_fps() {
+    assert_authored_rate_crosses(7.0, 240.0, 4);
+}
+
+#[test]
+fn ramp_lip_authored_walk_60_fps() {
+    assert_authored_rate_crosses(2.5, 60.0, 3);
 }
 
 #[test]
