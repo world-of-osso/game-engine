@@ -3966,6 +3966,10 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 ## 2026-10-15 — Native talent Import/Export proof
 
 Completed Retailv2 codec/authoritative Create and committed Copy callbacks, exact source labels/fonts and modal-only error host. Core5/5, ui-model9/9, native build/format pass; both-skin real private UDP full-code reimport/relog and12 inspected native1920×1080 PNGs, with source-hash and OS clipboard delivery gaps explicit. [Contract and receipts](../specs/talent-loadouts.md); [implementation and source](systems/talents.md#retail-loadout-strings--2026-10-15). Starter remains a separate server-authoritative slice.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): model/native assigned-key RED reproduced; same-submode early return implemented, different-submode policy unchanged; acceptance pending.
+
+- 2026-10-15: [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15): focused13 GREEN and both-skin actual held-input Translate/Rotate/Scale/key/release/Escape conservation; inspected functional frames and exact launch hashes retained.
 - 2026-10-15 — Action cooldown source swipe: ordinary actions now use existing radial shader at black0.64/inset3; obsolete rectangle/toy flag removed. RED2→GREEN6, before/after both-skin fullHD frozen-fraction quadrant/opacity/reset proof; journal/viewer0.8 and timing/countdowns/inputs preserved. Initial native hidden/snapped-bounds fixture failure excluded and corrected without extension rebuild. [System](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15), diagnostics ui-questlog-action-swipe-2026-10-15/action-swipe-proof-ledger.json; no live lifecycle/server claim.
 - 2026-10-15: Slam active70391 source revalidation: genuine core/native stale-kit RED; update same-weapon/no-snapshot/replicated-spec expectations and impact model166330/attachment22. Runtime unchanged; GREEN pending.
 
