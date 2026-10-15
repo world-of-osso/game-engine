@@ -1,5 +1,10 @@
 # Wiki Index
 
+- [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
+
+- [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
+- [Action cooldown source swipe](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15) — ordinary actions join existing radial renderer at source0.64; RED2→GREEN6, both-skin fullHD quadrant/opacity/reset proof; clocks/countdown/input unchanged.
+
 - [MountSpecial continuation](systems/mounts.md#mountspecial-continuation--2026-10-15) — unified input/wire/real observer dispatch; phase-qualified three-mount both-skin input/peer proof, real Spelltome saddle/body identity and explicit Grrloc/unsupported-VFX gaps; lead pixel review and integration OPEN.
 
 - [Pet queue caption tag](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) — missing-text RED→typed caption, two inspected both-skin native samples; outside-caption pixels unchanged, remaining popup parity separate.
@@ -8,7 +13,7 @@
 - [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication and native clear pending.
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
-- [Player-bot measurement](systems/bot-harness.md) — native combat detection, fixed-window own-target DPS and comparable-fixture spread; live three-spec/all-spec/Stockade gates remain open.
+- [Player-bot measurement](systems/bot-harness.md) — native combat detection and common-budget Arms/Fury/Havoc MVP, six complete60s windows with empty jewelry/retained bags; all40/full detection/Stockade gates remain open.
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
 - [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
 
@@ -114,7 +119,7 @@
 
 - [Combat pet lifecycle](systems/combat-pet-lifecycle.md) — authoritative Retail stable host, rename chrome RED/GREEN, both-skin stable/healing/death/native-logout proof; demon render and food-data boundaries explicit.
 - [Native transmog application](systems/transmog-apply.md) — Retail12.1 both-skin selected outfit icons, popup isolation, eight-piece tooltips, two-page presets and exact paid Apply with fresh-process gold/appearance relog; PvE/PvP classifier and conditional/enchant-effect boundaries remain explicit.
-- [Native guilds](systems/guilds.md) — authoritative lifecycle/profile/vault and Retail charters; guild-tabard vendor persistence, optional roster/replica appearance and receipted torso compositing, with CPU/physical/live proof boundaries explicit.
+- [Native guilds](systems/guilds.md) — authoritative lifecycle/profile/vault and Retail charters; tabard persistence and receipted torso compositing; [member-detail/public-officer note implementation](systems/guilds.md#member-details-and-notes), with current native/private-relog acceptance pending.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
 - [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
 - [Native professions crafting](systems/native-professions-crafting.md) — authored category ordering and crafting-tier glyphs; trainer-learned recipe gate RED→GREEN, both-skin private Leatherworking casts/results/rank16 and explicit quality-operation gaps.
@@ -401,3 +406,9 @@ External resources and asset lists.
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.
 
 - [Group-private owner capture fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13) — source doll/gong lifecycle and actual UDP membership proof fixtures, execution pending.
+
+- [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15) — authoritative owner movement/native readonly RED→both-skin GREEN; fixed input, actual ray/highlight/name clear and return, exact paid restoration and inspected functional captures.
+- [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
+- [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only; full core17/17 and native specialization5/5 pass.
+
+- [Active Battle Shout sound](systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15) —70391 cast279043/SoundKit368264, distinct unchanged caster voice; bounded fixture refresh.
