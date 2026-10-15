@@ -135,7 +135,10 @@ impl RegistryUi {
         // Mirror GameClient::update_guild_ranks: right releases use the alt-click queue.
         while let Some((action, right, _)) = self.pop_alt_click() {
             if right && action.starts_with("guild:member:") {
-                state.click(&action, &Default::default());
+                state.click(
+                    &action.replacen("guild:member:", "guild:member-menu:", 1),
+                    &Default::default(),
+                );
             }
         }
         let result = request

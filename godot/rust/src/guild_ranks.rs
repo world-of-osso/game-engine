@@ -235,9 +235,10 @@ impl GameClient {
         }
         while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
             if right && action.starts_with("guild:member:") {
-                self.guild_ranks
-                    .session
-                    .click(&action, &InputTexts::default());
+                self.guild_ranks.session.click(
+                    &action.replacen("guild:member:", "guild:member-menu:", 1),
+                    &InputTexts::default(),
+                );
             }
         }
         Ok(())

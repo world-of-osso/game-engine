@@ -898,7 +898,7 @@ fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
         let mut session = GuildRanksSession::default();
         session.open();
         session.apply(state(0));
-        session.click("guild:member:Cara", &Default::default());
+        session.click("guild:member-menu:Cara", &Default::default());
         let reg = mounted(&session);
         assert_eq!(
             session
@@ -965,7 +965,6 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
             }],
         });
         session.click("guild:member:Cara", &Default::default());
-        session.click("guild:member_details", &Default::default());
         let reg = mounted(&session);
         assert_eq!(text(&reg, "GuildMemberDetailNoteText"), "Alchemy");
         assert!(
@@ -1035,7 +1034,6 @@ fn guild_member_detail_opens_from_roster_both_skins() {
         session.open();
         session.apply(state(0));
         session.click("guild:member:Cara", &Default::default());
-        session.click("guild:member_details", &Default::default());
         let reg = mounted(&session);
         assert_eq!(text(&reg, "GuildMemberDetailName"), "Cara");
         assert_eq!(text(&reg, "GuildMemberDetailRank"), "Member");
