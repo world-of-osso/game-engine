@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Action cooldown source swipe](systems/spellbook-action-bar.md#action-cooldown-source-swipe-2026-10-15) — ordinary actions join existing radial renderer at source0.64; RED2→GREEN6, both-skin fullHD quadrant/opacity/reset proof; clocks/countdown/input unchanged.
+
 - [MountSpecial continuation](systems/mounts.md#mountspecial-continuation--2026-10-15) — unified input/wire/real observer dispatch; phase-qualified three-mount both-skin input/peer proof, real Spelltome saddle/body identity and explicit Grrloc/unsupported-VFX gaps; lead pixel review and integration OPEN.
 
 - [Pet queue caption tag](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) — missing-text RED→typed caption, two inspected both-skin native samples; outside-caption pixels unchanged, remaining popup parity separate.
