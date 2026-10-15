@@ -156,19 +156,28 @@ func pose_record() -> Dictionary:
 	var model := animation.get_parent() as Node3D if animation != null else null
 	var saddle := model.get_node_or_null("Skeleton3D/AttachmentBone0/Attachment0") as Node3D if model != null else null
 	var rider := skeleton.get_parent() as Node3D if skeleton != null else null
-	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
+	return {"mount_clip": animation.current_animation_id() if animation != null else -1, "rider_bones": poses, "actor_name": unit.name if unit != null else "", "actor_position": unit.global_position if unit != null else null, "mount_position": model.global_position if model != null else null, "mount_visible": model.is_visible_in_tree() if model != null else false, "mount_source": model.get_meta("m2_source_path") if model != null else "", "saddle_position": saddle.global_position if saddle != null else null, "rider_position": rider.global_position if rider != null else null, "rider_local_transform": rider.transform if rider != null else null, "camera_position": root.get_camera_3d().global_position, "account": client.account_state()}
 
 func capture(file: String) -> void:
-	# Observer framing changes only its render camera, not unit/animation/replica state.
-	if role == "observer":
-		RenderingServer.frame_pre_draw.connect(frame_observed_actor, CONNECT_ONE_SHOT)
+	if role != "observer":
+		await super.capture(file)
+		write_record("capture-" + file.get_basename(), pose_record())
+		return
+	# GameClient makes its own camera current each frame. The fixture camera runs
+	# afterward, changing only the view of the actual replicated actor.
+	var previous := root.get_camera_3d()
+	var camera := load("res://tests/mount_special_observer_camera.gd").new() as Camera3D
+	camera.set("actor", actor_unit())
+	camera.process_priority = 1000000
+	camera.fov = previous.fov
+	camera.near = previous.near
+	camera.far = previous.far
+	root.add_child(camera)
+	await process_frame
 	await super.capture(file)
-
-func frame_observed_actor() -> void:
-	var unit := actor_unit() as Node3D
-	var camera := root.get_camera_3d()
-	camera.global_position = unit.global_position + Vector3(0, 4, 12)
-	camera.look_at(unit.global_position + Vector3(0, 2, 0))
+	write_record("capture-" + file.get_basename(), pose_record())
+	previous.make_current()
+	camera.queue_free()
 
 func capture_spelltome_diagnostic() -> void:
 	# Freeze the naturally reached frame only for isolation; normal proof shots precede it.
