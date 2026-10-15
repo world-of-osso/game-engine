@@ -21,6 +21,7 @@ enum Mask {
     Round,
     AuctionItem,
     PerksProduct,
+    PerksFrozen,
     PerksCartItem,
     GroupFinder,
     Glyph,
@@ -182,7 +183,10 @@ impl IconMasks {
                 flare_glyph_mask(&mut source);
                 source
             }
-            Mask::PerksProduct => compose_perks_product_icon(source, &load_atlas_mask(mask)?),
+            Mask::PerksProduct => compose_perks_icon(source, &load_atlas_mask(mask)?, 32, 48),
+            // FrozenProductContainer resizes Icon64/Mask95. Compose at2x to retain
+            // the source-centred15.5px inset instead of rounding an edge.
+            Mask::PerksFrozen => compose_perks_icon(source, &load_atlas_mask(mask)?, 128, 190),
             Mask::PerksCartItem => {
                 // Cart details template: Icon56px and centred Mask56px, no overscan crop.
                 let icon =
@@ -289,7 +293,7 @@ fn is_round_icon(name: &str) -> bool {
 
 fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     let atlas = match mask {
-        Mask::PerksProduct => "UI-HUD-ActionBar-IconFrame-Mask",
+        Mask::PerksProduct | Mask::PerksFrozen => "UI-HUD-ActionBar-IconFrame-Mask",
         Mask::PerksCartItem => "perks-border-square-gold-mask",
         Mask::TalentCircle => "talents-node-circle-mask",
         Mask::TalentChoiceLeft => "talents-node-choice-mask-half",
@@ -333,16 +337,17 @@ fn mask_of(name: &str) -> Option<Mask> {
     let talent_circle = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
     let profession_circle = (name.starts_with("ProfessionSpecNode") && name.ends_with("Icon"))
         || name == "ProfessionSpecDetailedIcon";
-    let perks = name == "PerksProgramFrozenIcon"
-        || name
-            .strip_prefix("PerksProgramIcon")
-            .is_some_and(|id| id.parse::<u32>().is_ok());
+    let perks = name
+        .strip_prefix("PerksProgramIcon")
+        .is_some_and(|id| id.parse::<u32>().is_ok());
     if name.starts_with("JourneyRenownLevel") && name.ends_with("ringIcon") {
         Some(Mask::JourneyRing)
     } else if name.starts_with("JourneyRenownLevel") && name.ends_with("squareIcon") {
         Some(Mask::JourneySquare)
     } else if name.starts_with("JourneyReward") && name.ends_with("Icon") {
         Some(Mask::JourneyReward)
+    } else if name == "PerksProgramFrozenIcon" {
+        Some(Mask::PerksFrozen)
     } else if perks {
         Some(Mask::PerksProduct)
     } else if talent_circle || profession_circle {
@@ -378,15 +383,18 @@ fn compose_auction_item_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage 
     compose_masked_icon(source, &mask)
 }
 
-/// Elements.xml:32px Icon and48px MaskTexture share a centre.
-fn compose_perks_product_icon(source: RgbaImage, mask: &GrayImage) -> RgbaImage {
+/// Sample only the icon's span of its larger centred mask.
+fn compose_perks_icon(
+    source: RgbaImage,
+    mask: &GrayImage,
+    icon_px: u32,
+    mask_px: u32,
+) -> RgbaImage {
     use image::imageops::{FilterType, crop_imm, resize};
-    const ICON_PX: u32 = 32;
-    const MASK_PX: u32 = 48;
-    let icon = resize(&source, ICON_PX, ICON_PX, FilterType::Triangle);
-    let coverage = resize(mask, MASK_PX, MASK_PX, FilterType::Triangle);
-    let inset = (MASK_PX - ICON_PX) / 2;
-    let coverage = crop_imm(&coverage, inset, inset, ICON_PX, ICON_PX).to_image();
+    let icon = resize(&source, icon_px, icon_px, FilterType::Triangle);
+    let coverage = resize(mask, mask_px, mask_px, FilterType::Triangle);
+    let inset = (mask_px - icon_px) / 2;
+    let coverage = crop_imm(&coverage, inset, inset, icon_px, icon_px).to_image();
     compose_masked_icon(icon, &coverage)
 }
 

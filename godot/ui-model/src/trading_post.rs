@@ -683,55 +683,65 @@ fn frozen_row(
         .items
         .iter()
         .find(|row| Some(row.id) == candidate.or(snapshot.frozen_item_id));
-    // HoldFrame spans ScrollBox.BOTTOM to container.BOTTOM (120px); row centered at84px.
-    let mut children = named_atlas_texture(
-        "PerksProgramFrozenSlotArt".into(),
-        "perks-slot-empty",
-        (48. - 70. / 2., 42. - 70. / 2., 70., 70.),
-    );
-    let (label_width, label_height) = if frozen.is_some() {
-        (265., 38.)
-    } else {
-        (270., 45.)
-    };
+    // FrozenProductContainer.OnLoad overrides the ordinary product template:
+    // icon64 at LEFT+32, mask95, label233x45 at icon.RIGHT+8.
+    let label_width = if frozen.is_some() { 233. } else { 270. };
+    let mut children = Vec::new();
     children.extend(label(
         "PerksProgramFrozenLabel".into(),
         frozen.map_or(
             "Drag an item here to freeze it and prevent it from expiring",
             |row| row.name.as_str(),
         ),
-        (72., (84. - label_height) / 2., label_width, label_height),
+        (104., (84. - 45.) / 2., label_width, 45.),
         (16., WHITE, "LEFT"),
     ));
     if let Some(row) = frozen {
-        if selected == Some(row.id) {
-            children.insert(
-                0,
-                named_atlas_texture(
-                    "PerksProgramFrozenSelected".into(),
-                    "perks-list-active",
-                    (0., 0., 527., 84.),
-                )
-                .remove(0),
-            );
-        }
         children.extend(row_price("PerksProgramFrozen", row, 42.));
-        children.extend(texture(
-            "PerksProgramFrozenIcon".into(),
-            row.icon_fdid,
-            (32., 26., 32., 32.),
-            WHITE,
-        ));
-        children.extend(named_atlas_texture(
-            "PerksProgramFrozenFrame".into(),
-            "perks-frost-frame-1",
-            (48. - 64. / 2., 42. - 64. / 2., 64., 64.),
-        ));
+        children.extend(rsx! {texture {
+            name:"PerksProgramFrozenIcon",texture_fdid:{row.icon_fdid},
+            left:32.0,top:10.0,width:64.0,height:64.0,pos_type:"absolute",draw_layer:"OVERLAY"
+        }});
     }
+    let contents = rsx! {r#frame{name:"PerksProgramFrozenContentsContainer",left:0.0,top:0.0,width:527.0,height:84.0,pos_type:"absolute",frame_level:1001.0,{children}}};
+    let selected_art = if frozen.is_some_and(|row| selected == Some(row.id)) {
+        named_atlas_texture(
+            "PerksProgramFrozenSelected".into(),
+            "perks-list-active",
+            (0., 0., 527., 84.),
+        )
+    } else {
+        vec![]
+    };
+    let frozen_art = frozen_icon_art(frozen.is_some(), candidate.is_some());
     let action = frozen.map_or(String::new(), |row| format!("perks:select:{}", row.id));
-    let row = rsx! {button{name:"PerksProgramFrozenSlot",left:0.0,top:{(120.0-84.0)/2.0},width:527.0,height:84.0,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),mouse_enabled:true,frame_level:1000.0,{children}}};
+    let row = rsx! {button{name:"PerksProgramFrozenSlot",left:0.0,top:{(120.0-84.0)/2.0},width:527.0,height:84.0,pos_type:"absolute",button_default_skin:false,onclick:action.as_str(),mouse_enabled:true,frame_level:1000.0,{selected_art}{contents}{frozen_art}}};
+    let container = rsx! {r#frame{name:"PerksProgramFrozenProductContainer",left:0.0,top:0.0,width:527.0,height:120.0,pos_type:"absolute",frame_level:1000.0,{row}}};
     let art = hold_art();
-    rsx! {r#frame{name:"PerksProgramHoldFrame",left:0.0,top:{58.0+LIST_HEIGHT},width:527.0,height:120.0,pos_type:"absolute",frame_level:985.0,{art}{row}}}
+    rsx! {r#frame{name:"PerksProgramHoldFrame",left:0.0,top:{58.0+LIST_HEIGHT},width:527.0,height:120.0,pos_type:"absolute",frame_level:985.0,{art}{container}}}
+}
+
+fn frozen_icon_art(occupied: bool, pending: bool) -> Element {
+    // Elements.xml: FrozenArtContainer follows the resized Icon. FrostFrame and
+    // ItemGlow keep their atlas sizes and share its centre, not the old32px icon's.
+    let mut art = rsx! {texture {
+        name:"PerksProgramFrozenSlotArt",texture_atlas:"perks-slot-empty",
+        left:-3.0,top:-3.0,width:70.0,height:70.0,pos_type:"absolute",draw_layer:"BACKGROUND"
+    }};
+    if occupied {
+        if pending {
+            art.extend(rsx! {texture {
+                name:"PerksProgramFrozenItemGlow",texture_atlas:"perks-frost-frame-glow-1",
+                left:-12.0,top:-12.0,width:88.0,height:88.0,pos_type:"absolute",draw_layer:"OVERLAY"
+            }});
+        } else {
+            art.extend(rsx! {texture {
+                name:"PerksProgramFrozenFrame",texture_atlas:"perks-frost-frame-1",
+                left:0.0,top:0.0,width:64.0,height:64.0,pos_type:"absolute",draw_layer:"OVERLAY"
+            }});
+        }
+    }
+    rsx! {r#frame{name:"PerksProgramFrozenArtContainer",left:32.0,top:10.0,width:64.0,height:64.0,pos_type:"absolute",frame_level:1001.0,{art}}}
 }
 
 /// NineSliceLayouts.lua PerksProgramHoldPanelTemplate; every cap uses Retail atlas dimensions.

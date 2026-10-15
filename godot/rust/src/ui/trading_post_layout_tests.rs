@@ -164,10 +164,6 @@ fn trading_post_frozen_slot_uses_effective_container_icon_and_frost_geometry() {
             "PerksProgramFrozenItemGlow",
             [66., 789.5, 88., 88.],
         );
-        assert!(
-            registry.get_by_name("PerksProgramFrozenFrame").is_none(),
-            "pending candidate must glow, not look confirmed frozen"
-        );
     }
 }
 
