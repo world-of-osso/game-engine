@@ -615,3 +615,52 @@ fn particle_cleanroom_tail_age_clamp_and_view_parallel_velocity() {
     assert_eq!(quad.axis_y, Vec3::Y * 0.25 * 0.05);
     assert!(quad.center.is_finite());
 }
+
+fn carried_particle(flags: u32, dt: f32, distance: f32, age: f32) -> (Vec3, f32) {
+    let mut emitter = still_emitter(flags);
+    emitter.follow_speed1 = 0.0;
+    emitter.follow_scale1 = 0.0;
+    emitter.follow_speed2 = 10.0;
+    emitter.follow_scale2 = 1.0;
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(&emitter, 0.05, Mat4::IDENTITY, Mat3::IDENTITY, 1.0);
+    sim.update(&emitter, age, Mat4::IDENTITY, Mat3::IDENTITY, 0.0);
+    let before = sim.particles()[0];
+    sim.update(
+        &emitter,
+        dt,
+        Mat4::from_translation(Vec3::X * distance),
+        Mat3::IDENTITY,
+        0.0,
+    );
+    (sim.particles()[0].position - before.position, before.age)
+}
+
+#[test]
+fn particle_cleanroom_follow_carries_only_old_flagged_particles() {
+    assert!(carried_particle(0x4000, 0.1, 1.0, 0.5).0.distance(Vec3::X) < 1e-5);
+    assert_eq!(carried_particle(0, 0.1, 1.0, 0.5).0, Vec3::ZERO);
+    assert_eq!(carried_particle(0x4000, 0.1, 1.0, 0.0).0, Vec3::ZERO);
+}
+
+#[test]
+fn particle_cleanroom_follow_clamps_speed_and_distributes_replay() {
+    assert!(
+        carried_particle(0x4000, 0.1, 2.0, 0.5)
+            .0
+            .distance(Vec3::X * 2.0)
+            < 1e-5
+    );
+    assert!(
+        carried_particle(0x4000, 0.1, 0.5, 0.5)
+            .0
+            .distance(Vec3::X * 0.25)
+            < 1e-5
+    );
+    assert!(
+        carried_particle(0x4000, 0.3, 3.0, 0.5)
+            .0
+            .distance(Vec3::X * 3.0)
+            < 1e-5
+    );
+}

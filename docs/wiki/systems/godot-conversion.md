@@ -730,6 +730,8 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+Clean-room P2 (2026-10-15): speed-dependent follow displacement, post-age eligibility and proportional replay carry implemented from the supplied spec and allowed WWV. Birth velocity unchanged. Modern assets and combined model-space/follow remain unqualified; CPU RED 0/2, GREEN pending.
+
 Clean-room P1 (2026-10-15): native shared simulation now emits independent heads/tails, tail-cell ramps and duration × velocity geometry (0x400 age clamp), using WebWowViewerCpp `buildVertex2` as allowed provenance. Pools reserve two quads per combined-style particle. CPU RED recorded (zero tail geometry); GREEN and native real-asset pixel acceptance pending. Contract: [m2-particles](../../specs/m2-particles.md).
 
 Branch `particles` draws the particle emitters of placed doodads (contract: [m2-particles](../../specs/m2-particles.md)).

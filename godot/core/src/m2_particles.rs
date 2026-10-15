@@ -14,6 +14,7 @@ use crate::m2::{AnimTime, ParticleEmitter};
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
 const FLAG_INHERIT_SCALE: u32 = 0x20;
+const FLAG_FOLLOW_POSITION: u32 = 0x4000;
 const FLAG_SPHERE_IMPLODE: u32 = 0x80;
 const FLAG_SPHERE_UP: u32 = 0x100;
 const FLAG_SPIN_FLIP: u32 = 0x200;
@@ -529,7 +530,10 @@ impl EmitterSim {
         if shape(emitter).is_none() || !(dt > 0.0) {
             return;
         }
+        let previous = self.emitter_to_world.w_axis.truncate();
         self.emitter_to_world = emitter_to_world;
+        let displacement = emitter_to_world.w_axis.truncate() - previous;
+        let follow = follow_displacement(emitter, displacement, dt);
         let mut remainder = dt;
         if dt >= STEP_SECONDS {
             let whole = (dt / STEP_SECONDS).floor();
@@ -539,14 +543,33 @@ impl EmitterSim {
                 .min(whole)
                 .max(0.0) as usize;
             for _ in 0..steps {
-                self.step(emitter, STEP_SECONDS, wow_to_world, density);
+                self.step(
+                    emitter,
+                    STEP_SECONDS,
+                    wow_to_world,
+                    density,
+                    follow * (STEP_SECONDS / dt),
+                );
             }
         }
-        self.step(emitter, remainder, wow_to_world, density);
+        self.step(
+            emitter,
+            remainder,
+            wow_to_world,
+            density,
+            follow * (remainder / dt),
+        );
     }
 
     /// `ParticleEmitter::StepUpdate`: age and retire, emit, then move every particle.
-    fn step(&mut self, emitter: &ParticleEmitter, dt: f32, wow_to_world: Mat3, density: f32) {
+    fn step(
+        &mut self,
+        emitter: &ParticleEmitter,
+        dt: f32,
+        wow_to_world: Mat3,
+        density: f32,
+        follow: Vec3,
+    ) {
         if dt < 0.0 {
             return;
         }
@@ -585,6 +608,10 @@ impl EmitterSim {
             // solarityclient `simulation.rs`: wind acts while age < windTime.
             if particle.age < emitter.wind_time {
                 particle.velocity += wind * dt;
+            }
+            // Age has already advanced; births are too young for this carry.
+            if particle.age > 2.0 * dt {
+                particle.position += follow;
             }
             let step = particle.velocity * dt;
             (particle.position, particle.velocity) = integrate_particle(
@@ -751,6 +778,19 @@ impl EmitterSim {
             tex_pos: particle.tex_pos,
         })
     }
+}
+
+/// Authored follow curve in speed (yd/s); independent of birth velocity.
+fn follow_displacement(emitter: &ParticleEmitter, displacement: Vec3, dt: f32) -> Vec3 {
+    let enabled = emitter.flags & FLAG_FOLLOW_POSITION != 0;
+    let speed_range = emitter.follow_speed2 - emitter.follow_speed1;
+    if !enabled || speed_range == 0.0 {
+        return Vec3::ZERO;
+    }
+    let slope = (emitter.follow_scale2 - emitter.follow_scale1) / speed_range;
+    let speed = displacement.length() / dt;
+    let factor = emitter.follow_scale1 + (speed - emitter.follow_speed1) * slope;
+    displacement * factor.clamp(0.0, 1.0)
 }
 
 /// Multitexture layer 1 and 2 UV offsets and scroll velocities (`CreateParticle`).

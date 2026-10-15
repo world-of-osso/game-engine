@@ -60,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Tail native real-asset pixel acceptance (CPU geometry implemented), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
+- [ ] Tail native real-asset pixel acceptance (CPU geometry implemented), spline emitters (type 3), model particles, burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 - [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
 
@@ -72,3 +72,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ### Clean-room P1 (2026-10-15)
 
 Behaviour provenance: user-supplied particle clean-room spec and WebWowViewerCpp `particleEmitter.cpp::buildVertex2` (duration, 0x400 age clamp, projected squared threshold 0.0001 and tiny scale 0.05). No decompiled sources consulted. Native pools reserve both styles rather than dropping half of combined output. Targeted `particle_cleanroom_tail` fixtures assert independent geometry/cells and age/degeneracy. RED: two tests failed because tails produced zero quads; GREEN and 1920×1080 real-asset pixels pending.
+
+### Clean-room P2 (2026-10-15)
+
+Follow-position 0x4000 applies clamped authored speed/scale interpolation to emitter displacement, only when the already-advanced particle age exceeds twice the step. Replay slices receive their proportional displacement, not the entire frame displacement repeatedly. Provenance: supplied clean-room spec and allowed WebWowViewerCpp Update/UpdateParticle. Duplicate speed points produce zero carry as in WWV. Modern asset applicability remains unproven; combined model-space/follow semantics require target observation. Tests isolate old/young, flag off, clamped speed and multi-step carry. RED 0/2; GREEN pending.
