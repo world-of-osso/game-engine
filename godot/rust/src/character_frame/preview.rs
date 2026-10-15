@@ -272,12 +272,6 @@ impl Scene {
         Ok(())
     }
 
-    pub(crate) fn reframe_model(&mut self) {
-        if let Some(model) = self.model.clone() {
-            self.frame_camera(&model);
-        }
-    }
-
     /// A weapon's largest two extents belong in the portrait plane, not along its depth.
     pub(crate) fn replace_item_model(&mut self, model: Gd<Node3D>) {
         self.replace_model(model);
