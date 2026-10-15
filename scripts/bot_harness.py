@@ -31,6 +31,10 @@ def parse_combat(text):
     return sorted(events, key=lambda event: event["at_ms"])
 
 
+def poll_has_gap(previous_sequence, sequence, retained):
+    return sequence - previous_sequence > retained
+
+
 def merge_polls(polls):
     """Union overlapping ring-buffer snapshots while retaining true multiplicity."""
     counts = Counter()
@@ -95,7 +99,9 @@ def analyze(run, events):
 
 def balance(rows):
     """Compare only explicitly identical fixture groups; no unapproved tolerance."""
-    if not rows or not rows[0].get("comparison"):
+    if not rows or not all(row.get("measurement_complete") for row in rows):
+        raise ValueError("Balance requires complete fixed-duration measurements")
+    if not rows[0].get("comparison"):
         raise ValueError("Balance requires comparable level, stats, dummy and duration receipts")
     if any(row.get("comparison") != rows[0]["comparison"] for row in rows):
         raise ValueError("Non-comparable fixture groups cannot be pooled")
