@@ -40,6 +40,16 @@ func run_test() -> void:
 	else:
 		await drive_mounts()
 
+func enter_world() -> bool:
+	print("MOUNT_SPECIAL_WAIT_ROSTER")
+	if not await until(func(): return client.account_state().reply_received and client.account_state().screen == "CharacterSelect" and client.account_state().character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null, "character roster", 60000): return false
+	print("MOUNT_SPECIAL_ROSTER ", client.account_state())
+	await click_control(client.get_node("CharacterSelectUI").find_child("EnterWorld", true, false))
+	print("MOUNT_SPECIAL_ENTER_CLICKED")
+	if not await until(func(): return client.account_state().screen == "InWorld" and client.account_state().local_player_position != null, "world entry", 300000): return false
+	for frame in range(30): await process_frame
+	return true
+
 func drive_mounts() -> void:
 	if not await until(func(): return FileAccess.file_exists(path("observer-ready")), "observer login", 120000): return
 	for mount in mounts:
