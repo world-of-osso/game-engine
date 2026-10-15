@@ -1251,3 +1251,106 @@ fn trading_post_retail_filter_checks_ownership_usability_and_multiple_types() {
     }
     assert!(registry.get_by_name("PerksProgramCategoryAll").is_none());
 }
+
+fn freeze_view() -> View {
+    let mut data = snapshot();
+    let mut candidate = data.items[0].clone();
+    candidate.id = 5;
+    candidate.name = "Arcanofire Wrap".into();
+    let mut other = data.items[0].clone();
+    other.id = 6;
+    other.name = "Azure Warcloak".into();
+    data.items.extend([candidate, other]);
+    View {
+        visible: true,
+        snapshot: Some(Arc::new(data)),
+        selected: Some(4),
+        cart: vec![5, 6],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn trading_post_freeze_replacement_previews_candidate_and_cancel_preserves_authority_and_cart() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        assert_eq!(
+            view.drop_item(5, false, true),
+            None,
+            "replacement waits for consent"
+        );
+        assert!(!view.pending);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.cart, vec![5, 6]);
+        let dialog = render(skin, view.clone());
+        assert!(dialog.get_by_name("PerksProgramConfirmDialog").is_some());
+        assert_eq!(
+            text(&dialog, "PerksProgramConfirmItemText"),
+            "Distinguished Warcloak"
+        );
+        assert_eq!(text(&dialog, "PerksProgramFrozenLabel"), "Arcanofire Wrap");
+        assert_eq!(view.click("perks:cancel").unwrap(), None);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        assert_eq!(view.cart, vec![5, 6]);
+        let cancelled = render(skin, view);
+        assert!(cancelled.get_by_name("PerksProgramConfirmDialog").is_none());
+        assert_eq!(
+            text(&cancelled, "PerksProgramFrozenLabel"),
+            "Distinguished Warcloak"
+        );
+    }
+}
+
+#[test]
+fn trading_post_freeze_empty_slot_is_immediate_and_removes_only_frozen_cart_member() {
+    use game_engine_ui_model::trading_post::Action;
+    let mut view = freeze_view();
+    let mut data = view.snapshot.as_ref().unwrap().as_ref().clone();
+    data.frozen_item_id = None;
+    view.receive(Arc::new(data));
+    assert_eq!(
+        view.drop_item(5, false, true),
+        Some(Action::Request(TradingPostRequest::Freeze {
+            vendor_item_id: Some(5)
+        }))
+    );
+    assert_eq!(view.cart, vec![6]);
+    assert!(view.pending);
+    assert!(view.confirm.is_none());
+    assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, None);
+    assert_eq!(view.snapshot.as_ref().unwrap().tender, 500);
+}
+
+#[test]
+fn trading_post_freeze_replacement_initial_accept_delay_disables_only_confirm() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut view = freeze_view();
+        assert_eq!(view.drop_item(5, false, true), None);
+        assert_eq!(
+            view.click("perks:confirm").unwrap(),
+            None,
+            "early click cannot freeze"
+        );
+        assert_eq!(view.cart, vec![5, 6]);
+        assert_eq!(view.snapshot.as_ref().unwrap().frozen_item_id, Some(4));
+        let dialog = render(skin, view);
+        for (name, disabled) in [
+            ("PerksProgramConfirmButton", true),
+            ("PerksProgramConfirmCancelButton", false),
+        ] {
+            let frame = dialog.get(dialog.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Button(button)) = &frame.widget_data else {
+                panic!("{name} button missing");
+            };
+            assert_eq!(
+                button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
+                disabled,
+                "{name}"
+            );
+        }
+        assert_eq!(
+            text(&dialog, "PerksProgramConfirmButtonDialogButtonText"),
+            "5"
+        );
+    }
+}
