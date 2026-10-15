@@ -4779,8 +4779,16 @@ textures/342531.blp
 textures/533895.blp
 textures/1083696.blp
 textures/407337.blp
-# Mainline GuildUtil no-design portrait (GuildFrame already included).
+# Mainline GuildUtil portraits and installed tabard design catalog.
 textures/460904.blp
+textures/459023.blp
+db2/active/GuildColorBackground.csv
+db2/active/GuildColorBorder.csv
+db2/active/GuildColorEmblem.csv
+db2/active/GuildEmblem.csv
+db2/active/GuildTabardBackground.csv
+db2/active/GuildTabardBorder.csv
+db2/active/GuildTabardEmblem.csv
 # Mainline Communities right-edge tabs, column strips/highlight and class sprite.
 textures/136831.blp
 textures/2056011.blp

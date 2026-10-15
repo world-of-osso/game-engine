@@ -394,7 +394,13 @@ fn unit_appearance(snapshot: Unit, native_display: Option<u32>) -> Option<UnitAp
                 items: Default::default(),
             });
         }
-        return Some(UnitAppearance::Player(player.clone(), equipment()));
+        return Some(UnitAppearance::Player(
+            player.clone(),
+            equipment(),
+            snapshot
+                .get::<shared::guild_creation::GuildTabardDesign>()
+                .copied(),
+        ));
     }
     snapshot.get::<Npc>()?;
     let display_id = snapshot.get::<ModelDisplay>()?.display_id;
@@ -908,7 +914,7 @@ fn sync_unit_sheath(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModel
         UnitAppearance::Creature { items, .. } => models
             .virtual_item_placements(items, sheath)
             .and_then(|placements| place_virtual_items(visual, &placements)),
-        UnitAppearance::Player(_, equipment) => models
+        UnitAppearance::Player(_, equipment, _) => models
             .player_weapon_placements(equipment, sheath)
             .and_then(|placements| place_items(visual, &placements)),
     };
@@ -1163,7 +1169,7 @@ impl WorldUnits {
         appearance: &UnitAppearance,
         sheath: SheathState,
     ) -> Result<(), String> {
-        let UnitAppearance::Player(_, equipment) = appearance else {
+        let UnitAppearance::Player(_, equipment, _) = appearance else {
             return Ok(());
         };
         let placements = self.models.player_weapon_placements(equipment, sheath)?;
@@ -1823,6 +1829,38 @@ mod tests {
     }
 
     #[test]
+    fn guild_tabard_replication_changes_and_removal_invalidate_the_player_visual() {
+        use shared::guild_creation::GuildTabardDesign;
+        let mut replica = player_replica();
+        let original = unit_appearance(replica.unit(PLAYER_ID).unwrap(), None);
+        let design = GuildTabardDesign {
+            icon: 1,
+            icon_color: 2,
+            border: 3,
+            border_color: 4,
+            background_color: 5,
+        };
+        replica.insert(PLAYER_ID, design);
+        let registered = unit_appearance(replica.unit(PLAYER_ID).unwrap(), None);
+        assert!(
+            original != registered,
+            "Registered guild appearance must repaint worn tabards"
+        );
+        replica.insert(PLAYER_ID, GuildTabardDesign { icon: 2, ..design });
+        let changed = unit_appearance(replica.unit(PLAYER_ID).unwrap(), None);
+        assert!(
+            registered != changed,
+            "Subsequent saves must repaint worn tabards"
+        );
+        replica.remove::<GuildTabardDesign>(PLAYER_ID);
+        let removed = unit_appearance(replica.unit(PLAYER_ID).unwrap(), None);
+        assert!(
+            removed == original,
+            "Leaving guild removes its tabard appearance"
+        );
+    }
+
+    #[test]
     fn player_model_display_consumes_cat_bear_and_native_restoration() {
         // Human male ChrModel 1; Cat/Bear SpellShapeshiftForm 1/5 in build 69933.
         let native = 57899;
@@ -1837,7 +1875,7 @@ mod tests {
             let unit = replica.unit(PLAYER_ID).unwrap();
             let actual = match unit_appearance(unit, Some(native)).expect("player appearance") {
                 UnitAppearance::Creature { display_id, .. } => display_id,
-                UnitAppearance::Player(_, _) => native,
+                UnitAppearance::Player(_, _, _) => native,
             };
             assert_eq!(actual, expected);
             assert!(

@@ -40,15 +40,24 @@ func connect_housing_account() -> bool:
 	if error != "":
 		fail("Housing authentication: " + error)
 		return false
-	if not await wait_housing(func(): return client.account_state().screen == "CharacterSelect" and housing_named_control("CharacterSelectUI", "CharCard_0") != null, "roster", 180000): return false
-	await click_control(housing_named_control("CharacterSelectUI", "CharCard_0"), MOUSE_BUTTON_LEFT)
-	await click_control(housing_named_control("CharacterSelectUI", "EnterWorld"), MOUSE_BUTTON_LEFT)
+	if not await wait_housing(func(): return client.account_state().screen == "CharacterSelect" and housing_roster_visible(), "visible prepared roster", 180000): return false
+	print("HOUSING_ROSTER_REVEALED account=",client.account_state()," visible=",client.get_node("CharacterSelectUI").visible)
+	if not await click_exposed_control(housing_named_control("CharacterSelectUI", "CharCard_0")): return false
+	if not await click_exposed_control(housing_named_control("CharacterSelectUI", "EnterWorld")): return false
 	if not await wait_housing(func(): return client.account_state().screen == "InWorld" and housing_named_control("MicroMenuUI", "HousingMicroButton") != null, "world", 420000): return false
 	if str(client.account_state().ui_skin) != housing_skin:
 		fail("Expected " + housing_skin + " skin, observed " + str(client.account_state().ui_skin))
 		return false
 	await frames(60)
 	return true
+
+# Session state precedes the loading curtain's reveal; existence is not input readiness.
+func housing_roster_visible() -> bool:
+	var ui: CanvasLayer = client.get_node_or_null("CharacterSelectUI") as CanvasLayer
+	if ui == null or not ui.visible: return false
+	var card: Control = housing_named_control("CharacterSelectUI", "CharCard_0")
+	var enter: Control = housing_named_control("CharacterSelectUI", "EnterWorld")
+	return card != null and card.is_visible_in_tree() and enter != null and enter.is_visible_in_tree()
 
 func buy_bookcase() -> bool:
 	var vendor: Dictionary = await find_named_vendor(PAWDO_NAME)
