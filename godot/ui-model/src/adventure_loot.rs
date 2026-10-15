@@ -12,6 +12,10 @@ use crate::{
 const INK: &str = "0.25,0.1484375,0.02,1";
 const BOSS_HEIGHT: f32 = 45.;
 const INSTANCE_HEIGHT: f32 = 64.;
+const WHITE_ICON_FRAME: u32 = 651_080;
+const RELIC_ICON_FRAME: u32 = 1_313_680;
+const ITEM_CLASS_GEM: u8 = 3;
+const ARTIFACT_RELIC_SUBCLASS: u8 = 11;
 
 pub(crate) fn rows(view: &View) -> (Element, f32) {
     let items = view.loot();
@@ -35,7 +39,7 @@ pub(crate) fn rows(view: &View) -> (Element, f32) {
 
 fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Element {
     let name = format!("JournalLoot{}", item.id);
-    let mut content = texture(format!("{name}Icon"), item.icon, (2., 2., 42., 42.), WHITE);
+    let mut content = read_item_icon(item, &name);
     let (border, border_width) = if bosses.is_some() {
         (Art::DungeonLootFrame, 369.)
     } else {
@@ -57,6 +61,7 @@ fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Elem
         ),
     ));
     content.extend(item_type_labels(item, &name));
+    content.extend(read_quality_border(item, &name));
     if let Some(bosses) = bosses {
         content.extend(paper_text(
             &format!("{name}Boss"),
@@ -72,8 +77,39 @@ fn loot_row(item: &Item, top: f32, height: f32, bosses: Option<&[&str]>) -> Elem
     }
 }
 
+fn read_item_icon(item: &Item, name: &str) -> Element {
+    // C_Item.GetItemIconByID: Item.IconFileDataID alone is not an appearance icon.
+    let Some(icon) = crate::item_icons::item_icon_fdid(item.id) else {
+        return vec![];
+    };
+    texture(format!("{name}Icon"), icon, (2., 2., 42., 42.), WHITE)
+}
+
+fn read_quality_border(item: &Item, name: &str) -> Element {
+    // ItemButtonTemplate.lua210–237; ColorConstants.lua21–30 has colors only1..8.
+    if !(1..=8).contains(&item.quality) {
+        return vec![];
+    }
+    let Some(entry) = crate::item_catalog::item_catalog_entry(item.id) else {
+        return vec![];
+    };
+    let frame = if entry.class_id == ITEM_CLASS_GEM && entry.subclass_id == ARTIFACT_RELIC_SUBCLASS
+    {
+        RELIC_ICON_FRAME
+    } else {
+        WHITE_ICON_FRAME
+    };
+    let quality = crate::bag_data::ItemQuality::from_id(item.quality as u8);
+    texture(
+        format!("{name}IconBorder"),
+        frame,
+        (2., 2., 42., 42.),
+        quality.border_color(),
+    )
+}
+
 fn item_type_labels(item: &Item, name: &str) -> Element {
-    let armor = armor_type(item.id);
+    let armor = read_armor_type(item.id);
     let armor_width = ui_toolkit::text_measure::measure_text(armor, GameFont::FrizQuadrata, 12.)
         .expect("Retail loot font is loaded")
         .0;
@@ -91,7 +127,7 @@ fn item_type_labels(item: &Item, name: &str) -> Element {
     content
 }
 
-fn armor_type(item: u32) -> &'static str {
+fn read_armor_type(item: u32) -> &'static str {
     let Some(entry) = crate::item_catalog::item_catalog_entry(item) else {
         return "";
     };
