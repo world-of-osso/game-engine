@@ -166,7 +166,7 @@ impl UnitMotion {
             adopted_epoch: None,
             forced_facing: None,
             adopted_facing_epoch: None,
-            facing_yaw: PI,
+            facing_yaw: yaw,
         }
     }
 
@@ -1886,9 +1886,10 @@ mod tests {
     }
 
     #[test]
-    fn local_facing_starts_at_pi_and_changes_only_for_controlled_yaw() {
-        let mut motion = UnitMotion::new([0.0; 3], 0.25);
-        assert_eq!(motion.facing_yaw, PI);
+    fn local_facing_starts_at_spawn_yaw_and_changes_only_for_controlled_yaw() {
+        let spawn_yaw = 5.10444 + std::f32::consts::FRAC_PI_2;
+        let mut motion = UnitMotion::new([0.0; 3], spawn_yaw);
+        assert_eq!(motion.facing_yaw, spawn_yaw);
         let pose = MotionPose {
             position: glam::Vec3::ZERO,
             rotation: glam::Quat::IDENTITY,
@@ -1902,7 +1903,7 @@ mod tests {
             }),
         );
         motion.advance(pose, true, 0.1);
-        assert_eq!(motion.facing_yaw, PI);
+        assert_eq!(motion.facing_yaw, spawn_yaw);
         motion.set_target(
             [0.0; 3],
             Some(1.25),
