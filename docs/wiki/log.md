@@ -8,6 +8,9 @@
 
 [Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently. GREEN9c0927eb8:12 focused world controls, matched current both-skin native Bashiok front placement/opacity/non-follow and inspected1920×1080 body images; no turn stimulus. Wall removal60501/60641ms unqualified at PSI2.42.
 
+## 2026-10-15 — Complete equipped-item material graph
+
+[Typed material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) explains preview6256534→6153788 failures: M2/base material audit omitted per-model type3/4 overrides. Fresh ten-item inventory/current70391 source selection stages43/43 authenticated assets with duplicate0; canonical selected24/43. Lead publication requested; no native-clear claim.
 ## 2026-10-15 — AH duration source menu
 
 Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
