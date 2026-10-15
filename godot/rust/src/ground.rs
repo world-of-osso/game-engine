@@ -139,18 +139,18 @@ impl TerrainGround<'_> {
         // The wall ray sees WALL_MARGIN beyond the requested displacement. Admit
         // support over that same reach, otherwise short frames stop before the lip
         // reaches the destination column. This probe never adds player movement.
-        let landing = if candidate.y > current.y {
-            candidate
+        let movement = (proposed - current).with_y(0.0);
+        let reach = proposed.with_y(current.y) + movement.normalize() * WALL_MARGIN;
+        let target = self.sample(reach);
+        let reached_support = self.apply_floor_rules(current, reach, target, true);
+        let landing = if target.is_some() && reached_support.y > candidate.y {
+            reached_support
         } else {
-            let movement = (proposed - current).with_y(0.0);
-            let reach = proposed.with_y(current.y) + movement.normalize() * WALL_MARGIN;
-            let target = self.sample(reach);
-            let landing = self.apply_floor_rules(current, reach, target, true);
-            if target.is_none() || landing.y <= current.y {
-                return false;
-            }
-            landing
+            candidate
         };
+        if landing.y <= current.y {
+            return false;
+        }
         let raised = current.with_y(landing.y);
         let destination = proposed.with_y(landing.y);
         let across = clamp_movement_to_walls(raised, destination, self.walls);
