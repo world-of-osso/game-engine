@@ -69,7 +69,7 @@ func removal_confirmed(state: Dictionary, slot: String, item: int, location: Dic
         if entry["slot"] == slot:
             return false
     for entry: Dictionary in state.get("bags", []):
-        var at_destination := int(entry["bag"]) == location["bag"] and int(entry["slot"]) == location["slot"]
+        var at_destination: bool = int(entry["bag"]) == int(location["bag"]) and int(entry["slot"]) == int(location["slot"])
         if at_destination and int(entry["item_id"]) == item:
             return true
     return false
