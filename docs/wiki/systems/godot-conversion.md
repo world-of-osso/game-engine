@@ -730,6 +730,8 @@ M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 
+Clean-room S1 (2026-10-15): authored bit0 polarity is not established by allowed evidence; WWV inversion plus real torch/portal flags do not provide a target incident-light oracle. Shader unchanged; S1-polarity-oracle and native lit/unlit pixel acceptance remain explicit [contract gaps](../../specs/m2-particles.md).
+
 Clean-room P3 (2026-10-15): parser retains authored inherited scale at0x170 (WWV ivelScale; real2994778 emitter3 =3.0). Birth-velocity runtime remains blocked by the documented P3-timer-reset evidence conflict; no yd/s guess. See [contract](../../specs/m2-particles.md).
 
 Clean-room P4 (2026-10-15): real6316199 establishes 0x1C0 M2Array float3 controls. Shared parser preserves these and the placement predicate admits complete cubic splines; curve generation follows allowed WWV. Rate-per-unit target semantics remain the named P4-density gap in [contract](../../specs/m2-particles.md). CPU RED: admission/zero emission, GREEN pending.
