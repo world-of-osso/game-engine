@@ -32,6 +32,20 @@ func verify_loot_row(name: String, height: float, boss: String) -> bool:
 		return false
 	return true
 
+func verify_subclass_width(name: String) -> bool:
+	var label := control(name) as Label
+	if label == null:
+		stop("Source subclass label missing: " + name)
+		return false
+	var font := label.get_theme_font("font")
+	var size := label.get_theme_font_size("font_size")
+	var required := font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	print("INSTANCE_LOOT_SUBCLASS %s text=%s width=%s required=%s" % [name,label.text,label.size.x,required])
+	if label.size.x + 0.5 < required:
+		stop("Source intrinsic subclass text clipped: " + name)
+		return false
+	return true
+
 func verify_painted_icon(name: String) -> bool:
 	# Registry texture hosts are Controls; prove framebuffer painting, not node class.
 	var deadline := Time.get_ticks_msec() + 30000
@@ -160,7 +174,7 @@ func run() -> void:
 	if label_text("JournalLoot2169Slot") != "One-Hand" or label_text("JournalLoot2169ArmorClass") != "Dagger":
 		stop("Source slot/subclass missing or combined with invented item-level text")
 		return
-	if not await verify_painted_icon("JournalLoot2169Icon"):
+	if not verify_subclass_width("JournalLoot5200ArmorClass") or not await verify_painted_icon("JournalLoot2169Icon"):
 		return
 	if not await move_to("JournalLoot2169") or not client.tooltip_state().get("visible", false) or client.tooltip_state().get("title", "") != "Buzzer Blade":
 		stop("Shared actual item tooltip missing")
