@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED; NPC visual host selection implemented, GREEN pending; actual model/network/driving gates open.
+- [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED→GREEN for NPC/player-mount translation/turn/release; actual model/network/driving gates open.
 
 - [IoC bomb disarm interaction](systems/battlegrounds.md#ioc-bomb-disarm-interaction--active-2026-10-14) — authored request/cursor GREEN25; Modern83/Forever88 normal/huge native hit/disarm/20-player return pass; explicit model-art/framing/whole-render/timing gaps retained.
 - [Shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) — source state files, fixed12px caps, five redundant caller repairs removed; four real-window both-skin before/after proof, with background tiling separate.
