@@ -504,10 +504,10 @@ impl TalentEditor {
         level: u8,
         action: &str,
     ) -> Result<Option<CommitTraitConfig>, String> {
-        if self.starter_active()
-            && !self.starter_deviation_confirmed
-            && (action.starts_with("talent:node:") || action.starts_with("talent:choice:"))
-        {
+        let changes_selection =
+            action.starts_with("talent:node:") || action.starts_with("talent:choice:");
+        let guided = self.starter_active() && !self.starter_deviation_confirmed;
+        if guided && changes_selection {
             let mut staged = self.clone();
             let result = staged.action_internal(view, level, action)?;
             if staged.pending != self.pending {
