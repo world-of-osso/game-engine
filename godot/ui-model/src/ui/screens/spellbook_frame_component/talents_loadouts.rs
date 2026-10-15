@@ -96,7 +96,7 @@ fn starter_row(view: &TalentView, index: usize, enabled: bool, scale: f32) -> El
         Vec::new()
     };
     let content = rsx! {fontstring {name:FrameName("TalentStarterBuildText"),text:"Starter Build",width:{164.0*scale},height:{20.0*scale},
-    font_size:{12.0*scale},font_color:"0.53,0.67,1.0,1.0",justify_h:"LEFT",mouse_enabled:false} {check}};
+    font_size:{12.0*scale},font_color:STARTER_BUILD_COLOR,justify_h:"LEFT",mouse_enabled:false} {check}};
     crate::selection_list::row(
         "TalentStarterBuild".into(),
         &action,

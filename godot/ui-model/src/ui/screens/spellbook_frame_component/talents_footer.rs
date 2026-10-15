@@ -7,7 +7,15 @@ use crate::ui::screens::menu_primitives::{
 #[path = "talents_loadouts.rs"]
 mod loadouts;
 
+// ClassTalentsFrame::RefreshLoadoutOptions wraps Starter's name in BLUE_FONT_COLOR.
+const STARTER_BUILD_COLOR: &str = "0.53,0.67,1.0,1.0";
+
 pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
+    let loadout_color = if view.editor.starter_active() && !view.editor.dirty() {
+        STARTER_BUILD_COLOR
+    } else {
+        TAB_TEXT
+    };
     let y = BOOK_H - FOOTER_HEIGHT / 2.0 - 15.0;
     let mut children = dropdown_button_with_state(
         DropdownButton {
@@ -21,7 +29,7 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
             // menu_primitives takes y-up offsets; talent canvas is y-down.
             y: -(y + 2.5) * scale,
             background_color: "0.04,0.04,0.04,1.0",
-            text_color: TAB_TEXT,
+            text_color: loadout_color,
             arrow_color: TAB_TEXT,
             onclick: Some("talent:loadouts"),
         },
