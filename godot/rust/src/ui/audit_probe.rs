@@ -285,6 +285,9 @@ impl UiAuditProbe {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MailAuditUI");
         self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
         let result = ui.bind_mut().show_mail(state);
         result.err().unwrap_or_default().as_str().into()
     }
@@ -318,6 +321,9 @@ impl UiAuditProbe {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("QuestOverflowUI");
         self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
         let result = if page.to_string() == "log" {
             ui.bind_mut().show_world_map(
                 WorldMapFrameState {
