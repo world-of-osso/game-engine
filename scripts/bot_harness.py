@@ -1,0 +1,228 @@
+"""Measure private native players; never tune gameplay or infer unobserved effects."""
+import argparse
+import json
+import re
+import statistics
+from bisect import bisect_left
+from collections import Counter, defaultdict
+from pathlib import Path
+
+EVENT = re.compile(
+    r"^(\w+) src=(\d+|-) dst=(\d+|-) spell=(\d+|-) amount=(-?\d+|-) "
+    r".* timestamp_unix_ms=(\d+)\b"
+)
+
+
+def parse_combat(text):
+    """Read the maintained native `combat log` text contract, preserving duplicates."""
+    events = []
+    for line in text.splitlines():
+        match = EVENT.match(line)
+        if not match:
+            if "timestamp_unix_ms=" in line:
+                raise ValueError(f"Unrecognized native combat event: {line}")
+            continue
+        kind, source, target, spell, amount, stamp = match.groups()
+        events.append({
+            "kind": kind, "src": source, "dst": target,
+            "spell": None if spell == "-" else int(spell),
+            "amount": 0 if amount == "-" else int(amount), "at_ms": int(stamp),
+            "text": line,
+        })
+    return sorted(events, key=lambda event: event["at_ms"])
+
+
+def poll_has_gap(previous_sequence, sequence, retained):
+    return sequence - previous_sequence > retained
+
+
+def merge_polls(polls):
+    """Union overlapping ring-buffer snapshots while retaining true multiplicity."""
+    counts = Counter()
+    for poll in polls:
+        counts |= Counter(event["text"] for event in parse_combat(poll))
+    return parse_combat("\n".join(counts.elements()))
+
+
+def missing_casts(attempts, successes):
+    """Consume one server success per submitted request, not per spell identity."""
+    original = defaultdict(list)
+    for event in sorted(successes, key=lambda event: event["at_ms"]):
+        original[event["spell"]].append(event["at_ms"])
+    available = {spell: times.copy() for spell, times in original.items()}
+    findings = []
+    for attempt in sorted(attempts, key=lambda attempt: attempt["deadline_ms"]):
+        spell = attempt["spell"]
+        if attempt.get("error"):
+            findings.append({"kind": "cast_error", "spell": spell, "error": attempt["error"]})
+            continue
+        times = available.get(spell, [])
+        index = bisect_left(times, attempt["at_ms"])
+        if index < len(times) and times[index] <= attempt["deadline_ms"]:
+            times.pop(index)
+            continue
+        finding = {"kind": "cast_never_fired", "spell": spell, "at_ms": attempt["at_ms"]}
+        all_times = original[spell]
+        index = bisect_left(all_times, attempt["at_ms"])
+        if index < len(all_times) and all_times[index] <= attempt["deadline_ms"]:
+            finding["at_ms"] = None
+            finding["attribution"] = "overlapping request windows"
+        findings.append(finding)
+    return findings
+
+
+def ownership_graph(events, snapshots):
+    records = [dict(row, via="owner_snapshot") for row in snapshots]
+    for event in events:
+        if event["kind"] != "summon":
+            continue
+        if event["spell"] is None:
+            raise ValueError("SPELL_SUMMON requires its real summoning spell")
+        records.append({"unit": event["dst"], "owner": event["src"],
+                        "at_ms": event["at_ms"], "via": "summon"})
+    owners = {}
+    for record in records:
+        unit, owner = str(record["unit"]), str(record["owner"])
+        if unit in ("-", "None") or owner in ("-", "None") or unit == owner:
+            raise ValueError(f"Invalid summon ownership {owner}->{unit}")
+        previous = owners.get(unit)
+        if previous and previous["owner"] != owner:
+            raise ValueError(f"Conflicting summon ownership for {unit}")
+        if previous is None or record["at_ms"] < previous["at_ms"]:
+            owners[unit] = dict(record, unit=unit, owner=owner)
+    return owners
+
+
+def classify_damage_source(unit, at_ms, actor, owners, party):
+    visited = set()
+    while unit != actor:
+        if unit in party:
+            return "party"
+        if unit in visited:
+            raise ValueError(f"Cyclic summon ownership at {unit}")
+        visited.add(unit)
+        owner = owners.get(unit)
+        if owner is None or owner["at_ms"] > at_ms:
+            return "unknown"
+        unit = owner["owner"]
+    return "owned"
+
+
+def analyze(run, events):
+    """Produce findings only where the evidence can demonstrate the observation."""
+    duration = run["end_ms"] - run["start_ms"]
+    if duration <= 0:
+        raise ValueError("Run must have a positive fixed measurement duration")
+    window = [e for e in events if run["start_ms"] <= e["at_ms"] < run["end_ms"]]
+    own = [e for e in window if e["src"] == str(run["actor"])]
+    successes = [e for e in own if e["kind"] == "cast_success"]
+    observed_until = run.get("observed_until_ms", run["end_ms"])
+    pending = [attempt for attempt in run["attempts"] if attempt["deadline_ms"] > observed_until and not attempt.get("error")]
+    evaluated = [attempt for attempt in run["attempts"] if attempt not in pending]
+    findings = missing_casts(evaluated, successes)
+    used = Counter(e["spell"] for e in successes)
+    owners = ownership_graph(events, run.get("owner_snapshot", []))
+    party = {str(actor) for actor in run.get("party_actors", [])}
+    by_spell, by_actor, unknown = Counter(), Counter(), Counter()
+    for event in window:
+        if event["kind"] != "damage" or event["dst"] != str(run["target"]):
+            continue
+        source = classify_damage_source(event["src"], event["at_ms"], str(run["actor"]), owners, party)
+        amount = max(0, event["amount"])
+        if source == "owned":
+            by_spell[event["spell"]] += amount
+            by_actor[event["src"]] += amount
+        elif source == "unknown" and amount > 0:
+            unknown[event["src"]] += amount
+    for spell in run["spells"]:
+        identity = spell["id"]
+        if not used[identity]:
+            findings.append({"kind": "ability_never_used", "spell": identity})
+        elif spell["damage"] and not sum(by_spell[value] for value in spell.get("damage_ids", [identity])):
+            findings.append({"kind": "zero_damage_spell", "spell": identity})
+    party.add(str(run["actor"]))
+    for event in window:
+        if event["kind"] == "death" and event["dst"] in party:
+            findings.append({"kind": "death", "actor": event["dst"], "at_ms": event["at_ms"]})
+    for error in run.get("server_errors", []):
+        findings.append({"kind": "server_error", "error": error})
+    for sample in run.get("native_errors", []):
+        for error in sample["errors"]:
+            findings.append({"kind": "native_cast_error", "at_ms": sample["at_ms"], "error": error, "spell": None})
+    for actor, amount in unknown.items():
+        findings.append({"kind": "unattributed_damage", "actor": actor, "damage": amount})
+    complete = bool(run.get("measurement_complete") and not unknown)
+    unobserved = ["aura_effect", "cooldown_resets", "charges", "resource_spending"]
+    if unknown:
+        unobserved.append("owned_damage_attribution")
+    report = {
+        "schema": 1, "scenario": run["scenario"], "spec": run["spec"], "role": run.get("role"),
+        "actor": run["actor"], "target": run["target"], "duration_ms": duration,
+        "damage": sum(by_spell.values()),
+        "dps": sum(by_spell.values()) / (duration / 1000) if complete else None,
+        "casts": dict(used), "damage_by_spell": dict(by_spell), "findings": findings,
+        "pending_casts": pending,
+        "damage_by_actor": dict(by_actor), "ownership": owners,
+        "attribution_complete": not unknown, "unobserved": unobserved,
+        "comparison": run.get("comparison"),
+        "capture_complete": run.get("measurement_complete", False), "measurement_complete": complete,
+    }
+    return report
+
+
+def balance(rows):
+    """Compare only explicitly identical fixture groups; no unapproved tolerance."""
+    if any(row.get("role") not in (0, 1, 2) for row in rows):
+        raise ValueError("Balance requires authored specialization roles")
+    rows = [row for row in rows if row["role"] == 2]
+    if not rows or not all(row.get("measurement_complete") for row in rows):
+        raise ValueError("Balance requires complete fixed-duration DPS measurements")
+    comparison = rows[0].get("comparison") or {}
+    missing = [field for field in ("level", "stats", "dummy", "duration_ms") if not comparison.get(field)]
+    if missing:
+        raise ValueError("Balance comparison missing " + ", ".join(missing))
+    if any(row.get("comparison") != rows[0]["comparison"] for row in rows):
+        raise ValueError("Non-comparable fixture groups cannot be pooled")
+    by_spec = defaultdict(list)
+    for row in rows:
+        by_spec[row["spec"]].append(row["dps"])
+    specs = [{"spec": spec, "dps": statistics.mean(values), "runs": len(values)}
+             for spec, values in sorted(by_spec.items())]
+    median = statistics.median(row["dps"] for row in specs)
+    for row in specs:
+        row["over_median"] = row["dps"] / median if median else None
+    return {
+        "median_dps": median,
+        "max_over_median": max(row["dps"] for row in specs) / median if median else None,
+        "min_over_median": min(row["dps"] for row in specs) / median if median else None,
+        "specs": specs, "tolerance": None, "comparison": rows[0]["comparison"],
+    }
+
+
+def write_report(directory, report):
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    measurement = f"{report['dps']:.2f} DPS" if report["dps"] is not None else "DPS unavailable: incomplete measurement"
+    summary = [f"# Spec {report['spec']} — {report['scenario']}",
+               f"{measurement}; {report['damage']} damage; planned {report['duration_ms'] / 1000:g}s.",
+               f"Measurement complete: {report['measurement_complete']}. No balance pass/fail tolerance set.",
+               "## Findings"]
+    if report.get("collection_error"):
+        summary.append("Collection blocked: " + report["collection_error"])
+    summary.append(json.dumps(dict(Counter(finding["kind"] for finding in report["findings"]))))
+    summary.append("Full findings and spell coverage: report.json.")
+    summary.extend(["## Not observable", ", ".join(report["unobserved"])])
+    (directory / "summary.md").write_text("\n\n".join(summary) + "\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("run", type=Path, help="Run manifest including submitted casts and observation window")
+    parser.add_argument("combat", type=Path, help="Native IPC combat log captured during that window")
+    parser.add_argument("output", type=Path)
+    args = parser.parse_args()
+    write_report(args.output, analyze(json.loads(args.run.read_text()), parse_combat(args.combat.read_text())))
+
+
+if __name__ == "__main__":
+    main()
