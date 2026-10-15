@@ -111,9 +111,15 @@ def is_mutable_data(relative):
     return catalog_directory or catalog_file
 
 
-def verify_manifest(bundle):
+def verify_manifest(bundle, only=None):
+    """Re-hash staged files against manifest.json, or just the paths listed in `only`:
+    publishing uploads only those, so only their bytes become published content."""
     manifest = json.loads((bundle / 'manifest.json').read_text())
-    for entry in manifest['files']:
+    entries = manifest['files']
+    if only is not None:
+        listed = set(only.read_text().splitlines())
+        entries = [entry for entry in entries if entry['path'] in listed]
+    for entry in entries:
         path = bundle / entry['path']
         if path.stat().st_size != entry['size']:
             raise ValueError(f"Staged file size mismatch: {entry['path']}")
@@ -121,7 +127,7 @@ def verify_manifest(bundle):
             digest = hashlib.file_digest(stream, 'sha256').hexdigest()
         if digest != entry['sha256']:
             raise ValueError(f"Staged file SHA256 mismatch: {entry['path']}")
-    return len(manifest['files'])
+    return len(entries)
 
 
 def project_files(root):
@@ -173,10 +179,11 @@ def main():
     parser.add_argument('--platform', choices=LIBRARIES, required=True)
     parser.add_argument('--windows-artifacts', type=Path)
     parser.add_argument('--verify-manifest', action='store_true')
+    parser.add_argument('--only', type=Path, help='with --verify-manifest: newline list of paths to check')
     args = parser.parse_args()
     if args.verify_manifest:
         try:
-            count = verify_manifest(args.bundle)
+            count = verify_manifest(args.bundle, args.only)
         except (OSError, ValueError) as error:
             parser.exit(1, f'{error}\n')
         print(f'Verified {count} staged files against manifest.json')
