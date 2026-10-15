@@ -220,7 +220,9 @@ fn dropdown_text(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element
         GOLD
     };
     let (rect, justify) = match state.style {
-        DropdownStyle::WowStyle1 => ((8.0, 8.0, props.width - 34.0, 10.0), "LEFT"),
+        // Retail's 10px FontString becomes a 15px-minimum native Label. Center
+        // that label in the button, retaining the source horizontal text/arrow anchors.
+        DropdownStyle::WowStyle1 => ((8.0, 0.0, props.width - 34.0, props.height), "LEFT"),
         DropdownStyle::Filter => ((0.0, 0.0, props.width, 20.0), "CENTER"),
         DropdownStyle::WowStyle2 => (
             (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
