@@ -1,3 +1,7 @@
+## 2026-10-15 — Bot combat outcomes and native-cast parity gap
+
+[Per-ability triage](systems/bot-harness.md#per-ability-triage) adds raw hit/miss counts, nullable crits, real swing identity/share, sampled GCD/idle and raw power changes plus sourced DB2 coefficients/costs/order. No inferred spending or exact timing. The first diagnostic MVP has1368 auto_attack=null samples/zero swings despite all three requested abilities carrying the native OnCast attribute; raw-intent IPC bypasses the normal auto-attack hook. Six native replay assertions RED; IPC parity fix/new outcome exposure/native remeasurement pending, so representative-controller acceptance is reopened. All40 diagnosis continues unchanged; these are not evidence for a Fury coefficient fix or balance acceptance.
+
 ## 2026-10-15 — Native bot health qualification and per-ability triage
 
 [Health boundary](systems/bot-harness.md#capture-and-detection): Ret70 was alreadyhealth0/8208 while input eligibility remainedtrue, so no new in-window death event existed. Readiness/collection now require observed positive health; archived before/in-window samples qualify derived reports without rewriting originals. Actual native proof keeps six MVP windows valid, quarantines two Ret windows as DPSnull and confirms eight raw report hashes unchanged. Per-ability JSON/Markdown preserves real triggered event IDs and separates untagged native errors. Integrated57 tests pass; old loaded all40 capture continues with final health-qualified comparison. Stockade deferred until a maintained source-backed controller exists.
