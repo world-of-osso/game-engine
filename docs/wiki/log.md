@@ -1,10 +1,26 @@
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
+## 2026-10-15 — Pet queue caption tag
+
+[Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
+## 2026-10-15 — Initial local-player facing
+
+[Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently. GREEN9c0927eb8:12 focused world controls, matched current both-skin native Bashiok front placement/opacity/non-follow and inspected1920×1080 body images; no turn stimulus. Wall removal60501/60641ms unqualified at PSI2.42.
+
+## 2026-10-15 — AH duration source menu
+
+Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
+## 2026-10-15 — Bot summon attribution
+
+[Bot ownership capture](systems/bot-harness.md#spell-driven-ownership-events): native combat IPC serializes Summon identities/timestamp; accounting follows event-time ancestry and replicated local-pet snapshots, excludes follower descendants, and withholds DPS for unknown damage sources. Protocol wire and focused accounting/IPC gates are revision-scoped; live/all-spec/Stockade balance acceptance remains open.
 
 ## 2026-10-15 — Native summon lifetime proofs
 
 [Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+## 2026-10-15 — Disabled housing icon visuals
+
+[Source colors](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): current GlobalColor43 DARKGRAY/default atlas/full alpha replaces invented disabled-active art, desaturation and transparency. Behavioral RED/GREEN plus both-skin actual Customize/Snap/FreePlace painted-color/ignored-click/remount proof; four inspected captures. Availability and paid state unchanged; no pending-transition timing or full pixel claim.
 
 ## 2026-10-15 — Active housing mode preservation
 
@@ -19,6 +35,10 @@
 ## 2026-10-15 — Suggested joint provider and three-pane native proof
 
 [Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
+## 2026-10-15 — Trading Post frozen replacement consent
+
+[Frozen confirmation](systems/trading-post.md#frozen-replacement-confirmation--implementation-october15): old-item dialog, candidate slot preview, five-second Confirm-only delay, Cancel/global right-down and consumed Escape. Native premature-request RED→both-skin GREEN; only accepted/empty-slot freezes prune their cart member, authority/Tender unchanged.20 inspected full-HD PNGs and exact binary/memory manifest retained.
+
 ## 2026-10-15 — Housing pressed hover
 
 [Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
@@ -3896,3 +3916,10 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
 
 - 2026-10-15: [MountSpecial frame provenance](systems/mounts.md#spelltome-attachment-and-rendered-body): actual clip-phase captures replace frame counts; Spelltome attachment lift and opaque foreground book identified by data and reversible body isolation; living three-quarter peer proof in both skins. Pixel acceptance/integration remain lead-owned.
+## 2026-10-15 — Traveler’s Log source rows
+
+Ported authored parent/child geometry, tree disclosure and successor promotion; central activity tooltip and physical Shift tracking request routing replace invented details/Track controls. Focused13/13 GREEN after row/search/navbar and criterion-diagnostic REDs. The086 tooltip diagnostics were rejected; corrected066/0a/731 native in both skins keeps source text/known progress only, including child81/tree140979. Genuine6→81 tree, Options overflow and Shift tracking938 ACK0→1→0 still pass; ten corrected full-HD PNGs inspected. See [system](systems/adventure-guide.md#travelers-log--bounded-native-source-proof).
+## 2026-10-15 — Player-bot detector
+
+[Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
+- 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
