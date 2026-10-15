@@ -43,6 +43,10 @@ func run_test() -> void:
 	push_mouse_motion(housing_control("HouseEditorBasicDecorModeButton").get_global_rect().get_center())
 	if not await wait_housing(func(): return not client.tooltip_state().get("visible", false) and highlighted_meshes() == 0, "hover leaves target and restores original material"): return
 	print_cleanup_hover_probe("before-return", hit.point)
+	hit = find_visible_cornerstone_triangle(placed_node(), int(before.decor[0].instance_id))
+	if hit.is_empty():
+		fail("Cleanup return has no currently visible paid decor triangle")
+		return
 	push_mouse_motion(hit.point)
 	print_cleanup_hover_probe("after-return", hit.point)
 	if not await wait_housing(func(): return highlighted_meshes() > 0, "hover returns"):
