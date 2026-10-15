@@ -6,6 +6,8 @@ var client: Node
 var output: String
 var spec_requested := false
 var target_attempts := 0
+var talent_status := "pending"
+var talents_started := false
 
 func _initialize() -> void:
     output = OS.get_environment("BOT_HARNESS_OUTPUT")
@@ -28,13 +30,17 @@ func sample() -> void:
     if not spec_requested and spells.get("catalog_ready", false) and spells.get("spec", 0) != 0 and account.get("gameplay_input_allowed", false):
         error = client.set_specialization(int(OS.get_environment("BOT_HARNESS_SPEC")))
         spec_requested = true
+    if not talents_started and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and spells.get("catalog_ready", false) and account.get("gameplay_input_allowed", false):
+        talents_started = true
+        apply_talents()
     var target: Dictionary = client.target_state()
     if target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
         target_attempts += 1
         select_nearest()
     var snapshot := {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
         "account": account, "spells": spells, "spec_request_error": error,
-        "target": target, "target_attempts": target_attempts, "spec_requested": spec_requested, "auras": client.aura_state(),
+        "target": target, "target_attempts": target_attempts, "spec_requested": spec_requested,
+        "talent_status": talent_status, "auras": client.aura_state(),
         "assisted": client.assisted_combat_state(), "cooldowns": client.cooldown_viewer_state()}
     var destination := output.path_join("native-state.json")
     var temporary := destination + ".writing"
@@ -51,6 +57,27 @@ func sample() -> void:
         quit(2)
         return
     create_timer(0.2).timeout.connect(sample, CONNECT_ONE_SHOT)
+
+func apply_talents() -> void:
+    var path := OS.get_environment("BOT_HARNESS_TALENTS")
+    if path.is_empty():
+        talent_status = "not requested"
+        return
+    var plan: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+    if not plan is Dictionary:
+        talent_status = "invalid source plan"
+        return
+    talent_status = "applying"
+    var controller = load("res://tests/bot_harness_talents.gd").new()
+    var receipt: Dictionary = await controller.apply_plan(self, plan)
+    var file := FileAccess.open(output.path_join("native-talents.json"), FileAccess.WRITE)
+    if file == null:
+        talent_status = "cannot write talent receipt"
+        push_error(talent_status)
+        return
+    file.store_string(JSON.stringify(receipt))
+    file.close()
+    talent_status = "blocked" if receipt.has("error") else "observed"
 
 func select_nearest() -> void:
     var event := InputEventKey.new()

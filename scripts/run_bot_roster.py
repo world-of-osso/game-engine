@@ -108,7 +108,8 @@ def native_ready(state, spec, requires_authored):
     player_ready = state["account"].get("gameplay_input_allowed") and state["spells"]["spec"] == spec
     evaluator_ready = not requires_authored or (state["assisted"].get("available", False) and state["spells"].get("catalog_ready", False))
     target = state["target"]
-    return bool(player_ready and evaluator_ready and target.get("target_name") == "Training Dummy")
+    talent_ready = state.get("talent_status") == "observed"
+    return bool(player_ready and evaluator_ready and talent_ready and target.get("target_name") == "Training Dummy")
 
 
 def wait_native(args, output, bot):
@@ -153,6 +154,7 @@ def run_bot(args, bot):
         "XDG_RUNTIME_DIR": str(output / "runtime"), "XDG_DATA_HOME": str(output / "userdata"),
         "XDG_CACHE_HOME": str(output / "cache"), "BOT_HARNESS_OUTPUT": str(output),
         "BOT_HARNESS_SPEC": str(bot["spec"]), "ASSET_RESOLVER_SHARED_DATA_DIR": str(args.engine / "data"),
+        "BOT_HARNESS_TALENTS": str(output / "talent-plan.json"),
         "GODOT_BIN": str(args.godot), "ASSET_RESOLVER_CACHE_DIR": str(args.output / "resolver"),
         "GAME_ENGINE_ASSET_MODE": "extracted-only",
     }

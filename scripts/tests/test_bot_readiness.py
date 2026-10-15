@@ -15,6 +15,8 @@ class NativeReadinessTests(unittest.TestCase):
         self.assertNotEqual(state["target"]["target"], state["target"]["server_target"])
         self.assertFalse(run_bot_roster.native_ready(state, 62, True))
         state["spells"]["catalog_ready"] = True
+        self.assertFalse(run_bot_roster.native_ready(state, 62, True))
+        state["talent_status"] = "observed"
         self.assertTrue(run_bot_roster.native_ready(state, 62, True))
         verified = "Training Dummy (entity 4294959692) level 30 health 13137/13137 difficulty 0"
         self.assertEqual(run_bot_roster.verified_dummy_target(state, verified), 4294959692)
