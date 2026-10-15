@@ -61,19 +61,19 @@ pub(super) fn sync_passenger(
 
 pub(super) fn seat_passenger(
     unit: &mut UnitNode,
-    mounts: &HashMap<u64, Gd<Node3D>>,
+    vehicles: &HashMap<u64, Gd<Node3D>>,
 ) -> Result<(), String> {
     let Some(passenger) = &unit.passenger else {
         return Ok(());
     };
-    let Some(mount) = mounts.get(&passenger.state.driver) else {
+    let Some(vehicle) = vehicles.get(&passenger.state.driver) else {
         return Ok(());
     };
     let Some(visual) = unit.visual.as_mut() else {
         return Ok(());
     };
     let id = passenger.definition.attachment;
-    let attachment = mount
+    let attachment = vehicle
         .try_get_node_as::<Node3D>(&format!(
             "NpcModel/Skeleton3D/AttachmentBone{id}/Attachment{id}"
         ))

@@ -1396,19 +1396,20 @@ impl WorldUnits {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
             mount::seat_rider(unit);
         }
-        let mounts: HashMap<_, _> = self
+        let vehicles: HashMap<_, _> = self
             .units
             .iter()
             .filter_map(|(&id, unit)| {
-                unit.mount
-                    .as_ref()?
-                    .node
-                    .as_ref()
-                    .map(|node| (id, node.clone()))
+                let host = if unit.is_player {
+                    unit.mount.as_ref()?.node.as_ref()
+                } else {
+                    unit.visual.as_ref()
+                };
+                host.map(|node| (id, node.clone()))
             })
             .collect();
         for unit in self.units.values_mut() {
-            if let Err(error) = mount::seat_passenger(unit, &mounts) {
+            if let Err(error) = mount::seat_passenger(unit, &vehicles) {
                 godot_error!("Passenger attachment: {error}");
             }
         }
