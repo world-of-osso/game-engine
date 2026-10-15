@@ -6,7 +6,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 - [x] Member details show authoritative name, class/level, rank, public note and permitted officer note. Unknown zone and exact last-online times must not be invented. Public notes populate the roster Note column independently of officer text.
 - [x] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
-- [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Popup target remains the member selected when editing began even if roster selection subsequently changes. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
+- [x] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Popup target remains the member selected when editing began even if roster selection subsequently changes. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
 - [x] Both note types survive durable database close/reopen, preserving existing officer records. Leave/removal deletes both before rejoin. Native relog remains a separate acceptance boundary below.
 - [ ] Group Invite uses the actual group service. Remove requires Mainline `REMOVE_GUILDMEMBER` Yes/No confirmation with the captured member, rechecks existing hierarchy authority on Yes, and closes the detail only after confirmation. No/Escape sends nothing; closing the guild window discards the popup. Physical native proof remains required.
 
@@ -33,7 +33,8 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 ## Known gaps (current cycle)
 
-- [ ] Native checks and both-skin private5891 live/relog PNG acceptance. Current combined engine gate at067b5bfc4 passes28 UI/decision tests and4 actualUDP guild tests, including both note requests and public_note/is_self snapshot fields. Server guild subset passes11/11 at10c5d019, including durable reopen/privacy/rank rights. Earlier --lib0-test invocation is not proof.
+- [x] Both-skin private5891 master/self/restart-readback: six physical native runs pass at engineaa77c226b, serverbd3a121e, protocol671fe2f; .so SHA256 prefixf06f87 is embedded in distinct skin-specific notes. Fourteen1920×1080 PNGs inspected in `/syncthing/AgentShared/2026-10-15/guild-completion/`: detail, public/officer input, removal confirmation, self privacy and restart readback in each skin. Note Escape and Remove No/Escape send nothing. Actual server process restarts preserve both note types.
+- [ ] Final merged-head checks. UI22/22 atbea14a77f covers notes/removal capture and cancellation; earlier actualUDP4 passes both note requests and public_note/is_self fields. Server guild11/11 at10c5d019 covers durable reopen/privacy/rank rights; later Guild Master migration fix has a separate targeted proof. Earlier --lib0-test invocation is not proof.
 - [ ] Source direct rank-assignment dropdown, online zone and elapsed-last-online metadata.
 
 ## Out of scope
