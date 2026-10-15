@@ -1,6 +1,9 @@
 ## 2026-10-14 — Cleanup cursor tooltip
 
 [Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
+## 2026-10-14 — Tutorials source presentation implementation
+
+[Adventure Guide](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) records Retail art/anchors, shared Morpheus and disabled Start Experience authority boundary; focused layout4/4 and four inspected both-skin native captures. Registered native check/format pass; shared ui-toolkit3a715d9 must land first. RPE authority remains missing.
 
 ## 2026-10-14 — Shared Cleanup controls
 
