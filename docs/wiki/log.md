@@ -6,6 +6,10 @@
 
 [Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
 
+## 2026-10-14 — Empty purchased-bank sample correction
+
+[Bank sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14): capture supplied zero capacity, not a purchased-but-empty tab. One selected tab/98None repairs the fixture; native both-skin count0 RED→98GREEN, source geometry/background/no-icon assertions and inspected1920×1080 before/after proof. Production bank/purchase behavior unchanged; build/check/format pass. No live-server claim.
+
 ## 2026-10-14 — Shared window tiling implementation
 
 [Shared window tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment): source-one-region origin and streak anchors, paired toolkit repeat attributes, genuine RED→GREEN toolkit1/source6 and twelve scoped golden blocks. Source/Quest/small-window3 plus unchanged character golden1 pass; merged engine/network check and extension build pass. Native10PASS, eight inspected both-skin before/after window pairs, two comparisons and byte-identical Raid controls. Captured binaryc8c2d819f/toolkit06eb00c; unrelated later Housing merge excluded from pixel revision. No server, whole-tree or every-caller acceptance claim.
