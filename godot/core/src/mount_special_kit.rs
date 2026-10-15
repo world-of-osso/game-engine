@@ -249,6 +249,13 @@ impl KitTimeline {
                     segment.id
                 ));
             }
+            let held = segment.end_condition == 1 || segment.loop_to == segment.order as i32;
+            if !held && segment.offset_ms >= duration_ms {
+                return Err(format!(
+                    "AnimKit segment {}: one-shot offset {} exceeds clip duration {duration_ms}; native interpretation is a named gap",
+                    segment.id, segment.offset_ms
+                ));
+            }
             let start_ms = match segment.start_condition {
                 0 => 0.0,
                 1 => reference(&resolved, segment.start_reference)?.start_ms,

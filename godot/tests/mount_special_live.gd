@@ -5,7 +5,7 @@ var proof_dir := OS.get_environment("MOUNT_SPECIAL_PROOF")
 var role := OS.get_environment("MOUNT_SPECIAL_ROLE")
 var actor_name := OS.get_environment("MOUNT_SPECIAL_ACTOR")
 var proof_skin := OS.get_environment("MOUNT_SPECIAL_SKIN")
-var mounts := [[18, "Chestnut Mare"], [129, "Golden Gryphon"], [1312, "Gargantuan Grrloc"]]
+var mounts := [[18, "Chestnut Mare"], [129, "Golden Gryphon"], [1532, "Soaring Spelltome"]]
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
