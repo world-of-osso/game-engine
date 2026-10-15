@@ -61,6 +61,19 @@ func _run() -> void:
 	print("TALENT_IMPORT_EXPORT_LIVE_PASS ", skin)
 	quit(0)
 
+func login(endpoint: String) -> void:
+	var error: String = client.connect_account(endpoint, OS.get_environment("TALENT_LOADOUT_ACCOUNT"), OS.get_environment("TALENT_LOADOUT_PASSWORD"), false)
+	if not error.is_empty():
+		abort(error)
+		return
+	await wait_screen("CharacterSelect")
+	await click("EnterWorld")
+	await wait_screen("InWorld")
+	await create_timer(5.0).timeout
+	await key(KEY_N)
+	await control("TalentLoadoutDropDown")
+	await frames(30)
+
 func open_import() -> void:
 	await menu()
 	await click("TalentImportLoadout")
