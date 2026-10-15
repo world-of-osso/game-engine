@@ -484,6 +484,11 @@ impl GameClient {
             crate::unit_pick::pick_unit(&camera, point)
                 .filter(|id| self.housing.decor.contains(*id))
         };
+        godot_print!(
+            "CLEANUP_PICK point={point:?} picked={picked:?} blocked={} pending={}",
+            self.editor_ui_contains(point),
+            model.pending
+        );
         let point = point / self.effective_ui_scale();
         if let Some(model) = &mut self.housing.model {
             model
