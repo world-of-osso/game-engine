@@ -8,7 +8,7 @@
 
 ## 2026-10-14 — Shared window tiling implementation
 
-[Shared window tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment): source-one-region origin and streak anchors, paired toolkit repeat attributes, genuine RED→GREEN toolkit1/source6 and twelve scoped golden blocks. Final merged/native pixel proof pending admission; no whole-tree or every-caller acceptance claim.
+[Shared window tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment): source-one-region origin and streak anchors, paired toolkit repeat attributes, genuine RED→GREEN toolkit1/source6 and twelve scoped golden blocks. Source/Quest/small-window3 plus unchanged character golden1 pass; merged engine/network check and extension build pass. Native10PASS, eight inspected both-skin before/after window pairs, two comparisons and byte-identical Raid controls. Captured binaryc8c2d819f/toolkit06eb00c; unrelated later Housing merge excluded from pixel revision. No server, whole-tree or every-caller acceptance claim.
 
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
