@@ -559,3 +559,59 @@ fn keyframed_emission_area_follows_the_playing_sequence_time() {
     assert!(sim.particles().len() >= 10, "{}", sim.particles().len());
     assert!(spread > 5.0 && spread < 10.8, "spread {spread}");
 }
+
+/// Clean-room P1: independent style bits and independently authored atlas cells.
+#[test]
+fn particle_cleanroom_tail_styles_and_cells() {
+    let mut emitter = still_emitter(0);
+    emitter.emission_speed = 2.0;
+    emitter.tail_length = 0.5;
+    emitter.head_cell_keys = vec![(0.0, 0)];
+    emitter.tail_cell_keys = vec![(0.0, 3)];
+    let frame = Mat4::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(&emitter, 0.05, frame, Mat3::IDENTITY, 1.0);
+    for (flags, per_particle) in [(0x20000, 1), (0x40000, 1), (0x60000, 2)] {
+        emitter.flags = flags;
+        let mut quads = Vec::new();
+        sim.quads(&emitter, &camera(), &mut quads);
+        assert_eq!(quads.len(), sim.particles().len() * per_particle);
+        for (particle, output) in sim.particles().iter().zip(quads.chunks(per_particle)) {
+            if flags & 0x20000 != 0 {
+                assert_eq!(output[0].center, particle.position);
+                assert_eq!(output[0].cell_offset, Vec2::ZERO);
+            }
+            if flags & 0x40000 != 0 {
+                let tail = output.last().unwrap();
+                let back = -particle.velocity * 0.5;
+                assert!(tail.center.distance(particle.position + back * 0.5) < 1e-5);
+                assert!(tail.axis_x.distance(back * 0.5) < 1e-5);
+                assert_eq!(tail.cell_offset, Vec2::splat(0.5));
+                assert!(tail.axis_y.length() > 0.0);
+            }
+        }
+    }
+}
+
+#[test]
+fn particle_cleanroom_tail_age_clamp_and_view_parallel_velocity() {
+    let mut emitter = still_emitter(0);
+    emitter.flags = 0x40000 | 0x400;
+    emitter.emission_speed = 2.0;
+    emitter.tail_length = 0.5;
+    let frame = Mat4::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let mut sim = EmitterSim::new(&emitter, 11);
+    sim.update(&emitter, 0.05, frame, Mat3::IDENTITY, 1.0);
+    let mut quads = Vec::new();
+    sim.quads(&emitter, &camera(), &mut quads);
+    assert_eq!(quads.len(), sim.particles().len());
+    for (particle, quad) in sim.particles().iter().zip(&quads) {
+        let back = -particle.velocity * particle.age.min(emitter.tail_length);
+        assert!(quad.axis_x.distance(back * 0.5) < 1e-5);
+    }
+    // Velocity straight into the camera still has finite, nonzero tiny geometry.
+    let quad = one_quad(&emitter, Mat4::IDENTITY);
+    assert_eq!(quad.axis_x, Vec3::X * 0.5 * 0.05);
+    assert_eq!(quad.axis_y, Vec3::Y * 0.25 * 0.05);
+    assert!(quad.center.is_finite());
+}
