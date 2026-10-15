@@ -2,6 +2,9 @@
 
 - [Native summon lifetime proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15) — release Forever Scarab and quiet both-skin Flute expiry; prior debug failures, unresolved following/navigation and exact binary scopes retained.
 
+- [Empty purchased-bank audit sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14) — malformed zero-capacity sample corrected; both-skin98 native controls/backgrounds and no item icons, with before/after pixel proof; production and purchase prompt unchanged.
+- [Modern target cast source art](investigations/target-cast-source-art.md) — source background/textbox, cropped four-state fills and6×16 pip;9 focused regressions and inspected both-skin before/after samples, Forever byte-identical.
+- [Active housing mode no-op](systems/housing.md#active-mode-activation--implementation2026-10-15) — active pointer/assigned-key activation preserves Basic selection/owned preview and Expert staged render/list; both-skin hash-qualified native proof.
 - [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions pass, native Bashiok pixels pending.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
