@@ -18,15 +18,20 @@ func _run() -> void:
 	await frames(120)
 	await login(endpoint)
 	if OS.get_environment("TALENT_LOADOUT_PHASE") == "error-only":
-		await open_import()
+		await menu()
+		await capture("current-menu")
+		await click("TalentImportLoadout")
+		var preview_code := FileAccess.get_file_as_string("res://core/tests/fixtures/talent_mage_full.txt").strip_edges()
+		await type_code(preview_code)
+		await type_name("Preview")
+		await capture("current-import-dialog")
 		await type_code("bad!")
-		await type_name("Invalid")
 		await click("TalentLoadoutSave")
 		await control("TalentImportError")
 		if root.find_child("TalentError", true, false) != null:
 			abort("Import modal duplicated its error in the commit footer")
 			return
-		await capture("invalid-import")
+		await capture("current-invalid-import")
 		var receipt := FileAccess.open(directory.path_join(skin + "-error-only-proof.json"), FileAccess.WRITE)
 		receipt.store_string(JSON.stringify(evidence, "\t"))
 		receipt.close()
