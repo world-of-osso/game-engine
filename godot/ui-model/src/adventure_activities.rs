@@ -105,7 +105,7 @@ fn filter_controls(
             .then_with(|| a.name.cmp(&b.name))
     });
     let all = presentation::global("ALL");
-    let tags: Vec<_> = std::iter::once((0, all.as_str()))
+    let tags: Vec<_> = std::iter::once((0, all))
         .chain(tags.into_iter().map(|tag| (tag.id, tag.name.as_str())))
         .collect();
     let geometry = pixel_geometry(290., 20. + tags.len() as f32 * 22. - 2., 279.);
