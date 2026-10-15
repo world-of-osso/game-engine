@@ -469,6 +469,39 @@ mod tests {
     use crate::cache_sqlite::open_read_only;
 
     #[test]
+    fn import_authored_alpha_and_rebuild_older_catalog() {
+        let dir = std::env::temp_dir().join(format!("creature-alpha-{}", std::process::id()));
+        let csv = dir.join(crate::player_model_data::RETAIL_DB2_DIR);
+        std::fs::create_dir_all(&csv).unwrap();
+        std::fs::write(csv.join("CreatureDisplayInfo.csv"),
+            "ID,ModelID,CreatureModelScale,PetInstanceScale,CreatureModelAlpha,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n60051,141,1.2,1,175,4559680,0,0,0\n42,141,1,1,255,0,0,0,0\n43,141,1,1,0,0,0,0,0\n").unwrap();
+        std::fs::write(
+            csv.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale,CreatureGeosetDataID\n141,4559662,1,768\n",
+        )
+        .unwrap();
+        let path = import_creature_display_cache(&dir).unwrap();
+        let read_alphas = |conn: &Connection| {
+            conn.prepare("SELECT model_alpha FROM creature_displays ORDER BY display_id")
+                .unwrap()
+                .query_map([], |row| row.get::<_, u8>(0))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap()
+        };
+        let conn = Connection::open(&path).unwrap();
+        assert_eq!(read_alphas(&conn), [255, 0, 175]);
+        conn.execute("ALTER TABLE creature_displays DROP COLUMN model_alpha", [])
+            .unwrap();
+        drop(conn);
+        import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&path).unwrap();
+        assert_eq!(read_alphas(&conn), [255, 0, 175]);
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn import_ordinary_geoset_gate_and_rebuild_older_catalog() {
         let dir = std::env::temp_dir().join(format!("creature-geoset-gate-{}", std::process::id()));
         let csv = dir.join(crate::player_model_data::RETAIL_DB2_DIR);
