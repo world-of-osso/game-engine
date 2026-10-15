@@ -16,6 +16,12 @@ The `game-server/crates/shared/` crate is depended on by both sides. It defines 
 - `MovementChannel` — unreliable, for position updates
 - `CombatChannel` / `ChatChannel` — reliable ordered
 
+## Initial local-player facing (2026-10-15)
+
+Current-master native49 receives the fresh human Mage's source TDB orientation5.10444 correctly: first root yaw is0.392051 modulo2pi (wire yaw is source+pi/2), retained through60 observed frames. Entering gameplay later replaces that pose because `UnitMotion::new` initializes prediction facing toPI; `gameplay.rs` applies that state as render yaw minuspi/2 on every prediction frame, including idle. Initialize prediction facing from the same authoritative initial yaw already used by the root. Later local turns and controlled/forced-facing authority are unchanged.
+
+The real private5911 replication RED is `forever-native49-replication-matched/receipts.json`; the focused regression fails PI versus6.6752367 (`facing50-unit-red.log`). Bao and Spirit Healer first-root yaws independently match their static source spawn rows within4e-7rad (`native49-static-npc-first-rotation.json`): this is a local prediction initialization bug, not universal NPC orientation failure. No turn/movement workaround is used. Native post-fix confirmation remains pending. [Contract](../../specs/player-movement-sync.md); [Toy consumer](toy-box.md#source-creature-opacity-2026-10-15).
+
 ## Application network cadence and dispatch
 
 `NetworkTick` remains a main-world 60 Hz logical application cadence, while live Lightyear work runs in a separately clocked 60 Hz worker per connection. UDP, transport timers, replication, and typed receive continue while rendering or the main world is blocked. Main receive/apply/send dispatch plus reconnect/reset lifecycle work run only on `NetworkTick`, not every rendered update. The authoritative client/server simulation remains negotiated at 20 Hz; neither clock changes wire formats or simulation rate.

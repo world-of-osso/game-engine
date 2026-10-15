@@ -166,7 +166,7 @@ impl UnitMotion {
             adopted_epoch: None,
             forced_facing: None,
             adopted_facing_epoch: None,
-            facing_yaw: PI,
+            facing_yaw: yaw,
         }
     }
 

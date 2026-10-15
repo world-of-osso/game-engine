@@ -1,3 +1,7 @@
+## 2026-10-15 — Initial local-player facing
+
+[Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently; native GREEN pending, no turn stimulus.
+
 ## 2026-10-15 — AH duration source menu
 
 Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
