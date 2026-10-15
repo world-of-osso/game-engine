@@ -96,6 +96,7 @@ class DepotBuildTests(unittest.TestCase):
             )
             self._put(self.root, f"vendor/{crate}/src/lib.rs", "vendored patch")
         self._put(self.root, "vendor/taffy/README.md", "required compile include")
+        self._put(self.root, "godot/shaders/m2_ribbon.gdshader", "ribbon shader")
         self._put(self.root, "src/legacy.rs", "retired root crate")
         self._put(self.root, "data/private.rs", "private")
         self._put(self.root, "data/models/boar.m2", "boar model")
@@ -285,6 +286,9 @@ class DepotBuildTests(unittest.TestCase):
         self.assertNotIn(prefix + "godot/core/src/deleted.rs", files)
         self.assertEqual(
             files[prefix + "vendor/taffy/README.md"], "required compile include"
+        )
+        self.assertEqual(
+            files[prefix + "godot/shaders/m2_ribbon.gdshader"], "ribbon shader"
         )
         for crate in ("taffy", "ktx2-rw"):
             self.assertEqual(
