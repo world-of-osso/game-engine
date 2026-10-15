@@ -1,7 +1,13 @@
+## 2026-10-15 — Pet queue caption tag
+
+[Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
 ## 2026-10-15 — Initial local-player facing
 
 [Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently. GREEN9c0927eb8:12 focused world controls, matched current both-skin native Bashiok front placement/opacity/non-follow and inspected1920×1080 body images; no turn stimulus. Wall removal60501/60641ms unqualified at PSI2.42.
 
+## 2026-10-15 — Complete equipped-item material graph
+
+[Typed material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) explains preview6256534→6153788 failures: M2/base material audit omitted per-model type3/4 overrides. Fresh ten-item inventory/current70391 source selection stages43/43 authenticated assets with duplicate0; canonical selected24/43. Lead publication requested; no native-clear claim.
 ## 2026-10-15 — AH duration source menu
 
 Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua width/font/alignment preserved locally. [Source and bounded proof](systems/auction-house-ui.md#duration-source-composition--2026-10-15): RED2→GREEN10, four inspected both-skin full-HD native after samples plus before controls; no fresh server/trading/persistence acceptance.
@@ -3908,6 +3914,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 - 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
 
+## 2026-10-15 — Traveler’s Log source rows
+
+Ported authored parent/child geometry, tree disclosure and successor promotion; central activity tooltip and physical Shift tracking request routing replace invented details/Track controls. Focused13/13 GREEN after row/search/navbar and criterion-diagnostic REDs. The086 tooltip diagnostics were rejected; corrected066/0a/731 native in both skins keeps source text/known progress only, including child81/tree140979. Genuine6→81 tree, Options overflow and Shift tracking938 ACK0→1→0 still pass; ten corrected full-HD PNGs inspected. See [system](systems/adventure-guide.md#travelers-log--bounded-native-source-proof).
 ## 2026-10-15 — Player-bot detector
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.

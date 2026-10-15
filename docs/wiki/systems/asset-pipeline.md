@@ -73,6 +73,14 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 
 `771c1f5f` uses the existing local `CascListfileResolver` cache path for a native creature-model helper: model FDID → `.m2`, primary M2 SFID → adjacent `00.skin`, optional SKID → adjacent `.skel`, then parsed render-batch/explicit creature-slot texture FDIDs → `.blp`. The helper is not yet attached to native world-unit spawning.
 
+## Equipped-item material closure — verified 2026-10-15
+
+M2 `TXID` and `ItemDisplayInfo.ModelMaterialResourcesID_*` do not exhaust an equipped model's textures. `ItemDisplayInfoModelMatRes` supplies additional `(display, model column, TextureType, MaterialResourcesID)` overrides; resolve each through `TextureFileData` and the same authored race/sex selection as the runtime. Sfkgeared's head/shoulders require types3/4 textures6256534/6153788/6310348/6153800, omitted by the earlier M2-chain audit. Native preview accepted6256534, then exposed6153788; no combat or clear was proved.
+
+A fresh private inventory audit identified ten equipped items. Active70391 source joins and Human-male/shoulder-side selection produce43 assets:4M2,13skins,26BLP. Every staged file matches its installed334a36cf5f3c32a5f7a167405487fa14 CASC content key and SHA256 receipt. The earlier41 included two female-only body variants; the actual male selection uses3946811/3946819 instead of3946810/3946818. Private validation covers43/43 bytes and metadata, duplicate0. Canonical has24/43, missing19 runtime receipts/products; publication remains lead-owned. These are equipped-item graph proofs, not rendered-character, full-instance or native-clear acceptance.
+
+Evidence: `data/diagnostics/encounter-coverage-2026-10-12/native-shadowfang-20261015/equipment-closure-{manifest,proof,private-validation}.json`; reproducible private `prepare-equipment-closure.py`, actual `equipment-current.log`, and `client-{b,c}.log`. Sources: [material resolver](../../../godot/core/src/game/equipment/outfit_catalog.rs), [typed material rows](../../../godot/core/src/game/equipment/item_model_material_data.rs), [component selection](../../../godot/core/src/game/equipment/component_file_data.rs). [Product receipt contract](../../specs/product-isolated-model-assets.md) remains unchanged.
+
 ## Asset Naming
 
 - `data/textures/{fdid}.blp` — BLP textures
