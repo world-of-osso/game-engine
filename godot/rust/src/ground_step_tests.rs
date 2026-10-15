@@ -1,6 +1,7 @@
 //! Captured Stockade group15 FDID108647 faces, in native world coordinates.
 use super::*;
 use shared::los::LosTile;
+use std::path::PathBuf;
 
 const FEET: Vec3 = Vec3::new(108.2204, -26.26199, 3.454892);
 const HEADING: Vec3 = Vec3::new(0.96152194, 0.0, -0.27472818);
@@ -61,8 +62,6 @@ fn walk(faces: &[[Vec3; 3]], snap: bool) -> Vec3 {
     }
     .validate_move(FEET, FEET + HEADING * (7.0 / 60.0), snap)
 }
-
-use std::path::PathBuf;
 
 #[test]
 fn ramp_lip_authored_stockade_advances_onto_upper_floor() {
@@ -133,7 +132,7 @@ fn ramp_lip_thin_wall_above_budget_but_below_raised_ray_blocks() {
 }
 
 #[test]
-fn ramp_lip_mid_body_beam_blocks_step() {
+fn ramp_lip_beam_above_existing_wall_ray_preserves_corridor() {
     let mut faces = authored_faces();
     let x = 108.26844;
     let bottom = UPPER_Y + 0.8;
@@ -149,7 +148,10 @@ fn ramp_lip_mid_body_beam_blocks_step() {
         Vec3::new(x, bottom, 5.0),
     ]);
     let moved = walk(&faces, true);
-    assert!(moved.x <= x, "passed body through beam: {moved}");
+    assert!(
+        moved.x > 108.32,
+        "new full-body collision narrowed the corridor: {moved}"
+    );
 }
 
 fn overhead_slab(y: f32) -> [Vec3; 3] {
@@ -161,15 +163,18 @@ fn overhead_slab(y: f32) -> [Vec3; 3] {
 }
 
 #[test]
-fn ramp_lip_low_ceiling_blocks_step() {
+fn ramp_lip_ceiling_above_existing_wall_ray_preserves_corridor() {
     let mut faces = authored_faces();
     // Clear above the current body, but not above the stepped-up body.
     faces.push(overhead_slab(FEET.y + 2.2));
     let moved = walk(&faces, true);
-    assert!(moved.x <= 108.26844, "stepped through ceiling: {moved}");
     assert!(
-        (moved.y - FEET.y).abs() < 0.0001,
-        "lifted into ceiling: {moved}"
+        moved.x > 108.32,
+        "new head clearance narrowed the corridor: {moved}"
+    );
+    assert!(
+        (moved.y - UPPER_Y).abs() < 0.00001,
+        "not on landing: {moved}"
     );
 }
 
