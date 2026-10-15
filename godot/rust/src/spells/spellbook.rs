@@ -555,6 +555,12 @@ impl GameClient {
         }
         if let Some(text) = self.account.talents.take_loadout_export() {
             godot::classes::DisplayServer::singleton().clipboard_set(&text);
+            self.spells.talent_export_clipboard = Some(text);
+            // ClassTalentsFrame.lua549–550; GlobalStrings49523.
+            game_engine_ui_model::chat_frame::add_system_line(
+                &mut self.chat.model.log,
+                "Loadout code copied to clipboard.",
+            );
         }
         if let Some(request) = self.account.talents.take_loadout_request() {
             self.account.send_trait_loadout(request)?;

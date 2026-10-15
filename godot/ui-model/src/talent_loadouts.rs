@@ -68,6 +68,25 @@ impl TalentEditor {
         self.error_text = None;
         Ok(())
     }
+    /// ClassTalentsFrame.lua560–565: committed config, no spendable main/hero points.
+    pub fn can_export(&self, view: &TalentView) -> bool {
+        let (Some(snapshot), Some(tree)) = (&self.snapshot, &view.rules) else {
+            return false;
+        };
+        if self.dirty() || self.loadout_busy || tree.tree_id != snapshot.tree_id {
+            return false;
+        }
+        let main_unspent = self.unspent(view).into_iter().any(|(id, amount)| {
+            amount > 0
+                && tree
+                    .currencies
+                    .iter()
+                    .any(|currency| currency.id == id && currency.flags & 12 != 0)
+        });
+        let mut current = view.clone();
+        current.editor = self.clone();
+        !main_unspent && current.hero_points() == 0
+    }
     pub fn take_loadout_export(&mut self) -> Option<String> {
         self.loadout_export.take()
     }
@@ -82,6 +101,9 @@ impl TalentEditor {
         }
         match command {
             "_export" => {
+                if !self.can_export(view) {
+                    return Ok(());
+                }
                 self.loadout_export = Some(self.export_loadout(view, level)?);
                 self.loadout_menu = false;
             }

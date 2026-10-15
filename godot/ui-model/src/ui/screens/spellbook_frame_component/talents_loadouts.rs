@@ -58,7 +58,7 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             "TalentExportLoadout",
             "Copy to Clipboard",
             "talent:loadout_export",
-            enabled && view.editor.snapshot.is_some(),
+            view.editor.can_export(view),
         ),
     ] {
         rows.extend(sentinel_row(

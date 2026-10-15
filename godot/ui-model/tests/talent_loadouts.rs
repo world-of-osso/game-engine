@@ -243,10 +243,37 @@ fn talent_loadouts_ignore_list_from_other_spec() {
 #[test]
 fn talent_loadouts_import_export_roundtrip_queues_authoritative_create_only() {
     let mut state = state();
-    stage_talent_preview(&mut state).unwrap();
+    let view = state.talents.as_mut().unwrap();
+    let tree = view.rules.as_ref().unwrap();
+    let context = game_engine_core::talent_data::rules::TraitContext {
+        spec_id: 62,
+        level: 80,
+    };
+    let config = game_engine_core::talent_data::loadout_string::decode(
+        tree,
+        context,
+        include_str!("../../core/tests/fixtures/talent_mage_full.txt").trim(),
+    )
+    .unwrap();
+    let mut expected: Vec<_> = config
+        .iter()
+        .map(|entry| shared::protocol::TraitEntrySelection {
+            node_id: entry.node_id,
+            entry_id: entry.entry_id,
+            rank: entry.total() as u8,
+        })
+        .collect();
+    expected.sort_by_key(|entry| (entry.node_id, entry.entry_id));
+    view.editor
+        .receive_snapshot(shared::protocol::TraitConfigSnapshot {
+            spec_id: 62,
+            tree_id: tree.tree_id,
+            entries: expected.clone(),
+            unspent: game_engine_core::talent_data::rules::unspent(tree, context, &config),
+        });
     let view = state.talents.as_ref().unwrap();
     let mut editor = view.editor.clone();
-    let expected = editor.apply().unwrap().entries;
+    assert!(editor.can_export(view));
     editor.action(view, 80, "talent:loadout_export").unwrap();
     let text = editor.take_loadout_export().unwrap();
     assert!(editor.take_loadout_request().is_none());
@@ -332,4 +359,16 @@ fn talent_loadouts_import_dialog_has_retail_fields_limits_and_shared_geometry() 
         };
         assert_eq!(name.max_letters, Some(30));
     }
+}
+
+#[test]
+fn talent_loadouts_retail_export_disallows_drafts_and_unspent_points() {
+    let state = state();
+    let view = state.talents.as_ref().unwrap();
+    assert!(!view.editor.can_export(view));
+    let mut state = state.clone();
+    stage_talent_preview(&mut state).unwrap();
+    let view = state.talents.as_ref().unwrap();
+    assert!(view.editor.dirty());
+    assert!(!view.editor.can_export(view));
 }
