@@ -13,5 +13,6 @@
   "roster": "Selected columns retaining every unmodified installed row from active ChrSpecialization, ChrClasses, CharBaseInfo.",
   "native_target_pending": "Own private5871 mvp-dummy1/62/native-state.json, selected account readiness fields plus unmodified spells/target/assisted; predicted dummy4294959692 while server still acknowledged4294959694.",
   "native_ret": "Actual owned UDP5871 mvp-dummy2/70/run-001; unmodified full combat lines plus manifest identity/window/submitted attempts. Known unfulfilled20271 request1792056099829 has an elapsed response deadline and no CastSuccess in its window. Not an injected request.",
-  "talents": "Installed active TraitTreeLoadout/Entry991 plus linked nodes/entries/definition SpellID projections. NumPoints cumulative target rank verified against pinned TC a352b1fa TraitMgr::InitializeStarterBuild (blob10ff78b0d921b36f7d7cb91e632eea7d69c9cca8 matches cached file)."
+  "talents": "Installed active TraitTreeLoadout/Entry991 plus linked nodes/entries/definition SpellID projections. NumPoints cumulative target rank verified against pinned TC a352b1fa TraitMgr::InitializeStarterBuild (blob10ff78b0d921b36f7d7cb91e632eea7d69c9cca8 matches cached file).",
+  "native_ambient_death": "Unmodified death line from own talents-native1/70/run-001: bot4294739522 killed ambientNPC4294959697 at1792057507198; no bot death."
 }

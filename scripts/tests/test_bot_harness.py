@@ -43,6 +43,15 @@ class BotHarnessTests(unittest.TestCase):
         self.assertEqual(report["dps"], expected / 6)
         self.assertGreater(expected, 0)
 
+    def test_killed_ambient_npc_is_not_reported_as_a_bot_or_follower_death(self):
+        events = harness.parse_combat((FIXTURE.parent / "native-ambient-death.log").read_text())
+        self.run.update(actor="4294739522", start_ms=1792057507000, end_ms=1792057508000)
+        report = harness.analyze(self.run, events)
+        self.assertFalse(any(f["kind"] == "death" for f in report["findings"]))
+        self.run["party_actors"] = ["4294959697"]
+        report = harness.analyze(self.run, events)
+        self.assertIn({"kind": "death", "actor": "4294959697", "at_ms": 1792057507198}, report["findings"])
+
     def test_aborted_observation_does_not_call_pending_request_missing(self):
         self.run["observed_until_ms"] = 1791992756100
         report = harness.analyze(self.run, self.events)
