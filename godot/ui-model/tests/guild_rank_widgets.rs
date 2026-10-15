@@ -854,7 +854,8 @@ fn guild_communities_retail_scroll_reaches_last_member_both_skins() {
         let row = reg.get(reg.get_by_name("GuildMember31").unwrap()).unwrap();
         assert_eq!((row.width.value(), row.height.value()), (592.0, 20.0));
         session.click(&action(&reg, "GuildMember31"), &Default::default());
-        assert_eq!(session.member_menu.as_deref(), Some("Member31"));
+        assert_eq!(session.member_detail.as_deref(), Some("Member31"));
+        assert_eq!(session.member_menu, None);
         assert_eq!(text(&reg, "GuildMember31Name"), "Member31");
         assert_eq!(text(&reg, "GuildMember31Rank"), "Member");
         for (name, top, action_name) in [
