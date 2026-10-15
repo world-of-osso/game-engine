@@ -543,7 +543,7 @@ impl GameClient {
         bind_sheet_light(&model);
         let model = if let Some(mount) = &self.trading_post.mount {
             let animation = if mount.is_self_mount() {
-                618
+                mount_preview::SELF_MOUNT_ANIMATION
             } else {
                 mount.actors["mount"].animation
             };
@@ -667,7 +667,7 @@ impl GameClient {
             .ok_or("Trading Post rider animation owner missing")?;
         animation
             .bind_mut()
-            .play_clip(crate::world_mount::ANIM_MOUNT, true)?;
+            .play_clip(mount_preview::RIDER_ANIMATION, true)?;
         bind_sheet_light(rider);
         let model = group
             .try_get_node_as::<godot::classes::Node3D>("MountActor/NpcVisualRoot")

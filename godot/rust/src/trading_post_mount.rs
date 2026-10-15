@@ -6,7 +6,11 @@ use godot::{
     prelude::*,
 };
 
-pub(super) const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
+// AnimationData91 (Mount), matching the existing world-mounted seated pose.
+pub(super) const RIDER_ANIMATION: u16 = 91;
+// PerksProgramModel.lua MOUNT_SELF_IDLE_ANIM.
+pub(super) const SELF_MOUNT_ANIMATION: u16 = 618;
+const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
 
 fn stage_actor(
     name: &str,
