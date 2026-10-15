@@ -171,6 +171,20 @@ fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
 }
 
 #[test]
+fn shared_panel_art_keeps_xml_12px_caps_when_callers_change_height() {
+    for height in [21.0, 24.0, 30.0] {
+        let frame = button(ButtonData {
+            normal_texture: Some(TextureSource::FileDataId(130828)),
+            ..Default::default()
+        });
+        let images = project_images(&frame, 245.0, height);
+        assert_eq!(images[0].rect, [0.0, 0.0, 12.0, height]);
+        assert_eq!(images[1].rect, [12.0, 0.0, 221.0, height]);
+        assert_eq!(images[2].rect, [233.0, 0.0, 12.0, height]);
+    }
+}
+
+#[test]
 fn portrait_party_desaturated_health_projects_sampled_image_desaturation() {
     let mut frame = Frame::new(
         1,
