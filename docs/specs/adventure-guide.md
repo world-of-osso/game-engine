@@ -1,6 +1,6 @@
 # Adventure Guide
 
-Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern and Forever display the same controls; Forever changes art only.
+Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern and Forever display the same controls; Forever changes art only. Authored Morpheus labels use the published `data/fonts/MORPHEUS.TTF` (FDID615962), not a substitute typeface; shared `GameFont` owns font filenames for native loading and text measurement.
 
 ## Retail layout contract
 
