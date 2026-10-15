@@ -1286,6 +1286,132 @@ fn guild_event_log_opens_from_info_and_closes_independently_both_skins() {
 }
 
 #[test]
+fn guild_event_log_renders_real_newest_entries_and_keeps_rank_authority_independent_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(2));
+        session.click("guild:log_open", &Default::default());
+        assert_eq!(
+            session.commands,
+            vec![game_engine_ui_model::guild_ranks::GuildCommand::QueryEventLog]
+        );
+        assert!(session.log_waiting);
+        assert!(!session.awaiting_state);
+        assert!(
+            mounted(&session)
+                .get_by_name("CommunitiesGuildLogEntry0Row0Run0")
+                .is_none()
+        );
+        session.awaiting_state = true; // Independent rank request already in flight.
+        let reply = GuildEventLog {
+            events: vec![
+                GuildEvent {
+                    timestamp: 100,
+                    kind: GuildEventKind::Join {
+                        member: "Ada".into(),
+                    },
+                },
+                GuildEvent {
+                    timestamp: 200,
+                    kind: GuildEventKind::Quit {
+                        member: "Ben".into(),
+                    },
+                },
+            ],
+            server_time: 260,
+            error: None,
+        };
+        session.apply_event_log(reply.clone());
+        assert!(!session.log_waiting);
+        assert!(
+            session.awaiting_state,
+            "A log reply cannot permit another rank write"
+        );
+        let reg = mounted(&session);
+        assert_eq!(
+            text(&reg, "CommunitiesGuildLogEntry0Row0Run0"),
+            "Ben leaves the guild"
+        );
+        assert_eq!(
+            text(&reg, "CommunitiesGuildLogEntry0Row0Run1"),
+            "   ( 1 min ago )"
+        );
+        assert_eq!(
+            text(&reg, "CommunitiesGuildLogEntry1Row0Run0"),
+            "Ada joins the guild"
+        );
+        assert!(session.dismiss_subdialog());
+        session.apply_event_log(reply);
+        assert!(
+            !session.log_open,
+            "Late query reply cannot reopen a closed log"
+        );
+        let mut removed = state(u8::MAX);
+        removed.ranks.clear();
+        removed.members.clear();
+        session.apply(removed);
+        assert!(
+            session.event_log.is_none(),
+            "Leaving clears member-only history"
+        );
+    }
+}
+
+#[test]
+fn guild_event_log_formats_only_the_six_source_lifecycle_kinds() {
+    use game_engine_ui_model::guild_event_log::event_text;
+    for (event, expected) in [
+        (
+            GuildEventKind::Invite {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+            },
+            "Ada invites Ben",
+        ),
+        (
+            GuildEventKind::Join {
+                member: "Ben".into(),
+            },
+            "Ben joins the guild",
+        ),
+        (
+            GuildEventKind::Promote {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+                rank: "Veteran".into(),
+            },
+            "Ada promotes Ben to Veteran",
+        ),
+        (
+            GuildEventKind::Demote {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+                rank: "Member".into(),
+            },
+            "Ada demotes Ben to Member",
+        ),
+        (
+            GuildEventKind::Remove {
+                actor: "Ada".into(),
+                member: "Ben".into(),
+            },
+            "Ada removes Ben from the guild",
+        ),
+        (
+            GuildEventKind::Quit {
+                member: "Ben".into(),
+            },
+            "Ben leaves the guild",
+        ),
+    ] {
+        assert_eq!(event_text(&event), expected);
+    }
+}
+
+#[test]
 fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

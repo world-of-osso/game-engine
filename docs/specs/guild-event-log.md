@@ -18,7 +18,7 @@ Retail Mainline's member-only lifecycle history in Modern and Forever. Sources: 
 
 | Files | Role |
 |---|---|
-| `godot/ui-model/src/guild_ranks.rs` | Independent query/open/cache state |
+| `godot/ui-model/src/guild_ranks.rs`, `guild_event_log.rs` | Independent query/open/cache state and source log rendering |
 | `godot/rust/src/account.rs`, `lib.rs`, `guild_ranks.rs` | Typed GuildChannel command/reply to native session |
 | `godot/network/src/lib.rs` | Receives the typed event-log message |
 | shared-protocol `src/protocol/guild_rank_messages.rs` | Query and six-kind event payload |
@@ -26,11 +26,13 @@ Retail Mainline's member-only lifecycle history in Modern and Forever. Sources: 
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_rank_widgets.rs::guild_event_log_opens_from_info_and_closes_independently_both_skins` — source entry/dialog RED reproduced; GREEN pending.
-- Actual UDP, log content/scroll and native/restart tests remain pending.
+- `guild_event_log_renders_real_newest_entries_and_keeps_rank_authority_independent_both_skins` — actual reply text/order, pending-authority independence, late close and membership cleanup.
+- `guild_event_log_formats_only_the_six_source_lifecycle_kinds` — active GlobalStrings sentences.
+- Actual UDP, overflow scrolling and native/restart tests remain pending.
 
 ## Known gaps (current cycle)
 
-- [ ] Source dialog/list and atomic server lifecycle producers.
+- [ ] Source dialog/list and atomic server lifecycle producer GREEN.
 - [ ] End-to-end acceptance and merged-head gates.
 
 ## Out of scope
