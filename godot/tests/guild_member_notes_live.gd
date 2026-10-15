@@ -43,17 +43,18 @@ func run_test() -> void:
 		fail("Wrong roster target")
 		return
 	var mode := OS.get_environment("GUILD_NOTE_MODE")
+	var skin := OS.get_environment("GUILD_NOTE_SKIN")
 	if mode == "master":
-		if not await write_note(false, "Alchemy 100") or not await write_note(true, "Raid healer"):
+		if not await write_note(false, skin + " alchemy") or not await write_note(true, skin + " raid healer"):
 			return
 	elif mode == "self":
 		if shown("GuildMemberDetailOfficerNoteText"):
 			fail("Private officer note exposed to ordinary member")
 			return
-		if not await write_note(false, "Alchemy and cooking"):
+		if not await write_note(false, skin + " cooking"):
 			return
 	elif mode == "readback":
-		if text("GuildMemberDetailNoteText") != "Alchemy and cooking" or text("GuildMemberDetailOfficerNoteText") != "Raid healer":
+		if text("GuildMemberDetailNoteText") != skin + " cooking" or text("GuildMemberDetailOfficerNoteText") != skin + " raid healer":
 			fail("Restart/relog did not preserve both distinct notes")
 			return
 	else:
@@ -84,7 +85,8 @@ func write_note(officer: bool, value: String) -> bool:
 	await capture("officer-editor" if officer else "public-editor")
 	await tap(KEY_ENTER)
 	var target := "GuildMemberDetailOfficerNoteText" if officer else "GuildMemberDetailNoteText"
-	return await wait_until(func(): return text(target) == value and not shown("GuildMemberNoteEditBox"), "authoritative note reply")
+	var note_button := "GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote"
+	return await wait_until(func(): return text(target) == value and not shown("GuildMemberNoteEditBox") and shown(note_button) and not (control(note_button) as BaseButton).disabled, "authoritative note reply and edit re-enable")
 
 func select_skin(skin: String) -> bool:
 	if str(client.account_state().ui_skin) == skin:
