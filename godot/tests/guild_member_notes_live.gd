@@ -71,12 +71,14 @@ func enter_world(character: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 120000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		await RenderingServer.frame_post_draw
 		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null and not state.assets_starting:
+		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null and not state.assets_starting and shown("CharCard_0") and shown("EnterWorld"):
 			break
 	var ui = client.get_node_or_null("CharacterSelectUI")
-	if ui == null:
-		return fail("No character select: " + str(client.account_state()))
+	if ui == null or not shown("CharCard_0") or not shown("EnterWorld"):
+		await entry_diagnostic("not-interactive")
+		return fail("Character select controls not interactive: " + str(client.account_state()))
 	await entry_diagnostic("before-card")
 	await click(ui.find_child("CharCard_0", true, false))
 	await entry_diagnostic("after-card")
