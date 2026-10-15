@@ -649,7 +649,11 @@ impl GameClient {
                         "A preset talent build that's suitable for most content"
                     }
                     .into(),
-                    title_color: game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE,
+                    title_color: if export {
+                        game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE
+                    } else {
+                        game_engine_ui_model::tooltip_presentation::TOOLTIP_DESCRIPTION_COLOR
+                    },
                     ..TooltipPresentation::hidden()
                 },
                 None,
