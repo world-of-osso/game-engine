@@ -601,20 +601,30 @@ pub fn panel_button(
 
 /// Lines `text` takes when word-wrapped at `width` (explicit `\n` breaks kept).
 pub fn wrapped_line_count(text: &str, width: f32, font_size: f32) -> usize {
+    wrapped_line_count_with_font(text, width, GameFont::FrizQuadrata, font_size)
+}
+
+/// The same wrapping calculation for source templates using a different typeface.
+pub fn wrapped_line_count_with_font(
+    text: &str,
+    width: f32,
+    font: GameFont,
+    font_size: f32,
+) -> usize {
     if text.is_empty() {
         return 0;
     }
     text.split('\n')
-        .map(|paragraph| paragraph_line_count(paragraph, width, font_size))
+        .map(|paragraph| paragraph_line_count(paragraph, width, font, font_size))
         .sum()
 }
 
 /// Greedy word wrap measuring the original text between breaks, so runs of spaces
 /// (quest texts use two after a full stop) count like the renderer lays them out.
-fn paragraph_line_count(paragraph: &str, width: f32, font_size: f32) -> usize {
+fn paragraph_line_count(paragraph: &str, width: f32, font: GameFont, font_size: f32) -> usize {
     let measure = |s: &str| {
-        measure_text(s, GameFont::FrizQuadrata, font_size)
-            .expect("FrizQuadrata text measurement")
+        measure_text(s, font, font_size)
+            .expect("Authored font text measurement")
             .0
     };
     let word_ends: Vec<usize> = paragraph
