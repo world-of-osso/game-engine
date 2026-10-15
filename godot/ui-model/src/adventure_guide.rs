@@ -627,7 +627,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
     );
     body.extend(crate::adventure_guide_art::portrait(view));
     body.extend(crate::adventure_guide_art::navigation(view));
-    body.extend(crate::adventure_guide_art::search_box(&view.search));
+    if matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets) {
+        body.extend(crate::adventure_guide_art::search_box(&view.search));
+    }
     body.extend(crate::adventure_guide_art::bottom_tabs(view));
     body.extend(if view.loading {
         text(
@@ -649,7 +651,6 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
                 ctx,
                 view.activities.as_deref(),
                 &view.activity_filters,
-                &view.search,
             ),
             Tab::Suggested => {
                 crate::adventure_suggestions::suggested(ctx, view.activities.as_deref())

@@ -44,38 +44,39 @@ func first_visible_activity() -> Control:
 			return node
 	return null
 
-func search_activity(value: String) -> bool:
-	if not await click("EncounterJournalSearchBox"):
-		return false
-	for character in value:
-		var event := InputEventKey.new()
-		event.unicode = character.unicode_at(0)
-		event.pressed = true
-		Input.parse_input_event(event)
-		await process_frame
-	await settle()
-	return true
+func reveal_activity(name: String, direction: int = MOUSE_BUTTON_WHEEL_DOWN) -> bool:
+	for attempt in 40:
+		var row := control(name)
+		var viewport := control("EncounterJournalContent").get_global_rect()
+		if row != null and viewport.has_point(row.get_global_rect().get_center()):
+			return true
+		if not await wheel("EncounterJournalContent", direction):
+			return false
+	stop("Physical activity scroll did not reveal " + name)
+	return false
 
 func verify_tree(scale: float) -> bool:
-	if not await search_activity("Complete 5 Mythic+ Dungeons"):
+	if not await click("JournalActivityTag3") or not await reveal_activity("JournalActivity6"):
 		return false
-	verify(control("JournalActivity6") != null, "authored Mythic+ parent6 absent after search")
+	verify(control("JournalActivity6") != null, "authored Mythic+ parent6 absent in genuine Dungeons and Raids tag")
 	verify(control("JournalActivity81") == null, "source child81 must initially be collapsed")
 	if control("JournalActivity6") == null or not await click("JournalActivity6"):
 		return false
+	var parent_left := control("JournalActivity6").get_global_rect().position.x
+	if not await reveal_activity("JournalActivity81"):
+		return false
 	var child := control("JournalActivity81")
-	var parent := control("JournalActivity6")
 	verify(child != null, "physical parent click did not reveal source child81")
 	if child == null:
 		return false
 	verify(child.get_global_rect().size.distance_to(Vector2(521,48) * scale) < 2.0, "source child row521x48")
-	verify(absf(child.get_global_rect().position.x - parent.get_global_rect().position.x - 32.0 * scale) < 2.0, "source child indent32")
+	verify(absf(child.get_global_rect().position.x - parent_left - 32.0 * scale) < 2.0, "source child indent32")
 	if not await move_to("JournalActivity81") or not await shot("monthly-expanded-source-tree"):
 		return false
-	if not await click("JournalActivity6"):
+	if not await reveal_activity("JournalActivity6", MOUSE_BUTTON_WHEEL_UP) or not await click("JournalActivity6"):
 		return false
 	verify(control("JournalActivity81") == null, "physical parent collapse did not hide child81")
-	return await click("EncounterJournalSearchBoxClearButton")
+	return await click("JournalActivityTag0")
 
 func visible_filter_names() -> Array[String]:
 	var names: Array[String] = []
@@ -128,6 +129,7 @@ func run() -> void:
 		return
 	var scale := pane.get_global_rect().size.x / 792.0
 	verify(pane.clip_contents, "native monthly pane must clip authored overhang")
+	verify(control("EncounterJournalSearchBox") == null, "source Monthly tab must hide encounter search")
 	for entry in [["JournalMonthlyThresholdContainer", Rect2(46,74,663,33)], ["EncounterJournalFilterList", Rect2(5,137,220,290)], ["EncounterJournalContent", Rect2(241,138,521,291)]]:
 		var node := control(entry[0])
 		var expected: Rect2 = entry[1]
@@ -161,6 +163,7 @@ func run() -> void:
 		await shift_click(row_name)
 		verify(await wait_tracking_change(tracked) and int(client.adventure_guide_state().tracked_activity_count) == before, "second Shift-click did not restore tracking state")
 	if not await verify_tree(scale) or not await verify_filter_scroll():
+		stop("Monthly tree/filter physical proof failed")
 		return
 	if not failures.is_empty():
 		stop("Monthly source failures: " + "; ".join(failures))
