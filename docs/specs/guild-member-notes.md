@@ -4,7 +4,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 ## What it must do
 
-- [ ] Member details show authoritative name, class/level, rank, public note and permitted officer note. Unknown zone and exact last-online times must not be invented. Public notes populate the roster Note column independently of officer text.
+- [x] Member details show authoritative name, class/level, rank, public note and permitted officer note. Unknown zone and exact last-online times must not be invented. Public notes populate the roster Note column independently of officer text.
 - [ ] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
 - [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Popup target remains the member selected when editing began even if roster selection subsequently changes. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
 - [ ] Both note types survive server restart/relog, preserving existing officer records. Leave/removal deletes both before rejoin. Group Invite uses the actual group service and Remove uses existing hierarchy authority.
@@ -32,7 +32,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 ## Known gaps (current cycle)
 
-- [ ] Current targeted tests/checks and both-skin private5891 live/relog PNG acceptance. The initial UI RED→GREEN2/2 predates later routing/art changes; server --lib selected0 guild tests and is not proof.
+- [ ] Server/network/native checks and both-skin private5891 live/relog PNG acceptance. Current UI guild_rank_widgets subset passes21/21 at889142b41, including immutable popup target RED→GREEN; model proof only. Server --lib selected0 guild tests and is not proof.
 - [ ] Source direct rank-assignment dropdown, online zone and elapsed-last-online metadata.
 
 ## Out of scope
