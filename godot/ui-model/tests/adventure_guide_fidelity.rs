@@ -470,6 +470,61 @@ fn adventure_guide_instance_loot_uses_selected_instance_and_difficulty() {
 }
 
 #[test]
+fn adventure_guide_instance_loot_transition_keeps_valid_loot_tab() {
+    let mut v = view();
+    v.apply("journal:instance:63").unwrap();
+    v.apply("journal:difficulty:1").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    v.apply("journal:encounter:89").unwrap();
+    assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+    v.apply("journal:instance:63").unwrap();
+    assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+    assert_eq!(v.encounter, None);
+}
+
+#[test]
+fn adventure_guide_instance_loot_transition_validates_empty_difficulty() {
+    let mut v = view();
+    let mut catalog = (*v.catalog).clone();
+    // Finite source fixture: retain Normal rows but supply no Heroic loot entries.
+    let heroic = [95, 2620, 2621, 2622, 2623, 2624];
+    catalog
+        .loot
+        .retain(|loot| !heroic.contains(&loot.encounter));
+    v.catalog = Arc::new(catalog);
+    v.apply("journal:instance:63").unwrap();
+    v.apply("journal:difficulty:1").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    assert!(!v.loot().is_empty());
+    v.apply("journal:difficulty:2").unwrap();
+    assert!(v.loot().is_empty());
+    assert_eq!(
+        v.page,
+        game_engine_ui_model::adventure_guide::Page::Overview
+    );
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(
+        button(&r, "EncounterJournalPage2").state,
+        ButtonState::Disabled
+    );
+}
+
+#[test]
+fn adventure_guide_instance_loot_transition_disables_zero_root_overview() {
+    let mut v = view();
+    v.apply("journal:encounter:1519").unwrap();
+    assert_eq!(v.catalog.encounter(1519).unwrap().name, "Lucifron");
+    assert_eq!(v.catalog.encounter(1519).unwrap().root, 0);
+    assert_eq!(v.page, game_engine_ui_model::adventure_guide::Page::Loot);
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(
+        button(&r, "EncounterJournalPage0").state,
+        ButtonState::Disabled
+    );
+    assert!(v.apply("journal:page:overview").is_err());
+}
+
+#[test]
 fn adventure_guide_instance_loot_legacy_first_tab_keeps_real_abilities() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut v = view();
