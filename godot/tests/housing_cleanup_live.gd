@@ -35,14 +35,18 @@ func run_test() -> void:
 		fail("Cleanup target has no real visible pick triangle")
 		return
 	push_mouse_motion(hit.point)
-	if not await wait_housing(func(): return housing_text("HouseEditorCleanupHoverName") == "Small Val'sharah Bookcase" and highlighted_meshes() > 0, "cleanup native hover/highlight"): return
+	if not await wait_housing(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == "Small Val'sharah Bookcase" and highlighted_meshes() > 0, "cleanup native hover/highlight"): return
 	if client.housing_state().decor != before.decor or client.housing_state().stored != before.stored:
 		fail("Cleanup hover changed confirmed decor/storage")
 		return
 	if not await record_editor("cleanup-hover"): return
 	push_mouse_motion(housing_control("HouseEditorBasicDecorModeButton").get_global_rect().get_center())
-	if not await wait_housing(func(): return housing_control("HouseEditorCleanupTooltip") == null and highlighted_meshes() == 0, "hover leaves target and restores original material"): return
+	if not await wait_housing(func(): return not client.tooltip_state().get("visible", false) and highlighted_meshes() == 0, "hover leaves target and restores original material"): return
 	print_cleanup_hover_probe("before-return", hit.point)
+	hit = find_visible_cornerstone_triangle(placed_node(), int(before.decor[0].instance_id))
+	if hit.is_empty():
+		fail("Cleanup return has no currently visible paid decor triangle")
+		return
 	push_mouse_motion(hit.point)
 	print_cleanup_hover_probe("after-return", hit.point)
 	if not await wait_housing(func(): return highlighted_meshes() > 0, "hover returns"):
@@ -58,7 +62,7 @@ func run_test() -> void:
 	quit(0)
 
 func print_cleanup_hover_probe(phase: String, point: Vector2) -> void:
-	print("CLEANUP_HOVER_PROBE phase=", phase, " point=", point, " actual_mouse=", root.get_mouse_position(), " picked=", UnitPicker.pick(camera(), point), " camera=", camera().global_transform, " highlighted=", highlighted_meshes(), " tooltip=", housing_control("HouseEditorCleanupTooltip") != null, " hovered_control=", root.gui_get_hovered_control(), " pending=", client.housing_state().get("pending", true), " house=", client.housing_state().get("house_id", 0))
+	print("CLEANUP_HOVER_PROBE phase=", phase, " point=", point, " actual_mouse=", root.get_mouse_position(), " picked=", UnitPicker.pick(camera(), point), " camera=", camera().global_transform, " highlighted=", highlighted_meshes(), " tooltip=", client.tooltip_state(), " hovered_control=", root.gui_get_hovered_control(), " pending=", client.housing_state().get("pending", true), " house=", client.housing_state().get("house_id", 0))
 
 func push_mouse_motion(point: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
@@ -135,7 +139,7 @@ func total_bookcases(state: Dictionary) -> int:
 func prove_cleanup_owner(before: Dictionary) -> bool:
 	if not await wait_housing(func(): return client.housing_state().decor.is_empty() and stored_bookcases() == 1 and not client.housing_state().get("pending", true) and placed_node() == null, "single Cleanup click returns paid copy to storage"): return false
 	var removed: Dictionary = client.housing_state()
-	if total_bookcases(removed) != total_bookcases(before) or total_bookcases(removed) != 1 or housing_control("HouseEditorStorageFrame") != null or housing_control("HouseEditorCleanupTooltip") != null:
+	if total_bookcases(removed) != total_bookcases(before) or total_bookcases(removed) != 1 or housing_control("HouseEditorStorageFrame") != null or client.tooltip_state().get("visible", false):
 		fail("Cleanup broke conservation/storage-hidden/hover teardown")
 		return false
 	if not await record_editor("cleanup-stored"): return false
@@ -158,7 +162,7 @@ func prove_cleanup_owner(before: Dictionary) -> bool:
 	return await record_editor("cleanup-restored")
 
 func prove_cleanup_visitor(before: Dictionary) -> bool:
-	if not await wait_housing(func(): return client.housing_state().get("error", "").contains("Visitors") or housing_control("HouseEditorCleanupHoverError") != null, "visitor removal refusal"): return false
+	if not await wait_housing(func(): return client.housing_state().get("error", "").contains("Visitors"), "visitor removal refusal"): return false
 	await frames(15)
 	var after: Dictionary = client.housing_state()
 	if after.can_edit or after.decor != before.decor or after.stored != before.stored or after.get("pending", true):
