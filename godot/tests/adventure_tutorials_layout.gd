@@ -12,8 +12,11 @@ func check_tutorial_layout() -> bool:
 		stop("Source Tutorials pane/art/text/divider/button missing")
 		return false
 	var scale := pane.get_global_rect().size.x / 784.0
-	if not pane.clip_contents or not start.disabled:
-		stop("Tutorial pane must clip; unsupported Start must be disabled")
+	if not pane.clip_contents:
+		stop("Tutorial native pane must clip its authored art")
+		return false
+	if not start.disabled:
+		stop("Unsupported Start must be disabled")
 		return false
 	if title.get_theme_font("font").get_font_name() != "Morpheus":
 		stop("Fancy27Font did not load published Morpheus")

@@ -49,7 +49,7 @@ pub(crate) fn tutorials(catalog: &Catalog) -> Element {
         (423., 284.),
     );
     rsx! {
-        r#frame { name: "EncounterJournalTutorialsFrame", left: 9., top: 111., width: 784., height: 380., pos_type: "absolute", clip_children: true,
+        r#frame { name: "EncounterJournalTutorialsFrame", left: 9., top: 111., width: 784., height: 380., pos_type: "absolute",
             {art}
             {text}
             {start}
