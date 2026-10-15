@@ -1,6 +1,6 @@
 # Validation candidates — not approved rework findings
 
-[Audit scope](README.md). These differences or omissions need additional evidence before prescribing a change to the project's newer client behavior. `W`/`E` denote the pinned source aliases in the index.
+[Audit scope](README.md). These differences, omissions or reference inconsistencies need additional evidence before prescribing a change to the project's newer client behavior. `W`/`E` denote the pinned source aliases in the index.
 
 ## V1: M2 alpha-key cutoff differs
 
@@ -35,3 +35,13 @@
 **Required future behavior.** A version-appropriate refraction pass must distort sampled scene color according to the authored effect rather than painting its parameter texture. Preserve the existing forward exclusion until that behavior exists; removing it alone reintroduces the known visual error.
 
 **Acceptance.** Use the investigation's real Divine Shield model `1127086` against a high-contrast background, compare distortion on/off, and retain Avenging Wrath color-particle controls. Verify normal-map data never appears as visible color and depth/occlusion are correct. This audit ran none of those checks.
+
+## V5: Camera-depth darkening has reference sign and ordering conflicts
+
+**Observed source.** `W/WoW/Source/WorldClient/World.cpp:1880–1896` produces submerged depth as `level - camera_z`, ordinarily positive. `W/WoW/Source/WorldClient/DayNight.cpp:2697–2711` instead clamps a nonpositive depth against a negative maximum. With the ordinary positive producer value, this isolated branch keeps depth zero and its darkening multipliers are 1. A negative injected depth exercises the formula, but is not proof of physical camera-produced darkening.
+
+There is also an update-order boundary: `W/WoW/Source/WorldClient/World.cpp:1428–1431` updates lighting before fog; `W/WoW/Source/WorldClient/DayNight.cpp:2123–2140` then replaces fog color from override/band inputs. The earlier fog-darkening assignment is not by itself proof of a surviving output effect. Ambient/direct values do reach map lighting at `World.cpp:1435–1447`, but retain the depth-sign problem.
+
+**Disposition.** ENV2 still establishes missing camera-underwater scene-light/fog **selection**. Do not turn this reconstruction inconsistency into a confirmed missing engine darkening ramp or silently invert its depth producer. The same caution applies to uncompleted liquid-depth glare tracing.
+
+**Validation and conditional change.** Establish intended behavior against the original binary or a version-appropriate independent oracle, including producer sign, consumer units and final update ordering. Keep separate fixtures for a negative injected consumer depth and a physical camera below the liquid; record final scene outputs after the entire update. Implement darkening only once that contract is established; no such original/native comparison was performed.
