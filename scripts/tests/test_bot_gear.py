@@ -3,6 +3,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -18,7 +19,7 @@ class BotGearTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.database = Path(self.directory.name) / "world.db"
         rows = json.loads((FIXTURES / "gear-source-rows.json").read_text())
-        with sqlite3.connect(self.database) as connection:
+        with closing(sqlite3.connect(self.database)) as connection:
             for table, records in rows.items():
                 columns = list(records[0])
                 column_names = ",".join(f'"{key}"' for key in columns)
@@ -26,6 +27,7 @@ class BotGearTests(unittest.TestCase):
                 connection.execute(f'CREATE TABLE {table} ({column_names})')
                 connection.executemany(f'INSERT INTO {table} VALUES ({placeholders})',
                                        [[record[column] for column in columns] for record in records])
+            connection.commit()
 
     def test_retribution_has_authentic_two_hand_item_not_starter_shield(self):
         plan = bot_gear.load_plan(self.database, FIXTURES / "db2", 70)

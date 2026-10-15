@@ -2,6 +2,7 @@
 import shlex
 import sqlite3
 from collections import Counter
+from contextlib import closing
 from pathlib import Path
 
 from bot_rotation import read_rows
@@ -44,7 +45,7 @@ def load_plan(database, db2, spec):
     specialization = next((row for row in read_rows(db2, "ChrSpecialization") if int(row["ID"]) == spec), None)
     if specialization is None:
         raise ValueError(f"No source specialization {spec}")
-    with sqlite3.connect(Path(database).resolve().as_uri() + "?mode=ro", uri=True) as connection:
+    with closing(sqlite3.connect(Path(database).resolve().as_uri() + "?mode=ro", uri=True)) as connection:
         connection.row_factory = sqlite3.Row
         items = [load_item(connection, item_id, slot)
                  for slot, item_id in zip(("MainHand", "OffHand"), KITS[spec])]
