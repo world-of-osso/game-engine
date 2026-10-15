@@ -44,11 +44,6 @@ fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
     }
     let above_feet = section.iter().any(|point| point.y > 0.0);
     let below_head = section.iter().any(|point| point.y < BODY_HEIGHT);
-    if above_feet && below_head {
-        eprintln!(
-            "STEP_DIAGNOSTIC triangle={triangle:?} from={from:?} to={to:?} section={section:?}"
-        );
-    }
     above_feet && below_head
 }
 
@@ -87,7 +82,10 @@ fn intersect_body_plane(triangle: [Vec3; 3], from: Vec3, direction: Vec3) -> Vec
         }
         if sides[index] * sides[next] < 0.0 {
             let fraction = sides[index] / (sides[index] - sides[next]);
-            section.push(project(triangle[index].lerp(triangle[next], fraction)));
+            // Difference form preserves coordinates shared by both edge vertices
+            // exactly (notably a flat support plane), unlike weighted-sum lerp.
+            let point = triangle[index] + (triangle[next] - triangle[index]) * fraction;
+            section.push(project(point));
         }
     }
     section
@@ -104,7 +102,10 @@ fn clip_section(points: &[Vec2], axis: usize, boundary: f32, sign: f32) -> Vec<V
             clipped.push(from);
         }
         if start * end < 0.0 {
-            clipped.push(from.lerp(to, start / (start - end)));
+            let fraction = start / (start - end);
+            let mut intersection = from + (to - from) * fraction;
+            intersection[axis] = boundary;
+            clipped.push(intersection);
         }
     }
     clipped
