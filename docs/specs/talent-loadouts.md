@@ -9,6 +9,8 @@ Named trait configurations per specialization in the Talents footer. Mainline de
 - [ ] Both skins show server-named dropdown rows, selected check/caption, row gear, New/rename name dialogs (30 letters), confirmed deletion and pending-edit discard confirmation. New selection waits for acknowledgement.
 - [x] Import/export use Retail version2 loadout strings. Copy to Clipboard exports the current committed allocation with a zero tree hash; disable it while pending changes or spendable class/spec/selected-hero points exist (installed ClassTalentsFrame.lua560–565). Disabled tooltip is GlobalStrings49827; successful callback adds GlobalStrings49523 system chat feedback. Import accepts a code (1000 letters) and name (30 letters) in the Retail460×275 dialog, validates before sending the existing authoritative Create request, and waits for server snapshots before selecting/applying. Reject malformed/truncated codes, wrong version/spec (including other classes), invalid choices/ranks/allocations with installed Retail error text. Both skins share controls/behaviour.
 
+- [ ] Starter Build is a server-advertised, noneditable built-in selection, not a named user config. Selecting it waits for authoritative allocation/selection snapshots. The server builds affordable ranks from installed DB2 rows, persists selection, and automatically spends newly earned points. Accepted manual edits leave guided mode; node/choice deviation prompts use Retail's Continue/Cancel confirmation. Both skins share behavior.
+
 ## How it works
 - [Talent system](../wiki/systems/talents.md#named-loadouts--2026-10-10)
 - [Server persistence](../../../game-server/docs/wiki/systems/talents.md#persistence-and-messages)
@@ -36,7 +38,7 @@ Core5/5, ui-model9/9 and native extension build exit0 at20ab17bc8; exact command
 - [ ] Lead-owned independent integration gate; this slice does not recertify the broader named-loadout CRUD contract.
 - [ ] OS clipboard handoff under headless Cage (no seat serial): clipboard_set arguments are observed through native `account_state.talent_export_clipboard`; native typed Import and authoritative relog prove the string path, not OS paste delivery.
 - [ ] Nonzero tree-hash comparison (`C_Traits.GetTreeHash` algorithm) unavailable locally. Export zero-fills as Blizzard Lua16–17 explicitly allows. Per lead approval, import consumes nonzero hashes without comparison, then validates every allocation against installed nodes/choices/maxima/spec/level/currency/prerequisites. This cannot detect structurally valid but semantically changed historical nodes; no hash equality claim.
-- [ ] Starter Build: authentic `TraitTreeLoadout`/entries exist; availability, activation and automatic next-purchase/deviation semantics are C APIs not represented by current server rules. No fake named Starter row.
+- [ ] Starter Build coupled native acceptance pending. Authority and authored-row semantics are tracked by the [server Starter contract](../../../game-server/docs/specs/talent-starter-build.md); no guessed hero choices or fake user-named Starter row.
 - [x] PvP tray/War Mode are supplied by the existing owner-backed [PvP progression](pvp-progression.md) implementation. [Talent rendering/live proof](../wiki/systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) covers their footer integration; PvP policy/runtime acceptance stays in its own contract.
 
 ## Out of scope

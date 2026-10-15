@@ -629,18 +629,26 @@ impl GameClient {
 
     fn talent_gate_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        if let Some((owner, ())) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            (name_of(frame)? == "TalentExportLoadout").then_some(())
-        }) {
+        if let Some((owner, export)) =
+            named_ancestor(ui.registry()?, hit.frame, |frame| match name_of(frame)? {
+                "TalentExportLoadout" => Some(true),
+                "TalentStarterBuild" => Some(false),
+                _ => None,
+            })
+        {
             let view = self.spells.projected_talents()?;
-            if view.editor.can_export(view) {
+            if export && view.editor.can_export(view) {
                 return None;
             }
             drop(ui);
             let tooltip = GameTooltip::new(
                 TooltipPresentation {
-                    title: "You must spend all available talent points to share this loadout"
-                        .into(),
+                    title: if export {
+                        "You must spend all available talent points to share this loadout"
+                    } else {
+                        "A preset talent build that's suitable for most content"
+                    }
+                    .into(),
                     title_color: game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE,
                     ..TooltipPresentation::hidden()
                 },

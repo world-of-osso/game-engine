@@ -5,7 +5,9 @@ use game_engine_core::talent_data::{
     loadout_string::{self, LoadoutError},
     rules::{ConfigEntry, TraitContext, granted_entries},
 };
-use shared::protocol::{TraitLoadoutOperation, TraitLoadoutRequest, TraitLoadoutsSnapshot};
+use shared::protocol::{
+    STARTER_BUILD_LOADOUT_ID, TraitLoadoutOperation, TraitLoadoutRequest, TraitLoadoutsSnapshot,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LoadoutDialog {
@@ -14,6 +16,7 @@ pub enum LoadoutDialog {
     Edit(u32),
     Delete(u32),
     Switch(u32),
+    StarterDeviation(String),
 }
 
 impl TalentEditor {
@@ -28,7 +31,19 @@ impl TalentEditor {
         self.loadouts = Some(list);
         self.loadout_busy = false;
     }
+    pub fn starter_active(&self) -> bool {
+        self.loadouts
+            .as_ref()
+            .is_some_and(|list| list.selected_id == STARTER_BUILD_LOADOUT_ID)
+    }
     pub fn loadout_caption(&self) -> &str {
+        if self.starter_active() {
+            return if self.dirty() {
+                "Default Loadout"
+            } else {
+                "Starter Build"
+            };
+        }
         self.loadouts
             .as_ref()
             .and_then(|list| {
@@ -133,7 +148,12 @@ impl TalentEditor {
                     self.loadout_dialog = Some(LoadoutDialog::Delete(id));
                 }
             }
-            "_confirm" => match self.loadout_dialog {
+            "_confirm" => match self.loadout_dialog.clone() {
+                Some(LoadoutDialog::StarterDeviation(action)) => {
+                    self.starter_deviation_confirmed = true;
+                    self.loadout_dialog = None;
+                    self.action(view, level, &action)?;
+                }
                 Some(LoadoutDialog::Delete(id)) => {
                     return self.queue_loadout(TraitLoadoutOperation::Delete { id });
                 }
@@ -244,14 +264,19 @@ impl TalentEditor {
     fn select_loadout_action(&mut self, command: &str) -> Result<(), String> {
         let (verb, raw_id) = command.split_once(':').ok_or("Unknown loadout action")?;
         let id = raw_id.parse().map_err(|_| "Invalid loadout ID")?;
-        let config = self
+        let list = self
             .loadouts
             .as_ref()
-            .and_then(|list| list.configs.iter().find(|config| config.id == id))
-            .ok_or("Loadout is not in the server list")?;
+            .ok_or("Loadout requires a server list")?;
+        let config = list.configs.iter().find(|config| config.id == id);
+        if config.is_none()
+            && !(id == STARTER_BUILD_LOADOUT_ID && list.starter_available && verb == "_select")
+        {
+            return Err("Loadout is not in the server list".into());
+        }
         match verb {
             "_edit" => {
-                self.loadout_name = config.name.clone();
+                self.loadout_name = config.ok_or("Starter Build cannot be edited")?.name.clone();
                 self.loadout_focus_requested = true;
                 self.loadout_dialog = Some(LoadoutDialog::Edit(id));
                 self.loadout_menu = false;
