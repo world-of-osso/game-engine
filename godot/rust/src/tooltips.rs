@@ -248,7 +248,7 @@ impl GameClient {
         let view = &self.tooltips.shown;
         let mut state = VarDictionary::new();
         state.set("visible", view.main.visible);
-        state.set("title", view.main.title.as_str());
+        state.set("title", view.main.title_text());
         state.set("lines", &tooltip_lines(&view.main));
         state.set("rect", &rect_array(&view.main));
         state.set("health", view.health.map_or(-1.0, f64::from));
@@ -278,7 +278,7 @@ impl GameClient {
         if !main.visible {
             return Vec::new();
         }
-        std::iter::once(main.title.clone())
+        std::iter::once(main.title_text())
             .chain(
                 main.lines
                     .iter()
