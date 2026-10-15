@@ -19,10 +19,15 @@ func run_fixture() -> void:
 	await click("OptionsTabhud")
 	var wanted_skin := "Modern" if skin == "modern" else "Forever"
 	if client.account_state().ui_skin != wanted_skin:
+		await click("Choiceui_layout")
+		if failed: return
 		await click("Choiceui_layout%sHit" % ("1" if skin == "forever" else "0"))
+		if failed: return
 	if control("CollectionsMicroButton") == null:
-		await click("ToggleSwitchlayout_show_micro_menuRightHit")
-	await click("OptionsDoneButton")
+		await click("ToggleSwitchlayout_show_micro_menu")
+		if failed: return
+	await click("OptionsCloseButton")
+	if failed: return
 	if control("MenuBtnResume") != null: await click("MenuBtnResume")
 	if client.account_state().ui_skin != wanted_skin: fail("wrong native art skin"); return
 	if not await wait_until(func(): return control("CollectionsMicroButton") != null, "enabled native Micro Menu"): return
