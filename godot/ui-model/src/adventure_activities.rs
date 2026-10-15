@@ -1,5 +1,7 @@
 //! Source-backed Traveler's Log.
 //! Retail: Blizzard_MonthlyActivities.{lua,xml} (filter list, activity tree/rows).
+mod presentation;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use shared::protocol::{AdventureGuideSnapshot, PerksActivityProgress, PerksActivitySnapshot};
@@ -11,8 +13,8 @@ use crate::{
     quest_art::DynName,
 };
 
-const TOP: f32 = 156.;
-const HEIGHT: f32 = 325.;
+const TOP: f32 = 138.;
+const HEIGHT: f32 = 291.;
 const ROW_HEIGHT: f32 = 82.;
 const TAG_LIST: &str = "EncounterJournalFilterList";
 
@@ -37,51 +39,19 @@ pub fn monthly(
             (15., 65., 770., 32.),
         );
     };
-    let mut out = text(
-        "JournalMonthlyTitle",
-        &format!(
-            "Traveler's Log — {} {}",
-            snapshot.month.name, snapshot.month.year
-        ),
-        (15., 65., 770., 24.),
-    );
+    if let Some(error) = &snapshot.source_error {
+        return text(
+            "JournalMonthlyNotice",
+            &format!("Missing source data: {error}"),
+            (15., 93., 770., 40.),
+        );
+    }
     let tender = ctx
         .get::<crate::adventure_guide::View>()
-        .and_then(|view| view.trading_post.as_ref());
-    let contributions = match tender {
-        Some(tender) => {
-            let cap: u32 = tender
-                .thresholds
-                .iter()
-                .map(|threshold| threshold.tender)
-                .sum();
-            let earned: u32 = tender
-                .thresholds
-                .iter()
-                .filter(|threshold| threshold.claimed)
-                .map(|threshold| threshold.tender)
-                .sum();
-            format!(
-                "{} activity points · Tender earned {earned}/{cap} · Balance {}",
-                snapshot.points, tender.tender
-            )
-        }
-        None => format!(
-            "Completed activity contributions: {} points",
-            snapshot.points
-        ),
-    };
-    out.extend(text(
-        "JournalMonthlyPoints",
-        &contributions,
-        (15., 93., 770., 20.),
-    ));
-    let notice = source_notice(snapshot);
-    out.extend(text(
-        "JournalMonthlyNotice",
-        &notice,
-        (240., 116., 545., 36.),
-    ));
+        .and_then(|view| view.trading_post.as_deref());
+    let mut out = presentation::background();
+    out.extend(presentation::header(snapshot));
+    out.extend(presentation::thresholds(snapshot, tender));
     out.extend(filter_controls(ctx, snapshot, filters));
     let rows = activity_rows(snapshot, filters, search);
     let content_height = rows
@@ -106,17 +76,10 @@ pub fn monthly(
     out.extend(scroll(
         ctx,
         content,
-        (240., TOP, 545., HEIGHT),
+        (241., TOP, 521., HEIGHT),
         content_height,
     ));
-    out
-}
-
-fn source_notice(snapshot: &AdventureGuideSnapshot) -> String {
-    match &snapshot.source_error {
-        Some(error) => format!("Missing source data: {error}"),
-        None => snapshot.activity_scope_notice.clone().unwrap_or_default(),
-    }
+    rsx! { r#frame { name: "EncounterJournalMonthlyActivitiesFrame", left: 4., top: 60., width: 792., height: 431., pos_type: "absolute", {out} } }
 }
 
 fn filter_controls(
@@ -124,26 +87,6 @@ fn filter_controls(
     snapshot: &AdventureGuideSnapshot,
     filters: &ActivityFilters,
 ) -> Element {
-    let mut out = button(
-        "JournalActivityFilterAll".into(),
-        if filters.tracked_only {
-            "All"
-        } else {
-            "All ✓"
-        },
-        "journal:activity-filter:all",
-        (15., 116., 98., 26.),
-    );
-    out.extend(button(
-        "JournalActivityFilterTracked".into(),
-        if filters.tracked_only {
-            "Tracked ✓"
-        } else {
-            "Tracked"
-        },
-        "journal:activity-filter:tracked",
-        (117., 116., 108., 26.),
-    ));
     // Retail only lists tags actually used by the source activities.
     let used: BTreeSet<_> = snapshot
         .activities
@@ -155,45 +98,79 @@ fn filter_controls(
         .iter()
         .filter(|tag| used.contains(&tag.id))
         .collect();
-    tags.sort_by(|a, b| a.name.cmp(&b.name));
-    let tags: Vec<_> = std::iter::once((0, "All tags"))
+    let other = presentation::global("OTHER");
+    tags.sort_by(|a, b| {
+        (a.name == other)
+            .cmp(&(b.name == other))
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    let all = presentation::global("ALL");
+    let tags: Vec<_> = std::iter::once((0, all.as_str()))
         .chain(tags.into_iter().map(|tag| (tag.id, tag.name.as_str())))
         .collect();
-    let geometry = pixel_geometry(HEIGHT, tags.len() as f32 * 24., HEIGHT);
+    let geometry = pixel_geometry(290., 20. + tags.len() as f32 * 22. - 2., 279.);
     let offset = geometry.clamp(ctx.scroll_first_row(TAG_LIST));
     let rows: Element = tags
         .iter()
         .enumerate()
         .filter(|(index, _)| {
-            (*index + 1) as f32 * 24. > offset as f32
-                && *index as f32 * 24. < offset as f32 + HEIGHT
+            10. + *index as f32 * 22. + 20. > offset as f32
+                && 10. + *index as f32 * 22. < offset as f32 + 290.
         })
         .flat_map(|(index, (id, name))| {
-            let title = if filters.tag == *id {
-                format!("{name} ✓")
-            } else {
-                (*name).into()
-            };
-            button(
-                format!("JournalActivityTag{id}"),
-                &title,
-                &format!("journal:activity-tag:{id}"),
-                (0., index as f32 * 24. - offset as f32, 188., 23.),
+            filter_row(
+                *id,
+                name,
+                filters.tag == *id,
+                10. + index as f32 * 22. - offset as f32,
             )
         })
         .collect();
     let bar = MinimalScrollBar {
         list: TAG_LIST,
-        left: 196.,
-        top: 0.,
-        height: HEIGHT,
+        left: 202.,
+        top: 7.,
+        height: 279.,
         geometry,
         offset,
         unscrollable: Unscrollable::HideThumb,
     };
     let config = scroll_list_attr(&geometry);
-    out.extend(rsx! { r#frame { name:{DynName(TAG_LIST.into())}, left:15.0, top:TOP, width:210.0, height:HEIGHT, pos_type:"absolute", mouse_enabled:true, scroll_list:config, {rows} {bar.element()} } });
-    out
+    rsx! { r#frame { name:{DynName(TAG_LIST.into())}, left:5.0, top:137.0, width:220.0, height:290.0, pos_type:"absolute", mouse_enabled:true, scroll_list:config, {rows} {bar.element()} } }
+}
+
+fn filter_row(id: u32, name: &str, selected: bool, top: f32) -> Element {
+    use crate::selection_list::{Art, RowArt, RowTemplate};
+    let art = |atlas| RowArt {
+        art: Art::Atlas(atlas),
+        insets: [-6., -0.5, -6., -0.5],
+        alpha: 1.,
+        additive: false,
+    };
+    let template = RowTemplate {
+        normal: None,
+        hover: Some(art("options_list_hover")),
+        selected: Some(art("options_list_active")),
+    };
+    let color = if selected {
+        crate::quest_art::HIGHLIGHT_FONT_COLOR
+    } else {
+        crate::quest_art::NORMAL_FONT_COLOR
+    };
+    let label = crate::bank_art::label(
+        format!("JournalActivityTag{id}Name"),
+        name,
+        (10., -1., 165., 20.),
+        (12., color, "LEFT"),
+    );
+    crate::selection_list::row(
+        format!("JournalActivityTag{id}"),
+        &format!("journal:activity-tag:{id}"),
+        true,
+        (10., top, 175., 20.),
+        (&template, selected),
+        label,
+    )
 }
 
 struct ActivityRow<'a> {
