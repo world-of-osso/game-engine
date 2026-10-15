@@ -225,7 +225,8 @@ fn connect() -> Result<Peer, String> {
 
 fn run() -> Result<(), String> {
     let mut peer = connect()?;
-    let deadline = Instant::now() + Duration::from_secs(900);
+    // Functional100-action proof, not a latency benchmark; private rendering may run at5FPS.
+    let deadline = Instant::now() + Duration::from_secs(1800);
     let result = loop {
         if let Err(error) = peer.poll() {
             break Err(error);
