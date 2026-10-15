@@ -3,7 +3,7 @@ extends "res://tests/housing_cleanup_live.gd"
 var disabled_icon_receipts: Array[Dictionary] = []
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	housing_server = OS.get_environment("GODOT_TEST_SERVER")
 	housing_account = OS.get_environment("HOUSING_ACCOUNT")
 	housing_skin = OS.get_environment("HOUSING_SKIN")
