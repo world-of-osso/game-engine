@@ -5325,3 +5325,5 @@ gc774 passed tests/fmt and landed engineb0b3d4b39; exact server842325bf3/protoco
 ## 2026-10-22 — Explicit Skyborne player roots
 
 [Player source overlay](../handoffs/noinstall-cert-2026-10-21.md#explicit-skyborne-player-source-overlay) replaces merged-NPC body selection with source-local body/customization joins for only95/96; Retail Human remains unchanged. Ignored RED-first four cases and100-case focused proof pass. Dataset metadata/cache provenance remains separate; corrected full graph is queued under normal admission,not yet certificate evidence.
+
+- 2026-10-15: Linked the [source-only 3.3.5a wowdecomp audit](../wowdecomp-audit/README.md) from [[open-source-wow-clients]] and the index; findings remain in the audit SSOT. No runtime parity established.
