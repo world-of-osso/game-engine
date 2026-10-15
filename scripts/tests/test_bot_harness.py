@@ -19,6 +19,7 @@ class BotHarnessTests(unittest.TestCase):
             "end_ms": 1791992759000, "scenario": "dummy", "spec": 62, "measurement_complete": True,
             "spells": [{"id": 30451, "damage": True}, {"id": 44425, "damage": True}],
             "attempts": [{"spell": 44425, "at_ms": 1791992756000, "deadline_ms": 1791992758500}],
+            "party_actors": ["4294966614", "4294966615", "4294966616", "4294966617"],
         }
 
     def test_actual_native_request_without_cast_success_is_flagged(self):
