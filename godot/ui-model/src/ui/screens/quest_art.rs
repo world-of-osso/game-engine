@@ -540,6 +540,33 @@ pub fn panel_button_fit_to_text_width(text: &str) -> f32 {
         + 40.0
 }
 
+/// SharedButtonSmallTemplate:138×28, inheriting BigRedThreeSliceButtonTemplate.
+/// Native projection expands the left atlas marker to its authored three slices.
+pub fn shared_button_small(
+    name: &str,
+    text: &str,
+    action: &str,
+    enabled: bool,
+    (left, top): (f32, f32),
+) -> Element {
+    let disabled = !enabled;
+    let action = if enabled { action } else { "" };
+    let font_color = if enabled {
+        NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1.0"
+    };
+    rsx! { button {
+        name: {DynName(name.into())}, text, width: 138., height: 28.,
+        left, top, pos_type: "absolute", font_size: 12., font_color,
+        onclick: action, disabled,
+        button_atlas_up: "128-redbutton-left",
+        button_atlas_pressed: "128-redbutton-left-pressed",
+        button_atlas_disabled: "128-redbutton-left-disabled",
+        button_atlas_highlight: "retail-128-redbutton-highlight",
+    } }
+}
+
 /// `UIPanelButtonTemplate` (Retail default nine-slice button art as used by StaticPopup).
 /// A disabled button shows the disabled art and carries no action.
 pub fn panel_button(

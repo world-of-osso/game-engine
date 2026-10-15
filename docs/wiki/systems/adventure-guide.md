@@ -2,6 +2,10 @@
 
 Verified: 2026-10-14. The [contract](../../specs/adventure-guide.md) owns Retail Mainline behavior; Forever only changes the shared screen's art.
 
+## Tutorials source presentation — 2026-10-14 (native gate pending)
+
+`adventure_tutorials` translates Retail XML2265–2314 into an inset-relative clipped pane, atlas-sized700×342 art, a380px text column with16px gaps and353×6 divider. Shared `GameFont::Morpheus` selects the lead-published FDID615962 font for Fancy27Font; native loading and measurement share its filename. GlobalColor168/169 supply the material body/title colors. The Start Experience control uses shared SharedButtonSmallTemplate art, disabled without an action or explanatory text: [realm RPE-start authority remains missing](../../specs/adventure-guide.md#tutorials-capability-boundary). Behavioral RED and implementation are recorded; GREEN and both-skin native painting remain pending.
+
 ## Retail frame layout — 2026-10-13
 
 The initial layout checkpoint failed an independent ten-defect gate. The correction removes the unsourced Owned Keystones and role rows, uses the shared merchant tabs/navigation bar/menu primitives, and renders the inherited search state and EncounterInfoTemplate paper regions. The loot class/spec dropdown inherits WowStyle1's120×25 size; the slot dropdown is90×25 at its RIGHT+10. LootContainer is345×382 at `(442,106)`, with its list BOTTOMRIGHT(-20,+1) at absolute `(422,105)`. Background textures are local children of InstanceSelect, InstanceFrame and ModelScene; the native projection clips those three source panes. The geometry test derives Info `(7,64,785,425)`, Bosses `(32,106,338,382)`, right-page Model `(399,65,390,423)` and side tabs `(780,99+55n,63,57)` from the800×496 root/inset anchors. Grid buttons174×96 use15px gaps,5px top padding and title-over-art;325×55 boss rows use `JournalEncounterCreature.FileDataID` portraits. Instance lore is clipped/scrollable in its315×95 region, not painted across bottom tabs. Native captures verify those rectangles at the active2/3 UI scale in both skins.

@@ -647,7 +647,7 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
                 view.renown.as_deref(),
                 &view.journey_presentation,
             ),
-            Tab::Tutorials => tutorials(view),
+            Tab::Tutorials => crate::adventure_tutorials::tutorials(&view.catalog),
             Tab::ItemSets => sets(ctx, view),
             Tab::Monthly => crate::adventure_activities::monthly(
                 ctx,
@@ -1381,37 +1381,6 @@ fn search_results(ctx: &SharedContext, view: &View) -> Element {
     rsx! {r#frame {name:"EncounterJournalSearchResults",left:210.0,top:62.0,width:568.0,height:334.0,pos_type:"absolute",mouse_enabled:true,frame_level:25.0,background_color:"0.08,0.07,0.06,1.0",{list}}}
 }
 
-fn tutorials(view: &View) -> Element {
-    let title = view
-        .catalog
-        .text
-        .get("RPE_TITLE")
-        .map(String::as_str)
-        .unwrap_or("");
-    let body = view
-        .catalog
-        .text
-        .get("RPE_TUTORIAL_TEXT")
-        .map(String::as_str)
-        .unwrap_or("");
-    let mut out = rsx! {texture {name:"EncounterJournalTutorialArt",texture_atlas:"adventureguide-tutorial-rpe",left:34.0,top:76.0,width:270.0,height:390.0,pos_type:"absolute"}};
-    out.extend(text(
-        "EncounterJournalTutorialTitle",
-        title,
-        (330., 110., 380., 60.),
-    ));
-    out.extend(text(
-        "EncounterJournalTutorials",
-        body,
-        (330., 190., 380., 210.),
-    ));
-    out.extend(text(
-        "EncounterJournalTutorialUnavailable",
-        "Catch Up Experience is not available on this realm.",
-        (330., 420., 380., 44.),
-    ));
-    out
-}
 pub(crate) fn scroll(
     ctx: &SharedContext,
     children: Element,
