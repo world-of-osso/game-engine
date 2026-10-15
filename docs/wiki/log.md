@@ -1,6 +1,6 @@
 ## 2026-10-15 — Adventure Guide authored creature selection
 
-[Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native Helix→Oaf/reset/Nezir passes; six originals inspected. Portrait-corner hypothesis falsified with actual framebuffer comparisons, so no speculative masking fix. Authored scene/camera parity remains a named gap.
+[Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native47be Helix→Oaf/reset/Nezir passes with M2-camera-rendered heads and the source circle mask. Independent verification caught prior3f static boss-art substitution despite passing corner checks; native RED→GREEN covers the corrected portrait identity. Full-model authored UiModelScene camera remains a named gap.
 
 ## 2026-10-15 — MountSpecial authored playback continuation
 

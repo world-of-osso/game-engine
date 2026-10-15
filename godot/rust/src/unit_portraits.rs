@@ -699,7 +699,8 @@ impl GameClient {
 impl GameClient {
     /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait`,
     /// `PetPortrait`, `CharacterMicroButtonPortrait`, `MerchantFramePortrait` or
-    /// `QuestFramePortrait` or `CharacterFramePortrait`.
+    /// `QuestFramePortrait` or `CharacterFramePortrait`. `JournalCreature<ID>Portrait`
+    /// observes an Adventure Guide selector's rendered creature head.
     #[func]
     fn unit_portrait_state(&self, frame: GString) -> VarDictionary {
         let portraits = &self.targeting.portraits;
