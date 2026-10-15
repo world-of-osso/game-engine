@@ -5,6 +5,7 @@ uses an isolated XDG directory per bot, and preserves each private login token.
 """
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -17,7 +18,7 @@ from types import SimpleNamespace
 from bot_roster import build_roster
 from bot_rotation import authored_order
 from bot_talents import load_plan
-from run_dummy_bots import collect
+from run_dummy_bots import collect, read_state
 
 
 def command(output, argv, env=None):
@@ -95,6 +96,37 @@ def stop_client(pid, output):
             except ProcessLookupError:
                 pass
     (output / "stopped-pids.json").write_text(json.dumps({"terminated": stopped, "forced": forced}) + "\n")
+
+
+def approach_step(here, target):
+    dx, dz = target[0] - here[0], target[2] - here[2]
+    distance = math.hypot(dx, dz)
+    if distance <= 2.5:
+        return None
+    return {"seconds": min(.4, (distance - 2.5) / 7),
+            "yaw_degrees": math.degrees(math.atan2(dx, dz))}
+
+
+def approach_dummy(args, output, socket, target):
+    observations = []
+    for tick in range(100):
+        state = read_state(output / "native-state.json")
+        if state["target"].get("target") != target:
+            raise RuntimeError("Native target changed during physical approach")
+        here = [float(value) for value in state["account"]["local_player_position"].strip("()").split(",")]
+        goal = state["target_position"]
+        if len(goal) != 3:
+            raise RuntimeError("Native dummy position not observed")
+        step = approach_step(here, goal)
+        observations.append({"position": here, "target": goal, "step": step})
+        (output / "approach.json").write_text(json.dumps(observations, indent=2) + "\n")
+        if step is None:
+            return
+        command(args.output, [args.engine / "target/debug/game-engine-cli", "--socket", socket,
+                              "movement", "forward", "--seconds", str(step["seconds"]),
+                              "--yaw-degrees", str(step["yaw_degrees"])])
+        time.sleep(step["seconds"] + .2)
+    raise RuntimeError("Native physical approach did not reach2.5yd after100 observations")
 
 
 def verified_dummy_target(state, npc_info):
@@ -178,6 +210,7 @@ def run_bot(args, bot):
         sockets = [path for path in sockets if path.exists()]
         if len(sockets) != 1:
             raise RuntimeError(f"Expected one owned native IPC socket, found {sockets}")
+        approach_dummy(args, output, sockets[0], target)
         options = SimpleNamespace(cli=args.engine / "target/debug/game-engine-cli", socket=sockets[0],
                                   state=output / "native-state.json", db2=args.engine / "data/db2/active",
                                   target=target, duration=args.duration, comparison=None, server_log=args.server_log)
