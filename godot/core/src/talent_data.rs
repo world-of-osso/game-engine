@@ -5,6 +5,8 @@ use std::path::Path;
 
 #[path = "talent_data/rule_data.rs"]
 pub mod rule_data;
+#[path = "talent_data/loadout_string.rs"]
+pub mod loadout_string;
 #[path = "talent_data/rule_loader.rs"]
 mod rule_loader;
 #[path = "talent_data/rules.rs"]
