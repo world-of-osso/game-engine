@@ -60,7 +60,9 @@ func hover_editor_mode(name: String, expected: String) -> bool:
 		fail("Mode tooltip control absent: " + name)
 		return false
 	push_mouse_motion(control.get_global_rect().get_center())
-	if not await wait_housing(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == expected, "source mode tooltip " + name, 15000): return false
+	if not await wait_housing(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == expected, "source mode tooltip " + name, 15000):
+		print("MODE_TOOLTIP_PROBE name=", name, " expected=", expected, " state=", client.tooltip_state(), " hovered=", root.gui_get_hovered_control(), " bounds=", control.get_global_rect(), " disabled=", (control as BaseButton).disabled, " key_label=", housing_text(name + "ControlText"))
+		return false
 	var state: Dictionary = client.tooltip_state()
 	var scale: float = housing_control("HouseEditorExpertDecorModeButton").get_global_rect().size.x / 64.0
 	var rect: Rect2 = control.get_global_rect()
