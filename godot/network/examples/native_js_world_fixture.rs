@@ -237,6 +237,7 @@ impl Peer {
                     token: "native-js-world-token".into(),
                     error: None,
                     characters: vec![CharacterListEntry {
+                        tabard: None,
                         character_id: 17,
                         name: CHARACTER.into(),
                         level: 10,

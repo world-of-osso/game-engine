@@ -149,6 +149,7 @@ fn authenticate(app: &mut App, count: &mut usize, mode: Mode) -> Result<(), Stri
             success: true,
             token: "native-js-owned-token".into(),
             characters: vec![CharacterListEntry {
+                tabard: None,
                 character_id: 17,
                 name: CHARACTER.into(),
                 level: 10,

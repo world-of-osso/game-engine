@@ -112,6 +112,7 @@ pub(crate) fn attach_trainer_preview(ui: Gd<RegistryUi>) -> Result<(), String> {
             appearance: Default::default(),
         },
         EquipmentAppearance::default(),
+        None,
     ));
     host.ui = Some(ui);
     // The caller still holds RegistryUi's mutable Godot binding. First tick runs after it returns.
@@ -137,6 +138,7 @@ pub(crate) fn attach_customer_orders_preview(ui: Gd<RegistryUi>) {
             appearance: Default::default(),
         },
         EquipmentAppearance::default(),
+        None,
     ));
     host.ui = Some(ui);
 }
@@ -179,6 +181,7 @@ impl NpcPortraitPreview {
                     appearance: Default::default(),
                 },
                 EquipmentAppearance::default(),
+                None,
             ));
         }
         self.ui = Some(ui);
