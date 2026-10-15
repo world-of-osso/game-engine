@@ -1,0 +1,4 @@
+ID,OrderIndex,ManaCost,ManaCostPerLevel,ManaPerSecond,PowerDisplayID,AltPowerBarID,PowerCostPct,PowerCostMaxPct,OptionalCostPct,PowerPctPerSecond,PowerType,RequiredAuraSpellID,OptionalCost,SpellID
+25,0,0,0,0,0,0,2,0,0,0,0,0,0,116
+1204,0,0,0,0,0,0,2.75,0,0,0,0,0,0,30451
+232462,0,0,0,0,0,0,1,0,0,0,0,0,0,133
