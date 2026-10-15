@@ -4,6 +4,8 @@ extends "res://tests/talent_loadouts_live.gd"
 # Cage. account_state records exactly the string handed to clipboard_set; typed
 # native editbox input proves the remainder without claiming OS paste delivery.
 func _run() -> void:
+	root.content_scale_size = Vector2i.ZERO
+	root.size = Vector2i(1920, 1080)
 	directory = OS.get_environment("TALENT_LOADOUT_CAPTURE_PATH")
 	skin = OS.get_environment("TALENT_LOADOUT_SKIN")
 	var endpoint := OS.get_environment("TALENT_LOADOUT_ENDPOINT")
@@ -76,6 +78,19 @@ func _run() -> void:
 	print("TALENT_IMPORT_EXPORT_LIVE_PASS ", skin)
 	quit(0)
 
+func capture(suffix: String) -> void:
+	await frames(30)
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image.get_size() != Vector2i(1920, 1080):
+		abort("Native1920x1080 capture required, got " + str(image.get_size()))
+		return
+	var filename := skin + "-" + suffix + ".png"
+	if image.save_png(directory.path_join(filename)) != OK:
+		abort("PNG save failed: " + filename)
+		return
+	evidence.append({"png":filename,"size":[image.get_width(),image.get_height()]})
+
 func rank_state() -> Dictionary:
 	var result := {}
 	for node in root.find_children("TalentNode*Ranks", "Label", true, false):
@@ -95,6 +110,9 @@ func login(endpoint: String) -> void:
 	await click("EnterWorld")
 	await wait_screen("InWorld")
 	await create_timer(5.0).timeout
+	root.content_scale_size = Vector2i.ZERO
+	root.size = Vector2i(1920, 1080)
+	await frames(3)
 	await key(KEY_N)
 	await control("TalentLoadoutDropDown")
 	await frames(30)
