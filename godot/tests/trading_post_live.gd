@@ -500,6 +500,9 @@ func frozen_slot_geometry_proof(check_geometry: bool) -> void:
 		if not assert_native_rect("PerksProgramFrozenIcon", Rect2(78,817.5,32,32)): return
 		if not assert_native_rect("PerksProgramFrozenFrame", Rect2(62,801.5,64,64)): return
 	await capture("frozen-slot")
+	if check_geometry:
+		for frame_name in ["PerksProgramFrozenIcon", "PerksProgramFrozenSlotArt", "PerksProgramFrozenFrame"]:
+			if not assert_texture_pixels(frame_name): return
 	var candidate := await select_other_cartable([original])
 	if candidate < 0: return
 	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return
@@ -509,6 +512,7 @@ func frozen_slot_geometry_proof(check_geometry: bool) -> void:
 		var frost := control("PerksProgramFrozenFrame")
 		if frost != null and frost.is_visible_in_tree() and frost.modulate.a > 0.01: fail("Pending frozen icon incorrectly kept visible settled frost frame"); return
 	await capture("pending-slot")
+	if check_geometry and not assert_texture_pixels("PerksProgramFrozenItemGlow"): return
 	await click("PerksProgramConfirmCancelButton")
 	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel pending geometry capture"): return
 	await capture("cancel-restores-frozen-slot")
