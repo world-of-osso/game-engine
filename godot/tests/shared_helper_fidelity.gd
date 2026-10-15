@@ -22,6 +22,8 @@ func capture_panels() -> void:
 			var button_name: String = {"quest": "QuestFrameAcceptButton", "mail": "SendMailCancelButton", "raid": "RaidInfoExtendButton", "bank": "BankFrameDepositAllButton", "settings": "CooldownSettingsUndo"}[panel]
 			var button := probe.find_child(button_name, true, false) as Control
 			assert(button != null and button.size.x > 0, "Missing representative button " + button_name)
+			var source_size: Vector2 = {"quest": Vector2(77, 22), "mail": Vector2(80, 22), "raid": Vector2(245, 30), "bank": Vector2(256, 24), "settings": Vector2(164, 22)}[panel]
+			assert(button.size.is_equal_approx(source_size), "XML/Lua geometry at UI scale1: " + button_name + " got " + str(button.size))
 			var skin := "forever" if forever else "modern"
 			var image := root.get_texture().get_image()
 			assert(image.get_size() == Vector2i(1920, 1080), "Full-HD required")
