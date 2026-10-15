@@ -239,3 +239,97 @@ fn talent_loadouts_ignore_list_from_other_spec() {
     editor.receive_loadouts(list(70, 2));
     assert_eq!(editor.loadout_caption(), "Raid");
 }
+
+#[test]
+fn talent_loadouts_import_export_roundtrip_queues_authoritative_create_only() {
+    let mut state = state();
+    stage_talent_preview(&mut state).unwrap();
+    let view = state.talents.as_ref().unwrap();
+    let mut editor = view.editor.clone();
+    let expected = editor.apply().unwrap().entries;
+    editor.action(view, 80, "talent:loadout_export").unwrap();
+    let text = editor.take_loadout_export().unwrap();
+    assert!(editor.take_loadout_request().is_none());
+    editor.undo();
+    editor.action(view, 80, "talent:loadout_import").unwrap();
+    assert_eq!(editor.loadout_dialog, Some(LoadoutDialog::Import));
+    editor.loadout_code = text;
+    editor.loadout_name = "Imported".into();
+    editor.action(view, 80, "talent:loadout_save").unwrap();
+    assert_eq!(editor.loadout_caption(), "Raid");
+    assert!(!editor.dirty(), "Import cannot invent a committed snapshot");
+    assert_eq!(
+        editor.take_loadout_request().unwrap().operation,
+        TraitLoadoutOperation::Create {
+            name: "Imported".into(),
+            entries: expected
+        }
+    );
+}
+
+#[test]
+fn talent_loadouts_invalid_import_retains_dialog_and_never_sends_request() {
+    let state = state();
+    let view = state.talents.as_ref().unwrap();
+    let mut editor = view.editor.clone();
+    editor.action(view, 80, "talent:loadout_import").unwrap();
+    editor.loadout_name = "Bad".into();
+    editor.loadout_code = "invalid!".into();
+    editor.action(view, 80, "talent:loadout_save").unwrap();
+    assert_eq!(
+        editor.error_text.as_deref(),
+        Some("Error: Invalid loadout code")
+    );
+    assert_eq!(editor.loadout_dialog, Some(LoadoutDialog::Import));
+    assert!(editor.take_loadout_request().is_none());
+    assert!(!editor.loadout_busy);
+}
+
+#[test]
+fn talent_loadouts_import_dialog_has_retail_fields_limits_and_shared_geometry() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = state();
+        state.viewport = [1920.0, 1080.0];
+        let view = state.talents.as_ref().unwrap().clone();
+        state
+            .talents
+            .as_mut()
+            .unwrap()
+            .editor
+            .action(&view, 80, "talent:loadout_import")
+            .unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(state.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+            &state,
+            &mut registry,
+        );
+        let dialog = registry
+            .get(registry.get_by_name("TalentLoadoutDialog").unwrap())
+            .unwrap();
+        assert_eq!(
+            (dialog.width.value(), dialog.height.value()),
+            (460.0, 275.0)
+        );
+        let Some(WidgetData::EditBox(code)) = &registry
+            .get(registry.get_by_name("TalentLoadoutCodeInput").unwrap())
+            .unwrap()
+            .widget_data
+        else {
+            panic!("multiline code field")
+        };
+        assert!(code.multi_line);
+        assert_eq!(code.max_letters, Some(1000));
+        let Some(WidgetData::EditBox(name)) = &registry
+            .get(registry.get_by_name("TalentLoadoutNameInput").unwrap())
+            .unwrap()
+            .widget_data
+        else {
+            panic!("name field")
+        };
+        assert_eq!(name.max_letters, Some(30));
+    }
+}

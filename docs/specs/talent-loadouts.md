@@ -7,7 +7,7 @@ Named trait configurations per specialization in the Talents footer. Mainline de
 - [ ] Rename/delete/switch only owner configurations of the active spec; reject invalid names, wrong spec/unknown ID and invalid allocations without mutation.
 - [ ] Apply updates selected loadout; switches update effective talents/spells and relog restores selection/configs.
 - [ ] Both skins show server-named dropdown rows, selected check/caption, row gear, New/rename name dialogs (30 letters), confirmed deletion and pending-edit discard confirmation. New selection waits for acknowledgement.
-- [ ] Import/export use Retail loadout strings only after verifying the pinned client's serialization version. Until then their sentinels stay disabled; no custom or guessed format is emitted.
+- [ ] Import/export use Retail version2 loadout strings. Copy to Clipboard exports the current staged allocation with a zero tree hash. Import accepts a code (1000 letters) and name (30 letters) in the Retail460×275 dialog, validates before sending the existing authoritative Create request, and waits for server snapshots before selecting/applying. Reject malformed/truncated codes, wrong version/spec (including other classes), invalid choices/ranks/allocations with installed Retail error text. Both skins share controls/behaviour.
 
 ## How it works
 - [Talent system](../wiki/systems/talents.md#named-loadouts--2026-10-10)

@@ -46,8 +46,20 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             "talent:loadout_new",
             enabled && list.is_some(),
         ),
-        (1, "TalentImportLoadout", "Import Loadout", "", false),
-        (2, "TalentExportLoadout", "Export Loadout", "", false),
+        (
+            1,
+            "TalentImportLoadout",
+            "Import Loadout",
+            "talent:loadout_import",
+            enabled && list.is_some(),
+        ),
+        (
+            2,
+            "TalentExportLoadout",
+            "Copy to Clipboard",
+            "talent:loadout_export",
+            enabled && view.editor.snapshot.is_some(),
+        ),
     ] {
         rows.extend(sentinel_row(
             name,
@@ -86,11 +98,16 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     };
     let (title, height, confirm) = match dialog {
         LoadoutDialog::Create => ("New Loadout", 150.0, false),
+        LoadoutDialog::Import => ("Import Loadout", 275.0, false),
         LoadoutDialog::Edit(_) => ("Edit Loadout", 200.0, false),
         LoadoutDialog::Delete(_) => ("Delete Loadout?", 150.0, true),
         LoadoutDialog::Switch(_) => ("Discard pending talent changes?", 150.0, true),
     };
+    let importing = matches!(dialog, LoadoutDialog::Import);
     let mut contents = dialog_border(height, scale);
+    if importing {
+        contents.extend(import_control(&view.editor.loadout_code));
+    }
     contents.extend(label(
         Label {
             name: "TalentLoadoutDialogTitle".into(),
@@ -123,7 +140,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
             Label {
                 name: "TalentLoadoutNameLabel".into(),
                 text: "Loadout Name",
-                rect: [40.0, 40.0, 380.0, 16.0],
+                rect: [40.0, if importing { 165.0 } else { 40.0 }, 380.0, 16.0],
                 size: 12.0,
                 color: TAB_TEXT,
                 justify: "LEFT",
@@ -132,7 +149,12 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
         ));
         let mut input = crate::bank_art::edit_box(
             "TalentLoadoutNameInput",
-            (40.0 * scale, 58.0 * scale, 380.0 * scale, 32.0 * scale),
+            (
+                40.0 * scale,
+                if importing { 183.0 } else { 58.0 } * scale,
+                380.0 * scale,
+                32.0 * scale,
+            ),
         );
         // InputBoxTemplate: source NameControl bottom90, 32px input; letters30.
         let input_widget = input
@@ -160,7 +182,9 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
             ));
         contents.extend(input);
     }
-    let enabled = confirm || !view.editor.loadout_name.trim().is_empty();
+    let enabled = confirm
+        || (!view.editor.loadout_name.trim().is_empty()
+            && (!importing || !view.editor.loadout_code.is_empty()));
     let is_edit = matches!(dialog, LoadoutDialog::Edit(_));
     if is_edit {
         contents.extend(dialog_button(
@@ -180,6 +204,8 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
             "Delete"
         } else if confirm {
             "Confirm"
+        } else if importing {
+            "Import"
         } else if is_edit {
             "Accept"
         } else {
@@ -202,7 +228,7 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
         [cancel_x, height - 47.0],
         scale,
     ));
-    if let Some(error) = &view.editor.error_text {
+    if let Some(error) = view.editor.error_text.as_ref().filter(|_| !importing) {
         contents.extend(label(
             Label {
                 name: "TalentLoadoutNameError".into(),
@@ -215,15 +241,69 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
             scale,
         ));
     }
+    let error_popup = if importing {
+        import_error(view.editor.error_text.as_deref(), viewport)
+    } else {
+        Vec::new()
+    };
     rsx! { r#frame {name:"TalentLoadoutDialogBlocker",width:{viewport[0]},height:{viewport[1]},
         strata:FrameStrata::Dialog,frame_level:2090,pos_type:"absolute",left:0.0,top:0.0}
         r#frame {name:"TalentLoadoutDialog",width:{460.0*scale},height:{height*scale},
-            strata:FrameStrata::Dialog,frame_level:2100,pos_type:"absolute",left:{(viewport[0]-460.0)/2.0},top:135.0,
+            strata:FrameStrata::Dialog,frame_level:2100,pos_type:"absolute",left:{(viewport[0]-460.0)/2.0},top:{if importing { (viewport[1]-height)/2.0 } else { 135.0 } },
             texture {name:"TalentLoadoutDialogBackground",texture_fdid:312922,width:{446.0*scale},height:{(height-14.0)*scale},horiz_tile:true,vert_tile:true,
                 pos_type:"absolute",left:{7.0*scale},top:{7.0*scale}} {contents}
         }
+        {error_popup}
     }
 }
+
+fn import_control(text: &str) -> Element {
+    // InputScrollFrameTemplate: eight8px Common-Input-Border pieces,5px outside text.
+    let textures: Vec<_> = ["TL", "T", "TR", "L", "M", "R", "BL", "B", "BR"]
+        .into_iter()
+        .map(|part| format!("data/ui/Common-Input-Border-{part}.blp"))
+        .collect();
+    let mut elements = label(
+        Label {
+            name: "TalentLoadoutCodeLabel".into(),
+            text: "Paste loadout code",
+            rect: [40.0, 40.0, 380.0, 12.0],
+            size: 12.0,
+            color: TAB_TEXT,
+            justify: "LEFT",
+        },
+        1.0,
+    );
+    elements.extend(rsx! { editbox {name:"TalentLoadoutCodeInput",text:text,width:390.0,height:88.0,
+        pos_type:"absolute",left:35.0,top:57.0,font_size:13.0,text_insets:"5,5,5,5",max_letters:1000,
+        nine_slice {edge_size:8,textures:textures}
+    } });
+    elements
+}
+
+fn import_error(error: Option<&str>, viewport: [f32; 2]) -> Element {
+    let Some(error) = error else {
+        return Vec::new();
+    };
+    // Shared StaticPopup geometry (static_popup_component):320 width,290 text,
+    // 16px padding,18px lines,12px gap,128x26 button; first popup TOP135.
+    let lines = (error.chars().count() as f32 / (290.0 / 7.0))
+        .ceil()
+        .max(1.0);
+    let text_height = lines * 18.0;
+    let height = 70.0 + text_height;
+    rsx! { r#frame {name:"TalentImportErrorBlocker",width:{viewport[0]},height:{viewport[1]},strata:FrameStrata::FullscreenDialog,pos_type:"absolute",left:0.0,top:0.0}
+        r#frame {name:"TalentImportError",width:320.0,height:height,pos_type:"absolute",left:{(viewport[0]-320.0)/2.0},top:135.0,
+            strata:FrameStrata::FullscreenDialog,frame_level:2200,
+            style:crate::static_popup_component::STATIC_POPUP_PANEL_STYLE,
+            texture {name:"TalentImportErrorBackground",texture_fdid:6839810,width:306.0,height:{height-14.0},pos_type:"absolute",left:7.0,top:7.0}
+            fontstring {name:"TalentImportErrorText",text:error,width:290.0,height:text_height,pos_type:"absolute",left:15.0,top:16.0,font_size:14.0,font_color:"1.0,0.2,0.2,1.0",justify_h:"CENTER"}
+            button {name:"TalentImportErrorOkay",text:"Okay",onclick:"talent:loadout_error_ok",width:128.0,height:26.0,pos_type:"absolute",left:96.0,top:{28.0+text_height},
+                button_default_skin:false,button_atlas_up:"defaultbutton-nineslice-up",button_atlas_pressed:"defaultbutton-nineslice-pressed",button_atlas_highlight:"defaultbutton-nineslice-highlight"}
+        }
+    }
+}
+
 fn dialog_button(
     name: &str,
     text: &str,

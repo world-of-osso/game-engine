@@ -556,6 +556,13 @@ fn icon_name(node: &TalentNode, entry: u32, view: &TalentView) -> String {
     format!("TalentNode{}Entry{entry}{suffix}", node.id)
 }
 pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
+    if let Some(id) = registry.get_by_name("TalentLoadoutCodeInput")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
+    {
+        edit.multi_line = true;
+        edit.max_letters = Some(1000);
+    }
     let Some(view) = &state.talents else {
         return;
     };

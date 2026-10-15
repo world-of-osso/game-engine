@@ -75,3 +75,23 @@ fn talent_string_rejects_bad_alphabet_short_version_and_wrong_spec() {
         Err(LoadoutError::BadString)
     );
 }
+
+#[test]
+fn talent_string_matches_actual_blizzard_lua_zero_and_nonzero_hashes() {
+    let tree = mage();
+    let expected = build_config(
+        &tree,
+        CONTEXT,
+        &[Purchase {
+            node_id: 62122,
+            entry_id: 80181,
+            ranks: 1,
+        }],
+    )
+    .unwrap();
+    let zero = include_str!("fixtures/talent_mage_zero.txt").trim();
+    let nonzero = include_str!("fixtures/talent_mage_nonzero.txt").trim();
+    assert_eq!(encode(&tree, 62, &expected).unwrap(), zero);
+    assert_eq!(decode(&tree, CONTEXT, zero).unwrap(), expected);
+    assert_eq!(decode(&tree, CONTEXT, nonzero).unwrap(), expected);
+}

@@ -523,11 +523,20 @@ impl GameClient {
         }
         if host.has_frame("TalentLoadoutNameInput") {
             if self.account.talents.loadout_focus_requested {
-                host.focus_frame_named("TalentLoadoutNameInput")?;
+                let focus = if host.has_frame("TalentLoadoutCodeInput") {
+                    "TalentLoadoutCodeInput"
+                } else {
+                    "TalentLoadoutNameInput"
+                };
+                host.focus_frame_named(focus)?;
                 self.account.talents.loadout_focus_requested = false;
             }
             self.account.talents.loadout_name =
                 host.frame_text("TalentLoadoutNameInput".into()).to_string();
+        }
+        if host.has_frame("TalentLoadoutCodeInput") {
+            self.account.talents.loadout_code =
+                host.frame_text("TalentLoadoutCodeInput".into()).to_string();
         }
         drop(host);
         self.apply_spellbook_action(&action)
@@ -543,6 +552,9 @@ impl GameClient {
         if let Some(request) = self.account.talents.action(view, view.level, action)? {
             self.account.send_commit_traits(request)?;
             self.account.talents.loadout_busy = true;
+        }
+        if let Some(text) = self.account.talents.take_loadout_export() {
+            godot::classes::DisplayServer::singleton().clipboard_set(&text);
         }
         if let Some(request) = self.account.talents.take_loadout_request() {
             self.account.send_trait_loadout(request)?;
