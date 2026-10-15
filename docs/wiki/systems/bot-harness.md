@@ -22,6 +22,12 @@ All40 installed specs have AssistedCombatStep order. When order exists, the coll
 
 `bot_harness_talents.gd` drives actual N/mouse input. Already-present ranks are not repurchased, unavailable/disabled nodes are recorded, and the ordinary Apply button commits staged choices. Native UI observations are not automatically persistence proof. Ret32's12 positive source-plan ranks were separately retained across a stopped client and fresh credential login (`talent-persistence.json`). The controller also opens the existing CharacterFrame and reads visible source stats-pane labels/values using the maintained `sheet_stats_live.gd` path. Each bot retains admin equipment ownership output; neither receipt alone asserts cross-class stat comparability.
 
+## Pre-combat source forms
+
+Feral103's first all-spec fixture remains in caster baseline:51/52 requests for Rake1822 fail SPELL_FAILED_ONLY_SHAPESHIFT. This is a missing harness form setup, not source-valid Feral DPS or evidence that Rake is broken. bot_forms.py authors Cat Form768/form1 for Feral and Bear Form5487/form5 for Guardian, retaining installed ChrSpecialization descriptions, exact aura36 effect rows and SpellShapeshiftForm records. Missing or contradictory source blocks.
+
+Future native drivers confirm the form spell is learned, request one ordinary validated self-cast only when its own aura is absent, and await replicated own-form aura facts from assisted evaluation. An existing form is never toggled again; timeout does not retry or select another form. form-plan.json/native-form.json and form-before/after.json retain source and observation. Equipment stat labels explicitly say before form preparation; ordinary post-form CharacterStats/combat retain resulting health/effects. Three focused source/observation tests pass; native follow-up remains pending after the unchanged current all-spec collection. No server/evaluator/stat change or form-effect correctness claim follows from aura presence alone.
+
 ## Capture and detection
 
 `run_dummy_bots.py` requires an explicit socket/state/DB2 directory/dummy. It saves every IPC reply, native samples, run manifest and raw combat. Overlapping ring polls preserve true event multiplicity without recounting overlap; sequence gaps use the observed200-event retention, not the requested1024 lines.
