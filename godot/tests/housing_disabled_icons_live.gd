@@ -37,19 +37,18 @@ func run_test() -> void:
 	quit(0)
 
 func prove_disabled_icon(name: String, phase: String) -> bool:
-	if not await wait_housing(func():
-		var icon: TextureRect = housing_control(name + "Icon") as TextureRect
-		return icon != null and icon.texture != null, "authenticated disabled icon art " + name): return false
+	if not await wait_housing(func(): return painted_icon(name) != null, "authenticated disabled icon art " + name): return false
 	var button: BaseButton = housing_control(name) as BaseButton
-	var icon: TextureRect = housing_control(name + "Icon") as TextureRect
+	var frame: Control = housing_control(name + "Icon")
+	var icon: TextureRect = painted_icon(name)
 	push_mouse_motion(button.get_global_rect().get_center())
 	await frames(5)
 	var expected := Color(0.4, 0.4, 0.4, 1.0)
 	var hover: CanvasItem = housing_control(name + "Hover") as CanvasItem
-	if not button.disabled or not icon.modulate.is_equal_approx(Color.WHITE) or not icon.self_modulate.is_equal_approx(expected) or hover == null or absf(hover.modulate.a) > 0.001:
-		fail("Disabled icon must use source DARKGRAY tint/full alpha without hover: " + name + " alpha=" + str(icon.modulate) + " color=" + str(icon.self_modulate))
+	if not button.disabled or not frame.modulate.is_equal_approx(Color.WHITE) or not icon.self_modulate.is_equal_approx(expected) or hover == null or absf(hover.modulate.a) > 0.001:
+		fail("Disabled icon must use source DARKGRAY tint/full alpha without hover: " + name + " alpha=" + str(frame.modulate) + " color=" + str(icon.self_modulate))
 		return false
-	disabled_icon_receipts.append({"name": name, "phase": phase, "skin": housing_skin, "disabled": button.disabled, "frame_rgba": color_channels(icon.modulate), "tint_rgba": color_channels(icon.self_modulate), "hover_alpha": hover.modulate.a, "housing": client.housing_state()})
+	disabled_icon_receipts.append({"name": name, "phase": phase, "skin": housing_skin, "disabled": button.disabled, "frame_rgba": color_channels(frame.modulate), "tint_rgba": color_channels(icon.self_modulate), "hover_alpha": hover.modulate.a, "housing": client.housing_state()})
 	var file := FileAccess.open(shots.path_join("disabled-icon-receipts.json"), FileAccess.WRITE)
 	if file == null:
 		fail("Cannot save disabled icon source receipts")
@@ -58,6 +57,16 @@ func prove_disabled_icon(name: String, phase: String) -> bool:
 	file.close()
 	if name == "HouseEditorCustomizeModeButton": return await capture_housing("disabled-source-icons-" + phase)
 	return true
+
+func painted_icon(name: String) -> TextureRect:
+	var frame: Control = housing_control(name + "Icon")
+	if frame == null: return null
+	var parts: Node = frame.get_node_or_null("Parts")
+	if parts == null: return null
+	for child in parts.get_children():
+		var texture: TextureRect = child as TextureRect
+		if texture != null and texture.texture != null: return texture
+	return null
 
 func color_channels(color: Color) -> Array:
 	return [color.r, color.g, color.b, color.a]
