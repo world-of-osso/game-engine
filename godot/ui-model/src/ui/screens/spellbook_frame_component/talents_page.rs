@@ -572,6 +572,7 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
     let Some(view) = &state.talents else {
         return;
     };
+    footer::apply_loadout_caption(view, registry);
     for node in view.nodes() {
         // RSX has no justify_v attribute; set the actual FontString property.
         let rank_name = format!("TalentNode{}Ranks", node.id);

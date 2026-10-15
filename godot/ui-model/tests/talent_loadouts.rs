@@ -218,9 +218,14 @@ fn talent_loadouts_both_skins_show_builtin_starter_without_gear() {
         list.selected_id = u32::MAX;
         editor.loadout_menu = true;
         let mut shared = SharedContext::new();
-        shared.insert(state);
+        shared.insert(state.clone());
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        let mut screen = Screen::new(spellbook_frame_screen);
+        screen.sync(&shared, &mut registry);
+        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+            &state,
+            &mut registry,
+        );
         assert!(registry.get_by_name("TalentStarterBuild").is_some());
         assert!(registry.get_by_name("TalentStarterBuildCheck").is_some());
         assert!(
@@ -237,6 +242,30 @@ fn talent_loadouts_both_skins_show_builtin_starter_without_gear() {
         };
         assert_eq!(text.text, "Starter Build");
         assert_eq!(text.color, [0.53, 0.67, 1.0, 1.0]);
+        state
+            .talents
+            .as_mut()
+            .unwrap()
+            .editor
+            .loadouts
+            .as_mut()
+            .unwrap()
+            .selected_id = 1;
+        shared.insert(state.clone());
+        screen.sync(&shared, &mut registry);
+        game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+            &state,
+            &mut registry,
+        );
+        let Some(WidgetData::FontString(text)) = &registry
+            .get(registry.get_by_name("TalentLoadoutName").unwrap())
+            .unwrap()
+            .widget_data
+        else {
+            panic!("caption after named switch")
+        };
+        assert_eq!(text.text, "Raid");
+        assert_eq!(text.color, [1.0; 4]);
     }
 }
 
