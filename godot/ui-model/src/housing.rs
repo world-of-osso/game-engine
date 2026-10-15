@@ -231,6 +231,7 @@ impl HousingDashboard {
     pub fn editor_control_tooltip(
         &self,
         action: game_engine_core::input_bindings_data::InputAction,
+        binding: Option<game_engine_core::input_bindings_data::InputBinding>,
     ) -> Option<crate::game_tooltip::GameTooltip> {
         use crate::game_tooltip::GameTooltip;
         use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
@@ -240,10 +241,8 @@ impl HousingDashboard {
         let (_, _, label) = EDITOR_CONTROL_TOOLTIPS
             .iter()
             .find(|(_, candidate, _)| *candidate == action)?;
-        let suffix = self
-            .editor_bindings
-            .binding(action)
-            .map(|binding| (format!(" ({})", binding.display()), NORMAL_FONT_COLOR));
+        let suffix =
+            binding.map(|binding| (format!(" ({})", binding.display()), NORMAL_FONT_COLOR));
         Some(GameTooltip::new(
             TooltipPresentation {
                 title: (*label).into(),

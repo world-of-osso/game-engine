@@ -51,17 +51,11 @@ fn housing_mode_tooltips_use_full_keys_source_colors_and_owner_top_both_skins() 
                 ),
                 (None, ""),
             ] {
-                match binding {
-                    Some(binding) => {
-                        view.model.editor_bindings.assign(action, binding);
-                    }
-                    None => {
-                        view.model.editor_bindings.clear(action);
-                    }
-                }
+                // Native tooltip content reads current Options, not the housing snapshot's UI-only copy.
+                assert!(view.model.editor_bindings.binding(action).is_none());
                 let tooltip = view
                     .model
-                    .editor_control_tooltip(action)
+                    .editor_control_tooltip(action, binding)
                     .unwrap()
                     .owned([600.0, 600.0, 64.0, 64.0], OwnerSide::Top)
                     .for_skin(skin);
@@ -83,20 +77,20 @@ fn housing_mode_tooltips_use_full_keys_source_colors_and_owner_top_both_skins() 
         }
         assert!(
             view.model
-                .editor_control_tooltip(InputAction::HousingRemoveDecor)
+                .editor_control_tooltip(InputAction::HousingRemoveDecor, None)
                 .is_none()
         );
         view.model.pending = true;
         assert!(
             view.model
-                .editor_control_tooltip(InputAction::HousingBasicMode)
+                .editor_control_tooltip(InputAction::HousingBasicMode, None)
                 .is_none()
         );
         view.model.pending = false;
         view.model.surface = HousingSurface::Dashboard;
         assert!(
             view.model
-                .editor_control_tooltip(InputAction::HousingBasicMode)
+                .editor_control_tooltip(InputAction::HousingBasicMode, None)
                 .is_none()
         );
     }
