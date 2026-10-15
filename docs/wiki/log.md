@@ -4,6 +4,9 @@
 ## 2026-10-15 — Communities numeric roster sorting
 
 [Level/Class header continuation](systems/guilds.md#communities-metadata-sorting--verified2026-10-15): actual disabled-header RED→seven focused controls GREEN, numeric class IDs and missing-value order sourced from Retail. Both-skin native physical sort and prior Communities regression pass; ten before/after PNGs inspected. Offline fixture authority only; service gaps and numeric tie-order boundary retained.
+## 2026-10-15 — Comparable three-DPS bot MVP
+
+[Native receipts](systems/bot-harness.md#common-budget-three-dps-mvp--verified2026-10-15): Arms/Fury/Havoc each complete two60s windows with equal30/quality2/era0 equipment, empty jewelry and common observed dummy/level/world inputs. Fury ordinary dual-two-hand succeeds; Havoc five normal jewelry removals preserve four bag identities. Median19.1167 from equal-spec means, max/median5.7363, min/median0.1844; no tolerance/balance or bug-free claim. All40/detector completeness/Stockade remain open. Evidence native-equal-budget2; all owned runtime stopped.
 
 ## 2026-10-15 — Pet queue caption tag
 

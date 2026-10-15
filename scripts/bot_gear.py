@@ -120,7 +120,7 @@ def load_plan(database, db2, spec, level=32):
             "source_class": source_class, "primary_stat": primary, "armor_subclass": armor,
             "fixture_budget": FIXTURE_BUDGET.copy(), "empty_slots": EMPTY_SLOTS.copy(),
             "policy": "lowest eligible source ID per preferred kind; same quality/item-level/squish-era; native class stats unchanged",
-            "known_boundary": "Fury dual two-hand equipment requires unmodelled Titans Grip; do not substitute one-hand weapons" if spec == 72 else None}
+            "known_boundary": "Fury dual two-hand equipment requires learned Titans Grip; native acquisition/equipment confirmation required, no one-hand substitute" if spec == 72 else None}
 
 
 def equipment_receipt(plan, native, sheet_stats):
