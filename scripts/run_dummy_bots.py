@@ -50,7 +50,7 @@ def collect(args, output):
     candidates = [spell for spell in metadata if spell["id"] in order] if order else load_spells(args.db2, spells["known"])
     if not candidates:
         raise RuntimeError("No sourced rotation abilities for this observed kit")
-    if order and state["target"].get("server_target") != args.target:
+    if order and state["target"].get("target") != args.target:
         raise RuntimeError("Authored evaluator target must equal the verified dummy entity")
     (output / "native-before.json").write_text(json.dumps(state, indent=2))
     start = int(time.time() * 1000)
