@@ -41,7 +41,7 @@ use floating_text::FloatingText;
 
 #[cfg(test)]
 use crate::world_map::title_hit;
-pub(crate) use action_bar::cooldown_text;
+pub(crate) use action_bar::{cooldown_text, sync_action_bar_swipes};
 #[cfg(test)]
 use floating_text::combat_text_size;
 #[cfg(test)]

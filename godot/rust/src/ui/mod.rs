@@ -21,6 +21,8 @@ mod follower_layout_preview;
 mod forevergaps_preview;
 mod gameplay_panels_input_fixture;
 mod gameplay_panels_preview;
+#[cfg(debug_assertions)]
+mod guild_invite_preview;
 mod guild_preview;
 #[cfg(test)]
 mod guild_tests;
@@ -783,6 +785,15 @@ impl RegistryModel {
                 actions.push_back("talent:loadout_save".into());
             }
             ScreenPostsetup::Guild => {
+                if self.registry.focused_frame.is_some()
+                    && self.registry.focused_frame
+                        == self
+                            .registry
+                            .get_by_name(game_engine_ui_model::guild_member_detail::NOTE_BOX)
+                {
+                    actions.push_back("guild:note_accept".into());
+                    return;
+                }
                 if let Some(action) = self
                     .registry
                     .focused_frame

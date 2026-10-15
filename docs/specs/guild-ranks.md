@@ -31,13 +31,15 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 ### Invitation and guild profile
 - [x] `/ginvite` / `/guildinvite`, `/gquit` / `/guildquit`, `/gremove` / `/guildremove` send authoritative guild actions, not help.
 - [x] AuthChannel invitation delivery mounts GuildInviteFrame independently of Communities. Join waits for authoritative acceptance; Decline sends the pending-invite refusal. Both skins share controls and mechanics.
+- [x] Decline uses the source140×22 button with right/bottom24px insets (local146,142 in the310×188 popup); Join stays110×22 at24,142. Both-skin native rectangles and physical Decline/pending pacing pass. Compared with unchanged ce574 before controls, each skin changes1703 RGBA pixels, zero outside the button paint rectangle plus4px margin. Four1920×1080 before/after PNGs inspected2026-10-15; offline fixture authority only.
 - [x] `/gmotd` / `/guildmotd` sends SetGuildMotd; authoritative profile replies update MOTD and info.
 - [x] `/ginfo` / `/guildinfo` sends a read-only query and reports the persisted creation date for charter-created guilds; legacy guilds remain explicitly unknown, never backdated.
 - [x] Communities exposes Invite Member and Info; MOTD/info editors send authoritative writes, keep displayed text unchanged pending reply, and hide edits without rank permission. Member menu Remove uses strict hierarchy.
 - [x] Native Info editor uses TextEdit for multiline text (499 characters); MOTD uses Enter-to-accept input (255 characters). Native postsetup supplies limits before projection.
 - [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
 - [x] Authenticated native multiline editor and authoritative readback inspected; both-skin profile and restart preserve both lines.
-- [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
+- [x] GuildInviteFrame uses its inherited TranslucentFrameTemplate: black0.9 background inset10px, four32px DialogFrame corner quadrants and tiled16px border strips at the source anchors. Join/Decline/pending state and existing content remain unchanged. Two focused controls and both-skin native source rectangles/physical Join/Decline/pending pacing pass; four1920×1080 before/after PNGs inspected2026-10-15. Offline fixture authority only.
+- [ ] GuildInviteFrame tabard/achievement payload and inner GuildExtra art remain pending; no emblem or points are fabricated. Other source content geometry and reputation/expiry/Escape lifecycle acceptance are separate from the chrome continuation.
 
 ### Permissions and members
 - [x] Mainline exposes guild-chat speak, Officer(id22), invite/remove/promote/demote and monetary checks. MOTD/info/note rights are preserved/enforced independently and appear only in source OfficerPermissions bullet text, not invented controls.
@@ -68,6 +70,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 
 - `godot/tests/communities_fidelity.gd`: source rectangles, physical wheel/thumb reaching member32, name sorting, member hierarchy menu, all four source tabs and invitation reducer in both skins; fixture authority only, not a live-server/deployment claim.
 - `godot/tests/communities_roster_sort.gd`: physical Level/Class ascending/descending clicks, numeric class ordering, unchanged40/45px headers and sorted-row context identity in both skins. `guild_rank_widgets::guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_identity` additionally covers distinct numeric level/class order, missing metadata and unchanged authoritative state; seven focused Communities controls pass.
+- `godot/tests/guild_invite_decline.gd`: actual source Decline/unchanged Join rectangles and physical no-duplicate pending Decline in both skins. The source-size render-contract RED observes110×22 instead of140×22; all three invitation controls pass after the correction.
+- `godot/tests/guild_invite_chrome.gd`: both-skin310×188 popup, source inset/eight border-piece rectangles, physical Join/Decline and no duplicate request while pending. `guild_rank_widgets::guild_invitation_uses_source_translucent_dialog_chrome_in_both_skins` checks the emitted source texture/UV/tiling/color contract; the existing invitation action control passes unchanged. Debug-only fixture supplies the payload, not a live server.
 - `godot/tests/guild_control_fidelity.gd`: both-skin1920×1080 native source rectangles, physical menus/rename/id22/gold/tab edits, pending-authority pacing and eighth-tab overflow. Fixture replies only; real authority/persistence are asserted by server tests.
 - Mainline Discord officer bullet GlobalString is absent from the current canonical strings; its text is not fabricated. Tab icon and bank-purchase payloads are absent; those source features remain named gaps.
 

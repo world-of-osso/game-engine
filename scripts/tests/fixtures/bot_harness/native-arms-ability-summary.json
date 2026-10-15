@@ -1,0 +1,888 @@
+{
+  "provenance": {
+    "source": "/home/osso/.worktrees/bot-harness-2026-10-15/native-equal-budget2/71/run-001",
+    "engine_revision": "e540887ac",
+    "server_revision": "80993678",
+    "excerpt": "Actual complete Arms native run; only fields needed by read-only per-ability summary retained."
+  },
+  "run": {
+    "spec": 71,
+    "role": 2,
+    "attempts": [
+      {
+        "spell": 7384,
+        "at_ms": 1792092847816,
+        "deadline_ms": 1792092851316,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092849462,
+        "deadline_ms": 1792092852962,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092861529,
+        "deadline_ms": 1792092865029,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092863084,
+        "deadline_ms": 1792092866584,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092864700,
+        "deadline_ms": 1792092868200,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092866383,
+        "deadline_ms": 1792092869883,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092867988,
+        "deadline_ms": 1792092871488,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092869645,
+        "deadline_ms": 1792092873145,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092881960,
+        "deadline_ms": 1792092885460,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092883556,
+        "deadline_ms": 1792092887056,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092885246,
+        "deadline_ms": 1792092888746,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092886761,
+        "deadline_ms": 1792092890261,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092888319,
+        "deadline_ms": 1792092891819,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092901896,
+        "deadline_ms": 1792092905396,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092903416,
+        "deadline_ms": 1792092906916,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      },
+      {
+        "spell": 7384,
+        "at_ms": 1792092905031,
+        "deadline_ms": 1792092907766,
+        "response": "spell cast submitted spell=7384 target=4294959692 witness=[-8970.898, 83.39932, 161.23027]->[-8969.405, 84.4516, 159.34814]\n"
+      }
+    ],
+    "measurement_complete": true,
+    "spells": [
+      {
+        "id": 100,
+        "damage_ids": []
+      },
+      {
+        "id": 355,
+        "damage_ids": []
+      },
+      {
+        "id": 772,
+        "damage_ids": [
+          772
+        ]
+      },
+      {
+        "id": 1464,
+        "damage_ids": [
+          1464
+        ]
+      },
+      {
+        "id": 1680,
+        "damage_ids": []
+      },
+      {
+        "id": 1715,
+        "damage_ids": [
+          1715
+        ]
+      },
+      {
+        "id": 2565,
+        "damage_ids": []
+      },
+      {
+        "id": 3365,
+        "damage_ids": []
+      },
+      {
+        "id": 6233,
+        "damage_ids": []
+      },
+      {
+        "id": 6246,
+        "damage_ids": []
+      },
+      {
+        "id": 6247,
+        "damage_ids": []
+      },
+      {
+        "id": 6477,
+        "damage_ids": []
+      },
+      {
+        "id": 6478,
+        "damage_ids": []
+      },
+      {
+        "id": 6544,
+        "damage_ids": []
+      },
+      {
+        "id": 6552,
+        "damage_ids": []
+      },
+      {
+        "id": 6603,
+        "damage_ids": []
+      },
+      {
+        "id": 6673,
+        "damage_ids": []
+      },
+      {
+        "id": 7266,
+        "damage_ids": []
+      },
+      {
+        "id": 7267,
+        "damage_ids": []
+      },
+      {
+        "id": 7355,
+        "damage_ids": []
+      },
+      {
+        "id": 7384,
+        "damage_ids": [
+          7384
+        ]
+      },
+      {
+        "id": 8386,
+        "damage_ids": []
+      },
+      {
+        "id": 12294,
+        "damage_ids": [
+          12294
+        ]
+      },
+      {
+        "id": 18499,
+        "damage_ids": []
+      },
+      {
+        "id": 21651,
+        "damage_ids": []
+      },
+      {
+        "id": 21652,
+        "damage_ids": []
+      },
+      {
+        "id": 22027,
+        "damage_ids": []
+      },
+      {
+        "id": 22810,
+        "damage_ids": []
+      },
+      {
+        "id": 23920,
+        "damage_ids": []
+      },
+      {
+        "id": 23922,
+        "damage_ids": [
+          23922
+        ]
+      },
+      {
+        "id": 45927,
+        "damage_ids": []
+      },
+      {
+        "id": 46968,
+        "damage_ids": []
+      },
+      {
+        "id": 57755,
+        "damage_ids": [
+          57755
+        ]
+      },
+      {
+        "id": 59752,
+        "damage_ids": []
+      },
+      {
+        "id": 61437,
+        "damage_ids": []
+      },
+      {
+        "id": 68398,
+        "damage_ids": []
+      },
+      {
+        "id": 88163,
+        "damage_ids": []
+      },
+      {
+        "id": 89964,
+        "damage_ids": []
+      },
+      {
+        "id": 90647,
+        "damage_ids": []
+      },
+      {
+        "id": 96220,
+        "damage_ids": []
+      },
+      {
+        "id": 97462,
+        "damage_ids": []
+      },
+      {
+        "id": 111621,
+        "damage_ids": []
+      },
+      {
+        "id": 113873,
+        "damage_ids": []
+      },
+      {
+        "id": 118038,
+        "damage_ids": []
+      },
+      {
+        "id": 127649,
+        "damage_ids": []
+      },
+      {
+        "id": 127650,
+        "damage_ids": []
+      },
+      {
+        "id": 163201,
+        "damage_ids": [
+          260798
+        ]
+      },
+      {
+        "id": 200749,
+        "damage_ids": []
+      },
+      {
+        "id": 202168,
+        "damage_ids": [
+          202168
+        ]
+      },
+      {
+        "id": 260708,
+        "damage_ids": []
+      },
+      {
+        "id": 261760,
+        "damage_ids": []
+      },
+      {
+        "id": 296208,
+        "damage_ids": []
+      },
+      {
+        "id": 350213,
+        "damage_ids": []
+      },
+      {
+        "id": 386164,
+        "damage_ids": []
+      },
+      {
+        "id": 386208,
+        "damage_ids": []
+      },
+      {
+        "id": 411525,
+        "damage_ids": []
+      },
+      {
+        "id": 1229376,
+        "damage_ids": []
+      },
+      {
+        "id": 1231411,
+        "damage_ids": []
+      },
+      {
+        "id": 1247613,
+        "damage_ids": []
+      },
+      {
+        "id": 1247917,
+        "damage_ids": []
+      },
+      {
+        "id": 1263886,
+        "damage_ids": []
+      },
+      {
+        "id": 1270311,
+        "damage_ids": []
+      },
+      {
+        "id": 1272615,
+        "damage_ids": []
+      },
+      {
+        "id": 1283375,
+        "damage_ids": []
+      },
+      {
+        "id": 1283376,
+        "damage_ids": []
+      }
+    ]
+  },
+  "report": {
+    "spec": 71,
+    "role": 2,
+    "duration_ms": 60000,
+    "measurement_complete": true,
+    "damage": 1163,
+    "dps": 19.383333333333333,
+    "casts": {
+      "7384": 3
+    },
+    "damage_by_spell": {
+      "7384": 1163
+    },
+    "findings": [
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092849462
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092861529
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092863084
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092864700
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": null,
+        "attribution": "overlapping request windows"
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092869645
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092881960
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092883556
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092885246
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": null,
+        "attribution": "overlapping request windows"
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092901896
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092903416
+      },
+      {
+        "kind": "cast_never_fired",
+        "spell": 7384,
+        "at_ms": 1792092905031
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 100
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 355
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 772
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1464
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1680
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1715
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 2565
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 3365
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6233
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6246
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6247
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6477
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6478
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6544
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6552
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6603
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 6673
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 7266
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 7267
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 7355
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 8386
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 12294
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 18499
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 21651
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 21652
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 22027
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 22810
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 23920
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 23922
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 45927
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 46968
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 57755
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 59752
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 61437
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 68398
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 88163
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 89964
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 90647
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 96220
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 97462
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 111621
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 113873
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 118038
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 127649
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 127650
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 163201
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 200749
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 202168
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 260708
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 261760
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 296208
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 350213
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 386164
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 386208
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 411525
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1229376
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1231411
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1247613
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1247917
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1263886
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1270311
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1272615
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1283375
+      },
+      {
+        "kind": "ability_never_used",
+        "spell": 1283376
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092851811,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092862901,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092864110,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092865663,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092867511,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092870659,
+        "error": "Spell is not ready yet.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092882464,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092884196,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092886331,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092888038,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092903326,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092904241,
+        "error": "No charges remain.",
+        "spell": null
+      },
+      {
+        "kind": "native_cast_error",
+        "at_ms": 1792092906063,
+        "error": "No charges remain.",
+        "spell": null
+      }
+    ],
+    "native_errors": [
+      {
+        "at_ms": 1792092851811,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092862901,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092864110,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092865663,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092867511,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092870659,
+        "errors": [
+          "Spell is not ready yet."
+        ]
+      },
+      {
+        "at_ms": 1792092882464,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092884196,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092886331,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092888038,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092903326,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092904241,
+        "errors": [
+          "No charges remain."
+        ]
+      },
+      {
+        "at_ms": 1792092906063,
+        "errors": [
+          "No charges remain."
+        ]
+      }
+    ]
+  }
+}
