@@ -338,6 +338,9 @@ fn bar_background(
     if state.player_feedback.is_some() {
         return player_bar_background(style, fill_w, color, state);
     }
+    if style.retail_target {
+        return retail_target_background(style, state, fill_w, color);
+    }
     if style.icon && !style.retail_target {
         return forever_bar_background(style, fill_w, color);
     }
@@ -363,6 +366,48 @@ fn bar_background(
             {timer_text(style, &state.timer_text)}
         }
     }
+}
+
+/// SmallCastingBarFrameTemplate background/TextBorder anchors (XML:402–413).
+fn retail_target_background(
+    style: &CastBarStyle,
+    state: &CastingBarState,
+    fill_width: f32,
+    color: &str,
+) -> Element {
+    let (width, height) = style.bar;
+    rsx! { r#frame {
+        name: {style.name("Background")}, width, height,
+        pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
+        texture {
+            name: {style.name("TextBorder")}, width, height: {height + 12.0},
+            texture_atlas: "ui-castingbar-textbox", draw_layer: "BACKGROUND",
+            pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
+        }
+        texture {
+            name: {style.name("BackgroundArt")}, width, height,
+            texture_atlas: "ui-castingbar-background", draw_layer: "BACKGROUND",
+            pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
+        }
+        {cast_fill(style, state, fill_width, color)}
+        {retail_target_spark(style, state, fill_width)}
+        {spell_name_text(style, &state.spell_name)}
+        {timer_text(style, &state.timer_text)}
+    } }
+}
+
+/// XML:438–442 fixes a6×16 pip; Lua:198–200 centres it on the fill edge.
+fn retail_target_spark(style: &CastBarStyle, state: &CastingBarState, fill_width: f32) -> Element {
+    let atlas = if state.is_interrupted {
+        "ui-castingbar-pip-red"
+    } else {
+        "ui-castingbar-pip"
+    };
+    rsx! { texture {
+        name: {style.name("Spark")}, width: 6.0, height: 16.0,
+        texture_atlas: atlas, draw_layer: "OVERLAY",
+        pos_type: "absolute", pos_x: {fill_width - 3.0}, pos_y: -3.0,
+    } }
 }
 
 fn player_bar_background(
@@ -398,15 +443,15 @@ fn player_bar_background(
         name: {style.name("Background")}, width, height,
         pos_type: "absolute", pos_x: x, pos_y: style.inset,
         {background}
-        {player_fill(style, state, fill_w, color)}
+        {cast_fill(style, state, fill_w, color)}
         {feedback::feedback_art(style, state)}
         {labels}
         {feedback::player_spark(style, state, fill_w)}
     } }
 }
 
-fn player_fill(style: &CastBarStyle, state: &CastingBarState, width: f32, color: &str) -> Element {
-    if style.icon {
+fn cast_fill(style: &CastBarStyle, state: &CastingBarState, width: f32, color: &str) -> Element {
+    if style.icon && !style.retail_target {
         return fill_bar(style, width, style.bar.1, color);
     }
     let full = matches!(state.player_feedback, Some(CastFeedback::Finished(_)));

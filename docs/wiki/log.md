@@ -9,6 +9,9 @@
 ## 2026-10-14 — Empty purchased-bank sample correction
 
 [Bank sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14): capture supplied zero capacity, not a purchased-but-empty tab. One selected tab/98None repairs the fixture; native both-skin count0 RED→98GREEN, source geometry/background/no-icon assertions and inspected1920×1080 before/after proof. Production bank/purchase behavior unchanged; build/check/format pass. No live-server claim.
+## 2026-10-14 — Modern target cast source art
+
+[Target cast correction](investigations/target-cast-source-art.md): source background/textbox, cropped status-fill member and6×16 pip replace Modern-only flat stand-ins. Genuine source-region RED→9 focused GREEN; native8/source textures/geometry pass, sixteen both-skin before/after target regions inspected, four Forever controls byte-identical. Build/check/format pass; presentation only, no new server/lifecycle/phase-FX acceptance.
 
 ## 2026-10-14 — Shared window tiling implementation
 
