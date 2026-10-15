@@ -98,6 +98,25 @@ class BotGearTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unbudgeted.*Finger1"):
             bot_gear.equipment_receipt(plan, native, {"Strength:": "70"})
 
+    def test_empty_jewelry_baseline_retains_four_native_storage_bags(self):
+        plan = bot_gear.load_plan(self.database, FIXTURES / "db2", 577)
+        self.assertEqual(plan.get("empty_slots"), ["Neck", "Finger1", "Finger2", "Trinket1", "Trinket2"])
+        native = {"equipment": [{"slot": item["slot"], "item_id": item["item_id"], "item_guid": index}
+                                for index, item in enumerate(plan["items"], 100)]}
+        bags = [{"slot": f"Bag{index}", "item_id": 123958, "item_guid": 900 + index}
+                for index in range(1, 5)]
+        native["equipment"].extend(bags)
+        receipt = bot_gear.equipment_receipt(plan, native, {"Agility:": "104"})
+        self.assertEqual(receipt["retained_bags"], bags)
+        for slot, item_id in [("Neck", 112461), ("Finger1", 112459), ("Finger2", 112460),
+                              ("Trinket1", 123959), ("Trinket2", 123960)]:
+            with self.subTest(slot=slot):
+                leftover = {"slot": slot, "item_id": item_id, "item_guid": 999}
+                native["equipment"].append(leftover)
+                with self.assertRaisesRegex(ValueError, slot):
+                    bot_gear.equipment_receipt(plan, native, {"Agility:": "104"})
+                native["equipment"].pop()
+
     def test_holy_paladin_uses_plate_with_intellect_not_strength_only_armor(self):
         plan = bot_gear.load_plan(self.database, FIXTURES / "db2", 65)
         self.assertEqual(plan.get("primary_stat"), 5)
