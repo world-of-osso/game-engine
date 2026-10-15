@@ -60,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Tail native real-asset pixel acceptance (CPU geometry implemented), spline rate-per-unit semantics (type 3), model particles, burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
+- [ ] Clean-room unresolved dependencies: **P3-timer-reset** (birth-velocity timer/reset), **P4-density** (spline rate per unit), **S1-polarity-oracle** (target lit/unlit polarity and coefficients), **P5-product-resolution / P5-recursive-timing** (real model/child assets and clocks). Details below; none are claimed as implemented. Randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV variants, refraction pass and alpha-cutoff discard also remain open.
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 - [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
 
@@ -69,9 +69,16 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - The Bevy client's Hanabi particle path (abandoned client).
 - Ribbon emitters (separate feature).
 
-### Clean-room P1 (2026-10-15)
+## Clean-room evidence (2026-10-15)
 
-Behaviour provenance: user-supplied particle clean-room spec and WebWowViewerCpp `particleEmitter.cpp::buildVertex2` (duration, 0x400 age clamp, projected squared threshold 0.0001 and tiny scale 0.05). No decompiled sources consulted. Native pools reserve both styles rather than dropping half of combined output. Targeted `particle_cleanroom_tail` fixtures assert independent geometry/cells and age/degeneracy. RED: two tests failed because tails produced zero quads; GREEN 2/2 at1ce73e656. 1920×1080 real-asset pixels pending. Tail width remains independent of the optional velocity-oriented head: view-parallel velocity reproduced a zero-width tail (RED); scale is now taken directly from appearance rather than inferred from head axes.
+### P1 — tails
+
+Behaviour provenance: user-supplied particle clean-room spec and WebWowViewerCpp `particleEmitter.cpp::buildVertex2` (duration, 0x400 age clamp, projected squared threshold 0.0001 and tiny scale 0.05). No decompiled sources consulted. Native pools reserve both styles rather than dropping half of combined output. Targeted `particle_cleanroom_tail` fixtures assert independent geometry/cells and age/degeneracy. RED: two tests failed because tails produced zero quads; GREEN 2/2 at1ce73e656. Native real-asset pixels PASS at `edc9c82be` with fixture `33cb46507`: five real165894 tail-only quads change4,547 pixels; two frozen baseline frames are byte-identical. PNGs at `/syncthing/AgentShared/2026-10-15/m2-particles/p1-bloodpresence-tails-{on,stable,off}.png` were inspected (on/off and amplified difference). This proves native authored geometry visibility, not target-client visual parity. Tail width remains independent of the optional velocity-oriented head: view-parallel velocity reproduced a zero-width tail (RED); scale is now taken directly from appearance rather than inferred from head axes.
+
+P1 native fixture: `godot/tests/particle_cleanroom_tails.gd` opens the real particledebug screen at1920×1080, cycles to actual Blood Presence165894 (tail-only flags0x40422), freezes simulation and compares native pool visible/hidden pixels. Original three-model screen RED cannot reach the asset; the debug catalog now includes it using its authored emitter height and existing three-yard camera distance. GREEN: five quads,4,547 changed pixels, frozen baseline byte-identical; 1920×1080 PNGs saved and inspected.
+
+Native capture calibration: the first real165894 run drew5 tail quads but the inherited0.08 brightness threshold excluded every changed pixel (observed peak14/255). The fixture now freezes bone/material descendants as well as emission, requires two byte-identical baseline PNGs, and counts actual changed 8-bit pixels rather than imposing an unrelated brightness cutoff. This is a fixture correction, not particle brightening.
+
 
 ### Clean-room P2 (2026-10-15)
 
@@ -95,6 +102,6 @@ The modern scale is established: allowed WWV `M2ParticleOld::BurstMultiplier` is
 
 **Named gap P5-recursive-timing:** supplied spec identifies lifetime ownership/orientation and retirement requirements, but not the child-emission clock, loop/recursion termination policy, or target asset resolution. No authentic uniquely identifiable geometry/child fixture can presently exercise those boundaries. Actual model-instance, child-emission, natural-retirement and owner-teardown acceptance therefore remain open; no colored-quads substitute, synthetic asset receipt, or attachment-path reuse was added.
 
-P1 native fixture: `godot/tests/particle_cleanroom_tails.gd` opens the real particledebug screen at1920×1080, cycles to actual Blood Presence165894 (tail-only flags0x40422), freezes simulation and compares native pool visible/hidden pixels. Original three-model screen RED cannot reach the asset; the debug catalog now includes it using its authored emitter height and existing three-yard camera distance. GREEN pixels pending.
+### Integrated proof
 
-Native capture calibration: the first real165894 run drew5 tail quads but the inherited0.08 brightness threshold excluded every changed pixel (observed peak14/255). The fixture now freezes bone/material descendants as well as emission, requires two byte-identical baseline PNGs, and counts actual changed 8-bit pixels rather than imposing an unrelated brightness cutoff. This is a fixture correction, not particle brightening.
+After merging origin/master, `edc9c82be` passes all eight `particle_cleanroom_` controls (no full suite), native helper build exits0 without compiler warnings, and Godot-workspace `cargo fmt --all --check` exits0. Logs: `/home/osso/.worktrees/logs/m2particles-{integrated-green,native-green-build,native-stable,fmt-check}.log`. Later changes are fixture/docs only. Helper has no cargo-check mode; native build supplies compile proof rather than claiming an unrun check. S1/P5 and the named partial P3/P4 boundaries remain open.
