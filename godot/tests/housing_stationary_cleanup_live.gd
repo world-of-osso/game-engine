@@ -48,11 +48,8 @@ func run_test() -> void:
 	probe = PointerProbe.new()
 	root.add_child(probe)
 	probe.set_process_input(true)
-	var motion := InputEventMouseMotion.new()
-	motion.position = hit.point
-	motion.global_position = hit.point
-	root.push_input(motion, true)
-	if not await wait_housing(func(): return probe.motions > 0 and highlighted_meshes() > 0 and client.tooltip_state().get("title", "") == "Small Val'sharah Bookcase", "initial actual Cleanup hover"): return
+	push_mouse_motion(hit.point)
+	if not await wait_housing(func(): return probe.motions > 0 and root.get_mouse_position().distance_to(hit.point) < 0.01 and highlighted_meshes() > 0 and client.tooltip_state().get("title", "") == "Small Val'sharah Bookcase", "initial actual Cleanup hover"): return
 	if probe.last_point.distance_to(hit.point) > 0.01:
 		fail("Pointer probe did not observe the actual target input")
 		return
@@ -118,7 +115,7 @@ func write_peer_signal(name: String, value: Dictionary) -> bool:
 	return true
 
 func record_stationary(phase: String, point: Vector2) -> bool:
-	stationary_receipts.append({"phase": phase, "skin": housing_skin, "pointer_events": probe.motions, "point": str(point), "picked": UnitPicker.pick(camera(), point), "actor_origin": str(placed_node().global_transform.origin), "highlighted": highlighted_meshes(), "tooltip": client.tooltip_state(), "housing": client.housing_state()})
+	stationary_receipts.append({"phase": phase, "skin": housing_skin, "pointer_events": probe.motions, "point": str(point), "viewport_mouse": str(root.get_mouse_position()), "picked": UnitPicker.pick(camera(), point), "actor_origin": str(placed_node().global_transform.origin), "highlighted": highlighted_meshes(), "tooltip": client.tooltip_state(), "housing": client.housing_state()})
 	var file := FileAccess.open(shots.path_join("stationary-hover-receipts.json"), FileAccess.WRITE)
 	if file == null:
 		fail("Cannot write stationary hover receipts")
