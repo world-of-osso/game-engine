@@ -135,7 +135,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
-- [Trading Post](systems/trading-post.md) — native Mainline PerksProgram vendor, source category dropdown, creature/player previews over an authenticated asset closure, HUD hiding, freeze, and Traveler's Log Tender; both-skin live proof and purchase-proof boundary.
+- [Trading Post](systems/trading-post.md) — native Mainline vendor/cart/held controls and [mounted Hide Character proof](systems/trading-post.md#rider-proof--2026-10-14): ordinary seated rider, stable-camera hide/show, retained selection and cleanup in both skins; exact native scale and special rider kits remain named gaps.
 
 - [Native Adventure Guide](systems/adventure-guide.md) — ten-defect layout correction and bounded Journeys Retail cards/track/reward-tooltip/wheel/jump/Home, receipt-bound both-skin full-HD proof; unsourced faction presentation metadata and broader feature/extra-test gaps explicit.
 
