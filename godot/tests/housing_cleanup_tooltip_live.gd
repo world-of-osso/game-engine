@@ -39,11 +39,16 @@ func run_test() -> void:
 	if not state.get("lines", []).is_empty() or housing_control("HouseEditorCleanupTooltip") != null:
 		fail("Cleanup invented pet/lock/removal metadata or retained bespoke tooltip")
 		return
+	print_cleanup_hover_probe("central-first-hover", hit.point)
 	if not await record_cleanup_tooltip("cleanup-source-tooltip"): return
 	push_mouse_motion(housing_control("HouseEditorBasicDecorModeButton").get_global_rect().get_center())
 	if not await wait_housing(func(): return not client.tooltip_state().get("visible", false) and highlighted_meshes() == 0, "Cleanup central leave clears"): return
+	print_cleanup_hover_probe("central-before-return", hit.point)
 	push_mouse_motion(hit.point)
-	if not await wait_housing(func(): return client.tooltip_state().get("visible", false), "Cleanup central rehover"): return
+	print_cleanup_hover_probe("central-after-return", hit.point)
+	if not await wait_housing(func(): return client.tooltip_state().get("visible", false), "Cleanup central rehover"):
+		print_cleanup_hover_probe("central-return-timeout", hit.point)
+		return
 	if not await click_exposed_control(housing_control("HouseEditorBasicDecorModeButton")): return
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null and not client.tooltip_state().get("visible", false), "Cleanup mode exit clears central tooltip"): return
 	if client.housing_state().decor != before.decor or client.housing_state().stored != before.stored:
