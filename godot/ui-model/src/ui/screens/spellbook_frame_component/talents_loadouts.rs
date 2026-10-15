@@ -277,7 +277,7 @@ fn import_control(text: &str) -> Element {
         1.0,
     );
     elements.extend(rsx! { editbox {name:"TalentLoadoutCodeInput",text:text,width:390.0,height:88.0,
-        pos_type:"absolute",left:35.0,top:57.0,font_size:13.0,text_insets:"5,5,5,5",max_letters:1000,
+        pos_type:"absolute",left:35.0,top:57.0,font:GameFont::FrizQuadrata,font_size:10.0,font_color:"1.0,1.0,1.0,1.0",text_insets:"5,5,5,5",max_letters:1000,
         nine_slice {edge_size:8,textures:textures}
     } });
     elements

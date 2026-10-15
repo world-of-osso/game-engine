@@ -361,6 +361,9 @@ fn talent_loadouts_import_dialog_has_retail_fields_limits_and_shared_geometry() 
         };
         assert!(code.multi_line);
         assert_eq!(code.max_letters, Some(1000));
+        // InputScrollFrameTemplate207; GameFontHighlightSmall -> Roman Friz10/white.
+        assert_eq!(code.font_size, 10.0);
+        assert_eq!(code.text_color, [1.0; 4]);
         let Some(WidgetData::EditBox(name)) = &registry
             .get(registry.get_by_name("TalentLoadoutNameInput").unwrap())
             .unwrap()
