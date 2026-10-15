@@ -65,6 +65,48 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+# Record the actual native input boundary; bank_live's older helper has no
+# selection/readiness receipt and can time out after a no-op card click.
+func enter_world(character: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 120000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.account_state()
+		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null and not state.assets_starting:
+			break
+	var ui = client.get_node_or_null("CharacterSelectUI")
+	if ui == null:
+		return fail("No character select: " + str(client.account_state()))
+	await entry_diagnostic("before-card")
+	await click(ui.find_child("CharCard_0", true, false))
+	await entry_diagnostic("after-card")
+	if ui.find_child("CharSelectCharacterName", true, false).text != character:
+		return fail("Card 0 is not " + character)
+	await click(ui.find_child("EnterWorld", true, false))
+	await entry_diagnostic("after-enter")
+	deadline = Time.get_ticks_msec() + 180000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.account_state()
+		if state.screen == "InWorld" and state.local_player_position != null and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty():
+			await wait_frames(120)
+			return true
+	return fail("Timed out entering the world: " + str(client.account_state()))
+
+func entry_diagnostic(stage: String) -> void:
+	await RenderingServer.frame_post_draw
+	var receipt := {"stage": stage, "window": str(root.size), "viewport": str(root.get_visible_rect()), "state": client.account_state(), "hover": str(root.gui_get_hovered_control())}
+	for name in ["CharCard_0", "EnterWorld"]:
+		var node := control(name)
+		if node != null:
+			receipt[name] = {"rect": str(node.get_global_rect()), "canvas_transform": str(node.get_global_transform_with_canvas()), "visible": node.is_visible_in_tree(), "disabled": node.disabled if node is BaseButton else false}
+	var directory := OS.get_environment("GUILD_NOTE_DIAGNOSTICS")
+	assert(not directory.is_empty(), "Owned diagnostic directory required")
+	var prefix := directory.path_join(role + "-" + stage + "-" + str(Time.get_unix_time_from_system()))
+	FileAccess.open(prefix + ".json", FileAccess.WRITE).store_string(JSON.stringify(receipt, "\t"))
+	root.get_texture().get_image().save_png(prefix + ".png")
+	print("GUILD_ENTRY_DIAGNOSTIC ", prefix, " ", JSON.stringify(receipt))
+
 func capture(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
