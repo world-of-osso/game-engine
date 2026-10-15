@@ -266,8 +266,8 @@ impl GameClient {
             .filter(|id| *id > 0)
             .ok_or("Priority target must be positive")?;
         let needed = parse_priority_spell_ids(requested)?;
-        let mut facts = self.read_assisted_facts(&needed, target)?;
-        facts.target_hostile = Some(self.reaction_to(target) != Reaction::Friendly);
+        // This read-only query does not load the UI's mutable faction cache.
+        let facts = self.read_assisted_facts(&needed, target)?;
         let player = self
             .world
             .local_player_id()
