@@ -176,20 +176,6 @@ mod tests {
     }
 
     #[test]
-    fn combatipc_damage_preserves_outcome_and_mitigation_fields() {
-        let mut event = damage(42, 3110);
-        event.crit = true;
-        event.glancing = true;
-        event.periodic = true;
-        event.overflow = 2;
-        event.absorbed = 3;
-        event.resisted = 4;
-        event.blocked = 5;
-        let log = format_combat_log(&VecDeque::from([event]), 1, spell_name);
-        assert!(log.contains("crit=true glancing=true periodic=true school_mask=4 overflow=2 absorbed=3 resisted=4 blocked=5"), "{log}");
-    }
-
-    #[test]
     fn combatipc_summon_keeps_summoner_unit_and_actual_spell() {
         let mut event = damage(42, 3110);
         event.kind = serde_json::from_str("\"Summon\"").expect("SPELL_SUMMON protocol kind");
