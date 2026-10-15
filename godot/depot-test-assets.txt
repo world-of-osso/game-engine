@@ -4881,6 +4881,8 @@ models/6371389.wmo
 # Installed Retail Trading Post mount actor and rider metadata.
 db2/active/UiModelSceneActor.csv
 db2/active/UiModelSceneActorDisplay.csv
+# Trading Post authored base orbit camera, same installed active export.
+db2/active/UiModelSceneCamera.csv
 db2/active/Mount.csv
 
 data/models/4061989.m2
