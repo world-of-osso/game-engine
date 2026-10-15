@@ -1,6 +1,6 @@
 # wowdecomp behavior rework backlog
 
-Source audit: **2026-10-15**. **23 source-supported conditional gaps across seven behavior domains**, plus four separately gated validation candidates. This is a growing reviewed-slice inventory—not an upper bound on project gaps or a claim of exhaustive compatibility coverage. Unreviewed means **unknown**, not matching.
+Source audit: **2026-10-15**. **23 source-supported conditional gaps across seven behavior domains**, plus five separately gated validation candidates. This is a growing reviewed-slice inventory—not an upper bound on project gaps or a claim of exhaustive compatibility coverage. Unreviewed means **unknown**, not matching.
 
 No client, server, shader, build or reference executable was run. Findings establish wrong/missing semantics for specified source inputs; affected-asset prevalence, visible/audible impact and target-client parity remain unmeasured.
 
@@ -28,7 +28,7 @@ IDs identify behaviors, not measured severity. Each entry contains paired source
 | A2 | Ribbon alpha holds keys instead of interpolating | [Ribbon opacity](m2-animation.md#a2-ribbon-alpha-is-always-stepped) |
 | A3 | Short timeline tables lose authored timeline-zero transforms | [Timeline selection](m2-animation.md#a3-short-track-tables-do-not-select-timeline-zero) |
 | A4 | General model events lack dispatch, timing context and payload; selected action events already work | [Event coverage](model-runtime.md#a4-general-authored-events-lose-dispatch-timing-context-and-payload) |
-| A5 | Replay bounds do not delay completion/variation reselection | [Repeat scheduling](model-runtime.md#a5-replay-bounds-do-not-control-sequence-residence) |
+| A5 | Replay bounds do not extend finite sequence residence | [Repeat scheduling](model-runtime.md#a5-replay-bounds-do-not-control-finite-sequence-residence) |
 
 ### Particle geometry and motion — 7
 
@@ -55,7 +55,7 @@ IDs identify behaviors, not measured severity. Each entry contains paired source
 | ID | Incorrect or omitted behavior | Detail |
 |---|---|---|
 | ENV1 | No precipitation/weather transition or storm-light consumer | [Weather](environment.md#env1-weather-state-has-no-precipitation-or-storm-light-consumer) |
-| ENV2 | Camera immersion does not select scene-wide fog/depth darkening | [Underwater environment](environment.md#env2-camera-immersion-does-not-select-scene-wide-fog-or-depth-darkening) |
+| ENV2 | Camera immersion does not select underwater scene fog/light | [Underwater environment](environment.md#env2-camera-immersion-does-not-select-underwater-scene-fog-and-light) |
 
 ### Ground contact — 2
 
@@ -77,7 +77,7 @@ The seven domains are M2 sampling/runtime, particles, mesh ordering, material li
 
 ## What this inventory does not establish
 
-[Coverage](coverage.md) records reviewed, implemented/matching, mismatched, uncertain and unreviewed areas—including substantial UI, networking, gameplay and model-transform gaps in the **audit itself**. [Validation candidates](validation-candidates.md) separates alpha-key cutoff, quaternion curve, fog-generation differences and modern refraction from confirmed paired omissions. No unsupported behavior is automatically a defect in a deliberately narrower project contract.
+[Coverage](coverage.md) records reviewed, implemented/matching, mismatched, uncertain and unreviewed areas—including substantial UI, networking, gameplay and model-transform gaps in the **audit itself**. [Validation candidates](validation-candidates.md) separates alpha-key cutoff, quaternion curve, fog-generation differences, modern refraction and reference depth-darkening conflicts from confirmed paired omissions. No unsupported behavior is automatically a defect in a deliberately narrower project contract.
 
 Before rework, identify the applicable product/build and a real authored asset, preserve its hashes and reproduce the counterexample through the native consumer. Reconcile the governing feature spec in that implementation change. This is a behavioral backlog, not authorization to implement or an architecture prescription.
 
