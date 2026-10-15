@@ -2,6 +2,10 @@
 
 Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
+## Native summon lifetime proofs (2026-10-15)
+
+[Scarab release and quiet Flute proofs](../../../../game-server/docs/toy-effects14-coverage.md#native-lifetime-proofs-2026-10-15) retain exact binary revisions, fixed windows, pressure qualification and prior debug failures. Scarab release Forever now passes; Flute following, guardian level/navigation and full1166 remain open. Native47 screenshots preserve source positioning and original1920×1080 files.
+
 ## Source creature opacity (2026-10-15)
 
 Bashiok60051 selects `CreatureModelAlpha=175`; the catalog previously omitted that field and every native creature instance consequently started opaque. The importer now requires the source byte, preserves it through SQLite/`CreatureDisplay`, and invalidates old schemas at unchanged source mtimes. Native creature construction applies `1 - alpha / 255` to its own mesh instances, including attached geometry, rather than shared materials. Catalog RED reproduced `no such column: model_alpha`;15 catalog regressions and2 active-source-switch tests pass, including175/255/0, malformed source rejection and stale-cache rebuild. Native Bashiok pixels, complete authenticated asset closure and both-skin acceptance remain pending. [Rendering contract](../../specs/npc-appearance.md); implementation: `godot/core/src/game/creatures/creature_display_{cache,data}.rs`, `godot/rust/src/assets/creature.rs`.

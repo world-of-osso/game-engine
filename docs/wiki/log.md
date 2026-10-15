@@ -1,3 +1,7 @@
+## 2026-10-15 — Native summon lifetime proofs
+
+[Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+
 ## 2026-10-15 — Source creature opacity
 
 [Creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15): Bashiok60051 alpha175 omission reproduced in real catalog import; required source byte, old-schema reimport, per-instance geometry binding and15+2 CPU regressions. Native pixel/asset acceptance remains pending.
