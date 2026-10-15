@@ -45,6 +45,10 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 ## 2026-10-15 — Suggested joint provider and three-pane native proof
 
 [Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
+## 2026-10-15 — Trading Post frozen-slot overlap
+
+[Effective frozen geometry](systems/trading-post.md#frozen-slot-geometry--implementation-october15): missing FrozenProductContainer OnLoad overrides left a32px icon inside64px frost art overlapping its label. Source64px icon/95px centered mask and233×45 label preserve the price column and8px frame-to-label gap. Geometry/real-icon alpha RED→GREEN,27 UI/12 native tests and actual both-skin before/after layout/art/conservation pass.16 full-HD originals+8 unscaled paired crops with exact binary/hash/12-memory-edge manifest; ordinary32/48 mask behavior unchanged.
+
 ## 2026-10-15 — Trading Post authored base camera/orbit
 
 [Camera ownership](systems/trading-post.md#authored-base-orbit-camera--implementation-october15): installed scene camera target/angles/zoom, product override tag handling and source decimal rounding replace generic bounds fitting. Actual camera-only held/drag orbit and wheel zoom preserve actor bases and rider/HUD lifetimes. Core4 and compatible generic-camera native RED→both-skin GREEN;24 inspected full-HD originals with binary-hash/memory manifest. Inherited native zoom splines/default FOV remain explicit lead-authorized gaps; no full Retail-framing or pet-comparison claim.
