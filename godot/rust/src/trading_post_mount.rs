@@ -8,18 +8,19 @@ use godot::{
 
 pub(super) const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
 
-pub(super) fn compose_mount(
-    mut mount: Gd<Node3D>,
+fn stage_actor(
+    name: &str,
+    model: Gd<Node3D>,
     authored: &ModelSceneActor,
 ) -> Result<Gd<Node3D>, String> {
-    let bounds = pet_actor_bounds(&mount)?;
+    let bounds = pet_actor_bounds(&model)?;
     let size = bounds.size;
     let center = bounds.center();
     let scale = authored.actor_scale(glam::Vec3::new(size.x, size.y, size.z));
     let origin = authored.actor_origin(glam::Vec3::new(center.x, center.y, center.z), scale);
     let rotation = authored.actor_rotation();
     let mut actor = Node3D::new_alloc();
-    actor.set_name("MountActor");
+    actor.set_name(name);
     actor.set_basis(
         Basis::from_quaternion(Quaternion::new(
             rotation.x, rotation.y, rotation.z, rotation.w,
@@ -27,8 +28,16 @@ pub(super) fn compose_mount(
         .scaled(Vector3::ONE * scale),
     );
     actor.set_position(Vector3::new(origin.x, origin.y, origin.z));
+    actor.add_child(&model);
+    Ok(actor)
+}
+
+pub(super) fn compose_mount(
+    mut mount: Gd<Node3D>,
+    authored: &ModelSceneActor,
+) -> Result<Gd<Node3D>, String> {
     mount.set_name("NpcVisualRoot");
-    actor.add_child(&mount);
+    let actor = stage_actor("MountActor", mount, authored)?;
     let mut group = Node3D::new_alloc();
     group.set_name("TradingPostMountPreview");
     group.add_child(&actor);
@@ -41,23 +50,11 @@ pub(super) fn attach_rider(
     mount: &Gd<Node3D>,
     rider: Gd<Node3D>,
     authored: &ModelSceneActor,
-    requested_scale: f32,
 ) -> Result<Gd<Node3D>, String> {
     let mut saddle = mount
         .try_get_node_as::<Node3D>(SADDLE)
         .ok_or("Trading Post mount has no attachment0 saddle")?;
-    let mut actor = Node3D::new_alloc();
-    actor.set_name("PlayerRiderActor");
-    let rotation = authored.actor_rotation();
-    actor.set_basis(
-        Basis::from_quaternion(Quaternion::new(
-            rotation.x, rotation.y, rotation.z, rotation.w,
-        ))
-        .scaled(Vector3::ONE * requested_scale),
-    );
-    let [x, y, z] = authored.position;
-    actor.set_position(Vector3::new(x, z, -y));
-    actor.add_child(&rider);
+    let actor = stage_actor("PlayerRiderActor", rider, authored)?;
     saddle.add_child(&actor);
     Ok(actor)
 }
@@ -115,12 +112,34 @@ impl WowTradingPostMountProbe {
         rider_actor.flags = 0;
         rider_actor.scale = 1.;
         rider_actor.normalized_scale = 0.;
-        self.rider = Some(
-            attach_rider(&mount, Node3D::new_alloc(), &rider_actor, 0.5).expect("fixture saddle"),
-        );
+        let mut rider = Node3D::new_alloc();
+        let mut rider_mesh = MeshInstance3D::new_alloc();
+        rider_mesh.set_mesh(&BoxMesh::new_gd());
+        rider.add_child(&rider_mesh);
+        self.rider = Some(attach_rider(&mount, rider, &rider_actor).expect("fixture saddle"));
         parent.add_child(&group);
         self.group = Some(group.clone());
         group
+    }
+    #[func]
+    fn rejects_missing_saddle(&self) -> bool {
+        let mount = Node3D::new_alloc();
+        let rider = Node3D::new_alloc();
+        let authored = ModelSceneActor {
+            id: 1214,
+            flags: 0,
+            position: [0.; 3],
+            orientation: [0.; 3],
+            normalized_scale: 0.,
+            scale: 1.,
+            alpha: 1.,
+            animation: 0,
+        };
+        let rejected = attach_rider(&mount, rider.clone(), &authored).is_err();
+        let retained = rider.get_parent().is_none() && mount.get_child_count() == 0;
+        rider.free();
+        mount.free();
+        rejected && retained
     }
     #[func]
     fn rotate(&mut self, yaw: f32) {

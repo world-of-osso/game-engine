@@ -572,10 +572,10 @@ impl GameClient {
         Ok(())
     }
     fn desired_trading_rider(&self) -> Option<UnitAppearance> {
-        let UnitAppearance::Player(player, equipped) = self.world.local_player_appearance()? else {
+        let mut appearance = self.world.local_player_appearance()?.clone();
+        let UnitAppearance::Player(_, equipped, _) = &mut appearance else {
             return None;
         };
-        let mut equipped = equipped.clone();
         // SharedXML AttachPlayerToMount: autoDress=true, hideWeapons=true.
         equipped.entries.retain(|entry| {
             !matches!(
@@ -585,7 +585,7 @@ impl GameClient {
                     | shared::components::EquipmentVisualSlot::Ranged
             )
         });
-        Some(UnitAppearance::Player(player.clone(), equipped))
+        Some(appearance)
     }
     fn sync_trading_rider(&mut self) -> Result<(), String> {
         let Some(mount) = self.trading_post.mount.clone() else {
@@ -666,12 +666,7 @@ impl GameClient {
             .ok_or("Trading Post mount actor missing")?;
         // CalculateMountScale's native formula is not established. Lead-authorized
         // scope retains the authored player-rider scale1; no guessed compensation.
-        mount_preview::attach_rider(
-            &model,
-            rider.clone(),
-            &mount.actors["player-rider"],
-            mount.actors["player-rider"].scale,
-        )
+        mount_preview::attach_rider(&model, rider.clone(), &mount.actors["player-rider"])
     }
     pub(super) fn trading_post_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         if !self.trading_post.view.visible {
