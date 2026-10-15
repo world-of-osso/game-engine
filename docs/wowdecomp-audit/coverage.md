@@ -7,7 +7,7 @@
 | Area | Inspected evidence | Established gap | Still missing / blocked | Proof level |
 |---|---|---|---|---|
 | Generic M2 track evaluation | W `M2Model.cpp` specializations; E `m2_anim.rs`, native `animation/mod.rs`, ribbon sampler | A1–A3 | Authored-asset census, native bone/edge samples; Hermite/Bezier scope not established | Paired source + explicit input/output examples |
-| Particle geometry and birth/motion | W `M2Model.cpp`, `Services/ParticleSystem2.cpp`; E parser, simulation and native placement | P1–P5 | Real tail/follow/inheritance/spline/model-particle fixtures and native output; modern scale/spline/model-resolution provenance | Paired source, explicit missing consumer/branch |
+| Particle geometry, birth/motion and order | W `M2Model.cpp`, `Services/ParticleSystem2.cpp`, world projection callback; E parser, simulation and native placement | P1–P7 | Real tail/follow/inheritance/spline/model-particle fixtures and native output; modern scale/spline/model-resolution provenance | Paired source, explicit missing consumer/branch |
 | Particle lighting | W material mapping/render effect choice; E native variant and particle shader | S1 | Target-build light equation/normals and native pixels | Paired source, contrasting lit/unlit paths |
 | General M2 material combiners | W `M2Shared.cpp:464–573,640–684,711–760`; E `m2_material.rs:10–99`, `m2.gdshader:167–239` | None established; V1–V3 retained for validation | Same-asset/batch/pass comparison and shader output | Partial source comparison; not parity |
 | Bone hierarchy, skinning, attachments, variation and billboards | W `M2Model.cpp`; E attachment/bone code, `m2_variation.rs`, `m2_billboard.rs` | None established | End-to-end transform and lifetime fixtures; no general correctness claim | Partial source comparison |
@@ -47,7 +47,7 @@ The reference README identifies a client decompilation. Client collision queries
 | Check | Revision/scope | Result | Invalidation rule |
 |---|---|---|---|
 | Baseline `git rev-parse HEAD` and `git status --short` for E/W/S | Revisions in index | Reference/server clean; engine no tracked changes, pre-existing untracked paths preserved | Relevant source or checkout modification requires rechecking affected citations |
-| Paired read-only source inspection | File/line ranges in each entry | Nine conditional gaps; four separate candidates; rejected leads recorded above | A changed cited function invalidates its finding until re-audited |
+| Paired read-only source inspection | File/line ranges in each entry | Eleven conditional gaps; four separate candidates; rejected leads recorded above | A changed cited function invalidates its finding until re-audited |
 | Asset-backed/native/original-binary checks | None | **Not run**; no rendered or gameplay reproduction claimed | Required before claiming a real affected asset or target-build parity |
 | Builds/tests/deployment | None | **Not run**; documentation-only work | Not a code-fix or deployment completion claim |
 

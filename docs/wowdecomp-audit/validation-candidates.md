@@ -30,7 +30,7 @@
 
 **Current capability gap.** `E/godot/rust/src/particles.rs:315–326` explicitly filters `PixelShader::Refraction` before native placement. `E/godot/core/src/m2_particles.rs:149–160` identifies that shader from effect flags. The [Avenging Wrath investigation](../wiki/investigations/avenging-wrath-material-time.md) explains why normal-map/refraction parameters must not be drawn as ordinary color particles.
 
-**Reference limitation.** This audit did not establish an equivalent distortion pass in the pinned Wrath reference. Therefore this is a documented current shader-effect omission, not one of the nine wowdecomp-demonstrated mismatches.
+**Reference limitation.** This audit did not establish an equivalent distortion pass in the pinned Wrath reference. Therefore this is a documented current shader-effect omission, not counted among the wowdecomp-demonstrated mismatches.
 
 **Required future behavior.** A version-appropriate refraction pass must distort sampled scene color according to the authored effect rather than painting its parameter texture. Preserve the existing forward exclusion until that behavior exists; removing it alone reintroduces the known visual error.
 
