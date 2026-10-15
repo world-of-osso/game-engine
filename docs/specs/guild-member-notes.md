@@ -6,7 +6,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 - [ ] Member details show authoritative name, class/level, rank, public note and permitted officer note. Unknown zone and exact last-online times must not be invented. Public notes populate the roster Note column independently of officer text.
 - [ ] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
-- [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
+- [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Popup target remains the member selected when editing began even if roster selection subsequently changes. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
 - [ ] Both note types survive server restart/relog, preserving existing officer records. Leave/removal deletes both before rejoin. Group Invite uses the actual group service and Remove uses existing hierarchy authority.
 
 ## How it works

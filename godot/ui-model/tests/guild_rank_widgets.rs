@@ -980,7 +980,7 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
         session.click("guild:note_officer", &Default::default());
         assert_eq!(session.note_editor, None);
         session.click("guild:note_public", &Default::default());
-        assert_eq!(session.note_editor, Some(false));
+        assert_eq!(session.note_editor, Some(("Cara".into(), false)));
         let mut texts = std::collections::HashMap::new();
         texts.insert(
             "GuildMemberNoteEditBox".to_owned(),
@@ -1024,7 +1024,7 @@ fn guild_member_notes_gate_self_public_officer_visibility_and_wait_for_authority
             "Raid healer"
         );
         session.click("guild:note_officer", &Default::default());
-        assert_eq!(session.note_editor, Some(true));
+        assert_eq!(session.note_editor, Some(("Cara".into(), true)));
         session.click("guild:note_close", &Default::default());
         assert_eq!(session.click("guild:note_accept", &texts), None);
     }
