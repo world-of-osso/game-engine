@@ -340,7 +340,8 @@ impl View {
             .creatures
             .iter()
             .filter(|creature| Some(creature.encounter) == self.encounter)
-            .take(9)
+            // Retail fills the first nine authored slots before checking displayInfo.
+            .take(crate::adventure_creatures::MAX_CREATURES)
             .filter(|creature| creature.display != 0)
             .collect()
     }

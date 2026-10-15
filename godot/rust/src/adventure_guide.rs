@@ -4,13 +4,14 @@ use crate::{
     character_frame::preview::{Scene, bind_sheet_light},
     frame_error::FrameError,
     ui::RegistryUi,
+    unit_portraits::Portrait,
     world_models::UnitAppearance,
 };
 use game_engine_core::{adventure_guide::Catalog, input_bindings_data::InputAction};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::adventure_guide::{Page, SEARCH, View, adventure_guide_screen};
 use godot::prelude::*;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Default)]
 pub(crate) struct AdventureGuide {
@@ -21,8 +22,15 @@ pub(crate) struct AdventureGuide {
     scene: Option<Scene>,
     pending: Option<(u64, u32)>,
     shown: Option<u32>,
+    portraits: BTreeMap<u32, Portrait>,
 }
 impl AdventureGuide {
+    pub(crate) fn creature_portrait_state(&self, id: u32) -> VarDictionary {
+        self.portraits
+            .get(&id)
+            .map(Portrait::snapshot)
+            .unwrap_or_default()
+    }
     pub(crate) fn queue_encounter_start(&mut self, start: &shared::protocol::EncounterStart) {
         if self.view.visible {
             self.queued_encounter = Some((start.encounter_id, Some(start.difficulty_id)));
@@ -160,6 +168,7 @@ impl GameClient {
         self.adventure_guide.view.loading = false;
         self.adventure_guide.queued_encounter = None;
         self.clear_journal_model();
+        self.clear_journal_creature_portraits();
         if let Some(ui) = self.adventure_guide.ui.take() {
             ui.free();
         }
@@ -226,6 +235,7 @@ impl GameClient {
         if self.adventure_guide.view.visible {
             self.sync_adventure_guide()?;
             self.sync_journal_model()?;
+            self.sync_journal_creature_portraits()?;
         }
         Ok(())
     }
@@ -519,6 +529,55 @@ impl GameClient {
         }
         self.adventure_guide.ui = Some(ui);
         Ok(())
+    }
+    fn clear_journal_creature_portraits(&mut self) {
+        for portrait in self.adventure_guide.portraits.values_mut() {
+            portrait.clear(&mut self.world);
+        }
+        self.adventure_guide.portraits.clear();
+    }
+    fn sync_journal_creature_portraits(&mut self) -> Result<(), String> {
+        if self.adventure_guide.view.page != Page::Model {
+            self.clear_journal_creature_portraits();
+            return Ok(());
+        }
+        let creatures: Vec<_> = self
+            .adventure_guide
+            .view
+            .model_creatures()
+            .iter()
+            .map(|creature| (creature.id, creature.display))
+            .collect();
+        self.adventure_guide.portraits.retain(|id, portrait| {
+            if creatures.iter().any(|(active, _)| active == id) {
+                true
+            } else {
+                portrait.clear(&mut self.world);
+                false
+            }
+        });
+        for (id, display_id) in creatures {
+            self.sync_journal_creature_portrait(id, display_id)?;
+        }
+        Ok(())
+    }
+    fn sync_journal_creature_portrait(&mut self, id: u32, display_id: u32) -> Result<(), String> {
+        let host = self.adventure_guide.ui.as_ref().and_then(|ui| {
+            ui.bind()
+                .frame_control(&format!("JournalCreature{id}Portrait"))
+        });
+        let portrait =
+            self.adventure_guide.portraits.entry(id).or_insert_with(|| {
+                Portrait::new(game_engine_ui_model::adventure_creatures::PORTRAIT)
+            });
+        portrait.sync(
+            &mut self.world,
+            host,
+            Some(UnitAppearance::Creature {
+                display_id,
+                items: Default::default(),
+            }),
+        )
     }
     fn clear_journal_model(&mut self) {
         if let Some((id, _)) = self.adventure_guide.pending.take() {
