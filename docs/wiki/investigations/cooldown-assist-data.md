@@ -50,6 +50,12 @@ Export and pure model mechanisms are implemented; [contract](../../specs/cooldow
 
 Native loading, four viewer roots, ordinary settings actions, server clock/charge-category sampling, raw aura precedence, persisted per-spec choices and shared Edit Mode integration exist. Qualitative recommendation/error capture and actual-spell interception are wired; they are not exact all-spec execution certification.
 
+## Settings template art — 2026-10-14
+
+The stale audit's399×609 shell,43×55 LargeSideTab controls and38×38/317×38 SettingsItem/BarItem geometry already existed. Remaining defects were the missing `character-panel-background` and white preview fill. Settings XML:153–166 anchors that background to ButtonFrameTemplate's Inset; SharedUIPanelTemplates.xml:684–690 yields(4,60,389,523). The panel now draws that atlas and reuses the shared `InsetFrameTemplate` border. Settings.lua:6,597 defines/applies default preview tint(1,.5,.25); no new known/locked-state inference or reducer behavior added.
+
+Both missing-background and white-fill regressions reproduce RED. Atcc3e0e759,13 focused cooldown UI tests pass; native extension build/check/fmt pass without warnings. `cooldown_settings_art_fidelity.gd` projects concrete offline samples through the production presenter and verifies shell/inset/side tabs/icons/bar bounds and decoded source art/tint. Four1920×1080 Spells/Auras PNGs in both skins and full-size pane details were inspected at `/syncthing/AgentShared/2026-10-14/ui-questlog-settings/settings-source-final/`. This is presentation proof, not new server/persistence/unknown-spell authority acceptance. Later amendment records proof only; Godot source unchanged. Exact revision/commands/hashes: `data/diagnostics/ui-questlog-settings-2026-10-14/settings-proof-ledger.json`.
+
 ## Source tracked-buff bar art — 2026-10-14
 
 `cooldown_viewer_component` now gives tracked bars a separate source composition instead of the shared icon renderer's gold rectangle. CooldownViewer.xml:209–277 defines220×30 item,30×30 icon frame(level512),188×19 bar(level511) at icon RIGHT+2/vertical centre, BG(−2,−2)..(+4,+7), source bar tint(1,.5,.25), name inset5/25 and duration RIGHT−8. CooldownViewer.lua:1492–1499 anchors the10×46 atlas pip centre to fill RIGHT with y−1; :1558–1585 shows it only while time remains. Unlike Encounter Timeline's spark, this XML pip does **not** use ADD.

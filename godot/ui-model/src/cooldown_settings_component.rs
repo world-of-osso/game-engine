@@ -170,6 +170,7 @@ pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Elem
         "Cooldown Settings",
         "cooldown_close",
     );
+    children.extend(settings_inset());
     children.extend(crate::quest_art::window_portrait_texture(
         &crate::quest_art::window_portrait_slot("CooldownSettingsPortrait"),
         state.portrait_fdid,
@@ -183,6 +184,19 @@ pub fn settings_panel(ctx: &SharedContext, state: &CooldownSettingsView) -> Elem
         strata:crate::ui::strata::FrameStrata::Dialog,mouse_enabled:true,
         pos_type:"absolute",left:16.0,top:116.0,{children}}
     }
+}
+
+fn settings_inset() -> Element {
+    // ButtonFrameTemplate Inset TOPLEFT(4,-60), BOTTOMRIGHT(-6,26).
+    let mut children = rsx! { texture {
+        name:"CooldownSettingsInsetBackground",texture_atlas:"character-panel-background",
+        width:389.0,height:523.0,pos_type:"absolute",left:4.0,top:60.0,
+    }};
+    children.extend(crate::auction_house_frame_component::inset_border(
+        "CooldownSettingsInset",
+        (4.0, 60.0, 389.0, 523.0),
+    ));
+    children
 }
 
 fn settings_footer(state: &CooldownSettingsView) -> Element {
@@ -378,11 +392,12 @@ fn setting_item(entry: &CooldownSettingEntry, (left, top): (f32, f32)) -> Elemen
             "UI-HUD-CoolDownManager-Bar-BG",
             (41.0, 6.0, 282.0, 30.0),
         ));
-        art.extend(named_atlas_texture(
-            format!("{name}Bar"),
-            "UI-HUD-CoolDownManager-Bar",
-            (43.0, 9.5, 274.0, 19.0),
-        ));
+        // CooldownViewerSettings.lua:6,597: known/unlocked default bar tint.
+        art.extend(rsx! { texture {
+            name:{DynName(format!("{name}Bar"))},texture_atlas:"UI-HUD-CoolDownManager-Bar",
+            width:274.0,height:19.0,pos_type:"absolute",left:43.0,top:9.5,
+            vertex_color:"1,0.5,0.25,1",
+        }});
         art.extend(label(
             format!("{name}Name"),
             &entry.label,

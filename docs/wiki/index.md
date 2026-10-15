@@ -63,7 +63,7 @@
 
 - [AchievementFrame art](systems/dungeon-achievements.md#achievementframe-art-pass--2026-10-11) — Mainline frame/templates, native category/row scrolling and label-only drafts; both-skin14-stage private proof and XML comparison cards.
 - [Talent-tree third pass](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11) — authored spec backgrounds, real availability/gates/arrows, octagon choices, UIParent hero selection/swap, Forever art and coordinated PvP footer; private three-class both-skin native proof.
-- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, source tracked-buff bars/Application anchors with reviewed both-skin full-HD geometry proof, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
+- [Cooldown/assist authored-data audit](investigations/cooldown-assist-data.md) — all40 authored inventories/ModifierTree gates, source Settings inset/preview tint and tracked-buff bars/Application anchors with inspected both-skin full-HD geometry proof, server costs, real assistant/charge/Retail ants; same-decision replay, exact DB2/TC GCD-origin and remaining-predicate source-gap audit.
 - [Non-visual equipment](investigations/nonvisual-equipment.md) — authoritative jewelry/trinkets, Forever foreground pointer correction and both-skin private paid purchase/drag/stat/server-restart proof.
 
 - [Native Mythic Mentor](systems/mythic-mentor.md) — native party Keys panel, authored current-reference summaries/icons, ready-query handshake, shared8h teleport clocks and both-skin private5751 proof; post-fix active-tooltip pixels blocked by local install update.
