@@ -482,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn trading_post_icons_use_actionbar_mask_in_both_skins() {
+    fn trading_post_icons_use_product_and_frozen_source_mask_ratios_in_both_skins() {
         use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
         game_engine_ui_model::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -494,7 +494,7 @@ mod tests {
                 let mut registry = FrameRegistry::new(1920., 1080.);
                 Screen::new(move |_| ui_toolkit::rsx! {
                     texture { name:"PerksProgramIcon4", texture_fdid:fdid, width:32.0, height:32.0 }
-                    texture { name:"PerksProgramFrozenIcon", texture_fdid:fdid, width:32.0, height:32.0 }
+                    texture { name:"PerksProgramFrozenIcon", texture_fdid:fdid, width:64.0, height:64.0 }
                 }).sync(&SharedContext::new(), &mut registry);
                 IconMasks::default().apply(&mut registry);
                 for name in ["PerksProgramIcon4", "PerksProgramFrozenIcon"] {
@@ -631,36 +631,42 @@ mod tests {
     ) {
         let rgba = dynamic_icon_pixels(registry, name);
         use image::imageops::{FilterType, crop_imm, resize};
-        // Elements.xml: centred48×48 MaskTexture over32×32 Icon.
-        // Compare visible output pixels, not generic corner opacity.
+        // Ordinary rows use32/48; FrozenProductContainer.OnLoad uses64/95.
+        // Compare frozen pixels at2x to retain the centred15.5px inset.
+        let (icon_px, mask_px) = if name == "PerksProgramFrozenIcon" {
+            (128, 190)
+        } else {
+            (32, 48)
+        };
         let icon = resize(
             &super::load_rgba(fdid, "fixture icon").unwrap(),
-            32,
-            32,
+            icon_px,
+            icon_px,
             FilterType::Triangle,
         );
         let mask = resize(
             &super::load_atlas_mask(super::Mask::PerksProduct).unwrap(),
-            48,
-            48,
+            mask_px,
+            mask_px,
             FilterType::Triangle,
         );
-        let coverage = crop_imm(&mask, 8, 8, 32, 32).to_image();
-        let rendered = resize(&rgba, 32, 32, FilterType::Triangle);
-        for y in 0..32 {
-            for x in 0..32 {
+        let inset = (mask_px - icon_px) / 2;
+        let coverage = crop_imm(&mask, inset, inset, icon_px, icon_px).to_image();
+        let rendered = resize(&rgba, icon_px, icon_px, FilterType::Triangle);
+        for y in 0..icon_px {
+            for x in 0..icon_px {
                 let expected = (u16::from(icon.get_pixel(x, y)[3])
                     * u16::from(coverage.get_pixel(x, y)[0])
                     / 255) as u8;
                 assert_eq!(
                     rendered.get_pixel(x, y)[3],
                     expected,
-                    "{skin:?} {name} FDID{fdid} alpha at ({x},{y}), centred48:32 mask"
+                    "{skin:?} {name} FDID{fdid} alpha at ({x},{y}), centred{mask_px}:{icon_px} mask"
                 );
             }
         }
         assert!(
-            rendered.get_pixel(16, 16)[3] > 200,
+            rendered.get_pixel(icon_px / 2, icon_px / 2)[3] > 200,
             "opaque centre {skin:?}"
         );
     }

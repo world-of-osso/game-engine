@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow", "authored-camera", "frozen-slot-before", "frozen-slot-after"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -76,6 +76,8 @@ func run_fixture() -> void:
 		"mount-rider-cancel": await mount_rider_cancel_proof()
 		"freeze-workflow": await freeze_workflow_proof()
 		"authored-camera": await authored_camera_proof()
+		"frozen-slot-before": await frozen_slot_geometry_proof(false)
+		"frozen-slot-after": await frozen_slot_geometry_proof(true)
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -476,6 +478,39 @@ func open_freeze_replacement(original: int, candidate: int, other: int) -> bool:
 	if control("PerksProgramConfirmDialog") == null:
 		fail("Frozen replacement sent a request before showing Retail confirmation"); return false
 	return assert_freeze_waiting(original, candidate, other)
+
+func frozen_slot_geometry_proof(check_geometry: bool) -> void:
+	var tender := int(client.trading_post_state().tender)
+	if int(client.trading_post_state().frozen) >= 0:
+		if not await drag_off_frozen(): return
+		if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "empty reservation for geometry capture"): return
+	if not await choose_category(2): return
+	if not await select_first_available(): return
+	if not await wait_until(func(): return client.trading_post_state().rider_ready, "mount ready for frozen geometry capture", 120000): return
+	var original := int(client.trading_post_state().selected)
+	await capture("empty-slot")
+	if not await drag_to_frozen("PerksProgramProduct%d" % original): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == original and not client.trading_post_state().pending, "settled frozen icon"): return
+	if check_geometry:
+		for name in ["PerksProgramFrozenIcon", "PerksProgramFrozenArtContainer", "PerksProgramFrozenFrame"]:
+			if not assert_native_rect(name, Rect2(78,801.5,64,64)): return
+		if not assert_native_rect("PerksProgramFrozenLabel", Rect2(150,811,233,45)): return
+	await capture("frozen-slot")
+	var candidate := await select_other_cartable([original])
+	if candidate < 0: return
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null, "pending freeze glow"): return
+	if check_geometry:
+		if not assert_native_rect("PerksProgramFrozenItemGlow", Rect2(66,789.5,88,88)): return
+		if control("PerksProgramFrozenFrame") != null: fail("Pending frozen icon incorrectly kept settled frost frame"); return
+	await capture("pending-slot")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "cancel pending geometry capture"): return
+	await capture("cancel-restores-frozen-slot")
+	if not await drag_off_frozen(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "geometry fixture clears reservation"): return
+	if int(client.trading_post_state().tender) != tender: fail("Frozen geometry capture changed Tender"); return
+	await finish(phase)
 
 func authored_camera_proof() -> void:
 	if not await choose_category(2): return
