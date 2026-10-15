@@ -254,6 +254,47 @@ fn guild_info_editor_preserves_multiline_text_limits_and_authoritative_pacing() 
 }
 
 #[test]
+fn guild_invitation_decline_keeps_source_size_right_and_bottom_anchors() {
+    use ui_toolkit::layout_values::Val;
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.invitation = Some(GuildInvitation {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            inviter_name: "Alice".into(),
+        });
+        let registry = mounted(&session);
+        let decline = registry
+            .get(
+                registry
+                    .get_by_name("GuildInviteFrameDeclineButton")
+                    .unwrap(),
+            )
+            .unwrap();
+        // GuildInviteFrame.xml:140×22, BOTTOMRIGHT(-24,+24) in310×188.
+        assert_eq!(
+            (decline.width.value(), decline.height.value()),
+            (140.0, 22.0)
+        );
+        assert_eq!(
+            (decline.position.left, decline.position.top),
+            (Val::Px(146.0), Val::Px(142.0))
+        );
+        let join = registry
+            .get(registry.get_by_name("GuildInviteFrameJoinButton").unwrap())
+            .unwrap();
+        assert_eq!((join.width.value(), join.height.value()), (110.0, 22.0));
+        assert_eq!(
+            (join.position.left, join.position.top),
+            (Val::Px(24.0), Val::Px(142.0))
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn guild_invitation_popup_works_without_open_roster_in_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
