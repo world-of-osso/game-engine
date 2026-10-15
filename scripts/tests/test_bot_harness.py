@@ -64,6 +64,25 @@ class BotHarnessTests(unittest.TestCase):
         self.assertIn({"kind": "zero_damage_spell", "spell": 30451}, report["findings"])
         self.assertNotIn({"kind": "zero_damage_spell", "spell": 44425}, report["findings"])
 
+    def test_nested_request_windows_do_not_create_a_false_missing_cast(self):
+        stamps = [e["at_ms"] for e in self.events if e["kind"] == "cast_success" and e["src"] == ACTOR]
+        first, last = min(stamps), max(stamps)
+        self.run["attempts"] = [
+            dict(spell=30451, at_ms=first - 100, deadline_ms=last + 100),
+            dict(spell=30451, at_ms=first - 100, deadline_ms=first + 1),
+        ]
+        findings = harness.analyze(self.run, self.events)["findings"]
+        self.assertFalse(any(f["kind"] == "cast_never_fired" for f in findings))
+
+    def test_overlapping_missing_cast_cannot_claim_an_exact_request_timestamp(self):
+        event = next(e for e in self.events if e["kind"] == "cast_success" and e["src"] == ACTOR)
+        self.run["attempts"] = [dict(spell=30451, at_ms=event["at_ms"] - offset, deadline_ms=event["at_ms"] + 100) for offset in [100, 50]]
+        findings = harness.analyze(self.run, [event])["findings"]
+        missing = [f for f in findings if f["kind"] == "cast_never_fired"]
+        self.assertEqual(len(missing), 1)
+        self.assertIsNone(missing[0]["at_ms"])
+        self.assertEqual(missing[0]["attribution"], "overlapping request windows")
+
     def test_same_cast_success_cannot_satisfy_two_attempts(self):
         self.run["attempts"] = [dict(spell=30451, at_ms=1791992755700, deadline_ms=1791992756000)] * 2
         findings = harness.analyze(self.run, self.events)["findings"]

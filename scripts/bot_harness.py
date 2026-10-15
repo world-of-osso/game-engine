@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import statistics
+from bisect import bisect_left
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -45,18 +46,28 @@ def merge_polls(polls):
 
 def missing_casts(attempts, successes):
     """Consume one server success per submitted request, not per spell identity."""
-    unmatched = list(successes)
+    original = defaultdict(list)
+    for event in sorted(successes, key=lambda event: event["at_ms"]):
+        original[event["spell"]].append(event["at_ms"])
+    available = {spell: times.copy() for spell, times in original.items()}
     findings = []
-    for attempt in attempts:
+    for attempt in sorted(attempts, key=lambda attempt: attempt["deadline_ms"]):
+        spell = attempt["spell"]
         if attempt.get("error"):
-            findings.append({"kind": "cast_error", "spell": attempt["spell"], "error": attempt["error"]})
+            findings.append({"kind": "cast_error", "spell": spell, "error": attempt["error"]})
             continue
-        match = next((event for event in unmatched if event["spell"] == attempt["spell"]
-                      and attempt["at_ms"] <= event["at_ms"] <= attempt["deadline_ms"]), None)
-        if match is None:
-            findings.append({"kind": "cast_never_fired", "spell": attempt["spell"], "at_ms": attempt["at_ms"]})
-        else:
-            unmatched.remove(match)
+        times = available.get(spell, [])
+        index = bisect_left(times, attempt["at_ms"])
+        if index < len(times) and times[index] <= attempt["deadline_ms"]:
+            times.pop(index)
+            continue
+        finding = {"kind": "cast_never_fired", "spell": spell, "at_ms": attempt["at_ms"]}
+        all_times = original[spell]
+        index = bisect_left(all_times, attempt["at_ms"])
+        if index < len(all_times) and all_times[index] <= attempt["deadline_ms"]:
+            finding["at_ms"] = None
+            finding["attribution"] = "overlapping request windows"
+        findings.append(finding)
     return findings
 
 
