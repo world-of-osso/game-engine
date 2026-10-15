@@ -501,15 +501,6 @@ impl RegistryModel {
                 &mut self.registry,
             );
         }
-        if self
-            .shared
-            .get::<game_engine_ui_model::professions_frame::ProfessionView>()
-            .is_some_and(|view| view.orders.customer)
-        {
-            game_engine_ui_model::professions_frame::orders::apply_customer_postsetup(
-                &mut self.registry,
-            );
-        }
         if let Some(view) = self
             .shared
             .get::<game_engine_ui_model::cooldown_assist::CooldownViewerView>()
