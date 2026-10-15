@@ -14,6 +14,13 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Frozen replacement consent
+
+- Occupied-slot drops preview the candidate in the slot while a Retail GameDialog identifies the old frozen product and warns: “Are you sure you want to replace your current frozen item? The existing frozen item may no longer be available.”
+- Confirm alone stays disabled for five monotonic seconds, showing the rounded-up remaining seconds, then “Confirm”. Cancel is immediately available; global right mouse-down also cancels. Escape is consumed, not cancellation (this popup has no hideOnEscape).
+- Cancel restores the authoritative frozen slot and preserves local cart order. Acceptance sends one Freeze request and removes only its candidate from the cart; the snapshot remains server-authoritative. Empty-slot freeze is immediate with the same cart pruning. No Tender mutation.
+- Sources: Blizzard_PerksProgramElements.lua87–100,583–670; Blizzard_PerksProgram.lua274–278; StaticPopup.lua525–538; GameDialog.lua737–745.
+
 ## Retail layout acceptance — October13
 
 - [x] Both skins share ProductsScrollBoxContainer 527×751 at LEFT+46/CENTER+22, ScrollBox TOPLEFT(0,-58)/BOTTOMRIGHT(-24,120), stretched 176×48 product template rows with 32px icons at LEFT+48, and Filter LEFT+9/BOTTOM to container TOP+22. The 122×25 WowStyle2 template is overridden by PerksProgramProducts.lua to effective145×25 with fixed "Filter" text.
