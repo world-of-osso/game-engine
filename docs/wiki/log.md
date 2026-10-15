@@ -8,6 +8,9 @@ Shared dropdown/radios replace the StaticPopup/plain-row stand-in; caller Lua wi
 ## 2026-10-15 — Native summon lifetime proofs
 
 [Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
+## 2026-10-15 — Disabled housing icon visuals
+
+[Source colors](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): current GlobalColor43 DARKGRAY/default atlas/full alpha replaces invented disabled-active art, desaturation and transparency. Behavioral RED/GREEN plus both-skin actual Customize/Snap/FreePlace painted-color/ignored-click/remount proof; four inspected captures. Availability and paid state unchanged; no pending-transition timing or full pixel claim.
 
 ## 2026-10-15 — Active housing mode preservation
 
@@ -3900,3 +3903,4 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 ## 2026-10-15 — Player-bot detector
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
+- 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
