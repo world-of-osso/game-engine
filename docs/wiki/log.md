@@ -1,3 +1,7 @@
+## 2026-10-15 — Native bot health qualification and per-ability triage
+
+[Health boundary](systems/bot-harness.md#capture-and-detection): Ret70 was alreadyhealth0/8208 while input eligibility remainedtrue, so no new in-window death event existed. Readiness/collection now require observed positive health; archived before/in-window samples qualify derived reports without rewriting originals. Actual native proof keeps six MVP windows valid, quarantines two Ret windows as DPSnull and confirms eight raw report hashes unchanged. Per-ability JSON/Markdown preserves real triggered event IDs and separates untagged native errors. Integrated57 tests pass; old loaded all40 capture continues with final health-qualified comparison. Stockade deferred until a maintained source-backed controller exists.
+
 ## 2026-10-15 — Comparable three-DPS bot MVP
 
 [Native receipts](systems/bot-harness.md#common-budget-three-dps-mvp--verified2026-10-15): Arms/Fury/Havoc each complete two60s windows with equal30/quality2/era0 equipment, empty jewelry and common observed dummy/level/world inputs. Fury ordinary dual-two-hand succeeds; Havoc five normal jewelry removals preserve four bag identities. Median19.1167 from equal-spec means, max/median5.7363, min/median0.1844; no tolerance/balance or bug-free claim. All40/detector completeness/Stockade remain open. Evidence native-equal-budget2; all owned runtime stopped.
