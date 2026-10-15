@@ -1,6 +1,6 @@
 //! Main action bar, end caps, micro menu and bags bar name Blizzard atlas elements.
-//! Under Modern every frame is exactly what the components built from hand-copied crops
-//! before (forever7 base, master 9343e578); under Forever the names Forever re-skins draw
+//! Modern retains the hand-copied crop baseline (forever7 base, master 9343e578),
+//! with intentionally source-corrected radial cooldown hosts; Forever re-skins draw
 //! their set-1 `c60` members, the main bar takes FlareUI's button scale and art, and the
 //! end caps are the project's class shields.
 
@@ -299,7 +299,7 @@ fn trees(skin: ActiveSkin) -> String {
     out
 }
 
-/// The Modern trees as the components built them from hand-copied crops (master 9343e578).
+/// Modern crop baseline, with full transparent hosts for native source radial cooldowns.
 #[test]
 fn modern_bars_draw_exactly_what_their_hand_copied_crops_drew() {
     let trees = trees(ActiveSkin::Modern);
