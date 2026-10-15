@@ -1,3 +1,7 @@
+## 2026-10-15 — Complete equipped-item material graph
+
+[Typed material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) explains preview6256534→6153788 failures: M2/base material audit omitted per-model type3/4 overrides. Fresh ten-item inventory/current70391 source selection stages43/43 authenticated assets with duplicate0; canonical selected24/43. Lead publication requested; no native-clear claim.
+
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 
 [CSV column order and signed selections](formats/db2-format.md#installed-csv-column-order-and-signed-selections): installed70391 Warband option reorder reproduced as an empty catalog; named-column parsing and loud row errors replace silent skips across audited catalog families. Canonical signed geoset rows213/497/614 remain -1 in raw v5 caches and are named projection gaps; source does not establish sentinel meaning.

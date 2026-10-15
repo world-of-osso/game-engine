@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Equipped-item material closure](systems/asset-pipeline.md#equipped-item-material-closure--verified-2026-10-15) — actual ten-item Human-male graph43/43 authenticated, typed3/4 overrides beyond M2 TXID; canonical publication and native clear pending.
+
 - [Collections source layout](systems/collections-ui.md) — shared PortraitFrame/Filter/context menus, source pet decoration and ToyBox composition; inspected both-skin1920×1080 native controls/models,52 focused regressions and explicit projection boundary.
 
 - [Owned quest details and Share](systems/quest-ui.md#owned-quest-details-and-share--bounded-native-proof) — authoritative relog story/rewards, source bottom reward clip/small rows and both-skin fresh-process/real-party button eligibility proof after actual UDP queue integration; world-model and general transport claims excluded.
