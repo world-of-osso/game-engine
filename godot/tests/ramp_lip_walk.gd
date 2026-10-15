@@ -1,7 +1,8 @@
 extends SceneTree
 
-## Private UDP5921 authored Stockade ramp regression. Spawn via admin teleport at
-## WoW (108.2204, -3.454892, -26.26199), map34. Uses real turn/W input, no position writes.
+## Private UDP5921 authored Stockade ramp regression. Set the online server pose at
+## WoW (108.2204, -3.454892, -26.26199), map34, after native world readiness.
+## Supervisor uses online admin set-position; client only reads positions and sends turn/W input.
 const NAME := "Ramplip"
 const FEET := Vector3(108.2204, -26.26199, 3.454892)
 const HEADING := Vector2(0.96152194, -0.27472818)
@@ -30,9 +31,11 @@ func run_test() -> void:
     if loaded.world_map_id != 34 or loaded.terrain.global_wmo_fdid != 108631:
         fail("startup did not enter the authored Stockade WMO: " + str(loaded.terrain))
         return
-    if player.position.distance_to(FEET) > 0.05:
-        fail("spawn is not captured pose: " + str(player.position))
+    print("RAMP_LIP_WORLD_READY map=34 feet=", player.position)
+    if not await wait_for(captured_pose_ready, 60000):
         return
+    for _frame in 60:
+        await process_frame
     if not await face(player, atan2(HEADING.x, HEADING.y)):
         return
     client.set_camera_orbit(deg_to_rad(165.0), -0.3, 8.0)
@@ -71,6 +74,11 @@ func world_ready(state: Dictionary) -> bool:
         return false
     var camera: Camera3D = client.get_node_or_null("WorldCamera") as Camera3D
     return camera != null and camera.current
+
+func captured_pose_ready(state: Dictionary) -> bool:
+    var server: Vector3 = state.local_server_position
+    var player: Node3D = client.get_node("WorldUnits/" + NAME) as Node3D
+    return player.position.distance_to(FEET) < 0.05 and server.distance_to(FEET) < 0.05
 
 func verify_authored_wall(player: Node3D) -> bool:
     var origin: Vector3 = player.position + Vector3.UP * 0.6
