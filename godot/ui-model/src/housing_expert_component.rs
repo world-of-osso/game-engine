@@ -1,6 +1,7 @@
 //! Retail ExpertDecorMode XML rows and submode controls; no invented keys or save button.
 use crate::housing_basic_component::{
-    binding_text, icon_control, instruction_rows, mode_bar, mode_button_center, update_icon_control,
+    binding_control_text, binding_text, icon_control, instruction_rows, mode_bar,
+    mode_button_center, update_icon_control,
 };
 use crate::housing_component::HousingView;
 use crate::housing_editor::{EditorMode, PrecisionSubmode};
@@ -9,24 +10,27 @@ use crate::ui::strata::FrameStrata;
 use game_engine_core::input_bindings_data::InputAction;
 use ui_toolkit::{registry::FrameRegistry, rsx, widget_def::Element};
 
-const SUBMODES: [(&str, &str, &str, PrecisionSubmode); 3] = [
+const SUBMODES: [(&str, &str, &str, PrecisionSubmode, InputAction); 3] = [
     (
         "TranslateSubmodeButton",
         "expert-horzmove",
         "housing:precision:translate",
         PrecisionSubmode::Translate,
+        InputAction::HousingExpertTranslate,
     ),
     (
         "RotateSubmodeButton",
         "expert-rotate",
         "housing:precision:rotate",
         PrecisionSubmode::Rotate,
+        InputAction::HousingExpertRotate,
     ),
     (
         "ScaleSubmodeButton",
         "expert-scale",
         "housing:precision:scale",
         PrecisionSubmode::Scale,
+        InputAction::HousingExpertScale,
     ),
 ];
 const SUBMODE_STEP: f32 = 52.0; // 64px buttons plus source spacing -12.
@@ -136,7 +140,7 @@ fn submode_controls(view: &HousingView) -> Element {
     SUBMODES
         .into_iter()
         .enumerate()
-        .flat_map(|(index, (name, atlas, action, mode))| {
+        .flat_map(|(index, (name, atlas, action, mode, binding))| {
             let restricted =
                 disabled || (mode == PrecisionSubmode::Scale && cannot_scale_selection);
             icon_control(
@@ -144,6 +148,7 @@ fn submode_controls(view: &HousingView) -> Element {
                 (index as f32 * SUBMODE_STEP, 0.0),
                 restricted,
                 editor.submode == mode,
+                binding_control_text(view, name, binding, true),
             )
         })
         .collect()
@@ -174,7 +179,7 @@ pub fn apply_expert_postsetup(view: &HousingView, registry: &mut FrameRegistry) 
     if view.model.editor.mode != EditorMode::Expert {
         return;
     }
-    for (name, atlas, _, mode) in SUBMODES {
+    for (name, atlas, _, mode, _) in SUBMODES {
         update_icon_control(registry, name, atlas, view.model.editor.submode == mode);
     }
 }
