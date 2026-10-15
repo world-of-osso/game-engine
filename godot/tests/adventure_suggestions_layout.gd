@@ -31,6 +31,12 @@ func check_suggestions_layout() -> bool:
 		if title.get_theme_font("font").get_font_name() != "Morpheus" or title.text.is_empty():
 			stop("Authored suggestion title/font missing")
 			return false
+		if limit == 2:
+			var description := control(str(title.name).trim_suffix("Name") + "DescriptionFrame")
+			print("SUGGESTED_PRIMARY_TEXT_METRICS title_rect=%s line_height=%s lines=%s font_size=%s spacing=%s description_rect=%s" % [title.get_global_rect(), title.get_line_height(), title.get_line_count(), title.get_theme_font_size("font_size"), title.get_theme_constant("line_spacing"), description.get_global_rect()])
+			if description.get_global_rect().position.y < title.get_global_rect().end.y + 8.0 * scale - 1.0:
+				stop("Primary native title exceeds its authored frame and overlaps description")
+				return false
 	for description in client.find_children("JournalSuggestion*Description", "Label", true, false):
 		var limit := -1 if control("JournalSuggestionSlot3").is_ancestor_of(description) else 4
 		if description.max_lines_visible != limit:
