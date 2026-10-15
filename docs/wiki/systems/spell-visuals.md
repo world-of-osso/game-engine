@@ -40,10 +40,10 @@ Gotcha (2026-09-29): half the CASC index buckets were only in Syncthing `.idx.tm
 1. **Pick the visual.** `SpellXSpellVisual` gives the visual: the highest `Priority` among `DifficultyID` 0 rows whose `CasterPlayerConditionID` holds.
    - `PlayerCondition` follows TrinityCore `ConditionMgr::IsPlayerMeetingCondition` for the fields it checks: Disabled/Invert flags, level, race and class masks, gender, `ChrSpecializationIndex` (compares the local caster's zero-based `ChrSpecialization.OrderIndex`; passes without a spec or for remote/NPC casters), and `WeaponSubclassMask` against the main-hand `Item.SubclassID`.
    - A condition with any other requirement never holds.
-   - Example: Slam with a one-hand sword resolves to visual 97446 (condition 87161, warrior + 1H mask 768145). With a two-hander it resolves to 51946.
+   - Example: Slam with a one-hand sword resolves to visual 97446 (condition 87161, warrior + 1H mask 768145). With a two-hander, active12.1.5.70391 resolves to190513 (verified2026-10-15; older69933 used51946).
 2. **Start kits.** A `SpellVisualEvent` row starts a kit at `StartEvent` and ends it at `EndEvent`:
    - Events: 1 PrecastStart, 2 PrecastEnd, 3 Cast, 6 Impact, 7/8 Aura, 11/12 Channel, 13 OneShot.
-   - `TargetType`: 1 caster, 2 every hit unit (`SpellGo.hit_targets`), 4 explicit target only. This is why Slam's blood does not land on the caster, although Slam's plan also hits the caster. 3 and 5 are area and missile kits and are not played.
+   - `TargetType`: 1 caster, 2 every hit unit (`SpellGo.hit_targets`), 4 explicit target only. This keeps Slam's authored impact on its explicit target, although Slam's plan also hits the caster. 3 and 5 are area and missile kits and are not played.
 3. **Kit effects.** `SpellVisualKitEffect` type 2 is a `SpellVisualKitModelAttach` (model from `SpellVisualEffectName`, attachment, offset, yaw/pitch/roll, scale × name scale, `StartDelay`, start/loop/end clips). Type 6 is the unit animation:
    - `SpellVisualAnim` with an `AnimKitID` uses its first `AnimKitSegment` clip. It loops when a segment loops back.
    - Otherwise it uses `LoopAnimID`, held unless the kit is a one-shot, else `InitialAnimID` once.
@@ -356,15 +356,15 @@ Runtime: the account's existing `SpecializationChanged` updates `PlayerSpells.sp
 
 ### Slam 1464: same two-handed sword, different spec
 
-`Item.SubclassID` 8 is a two-handed sword. The local DB2 chain is:
+`Item.SubclassID`8 is a two-handed sword. Current chain below is verified2026-10-15 against active local-CASC12.1.5.70391; it supersedes69933's51946/62428 expectation without changing specialization selection.
 
 | Spec | ChrSpecialization ID / OrderIndex | SpellXSpellVisual ID / Priority / CasterPlayerConditionID | SpellVisual | Cast kit / animation |
 |---|---|---|---|---|
-| Arms | 71 / 0 | 1727 / 3 / 87160 | 51946 | 62428 / 812 |
+| Arms | 71 / 0 | 1727 / 3 / 87160 | 190513 | 278884 / 812 |
 | Fury | 72 / 1 | 313352 / 1 / 18183 | 97446 | 128672 / 818 CombatAbility1H01 |
-| No snapshot | absent | 1727 / 3 / 87160 (spec check skipped) | 51946 | 62428 / 812 |
+| No snapshot | absent | 1727 / 3 / 87160 (spec check skipped) | 190513 | 278884 / 812 |
 
-`PlayerCondition` 87160 requires class mask 1, spec index 0 and weapon mask 1312110; 87161 requires class mask 1, spec index 0 and weapon mask 768145 (one-handed weapons). Condition 18183 requires class mask 1 and spec index 1, without a weapon requirement. The unrestricted two-handed row 313354 (condition 64724, priority 0) loses to the matching specialization row. Both visuals use impact kit 62452. Event rows 112991 and 230296 select the distinct Cast kits. The known Initial OrderIndex 4 instead reaches unrestricted row 313354, producing the same two-handed kit as no snapshot by a different condition path.
+`PlayerCondition` 87160 requires class mask 1, spec index 0 and weapon mask 1312110; 87161 requires class mask 1, spec index 0 and weapon mask 768145 (one-handed weapons). Condition 18183 requires class mask 1 and spec index 1, without a weapon requirement. The unrestricted two-handed row 313354 (condition 64724, priority 0) loses to the matching specialization row. Both visuals now use impact kit278885: events561992/230297 target4, kit effect789205→model attach376845→effect name226/model166330 at attachment22. Cast event561991 selects kit278884 for Arms; effect789202→SpellVisualAnim434904→AnimKit7583→segment14620 selects animation812. Fury's cast event230296/kit128672→effect320219→SpellVisualAnim373261→AnimKit8451/segment16259 still selects818. The known Initial OrderIndex 4 instead reaches unrestricted row 313354, producing the same two-handed kit as no snapshot by a different condition path.
 
 Behavioral proof is in the [contract's tests](../../specs/spell-visuals.md#tests-asserting-this-spec): local spell state before the snapshot and Arms→Fury transitions, actual DB2 ID-to-index resolution, same-weapon kits, and remote identity rejection. Native raster/live proof is not claimed; the existing capture fixture requires a live server and no offline spec cast path was found.
 

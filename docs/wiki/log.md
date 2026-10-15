@@ -3930,3 +3930,5 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
 - 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
+
+- 2026-10-15: Slam active70391 source revalidation: genuine core/native stale-kit RED; update same-weapon/no-snapshot/replicated-spec expectations and impact model166330/attachment22. Runtime unchanged; GREEN pending.

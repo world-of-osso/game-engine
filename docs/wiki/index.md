@@ -403,3 +403,5 @@ External resources and asset lists.
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.
 
 - [Group-private owner capture fixtures](systems/toy-box.md#source-group-private-owner-capture-fixtures-2026-10-13) — source doll/gong lifecycle and actual UDP membership proof fixtures, execution pending.
+
+- [Active Slam visual chain](systems/spell-visuals.md#slam-1464-same-two-handed-sword-different-spec) — verified70391 Arms190513/278884, Fury97446/128672 and authored impact278885; fixture refresh only, GREEN pending.
