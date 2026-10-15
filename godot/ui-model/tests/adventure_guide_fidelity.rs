@@ -405,6 +405,83 @@ fn adventure_guide_model_limits_authored_choices_to_nine() {
 }
 
 #[test]
+fn adventure_guide_instance_loot_has_source_tabs_without_boss_selection() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:instance:63").unwrap();
+        v.apply("journal:difficulty:1").unwrap();
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "EncounterJournalPage2"), [780., 154., 63., 57.]);
+        assert_ne!(
+            button(&r, "EncounterJournalPage2").state,
+            ButtonState::Disabled
+        );
+        assert_eq!(
+            button(&r, "EncounterJournalPage3").state,
+            ButtonState::Disabled
+        );
+        assert!(
+            r.get_by_name("EncounterJournalPage1").is_none(),
+            "Deadmines has no authored overview roots; Retail hides the extra ability tab"
+        );
+        assert_eq!(rect(&r, "EncounterJournalPage3")[1], 209.);
+        assert!(v.apply("journal:page:model").is_err());
+        assert!(v.apply("journal:page:abilities").is_err());
+        v.apply("journal:page:loot").unwrap();
+        assert_eq!(v.encounter, None);
+        let r = render(&v, skin);
+        assert_eq!(rect(&r, "JournalLoot2169"), [0., 0., 321., 64.]);
+        assert_eq!(text(&r, "JournalLoot2169Boss"), "Boss: Glubtok");
+        assert_eq!(text(&r, "JournalLoot2169Slot"), "One-Hand");
+    }
+}
+
+#[test]
+fn adventure_guide_instance_loot_uses_selected_instance_and_difficulty() {
+    let mut v = view();
+    v.apply("journal:instance:63").unwrap();
+    v.apply("journal:difficulty:1").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    let normal: Vec<_> = v.loot().iter().map(|item| item.id).collect();
+    assert!(normal.contains(&2169), "Normal Glubtok's Buzzer Blade");
+    assert!(
+        normal.contains(&5195),
+        "Normal Glubtok's Gold-Flecked Gloves"
+    );
+    assert!(
+        !normal.contains(&65163),
+        "Heroic Buzzer Blade must not leak into Normal"
+    );
+    assert!(
+        !normal.contains(&6324),
+        "Shadowfang Keep robe must not leak into Deadmines"
+    );
+    assert!(
+        normal.len() * 64 > 382,
+        "Concrete catalog must overflow to exercise a second page"
+    );
+    let unique: std::collections::BTreeSet<_> = normal.iter().collect();
+    assert_eq!(unique.len(), normal.len());
+    v.apply("journal:slot:10").unwrap();
+    assert!(v.loot().iter().any(|item| item.id == 5195));
+    assert!(v.loot().iter().all(|item| item.slot == 10));
+}
+
+#[test]
+fn adventure_guide_instance_loot_encounter_row_uses_source_slot_and_subclass() {
+    let mut v = view();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    v.apply("journal:encounter:89").unwrap();
+    v.apply("journal:difficulty:1").unwrap();
+    v.apply("journal:page:loot").unwrap();
+    let r = render(&v, ActiveSkin::Modern);
+    assert_eq!(rect(&r, "JournalLoot2169"), [0., 0., 321., 45.]);
+    assert_eq!(text(&r, "JournalLoot2169Slot"), "One-Hand");
+    assert_eq!(text(&r, "JournalLoot2169ArmorClass"), "Dagger");
+    assert!(r.get_by_name("JournalLoot2169Boss").is_none());
+}
+
+#[test]
 fn adventure_guide_model_tooltip_retains_authored_creature_description() {
     let mut v = view();
     v.apply("journal:encounter:154").unwrap();
