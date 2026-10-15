@@ -32,7 +32,7 @@ Mounted players perform their mount's authored special, not an ordinary jump whi
 
 ## Known gaps (current cycle)
 
-- [ ] Native both-skin three-mount/observer proof and final integration remain open.
+- [ ] Native both-skin three-mount/observer proof and final integration remain open. Native mount sequence ownership passes; rider pose test currently fails because HumanMale FishingCast133 lasts1000ms while Grrloc AnimStartTime is2000ms. Clipping that offset produces no rider motion. Offset normalization/start-time interpretation is unresolved; do not claim completed rider playback.
 - [ ] AnimKit condition enums are not published in the allowed sources. Scheduling is explicitly inferred: Start0=kit start,1=referenced start,2=referenced end; End0=clip completion,1=held,4=referenced start+delay. Reverse speed starts at the clip end minus authored offset; zero blend times are immediate. Installed-row timeline tests establish this implementation, not parity with unavailable client C code. Segment/config flags are retained; their unpublished bit semantics are not independently established.
 - [ ] Installed additional mount visuals also reference effect type12; existing supported model/sound/animation dispatch does not implement that discriminant. No all-VFX claim.
 - [ ] Retail `Bindings_Standard.xml:53-59` calls `JumpOrAscendStart` on key-down and `AscendStop` on release; the native C implementation is unavailable. The user-confirmed stationary/moving distinction governs this client; do not invent a hold timer.
