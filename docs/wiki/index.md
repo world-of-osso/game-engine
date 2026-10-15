@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Modern target cast source art](investigations/target-cast-source-art.md) — source background/textbox, cropped four-state fills and6×16 pip;9 focused regressions and inspected both-skin before/after samples, Forever byte-identical.
+
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
 
 - [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.

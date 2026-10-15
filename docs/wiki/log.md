@@ -6,6 +6,10 @@
 
 [Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
 
+## 2026-10-14 — Modern target cast source art
+
+[Target cast correction](investigations/target-cast-source-art.md): source background/textbox, cropped status-fill member and6×16 pip replace Modern-only flat stand-ins. Genuine source-region RED→9 focused GREEN; native8/source textures/geometry pass, sixteen both-skin before/after target regions inspected, four Forever controls byte-identical. Build/check/format pass; presentation only, no new server/lifecycle/phase-FX acceptance.
+
 ## 2026-10-14 — Shared window tiling implementation
 
 [Shared window tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment): source-one-region origin and streak anchors, paired toolkit repeat attributes, genuine RED→GREEN toolkit1/source6 and twelve scoped golden blocks. Source/Quest/small-window3 plus unchanged character golden1 pass; merged engine/network check and extension build pass. Native10PASS, eight inspected both-skin before/after window pairs, two comparisons and byte-identical Raid controls. Captured binaryc8c2d819f/toolkit06eb00c; unrelated later Housing merge excluded from pixel revision. No server, whole-tree or every-caller acceptance claim.
