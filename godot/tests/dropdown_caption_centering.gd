@@ -43,6 +43,20 @@ func capture_dropdowns() -> void:
 					assert(caption.text == "1 Week" and caption.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT and caption.get_theme_font_size("font_size") == 12, "Preserve AH caller text/font/alignment")
 				var region := Rect2i(owner.get_global_rect().grow(14)).intersection(Rect2i(Vector2i.ZERO, image.get_size()))
 				assert(image.get_region(region).save_png(output.path_join(prefix + "-" + name + "-crop.png")) == OK)
+			if verify and view == "primitives":
+				await verify_long_caption(ui, output, skin)
 			ui.queue_free()
 			await process_frame
 	quit(0)
+
+func verify_long_caption(ui: Node, output: String, skin: String) -> void:
+	var caption := ui.find_child("ClosedDropdownText", true, false) as Label
+	# Change content only: keep the production renderer's wrapping/overflow policy.
+	caption.text = "A deliberately long specialization caption with several words"
+	for frame in range(10):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	assert(image.save_png(output.path_join("dropdown-%s-long-caption.png" % skin)) == OK)
+	print("DROPDOWN_LONG ", skin, " lines=", caption.get_line_count(), " rect=", caption.get_global_rect())
+	assert(caption.get_line_count() == 1, "Source wordwrap=false must remain one line after centering")
