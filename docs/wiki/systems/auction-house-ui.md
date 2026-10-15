@@ -2,6 +2,12 @@
 
 Requirements: [auction house UI spec](../../specs/auction-house-ui.md). Server side: game-server `auction_house/`, `npc_interaction.rs`.
 
+## Duration source composition — 2026-10-15
+
+Sell duration uses shared `menu_primitives::dropdown_button_with_state` and `context_menu_description` with three radio entries; no StaticPopup stand-in or synthetic heading. Retail `Blizzard_AuctionHouseSellFrame.lua:159–170` overrides the inherited template: width115, Number12Font (Arial Narrow12), closed caption RIGHT; row captions remain LEFT. The caller applies those font attributes only to its own emitted elements, preserving shared defaults. `DropdownButton.xml` anchors the menu directly below its owner. Existing labels and tokens12/24/48 retain their reducer behavior.
+
+Targeted source regressions cover three selected durations, both Buyout Mode positions and both skins, including real opened-session action dispatch. Before snapshots capture existing plain rows; after native inspection is pending. Evidence: `data/diagnostics/ui-questlog-ah-duration-2026-10-15/duration-proof-ledger.json`. Offline supplied states do not establish server/trading/persistence or every dropdown caller.
+
 ## Data flow
 
 - Right-click (or IPC `quest interact --npc`) writes `NpcInteractionRequest::Interact`; the server answers `InteractionOpened`. The quest dialog handler (`src/game/networking/quests.rs`) owns the single `InteractionOpened` inbox, so for any role other than quest giver it closes the gossip greeting and writes `NpcFrameEvent::Opened { npc, role }`; `InteractionClosed` also writes `NpcFrameEvent::Closed`.
