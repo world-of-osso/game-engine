@@ -92,7 +92,7 @@ func face(player: Node3D, target: float) -> bool:
                 fail("turn input did not change facing")
                 return false
             continue
-        var right := sign(error) == turn_sign
+        var right: bool = sign(error) == turn_sign
         push_key(KEY_RIGHT, right)
         push_key(KEY_LEFT, not right)
         await process_frame
