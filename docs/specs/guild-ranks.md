@@ -35,7 +35,8 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [x] Native Info editor uses TextEdit for multiline text (499 characters); MOTD uses Enter-to-accept input (255 characters). Native postsetup supplies limits before projection.
 - [x] MOTD input preserves typed order and caret position across projection updates, including insertion in the middle of existing text.
 - [x] Authenticated native multiline editor and authoritative readback inspected; both-skin profile and restart preserve both lines.
-- [ ] GuildInviteFrame tabard/achievement data and exact translucent border art remain pending (no fabricated emblem or points).
+- [ ] GuildInviteFrame uses its inherited TranslucentFrameTemplate: black0.9 background inset10px, four32px DialogFrame corner quadrants and tiled16px border strips at the source anchors. Join/Decline/pending state and existing content remain unchanged. Native both-skin chrome acceptance is pending for this continuation.
+- [ ] GuildInviteFrame tabard/achievement payload and inner GuildExtra art remain pending; no emblem or points are fabricated. Other source content geometry and reputation/expiry/Escape lifecycle acceptance are separate from the chrome continuation.
 
 ### Permissions and members
 - [x] Mainline exposes guild-chat speak, Officer(id22), invite/remove/promote/demote and monetary checks. MOTD/info/note rights are preserved/enforced independently and appear only in source OfficerPermissions bullet text, not invented controls.
