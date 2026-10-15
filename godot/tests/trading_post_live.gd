@@ -19,7 +19,7 @@ func run_fixture() -> void:
 		fail("Private compositor must expose 1920x1080 output")
 		return
 	var account := OS.get_environment("TP_ACCOUNT")
-	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel"]:
+	if server != "127.0.0.1:5791" or not account.begins_with("fb_") or shots.is_empty() or receipts.is_empty() or not phase in ["layout", "layout-proof", "browse", "relog", "purchase", "refund", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow"]:
 		fail("Explicit private 127.0.0.1:5791, fb_* account, phase and evidence paths required")
 		return
 	for directory in [shots, receipts]:
@@ -43,7 +43,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return float(client.account_state().local_player_health) > 0.0, "private character alive", 120000): return
 	client.set_world_minutes(720.0)
 	await wait_frames(120)
-	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel"] and not await travelers_log(): return
+	if not phase in ["layout", "layout-proof", "cart", "cart-lifetime", "rotate-controls", "mount-rider", "mount-rider-cancel", "freeze-workflow"] and not await travelers_log(): return
 	if not await open_vendor(): return
 	if phase in ["cart", "cart-lifetime"]:
 		# Collection UI owners may replace a hidden CanvasLayer while this vendor is open.
@@ -74,6 +74,7 @@ func run_fixture() -> void:
 		"rotate-controls": await rotate_control_proof()
 		"mount-rider": await mount_rider_proof()
 		"mount-rider-cancel": await mount_rider_cancel_proof()
+		"freeze-workflow": await freeze_workflow_proof()
 		"refund": await refund_after_relog()
 		_: await browse()
 
@@ -448,6 +449,96 @@ func select_first_available(budget: int = -1) -> bool:
 		if int(state.price) <= budget and not state.purchased and not state.collected: return true
 	fail("No available row within %d Tender in category %d" % [budget, int(client.trading_post_state().category)])
 	return false
+
+func select_other_cartable(excluded: Array) -> int:
+	for row in client.trading_post_state().rows:
+		var parts: PackedStringArray = str(row).split("|")
+		var vendor := int(parts[0])
+		if parts[1] != "1" or vendor in excluded: continue
+		await click("PerksProgramProduct%d" % vendor)
+		if not await wait_until(func(): return int(client.trading_post_state().selected) == vendor, "cartable selection"): return -1
+		if control("PerksProgramAddToCartButton") != null and control_enabled("PerksProgramAddToCartButton"): return vendor
+	fail("No second cartable product in current visible source rows")
+	return -1
+
+func assert_freeze_waiting(original: int, candidate: int, other: int) -> bool:
+	var state: Dictionary = client.trading_post_state()
+	if int(state.frozen) != original or state.pending:
+		fail("Frozen replacement sent a request before consent"); return false
+	if state.cart.size() != 2 or not candidate in state.cart or not other in state.cart:
+		fail("Unconfirmed frozen replacement pruned local cart"); return false
+	return true
+
+func open_freeze_replacement(original: int, candidate: int, other: int) -> bool:
+	if not await drag_to_frozen("PerksProgramProduct%d" % candidate): return false
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") != null or int(client.trading_post_state().frozen) == candidate, "replacement confirmation or premature request"): return false
+	if control("PerksProgramConfirmDialog") == null:
+		fail("Frozen replacement sent a request before showing Retail confirmation"); return false
+	return assert_freeze_waiting(original, candidate, other)
+
+func freeze_workflow_proof() -> void:
+	var tender := int(client.trading_post_state().tender)
+	if int(client.trading_post_state().frozen) >= 0:
+		if not await drag_off_frozen(): return
+		if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "owned fixture clears old reservation"): return
+	if not await choose_category(1): return
+	var original := await select_other_cartable([])
+	if original < 0: return
+	var original_name := str(client.trading_post_state().selected_name)
+	if not await drag_to_frozen("PerksProgramProduct%d" % original): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == original and not client.trading_post_state().pending, "empty slot freezes immediately"): return
+	if control("PerksProgramConfirmDialog") != null: fail("Empty frozen slot incorrectly asked for replacement consent"); return
+	await capture("initial-frozen-item")
+	if not await choose_category(2): return
+	var candidate := await select_other_cartable([])
+	if candidate < 0: return
+	var candidate_name := str(client.trading_post_state().selected_name)
+	await click("PerksProgramAddToCartButton")
+	var other := await select_other_cartable([candidate])
+	if other < 0: return
+	await click("PerksProgramAddToCartButton")
+	if not await wait_until(func(): return client.trading_post_state().cart.size() == 2, "two cart members"): return
+	if not await open_freeze_replacement(original, candidate, other): return
+	if str(control("PerksProgramConfirmItemText").text) != original_name: fail("Replacement popup did not identify OLD frozen item"); return
+	if str(control("PerksProgramFrozenLabel").text) != candidate_name: fail("Pending frozen slot did not preview candidate"); return
+	if control_enabled("PerksProgramConfirmButton") or not control_enabled("PerksProgramConfirmCancelButton"): fail("Accept delay did not disable only Confirm"); return
+	await click("PerksProgramConfirmButton")
+	if not assert_freeze_waiting(original, candidate, other): return
+	await capture("replace-delay-old-item")
+	await click("PerksProgramConfirmCancelButton")
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "Cancel dismisses frozen replacement"): return
+	if int(client.trading_post_state().frozen) != original or client.trading_post_state().cart.size() != 2: fail("Cancel changed frozen authority/cart"); return
+	if str(control("PerksProgramFrozenLabel").text) != original_name: fail("Cancel did not restore old frozen slot"); return
+	await capture("cancel-restores-old")
+	if not await open_freeze_replacement(original, candidate, other): return
+	await tap(KEY_ESCAPE)
+	if control("PerksProgramConfirmDialog") == null: fail("Frozen popup incorrectly inherited purchase hideOnEscape"); return
+	if not assert_freeze_waiting(original, candidate, other): return
+	await capture("escape-keeps-confirmation")
+	await button_event(Vector2(1800,500), MOUSE_BUTTON_RIGHT, true)
+	await button_event(Vector2(1800,500), MOUSE_BUTTON_RIGHT, false)
+	if not await wait_until(func(): return control("PerksProgramConfirmDialog") == null, "global right-click cancels replacement"): return
+	if int(client.trading_post_state().frozen) != original or client.trading_post_state().cart.size() != 2: fail("Right-click cancel changed frozen authority/cart"); return
+	await capture("right-click-cancel")
+	if not await open_freeze_replacement(original, candidate, other): return
+	if not await wait_until(func(): return control_enabled("PerksProgramConfirmButton"), "source five-second accept delay expires", 15000): return
+	if str(control("PerksProgramConfirmButtonDialogButtonText").text) != "Confirm": fail("Expired accept delay did not restore source Confirm text"); return
+	if not assert_freeze_waiting(original, candidate, other): return
+	await capture("replacement-ready")
+	await click("PerksProgramConfirmButton")
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == candidate and not client.trading_post_state().pending, "accepted replacement authority"): return
+	if client.trading_post_state().cart.size() != 1 or int(client.trading_post_state().cart[0]) != other: fail("Confirmed freeze did not remove only its cart member"); return
+	await capture("replacement-confirmed-cart-pruned")
+	if not await drag_off_frozen(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "clear accepted reservation for empty-slot boundary"): return
+	if not await drag_to_frozen("PerksProgramProduct%d" % other): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) == other and not client.trading_post_state().pending, "cart member frozen into empty slot"): return
+	if control("PerksProgramConfirmDialog") != null or client.trading_post_state().cart.size() != 0: fail("Empty freeze did not immediately prune cart without confirmation"); return
+	if int(client.trading_post_state().tender) != tender: fail("Freeze workflow mutated Tender"); return
+	await capture("empty-slot-cart-pruned")
+	if not await drag_off_frozen(): return
+	if not await wait_until(func(): return int(client.trading_post_state().frozen) < 0 and not client.trading_post_state().pending, "fixture leaves reservation empty"): return
+	await finish("freeze-workflow")
 
 func mount_rider_cancel_proof() -> void:
 	if not await choose_category(2): return

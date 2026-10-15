@@ -113,15 +113,19 @@ publish() {
     work=$(mktemp -d)
     trap 'rm -rf "$work"' RETURN
     echo "=== Generating manifest ==="
-    run cargo run --release --quiet --manifest-path "$FILE_SERVER_DIR/Cargo.toml" -- manifest "$BUNDLE"
-    echo "=== Verifying staged bytes ==="
-    run python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" --verify-manifest
+    # The digest cache lives beside the bundle (assemble recreates the bundle itself) and
+    # skips re-reading the unchanged ~197 GB on every publish.
+    run cargo run --release --quiet --manifest-path "$FILE_SERVER_DIR/Cargo.toml" -- manifest "$BUNDLE" \
+        --cache "$BUNDLE.digest-cache.json"
     echo "=== Diffing against the live manifest ==="
     if grep -qx manifest.json <<<"$top"; then
         rclone copyto "$DESTINATION/manifest.json" "$work/live-manifest.json"
     fi
     run python3 "$ROOT/scripts/manifest_diff.py" --new "$BUNDLE/manifest.json" \
         --live "$work/live-manifest.json" --upload "$work/upload.txt" --delete "$work/delete.txt"
+    echo "=== Verifying staged bytes of the files to upload ==="
+    run python3 "$ROOT/scripts/player_bundle.py" --root "$ROOT" --bundle "$BUNDLE" --platform "$PLATFORM" \
+        --verify-manifest --only "$work/upload.txt"
     echo "=== Uploading changed files to $DESTINATION ==="
     run rclone copy "$BUNDLE/" "$DESTINATION" --files-from "$work/upload.txt" --no-traverse \
         "${upload[@]}" --stats 60s --stats-one-line
