@@ -62,6 +62,7 @@ pub struct View {
     pub class_menu_open: bool,
     pub instance: Option<u32>,
     pub encounter: Option<u32>,
+    pub creature: Option<u32>,
     pub difficulty: u32,
     pub role: u32,
     pub class: u32,
@@ -98,6 +99,7 @@ impl Default for View {
             class_menu_open: false,
             instance: None,
             encounter: None,
+            creature: None,
             difficulty: 2,
             role: 0,
             class: 0,
@@ -299,6 +301,7 @@ impl View {
             .ok_or_else(|| format!("Unknown journal encounter {id}"))?;
         self.instance = Some(e.instance);
         self.encounter = Some(id);
+        self.creature = self.model_creatures().first().map(|creature| creature.id);
         self.tab = if self.catalog.instance(e.instance).is_some_and(|i| i.dungeon) {
             Tab::Dungeons
         } else {
@@ -331,6 +334,20 @@ impl View {
             .collect();
         self.collapsed.extend(collapsed);
         Ok(())
+    }
+    pub fn model_creatures(&self) -> Vec<&game_engine_core::adventure_guide::Creature> {
+        self.catalog
+            .creatures
+            .iter()
+            .filter(|creature| Some(creature.encounter) == self.encounter)
+            .take(9)
+            .filter(|creature| creature.display != 0)
+            .collect()
+    }
+    pub fn model_creature(&self) -> Option<&game_engine_core::adventure_guide::Creature> {
+        self.model_creatures()
+            .into_iter()
+            .find(|creature| Some(creature.id) == self.creature)
     }
     pub fn sections(&self) -> Result<Vec<(&Section, usize)>, String> {
         let Some(encounter) = self.encounter.and_then(|id| self.catalog.encounter(id)) else {
@@ -523,6 +540,19 @@ impl View {
                 self.select_encounter(number()?)?;
                 self.search.clear();
             }
+            "creature" => {
+                let id = number()?;
+                if !self
+                    .model_creatures()
+                    .iter()
+                    .any(|creature| creature.id == id)
+                {
+                    return Err(format!(
+                        "Creature {id} is not a model choice for this encounter"
+                    ));
+                }
+                self.creature = Some(id);
+            }
             "page" => {
                 self.page = match value {
                     Some("overview") => Page::Overview,
@@ -530,6 +560,9 @@ impl View {
                     Some("loot") => Page::Loot,
                     Some("model") => Page::Model,
                     _ => return Err("Unknown journal page".into()),
+                };
+                if self.page == Page::Model {
+                    self.creature = self.model_creatures().first().map(|creature| creature.id);
                 }
             }
             "difficulty-menu" => self.difficulty_open = !self.difficulty_open,
@@ -835,9 +868,13 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
     };
     out.extend(crate::adventure_guide_art::side_tabs(view.page));
     if view.page == Page::Model {
-        let model_art = crate::adventure_guide_art::model_art(instance, &encounter.name);
+        let title = view
+            .model_creature()
+            .map_or("", |creature| creature.name.as_str());
+        let model_art = crate::adventure_guide_art::model_art(instance, title);
         let (left, top, width, height) = MODEL;
         out.extend(rsx! {r#frame {name:"EncounterJournalModelScene",left,top,width,height,pos_type:"absolute",mouse_enabled:true,{model_art}}});
+        out.extend(crate::adventure_creatures::buttons(view));
         return out;
     }
     out.extend(art(

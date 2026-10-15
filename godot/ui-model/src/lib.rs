@@ -46,6 +46,7 @@ pub mod ui {
 
 // In-world chat frame (docs/specs/chat-frame.md).
 pub mod adventure_activities;
+pub mod adventure_creatures;
 pub mod adventure_guide;
 pub mod adventure_guide_art;
 mod adventure_guide_menus;
