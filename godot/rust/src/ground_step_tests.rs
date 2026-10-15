@@ -71,9 +71,18 @@ fn ramp_lip_authored_stockade_advances_onto_upper_floor() {
 #[test]
 fn ramp_lip_wall_taller_than_step_budget_blocks() {
     let mut faces = authored_faces();
-    for vertex in &mut faces[0][..2] {
-        vertex.y = FEET.y + STEP_UP_HEIGHT + 1.0;
-    }
+    let x = 108.26844;
+    let top = FEET.y + STEP_UP_HEIGHT + 1.0;
+    faces[0] = [
+        Vec3::new(x, top, 2.0),
+        Vec3::new(x, top, 5.0),
+        Vec3::new(x, FEET.y - 1.0, 2.0),
+    ];
+    faces.push([
+        Vec3::new(x, top, 5.0),
+        Vec3::new(x, FEET.y - 1.0, 5.0),
+        Vec3::new(x, FEET.y - 1.0, 2.0),
+    ]);
     let moved = walk(&faces, true);
     assert!(moved.x <= 108.26844, "crossed tall wall: {moved}");
     assert!(
