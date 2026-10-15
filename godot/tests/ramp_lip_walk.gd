@@ -25,9 +25,15 @@ func run_test() -> void:
         return
     if not await wait_for(func(state): return state.screen == "CharacterSelect" and state.reply_received, 30000):
         return
-    var ui := client.get_node("CharacterSelectUI")
-    await click_control(ui.find_child("CharCard_0", true, false))
-    await click_control(ui.find_child("EnterWorld", true, false))
+    # Native character-select key path (EngineRoot::handle_character_select_key).
+    push_key(KEY_DOWN, true)
+    await process_frame
+    push_key(KEY_DOWN, false)
+    if not await wait_for(func(state): return state.selected_character_name == NAME, 30000):
+        return
+    push_key(KEY_ENTER, true)
+    await process_frame
+    push_key(KEY_ENTER, false)
     if not await wait_for(func(state): return state.screen == "InWorld" and state.terrain.pending_count == 0, 180000):
         return
     var player := client.get_node("WorldUnits/" + NAME) as Node3D
@@ -129,19 +135,9 @@ func release_turns() -> void:
 func push_key(code: Key, pressed: bool) -> void:
     var key := InputEventKey.new()
     key.physical_keycode = code
+    key.keycode = code
     key.pressed = pressed
     root.push_input(key, true)
-
-func click_control(control: Control) -> void:
-    var point := control.get_global_rect().get_center()
-    for pressed in [true, false]:
-        var event := InputEventMouseButton.new()
-        event.position = point
-        event.button_index = MOUSE_BUTTON_LEFT
-        event.pressed = pressed
-        root.push_input(event, true)
-        await process_frame
-    await process_frame
 
 func capture(label: String) -> void:
     DirAccess.make_dir_recursive_absolute(SHOTS)
