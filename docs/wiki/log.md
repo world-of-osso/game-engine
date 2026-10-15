@@ -1,3 +1,7 @@
+## 2026-10-15 — Housing control tooltips
+
+[Source controls](systems/housing.md#editor-control-tooltips--implementation2026-10-14): enabled owner-top mode/submode tooltips, full binding in a gold inline suffix and current Options rather than the retained UI-only binding copy. Native missing-tooltip and stale-binding REDs, registry/shared-tooltip/binding-boundary GREEN and inspected both-skin normal Options assignment/unbind/actual hover/bounds/conservation proof. No unsupported availability/glow/audio/locale or complete appearance claim.
+
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
 [Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
