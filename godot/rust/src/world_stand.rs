@@ -26,7 +26,7 @@ pub(crate) fn emote_stand_state(emote: EmoteKind) -> Option<StandState> {
         EmoteKind::Sit => Some(StandState::Sit),
         EmoteKind::Sleep => Some(StandState::Sleep),
         EmoteKind::Kneel => Some(StandState::Kneel),
-        EmoteKind::Dance | EmoteKind::Wave | EmoteKind::Love => None,
+        EmoteKind::Dance | EmoteKind::Wave | EmoteKind::Love | EmoteKind::MountSpecial => None,
     }
 }
 
