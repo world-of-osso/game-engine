@@ -60,17 +60,36 @@ pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>)
             (15., 93., 770., 40.),
         );
     }
-    let small_title_size = secondary_title_size(&snapshot.suggestions);
-    let panes: Element = (0..3)
-        .flat_map(|index| suggestion_slot(snapshot.suggestions.get(index), index, small_title_size))
-        .collect();
+    let panes = suggestion_panes(snapshot);
     rsx! { r#frame { name: "EncounterJournalSuggestedFrame", left: 9., top: 111., width: 784., height: 380., pos_type: "absolute", {panes} } }
+}
+
+fn suggestion_panes(snapshot: &AdventureGuideSnapshot) -> Element {
+    let common_title_size = secondary_title_size(&snapshot.suggestions);
+    // Lua's second pass reaches the lower pane only when three records exist.
+    let first_title_size = if snapshot.suggestions.len() >= 3 {
+        common_title_size
+    } else {
+        secondary_title_size(&snapshot.suggestions[..snapshot.suggestions.len().min(1)])
+    };
+    (0..3)
+        .flat_map(|index| {
+            let title_size = if index == 0 {
+                first_title_size
+            } else {
+                common_title_size
+            };
+            let recenter = index != 0 || snapshot.suggestions.len() >= 3;
+            suggestion_slot(snapshot.suggestions.get(index), index, title_size, recenter)
+        })
+        .collect()
 }
 
 fn suggestion_slot(
     suggestion: Option<&AdventureSuggestion>,
     index: usize,
     small_title_size: f32,
+    recenter: bool,
 ) -> Element {
     // Returned1 -> lower small,2 -> upper small,3 -> primary (EJSuggestFrame_GetDisplayFrame).
     let (left, top, width, height) = match index {
@@ -97,6 +116,7 @@ fn suggestion_slot(
         body.extend(suggestion_card(
             suggestion,
             primary,
+            recenter,
             small_title_size,
             (width, height),
         ));
@@ -139,12 +159,18 @@ fn apply_paging_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
 fn suggestion_card(
     suggestion: &AdventureSuggestion,
     primary: bool,
+    recenter: bool,
     small_title_size: f32,
     (width, height): (f32, f32),
 ) -> Element {
     let id = suggestion.id;
     let mut body = suggestion_icon(suggestion, primary);
-    body.extend(suggestion_text(suggestion, primary, small_title_size));
+    body.extend(suggestion_text(
+        suggestion,
+        primary,
+        recenter,
+        small_title_size,
+    ));
     rsx! { r#frame { name: {DynName(format!("JournalSuggestion{id}"))}, left: 0., top: 0., width, height, pos_type: "absolute", {body} } }
 }
 
@@ -228,6 +254,7 @@ fn measure_text_metrics(
 fn suggestion_text(
     suggestion: &AdventureSuggestion,
     primary: bool,
+    recenter: bool,
     small_title_size: f32,
 ) -> Element {
     let id = suggestion.id;
@@ -238,11 +265,26 @@ fn suggestion_text(
     let gap = if primary { 8. } else { 4. };
     let left = if primary { 35.5 } else { 70. };
     let center_y = if primary { 144.5 } else { 79.5 };
-    let top = center_y - (metrics.title_height + gap + metrics.description_height) / 2.;
-    let description_top = metrics.title_height + gap;
+    let title_frame_height = if recenter { metrics.title_height } else { 1. };
+    let description_frame_height = if recenter {
+        metrics.description_height
+    } else {
+        1.
+    };
+    let height = if recenter {
+        title_frame_height + gap + description_frame_height
+    } else {
+        152.
+    };
+    let top = center_y - height / 2.;
+    let description_top = title_frame_height + gap;
     let justify = if primary { "CENTER" } else { "LEFT" };
-    rsx! { r#frame { name: {DynName(format!("JournalSuggestion{id}Text"))}, left, top, width, height: {metrics.title_height + gap + metrics.description_height}, pos_type: "absolute",
-        fontstring { name: {DynName(format!("JournalSuggestion{id}Name"))}, text: {suggestion.name.as_str()}, left: 0., top: 0., width, height: metrics.title_height, pos_type: "absolute", font: GameFont::Morpheus, font_size: metrics.title_size, font_color: "0,0,0,1", justify_h: justify, }
-        fontstring { name: {DynName(format!("JournalSuggestion{id}Description"))}, text: {suggestion.description.as_str()}, left: 0., top: description_top, width: description_width, height: metrics.description_height, pos_type: "absolute", font: GameFont::FrizQuadrata, font_size: description_size, font_color: "0.2824,0.0157,0.0157,1", justify_h: justify, }
+    rsx! { r#frame { name: {DynName(format!("JournalSuggestion{id}Text"))}, left, top, width, height, pos_type: "absolute",
+        r#frame { name: {DynName(format!("JournalSuggestion{id}TitleFrame"))}, left: 0., top: 0., width, height: title_frame_height, pos_type: "absolute",
+            fontstring { name: {DynName(format!("JournalSuggestion{id}Name"))}, text: {suggestion.name.as_str()}, left: 0., top: 0., width, height: metrics.title_height, pos_type: "absolute", font: GameFont::Morpheus, font_size: metrics.title_size, font_color: "0,0,0,1", justify_h: justify, }
+        }
+        r#frame { name: {DynName(format!("JournalSuggestion{id}DescriptionFrame"))}, left: 0., top: description_top, width: description_width, height: description_frame_height, pos_type: "absolute",
+            fontstring { name: {DynName(format!("JournalSuggestion{id}Description"))}, text: {suggestion.description.as_str()}, left: 0., top: 0., width: description_width, height: metrics.description_height, pos_type: "absolute", font: GameFont::FrizQuadrata, font_size: description_size, font_color: "0.2824,0.0157,0.0157,1", justify_h: justify, }
+        }
     } }
 }

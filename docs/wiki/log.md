@@ -1,6 +1,6 @@
 ## 2026-10-14 — Suggested fixed source panes implementation
 
-[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--implementation-gate-pending) record source mapping/fonts and removal of invented reward prose from body text. Fixed-slot and opaque-icon regressions are RED→GREEN; both-skin9c native captures contain one genuine record. Partial-record centering needs a source/provider decision; paging authority remains open.
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--implementation-gate-pending) record source mapping/fonts and removal of invented reward prose from body text. Fixed-slot and opaque-icon regressions are RED→GREEN; both-skin9c native captures contain one genuine record. Lead chose literal partial-record geometry; its correction awaits native proof. Provider count/paging authority remain open.
 
 ## 2026-10-14 — Tutorials source presentation implementation
 
