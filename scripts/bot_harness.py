@@ -83,8 +83,10 @@ def analyze(run, events):
             findings.append({"kind": "ability_never_used", "spell": identity})
         elif spell["damage"] and not sum(by_spell[value] for value in spell.get("damage_ids", [identity])):
             findings.append({"kind": "zero_damage_spell", "spell": identity})
+    party = {str(actor) for actor in run.get("party_actors", [])}
+    party.add(str(run["actor"]))
     for event in window:
-        if event["kind"] == "death":
+        if event["kind"] == "death" and event["dst"] in party:
             findings.append({"kind": "death", "actor": event["dst"], "at_ms": event["at_ms"]})
     for error in run.get("server_errors", []):
         findings.append({"kind": "server_error", "error": error})
