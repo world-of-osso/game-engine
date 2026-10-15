@@ -4,6 +4,7 @@
 
 - [Housing control tooltips](systems/housing.md#editor-control-tooltips--implementation2026-10-14) — source owner-top labels/full gold bindings, current Options authority and inspected both-skin assignment/unbind native proof; unsupported predicates/glow/audio remain gaps.
 
+- [Shared window texture tiling](systems/menu-primitives.md#shared-window-texture-tiling--2026-10-14-assignment) — one source rock origin, independent RSX repeat axes and source streak bounds; four real-window both-skin before/after views inspected, Raid control unchanged.
 - [Shared UIPanel button art](systems/menu-primitives.md#shared-uipanel-button-art--2026-10-14-assignment) — source state files, fixed12px caps, five redundant caller repairs removed; four real-window both-skin before/after proof, with background tiling separate.
 - [Source ribbon scalar parsing](formats/m2-format.md#ribbon-emitter-scalars-2026-10-13) — actual rainbow1417024 density/lifetime RED, corrected Retail offsets and strip semantics; both-skin moving raster, native alpha and priority counterexamples pass. Real-byte animated UV and non-square tile regressions cover subsequent bindings.
 

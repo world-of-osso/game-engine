@@ -6,6 +6,10 @@ Retail XML/Lua under `Blizzard_*/retail/AddOns` defines controls, sizes, anchors
 
 `quest_art::panel_button` emits `UIPanelButtonNoTooltipTemplate`/`UIPanelButtonTemplate` art from `Blizzard_SharedXML/SecureUIPanelTemplates.xml:39–78` and its mouse-state Lua: UI-Panel-Button-Up/Down/Disabled strips and the additive highlight. Keep the authored rectangle, label and existing enabled/action decisions in both skins. Callers must not require postsetup texture repairs; other button template families retain their own art.
 
+## Shared tiled window background
+
+Portrait/ButtonFrame rock backgrounds follow Mainline `SharedUIPanelTemplates.xml:598–609,663–675`: one opaque region from TOPLEFT(2,−21) to BOTTOMRIGHT(−2,2), horizontally and vertically tiled from that shared origin. `_UI-Frame-TopTileStreaks` retains its source TOPLEFT(6,−21)/RIGHT−2,43px height and horizontal-only repeat (:76–78). Keep existing border, portrait, title, controls and behavior; no stretched source picture or restarted tile phase at a split inset.
+
 ## Acceptance
 
 - [x] Customer orders: Place Order/My Orders PanelTabButtonTemplate and recipient/duration WowStyle1DropdownTemplate use authored anchors, pending state and existing actions. Personal orders show Order To; payment labels stay inside the right pane and share input centerlines. Back uses UIPanelButtonTemplate sheet art; the portrait shows the interacting NPC. Form.lua overrides recipient/duration widths to136/143px. [Crafting contract](crafting-ui.md).
