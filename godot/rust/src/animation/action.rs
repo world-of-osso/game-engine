@@ -150,7 +150,7 @@ impl AnimationState {
         None
     }
 
-    fn base_sequence(&self, id: u16) -> Option<usize> {
+    pub(super) fn base_sequence(&self, id: u16) -> Option<usize> {
         self.sequences
             .iter()
             .position(|sequence| sequence.id == id && sequence.variation_id == 0)

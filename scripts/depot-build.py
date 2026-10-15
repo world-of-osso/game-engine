@@ -75,6 +75,9 @@ def allowed(repo_name, path, tracked):
         return False
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
+    # material.rs embeds the ribbon shader with include_str!.
+    if tracked and repo_name == ROOT_NAME and parts[:2] == ("godot", "shaders"):
+        return path.suffix in {".gdshader", ".gdshaderinc"}
     if tracked and repo_name == ROOT_NAME and path.suffix == ".png":
         return parts[:6] == (
             "godot",

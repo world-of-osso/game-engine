@@ -106,6 +106,7 @@ pub mod model_asset_index;
 pub mod model_scene_actor;
 pub mod model_scene_camera;
 pub mod mount_preview;
+pub mod mount_special;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
 #[path = "movement_input_data.rs"]

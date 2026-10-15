@@ -154,6 +154,32 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertNotEqual(missing.returncode, 0)
             self.assertIn('catalog.sqlite', missing.stderr)
 
+    def test_manifest_check_limited_to_upload_list_reads_only_listed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            staged = root / 'player'
+            entries = []
+            for name in ('changed.bin', 'unchanged.bin'):
+                (staged / name).parent.mkdir(parents=True, exist_ok=True)
+                (staged / name).write_bytes(b'expected')
+                entries.append({'path': name, 'size': 8,
+                                'sha256': hashlib.sha256(b'expected').hexdigest()})
+            (staged / 'manifest.json').write_text(json.dumps({'version': 'fixture', 'files': entries}))
+            upload = root / 'upload.txt'
+            upload.write_text('changed.bin\n')
+            command = [sys.executable, str(Path(bundle.__file__)), '--root', str(root),
+                       '--bundle', str(staged), '--platform', 'linux-x86_64', '--verify-manifest',
+                       '--only', str(upload)]
+            # An unlisted file is not re-read: only uploaded bytes become published content.
+            (staged / 'unchanged.bin').write_bytes(b'mutated!')
+            valid = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(valid.returncode, 0, valid.stderr)
+            self.assertIn('Verified 1 staged files', valid.stdout)
+            (staged / 'changed.bin').write_bytes(b'mutated!')
+            invalid = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertIn('SHA256 mismatch: changed.bin', invalid.stderr)
+
     def test_project_keeps_resources_but_excludes_crates_and_tests(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'source'
