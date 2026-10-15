@@ -34,6 +34,7 @@ Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSpars
 ## Implementation inventory
 
 - `scripts/bot_harness.py`: native combat parsing, request/result reconciliation, fixed-window DPS and comparison reporting.
+- `scripts/bot_ability_summary.py`: read-only expected-roster JSON/Markdown per-ability request/success/event-damage/missing/unused breakdown. Keep child event IDs and untagged native errors unattributed; preserve absent specs/repetitions.
 - `scripts/tests/test_bot_harness.py`: behavioral detector and comparable-fixture regressions.
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
 - `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
