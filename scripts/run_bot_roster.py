@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 from bot_roster import build_roster
 from bot_rotation import authored_order
+from bot_talents import load_plan
 from run_dummy_bots import collect
 
 
@@ -134,6 +135,8 @@ def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
     (output / "bot.json").write_text(json.dumps(bot, indent=2) + "\n")
+    talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
+    (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
     provision(args, bot)
     token = args.engine / "data/auth_token.127.0.0.1_5871"
     if token.is_symlink():

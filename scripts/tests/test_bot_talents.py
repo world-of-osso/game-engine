@@ -18,9 +18,8 @@ class BotTalentPlanTests(unittest.TestCase):
         self.assertEqual(plan["steps"][6]["entry"], 134182)
         self.assertTrue(all(step["frame"].endswith("Button") for step in plan["steps"]))
 
-    def test_multiple_sourced_loadouts_require_an_explicit_choice(self):
-        with self.assertRaisesRegex(ValueError, "explicit loadout"):
-            bot_talents.load_plan(DATA, 63)
+    def test_pinned_tc_last_encountered_loadout_and_explicit_spec_validation(self):
+        self.assertEqual(bot_talents.select_loadout(DATA, 63, None)["ID"], "931")
         with self.assertRaisesRegex(ValueError, "specialization"):
             bot_talents.load_plan(DATA, 62, 930)
 

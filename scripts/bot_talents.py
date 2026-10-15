@@ -10,9 +10,10 @@ def select_loadout(directory, spec, loadout):
     choices = [row for row in read_rows(directory, "TraitTreeLoadout")
                if int(row["ChrSpecializationID"]) == spec]
     if loadout is None:
-        if len(choices) != 1:
-            raise ValueError(f"Spec {spec} needs an explicit loadout from {[row['ID'] for row in choices]}")
-        return choices[0]
+        if not choices:
+            raise ValueError(f"No sourced talent loadout for specialization {spec}")
+        # Pinned TC TraitMgr::Load replaces each spec's loadout as stores iterate.
+        return choices[-1]
     selected = next((row for row in choices if int(row["ID"]) == loadout), None)
     if selected is None:
         raise ValueError(f"Loadout {loadout} does not belong to specialization {spec}")
