@@ -252,6 +252,21 @@ pub fn parse_f32_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<f32
     })
 }
 
+/// In-file ribbon colour track.
+pub fn parse_vec3_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<[f32; 3]>, String> {
+    parse_anim_track(md20, block_offset, 12, &[], read_vec3)
+}
+
+/// In-file fixed16 ribbon opacity track.
+pub fn parse_i16_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<i16>, String> {
+    parse_anim_track(md20, block_offset, 2, &[], read_i16)
+}
+
+/// In-file ribbon texture-slot track.
+pub fn parse_u16_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<u16>, String> {
+    parse_anim_track(md20, block_offset, 2, &[], read_u16)
+}
+
 /// An in-file `M2Track<uint8>` at `block_offset` of the MD20 blob.
 pub fn parse_u8_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<u8>, String> {
     parse_anim_track(md20, block_offset, 1, &[], |data, offset| {
@@ -656,13 +671,21 @@ pub fn evaluate_f32_track(track: &AnimTrack<f32>, seq_idx: usize, time_ms: u32) 
     Some(values[i] + (values[i + 1] - values[i]) * t)
 }
 
-pub fn evaluate_u8_track(track: &AnimTrack<u8>, seq_idx: usize, time_ms: u32) -> Option<u8> {
+fn evaluate_step_track<T: Copy>(track: &AnimTrack<T>, seq_idx: usize, time_ms: u32) -> Option<T> {
     let (timestamps, values) = track.sequences.get(seq_idx)?;
     if timestamps.is_empty() || values.is_empty() {
         return None;
     }
     let (i, _) = find_keyframe_pair(timestamps, time_ms)?;
     values.get(i).copied()
+}
+
+pub fn evaluate_u8_track(track: &AnimTrack<u8>, seq_idx: usize, time_ms: u32) -> Option<u8> {
+    evaluate_step_track(track, seq_idx, time_ms)
+}
+
+pub fn evaluate_u16_track(track: &AnimTrack<u16>, seq_idx: usize, time_ms: u32) -> Option<u16> {
+    evaluate_step_track(track, seq_idx, time_ms)
 }
 
 #[cfg(test)]
