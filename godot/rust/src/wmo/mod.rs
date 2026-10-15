@@ -6,3 +6,4 @@ pub(crate) mod placement;
 pub(crate) mod point_lights;
 pub(crate) mod portals;
 pub(crate) mod scene;
+pub(crate) mod step_clearance;

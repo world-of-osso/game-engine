@@ -237,6 +237,17 @@ fn player_on_the_stockade_stairs_is_blocked_by_the_stairwell_wall() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_body_blocked: &|from, to, top| {
+            triangles.iter().any(|&triangle| {
+                game_engine_core::step_clearance::blocks_step_sweep(
+                    triangle,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            })
+        },
         game_object_floor: &|_| None,
     };
     let current = wow(-8774.0, 838.0, 92.1);
@@ -260,6 +271,17 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_body_blocked: &|from, to, top| {
+            triangles.iter().any(|&triangle| {
+                game_engine_core::step_clearance::blocks_step_sweep(
+                    triangle,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            })
+        },
         game_object_floor: &|_| None,
     };
     let mut movement = crate::gameplay::PlayerMovement::default();
@@ -405,6 +427,17 @@ fn walk_into_jasperlode(delta: f32) {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_body_blocked: &|from, to, top| {
+            triangles.iter().any(|&triangle| {
+                game_engine_core::step_clearance::blocks_step_sweep(
+                    triangle,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            })
+        },
         game_object_floor: &|_| None,
     };
     let (feet, lowest) = run_route(&ground, JASPERLODE_OUTSIDE, &JASPERLODE_ROUTE, delta, 60.0);
@@ -455,6 +488,17 @@ fn walking_into_the_jasperlode_hillside_never_drops_the_player() {
     let ground = TerrainGround {
         terrain: &terrain,
         walls: &walls,
+        step_body_blocked: &|from, to, top| {
+            triangles.iter().any(|&triangle| {
+                game_engine_core::step_clearance::blocks_step_sweep(
+                    triangle,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            })
+        },
         game_object_floor: &|_| None,
     };
     for delta in [1.0 / 60.0, 0.5, 2.0] {
