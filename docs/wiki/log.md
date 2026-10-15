@@ -1,3 +1,7 @@
+## 2026-10-14 — Trading Post post-landing native acceptance
+
+[Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
+
 ## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
 
 [Cart acceptance](systems/trading-post.md#cart-acceptance--2026-10-14): stable hidden-owner instance identities fix the controlled free→replacement checkout panic. Modern/Forever checkout→new-client relog→individual refunds pass with zero panic/script-error markers, seventy1920×1080 PNGs and memory/swap boundaries.21 UI/8 native and12 server/1 admin gates pass after current-master integration; protocol3 unchanged. Mount player-preview/rotate widgets remain unchecked.
