@@ -155,7 +155,7 @@ fn talent_string_fully_spent_real_mage_can_be_exported_for_live_proof() {
     purchases.sort_by_key(|purchase| (purchase.node_id, purchase.entry_id));
     let config = build_config(&tree, CONTEXT, &purchases).unwrap();
     let unspent = game_engine_core::talent_data::rules::unspent(&tree, CONTEXT, &config);
-    // Selected Sunfury currency2987 is spent; inactive hero currencies do not
+    // Selected Spellslinger currency2987 is spent; inactive hero currencies do not
     // represent points the current spec/subtree can spend (TalentView.hero_points).
     assert_eq!(
         unspent,

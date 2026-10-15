@@ -42,8 +42,8 @@ func _run() -> void:
 	await key(KEY_N)
 	await capture("export-feedback")
 	var feedback := false
-	for node in root.find_children("*", "RichTextLabel", true, false):
-		if "Loadout code copied to clipboard." in node.get_parsed_text():
+	for node in root.find_children("ChatFrame1MessagesRow*Run*", "Label", true, false):
+		if "Loadout code copied to clipboard." in node.text:
 			feedback = true
 	if not feedback:
 		abort("Retail export system feedback missing")
