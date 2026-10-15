@@ -7,6 +7,7 @@ use shared::protocol::*;
 use ui_toolkit::{rsx, widget_def::Element};
 
 pub const NOTE_BOX: &str = "GuildMemberNoteEditBox";
+const DETAIL_FRAME_LEVEL: f32 = 1000.0;
 
 pub fn detail(session: &GuildRanksSession) -> Element {
     if session.communities_tab != crate::guild_ranks::CommunitiesTab::Roster {
@@ -34,7 +35,7 @@ pub fn detail(session: &GuildRanksSession) -> Element {
     let height = if officer { 250.0 } else { 197.0 };
     let border =
         crate::game_menu_main::dialog_border("GuildMemberDetailBorder", 214.0, height - 1.0);
-    let mut children = rsx! { r#frame { name: "GuildMemberDetailBorder", width: 214.0, height: {height-1.0}, left: 4.0, top: 0.0, pos_type: "absolute", {border} }
+    let mut children = rsx! { r#frame { name: "GuildMemberDetailBorder", width: 214.0, height: {height-1.0}, left: 4.0, top: 0.0, frame_level: DETAIL_FRAME_LEVEL, pos_type: "absolute", {border} }
         texture { name: "GuildMemberDetailBackground", texture_fdid: 6839810, left: 11.0, top: 7.0, width: 200.0, height: {height-15.0}, pos_type: "absolute", draw_layer: "BACKGROUND" }
     };
     let close_art = crate::quest_art::named_atlas_texture(
@@ -115,7 +116,7 @@ pub fn detail(session: &GuildRanksSession) -> Element {
         (113.0, height - 34.0, 96.0, 22.0),
     ));
     rsx! { r#frame { name: "CommunitiesGuildMemberDetailFrame", width: 212.0, height, left: 806.0, top: 76.0,
-    pos_type: "absolute", frame_level: 1000.0, mouse_enabled: true, {children} } }
+    pos_type: "absolute", frame_level: DETAIL_FRAME_LEVEL, mouse_enabled: true, {children} } }
 }
 
 fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
@@ -157,7 +158,11 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
         (10.0, "1,0.82,0,1", "LEFT"),
     );
     let disabled = !editable;
-    let mut body = note_border(suffix);
+    let mut body = tooltip_border(
+        &format!("GuildMemberDetail{suffix}Border"),
+        (181.0, 40.0),
+        (0.0, 0.0),
+    );
     body.extend(label(
         format!("GuildMemberDetail{suffix}Text"),
         text,
@@ -171,15 +176,13 @@ fn note(session: &GuildRanksSession, officer: bool, y: f32) -> Element {
     out
 }
 
-fn note_border(suffix: &str) -> Element {
-    const W: f32 = 181.0;
-    const H: f32 = 40.0;
+fn tooltip_border(prefix: &str, (width, height): (f32, f32), (left, top): (f32, f32)) -> Element {
     const C: f32 = 7.0;
     [
         (
             "Center",
             "Tooltip-NineSlice-Center",
-            (3.0, 3.0, W - 6.0, H - 6.0),
+            (3.0, 3.0, width - 6.0, height - 6.0),
         ),
         (
             "TopLeft",
@@ -189,45 +192,45 @@ fn note_border(suffix: &str) -> Element {
         (
             "TopRight",
             "Tooltip-NineSlice-CornerTopRight",
-            (W - C, 0.0, C, C),
+            (width - C, 0.0, C, C),
         ),
         (
             "BottomLeft",
             "Tooltip-NineSlice-CornerBottomLeft",
-            (0.0, H - C, C, C),
+            (0.0, height - C, C, C),
         ),
         (
             "BottomRight",
             "Tooltip-NineSlice-CornerBottomRight",
-            (W - C, H - C, C, C),
+            (width - C, height - C, C, C),
         ),
         (
             "Top",
             "_Tooltip-NineSlice-EdgeTop",
-            (C, 0.0, W - 2.0 * C, C),
+            (C, 0.0, width - 2.0 * C, C),
         ),
         (
             "Bottom",
             "_Tooltip-NineSlice-EdgeBottom",
-            (C, H - C, W - 2.0 * C, C),
+            (C, height - C, width - 2.0 * C, C),
         ),
         (
             "Left",
             "!Tooltip-NineSlice-EdgeLeft",
-            (0.0, C, C, H - 2.0 * C),
+            (0.0, C, C, height - 2.0 * C),
         ),
         (
             "Right",
             "!Tooltip-NineSlice-EdgeRight",
-            (W - C, C, C, H - 2.0 * C),
+            (width - C, C, C, height - 2.0 * C),
         ),
     ]
     .into_iter()
-    .flat_map(|(part, atlas, rect)| {
+    .flat_map(|(part, atlas, (x, y, w, h))| {
         crate::quest_art::named_atlas_texture(
-            format!("GuildMemberDetail{suffix}Border{part}"),
+            format!("{prefix}{part}"),
             atlas,
-            rect,
+            (left + x, top + y, w, h),
         )
     })
     .collect()
@@ -249,7 +252,11 @@ pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
             texture.vert_tile = true;
         }
     }
-    for suffix in ["Note", "OfficerNote"] {
+    for (prefix, center_alpha, border_alpha) in [
+        ("GuildMemberDetailNoteBorder", 0.25, 0.5),
+        ("GuildMemberDetailOfficerNoteBorder", 0.25, 0.5),
+        ("GuildMemberNoteEditBorder", 1.0, 1.0),
+    ] {
         for part in [
             "Center",
             "TopLeft",
@@ -261,7 +268,7 @@ pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
             "Left",
             "Right",
         ] {
-            let name = format!("GuildMemberDetail{suffix}Border{part}");
+            let name = format!("{prefix}{part}");
             if let Some(id) = registry.get_by_name(&name)
                 && let Some(WidgetData::Texture(texture)) = &mut registry
                     .get_mut(id)
@@ -269,9 +276,9 @@ pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
                     .widget_data
             {
                 texture.vertex_color = if part == "Center" {
-                    [0.09, 0.09, 0.188, 0.25]
+                    [0.09, 0.09, 0.188, center_alpha]
                 } else {
-                    [1.0, 1.0, 1.0, 0.5]
+                    [1.0, 1.0, 1.0, border_alpha]
                 };
                 texture.horiz_tile = matches!(part, "Center" | "Top" | "Bottom");
                 texture.vert_tile = matches!(part, "Center" | "Left" | "Right");
@@ -306,6 +313,11 @@ pub fn editor(session: &GuildRanksSession) -> Element {
         title,
         (15.0, 16.0, 290.0, 18.0),
         (14.0, "1,1,1,1", "CENTER"),
+    ));
+    children.extend(tooltip_border(
+        "GuildMemberNoteEditBorder",
+        (260.0, 24.0),
+        (30.0, 42.0),
     ));
     children.extend(rsx! { editbox { name: {DynName(NOTE_BOX.into())}, text: {text.as_str()}, width: 260.0, height: 24.0,
         left: 30.0, top: 42.0, pos_type: "absolute", font_size: 14.0, font_color: "1,1,1,1", text_insets: "6,6,2,2" } });
