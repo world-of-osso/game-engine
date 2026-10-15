@@ -19,6 +19,7 @@ from types import SimpleNamespace
 from bot_roster import build_roster
 from bot_harness import balance
 from bot_health import qualify_report_health, require_living_player
+from bot_forms import form_is_observed, load_plan as load_form_plan
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
@@ -36,13 +37,13 @@ def command(output, argv, env=None):
 
 def record_inputs(args):
     files = [args.engine / "scripts" / f"{name}.py" for name in
-             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "bot_gear", "run_dummy_bots", "run_bot_roster")]
+             ("bot_harness", "bot_rotation", "bot_roster", "bot_talents", "bot_gear", "bot_health", "bot_forms", "run_dummy_bots", "run_bot_roster")]
     files += [args.engine / "godot/tests" / f"{name}.gd" for name in ("bot_harness_observer", "bot_harness_talents", "bot_harness_gear")]
     files.append(args.world_db)
     tables = ("ChrSpecialization", "ChrRaces", "ChrClasses", "CharBaseInfo", "SpellEffect", "SpellMisc",
               "SpellPower", "SpellCooldowns", "SpellCastTimes", "AssistedCombat", "AssistedCombatStep",
               "AssistedCombatRule", "TraitTreeLoadout", "TraitTreeLoadoutEntry", "TraitNodeXTraitNodeEntry",
-              "TraitNodeEntry", "TraitDefinition")
+              "TraitNodeEntry", "TraitDefinition", "SpellShapeshiftForm")
     files += [args.engine / "data/db2/active" / f"{table}.csv" for table in tables]
     files += [args.engine / "target/debug/libgame_engine_godot.so",
               args.engine / "target/debug/game-engine-cli", args.server / "target/debug/game-server"]
@@ -260,6 +261,33 @@ def wait_native(args, output, bot):
     raise RuntimeError("Native readiness/Training Dummy selection exceeded 180 seconds")
 
 
+def prepare_native_form(args, output, socket, plan):
+    receipt = {"plan": plan, "cast_requested": False}
+    if not plan["required"]:
+        (output / "native-form.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        return receipt
+    state = read_state(output / "native-state.json")
+    (output / "form-before.json").write_text(json.dumps(state) + "\n")
+    if plan["spell"] not in state["spells"]["known"]:
+        raise RuntimeError(f"Sourced fixture form spell {plan['spell']} is not natively known")
+    if not form_is_observed(state, plan):
+        actor = state["account"]["local_player_id"]
+        command(args.output, [args.engine / "target/debug/game-engine-cli", "--socket", socket,
+                              "spell", "cast", "--spell", str(plan["spell"]), "--target", str(actor)])
+        receipt["cast_requested"] = True
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        state = read_state(output / "native-state.json")
+        if form_is_observed(state, plan):
+            receipt.update(observed_at_ms=state["at_ms"], observed_aura=plan["spell"],
+                           proof="ordinary native cast and replicated own form aura; combat effects remain measured separately")
+            (output / "form-after.json").write_text(json.dumps(state) + "\n")
+            (output / "native-form.json").write_text(json.dumps(receipt, indent=2) + "\n")
+            return receipt
+        time.sleep(.1)
+    raise RuntimeError(f"Native source form spell {plan['spell']} aura not confirmed; no repeat/toggle or alternate form")
+
+
 def run_bot(args, bot):
     output = args.output / str(bot["spec"])
     output.mkdir(mode=0o700)
@@ -268,6 +296,8 @@ def run_bot(args, bot):
     (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
     gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"], bot["level"])
     (output / "gear-plan.json").write_text(json.dumps(gear_plan, indent=2) + "\n")
+    form_plan = load_form_plan(args.engine / "data/db2/active", bot["spec"])
+    (output / "form-plan.json").write_text(json.dumps(form_plan, indent=2) + "\n")
     provision(args, bot)
     equipment = admin(args, "list-equipment", bot["name"])
     (output / "equipment-before.txt").write_text(equipment)
@@ -316,6 +346,9 @@ def run_bot(args, bot):
         sockets = [path for path in sockets if path.exists()]
         if len(sockets) != 1:
             raise RuntimeError(f"Expected one owned native IPC socket, found {sockets}")
+        fixture["precombat_form"] = prepare_native_form(args, output, sockets[0], form_plan)
+        fixture["native_stats_phase"] = "after native talents; before precombat form"
+        (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
         approach_dummy(args, output, sockets[0], target)
         options = SimpleNamespace(cli=args.engine / "target/debug/game-engine-cli", socket=sockets[0],
                                   state=output / "native-state.json", db2=args.engine / "data/db2/active",
