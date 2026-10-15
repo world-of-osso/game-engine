@@ -3942,3 +3942,5 @@ Ported authored parent/child geometry, tree disclosure and successor promotion; 
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
 - 2026-10-15: [Housing disabled icons](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15): inspected untouched native1920×1080 both-skin PNGs; inherited1280 downsampling separated from full-HD evidence.
+
+- 2026-10-15: Linked the [source-only 3.3.5a wowdecomp audit](../wowdecomp-audit/README.md) from [[open-source-wow-clients]] and the index; findings remain in the audit SSOT. No runtime parity established.

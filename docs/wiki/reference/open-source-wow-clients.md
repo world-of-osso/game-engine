@@ -80,6 +80,14 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 | [Wowless](https://github.com/ferronn-dev/wowless) | Lua/C | WoW addon UI simulator |
 | wow-ui-sim (ours) | Rust / iced | `/syncthing/Sync/Projects/wow/wow-ui-sim/` |
 
+## Source Audits
+
+- [wowdecomp behavior rework backlog](../../wowdecomp-audit/README.md) — source-only reconstructed 3.3.5a (build 12340) audit; evidence and limits live there. No runtime parity established.
+
+## Sources
+
+- [wowdecomp audit README](../../wowdecomp-audit/README.md) — audit provenance, scope and evidence limits.
+
 ## See Also
 
 - [[collision-system]] — WoWee is the primary collision reference

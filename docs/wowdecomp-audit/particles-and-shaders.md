@@ -4,7 +4,7 @@
 
 ## P1: Particle tails are not drawn
 
-**Reference.** `W/Engine/Source/Model2/M2Model.cpp:7389` passes authored head `0x20000`, tail `0x40000` and tail length independently to `SetParticleStyle`. `W/Engine/Source/Services/ParticleSystem2.cpp:296–314` stores the independent styles. `:1683–1733` generates tail geometry opposite velocity, samples the tail atlas cell and optionally clamps tail length by particle age.
+**Reference.** `W/Engine/Source/Model2/M2Model.cpp:7388` passes authored head `0x20000`, tail `0x40000` and tail length independently to `SetParticleStyle`. `W/Engine/Source/Services/ParticleSystem2.cpp:296–314` stores the independent styles. `:1683–1733` generates tail geometry opposite velocity, samples the tail atlas cell and optionally clamps tail length by particle age.
 
 **Current.** `E/godot/core/src/m2_particles.rs:648–655` returns immediately without `FLAG_HEAD`; all output is head quads. Parsed tail length exists at `E/godot/core/src/asset/m2_format/m2_particle.rs:78–79`, but this native simulation/render path never uses it. A velocity-oriented head is not equivalent to an independently authored tail.
 
@@ -24,7 +24,7 @@
 
 ## P3: Emitter velocity is not inherited
 
-**Reference.** Authored `0x40` maps to internal `0x800` at `W/Engine/Source/Model2/M2Model.cpp:7342–7344`. `W/Engine/Source/Services/ParticleSystem2.cpp:2508–2528` updates parent velocity using its timer and `m_ivelScale`. New particle velocity includes that parent velocity at `:521–523`; the model supplies the authored scale at `W/Engine/Source/Model2/M2Model.cpp:7469`.
+**Reference.** Authored `0x40` maps to internal `0x800` at `W/Engine/Source/Model2/M2Model.cpp:7342–7344`. `W/Engine/Source/Services/ParticleSystem2.cpp:2508–2528` updates parent velocity using its timer and `m_ivelScale`. New particle velocity includes that parent velocity at `:521–523`; the model supplies the authored scale at `W/Engine/Source/Model2/M2Model.cpp:7470`.
 
 **Current.** `E/godot/core/src/m2_particles.rs:615–644` transforms generator velocity into world axes, but never adds a measured parent velocity or uses the inherited-velocity flag. `E/godot/core/src/asset/m2_format/m2_particle.rs:107–111` exposes `inherit_velocity_scale` while explicitly noting the persisted modern header field has not been established. Presence of that field is not runtime support.
 
@@ -54,10 +54,10 @@
 
 ## S1: Lit particles are rendered unshaded
 
-**Reference.** `W/Engine/Source/Model2/M2Model.cpp:7431–7432` maps authored particle flag `0x1` to a lit material. `W/Engine/Source/Model2/CM2SceneRender.cpp:733–739` chooses the lit versus unlit particle effect and `:747–749` chooses normal-bearing `GxVBF_PNCT` versus `GxVBF_PCT` vertices from that material flag. `SetupLighting` is called in the render path.
+**Reference.** `W/Engine/Source/Model2/M2Model.cpp:7431–7432` maps authored particle flag `0x1` into a material flag. `W/Engine/Source/Services/ParticleSystem2.cpp:254–261` copies that flag into emitter parameters. `W/Engine/Source/Model2/CM2SceneRender.cpp:720–728` chooses the lit versus unlit particle effect and calls `SetupLighting`; `:733–738` chooses normal-bearing `GxVBF_PNCT` versus `GxVBF_PCT` vertices. **Reference ambiguity:** the authored-to-material assignment inverts bit 0 while the effect selector tests the resulting bit directly. This audit establishes that two lighting paths exist, not that the reconstruction's authored-bit polarity is faithful to the original binary.
 
 **Current.** `E/godot/shaders/particle.gdshader:1–3,48–97` always renders unshaded texture/color plus fog. The variant binder preserves `unshaded` for every blend type (`E/godot/rust/src/particles.rs:56–64`); there is no authored-lit branch. Fog alone is not lighting.
 
-**Required change.** Honor the authored lit/unlit distinction with target-appropriate particle normals and lighting. Preserve authored unlit effects and their existing blend/fog behavior. Do not globally brighten particles or enable generic PBR as a substitute for matching the effect's light response.
+**Required change.** Honor the target-validated authored lit/unlit distinction with appropriate particle normals and lighting; establish flag polarity from a known asset or original/target-client evidence before implementation. Preserve authored unlit effects and their existing blend/fog behavior. Do not globally brighten particles or enable generic PBR as a substitute for matching the effect's light response.
 
 **Acceptance.** Place otherwise identical lit-flag and unlit-flag emitters in a fixed scene, disable fog and vary incident light while holding textures, age and camera constant. Lit particles must respond according to the reference lighting path; unlit particles must remain invariant. Compare captured pixels and ensure additive/modulating blends remain correct. Exact Retail lighting coefficients require a version-appropriate oracle.
