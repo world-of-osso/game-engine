@@ -18,6 +18,8 @@ class BotRosterTests(unittest.TestCase):
         self.assertIn(1480, {bot["spec"] for bot in bots})
         mage = next(bot for bot in bots if bot["spec"] == 62)
         self.assertEqual((mage["class"], mage["race"], mage["level"], mage["role"]), (8, 1, 32, 2))
+        shaman = next(bot for bot in bots if bot["spec"] == 262)
+        self.assertEqual(shaman["race"], 3)
         self.assertTrue(all(bot["account"].startswith("fb_bot_harness_") for bot in bots))
         self.assertTrue(all(bot["name"].isalpha() and len(bot["name"]) <= 12 for bot in bots))
 
