@@ -86,6 +86,49 @@ fn assert_rect(
 }
 
 #[test]
+fn trading_post_pet_comparison_has_two_full_canvas_hosts_only_for_pets() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut snapshot = vendor();
+        snapshot.items[0].category_id = 3;
+        snapshot.items[0].creature_display_id = 7937;
+        let mut view = View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(snapshot)),
+            ..Default::default()
+        };
+        let (registry, bounds) = render(view.clone());
+        for name in ["PerksProgramMainModelScene", "PerksProgramPlayerModelScene"] {
+            assert_rect(&registry, &bounds, name, [0., 0., 1920., 1080.]);
+        }
+        view.cart_visible = true;
+        let (registry, _) = render(view);
+        assert!(
+            registry
+                .get_by_name("PerksProgramPlayerModelScene")
+                .is_none()
+        );
+        let (registry, _) = render(View {
+            visible: true,
+            selected: Some(4),
+            snapshot: Some(Arc::new(vendor())),
+            ..Default::default()
+        });
+        assert!(
+            registry
+                .get_by_name("PerksProgramPlayerModelScene")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn trading_post_frozen_slot_uses_effective_container_icon_and_frost_geometry() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
