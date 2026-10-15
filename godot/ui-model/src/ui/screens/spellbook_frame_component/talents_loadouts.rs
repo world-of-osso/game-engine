@@ -259,10 +259,8 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
 
 fn import_control(text: &str) -> Element {
     // InputScrollFrameTemplate: eight8px Common-Input-Border pieces,5px outside text.
-    let textures: Vec<_> = ["TL", "T", "TR", "L", "M", "R", "BL", "B", "BR"]
-        .into_iter()
-        .map(|part| format!("data/ui/Common-Input-Border-{part}.blp"))
-        .collect();
+    let textures = ["TL", "T", "TR", "L", "M", "R", "BL", "B", "BR"]
+        .map(|part| format!("data/ui/Common-Input-Border-{part}.blp"));
     let mut elements = label(
         Label {
             name: "TalentLoadoutCodeLabel".into(),
