@@ -1079,6 +1079,58 @@ fn guild_member_note_popup_keeps_original_target_when_roster_selection_changes()
 }
 
 #[test]
+fn guild_member_remove_requires_yes_and_keeps_original_target_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for (entry, remove) in [
+            ("guild:member:Cara", "guild:detail_remove"),
+            ("guild:member-menu:Cara", "guild:remove_member"),
+        ] {
+            let mut session = GuildRanksSession::default();
+            session.open();
+            let mut roster = state(0);
+            roster.members.push(GuildRankMember {
+                character_name: "Dora".into(),
+                rank: 2,
+            });
+            session.apply(roster);
+            session.click(entry, &Default::default());
+            assert_eq!(
+                session.click(remove, &Default::default()),
+                None,
+                "Opening a destructive action must not send it"
+            );
+            assert_eq!(
+                text(&mounted(&session), "GuildMemberRemovePopupText"),
+                "Are you sure you want to remove Cara from the guild?"
+            );
+            session.click("guild:remove_cancel", &Default::default());
+            assert!(
+                mounted(&session)
+                    .get_by_name("GuildMemberRemovePopup")
+                    .is_none()
+            );
+            session.click(entry, &Default::default());
+            session.click(remove, &Default::default());
+            session.click("guild:member:Dora", &Default::default());
+            let before = session.state().cloned();
+            assert_eq!(
+                session.click("guild:remove_confirm", &Default::default()),
+                Some(GuildRankRequest::RemoveMember {
+                    character_name: "Cara".into()
+                })
+            );
+            assert_eq!(
+                session.state(),
+                before.as_ref(),
+                "Removal waits for authoritative roster"
+            );
+        }
+    }
+}
+
+#[test]
 fn guild_member_detail_opens_from_roster_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
