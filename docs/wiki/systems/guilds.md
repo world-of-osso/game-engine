@@ -12,6 +12,10 @@ Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/gu
 
 Server persistence links owned item GUIDs to petitions and signing account IDs. Purchase commits money/item/petition together. Turn-in consumes the actual charter and atomically creates rank0 owner, lowest-rank founders, guild profile and real date. Four distinct signing accounts are required by realm policy; verification therefore used five accounts but never more than two rendered clients. No world.db mutations, vendor fabrication or admin-created guild substitutes.
 
+## Member details and notes
+
+[Member-note contract](../../specs/guild-member-notes.md): public notes use an additive string table without changing existing bitcode officer records; the authenticated request rechecks membership, target and independent note rights. Mainline self-public editing is allowed; officer fields remain recipient-filtered. Roster public notes never reuse officer text. Native details and31-letter popup wait for authoritative replies. Source implementation2026-10-15; current native/live/relog proof remains pending.
+
 ## Guild tabard data flow
 
 The server stores an optional five-ID design in an additive guild table, preserving legacy rank/vault records. Vendor validation rechecks live NPC role/range, leader status, installed catalog IDs and personal funds; design/payment commit together. Guild profile, a separate replicated design component and character-selection roster entries carry the authoritative appearance without changing owned equipment.

@@ -176,6 +176,8 @@ impl GameClient {
         self.guild_ranks.session.invite_open = false;
         self.guild_ranks.session.profile_editor = None;
         self.guild_ranks.session.member_menu = None;
+        self.guild_ranks.session.member_detail = None;
+        self.guild_ranks.session.note_editor = None;
         self.guild_ranks.free_ui();
         visible
     }
@@ -310,6 +312,7 @@ fn guild_input_names(session: &GuildRanksSession) -> impl Iterator<Item = String
         GOLD_BOX.to_owned(),
         INVITE_BOX.to_owned(),
         PROFILE_BOX.to_owned(),
+        game_engine_ui_model::guild_member_detail::NOTE_BOX.to_owned(),
     ]
     .into_iter()
     .chain((0..tabs).map(|index| format!("GuildTabItems{index}")))

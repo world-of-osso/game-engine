@@ -226,7 +226,7 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
         .filter(|m| !m.is_online)
         .map(|m| m.last_online.as_str())
         .unwrap_or("");
-    // GuildSnapshot has officer_note only. Never expose it as the public Note column.
+    // Public notes are independent of the server-filtered officer notes.
     let columns = [
         (
             "Name",
@@ -240,7 +240,7 @@ fn member_row(session: &GuildRanksSession, index: usize, member: &GuildRankMembe
         ("Rank", rank, rank_left, 75.0, "1,1,1,1"),
         (
             "Note",
-            "",
+            profile.map(|m| m.public_note.as_str()).unwrap_or(""),
             rank_left + 83.0,
             LIST.2 - rank_left - 87.0,
             "1,1,1,1",

@@ -17,6 +17,15 @@ pub fn apply_guild_postsetup(
 ) {
     use ui_toolkit::frame::WidgetData;
     crate::guild_control::apply_postsetup(registry);
+    if let Some(id) = registry.get_by_name(crate::guild_member_detail::NOTE_BOX) {
+        if let Some(WidgetData::EditBox(edit)) = &mut registry
+            .get_mut(id)
+            .expect("registered note input")
+            .widget_data
+        {
+            edit.max_letters = Some(31);
+        }
+    }
     let Some(field) = session.profile_editor else {
         return;
     };
@@ -52,6 +61,7 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
     if session.visible {
         children.extend(invite_member_dialog(session));
         children.extend(profile_editor(session));
+        children.extend(crate::guild_member_detail::editor(session));
     }
     children
 }
@@ -110,6 +120,7 @@ fn roster(session: &GuildRanksSession, shared: &SharedContext) -> Element {
     let mut children = crate::guild_communities::shell(session, shared);
     children.extend(guild_profile(session));
     children.extend(member_menu(session));
+    children.extend(crate::guild_member_detail::detail(session));
     rsx! { r#frame { name: {DynName("CommunitiesFrame".into())}, width: 814.0, height: 426.0,
     left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }
@@ -264,6 +275,12 @@ fn member_menu(session: &GuildRanksSession) -> Element {
     };
     use crate::menu_primitives::{ContextMenu, ContextMenuItem, context_menu};
     let items: Vec<_> = [
+        (
+            true,
+            "GuildMemberDetails",
+            "Details",
+            "guild:member_details",
+        ),
         (
             session.promote(name).is_some(),
             "GuildMemberPromote",

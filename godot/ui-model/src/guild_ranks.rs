@@ -28,6 +28,7 @@ pub fn guild_creation_notice(created_at: Option<u64>) -> String {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GuildCommand {
     Invite(String),
+    GroupInvite(String),
     AcceptInvite,
     DeclineInvite,
     SetMotd(String),
@@ -50,6 +51,8 @@ pub struct GuildRanksSession {
     pub control_menu_open: bool,
     pub rank_menu_open: bool,
     pub member_menu: Option<String>,
+    pub member_detail: Option<String>,
+    pub note_editor: Option<bool>,
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
     pub invitation_waiting: bool,
@@ -245,6 +248,38 @@ impl GuildRanksSession {
                 self.control_menu_open = false;
                 None
             }
+            "guild:member_details" => {
+                self.member_detail = self.member_menu.take();
+                None
+            }
+            "guild:detail_group_invite" => {
+                if let Some(member) = self
+                    .detail_member()
+                    .filter(|member| member.is_online && !member.is_self)
+                {
+                    self.commands
+                        .push(GuildCommand::GroupInvite(member.character_name.clone()));
+                }
+                None
+            }
+            "guild:detail_remove" => self.remove_member(self.member_detail.as_deref()?),
+            "guild:detail_close" => {
+                self.member_detail = None;
+                self.note_editor = None;
+                None
+            }
+            "guild:note_public" | "guild:note_officer" => {
+                let officer = action == "guild:note_officer";
+                if self.can_edit_note(officer) && !self.awaiting_state {
+                    self.note_editor = Some(officer);
+                }
+                None
+            }
+            "guild:note_close" => {
+                self.note_editor = None;
+                None
+            }
+            "guild:note_accept" => self.submit_note(input(crate::guild_member_detail::NOTE_BOX)),
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
@@ -255,6 +290,44 @@ impl GuildRanksSession {
             self.awaiting_state = true;
         }
         request
+    }
+
+    pub fn detail_member(&self) -> Option<&GuildMemberSnapshot> {
+        let name = self.member_detail.as_ref()?;
+        self.profile
+            .as_ref()?
+            .members
+            .iter()
+            .find(|member| &member.character_name == name)
+    }
+
+    pub fn can_edit_note(&self, officer: bool) -> bool {
+        let Some(member) = self.detail_member() else {
+            return false;
+        };
+        if officer {
+            self.can(GUILD_RIGHT_EDIT_OFFICER_NOTE) && self.can(GUILD_RIGHT_VIEW_OFFICER_NOTE)
+        } else {
+            member.is_self || self.can(GUILD_RIGHT_EDIT_PUBLIC_NOTE)
+        }
+    }
+
+    fn submit_note(&mut self, note: &str) -> Option<GuildRankRequest> {
+        let officer = self.note_editor?;
+        if self.awaiting_state
+            || !self.can_edit_note(officer)
+            || note.chars().count() > 31
+            || note.chars().any(char::is_control)
+        {
+            return None;
+        }
+        let character_name = self.member_detail.clone()?;
+        self.note_editor = None;
+        Some(GuildRankRequest::SetMemberNote {
+            character_name,
+            note: note.to_owned(),
+            officer,
+        })
     }
 
     fn indexed_click(

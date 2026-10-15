@@ -644,6 +644,8 @@ fn guild_communities_roster_uses_profile_metadata_without_exposing_officer_notes
             rank_name: "Member".into(),
             is_online: false,
             officer_note: "Private strategy".into(),
+            public_note: String::new(),
+            is_self: false,
             last_online: "Yesterday".into(),
         }],
     });
@@ -933,4 +935,20 @@ fn guild_info_reports_actual_creation_date_without_backdating_legacy_records() {
         guild_creation_notice(Some(1728600000)),
         "Guild created on October 10, 2024 (UTC)."
     );
+}
+
+#[test]
+fn guild_member_detail_opens_from_roster_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.click("guild:member:Cara", &Default::default());
+        session.click("guild:member_details", &Default::default());
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, "GuildMemberDetailName"), "Cara");
+        assert_eq!(text(&reg, "GuildMemberDetailRank"), "Member");
+    }
 }
