@@ -1,0 +1,7 @@
+Name_lang,FemaleName_lang,Description_lang,ID,ClassID,OrderIndex,PetTalentType,Role,Flags,SpellIconFileID,PrimaryStatPriority,AnimReplacements,MasterySpellID_0,MasterySpellID_1
+Feral,Feral,"Takes on the form of a great cat to deal damage with bleeds and bites.
+
+Preferred Weapon: Staff, Polearm",103,11,1,0,2,260,132115,3,363,77493,0
+Guardian,Guardian,"Takes on the form of a mighty bear to absorb damage and protect allies.
+
+Preferred Weapon: Staff, Polearm",104,11,2,0,0,4,132276,3,363,155783,0
