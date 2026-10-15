@@ -44,10 +44,15 @@ func run_test() -> void:
 	push_mouse_motion(housing_control("HouseEditorBasicDecorModeButton").get_global_rect().get_center())
 	if not await wait_housing(func(): return not client.tooltip_state().get("visible", false) and highlighted_meshes() == 0, "Cleanup central leave clears"): return
 	print_cleanup_hover_probe("central-before-return", hit.point)
-	push_mouse_motion(hit.point)
-	print_cleanup_hover_probe("central-after-return", hit.point)
-	if not await wait_housing(func(): return client.tooltip_state().get("visible", false), "Cleanup central rehover"):
-		print_cleanup_hover_probe("central-return-timeout", hit.point)
+	# Animated units can occlude the previous pixel. Re-pick actual visible decor, never force its hover state.
+	var return_hit: Dictionary = find_visible_cornerstone_triangle(placed_node(), int(before.decor[0].instance_id))
+	if return_hit.is_empty():
+		fail("Cleanup rehover has no currently visible paid decor triangle")
+		return
+	push_mouse_motion(return_hit.point)
+	print_cleanup_hover_probe("central-after-return", return_hit.point)
+	if not await wait_housing(func(): return client.tooltip_state().get("visible", false) and client.tooltip_state().get("title", "") == "Small Val'sharah Bookcase", "Cleanup central rehover"):
+		print_cleanup_hover_probe("central-return-timeout", return_hit.point)
 		return
 	if not await click_exposed_control(housing_control("HouseEditorBasicDecorModeButton")): return
 	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") != null and not client.tooltip_state().get("visible", false), "Cleanup mode exit clears central tooltip"): return
