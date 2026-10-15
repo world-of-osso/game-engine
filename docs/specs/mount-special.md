@@ -6,7 +6,7 @@ Mounted players perform their mount's authored special, not an ordinary jump whi
 
 - [ ] Stationary, grounded mounted jump triggers exactly the same MountSpecial action as `/mountspecial`, without leaving the ground. Moving mounted jump retains normal jump behavior; unmounted movement and flight remain unchanged. No hold-duration threshold.
 - [ ] Play the mount model's AnimationData94 sequence through the authored AnimationData fallback chain; do not substitute a fabricated special or Stand. Return smoothly to ordinary mount/rider playback on completion or movement/dismount.
-- [ ] Apply the mounted identity's `MountSpecialRiderAnimKitID` and `MountSpecialSpellVisualKitID`, including authored rider timing and bone scope. Zero means no additional kit. Do not infer mount identity from a shared creature display.
+- [ ] Apply the mounted identity's `MountSpecialRiderAnimKitID` and supported effects of `MountSpecialSpellVisualKitID`, including all authored rider segments, delay/reverse playback and bone scope. Zero means no additional kit. Do not infer mount identity from a shared creature display. Lead decision2026-10-15T00:17 permits the explicitly named unsupported procedural/rope gaps below; do not invent their visuals.
 - [ ] Other players on the same visible map copy observe the mount, rider and kit action through the existing emote path. The server identifies the actor; callers cannot animate arbitrary entities. No invented chat text or achievement TextEmote ID.
 - [ ] Native proof covers at least three authentic mounts in both skins, including a nonzero rider kit, plus moving-jump preservation and peer observation. Forever changes art only.
 
@@ -33,7 +33,7 @@ Mounted players perform their mount's authored special, not an ordinary jump whi
 - [ ] New behavior and native proof are not implemented/verified yet.
 - [ ] Retail `Bindings_Standard.xml:53-59` calls `JumpOrAscendStart` on key-down and `AscendStop` on release; the native C implementation is unavailable. The user-confirmed stationary/moving distinction governs this client; do not invent a hold timer.
 - [ ] Current installed70391 has three distinct rider kits across six mount rows:19345 (Grrloc),23323 (Soaring Spelltome),3012 (DND test). Grrloc segment37708 starts600ms late at clip offset2000ms;23323 includes dependent/overlapping segments and reverse speed. Existing first-segment-only spell animation resolution does not establish full authored kit playback.
-- [ ] Grrloc visual124416 includes SpellProceduralEffect10/34/17, RopeEffect4 and an animation kit19705. Existing native spell-kit support does not implement those procedural/rope types. Numeric discriminant meaning and rider segment conditions/flags need authentic sources; retaining source fields alone is not rendering proof.
+- [ ] Grrloc visual124416 includes SpellProceduralEffect10/34/17 and RopeEffect4. Lead source lookup2026-10-15T00:17 found no implementation defining these procedural/rope semantics in allowed sources. Explicit decision: retain these named gaps, implement animation and supported kit types only; do not fabricate procedural/rope rendering or claim full VFX fidelity. Rider segment condition/flag interpretation must also retain its actual source/proof boundary.
 
 ## Out of scope
 
