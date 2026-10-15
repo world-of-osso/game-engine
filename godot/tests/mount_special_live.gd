@@ -78,12 +78,12 @@ func drive_mounts() -> void:
 		if not await until(func(): return FileAccess.file_exists(path(prefix + "-observer-mounted")), "observer mounted model", 120000): return
 		var before: Vector3 = client.account_state().local_player_position
 		await tap(KEY_SPACE)
-		if not await until(func(): return mount_animation().current_animation_id() == 94, "stationary jump MountSpecial"): return
+		if not await until(func(): return special_phase_reached(0.0), "stationary jump MountSpecial"): return
 		await capture(prefix + "-stationary-special.png")
 		if not await sample_stationary_special(prefix, before, mount[0] == 1532): return
 		if not await until(func(): return mount_animation().current_animation_id() == 0, "special returns to idle", 30000): return
 		if not await send_line("/mountspecial"): return
-		if not await until(func(): return mount_animation().current_animation_id() == 94, "slash same MountSpecial"): return
+		if not await until(func(): return special_phase_reached(0.0), "slash same MountSpecial"): return
 		await capture(prefix + "-slash-special.png")
 		if not await until(func(): return mount_animation().current_animation_id() == 0, "slash returns to idle", 30000): return
 		push_key(KEY_W, 0, true)
@@ -138,13 +138,20 @@ func observe_actor() -> void:
 		var prefix := "mount-%d" % mount[0]
 		if not await until(func(): return FileAccess.file_exists(path(prefix + "-stage")) and mount_animation() != null, "actor mounted", 180000): return
 		write_record(prefix + "-observer-mounted", pose_record())
-		if not await until(func(): return mount_animation().current_animation_id() == 94, "real replicated special", 120000): return
+		var fraction := 0.875 if mount[0] == 1532 else 0.4
+		if not await until(func(): return special_phase_reached(fraction), "real replicated special at authored phase", 120000): return
 		await capture(prefix + "-observer-special.png")
 		write_record(prefix + "-observer-special", pose_record())
 		if not await until(func(): return mount_animation() == null, "actor dismount", 120000): return
 		write_record(prefix + "-observer-dismounted", {"skin": proof_skin})
 	print("MOUNT_SPECIAL_OBSERVER PASS ", proof_skin)
 	quit(0)
+
+func special_phase_reached(fraction: float) -> bool:
+	var animation := mount_animation()
+	if animation == null or animation.current_animation_id() != 94: return false
+	var phase := animation.animation_phase()
+	return phase.time_ms >= phase.duration_ms * fraction
 
 func actor_unit() -> Node:
 	var units := client.find_child("WorldUnits", true, false)
@@ -215,7 +222,7 @@ func capture_spelltome_diagnostic() -> void:
 	for child in model.find_children("Batch*", "MeshInstance3D", false, false):
 		var mesh := child as MeshInstance3D
 		var material := mesh.material_override as ShaderMaterial
-		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null, "mesh_color": material.get_shader_parameter("mesh_color") if material != null else null, "gx_blend": material.get_shader_parameter("gx_blend") if material != null else null})
+		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null, "mesh_color": material.get_shader_parameter("mesh_color") if material != null else null, "gx_blend": material.get_shader_parameter("gx_blend") if material != null else null, "base_input": texture_snapshot(material, "base_texture"), "second_input": texture_snapshot(material, "second_texture")})
 	write_record("spelltome-materials", materials)
 	# Single-batch diagnostic isolation; every visibility edit is restored immediately.
 	for batch in ["Batch0", "Batch1", "Batch8", "Batch9", "Batch10"]:
@@ -225,6 +232,13 @@ func capture_spelltome_diagnostic() -> void:
 			await capture("diagnostic-spelltome-without-" + batch + ".png")
 			mesh.show()
 	paused = false
+
+func texture_snapshot(material: ShaderMaterial, parameter: String) -> Variant:
+	if material == null: return null
+	var texture := material.get_shader_parameter(parameter) as Texture2D
+	if texture == null: return null
+	var image := texture.get_image()
+	return {"size": image.get_size(), "corner_rgba": image.get_pixel(0, 0).to_html(), "center_rgba": image.get_pixelv(image.get_size() / 2).to_html()}
 
 func control(name: String) -> Control:
 	return client.find_child(name, true, false) as Control
