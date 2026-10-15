@@ -1,6 +1,6 @@
 ## 2026-10-15 — Initial local-player facing
 
-[Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently; native GREEN pending, no turn stimulus.
+[Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently. GREEN9c0927eb8:12 focused world controls, matched current both-skin native Bashiok front placement/opacity/non-follow and inspected1920×1080 body images; no turn stimulus. Wall removal60501/60641ms unqualified at PSI2.42.
 
 ## 2026-10-15 — AH duration source menu
 
