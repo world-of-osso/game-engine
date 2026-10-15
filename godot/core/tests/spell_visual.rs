@@ -244,16 +244,18 @@ fn specialization_slam_picks_arms_and_fury_cast_kits_with_the_same_two_handed_sw
     assert_eq!(catalog.specialization_order_index(72), Some(1));
     assert_eq!(catalog.specialization_order_index(1446), Some(4));
     assert_eq!(catalog.specialization_order_index(0), None);
-    assert_eq!(select(Some(71)), (51946, 62428, 812));
+    // Active70391: row1727 → visual190513 → event561991 → kit278884;
+    // kit effect789202 → SpellVisualAnim434904 → AnimKit7583 → animation812.
+    assert_eq!(select(Some(71)), (190513, 278884, 812));
     assert_eq!(select(Some(72)), (97446, 128672, 818));
     // Missing primary specialization skips its check; priority 3 wins over 1.
-    assert_eq!(select(None), (51946, 62428, 812));
+    assert_eq!(select(None), (190513, 278884, 812));
     // Initial warrior spec (1446, OrderIndex 4) is known, not missing.
-    assert_eq!(select(Some(1446)), (51946, 62428, 812));
+    assert_eq!(select(Some(1446)), (190513, 278884, 812));
 }
 
 #[test]
-fn slam_swings_the_weapon_class_combat_ability_and_bloodies_the_target_chest() {
+fn slam_uses_the_weapon_class_combat_ability_and_authored_target_impact() {
     let catalog = catalog();
     let one_hand = catalog
         .visual_for_spell(SLAM, &warrior(Some(SWORD_1H)))
@@ -261,7 +263,7 @@ fn slam_swings_the_weapon_class_combat_ability_and_bloodies_the_target_chest() {
     let two_hand = catalog
         .visual_for_spell(SLAM, &warrior(Some(SWORD_2H)))
         .unwrap();
-    assert_eq!((one_hand, two_hand), (97446, 51946));
+    assert_eq!((one_hand, two_hand), (97446, 190513));
 
     let cast = catalog.kits(one_hand, VisualEvent::Cast);
     assert_eq!(cast.len(), 1);
@@ -281,7 +283,9 @@ fn slam_swings_the_weapon_class_combat_ability_and_bloodies_the_target_chest() {
     assert_eq!(impact.len(), 1);
     assert_eq!(impact[0].target, KitTarget::PrimaryTarget);
     let model = &impact[0].models[0];
-    assert_eq!((model.model_fdid, model.attachment), (1283017, Some(15)));
+    // Active70391: event230297 → kit278885 → model attach376845
+    // → effect name226/model166330 at authored attachment22.
+    assert_eq!((model.model_fdid, model.attachment), (166330, Some(22)));
     // Models lacking CombatAbility1H01 fall back to Special1H.
     let fallbacks = read_animation_fallbacks(&db2_dir()).unwrap();
     assert_eq!(fallbacks.get(&818), Some(&57));
