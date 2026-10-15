@@ -110,16 +110,33 @@ impl TerrainGround<'_> {
             .max_by(|a, b| a.height.total_cmp(&b.height))
     }
 
-    /// The original order: stop short of a WMO wall, then apply the slope and step rules.
+    /// Admit the destination floor before casting the wall ray at the walking height.
     /// A move to where no ground is within reach but ground lies above (a hillside, or a WMO
     /// floor over a terrain hole) stops, as an underwater cliff stops a swimmer: walking on
     /// would put the feet under the world's surface, with nothing to land on.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
-        let proposed = clamp_movement_to_walls(current, proposed, self.walls);
         let target = self.sample(proposed.with_y(current.y));
         if target.is_none() && self.covered(proposed.with_y(current.y)) {
             return current;
         }
+        let candidate = validate_movement_slope(
+            current,
+            proposed,
+            self.sample(current).map(ground_sample),
+            target.map(ground_sample),
+            snap,
+            MAX_SLOPE_ANGLE,
+            STEP_UP_HEIGHT,
+        );
+        let wall_start = current.with_y(current.y.max(candidate.y));
+        let clamped = clamp_movement_to_walls(wall_start, candidate, self.walls);
+        if clamped.y > current.y && !self.step_clearance(current, clamped) {
+            return current;
+        }
+        // A wall may have shortened the move onto a different support column. Never
+        // retain the height of a landing that the player did not actually reach.
+        let proposed = clamped.with_y(proposed.y);
+        let target = self.sample(proposed.with_y(current.y));
         validate_movement_slope(
             current,
             proposed,
@@ -129,6 +146,23 @@ impl TerrainGround<'_> {
             MAX_SLOPE_ANGLE,
             STEP_UP_HEIGHT,
         )
+    }
+
+    /// Check the lifted head, its horizontal path, and the destination body column.
+    /// TrinityCore Object.h DEFAULT_COLLISION_HEIGHT, also used by server liquid/head
+    /// clearance until per-display collision heights are available.
+    fn step_clearance(&self, current: Vec3, target: Vec3) -> bool {
+        const BODY_HEIGHT: f32 = 2.03128;
+        let rise = target.y - current.y;
+        let head = current + Vec3::Y * BODY_HEIGHT;
+        let raised_head = head + Vec3::Y * rise;
+        let target_head = target + Vec3::Y * BODY_HEIGHT;
+        let across = target_head - raised_head;
+        let distance = across.length();
+        (self.walls)(head, Vec3::Y, rise).is_none()
+            && (distance <= f32::EPSILON
+                || (self.walls)(raised_head, across / distance, distance).is_none())
+            && (self.walls)(target, Vec3::Y, BODY_HEIGHT).is_none()
     }
 
     /// Swimming where the water stands `SWIM_DEPTH` over the feet, above the ground.
