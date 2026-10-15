@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Disabled housing icon source color](systems/housing.md#disabled-editor-icon-visuals--implementation2026-10-15) — default atlas/DARKGRAY tint/full alpha instead of invented desaturation/transparency; both-skin model and actual painted-control proof, availability unchanged.
+
 - [Active housing mode no-op](systems/housing.md#active-mode-activation--implementation2026-10-15) — active pointer/assigned-key activation preserves Basic selection/owned preview and Expert staged render/list; both-skin hash-qualified native proof.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.
