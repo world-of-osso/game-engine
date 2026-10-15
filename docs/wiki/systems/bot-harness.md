@@ -42,7 +42,7 @@ Comparison requires equal explicit receipts for level, stats, dummy and duration
 - Ret talent fresh-login evidence retains12/12 previously positive source-plan ranks. Stopped/started client PIDs, account identity, source manifests and realized ranks are preserved.
 - Earlier default-kit runs stop on Arcane12408/condition20, Ret6425/equality, Elemental38530/condition17; Frost reports33686/condition67. Sourced talents/melee approach later permit the Ret windows; the other evaluator semantics remain owner gaps.
 - Detection regressions retain an actual submitted20271 request1792056099829 without success, alongside three successes/899 damage. The separate Stockade fixture has an explicitly injected absent request; neither fixture fabricates combat values.
-- Three-DPS MVP, all-spec execution, full detection observability, comparable-stat spread and repeated Stockade/follower completion remain open.
+- Three-spec collection has six completed windows (Ret70,Arms71,Fury72), but inherited1H+shield gear makes them ineligible for a spec-correct balance claim. Comparable weapon fixtures, all-spec execution, full detection observability and repeated Stockade/follower completion remain open.
 
 Durable evidence: `/home/osso/.worktrees/bot-harness-2026-10-15/`, linked from slot `data/diagnostics/bot-harness-2026-10-15/`. Initial extension/CLI helper build passed698.7s; server helper passed9m36s. Those binaries predate later master UI/terrain merges; live receipts do not certify unrelated merged Rust changes. Source revisions and targeted RED/GREEN command logs live in the handoff/proof ledger.
 
@@ -53,3 +53,7 @@ Durable evidence: `/home/osso/.worktrees/bot-harness-2026-10-15/`, linked from s
 - `godot/rust/src/spells/{snapshot,assisted_combat,cooldown_viewer}.rs`: existing native observability and source evaluator.
 - Pinned TC a352b1fa `TraitMgr.cpp`: starter rank and loadout semantics, matching blob above.
 - [Follower native controller proof](follower-dungeons.md), [class proof](../investigations/class-spell-live-proof.md), [private terrain destination](../../../../game-server/docs/wiki/investigations/private-terrain-destinations.md).
+
+## Spec-correct source gear fixture
+
+`bot_gear.py` authors weapon-kind choices from each installed ChrSpecialization preferred-weapon description and reads exact Item/ItemSparse rows from the private server world.db. Every selected item is an authentic common quality1/item-level1 starter; no item values or player stat formulas change. Ret/Arms use2361 two-hand mace rather than inherited1H+shield; dual-wield plans name MainHand and OffHand explicitly. All40 source specs have a plan, not a claim that all40 can equip it. Native ordinary bag equip/swap remains the gate. Fury retains its sourced dual-two-hand requirement; existing InventoryModel lacks Titan's Grip, so no one-hand fallback is allowed.
