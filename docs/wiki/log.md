@@ -1,6 +1,6 @@
 ## 2026-10-15 — Guild lifecycle query flow
 
-[Lifecycle log](systems/guilds.md#lifecycle-log): typed member-scoped query/reply and independent native open/cache/waiting state. Missing Info View Log control reproduced in both-skin fixture; source title is active GlobalStrings **Log**. Dialog, atomic producers and actual UDP/native/restart GREEN remain pending.
+[Lifecycle log](systems/guilds.md#lifecycle-log): typed member-scoped query/reply and independent native open/cache/waiting state. Missing Info View Log control reproduced in both-skin fixture; source title is active GlobalStrings **Log**. Source dialog/footer, shared Translucent art, colored source paragraphs and MinimalScrollBar are now implemented; atomic producer and actual UDP/native/restart GREEN remain pending.
 
 ## 2026-10-15 — Guild member note implementation
 
