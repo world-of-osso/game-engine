@@ -1,6 +1,5 @@
-//! Source-backed Traveler's Log and Suggested Content panes.
-//! Retail: Blizzard_MonthlyActivities.{lua,xml} (filter list, activity tree/rows),
-//! Blizzard_EncounterJournal.{lua,xml} (authored suggestion text and art).
+//! Source-backed Traveler's Log.
+//! Retail: Blizzard_MonthlyActivities.{lua,xml} (filter list, activity tree/rows).
 use std::collections::{BTreeMap, BTreeSet};
 
 use shared::protocol::{AdventureGuideSnapshot, PerksActivityProgress, PerksActivitySnapshot};

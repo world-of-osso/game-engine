@@ -8,7 +8,7 @@ Retail Mainline Blizzard_EncounterJournal defines structure and behavior. Modern
 
 ## Suggested source presentation
 
-Retail XML1066–1178/2068–2262 and Lua3146–3355 define three fixed panes. Returned records1/2/3 occupy lower-small/upper-small/large, not groups in a generic ScrollBox. Use authored Morpheus title fitting, source description fonts and centered text blocks,64px round icons and94×95 rings. Reward prose is not pane body text; catalog button text grants no activation. **Gaps: authenticated primary-offset selection, reward identities/hover and truncated-text hover.** Do not invent a rotation rule or reward/action authority from the realm's sorted eligible vector. Keep the authored32×32 primary paging buttons visible but disabled, with no action, while primary-offset selection lacks backing.
+Retail XML1066–1178/2068–2262 and Lua3146–3355 define three fixed panes. Returned records1/2/3 occupy lower-small/upper-small/large, not groups in a generic ScrollBox. Use authored Morpheus title fitting, source description fonts and centered text blocks,64px round icons and94×95 rings. Reward prose is not pane body text; catalog button text grants no activation. **Gaps: authenticated primary-offset selection, one/two-record provider geometry reconciliation, reward identities/hover and truncated-text hover.** Do not invent a rotation rule or reward/action authority from the realm's sorted eligible vector. Keep the authored32×32 primary paging buttons visible but disabled, with no action, while primary-offset selection lacks backing.
 
 ## Retail layout contract
 

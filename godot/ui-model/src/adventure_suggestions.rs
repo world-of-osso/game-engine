@@ -61,16 +61,9 @@ pub fn suggested(ctx: &SharedContext, snapshot: Option<&AdventureGuideSnapshot>)
         );
     }
     let small_title_size = secondary_title_size(&snapshot.suggestions);
-    let mut panes: Element = (0..3)
+    let panes: Element = (0..3)
         .flat_map(|index| suggestion_slot(snapshot.suggestions.get(index), index, small_title_size))
         .collect();
-    if snapshot.suggestions.is_empty() {
-        panes.extend(text(
-            "JournalSuggestedEmpty",
-            "No eligible source suggestions available.",
-            (15., 29., 740., 40.),
-        ));
-    }
     rsx! { r#frame { name: "EncounterJournalSuggestedFrame", left: 9., top: 111., width: 784., height: 380., pos_type: "absolute", {panes} } }
 }
 
