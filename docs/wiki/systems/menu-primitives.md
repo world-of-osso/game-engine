@@ -18,6 +18,16 @@ The current RSX parser truncates bare float literals to their integer prefix. Na
 
 Targeted integration module `tests/menu_primitives.rs` asserts source geometry, active-skin art, callbacks, selection ticks, disabled items, reset control, overflow retention and pressed art. `godot/tests/menu_primitives_capture.gd` mounts actual RegistryUi in each skin, waits for async art and saves PNGs; native backdrop RED is retained under `data/diagnostics/ui-primitives-2026-10-13/`.
 
+## Shared UIPanel button art — 2026-10-14 assignment
+
+`quest_art::panel_button` now emits the actual UIPanel sheet files through toolkit RSX `button_fdid_up/pressed/highlight/disabled`, reusing the existing `ButtonData` texture slots. FDIDs130828/130825/130826/130824 are Up/Down/Highlight/Disabled. `ui::parts::project_panel_button` crops the80×22 member from the128×32 sheet, keeping12px caps even when a caller changes height; highlight is additive. Generic default-button rendering and other template families are unchanged. Five caller-specific repairs (Settings, Talents, customer orders, guild ranks and tabard registration) became redundant and were removed. [Contract](../../specs/gameplay-panel-fidelity.md#shared-uipanel-buttons).
+
+Proof: toolkit attribute/action rebuild RED→GREEN1, real-screen/postsetup-family UI40, native projection24 and emitted Quest/Mail golden controls3 pass; engine/toolkit checks and format pass. Quest Accept, Mail Cancel, disabled Raid Info Extend and Bank Deposit retain their authored/Lua-sized rectangles in both skins. All ten full-HD after views and four-window before/after pixel comparisons were inspected. Settings is an additional control. Captures: `AgentShared/2026-10-14/ui-questlog-helpers/{shared-helper-before-scale1,shared-helper-panel-after}/`; exact source/binary/image hashes and commands live in `data/diagnostics/ui-questlog-helper-fidelity-2026-10-14/helper-proof-ledger.json`.
+
+Before views use the archived7cb2dfee2 renderer in the current native host with the corrected scale1 fixture, not a complete historical client. Initial Quest/Mail captures inherited scale1.40625 and are diagnostic only; their replacements assert exact source geometry. Supplied offline samples prove presentation, not server authority or every helper caller. Window-background tiling remains a separate open item.
+
+Sources: `Blizzard_SharedXML/SecureUIPanelTemplates.xml:39–78`, `.lua:40–80`; Mainline `SharedUIPanelTemplates.xml:3–5,315–320`. Both skins use the same source file button geometry; existing surrounding skin art remains unchanged.
+
 ## Sources
 
 - Retail `Blizzard_Menu/Mainline/MenuTemplates.xml:3,66`; shared `MenuTemplates.xml:4` — dropdown geometry/art/reset anchors.
