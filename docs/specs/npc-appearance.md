@@ -6,6 +6,8 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## What it must do
 
+- [ ] Preserve `CreatureDisplayInfo.CreatureModelAlpha` as an authored byte (0 transparent,255 opaque) through catalog import and lookup; rebuild older caches even when source mtimes match. Missing/malformed/out-of-range values error, never become opaque defaults. Apply opacity to each native creature visual's geometry without modifying shared materials or other creatures. Bashiok60051 source175 must remain translucent; CPU catalog proof and native both-skin pixel proof are separate gates.
+
 - [x] Retain full customization choice IDs and apply related materials/geosets only when their required choice is selected; unresolved choices produce an explicit error.
 - [x] Resolve race/sex to ChrModel from `ChrRaceXChrModel.csv` (Kul Tiran 32, allied races). Apply choices of the displayed model; choices of the race's unaltered form (`ChrRaces.UnalteredVisualRaceID`, Worgen 22 → Human 1) are accepted without being applied.
 - [x] Material target 10 declares the type-6 hair texture only where the layout composes target 10 into texture type 6. Dracthyr layout 155 uses target 10 for type 9 and has no type-6 hair.

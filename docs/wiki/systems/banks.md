@@ -39,6 +39,12 @@ Native `ImagePart.tiling` carries each authored axis to a cropped-member shader 
 
 The [bankart source/proof table](../../specs/bank-frame.md#bounded-bankart-pass--2026-10-08) owns atlas names/rects, RED/GREEN counts, six native captures, and the unresolved bank-bag layout/state and local vertical-shadow asset gaps. Offline `bank_preview.rs` calls the production bank projection; `capture_ui_screen.gd` checks true1920×1080 and native hover/modified-click dispatch. No server/live movement proof is implied.
 
+## Empty purchased-tab audit sample — 2026-10-14
+
+A shared-helper screenshot showed a bare bank panel because `UiAuditProbe::mount_shared_helper_panel` supplied `BankFrameState::default()` with no tabs and an empty slots vector. That is not an empty purchased tab. Production `BankSession::frame_state` preserves each `BankTabView.slots` entry, including `None`; server `BankTab::new` allocates `BANK_TAB_SLOTS` empty entries. Retail `BankFrame.lua:935–975` creates buttons from container capacity, while `BankFrame.xml:568–579` supplies their background independently of item icons.
+
+The offline sample now supplies one selected tab and98 `None` entries. `godot/tests/bank_empty_grid.gd` reproduced count0 in both skins before the fixture correction, then passed98 visible37×37 native controls at the source column/row anchors with background nodes and no item icons. Both full-HD before/after pairs were inspected. Native build/check/format pass. No production presenter, session, server, inventory or purchase-prompt behavior changed; no live banker acceptance is implied. PNGs: `AgentShared/2026-10-14/ui-questlog-bank-grid/`; revision/log/binary/image receipts: `data/diagnostics/ui-questlog-bank-grid-2026-10-14/bank-grid-proof-ledger.json`.
+
 ## Gotchas
 - The purchase tab is selectable as index `tabs.len()` while `next_tab_cost` is set. After a purchase the same index is the new tab, so the frame lands on it.
 - Guild bank logs are fetched per mode or tab. Every contents broadcast re-queries the shown log, because Retail refreshes on `GUILDBANKLOG_UPDATE`.

@@ -15,9 +15,10 @@ fn query_display_reads_model_all_skins_and_scale() {
             scale_milli INTEGER NOT NULL,
             source_product TEXT NOT NULL,
             pet_instance_scale_milli INTEGER NOT NULL,
-            uses_display_geosets INTEGER NOT NULL
+            uses_display_geosets INTEGER NOT NULL,
+            model_alpha INTEGER NOT NULL
         );
-        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow', 700, 0);",
+        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow', 700, 0, 175);",
     )
     .unwrap();
 
@@ -26,6 +27,7 @@ fn query_display_reads_model_all_skins_and_scale() {
         Some(CreatureDisplay {
             source_product: crate::asset_product::AssetProduct::Retail,
             model_fdid: 1234,
+            model_alpha: 175,
             uses_display_geosets: false,
             skin_fdids: [567, 890, 123, 456],
             scale_milli: 1750,
