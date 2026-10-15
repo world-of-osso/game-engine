@@ -111,6 +111,10 @@ Both-skin private5790 pointer/relog proof and remaining honor-level/XP/tooltip/d
 
 [Arenas](arenas.md) share this transport and view but use elimination, source preparation/gates/orbs, enemy frames and played-match TC-reference rating. Arena combat columns are measured; WSG's existing uninstrumented columns remain dashes. Arena source/runtime/live acceptance is tracked separately, not inferred from the WSG proof.
 
+## IoC bomb disarm interaction — active 2026-10-14
+
+Normal-use classification first fails for source Seaforium195235/type6 (`isle-disarm-client-red4.log`: expected `UseGameObject77`, got none). Only authored195235/195331 now expose an Interact cursor, physical picking, soft interaction and the normal request. Arena Shadow Sight184663 and other traps remain nonmanual. Server-owned fuse, life/copy/reach validation and cancellation are described in the [server object system](../../../../game-server/docs/wiki/systems/game-objects.md#source-timed-seaforium-lifecycle--active-2026-10-14), following TC a352b1fa `go_massive_seaforium_charge::OnGossipHello`. Client GREEN and native both-skin proof are pending; rendering a trap is not evidence of successful disarm.
+
 ## Sources
 
 - [PvP progression contract](../../specs/pvp-progression.md) — wallet, source talents, War Mode proof and unresolved lifetime honor policy.

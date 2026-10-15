@@ -122,6 +122,19 @@ const MODEL_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 /// its Wooden Chairs, so the client's type default applies: `interface/cursor/mail.blp`
 /// over a mailbox and the gears of `interface/cursor/interact.blp` over any other usable
 /// object, as the Bevy client maps them (`cursor_for_interaction`, wow_cursor.rs:141-178).
+pub(crate) fn is_seaforium_bomb(info: &GameObjectInfo) -> bool {
+    info.go_type == 6 && matches!(info.entry, 195235 | 195331)
+}
+
+/// Only the two authored scripted bombs admit manual trap interaction.
+pub(crate) fn game_object_info_cursor(info: &GameObjectInfo) -> Option<ActiveWowCursor> {
+    if is_seaforium_bomb(info) {
+        Some(ActiveWowCursor::Interact)
+    } else {
+        game_object_cursor(info.go_type)
+    }
+}
+
 pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
     match go_type {
         GAMEOBJECT_TYPE_MAILBOX => Some(ActiveWowCursor::Mail),
@@ -303,7 +316,7 @@ impl GameObjects {
             .is_none_or(|old| old.display_id != info.display_id);
         if changed {
             let (visual, particle_model) = self.load_visual(info)?;
-            if game_object_cursor(info.go_type).is_some()
+            if game_object_info_cursor(info).is_some()
                 && let Err(error) = crate::targeting::attach_pick_area(&visual, id)
             {
                 visual.free();
@@ -654,6 +667,10 @@ mod tests {
                 Some(shared::protocol::UseGameObject { object: 77 }),
                 "normal source bomb interaction must reach the disarm request"
             );
+            assert_eq!(
+                game_object_info_cursor(&bomb),
+                Some(ActiveWowCursor::Interact)
+            );
         }
         let shadow_sight = GameObjectInfo {
             entry: 184663,
@@ -663,6 +680,7 @@ mod tests {
             scale: 1.0,
         };
         assert!(crate::meeting_stones::spell_or_quest_object_request(77, &shadow_sight).is_none());
+        assert!(game_object_info_cursor(&shadow_sight).is_none());
     }
 
     #[test]
