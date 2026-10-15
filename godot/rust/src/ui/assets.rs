@@ -48,11 +48,8 @@ pub fn load_font(font: GameFont) -> Result<Gd<FontFile>, String> {
         return Ok(loaded);
     }
     let _span = crate::profile::span(|| format!("ui.load_font {font:?}"));
-    let path = match font {
-        GameFont::FrizQuadrata => "data/fonts/FRIZQT__.TTF",
-        GameFont::ArialNarrow => "data/fonts/ARIALN.ttf",
-    };
-    let bytes = load_bytes(path)?;
+    let path = format!("data/fonts/{}", font.file_name());
+    let bytes = load_bytes(&path)?;
     let mut resource = FontFile::new_gd();
     resource.set_data(&PackedByteArray::from(bytes.as_slice()));
     FONTS.with_borrow_mut(|fonts| fonts.insert(font, resource.clone()));
