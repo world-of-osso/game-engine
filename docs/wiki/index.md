@@ -1,6 +1,7 @@
 # Wiki Index
 
 - [Pet queue caption tag](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) — missing-text RED→typed caption, two inspected both-skin native samples; outside-caption pixels unchanged, remaining popup parity separate.
+- [Initial local-player facing](systems/networking.md#initial-local-player-facing-2026-10-15) — native first-root source yaw is later overwritten by PI prediction; constructor uses authoritative yaw;12 world controls and both-skin native Bashiok GREEN without a turn stimulus.
 
 - [AH duration source menu](systems/auction-house-ui.md#duration-source-composition--2026-10-15) — shared dropdown/radios, caller115/Arial Narrow12/RIGHT,10 source/reducer controls and four inspected both-skin native samples; no fresh trading claim.
 
@@ -11,7 +12,7 @@
 - [Empty purchased-bank audit sample](systems/banks.md#empty-purchased-tab-audit-sample--2026-10-14) — malformed zero-capacity sample corrected; both-skin98 native controls/backgrounds and no item icons, with before/after pixel proof; production and purchase prompt unchanged.
 - [Modern target cast source art](investigations/target-cast-source-art.md) — source background/textbox, cropped four-state fills and6×16 pip;9 focused regressions and inspected both-skin before/after samples, Forever byte-identical.
 - [Active housing mode no-op](systems/housing.md#active-mode-activation--implementation2026-10-15) — active pointer/assigned-key activation preserves Basic selection/owned preview and Expert staged render/list; both-skin hash-qualified native proof.
-- [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions pass, native Bashiok pixels pending.
+- [Source creature opacity](systems/toy-box.md#source-creature-opacity-2026-10-15) — authored byte retained in catalog and per-instance native binding;15+2 CPU regressions and inspected both-skin Bashiok50 pixels, with wall timing separately unqualified.
 - [Suggested fixed source panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) — joint installed-CSV/bonus provider and both-skin three-card native proof; source-height title fitting, explicit ordering/authority gaps.
 
 - [Housing pressed-hover lifecycle](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15) — source additive hover suppression during real press, inside/outside release and inspected both-skin six-control native matrix; no timing/whole-art claim.

@@ -1,6 +1,9 @@
 ## 2026-10-15 — Pet queue caption tag
 
 [Tag-only root fix](systems/battle-pets.md#queue-ready-caption-tag--2026-10-15) restores the omitted ready text; RED1→GREEN2, two inspected both-skin native after captures and identical outside-caption pixels. Remaining popup source parity and fresh server queue acceptance are separate.
+## 2026-10-15 — Initial local-player facing
+
+[Native source trace](systems/networking.md#initial-local-player-facing-2026-10-15): first replicated player pose is correct, then idle gameplay consumes PI instead of spawn yaw. Constructor now retains the authoritative initial yaw; focused RED is PI versus6.6752367. Static NPC first-root source rotations match independently. GREEN9c0927eb8:12 focused world controls, matched current both-skin native Bashiok front placement/opacity/non-follow and inspected1920×1080 body images; no turn stimulus. Wall removal60501/60641ms unqualified at PSI2.42.
 
 ## 2026-10-15 — AH duration source menu
 
