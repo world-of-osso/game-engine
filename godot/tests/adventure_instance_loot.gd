@@ -32,32 +32,43 @@ func verify_loot_row(name: String, height: float, boss: String) -> bool:
 		return false
 	return true
 
-func verify_loaded_icon(name: String) -> bool:
+func verify_painted_icon(name: String) -> bool:
+	# Registry texture hosts are Controls; prove framebuffer painting, not node class.
 	var deadline := Time.get_ticks_msec() + 30000
-	var icon: TextureRect
 	while Time.get_ticks_msec() < deadline:
-		icon = control(name) as TextureRect
-		if icon != null and icon.texture != null:
-			break
+		var icon := control(name)
+		if icon == null or not icon.is_visible_in_tree():
+			await process_frame
+			continue
+		var rect := icon.get_global_rect()
+		await RenderingServer.frame_post_draw
+		var painted := root.get_texture().get_image()
+		icon.hide()
 		await process_frame
-	if icon == null or icon.texture == null or not icon.is_visible_in_tree():
-		stop("Authored loot icon did not load: " + name)
-		return false
-	var image := icon.texture.get_image()
-	if image == null or image.is_empty():
-		stop("Authored loot icon image absent: " + name)
-		return false
-	var colored := 0
-	for y in image.get_height():
-		for x in image.get_width():
-			var pixel := image.get_pixel(x,y)
-			if pixel.a > 0.5 and maxf(pixel.r,maxf(pixel.g,pixel.b)) > 0.08:
-				colored += 1
-	if colored < 20:
-		stop("Authored loot icon is blank: " + name)
-		return false
-	print("INSTANCE_LOOT_ICON %s colored=%s" % [name,colored])
-	return true
+		await RenderingServer.frame_post_draw
+		var backdrop := root.get_texture().get_image()
+		control(name).show()
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var restored := root.get_texture().get_image()
+		var changed := 0
+		for y in range(2, int(rect.size.y) - 2):
+			for x in range(2, int(rect.size.x) - 2):
+				var point := Vector2i(rect.position) + Vector2i(x,y)
+				var a := painted.get_pixelv(point)
+				var b := backdrop.get_pixelv(point)
+				var c := restored.get_pixelv(point)
+				var removed := Vector3(a.r-b.r,a.g-b.g,a.b-b.b).length()
+				var returned := Vector3(c.r-b.r,c.g-b.g,c.b-b.b).length()
+				var stable := Vector3(c.r-a.r,c.g-a.g,c.b-a.b).length()
+				if removed > 0.05 and returned > 0.05 and stable < 0.03:
+					changed += 1
+		if changed >= 20:
+			print("INSTANCE_LOOT_ICON %s painted=%s" % [name,changed])
+			return true
+		await settle()
+	stop("Authored loot icon did not paint: " + name)
+	return false
 
 func verify_loot_scroll() -> bool:
 	var first := first_visible_loot()
@@ -149,7 +160,7 @@ func run() -> void:
 	if label_text("JournalLoot2169Slot") != "One-Hand" or label_text("JournalLoot2169ArmorClass") != "Dagger":
 		stop("Source slot/subclass missing or combined with invented item-level text")
 		return
-	if not await verify_loaded_icon("JournalLoot2169Icon"):
+	if not await verify_painted_icon("JournalLoot2169Icon"):
 		return
 	if not await move_to("JournalLoot2169") or not client.tooltip_state().get("visible", false) or client.tooltip_state().get("title", "") != "Buzzer Blade":
 		stop("Shared actual item tooltip missing")
@@ -176,7 +187,7 @@ func run() -> void:
 		stop("Genuine Ny'alotha instance loot absent or insufficient for overflow")
 		return
 	var raid_item := first_visible_loot()
-	if raid_item.is_empty() or not await verify_loaded_icon(raid_item + "Icon") or not await move_to(raid_item) or not await shot("raid-instance-loot-tooltip"):
+	if raid_item.is_empty() or not await verify_painted_icon(raid_item + "Icon") or not await move_to(raid_item) or not await shot("raid-instance-loot-tooltip"):
 		return
 	print("INSTANCE_LOOT_PASS skin=%s physicalinstance/boss/scroll/slot/tooltip/raid" % client.account_state().ui_skin)
 	quit(0)
