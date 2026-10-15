@@ -154,6 +154,74 @@ fn ramp_lip_beam_above_existing_wall_ray_preserves_corridor() {
     );
 }
 
+fn walk_toward_tall_wall(floor_height: impl Fn(f32) -> f32) -> Vec3 {
+    let faces = [
+        [
+            Vec3::new(1.0, -1.0, -2.0),
+            Vec3::new(1.0, 5.0, -2.0),
+            Vec3::new(1.0, 5.0, 2.0),
+        ],
+        [
+            Vec3::new(1.0, -1.0, -2.0),
+            Vec3::new(1.0, 5.0, 2.0),
+            Vec3::new(1.0, -1.0, 2.0),
+        ],
+    ];
+    let tile = collision_tile(&faces);
+    let terrain = StreamedTerrain::new(PathBuf::new());
+    let walls = |origin, direction, length| {
+        tile.first_hit(origin, origin + direction * length)
+            .map(|fraction| fraction * length)
+    };
+    let floor = |feet: Vec3| {
+        shared::ground::select_ground(feet.y, None, [floor_height(feet.x)])
+            .map(|ground| ground.height)
+    };
+    TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+        step_wall_blocked: &|from, to, top| {
+            game_engine_core::step_clearance::step_wall_blocked(
+                &faces,
+                from,
+                to,
+                top,
+                shared::ground::min_walkable_normal_y(),
+            )
+        },
+        game_object_floor: &floor,
+    }
+    .validate_move(Vec3::ZERO, Vec3::X * 3.5, true)
+}
+
+#[test]
+fn ramp_lip_covered_destination_keeps_reachable_wall_approach() {
+    let moved = walk_toward_tall_wall(|x| if x < 1.0 { 0.0 } else { 3.0 });
+    assert!(
+        (moved.x - 0.95).abs() < 0.00001,
+        "lost reachable approach to wall: {moved}"
+    );
+    assert_eq!(moved.y, 0.0);
+}
+
+#[test]
+fn ramp_lip_covered_clamped_column_does_not_enter_under_raised_floor() {
+    let moved = walk_toward_tall_wall(|x| {
+        if x < 0.5 {
+            0.0
+        } else if x < 1.5 {
+            3.0
+        } else {
+            0.5
+        }
+    });
+    assert_eq!(
+        moved,
+        Vec3::ZERO,
+        "entered unsupported covered column: {moved}"
+    );
+}
+
 fn overhead_slab(y: f32) -> [Vec3; 3] {
     [
         Vec3::new(107.0, y, 2.0),
