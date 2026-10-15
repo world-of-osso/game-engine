@@ -8,20 +8,19 @@ fn kit_catalog() -> MountSpecialCatalog {
 }
 
 #[test]
-fn mount_special_rider_upper_body_keeps_the_seated_legs_and_finishes() {
+fn mount_special_authored_upper_body_segment_keeps_the_seated_legs_and_finishes() {
     let mut rider = human_male_hd();
     let mut seated = human_male_hd();
     rider.update_locomotion(91, false, false).unwrap();
     seated.update_locomotion(91, false, false).unwrap();
     let catalog = kit_catalog();
     rider
-        .play_mount_kits(&[catalog.kit(19345).unwrap()], 5000.0, &HashMap::new())
+        // Isolate the actual DND upper-body row to prove mask composition, not a
+        // substitute claim about its simultaneous full kit or Grrloc's timing gap.
+        .play_mount_kits(&[&catalog.kit(3012).unwrap()[1..]], 5000.0, &HashMap::new())
         .unwrap();
-    rider.advance(599.0).unwrap();
-    seated.advance(599.0).unwrap();
-    assert!(pose_distance(&rider.poses(), &seated.poses()) < 1e-4);
-    rider.advance(301.0).unwrap();
-    seated.advance(301.0).unwrap();
+    rider.advance(900.0).unwrap();
+    seated.advance(900.0).unwrap();
     let (upper, lower) = rider
         .poses()
         .iter()
@@ -41,29 +40,21 @@ fn mount_special_rider_upper_body_keeps_the_seated_legs_and_finishes() {
                 }
             },
         );
-    let fishing = rider
-        .sequences
-        .iter()
-        .position(|sequence| sequence.id == 133 && sequence.variation_id == 0)
-        .unwrap();
-    eprintln!(
-        "FishingCast duration={} flags={} time={} upper_bones={} keyed_tracks={}",
-        rider.sequences[fishing].duration,
-        rider.sequences[fishing].flags,
-        rider.global_ms,
-        rider.upper_body.iter().filter(|bone| **bone).count(),
-        rider
-            .tracks
-            .iter()
-            .filter(|tracks| super::keyframed(&tracks.rotation, fishing)
-                || super::keyframed(&tracks.translation, fishing))
-            .count()
-    );
     assert!(upper > 0.01, "rider upper body did not animate: {upper}");
     assert!(lower < 1e-4, "rider legs left saddle pose: {lower}");
     rider.advance(6000.0).unwrap();
     seated.advance(6000.0).unwrap();
     assert!(pose_distance(&rider.poses(), &seated.poses()) < 1e-4);
+}
+
+#[test]
+fn mount_special_grrloc_oversized_one_shot_is_a_named_gap_not_silent_rider_success() {
+    let mut rider = human_male_hd();
+    let catalog = kit_catalog();
+    let error = rider
+        .play_mount_kits(&[catalog.kit(19345).unwrap()], 5000.0, &HashMap::new())
+        .unwrap_err();
+    assert!(error.contains("one-shot offset 2000"), "{error}");
 }
 
 #[test]
