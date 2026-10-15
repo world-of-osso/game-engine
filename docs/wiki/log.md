@@ -3865,3 +3865,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): actual both-skin Celestial Steed223/376 mounted91/saddle0, Hide Character restore/selection/cleanup and process RED→GREEN stable camera;20 inspected full-HD PNGs, eight data tests and separate native graph proof. Native scale API/special kits remain named gaps, no guessed compensation.
 
 - 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
+
+## 2026-10-15 — Talent loadout strings
+
+Installed Blizzard Lua and approved installed addon version2 pair establish exact wire layout; full-class Mage codec4/4 including actual-Lua fixtures passes. Import/Create/clipboard native integration implemented; live proof pending. Hash-comparison gap and separate Starter authority slice documented in [talents](systems/talents.md#retail-loadout-strings--2026-10-15).
