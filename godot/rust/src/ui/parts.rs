@@ -204,7 +204,8 @@ fn project_panel_button(
     else {
         return false;
     };
-    let cap = 12.0 * height / 22.0;
+    // TOP/BOTTOM anchors stretch the strip vertically; its XML width stays12px.
+    let cap = 12.0;
     for (x, w, left, right) in [
         (0.0, cap, 0.0, 0.09375),
         (cap, width - 2.0 * cap, 0.09375, 0.53125),
