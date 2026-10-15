@@ -14,6 +14,12 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - [x] Traveler's Log displays authoritative monthly Tender earned/cap/balance. No invented mail awards. Retail XML defines visible controls; remove unsourced vendor SearchBox, Log/Collections and Freeze/Unfreeze buttons (lead clarification October13).
 - [x] Targeted behavioural tests and inspected private UDP5731 fb_* account PNG proof in Modern and Forever.
 
+## Authored base camera/orbit
+
+- Trading Post uses the selected display scene's authored UiModelSceneCamera base target, yaw/pitch/roll and zoom/min/max, not mesh-bounds fitting. Product overrides select their first camera even when its tag is `override` rather than `primary`; otherwise use the category display scene. Display translation rounds targets and angles to one decimal place (angles in degrees before conversion back to radians).
+- Held footer buttons and left drag orbit the actual camera while authored actor transforms remain unchanged; release outside stops rotation. Mouse wheel changes the source zoom percentage within authored min/max. Source: Products.lua279–364, Model.lua225–238, OrbitCameraMixin33–55,395–438,480–505,574–579 and ModelSceneMixin328–337.
+- Lead October15 authorized base-camera/orbit acceptance separately from inherited two-point native zoom splines and ModelScene default-FOV equivalence. Existing project FOV remains unchanged; neither gap may be represented as exact Retail framing or replaced with a guessed formula.
+
 ## Frozen replacement consent
 
 - Occupied-slot drops preview the candidate in the slot while a Retail GameDialog identifies the old frozen product and warns: “Are you sure you want to replace your current frozen item? The existing frozen item may no longer be available.”

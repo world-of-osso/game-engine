@@ -104,6 +104,7 @@ pub mod map_catalog;
 pub mod minimap_data;
 pub mod model_asset_index;
 pub mod model_scene_actor;
+pub mod model_scene_camera;
 pub mod mount_preview;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
