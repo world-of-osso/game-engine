@@ -52,11 +52,12 @@ fn mount_special_rider_upper_body_keeps_the_seated_legs_and_finishes() {
 fn mount_special_full_body_sequence_is_not_replaced_by_per_frame_locomotion() {
     let mut mount: AnimationState = human_male_hd();
     let fallback = HashMap::from([(94, 60)]);
+    let resolved = mount.resolve_clip(94, &fallback).unwrap();
     let duration = mount.play_mount_special(&fallback).unwrap();
     assert!(duration > 0.0);
     mount.advance(100.0).unwrap();
     mount.update_locomotion(0, false, false).unwrap();
-    assert_eq!(mount.sequences[mount.current].id, 60);
+    assert_eq!(mount.sequences[mount.current].id, resolved);
     mount.advance(duration + 200.0).unwrap();
     mount.update_locomotion(0, false, false).unwrap();
     assert_eq!(mount.sequences[mount.current].id, 0);

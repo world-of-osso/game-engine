@@ -14,6 +14,7 @@ use godot::builtin::{Basis, Transform3D};
 mod action;
 mod billboard;
 mod momentum;
+mod mount_special;
 #[cfg(test)]
 mod replacement_tests;
 pub(crate) use action::ActionPriority;
@@ -181,6 +182,9 @@ pub struct AnimationState {
     sequence_animated: Vec<bool>,
     /// Combat/spell clip layered over the selected sequence.
     action: Option<action::ActionLayer>,
+    mount_special_end: Option<f64>,
+    rider_kits: Option<mount_special::RiderKits>,
+    kit_bones: std::collections::HashMap<i32, Vec<bool>>,
     /// Per bone: in the upper-body set an action always drives.
     upper_body: Vec<bool>,
     /// Per sequence: its first missile release event (ms).
@@ -263,6 +267,9 @@ impl AnimationState {
             random_state: 0,
             sequence_animated,
             action: None,
+            mount_special_end: None,
+            rider_kits: None,
+            kit_bones: mount_special::bone_masks(model),
             upper_body: action::upper_body_bones(model),
             release_ms: action::missile_release_times(model),
             action_events: action::reported_events(model),
@@ -290,6 +297,7 @@ impl AnimationState {
     pub fn pose_varies(&self) -> bool {
         self.transition.is_some()
             || self.action.is_some()
+            || self.rider_kits.is_some()
             || self.momentum.active()
             || self.sequence_animated[self.current]
     }
@@ -340,7 +348,7 @@ impl AnimationState {
 
     fn sampled_poses(&self) -> Vec<BonePose> {
         self.momentum
-            .apply(self.apply_action(self.sampled_base_poses()))
+            .apply(self.apply_mount_kits(self.apply_action(self.sampled_base_poses())))
     }
 
     fn sampled_base_poses(&self) -> Vec<BonePose> {
@@ -451,6 +459,12 @@ impl AnimationState {
         jumping: bool,
         running_forward: bool,
     ) -> Result<bool, String> {
+        if let Some(end) = self.mount_special_end {
+            if self.global_ms < end && movement_id == ANIM_STAND && !jumping {
+                return Ok(false);
+            }
+            self.mount_special_end = None;
+        }
         let swimming = (ANIM_SWIM_IDLE..=ANIM_SWIM_BACKWARDS).contains(&movement_id);
         self.set_locomotion_stationary(movement_id, jumping && !swimming);
         let armed = std::mem::take(&mut self.pose_transition);
@@ -535,6 +549,8 @@ impl AnimationState {
 
     fn play_death(&mut self) {
         self.action = None;
+        self.mount_special_end = None;
+        self.rider_kits = None;
         let death = self.replacement_id(ANIM_DEATH);
         if let Some(index) = self
             .sequences
@@ -597,6 +613,13 @@ impl AnimationState {
         // Global sequences run at real time, not the clip's playback rate
         // (WebWowViewerCpp animationManager.cpp updateSequencing `deltaTimeForGS`).
         self.global_ms += delta_ms;
+        if self
+            .rider_kits
+            .as_ref()
+            .is_some_and(|kits| self.global_ms >= kits.end_ms + 150.0)
+        {
+            self.rider_kits = None;
+        }
         self.tick_action(delta_ms);
         self.momentum.advance(delta_ms);
         Ok(())
