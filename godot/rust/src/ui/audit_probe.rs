@@ -168,24 +168,35 @@ impl UiAuditProbe {
         if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
             return error.as_str().into();
         }
-        let result = match journal.to_string().as_str() {
-            "mounts" => ui.bind_mut().show_mount_journal(
-                game_engine_ui_model::mount_journal::MountJournalView {
-                    visible: true,
-                    viewport,
-                    ..Default::default()
-                },
-            ),
-            "pets" => {
-                ui.bind_mut()
-                    .show_pet_journal(game_engine_ui_model::pet_journal::PetJournalView {
+        let result =
+            match journal.to_string().as_str() {
+                "mounts" => ui.bind_mut().show_mount_journal(
+                    game_engine_ui_model::mount_journal::MountJournalView {
                         visible: true,
                         viewport,
                         ..Default::default()
-                    })
-            }
-            other => return format!("Unknown audit journal {other}").as_str().into(),
-        };
+                    },
+                ),
+                "pets" => ui.bind_mut().show_pet_journal(
+                    game_engine_ui_model::pet_journal::PetJournalView {
+                        visible: true,
+                        viewport,
+                        ..Default::default()
+                    },
+                ),
+                "pet-queue" => ui.bind_mut().show_pet_journal(
+                    game_engine_ui_model::pet_journal::PetJournalView {
+                        visible: false,
+                        viewport,
+                        queue: shared::protocol::PetBattleQueueState::Proposal {
+                            proposal_id: 91,
+                            accepted: false,
+                        },
+                        ..Default::default()
+                    },
+                ),
+                other => return format!("Unknown audit journal {other}").as_str().into(),
+            };
         result.err().unwrap_or_default().as_str().into()
     }
 

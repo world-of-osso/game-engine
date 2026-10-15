@@ -1,6 +1,31 @@
 use super::*;
 
 impl SpellEffects {
+    /// MountSpecial's rider segments already run on the animation scheduler.
+    pub(crate) fn mount_special(
+        &mut self,
+        kit_id: u32,
+        unit: u64,
+        world: &mut WorldUnits,
+    ) -> Result<(), String> {
+        let kit = self
+            .catalog()?
+            .ok_or("MountSpecial visual catalog unavailable")?
+            .mount_special_kit(kit_id);
+        self.start_kit_on(
+            KitOnUnit {
+                kit: &kit,
+                unit,
+                caster: unit,
+                spell_id: 0,
+                event: VisualEvent::OneShot,
+                hold: None,
+            },
+            world,
+        )?;
+        self.spawn_due(world)
+    }
+
     /// Start `spell_id`'s kits for `event`; returns the looping clips started on the
     /// caster.
     pub(super) fn start_event(

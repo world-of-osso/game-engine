@@ -424,6 +424,26 @@ impl GameClient {
         Ok(true)
     }
 
+    fn poll_activity_tracking(&mut self, ui: &mut Gd<RegistryUi>) -> Result<(), String> {
+        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
+            let request = self
+                .account
+                .adventure_guide
+                .as_deref()
+                .and_then(|snapshot| {
+                    game_engine_ui_model::adventure_activities::tracking_request(
+                        snapshot, &action, right, shift,
+                    )
+                });
+            if let Some(request) = request {
+                self.account
+                    .send_adventure_guide(request)
+                    .map_err(|error| error.to_string())?;
+            }
+        }
+        Ok(())
+    }
+
     fn poll_adventure_inputs(&mut self) -> Result<(), String> {
         let Some(mut ui) = self.adventure_guide.ui.clone() else {
             return Ok(());
@@ -432,6 +452,7 @@ impl GameClient {
         if search != self.adventure_guide.view.search {
             self.adventure_guide.view.search = search;
         }
+        self.poll_activity_tracking(&mut ui)?;
         loop {
             let action = ui.bind_mut().pop_action().to_string();
             if action.is_empty() {
@@ -441,29 +462,13 @@ impl GameClient {
                 self.adventure_guide.view.class,
                 self.adventure_guide.view.spec,
             );
-            if let Some(tracking) = action.strip_prefix("journal:activity-track:") {
-                let (id, tracked) = tracking
-                    .split_once(':')
-                    .ok_or("Missing activity tracking state")?;
-                self.account
-                    .send_adventure_guide(shared::protocol::AdventureGuideRequest::TrackActivity {
-                        activity_id: id.parse().map_err(|_| "Invalid activity ID")?,
-                        tracked: match tracked {
-                            "0" => false,
-                            "1" => true,
-                            _ => return Err("Invalid activity tracking state".into()),
-                        },
-                    })
-                    .map_err(|error| error.to_string())?;
-                continue;
-            }
             if self.send_journey_watch(&action)? {
                 continue;
             }
             let previous_filters = self.adventure_guide.view.activity_filters.clone();
             let previous_tab = self.adventure_guide.view.tab;
             self.adventure_guide.view.apply(&action)?;
-            if previous_filters != self.adventure_guide.view.activity_filters
+            if previous_filters.tag != self.adventure_guide.view.activity_filters.tag
                 || previous_tab != self.adventure_guide.view.tab
             {
                 ui.bind_mut().reset_journal_set_scroll();
