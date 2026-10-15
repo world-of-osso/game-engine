@@ -410,6 +410,19 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         assert!(registry.get_by_name("JournalSuggestion642Reward").is_none());
         assert!(registry.get_by_name("JournalSuggestion642Button").is_none());
         assert!(frame(&registry, "JournalSuggestion642").onclick.is_none());
+        for (name, [left, top, width, height]) in [
+            ("EncounterJournalSuggestedFrame", [9., 111., 784., 380.]),
+            ("JournalSuggestionSlot1", [393., 194., 344., 161.]),
+            ("JournalSuggestionSlot2", [393., 22., 344., 161.]),
+            ("JournalSuggestionSlot3", [28., 18., 335., 337.]),
+        ] {
+            let pane = frame(&registry, name);
+            assert_eq!(pane.position.left, ui_toolkit::layout_values::Val::Px(left));
+            assert_eq!(pane.position.top, ui_toolkit::layout_values::Val::Px(top));
+            assert_eq!(pane.width, ui_toolkit::frame::Dimension::Fixed(width));
+            assert_eq!(pane.height, ui_toolkit::frame::Dimension::Fixed(height));
+        }
+        assert!(registry.get_by_name("JournalSuggestedTitle").is_none());
         assert_eq!(
             frame(&registry, "JournalSuggestion642").width,
             ui_toolkit::frame::Dimension::Fixed(344.)
