@@ -48,8 +48,10 @@ func reveal_activity(name: String, direction: int = MOUSE_BUTTON_WHEEL_DOWN) -> 
 	for attempt in 40:
 		var row := control(name)
 		var viewport := control("EncounterJournalContent").get_global_rect()
-		if row != null and viewport.has_point(row.get_global_rect().get_center()):
-			return true
+		if row != null:
+			var rect := row.get_global_rect()
+			if rect.position.y >= viewport.position.y and rect.end.y <= viewport.end.y:
+				return true
 		if not await wheel("EncounterJournalContent", direction):
 			return false
 	stop("Physical activity scroll did not reveal " + name)
@@ -71,7 +73,7 @@ func verify_tree(scale: float) -> bool:
 		return false
 	verify(child.get_global_rect().size.distance_to(Vector2(521,48) * scale) < 2.0, "source child row521x48")
 	verify(absf(child.get_global_rect().position.x - parent_left - 32.0 * scale) < 2.0, "source child indent32")
-	if not await move_to("JournalActivity81") or not await shot("monthly-expanded-source-tree"):
+	if not await move_to("JournalActivityTag3") or not await shot("monthly-expanded-source-tree"):
 		return false
 	if not await reveal_activity("JournalActivity6", MOUSE_BUTTON_WHEEL_UP) or not await click("JournalActivity6"):
 		return false
