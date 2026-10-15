@@ -14,6 +14,8 @@ pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
     /// Distance to the first WMO wall on a ray `(origin, direction, length)`.
     pub walls: &'a dyn Fn(Vec3, Vec3, f32) -> Option<f32>,
+    /// Continuous upright body sweep at an admitted step height, up to support reach.
+    pub step_body_blocked: &'a dyn Fn(Vec3, Vec3, f32) -> bool,
     /// Highest active replicated game-object collision face under these feet.
     pub game_object_floor: &'a dyn Fn(Vec3) -> Option<f32>,
 }
@@ -128,9 +130,14 @@ impl TerrainGround<'_> {
             MAX_SLOPE_ANGLE,
             STEP_UP_HEIGHT,
         );
-        let wall_start = current.with_y(current.y.max(candidate.y));
+        let stepping = snap && target.is_some() && candidate.y > current.y;
+        let wall_start = if stepping {
+            current.with_y(candidate.y)
+        } else {
+            current
+        };
         let clamped = clamp_movement_to_walls(wall_start, candidate, self.walls);
-        if clamped.y > current.y && !self.step_clearance(current, clamped) {
+        if stepping && !self.step_clearance(current, clamped) {
             return current;
         }
         // A wall may have shortened the move onto a different support column. Never
@@ -148,21 +155,16 @@ impl TerrainGround<'_> {
         )
     }
 
-    /// Check the lifted head, its horizontal path, and the destination body column.
-    /// TrinityCore Object.h DEFAULT_COLLISION_HEIGHT, also used by server liquid/head
-    /// clearance until per-display collision heights are available.
+    /// Lift the head without crossing a ceiling, then sweep the whole upright body.
     fn step_clearance(&self, current: Vec3, target: Vec3) -> bool {
-        const BODY_HEIGHT: f32 = 2.03128;
         let rise = target.y - current.y;
-        let head = current + Vec3::Y * BODY_HEIGHT;
-        let raised_head = head + Vec3::Y * rise;
-        let target_head = target + Vec3::Y * BODY_HEIGHT;
-        let across = target_head - raised_head;
-        let distance = across.length();
+        let head = current + Vec3::Y * game_engine_core::step_clearance::BODY_HEIGHT;
         (self.walls)(head, Vec3::Y, rise).is_none()
-            && (distance <= f32::EPSILON
-                || (self.walls)(raised_head, across / distance, distance).is_none())
-            && (self.walls)(target, Vec3::Y, BODY_HEIGHT).is_none()
+            && !(self.step_body_blocked)(
+                current.with_y(target.y),
+                target,
+                current.y + STEP_UP_HEIGHT,
+            )
     }
 
     /// Swimming where the water stands `SWIM_DEPTH` over the feet, above the ground.
@@ -233,6 +235,7 @@ mod tests {
         let ground = TerrainGround {
             terrain,
             walls: &|_, _, _| None,
+            step_body_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         match ground.probe(start) {
@@ -320,6 +323,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_body_blocked: &|_, _, _| false,
             game_object_floor: &live_floor,
         };
         let mut movement = crate::gameplay::PlayerMovement::default();
@@ -388,6 +392,7 @@ mod tests {
             TerrainGround {
                 terrain: &terrain,
                 walls: &|_, _, _| None,
+                step_body_blocked: &|_, _, _| false,
                 game_object_floor: &|_| None,
             }
             .probe(inside),
@@ -414,6 +419,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_body_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         match ground.probe(inside) {
@@ -441,6 +447,7 @@ mod tests {
             TerrainGround {
                 terrain: &terrain,
                 walls: &|_, _, _| None,
+                step_body_blocked: &|_, _, _| false,
                 game_object_floor: &|_| None,
             }
             .probe(inside),
@@ -470,6 +477,7 @@ mod tests {
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
+            step_body_blocked: &|_, _, _| false,
             game_object_floor: &|_| None,
         };
         // Where the server stood the player: WoW (-8785.926, 820.665, 97.652).
