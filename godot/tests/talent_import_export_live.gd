@@ -82,6 +82,25 @@ func login(endpoint: String) -> void:
 	await control("TalentLoadoutDropDown")
 	await frames(30)
 
+func wait_screen(screen: String) -> void:
+	var deadline := Time.get_ticks_msec() + 180000
+	while Time.get_ticks_msec() < deadline:
+		if client.account_state().screen == screen:
+			evidence.append({"screen":screen})
+			return
+		await process_frame
+	abort("Screen timeout: " + screen + " " + str(client.account_state()))
+
+func control(name_text: String) -> Control:
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		var node := root.find_child(name_text, true, false) as Control
+		if node != null and node.is_visible_in_tree():
+			return node
+		await process_frame
+	abort("Native control timeout: " + name_text)
+	return null
+
 func open_import() -> void:
 	await menu()
 	await click("TalentImportLoadout")
