@@ -15,7 +15,7 @@ class BotHarnessTests(unittest.TestCase):
         self.events = harness.parse_combat(FIXTURE.read_text())
         self.run = {
             "actor": ACTOR, "target": "4294966750", "start_ms": 1791992753000,
-            "end_ms": 1791992759000, "scenario": "dummy", "spec": 62,
+            "end_ms": 1791992759000, "scenario": "dummy", "spec": 62, "measurement_complete": True,
             "spells": [{"id": 30451, "damage": True}, {"id": 44425, "damage": True}],
             "attempts": [{"spell": 44425, "at_ms": 1791992756000, "deadline_ms": 1791992758500}],
         }
@@ -62,6 +62,8 @@ class BotHarnessTests(unittest.TestCase):
         self.assertFalse(harness.poll_has_gap(1000, 1200, 200))
 
     def test_incomplete_measurements_cannot_be_balance_evidence(self):
+        self.run["measurement_complete"] = False
+        self.assertIsNone(harness.analyze(self.run, self.events)["dps"])
         with self.assertRaisesRegex(ValueError, "complete"):
             harness.balance([{"dps": 10, "spec": 62, "comparison": {"level": 32}}])
 

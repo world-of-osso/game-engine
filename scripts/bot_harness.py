@@ -94,7 +94,8 @@ def analyze(run, events):
     report = {
         "schema": 1, "scenario": run["scenario"], "spec": run["spec"],
         "actor": run["actor"], "target": run["target"], "duration_ms": duration,
-        "damage": sum(by_spell.values()), "dps": sum(by_spell.values()) / (duration / 1000),
+        "damage": sum(by_spell.values()),
+        "dps": sum(by_spell.values()) / (duration / 1000) if run.get("measurement_complete") else None,
         "casts": dict(used), "damage_by_spell": dict(by_spell), "findings": findings,
         "pending_casts": pending,
         "unobserved": ["aura_effect", "cooldown_resets", "charges", "resource_spending"],
@@ -126,11 +127,15 @@ def balance(rows):
 def write_report(directory, report):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    measurement = f"{report['dps']:.2f} DPS" if report["dps"] is not None else "DPS unavailable: incomplete measurement"
     summary = [f"# Spec {report['spec']} — {report['scenario']}",
-               f"{report['dps']:.2f} DPS; {report['damage']} damage / {report['duration_ms'] / 1000:g}s.",
+               f"{measurement}; {report['damage']} damage; planned {report['duration_ms'] / 1000:g}s.",
                f"Measurement complete: {report['measurement_complete']}. No balance pass/fail tolerance set.",
                "## Findings"]
-    summary.extend(f"- {json.dumps(finding)}" for finding in report["findings"])
+    if report.get("collection_error"):
+        summary.append("Collection blocked: " + report["collection_error"])
+    summary.append(json.dumps(dict(Counter(finding["kind"] for finding in report["findings"]))))
+    summary.append("Full findings and spell coverage: report.json.")
     summary.extend(["## Not observable", ", ".join(report["unobserved"])])
     (directory / "summary.md").write_text("\n\n".join(summary) + "\n")
 
