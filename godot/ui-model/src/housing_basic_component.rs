@@ -11,6 +11,8 @@ use ui_toolkit::widgets::{
 };
 use ui_toolkit::{frame::WidgetData, registry::FrameRegistry, rsx, widget_def::Element};
 
+// Installed70391 GlobalColor43 DARKGRAY_COLOR (0xFF666666), used by editor mode buttons.
+const DISABLED_ICON_COLOR: [f32; 4] = [0.4, 0.4, 0.4, 1.0];
 const BUTTON: f32 = 64.0;
 const ROW: f32 = 45.0;
 const GAP: f32 = 10.0;
@@ -357,7 +359,10 @@ pub(super) fn update_icon_control(
     let disabled = button.state == ButtonState::Disabled;
     let pressed = button.state == ButtonState::Pushed;
     let hovered = button.hovered && !disabled && !pressed;
-    let state = if pressed {
+    let hover_alpha = if hovered { 0.5 } else { 0.0 };
+    let state = if disabled {
+        "default"
+    } else if pressed {
         "pressed"
     } else if active {
         "active"
@@ -371,19 +376,18 @@ pub(super) fn update_icon_control(
         let frame = registry
             .get_mut(id)
             .expect("Mode control art survived lookup");
-        frame.alpha = if hover {
-            if hovered { 0.5 } else { 0.0 }
-        } else if disabled {
-            0.5
-        } else {
-            1.0
-        };
+        frame.alpha = if hover { hover_alpha } else { 1.0 };
         let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut() else {
             panic!("Mode control art must be a Texture")
         };
         texture.source = TextureSource::Atlas(format!("decor-ability-{atlas}-{state}"));
         texture.tex_coords = [0.0, 1.0, 0.0, 1.0];
-        texture.desaturated = disabled;
+        texture.desaturated = false;
+        texture.vertex_color = if disabled {
+            DISABLED_ICON_COLOR
+        } else {
+            [1.0; 4]
+        };
         texture.blend_mode = if hover {
             BlendMode::Additive
         } else {
