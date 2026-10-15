@@ -1,6 +1,6 @@
 # wowdecomp behavior rework backlog
 
-Source audit: **2026-10-15**. Nine source-demonstrated semantic/capability gaps, plus separately gated shader candidates. **Not nine reproduced visual bugs:** no client, server, shader, build, or reference executable was run. Asset prevalence and visible impact remain unmeasured.
+Source audit: **2026-10-15**. Eleven source-demonstrated semantic/capability gaps, plus separately gated shader candidates. **Not eleven reproduced visual bugs:** no client, server, shader, build, or reference executable was run. Asset prevalence and visible impact remain unmeasured.
 
 ## Read first
 
@@ -29,8 +29,12 @@ Order reflects directness of the demonstrated gap, not measured visual severity.
 | 7 | P3 | Burst/inherited emitter velocity is not added at birth | Client/core | [Inherited velocity](particles-and-shaders.md#p3-emitter-velocity-is-not-inherited) |
 | 8 | P4 | Spline emitters are filtered out | Client/assets/rendering | [Spline emission](particles-and-shaders.md#p4-spline-emitters-are-filtered-out) |
 | 9 | P5 | Model-particle and recursive-emitter model references are unused | Client/assets/rendering | [Model particles](particles-and-shaders.md#p5-model-particles-and-recursive-emitters-have-no-native-path) |
+| 10 | P6 | Authored per-particle depth sorting is ignored | Client/rendering | [View-depth ordering](particle-order-and-ground.md#p6-authored-per-particle-depth-sorting-is-ignored) |
+| 11 | P7 | Ground-projected particle births do not query world geometry | Client/core/world | [Particle projection](particle-order-and-ground.md#p7-ground-projected-particle-births-do-not-query-world-geometry) |
 
 **Evidence level for every row:** paired source paths and a conditional input/output counterexample. No runtime reproduction, affected-asset census, original-binary comparison or native pixel proof. Missing capabilities are distinguished from wrong output in an otherwise supported path. Existing known particle gaps are corroborated, not presented as newly discovered features.
+
+This count covers established findings only, not all project gaps. An unreviewed subsystem is **unknown**, not matching. The initial pass concentrated on M2/particles; broader world, environment, motion and audio comparisons are tracked in the coverage ledger.
 
 ## Shader candidates and coverage limits
 
