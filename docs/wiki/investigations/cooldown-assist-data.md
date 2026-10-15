@@ -50,6 +50,30 @@ Export and pure model mechanisms are implemented; [contract](../../specs/cooldow
 
 Native loading, four viewer roots, ordinary settings actions, server clock/charge-category sampling, raw aura precedence, persisted per-spec choices and shared Edit Mode integration exist. Qualitative recommendation/error capture and actual-spell interception are wired; they are not exact all-spec execution certification.
 
+## Source tracked-buff bar art — 2026-10-14
+
+`cooldown_viewer_component` now gives tracked bars a separate source composition instead of the shared icon renderer's gold rectangle. CooldownViewer.xml:209–277 defines220×30 item,30×30 icon frame(level512),188×19 bar(level511) at icon RIGHT+2/vertical centre, BG(−2,−2)..(+4,+7), source bar tint(1,.5,.25), name inset5/25 and duration RIGHT−8. CooldownViewer.lua:1492–1499 anchors the10×46 atlas pip centre to fill RIGHT with y−1; :1558–1585 shows it only while time remains. Unlike Encounter Timeline's spark, this XML pip does **not** use ADD.
+
+The fill crops texture UVs with supplied remaining fraction rather than stretching the entire gradient into a shorter bar. Existing sample authority, ceil-duration/count strings, assisted highlight, icon rendering, viewer inventory/anchors and controls remain; no new aura clock or recommendation behavior. Icon mask/font-family parity is not part of this bounded bar-art repair. [Contract/native fixture](../../specs/cooldown-assist.md) owns acceptance and separates offline full/half/empty samples from prior private-combat proof.
+
+### Lead review corrections
+
+Lead rejected the initial proof pending Applications anchor and current-data gate repair. XML:237–241 requires a32×10 Applications fontstring at icon BOTTOMRIGHT(−5,+5); the previous30×12 corner placement clipped the count. Corrected without changing aura/count authority. Two core regressions still expected older CSV values after the active publication changed: entry280 now links102416/45334/50259, and exact Mage/Hunter/Monk category counts follow current source rows. No build string is selected or pinned by the tests.
+
+Full/half pip intersections are source behavior, accepted by lead on2026-10-14: Lua:1498 centres pip on status-fill RIGHT at(0,−1); XML:271–279 places pip/name/duration in the same OVERLAY. BG rect ends4px beyond the bar, although its atlas has transparent shadow padding and a painted rim inside the logical edge. No invented painted-rim inset, reduced fill width or pip layer change added. Native source atlas exports accompany recaptures.
+
+### Review recapture proof
+
+At ef4372c64 (engine master347aa3dc0 integrated, protocol sibling0eed96f), exact prior gate failures and the Applications regression reproduce RED; all15 core cooldown/assist and7 UI-model tests then pass. Build/check/fmt pass without warnings. Both skins pass native full/half/empty checks and Applications glyph containment; full1920×1080 captures and enlarged details inspected at `/syncthing/AgentShared/2026-10-14/ui-questlog-bars/cooldown-review-final/`. Logical Applications32×10 anchors right5/bottom5; Godot uses15px font height with glyphs contained in the30px icon. Source BG/fill/pip atlas exports preserve their actual132×19/124×10/10×46 art and source overlap evidence. No invented rim clipping added.
+
+The proof ledger supersedes the rejected a735af829 candidate and retains its source-gate failures. Review fixture/code changes manually audited for Rust readability. Only proof documentation changes after this verified binary; no additional gameplay or scheduling behavior.
+
+### Initial bar-art proof (superseded by review recapture)
+
+Seven focused `cooldown_assist` tests, native extension build/check and formatter passed at7196fe250 after integrating engine master58f2d5c6c and protocol master0ed9eb0 (sibling mergec4e6484). Missing-background and LEFT-name regressions are preserved RED→GREEN. Both skins passed native full/half/empty geometry; both1920×1080 PNGs and enlarged bar details were inspected against XML/Lua at `/syncthing/AgentShared/2026-10-14/ui-questlog-bars/cooldown-pixel-final/`. The source orange fill remains cropped at94/188px, the normal-alpha pip follows its edge, and expired fill/pip hide. Duration glyph widths9/17px end exactly8px inside the bar; name remains LEFT+5.
+
+Logical y5.5 snaps to physical y6; only the native oracle allows0.51px. An initial duration oracle incorrectly compared against Godot clipped-label minimum width1px; actual glyph measurement confirms correct natural widths. These fixture failures are not product defects. Exact commands/revisions/hashes and rejected evidence: `data/diagnostics/ui-questlog-bars-2026-10-14/bar-proof-ledger.json`. Later proof-documentation amendment changes no Godot source. Manual changed-Rust readability audit found no in-scope violation. Offline presentation proof only: no new live aura clocks, scheduling, server transport, icon-mask or font-family parity claim. Native exited; no private server or new assets required.
+
 ## Native continuation proof — 2026-10-11
 Canonical evidence: `data/diagnostics/cooldown-assist-2026-10-11/`. Private UDP5860 only, account `fb_cooldown_assist`, Coolproof/spec70. Engine merged origin/master in8817e69eb; matching serveraff9b4b1 and protocol6ee323e built through the native helpers.
 
