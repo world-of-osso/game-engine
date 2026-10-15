@@ -501,6 +501,51 @@ mod tests {
     }
 
     #[test]
+    fn suggested_real_icons_cut_corners_without_changing_the_centre() {
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        // Compositor fixtures use real AdventureJournal195/227 icon payloads, not realm eligibility.
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut registry = FrameRegistry::new(1920., 1080.);
+            Screen::new(|_| ui_toolkit::rsx! {
+                texture { name: "JournalSuggestion195Texture", texture_fdid: 136349, width: 64., height: 64. }
+                texture { name: "JournalSuggestion227Texture", texture_fdid: 133201, width: 64., height: 64. }
+            }).sync(&SharedContext::new(), &mut registry);
+            IconMasks::default().apply(&mut registry);
+            for (name, fdid) in [
+                ("JournalSuggestion195Texture", 136349),
+                ("JournalSuggestion227Texture", 133201),
+            ] {
+                let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+                let Some(WidgetData::Texture(rendered)) = &frame.widget_data else {
+                    panic!("suggestion icon")
+                };
+                let image = match rendered.source {
+                    TextureSource::FileDataId(fdid) => texture(fdid),
+                    TextureSource::Dynamic(id) => {
+                        let pixels = registry.dynamic_texture(id).unwrap();
+                        RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone())
+                            .unwrap()
+                    }
+                    _ => panic!("Authored icon pixels missing"),
+                };
+                assert_eq!(image.get_pixel(0, 0)[3], 0, "{skin:?} {name} corner");
+                let source = texture(fdid);
+                let centre = (image.width() / 2, image.height() / 2);
+                assert_eq!(
+                    image.get_pixel(centre.0, centre.1),
+                    source.get_pixel(centre.0, centre.1),
+                    "{skin:?} {name} authored centre"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn journeys_real_icons_cut_mask_corners_and_preserve_the_centre() {
         use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
         game_engine_ui_model::paths::set_data_root(
