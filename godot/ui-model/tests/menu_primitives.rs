@@ -228,8 +228,13 @@ fn retail_dropdown_xml_geometry_and_actions_are_skin_invariant() {
         assert_eq!(frame(&reg, "Dropdown").onclick.as_deref(), Some("choose"));
         let label = frame(&reg, "DropdownText");
         assert_eq!(label.position.left, ui_toolkit::layout_values::Val::Px(8.0));
-        assert_eq!(label.position.top, ui_toolkit::layout_values::Val::Px(8.0));
-        assert_eq!(label.height.value(), 10.0);
+        assert_eq!(
+            label.position.top,
+            ui_toolkit::layout_values::Val::Px(
+                (frame(&reg, "Dropdown").height.value() - label.height.value()) / 2.0
+            ),
+            "Shared WowStyle1 caption must be vertically centered"
+        );
         let arrow = frame(&reg, "DropdownArrow");
         assert_eq!((arrow.width.value(), arrow.height.value()), (27.0, 27.0));
         let Some(WidgetData::Texture(background)) = &frame(&reg, "DropdownBackground").widget_data
