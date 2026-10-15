@@ -85,7 +85,7 @@ class BotHarnessTests(unittest.TestCase):
         self.run["measurement_complete"] = False
         self.assertIsNone(harness.analyze(self.run, self.events)["dps"])
         with self.assertRaisesRegex(ValueError, "complete"):
-            harness.balance([{"dps": 10, "spec": 62, "comparison": {"level": 32}}])
+            harness.balance([{"dps": 10, "spec": 62, "role": 2, "comparison": {"level": 32}}])
 
     def test_native_cast_rejections_are_machine_readable_without_invented_spell_id(self):
         self.run["native_errors"] = [{"at_ms": 1791992756000, "errors": ["No charges remain."]}]
@@ -111,8 +111,18 @@ class BotHarnessTests(unittest.TestCase):
         self.assertIn("aura_effect", report["unobserved"])
         self.assertIn("charges", report["unobserved"])
 
+    def test_median_weights_dps_specs_not_run_counts_or_tank_damage(self):
+        common = {"measurement_complete": True, "comparison": {"level": 32, "stats": "same", "dummy": 44548, "duration_ms": 60000}}
+        rows = [dict(common, spec=s, role=2, dps=d) for s, d in [(62, 100), (62, 300), (63, 400), (64, 600)]]
+        rows.append(dict(common, spec=66, role=0, dps=999999))
+        report = harness.balance(rows)
+        self.assertEqual(report["median_dps"], 400)
+        self.assertEqual(report["max_over_median"], 1.5)
+        self.assertEqual(report["min_over_median"], .5)
+        self.assertEqual(len(report["specs"]), 3)
+
     def test_spread_has_no_pass_fail_and_rejects_unmatched_comparisons(self):
-        rows = [{"spec": s, "dps": d, "measurement_complete": True, "comparison": {"level": 32, "stats": "same", "dummy": 44548, "duration_ms": 60000}} for s, d in [(62, 100), (63, 200), (64, 300)]]
+        rows = [{"spec": s, "dps": d, "role": 2, "measurement_complete": True, "comparison": {"level": 32, "stats": "same", "dummy": 44548, "duration_ms": 60000}} for s, d in [(62, 100), (63, 200), (64, 300)]]
         result = harness.balance(rows)
         self.assertEqual(result["max_over_median"], 1.5)
         self.assertEqual(result["min_over_median"], .5)

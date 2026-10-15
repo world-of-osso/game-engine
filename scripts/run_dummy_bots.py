@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from bot_harness import analyze, merge_polls, poll_has_gap, write_report
-from bot_rotation import authored_next, authored_order, choose, load_spells
+from bot_rotation import authored_next, authored_order, choose, load_spells, read_rows
 
 
 def invoke(cli, socket, output, sequence, *args):
@@ -53,9 +53,13 @@ def collect(args, output):
     if order and state["target"].get("target") != args.target:
         raise RuntimeError("Authored evaluator target must equal the verified dummy entity")
     (output / "native-before.json").write_text(json.dumps(state, indent=2))
+    role = next((int(row["Role"]) for row in read_rows(args.db2, "ChrSpecialization")
+                 if int(row["ID"]) == spells["spec"]), None)
+    if role is None:
+        raise ValueError(f"No authored role for observed spec {spells['spec']}")
     start = int(time.time() * 1000)
     run = {
-        "scenario": "dummy", "spec": spells["spec"],
+        "scenario": "dummy", "spec": spells["spec"], "role": role,
         "actor": str(state["account"]["local_player_id"]), "target": str(args.target),
         "start_ms": start, "end_ms": start + int(args.duration * 1000),
         "attempts": [], "spells": metadata if order else candidates, "measurement_complete": False,

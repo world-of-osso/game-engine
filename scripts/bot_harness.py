@@ -3,7 +3,7 @@ import argparse
 import json
 import re
 import statistics
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 EVENT = re.compile(
@@ -94,7 +94,7 @@ def analyze(run, events):
         for error in sample["errors"]:
             findings.append({"kind": "native_cast_error", "at_ms": sample["at_ms"], "error": error, "spell": None})
     report = {
-        "schema": 1, "scenario": run["scenario"], "spec": run["spec"],
+        "schema": 1, "scenario": run["scenario"], "spec": run["spec"], "role": run.get("role"),
         "actor": run["actor"], "target": run["target"], "duration_ms": duration,
         "damage": sum(by_spell.values()),
         "dps": sum(by_spell.values()) / (duration / 1000) if run.get("measurement_complete") else None,
@@ -109,20 +109,28 @@ def analyze(run, events):
 
 def balance(rows):
     """Compare only explicitly identical fixture groups; no unapproved tolerance."""
+    if any(row.get("role") not in (0, 1, 2) for row in rows):
+        raise ValueError("Balance requires authored specialization roles")
+    rows = [row for row in rows if row["role"] == 2]
     if not rows or not all(row.get("measurement_complete") for row in rows):
-        raise ValueError("Balance requires complete fixed-duration measurements")
+        raise ValueError("Balance requires complete fixed-duration DPS measurements")
     if not rows[0].get("comparison"):
         raise ValueError("Balance requires comparable level, stats, dummy and duration receipts")
     if any(row.get("comparison") != rows[0]["comparison"] for row in rows):
         raise ValueError("Non-comparable fixture groups cannot be pooled")
-    median = statistics.median(row["dps"] for row in rows)
+    by_spec = defaultdict(list)
+    for row in rows:
+        by_spec[row["spec"]].append(row["dps"])
+    specs = [{"spec": spec, "dps": statistics.mean(values), "runs": len(values)}
+             for spec, values in sorted(by_spec.items())]
+    median = statistics.median(row["dps"] for row in specs)
+    for row in specs:
+        row["over_median"] = row["dps"] / median if median else None
     return {
         "median_dps": median,
-        "max_over_median": max(row["dps"] for row in rows) / median if median else None,
-        "min_over_median": min(row["dps"] for row in rows) / median if median else None,
-        "specs": [{"spec": row["spec"], "dps": row["dps"],
-                   "over_median": row["dps"] / median if median else None} for row in rows],
-        "tolerance": None, "comparison": rows[0]["comparison"],
+        "max_over_median": max(row["dps"] for row in specs) / median if median else None,
+        "min_over_median": min(row["dps"] for row in specs) / median if median else None,
+        "specs": specs, "tolerance": None, "comparison": rows[0]["comparison"],
     }
 
 
