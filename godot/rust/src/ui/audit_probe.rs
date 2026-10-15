@@ -83,6 +83,37 @@ fn build_cooldown_buff_fixture() -> game_engine_ui_model::cooldown_assist::Coold
     state
 }
 
+fn build_cooldown_settings_fixture(
+    category: usize,
+) -> game_engine_ui_model::cooldown_assist::CooldownViewerView {
+    use game_engine_ui_model::cooldown_settings_component::{
+        CooldownSettingEntry, CooldownSettingsView,
+    };
+    game_engine_ui_model::cooldown_assist::CooldownViewerView {
+        settings: CooldownSettingsView {
+            open: true,
+            category,
+            portrait_fdid: 132355,
+            entries: [
+                (26, 0, "Colossus Smash", 2065633),
+                (27, 0, "Mortal Strike", 132355),
+                (68661, 3, "Avenging Wrath", 135875),
+            ]
+            .into_iter()
+            .map(|(id, category, label, icon_fdid)| CooldownSettingEntry {
+                id,
+                category,
+                label: label.into(),
+                icon_fdid,
+                selected: true,
+            })
+            .collect(),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 #[derive(GodotClass)]
 #[class(base = Node, init)]
 struct UiAuditProbe {
@@ -174,6 +205,24 @@ impl UiAuditProbe {
         let result = ui
             .bind_mut()
             .show_cooldown_viewer(build_cooldown_buff_fixture());
+        result.err().unwrap_or_default().as_str().into()
+    }
+
+    #[func]
+    fn mount_cooldown_settings(&mut self, forever: bool, auras: bool) -> GString {
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.as_str().into();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CooldownSettingsAuditUI");
+        self.base_mut().add_child(&ui);
+        if let Err(error) = ui.bind_mut().set_ui_scale(1.0) {
+            return error.as_str().into();
+        }
+        let category = if auras { 2 } else { 0 };
+        let result = ui
+            .bind_mut()
+            .show_cooldown_viewer(build_cooldown_settings_fixture(category));
         result.err().unwrap_or_default().as_str().into()
     }
 

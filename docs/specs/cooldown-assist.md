@@ -7,7 +7,7 @@ Retail Mainline built-ins from Blizzard_CooldownViewer and C_AssistedCombat. [Au
 - [x] Preserve authored rotation step/rule order; never substitute known-spell order or an invented rotation for an absent specialization.
 - [x] Propagate unavailable rule evaluation on a potentially eligible higher-priority step instead of recommending a lower step as though it were false.
 - [x] Render Essential/Utility cooldown icon rows and Tracked Buff icons/Bars for the active specialization. Default buff-bar rows retain CooldownViewerBuffBarItemTemplate220×30, with188×19 status bar at(32,5.5), source textured BG/fill/Pip, XML tint(1,.5,.25), cropped remaining fraction and a source-sized normal-alpha pip following the fill edge; zero remaining time hides fill/pip. Applications uses the XML32×10 fontstring at icon BOTTOMRIGHT(−5,+5), clear of the icon corner.
-- [x] Settings allow choosing and reordering spells; Edit Mode persists viewer layouts.
+- [x] Settings allow choosing and reordering spells; Edit Mode persists viewer layouts. Settings uses the source399×609 ButtonFrame shell, LargeSideTab buttons, SettingsItem/BarItem sizes, and character-panel background anchored to its389×523 inset at(4,60). Known/unlocked preview bars use the source default tint(1,.5,.25).
 - [x] Sample authoritative cooldowns and raw aura clocks; active tracked auras expire without hiding the ordinary spell cooldown.
 - [x] Show authoritative current charge counts and recharge clocks. Both-skin private Crusader Strike changes2→1 with a positive recharge clock; initial full-category publication is tested through real owner loopback.
 - [x] Keep matching Cooldown Viewer highlighting independently configurable and disabled by default; this extends Retail action-button highlighting.
