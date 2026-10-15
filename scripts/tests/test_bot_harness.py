@@ -111,6 +111,11 @@ class BotHarnessTests(unittest.TestCase):
         self.assertIn("aura_effect", report["unobserved"])
         self.assertIn("charges", report["unobserved"])
 
+    def test_matching_level_alone_is_not_a_comparable_stat_receipt(self):
+        rows = [{"spec": 62, "role": 2, "dps": 100, "measurement_complete": True, "comparison": {"level": 32}}]
+        with self.assertRaisesRegex(ValueError, "stats.*dummy.*duration_ms"):
+            harness.balance(rows)
+
     def test_median_weights_dps_specs_not_run_counts_or_tank_damage(self):
         common = {"measurement_complete": True, "comparison": {"level": 32, "stats": "same", "dummy": 44548, "duration_ms": 60000}}
         rows = [dict(common, spec=s, role=2, dps=d) for s, d in [(62, 100), (62, 300), (63, 400), (64, 600)]]
