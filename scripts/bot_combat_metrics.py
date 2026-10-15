@@ -31,31 +31,40 @@ def damage_outcomes(manifest, events):
     owners = ownership_graph(events, manifest.get("owner_snapshot", []))
     party = {str(actor) for actor in manifest.get("party_actors", [])}
     hits, misses, damage, names = defaultdict(list), defaultdict(Counter), Counter(), defaultdict(set)
+    casts, swing_actors = Counter(), Counter()
     for event in events:
         if not manifest["start_ms"] <= event["at_ms"] < manifest["end_ms"]:
             continue
-        if event["kind"] != "damage" or event["dst"] != str(manifest["target"]):
+        if event["kind"] not in ("cast_success", "damage"):
             continue
         if classify_damage_source(event["src"], event["at_ms"], str(manifest["actor"]), owners, party) != "owned":
             continue
         spell = event["spell"]
         if event["spell_name"]:
             names[spell].add(event["spell_name"])
+        if event["kind"] == "cast_success":
+            casts[spell] += 1
+            continue
+        if event["dst"] != str(manifest["target"]):
+            continue
         if event["miss_kind"]:
             misses[spell][event["miss_kind"]] += 1
         elif event["amount_observed"]:
             hits[spell].append(event)
             damage[spell] += max(0, event["amount"])
+            if spell is None:
+                swing_actors[event["src"]] += max(0, event["amount"])
     outcomes = {}
-    for spell in set(hits) | set(misses):
+    for spell in set(hits) | set(misses) | set(casts):
         rows = hits[spell]
         known_crits = all(row["crit"] is not None for row in rows)
-        outcomes[spell] = {"hits": len(rows),
+        outcomes[spell] = {"owned_successes": casts[spell], "hits": len(rows),
                            "crits": sum(row["crit"] is True for row in rows) if known_crits else None,
                            "misses": sum(misses[spell].values()), "miss_by_kind": dict(misses[spell])}
     total = sum(damage.values())
     return {"by_spell": outcomes, "names": names,
-            "auto_attack": {"damage": damage[None], "share": damage[None] / total if total else None}}
+            "auto_attack": {"damage": damage[None], "share": damage[None] / total if total else None,
+                            "by_actor": dict(swing_actors)}}
 
 
 def sampled_usage(manifest, samples):
