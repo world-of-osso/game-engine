@@ -809,6 +809,94 @@ fn guild_communities_column_sort_keeps_authoritative_rank_identity() {
 }
 
 #[test]
+fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_identity() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut snapshot = state(0);
+        snapshot.members = ["Zara", "Cara", "Alessio", "Unknown"]
+            .into_iter()
+            .map(|name| GuildRankMember {
+                character_name: name.into(),
+                rank: 2,
+            })
+            .collect();
+        session.apply(snapshot.clone());
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Raid Team".into(),
+            created_at: None,
+            tabard: None,
+            motd: String::new(),
+            info_text: String::new(),
+            // Deliberately not in the rank snapshot's member order.
+            members: [
+                ("Alessio", 80, "Druid"),
+                ("Zara", 20, "Mage"),
+                ("Cara", 8, "Paladin"),
+            ]
+            .into_iter()
+            .map(|(name, level, class_name)| GuildMemberSnapshot {
+                character_name: name.into(),
+                level,
+                class_name: class_name.into(),
+                rank_name: "Member".into(),
+                is_online: true,
+                officer_note: "Private".into(),
+                last_online: String::new(),
+            })
+            .collect(),
+        });
+        let profile = session.profile.clone();
+        // Retail numeric columns begin ascending; missing attributes begin first.
+        // Class uses IDs2/8/11, not alphabetic Druid/Mage/Paladin ordering.
+        for (column, ascending, descending) in [
+            (
+                0,
+                ["Unknown", "Cara", "Zara", "Alessio"],
+                ["Alessio", "Zara", "Cara", "Unknown"],
+            ),
+            (
+                1,
+                ["Unknown", "Cara", "Zara", "Alessio"],
+                ["Alessio", "Zara", "Cara", "Unknown"],
+            ),
+        ] {
+            for expected in [ascending, descending] {
+                let reg = mounted(&session);
+                let header = format!("CommunitiesRosterColumn{column}");
+                let click = action(&reg, &header);
+                assert!(
+                    !click.is_empty(),
+                    "{header} must accept a physical header click"
+                );
+                assert!(session.click(&click, &Default::default()).is_none());
+                let reg = mounted(&session);
+                for (index, name) in expected.into_iter().enumerate() {
+                    assert_eq!(text(&reg, &format!("GuildMember{index}Name")), name);
+                    assert_eq!(
+                        action(&reg, &format!("GuildMember{index}")),
+                        format!("guild:member:{name}")
+                    );
+                }
+                assert_eq!(session.state().unwrap(), &snapshot);
+                assert_eq!(session.profile, profile);
+                assert!(session.commands.is_empty());
+            }
+        }
+        assert_eq!(
+            session.promote("Cara"),
+            Some(GuildRankRequest::Promote {
+                character_name: "Cara".into()
+            })
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn guild_communities_retail_scroll_reaches_last_member_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
