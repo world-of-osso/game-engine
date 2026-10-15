@@ -32,6 +32,12 @@ Rejection strings currently lack spell IDs, so `native_cast_error` uses null att
 
 Incomplete collection exposes DPS as null. Setup failures also receive JSON/Markdown. Summaries remain short; full per-ability findings live in JSON.
 
+## Spell-driven ownership events
+
+`CombatLogKind::Summon` is appended to the protocol enum. Effect28 wild/guardian creation and effect56 controlled-pet creation log only after successful creation, retaining the actual child/root spell ID in that context. Recalling an existing pet and non-spell login restoration do not create summon events. Native IPC exposes `summon src=... dst=... spell=...` with the server timestamp. Log delivery follows temporary summon ancestry to the owner, independently of gameplay credit policies.
+
+Native regression boundary: child228562 creates two wolves29264 whose owner events remain after expiry; gargoyle49206/27829 damage must reach the owner without a guardian client. Existing root51533 fixture currently produces four wolves instead of its expected two, because script and generic summon count both apply. This gameplay counterexample is reported separately, not corrected or hidden by logging changes.
+
 ## Damage comparison
 
 Comparison requires equal explicit receipts for level, stats, dummy and duration. ChrSpecialization.Role2 alone enters the DPS median. Equal-duration repetitions first produce one mean DPS per spec; unequal repeat counts and tank/healer damage cannot weight that median. Reports give max/median and min/median with no tolerance or pass/fail. No external DPS numbers are used. Comparable gear/stat receipts remain open; ordinary source-derived starting characters alone do not establish them.
