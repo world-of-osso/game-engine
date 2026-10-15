@@ -1,4 +1,4 @@
-//! Native Mainline vendor, one detached model scene, and actual server requests.
+//! Native Mainline vendor, detached model scenes, and actual server requests.
 use crate::{
     GameClient,
     character_frame::preview::{Scene, bind_sheet_light},
@@ -15,6 +15,8 @@ use shared::protocol::{EquipmentSlot, TradingPostRequest};
 
 #[path = "trading_post_mount.rs"]
 mod mount_preview;
+#[path = "trading_post_pet.rs"]
+mod pet_preview;
 
 fn contains_pointer([x, y, width, height]: [f32; 4], point: Vector2) -> bool {
     Rect2::new(Vector2::new(x, y), Vector2::new(width, height)).contains_point(point)
@@ -36,6 +38,9 @@ pub(crate) struct TradingPost {
     shown: Option<UnitAppearance>,
     mount_product: Option<u32>,
     mount: Option<game_engine_core::mount_preview::MountPreview>,
+    pet_product: Option<u32>,
+    pet: Option<game_engine_core::trading_post_pet::PetComparison>,
+    pet_player: pet_preview::PetPlayerPreview,
     rider_pending: Option<(u64, UnitAppearance)>,
     rider_shown: Option<UnitAppearance>,
     rider_actor: Option<Gd<godot::classes::Node3D>>,
@@ -442,6 +447,9 @@ impl GameClient {
     }
     fn clear_trading_model(&mut self) {
         self.clear_trading_rider();
+        self.clear_trading_pet_player();
+        self.trading_post.pet = None;
+        self.trading_post.pet_product = None;
         self.trading_post.mount = None;
         self.trading_post.mount_product = None;
         if let Some((id, _)) = self.trading_post.pending.take() {
@@ -492,11 +500,24 @@ impl GameClient {
             .preview_product()
             .filter(|row| row.category_id == 2 && desired.is_some())
             .map(|row| row.id);
-        if desired.as_ref() != current || mount_product != self.trading_post.mount_product {
+        let pet_product = self
+            .trading_post
+            .view
+            .preview_product()
+            .filter(|row| row.category_id == 3 && desired.is_some())
+            .map(|row| row.id);
+        let changed = desired.as_ref() != current
+            || mount_product != self.trading_post.mount_product
+            || pet_product != self.trading_post.pet_product;
+        if changed {
             self.clear_trading_model();
             if let Some(product) = mount_product {
                 self.trading_post.mount = Some(self.read_trading_mount()?);
                 self.trading_post.mount_product = Some(product);
+            }
+            if let Some(product) = pet_product {
+                self.trading_post.pet = Some(self.read_trading_pet()?);
+                self.trading_post.pet_product = Some(product);
             }
             if let Some(appearance) = desired {
                 let id = self.world.request_detached_visual(&appearance);
@@ -558,6 +579,7 @@ impl GameClient {
         }
         self.attach_trading_model()?;
         self.sync_trading_rider()?;
+        self.sync_trading_pet_player()?;
         let scene = self
             .trading_post
             .scene
@@ -617,6 +639,8 @@ impl GameClient {
                     return Err(error);
                 }
             }
+        } else if let Some(pet) = &self.trading_post.pet {
+            pet_preview::stage_actor("TradingPostPetActor", model, &pet.pet)?
         } else {
             model
         };
@@ -1026,6 +1050,23 @@ impl GameClient {
         );
         state.set("ascending", view.ascending);
         state.set("preview_ready", self.trading_post.shown.is_some());
+        state.set(
+            "comparison_ready",
+            self.trading_post.pet_player.shown.is_some(),
+        );
+        state.set(
+            "comparison_pending",
+            self.trading_post.pet_player.pending.is_some(),
+        );
+        state.set(
+            "comparison_actor_id",
+            self.trading_post
+                .pet_player
+                .actor
+                .map_or(0, |id| id.to_i64()),
+        );
+        state.set("pet_scale_gap", self.trading_post.pet.is_some());
+        state.set("pet_animation_kit_gap", self.trading_post.pet.is_some());
         state.set("hide_player_preview", view.hide_player_preview);
         state.set("rider_ready", self.trading_post.rider_shown.is_some());
         state.set("rider_pending", self.trading_post.rider_pending.is_some());

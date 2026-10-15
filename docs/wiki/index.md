@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Trading Post pet comparison](systems/trading-post.md#pet-comparison-composition--implementation-october15-proof-pending) — independent dressed-player scene/source transforms and raw camera; host-absence RED observed, native proof pending; desiredScale/kit23877 remain named gaps.
+
 - [Guild invitation source chrome](systems/guilds.md#invitation-chrome--verified2026-10-15) — source translucent inset/corners/tiled edges replace static-popup art; two controls and both-skin native Join/Decline/pending proof, four inspected PNGs. Inner art/payload/lifecycle gaps remain separate.
 
 - [Communities numeric roster sorting](systems/guilds.md#communities-metadata-sorting--verified2026-10-15) — source Level/Class headers, numeric/missing-value ordering, preserved member identity; seven controls and both-skin native physical proof with ten inspected before/after PNGs.
