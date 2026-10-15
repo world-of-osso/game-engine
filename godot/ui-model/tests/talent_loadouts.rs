@@ -236,6 +236,7 @@ fn talent_loadouts_both_skins_show_builtin_starter_without_gear() {
             panic!("caption")
         };
         assert_eq!(text.text, "Starter Build");
+        assert_eq!(text.color, [0.53, 0.67, 1.0, 1.0]);
     }
 }
 
