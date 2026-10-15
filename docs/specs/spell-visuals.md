@@ -56,3 +56,5 @@ Shared-protocol/game-server changes, remote specialization replication, unrelate
 ## Active70391 sound regression
 
 - [x] Battle Shout6673 resolves authored cast visual190617/kit279043/SoundKit368264 while keeping unit sound38 and both Human caster-voice assertions. Source chain and evidence: [active Battle Shout sound](../wiki/systems/spell-visuals.md#active-battle-shout-sound-chain--2026-10-15). This is a fixture refresh, not a sound-runtime change.
+
+Active70391 refresh at4fe654f81: genuine core/native Slam REDs and Battle Shout sound RED → full core spell_visual17/17, native specialization5/5 (three Slam plus two existing icon controls). Core/native all-target check, workspace fmt and manual Rust readability pass; logs warning-free. No runtime changes or rendered/audio acceptance claim. Proof ledger: class-completeness6-2026-10-12/slam-proof-ledger.json; source receipts slam-active-source.json and battle-shout-active-source.json.
