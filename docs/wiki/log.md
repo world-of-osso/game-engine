@@ -1,6 +1,6 @@
 ## 2026-10-15 — Guild lifecycle query flow
 
-[Lifecycle log](systems/guilds.md#lifecycle-log): typed member-scoped query/reply and independent native open/cache/waiting state. Missing Info View Log control reproduced in both-skin fixture; source title is active GlobalStrings **Log**. Source dialog/footer, shared Translucent art, colored source paragraphs and MinimalScrollBar implemented; targeted UI5/5 passes source entry/order/authority/closure plus prior invitation controls. Server backend4/4 passes real actions/retention/abort/reopen; actual UDP/native/server-process restart GREEN remains pending.
+[Lifecycle log](systems/guilds.md#lifecycle-log): typed member-scoped query/reply and independent native open/cache/waiting state. Missing Info View Log control reproduced in both-skin fixture; source title is active GlobalStrings **Log**. Source dialog/footer, shared Translucent art, colored source paragraphs and MinimalScrollBar implemented; targeted UI5/5 passes source entry/order/authority/closure plus prior invitation controls. Server backend4/4 passes real actions/retention/abort/reopen; actual UDP six-kind/order/refusal transport passes1/1. Native/server-process restart GREEN remains pending; the new private fixture performs physical mutations in both skins, generates100 actual overflow rows and compares the raw rendered reply after restart, without injecting history.
 
 ## 2026-10-15 — Guild member note implementation
 

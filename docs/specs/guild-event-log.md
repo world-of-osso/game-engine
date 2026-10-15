@@ -19,17 +19,18 @@ Retail Mainline's member-only lifecycle history in Modern and Forever. Sources: 
 | Files | Role |
 |---|---|
 | `godot/ui-model/src/guild_ranks.rs`, `guild_event_log.rs` | Independent query/open/cache state and source log rendering |
-| `godot/rust/src/account.rs`, `lib.rs`, `guild_ranks.rs` | Typed GuildChannel command/reply to native session |
-| `godot/network/src/lib.rs` | Receives the typed event-log message |
+| `godot/rust/src/account.rs`, `lib.rs`, `guild_ranks.rs`, `ui/guild_event_log_preview.rs` | Typed native flow and debug read-only rendered-reply receipt |
+| `godot/network/src/lib.rs`, `examples/native_guild_lifecycle_peer.rs` | Typed receiver and actual private invitation/quit/permission target |
 | shared-protocol `src/protocol/guild_rank_messages.rs` | Query and six-kind event payload |
+| `godot/tests/guild_lifecycle_live.gd` | Both-skin physical UI mutations, genuine overflow and raw-reply restart comparison |
 
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/guild_rank_widgets.rs::guild_event_log_opens_from_info_and_closes_independently_both_skins` — source entry/dialog RED reproduced; GREEN pending.
 - `guild_event_log_renders_real_newest_entries_and_keeps_rank_authority_independent_both_skins` — actual reply text/order, pending-authority independence, late close and membership cleanup.
 - `guild_event_log_formats_only_the_six_source_lifecycle_kinds` — active GlobalStrings sentences.
-- `godot/network/src/guild_rank_wire_tests.rs::guild_event_log_wire_preserves_six_kinds_order_and_typed_refusal` — actual UDP query and all six payload kinds; pending run.
-- Overflow scrolling and native/restart tests remain pending.
+- `godot/network/src/guild_rank_wire_tests.rs::guild_event_log_wire_preserves_six_kinds_order_and_typed_refusal` — actual UDP query, all six payload kinds, insertion order and typed refusal pass1/1 at42aff7a54/protocol4fad8c7.
+- `guild_lifecycle_live.gd` + `native_guild_lifecycle_peer` — pending: each skin performs actual invite/join/promote/demote/confirmed-remove/reinvite/quit; normal-member read/refused promotion and post-quit privacy use real UDP. Another100 physical rank changes create a genuine second page. A fresh process/server must preserve the exact100 raw events/timestamps and both-skin rendering.
 - UI/source subset5/5 passes at3c327b62e/protocol4fad8c7, including independent authority/late reply behavior and unchanged shared invitation chrome.
 
 ## Known gaps (current cycle)
