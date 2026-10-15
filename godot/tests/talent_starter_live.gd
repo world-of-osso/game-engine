@@ -71,8 +71,8 @@ func _run() -> void:
 		return
 	await frames(120)
 	await expect_caption("Default Loadout")
-	# Close the hero selection overlay before collecting the committed page.
-	await key(KEY_ESCAPE)
+	# Authoritative allocation snapshots close the hero overlay; Escape here
+	# would instead close the whole Talents window.
 	await control("TalentLoadoutDropDown")
 	var edited := rank_state()
 	await login(endpoint)
