@@ -17,7 +17,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from bot_roster import build_roster
-from bot_gear import load_plan as load_gear_plan, required_grants
+from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
 from run_dummy_bots import collect, read_state
@@ -202,7 +202,7 @@ def run_bot(args, bot):
     (output / "bot.json").write_text(json.dumps(bot, indent=2) + "\n")
     talent_plan = load_plan(args.engine / "data/db2/active", bot["spec"])
     (output / "talent-plan.json").write_text(json.dumps(talent_plan, indent=2) + "\n")
-    gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"])
+    gear_plan = load_gear_plan(args.world_db, args.engine / "data/db2/active", bot["spec"], bot["level"])
     (output / "gear-plan.json").write_text(json.dumps(gear_plan, indent=2) + "\n")
     provision(args, bot)
     equipment = admin(args, "list-equipment", bot["name"])
@@ -241,6 +241,9 @@ def run_bot(args, bot):
         reply = command(args.output, argv)
         pid = int(re.search(r"cage pid (\d+)", reply)[1])
         state = wait_native(args, output, bot)
+        talent_receipt = json.loads((output / "native-talents.json").read_text())
+        fixture = equipment_receipt(gear_plan, state["inventory"], talent_receipt["sheet_stats"])
+        (output / "fixture-receipt.json").write_text(json.dumps(fixture, indent=2) + "\n")
         npcs = admin(args, "npc-info", "0", "0", "44548")
         (output / "dummy-identity.txt").write_text(npcs)
         target = verified_dummy_target(state, npcs)

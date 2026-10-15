@@ -31,8 +31,9 @@ func equip_one(tree: SceneTree, client: Node, input: RefCounted, item: Dictionar
         return {"error": "Sourced item missing from owned bags", "slot": slot, "item_id": identity}
     var frame: String
     match slot:
-        "MainHand": frame = "CharacterMainHandSlot"
         "OffHand": frame = "CharacterSecondaryHandSlot"
+        "Head", "Shoulder", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands", "Back", "MainHand":
+            frame = "Character" + slot + "Slot"
         _: return {"error": "Unsupported fixture equipment slot", "slot": slot}
     var bag_button := await find_control(tree, "ContainerFrame%dSlot%d" % [int(location["bag"]), int(location["slot"])])
     if bag_button == null:
