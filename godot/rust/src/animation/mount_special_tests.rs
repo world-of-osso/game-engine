@@ -113,7 +113,19 @@ fn mount_special_spelltome_authored_attachment_diagnostic() {
     );
     println!(
         "SPELLTOME_SUBMESHES {:?} BATCHES {:?}",
-        model.submeshes, model.batches
+        model.submeshes,
+        model
+            .batches
+            .iter()
+            .map(|batch| (
+                batch.submesh_index,
+                batch.shader_id,
+                batch.color_index,
+                batch.render_flags_index,
+                batch.texture_id,
+                batch.transparency_index
+            ))
+            .collect::<Vec<_>>()
     );
     for emitter in &model.particle_emitters {
         println!(
