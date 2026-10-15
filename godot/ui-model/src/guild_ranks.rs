@@ -52,6 +52,7 @@ pub struct GuildRanksSession {
     pub rank_menu_open: bool,
     pub member_menu: Option<String>,
     pub member_detail: Option<String>,
+    pub removal_target: Option<String>,
     /// StaticPopup data captures the target identity independently of roster selection.
     pub note_editor: Option<(String, bool)>,
     pub error: Option<String>,
@@ -74,6 +75,26 @@ impl GuildRanksSession {
         self.visible = true;
         self.awaiting_state = true;
         GuildRankRequest::Query
+    }
+
+    pub fn close(&mut self) -> bool {
+        let visible = self.visible;
+        self.visible = false;
+        self.settings_open = false;
+        self.invite_open = false;
+        self.profile_editor = None;
+        self.member_menu = None;
+        self.member_detail = None;
+        self.note_editor = None;
+        self.removal_target = None;
+        visible
+    }
+
+    pub fn dismiss_member_popup(&mut self) -> bool {
+        if self.removal_target.take().is_some() {
+            return true;
+        }
+        self.note_editor.take().is_some()
     }
 
     pub fn apply(&mut self, state: GuildRanksState) {
@@ -229,8 +250,7 @@ impl GuildRanksSession {
                 None
             }
             "guild:close" => {
-                self.visible = false;
-                self.settings_open = false;
+                self.close();
                 None
             }
             "guild:settings" => {
@@ -259,7 +279,20 @@ impl GuildRanksSession {
                 }
                 None
             }
-            "guild:detail_remove" => self.remove_member(self.member_detail.as_deref()?),
+            "guild:detail_remove" => {
+                self.open_member_removal(self.member_detail.clone()?);
+                None
+            }
+            "guild:remove_confirm" => {
+                let request = self.remove_member(self.removal_target.as_deref()?)?;
+                self.removal_target = None;
+                self.member_detail = None;
+                Some(request)
+            }
+            "guild:remove_cancel" => {
+                self.removal_target = None;
+                None
+            }
             "guild:detail_close" => {
                 self.member_detail = None;
                 self.note_editor = None;
@@ -268,6 +301,7 @@ impl GuildRanksSession {
             "guild:note_public" | "guild:note_officer" => {
                 let officer = action == "guild:note_officer";
                 if self.can_edit_note(officer) && !self.awaiting_state && !self.profile_waiting {
+                    self.removal_target = None;
                     self.note_editor = self.member_detail.clone().map(|name| (name, officer));
                 }
                 None
@@ -280,13 +314,24 @@ impl GuildRanksSession {
             "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
-            "guild:remove_member" => self.remove_member(self.member_menu.as_deref()?),
+            "guild:remove_member" => {
+                self.open_member_removal(self.member_menu.clone()?);
+                None
+            }
             _ => self.indexed_click(action, texts),
         };
         if request.is_some() {
             self.awaiting_state = true;
         }
         request
+    }
+
+    fn open_member_removal(&mut self, name: String) {
+        if self.remove_member(&name).is_some() {
+            self.removal_target = Some(name);
+            self.member_menu = None;
+            self.note_editor = None;
+        }
     }
 
     pub fn detail_member(&self) -> Option<&GuildMemberSnapshot> {

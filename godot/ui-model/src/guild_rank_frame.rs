@@ -63,6 +63,7 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
         children.extend(invite_member_dialog(session));
         children.extend(profile_editor(session));
         children.extend(crate::guild_member_detail::editor(session));
+        children.extend(crate::guild_member_detail::removal_confirmation(session));
     }
     children
 }

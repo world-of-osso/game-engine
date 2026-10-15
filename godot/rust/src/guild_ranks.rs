@@ -135,6 +135,15 @@ impl GameClient {
         if !guild_pointer_enabled(&self.guild_ranks.session, self.game_menu_ui.is_some()) {
             return false;
         }
+        if let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>()
+            && key.is_pressed()
+            && !key.is_echo()
+            && key.get_keycode() == godot::global::Key::ESCAPE
+            && self.guild_ranks.session.dismiss_member_popup()
+        {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         let Some(ui) = self.guild_ranks.ui.as_mut() else {
             return false;
         };
@@ -170,14 +179,7 @@ impl GameClient {
     }
 
     pub(super) fn close_guild_ranks(&mut self) -> bool {
-        let visible = self.guild_ranks.session.visible;
-        self.guild_ranks.session.visible = false;
-        self.guild_ranks.session.settings_open = false;
-        self.guild_ranks.session.invite_open = false;
-        self.guild_ranks.session.profile_editor = None;
-        self.guild_ranks.session.member_menu = None;
-        self.guild_ranks.session.member_detail = None;
-        self.guild_ranks.session.note_editor = None;
+        let visible = self.guild_ranks.session.close();
         self.guild_ranks.free_ui();
         visible
     }
