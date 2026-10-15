@@ -26,6 +26,37 @@ class BotComparisonTests(unittest.TestCase):
                 row = {"spec": spec, "role": 2, "measurement_complete": True,
                        "dps": dps, "comparison": self.comparison}
                 (directory / "report.json").write_text(json.dumps(row))
+                state = {"account": {"local_player_health": 1000}}
+                (directory / "native-before.json").write_text(json.dumps(state))
+                (directory / "native-samples.jsonl").write_text(json.dumps(state) + "\n")
+
+    def test_actual_dead_start_is_excluded_without_rewriting_raw_reports(self):
+        source = Path(__file__).parent / "fixtures/bot_harness/native-dead-player.json"
+        state = json.loads(source.read_text())
+        directory = self.output / "70/run-001"
+        directory.mkdir(parents=True)
+        row = {"spec": 70, "role": 2, "measurement_complete": True,
+               "dps": 0, "comparison": self.comparison}
+        path = directory / "report.json"
+        original = json.dumps(row)
+        path.write_text(original)
+        (directory / "native-before.json").write_text(json.dumps(state))
+        (directory / "native-samples.jsonl").write_text(json.dumps(state) + "\n")
+        reports, missing = run_bot_roster.read_roster_reports(self.output, [70], 1)
+        self.assertFalse(reports[0]["measurement_complete"])
+        self.assertIsNone(reports[0]["dps"])
+        self.assertIn("dead", reports[0]["health_qualification"]["error"])
+        self.assertEqual(reports[0]["reported_dps"], 0)
+        self.assertEqual(missing, ["70/run-001/report.json"])
+        self.assertEqual(path.read_text(), original)
+
+    def test_missing_health_artifacts_cannot_qualify_a_report(self):
+        (self.output / "71/run-001/native-samples.jsonl").unlink()
+        reports, missing = run_bot_roster.read_roster_reports(self.output, [71], 2)
+        self.assertFalse(reports[0]["measurement_complete"])
+        self.assertIsNone(reports[0]["dps"])
+        self.assertIn("71/run-001/report.json", missing)
+        self.assertTrue(reports[1]["measurement_complete"])
 
     def test_live_dummy_fixture_retains_max_health_not_current_damage(self):
         text = "Training Dummy (entity 42) level 30 health 12/13137 difficulty 0\nTraining Dummy (entity 99) level 32 health 900/900 difficulty 1"
