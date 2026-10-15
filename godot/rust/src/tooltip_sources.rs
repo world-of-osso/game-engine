@@ -61,6 +61,7 @@ fn indexed(frame: &Frame, prefix: &str) -> Option<usize> {
 }
 
 enum HousingTooltipTarget {
+    EditorControl(game_engine_core::input_bindings_data::InputAction),
     Decor(u32),
     Chest,
     Category(u32),
@@ -70,6 +71,12 @@ enum HousingTooltipTarget {
 
 fn parse_housing_tooltip_target(frame: &Frame) -> Option<HousingTooltipTarget> {
     let name = name_of(frame)?;
+    if let Some((_, action, _)) = game_engine_ui_model::housing::EDITOR_CONTROL_TOOLTIPS
+        .iter()
+        .find(|(control, _, _)| *control == name)
+    {
+        return Some(HousingTooltipTarget::EditorControl(*action));
+    }
     if name == "HouseEditorStorageExpandButton" {
         return Some(HousingTooltipTarget::Chest);
     }
@@ -107,7 +114,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 30] = [
+        const SOURCES: [Source; 31] = [
+            GameClient::journal_monthly_tooltip,
             GameClient::journal_journey_tooltip,
             GameClient::journal_set_tooltip,
             GameClient::transmog_set_tooltip,
@@ -147,10 +155,22 @@ impl GameClient {
         let ui = hit.ui.bind();
         let (owner, target) =
             named_ancestor(ui.registry()?, hit.frame, parse_housing_tooltip_target)?;
+        let editor_control = matches!(target, HousingTooltipTarget::EditorControl(_));
+        if editor_control {
+            let frame = ui.registry()?.get(owner)?;
+            let Some(ui_toolkit::frame::WidgetData::Button(button)) = &frame.widget_data else {
+                return None;
+            };
+            if button.state == ui_toolkit::widgets::button::ButtonState::Disabled {
+                return None;
+            }
+        }
         drop(ui);
         let (tooltip, category) = self.housing_tooltip_content(target)?;
         let rect = self.owner_rect(&hit.ui, owner)?;
-        let tooltip = if category {
+        let tooltip = if editor_control {
+            tooltip.owned(rect, OwnerSide::Top)
+        } else if category {
             tooltip.owned_offset(rect, OwnerSide::Right, [-12.0, 12.0])
         } else {
             tooltip.owned(rect, OwnerSide::Right)
@@ -166,6 +186,11 @@ impl GameClient {
                 | HousingTooltipTarget::AllSubcategories
         );
         let tooltip = match target {
+            HousingTooltipTarget::EditorControl(action) => self
+                .housing
+                .model
+                .as_ref()?
+                .editor_control_tooltip(action, self.client_options.bindings.binding(action))?,
             HousingTooltipTarget::Chest => game_engine_ui_model::housing::storage_handle_tooltip(),
             HousingTooltipTarget::Decor(id) => {
                 let model = self.housing.model.as_ref()?;
@@ -207,6 +232,18 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_monthly_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let snapshot = self.adventure_guide.view.activities.as_deref()?;
+        let ui = hit.ui.bind();
+        let (_, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_activities::activity_tooltip(
+                snapshot,
+                frame.name.as_deref()?,
+            )
+        })?;
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// SetRewards uses ANCHOR_RIGHT; LockedState's requirement uses ANCHOR_CURSOR_RIGHT.
@@ -592,6 +629,30 @@ impl GameClient {
 
     fn talent_gate_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
+        if let Some((owner, ())) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            (name_of(frame)? == "TalentExportLoadout").then_some(())
+        }) {
+            let view = self.spells.projected_talents()?;
+            if view.editor.can_export(view) {
+                return None;
+            }
+            drop(ui);
+            let tooltip = GameTooltip::new(
+                TooltipPresentation {
+                    title: "You must spend all available talent points to share this loadout"
+                        .into(),
+                    title_color: game_engine_ui_model::tooltip_presentation::TOOLTIP_WHITE,
+                    ..TooltipPresentation::hidden()
+                },
+                None,
+            );
+            return Some(HoveredTooltip::text(self.owned_by(
+                hit,
+                owner,
+                OwnerSide::Right,
+                tooltip,
+            )?));
+        }
         let (owner, condition) = named_ancestor(ui.registry()?, hit.frame, |frame| {
             name_of(frame)?
                 .strip_prefix("TalentGate")?
