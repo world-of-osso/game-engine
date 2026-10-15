@@ -391,6 +391,8 @@ fn flat_background(prefix: &str, (left, top, right, bottom): (f32, f32, f32, f32
 }
 
 fn window_background(prefix: &str, width: f32, height: f32) -> Element {
+    let streak = read_active_atlas_art(TOP_TILE_STREAKS);
+    let streak_coords = streak.tex_coords(1.0);
     // SharedUIPanelTemplates.xml:598–609,663–675: one rock region preserves the
     // tile origin under the portrait; splitting it at y51 would restart the pattern.
     rsx! {
@@ -410,7 +412,8 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
             name: {DynName(format!("{prefix}TopTileStreaks"))},
             width: {width - 8.0},
             height: 43.0,
-            texture_atlas: TOP_TILE_STREAKS,
+            texture_fdid: {streak.fdid},
+            tex_coords: {streak_coords.as_str()},
             horiz_tile: true,
             pos_type: "absolute",
             left: 6.0,
