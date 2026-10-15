@@ -1,3 +1,7 @@
+## 2026-10-15 — MountSpecial authored playback continuation
+
+[MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
+
 ## 2026-10-14 — Cleanup cursor tooltip
 
 [Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
