@@ -64,7 +64,7 @@ func verify_query(request: Dictionary) -> void:
     var bad_target: Dictionary = client.call("spell_priority_state", 0, ids)
     var bad_spell: Dictionary = client.call("spell_priority_state", int(request["target"]), PackedInt32Array([0]))
     var known: Array = state["facts"]["known"]
-    var passed := (state["target"] == int(request["target"])
+    var passed: bool = (state["target"] == int(request["target"])
         and before.get("target") == after.get("target")
         and before.get("target") != int(request["target"])
         and known.has(2139) and state["facts"]["affordable"].has("2139")
