@@ -1,3 +1,7 @@
+## 2026-10-15 — Adventure Guide authored creature selection
+
+[Model choices](systems/adventure-guide.md#authored-model-selection--bounded-native-proof-2026-10-15) now select authored names/displays and owner-right description tooltips. Both-skin native Helix→Oaf/reset/Nezir passes; six originals inspected. Portrait-corner hypothesis falsified with actual framebuffer comparisons, so no speculative masking fix. Authored scene/camera parity remains a named gap.
+
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.
