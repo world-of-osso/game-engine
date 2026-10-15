@@ -411,11 +411,11 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         assert!(frame(&registry, "JournalSuggestion642").onclick.is_none());
         assert_eq!(
             frame(&registry, "JournalSuggestion642").width,
-            ui_toolkit::frame::Dimension::Fixed(335.)
+            ui_toolkit::frame::Dimension::Fixed(344.)
         );
         assert_eq!(
             frame(&registry, "JournalSuggestion642").height,
-            ui_toolkit::frame::Dimension::Fixed(337.)
+            ui_toolkit::frame::Dimension::Fixed(161.)
         );
         match &frame(&registry, "JournalSuggestion642Texture").widget_data {
             Some(WidgetData::Texture(texture)) => assert_eq!(
@@ -443,7 +443,7 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         });
         ctx.insert(rewarded);
         screen.sync(&ctx, &mut registry);
-        for id in [195, 227] {
+        for id in [642, 195] {
             assert_eq!(
                 frame(&registry, &format!("JournalSuggestion{id}")).width,
                 ui_toolkit::frame::Dimension::Fixed(344.)
@@ -453,9 +453,28 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
                 ui_toolkit::frame::Dimension::Fixed(161.)
             );
         }
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227").width,
+            ui_toolkit::frame::Dimension::Fixed(335.)
+        );
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227").height,
+            ui_toolkit::frame::Dimension::Fixed(337.)
+        );
+        let title = &frame(&registry, "JournalSuggestion227Name").widget_data;
         assert!(
-            text(&registry, "JournalSuggestion195Reward")
-                .contains("renown with the Midnight faction")
+            matches!(title, Some(WidgetData::FontString(font)) if font.font == ui_toolkit::widgets::font_string::GameFont::Morpheus && font.font_size == 32.)
+        );
+        assert!(
+            registry.get_by_name("JournalSuggestion195Reward").is_none(),
+            "Reward description belongs to reward hover, not pane body"
+        );
+        assert!(
+            registry
+                .scroll_lists
+                .get("EncounterJournalContent")
+                .is_none(),
+            "Retail Suggested panes are fixed, not groups on a generic ScrollBox"
         );
         assert!(
             registry.get_by_name("JournalSuggestion195Button").is_none(),
