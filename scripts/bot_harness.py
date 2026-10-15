@@ -114,8 +114,10 @@ def balance(rows):
     rows = [row for row in rows if row["role"] == 2]
     if not rows or not all(row.get("measurement_complete") for row in rows):
         raise ValueError("Balance requires complete fixed-duration DPS measurements")
-    if not rows[0].get("comparison"):
-        raise ValueError("Balance requires comparable level, stats, dummy and duration receipts")
+    comparison = rows[0].get("comparison") or {}
+    missing = [field for field in ("level", "stats", "dummy", "duration_ms") if not comparison.get(field)]
+    if missing:
+        raise ValueError("Balance comparison missing " + ", ".join(missing))
     if any(row.get("comparison") != rows[0]["comparison"] for row in rows):
         raise ValueError("Non-comparable fixture groups cannot be pooled")
     by_spec = defaultdict(list)
