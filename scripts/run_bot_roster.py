@@ -21,7 +21,7 @@ from bot_harness import balance
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
-from run_dummy_bots import collect, read_state
+from run_dummy_bots import collect, read_state, require_living_player
 
 
 def command(output, argv, env=None):
@@ -221,7 +221,10 @@ def native_ready(state, spec, requires_authored):
     target = state["target"]
     talent_ready = state.get("talent_status") == "observed"
     gear_ready = state.get("gear_status") == "observed"
-    return bool(player_ready and evaluator_ready and talent_ready and gear_ready and target.get("target_name") == "Training Dummy")
+    health = state["account"].get("local_player_health")
+    alive = health is not None and health > 0
+    target_ready = target.get("target_name") == "Training Dummy"
+    return all((player_ready, alive, evaluator_ready, talent_ready, gear_ready, target_ready))
 
 
 def wait_native(args, output, bot):
@@ -242,6 +245,9 @@ def wait_native(args, output, bot):
                     receipt = output / ("native-gear.json" if phase == "gear" else "native-talents.json")
                     detail = json.loads(receipt.read_text()).get("error") if receipt.exists() else str(status)
                     raise RuntimeError(f"Native {phase} setup blocked: {detail}; receipt={receipt}")
+            setup_observed = all(state.get(phase + "_status") == "observed" for phase in ("talent", "gear"))
+            if setup_observed and state["account"].get("gameplay_input_allowed"):
+                require_living_player(state["account"])
             if native_ready(state, bot["spec"], requires_authored):
                 return state
             if state.get("target_attempts", 0) >= 32:

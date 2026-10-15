@@ -22,6 +22,14 @@ def invoke(cli, socket, output, sequence, *args):
     return result.stdout
 
 
+def require_living_player(account):
+    health = account.get("local_player_health")
+    if health is None:
+        raise RuntimeError("Native player health was not observed")
+    if health <= 0:
+        raise RuntimeError("Native player is dead (observed health <= 0); no live DPS measurement")
+
+
 def read_state(path):
     state = json.loads(path.read_text())
     if int(time.time() * 1000) - state["at_ms"] > 3000:
@@ -30,6 +38,7 @@ def read_state(path):
         raise RuntimeError(state["spec_request_error"])
     if not state["account"].get("gameplay_input_allowed"):
         raise RuntimeError("Native player disconnected, dead or not in world")
+    require_living_player(state["account"])
     return state
 
 
