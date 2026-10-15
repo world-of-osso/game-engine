@@ -36,8 +36,9 @@ def load_item(connection, item_id, slot):
     sparse = connection.execute("SELECT * FROM item_sparse WHERE ID=?", (item_id,)).fetchone()
     if item is None or sparse is None:
         raise ValueError(f"Source gear item {item_id} is absent from Item/ItemSparse")
-    budget = (sparse["ItemLevel"], sparse["OverallQualityID"], sparse["ItemSquishEraID"])
-    if budget != (30, 2, 0):
+    budget = {"item_level": sparse["ItemLevel"], "quality": sparse["OverallQualityID"],
+              "item_squish_era": sparse["ItemSquishEraID"]}
+    if budget != FIXTURE_BUDGET:
         raise ValueError(f"Source gear item {item_id} is outside fixture budget {FIXTURE_BUDGET}")
     return {"slot": slot, "item_id": item_id, "name": sparse["Display_lang"],
             "inventory_type": sparse["InventoryType"], "item_level": sparse["ItemLevel"],
