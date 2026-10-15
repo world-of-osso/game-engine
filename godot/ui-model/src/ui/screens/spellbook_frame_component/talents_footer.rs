@@ -8,14 +8,27 @@ use crate::ui::screens::menu_primitives::{
 mod loadouts;
 
 // ClassTalentsFrame::RefreshLoadoutOptions wraps Starter's name in BLUE_FONT_COLOR.
-const STARTER_BUILD_COLOR: &str = "0.53,0.67,1.0,1.0";
+const STARTER_BUILD_COLOR: crate::ui::widgets::font_string::FontColor =
+    crate::ui::widgets::font_string::FontColor::new(0.53, 0.67, 1.0, 1.0);
+
+pub(super) fn apply_loadout_caption(view: &TalentView, registry: &mut FrameRegistry) {
+    let committed_starter = view.editor.starter_active() && !view.editor.dirty();
+    let color = if committed_starter {
+        STARTER_BUILD_COLOR.0
+    } else {
+        [1.0; 4]
+    };
+    // Dropdown supplies its normal font color; Retail's wrapped Starter name
+    // adds a text-specific color independently of that template font.
+    if let Some(id) = registry.get_by_name("TalentLoadoutName")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut()
+    {
+        text.color = color;
+    }
+}
 
 pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
-    let loadout_color = if view.editor.starter_active() && !view.editor.dirty() {
-        STARTER_BUILD_COLOR
-    } else {
-        TAB_TEXT
-    };
     let y = BOOK_H - FOOTER_HEIGHT / 2.0 - 15.0;
     let mut children = dropdown_button_with_state(
         DropdownButton {
@@ -29,7 +42,7 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
             // menu_primitives takes y-up offsets; talent canvas is y-down.
             y: -(y + 2.5) * scale,
             background_color: "0.04,0.04,0.04,1.0",
-            text_color: loadout_color,
+            text_color: TAB_TEXT,
             arrow_color: TAB_TEXT,
             onclick: Some("talent:loadouts"),
         },
