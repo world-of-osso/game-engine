@@ -3910,7 +3910,7 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 
 ## 2026-10-15 — Traveler’s Log source rows
 
-Ported authored parent/child geometry, tree disclosure and successor promotion; central activity tooltip and physical Shift tracking request routing replace invented details/Track controls. Focused12/12 GREEN after row/search/navbar REDs. Both-skin086 native source geometry, central tooltip, genuine6→81 tree, Options overflow and Shift tracking938 ACK0→1→0 pass; eight original full-HD PNGs inspected. See [system](systems/adventure-guide.md#travelers-log--bounded-native-source-proof).
+Ported authored parent/child geometry, tree disclosure and successor promotion; central activity tooltip and physical Shift tracking request routing replace invented details/Track controls. Focused13/13 GREEN after row/search/navbar and criterion-diagnostic REDs. The086 tooltip diagnostics were rejected; corrected066/0a/731 native in both skins keeps source text/known progress only, including child81/tree140979. Genuine6→81 tree, Options overflow and Shift tracking938 ACK0→1→0 still pass; ten corrected full-HD PNGs inspected. See [system](systems/adventure-guide.md#travelers-log--bounded-native-source-proof).
 ## 2026-10-15 — Player-bot detector
 
 [Harness](systems/bot-harness.md): actual native combat fixture, injected missing request, fixed-window actor/target DPS, multiplicity-preserving ring polling and comparable-fixture median spread. Generic active direct-enemy damage selector preserves actual installed DB2 coefficients/cast times/cooldowns. Native runs and broader detection remain open.
