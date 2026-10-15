@@ -804,3 +804,21 @@ fn monthly_source_hides_encounter_search() {
         assert!(registry.get_by_name("JournalActivity3").is_some());
     }
 }
+
+#[test]
+fn monthly_tooltip_does_not_expose_unsupported_criteria_diagnostics() {
+    let _ = context(ActiveSkin::Modern);
+    let data = snapshot();
+    let lines = tooltip_lines(&data, 3);
+    assert!(lines.contains("Complete quests that grant experience."));
+    assert!(lines.contains("Shift click"));
+    assert!(
+        !lines.contains("Criteria tree")
+            && !lines.contains("135693")
+            && !lines.contains("Unavailable")
+    );
+    assert!(
+        !lines.contains("0/"),
+        "Unknown progress must not become zero"
+    );
+}
