@@ -407,4 +407,4 @@ External resources and asset lists.
 - [Stationary Cleanup ray](systems/housing.md#stationary-cleanup-ray--implementation2026-10-15) — authoritative owner movement/native readonly RED→both-skin GREEN; fixed input, actual ray/highlight/name clear and return, exact paid restoration and inspected functional captures.
 - [Retail loadout strings](systems/talents.md#retail-loadout-strings--2026-10-15) — installed version2/source provenance, committed export/native Import, Lua-produced fixtures and both-skin private relog/full-HD proof; hash/OS clipboard limits explicit.
 
-- [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15) — real mouse-held/key activation RED; same-submode requests preserve the existing drag anchor, post-fix acceptance pending.
+- [Active Expert submode continuity](systems/housing.md#active-expert-submode-continuity--implementation2026-10-15) — model/native RED→both-skin GREEN; assigned active keys retain all three live mouse submodes, global release/Escape and exact paid conservation.
