@@ -423,6 +423,26 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
             assert_eq!(pane.height, ui_toolkit::frame::Dimension::Fixed(height));
         }
         assert!(registry.get_by_name("JournalSuggestedTitle").is_none());
+        for (name, left) in [
+            ("JournalSuggestedPrev", 16.),
+            ("JournalSuggestedNext", 287.),
+        ] {
+            let button = frame(&registry, name);
+            assert_eq!(
+                button.position.left,
+                ui_toolkit::layout_values::Val::Px(left)
+            );
+            assert_eq!(
+                button.position.top,
+                ui_toolkit::layout_values::Val::Px(293.)
+            );
+            assert_eq!(button.width, ui_toolkit::frame::Dimension::Fixed(32.));
+            assert_eq!(button.height, ui_toolkit::frame::Dimension::Fixed(32.));
+            assert!(
+                matches!(&button.widget_data, Some(WidgetData::Button(data)) if data.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+            );
+            assert!(button.onclick.as_deref().unwrap_or_default().is_empty());
+        }
         assert_eq!(
             frame(&registry, "JournalSuggestion642").width,
             ui_toolkit::frame::Dimension::Fixed(344.)
