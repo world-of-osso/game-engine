@@ -1,3 +1,6 @@
+## 2026-10-14 — Trading Post post-landing native acceptance
+
+[Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
 ## 2026-10-14 — Cleanup cursor tooltip
 
 [Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
@@ -3822,3 +3825,9 @@ Staged chains cover all1,971 mount IDs;1,444 recovered readable targets rendered
 - 2026-10-14: [[boss-encounters#Source timer-bar art — 2026-10-14]] ports textured background/fill/additive spark and source runtime320×387/300px-row geometry. Missing-art and placeholder-size REDs→four model tests GREEN; both-skin1920×1080 full/half/empty native proof inspected, build/check/fmt pass. Initial placeholder-sized captures rejected; no scheduler or default-color parity claim.
 
 - 2026-10-14: [[cooldown-assist-data#Source tracked-buff bar art — 2026-10-14]] replaces gold fills with source188×19 bars/BG/cropped texture and normal-alpha pip. Missing-background/LEFT-name/Application-anchor RED→15 core+7 UI tests GREEN after current-active CSV expectation repair; build/check/fmt pass. Review recaptures ef4372c64 show both-skin full/half/empty source geometry and contained stack counts in inspected1920×1080 PNGs. Lead accepted source pip overlap/BG bounds; no invented clipping. Aura authority and icon-mask/font-family parity excluded.
+
+- 2026-10-14: [Trading Post mounted preview](systems/trading-post.md#mounted-player-composition--implementation-october14): actor-data loader/shared normalization RED→GREEN5; independent native mount/rider ownership implementation, process proof pending; authored-scale and special-kit gaps explicit.
+
+- 2026-10-14: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): actual both-skin Celestial Steed223/376 mounted91/saddle0, Hide Character restore/selection/cleanup and process RED→GREEN stable camera;20 inspected full-HD PNGs, eight data tests and separate native graph proof. Native scale API/special kits remain named gaps, no guessed compensation.
+
+- 2026-10-15: [Trading Post rider proof](systems/trading-post.md#rider-proof--2026-10-14): both-skin actual pending-request→Leave→60-frame late-arrival/HUD boundary PASS, four inspected full-HD PNGs; final targeted23UI+11native/12server+admin1/protocol3 and allthreechecks PASS, scoped Rustfmt PASS. Runtime and later source/test-only revisions remain distinguished.
