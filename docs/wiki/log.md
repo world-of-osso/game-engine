@@ -1,3 +1,7 @@
+## 2026-10-15 — Bot summon attribution
+
+[Bot ownership capture](systems/bot-harness.md#spell-driven-ownership-events): native combat IPC serializes Summon identities/timestamp; accounting follows event-time ancestry and replicated local-pet snapshots, excludes follower descendants, and withholds DPS for unknown damage sources. Protocol wire and focused accounting/IPC gates are revision-scoped; live/all-spec/Stockade balance acceptance remains open.
+
 ## 2026-10-15 — Native summon lifetime proofs
 
 [Bounded native proofs](systems/toy-box.md#native-summon-lifetime-proofs-2026-10-15): source-qualified release Forever Scarab fixed-window removal and owner following pass; quiet both-skin Flute expiry retained separately. Exact binary/pressure/image evidence and earlier debug failures stay revision-scoped; no complete-toy/full1166 claim.
