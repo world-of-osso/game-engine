@@ -250,6 +250,39 @@ impl View {
             })
             .collect()
     }
+    pub(crate) fn encounters(
+        &self,
+    ) -> impl Iterator<Item = &game_engine_core::adventure_guide::Encounter> {
+        self.catalog.encounters.iter().filter(|encounter| {
+            Some(encounter.instance) == self.instance
+                && difficulty_matches(
+                    &self.catalog.encounter_difficulties,
+                    encounter.id,
+                    self.difficulty,
+                )
+        })
+    }
+    pub(crate) fn instance_has_overview(&self) -> bool {
+        self.encounters().any(|encounter| {
+            self.catalog
+                .sections
+                .get(&encounter.root)
+                .is_some_and(|section| section.kind == 3)
+        })
+    }
+    fn shows_overview(&self) -> bool {
+        self.page == Page::Overview && self.instance_has_overview()
+    }
+    pub(crate) fn page_enabled(&self, page: Page) -> bool {
+        match page {
+            Page::Overview => self.instance.is_some(),
+            Page::Loot => self
+                .instance_loot_entries()
+                .any(|loot| self.catalog.items.contains_key(&loot.item)),
+            Page::Abilities => self.encounter.is_some() && self.instance_has_overview(),
+            Page::Model => self.encounter.is_some(),
+        }
+    }
     pub(crate) fn available_difficulties(&self, instance: u32, encounter: Option<u32>) -> Vec<u32> {
         let Some(instance) = self.catalog.instance(instance) else {
             return Vec::new();
@@ -326,10 +359,11 @@ impl View {
         self.filter_menu = None;
         self.collapsed.clear();
         let role = if self.role == 0 { 2 } else { self.role };
+        let collapse_roles = self.shows_overview();
         let collapsed: Vec<_> = self
             .sections()?
             .into_iter()
-            .filter(|(section, depth)| *depth > 0 && section.roles & role == 0)
+            .filter(|(section, depth)| collapse_roles && *depth > 0 && section.roles & role == 0)
             .map(|(section, _)| section.id)
             .collect();
         self.collapsed.extend(collapsed);
@@ -357,7 +391,7 @@ impl View {
         let mut output = Vec::new();
         let mut visited = BTreeSet::new();
         self.walk_sections(encounter.root, 0, false, &mut visited, &mut output)?;
-        if self.page == Page::Overview {
+        if self.shows_overview() {
             let role = if self.role == 0 { 2 } else { self.role };
             output.sort_by_key(|(section, depth)| {
                 if *depth == 0 {
@@ -395,8 +429,8 @@ impl View {
                 .ok_or_else(|| format!("Missing journal section {id}"))?;
             let overview = in_overview || section.kind == 3;
             let page_matches = match self.page {
-                Page::Overview => overview,
-                Page::Abilities => !overview,
+                Page::Overview if self.shows_overview() => overview,
+                Page::Overview | Page::Abilities => !overview,
                 _ => false,
             };
             if difficulty_matches(&self.catalog.section_difficulties, id, self.difficulty) {
@@ -417,25 +451,51 @@ impl View {
         }
         Ok(())
     }
+    fn instance_loot_entries(
+        &self,
+    ) -> impl Iterator<Item = &game_engine_core::adventure_guide::Loot> {
+        let encounters: BTreeSet<_> = self.encounters().map(|encounter| encounter.id).collect();
+        self.catalog.loot.iter().filter(move |loot| {
+            encounters.contains(&loot.encounter)
+                && difficulty_matches(&self.catalog.loot_difficulties, loot.id, self.difficulty)
+        })
+    }
     pub fn loot(&self) -> Vec<&Item> {
         let search = self.search.to_lowercase();
-        self.catalog
-            .loot
-            .iter()
-            .filter(|l| {
-                Some(l.encounter) == self.encounter
-                    && difficulty_matches(&self.catalog.loot_difficulties, l.id, self.difficulty)
-            })
-            .filter_map(|l| self.catalog.items.get(&l.item))
-            .filter(|i| {
-                slot_matches(i.slot, self.slot)
-                    && (self.class == 0
-                        || i.class_mask == -1
-                        || i.class_mask & (1 << (self.class - 1)) != 0)
-                    && self.matches_specialization(i.id)
-                    && i.name.to_lowercase().contains(&search)
-            })
+        let mut seen = BTreeSet::new();
+        let items = self
+            .instance_loot_entries()
+            .filter(|loot| self.encounter.is_none_or(|id| loot.encounter == id))
+            .filter_map(|loot| self.catalog.items.get(&loot.item));
+        items
+            .filter(|item| self.matches_loot_filters(item, &search))
+            .filter(|item| seen.insert(item.id))
             .collect()
+    }
+    fn matches_loot_filters(&self, item: &Item, search: &str) -> bool {
+        slot_matches(item.slot, self.slot)
+            && (self.class == 0
+                || item.class_mask == -1
+                || item.class_mask & (1 << (self.class - 1)) != 0)
+            && self.matches_specialization(item.id)
+            && item.name.to_lowercase().contains(search)
+    }
+    pub(crate) fn loot_boss_names(&self) -> BTreeMap<u32, Vec<&str>> {
+        let encounters: BTreeMap<_, _> = self
+            .encounters()
+            .map(|encounter| (encounter.id, encounter))
+            .collect();
+        let mut names: BTreeMap<u32, Vec<&str>> = BTreeMap::new();
+        let mut seen = BTreeSet::new();
+        for loot in self.instance_loot_entries() {
+            if seen.insert((loot.item, loot.encounter)) {
+                names
+                    .entry(loot.item)
+                    .or_default()
+                    .push(&encounters[&loot.encounter].name);
+            }
+        }
+        names
     }
     fn matches_specialization(&self, item: u32) -> bool {
         if self.class == 0 && self.spec == 0 {
@@ -555,13 +615,19 @@ impl View {
                 self.creature = Some(id);
             }
             "page" => {
-                self.page = match value {
+                let page = match value {
                     Some("overview") => Page::Overview,
                     Some("abilities") => Page::Abilities,
                     Some("loot") => Page::Loot,
                     Some("model") => Page::Model,
                     _ => return Err("Unknown journal page".into()),
                 };
+                if !self.page_enabled(page) {
+                    return Err(format!(
+                        "Journal page {page:?} is unavailable for this selection"
+                    ));
+                }
+                self.page = page;
                 if self.page == Page::Model {
                     self.creature = self.model_creatures().first().map(|creature| creature.id);
                 }
@@ -815,15 +881,7 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         (72., 84., 290., 12.),
         (14., HEADER, "LEFT"),
     ));
-    let bosses: Vec<_> = view
-        .catalog
-        .encounters
-        .iter()
-        .filter(|e| {
-            e.instance == instance.id
-                && difficulty_matches(&view.catalog.encounter_difficulties, e.id, view.difficulty)
-        })
-        .collect();
+    let bosses: Vec<_> = view.encounters().collect();
     let rows = bosses
         .iter()
         .enumerate()
@@ -836,6 +894,20 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         (10. + bosses.len() as f32 * 70.).max(382.),
         "EncounterJournalBosses",
     ));
+    out.extend(crate::adventure_guide_art::side_tabs(view));
+    if view.encounter.is_none() && view.page == Page::Loot {
+        out.extend(art(
+            "EncounterJournalRightHeader".into(),
+            Art::RightHeader,
+            (406., 75., 386., 39.),
+        ));
+        out.extend(loot_page(ctx, view));
+        out.extend(difficulty_button(view));
+        if view.difficulty_open {
+            out.extend(difficulty_menu(ctx, view, instance));
+        }
+        return out;
+    }
     let Some(encounter) = view.encounter.and_then(|id| view.catalog.encounter(id)) else {
         let mut lore = crate::adventure_guide_art::instance_lore(instance);
         lore.extend(instance_lore_scroll(ctx, instance));
@@ -867,7 +939,6 @@ fn encounter_page(ctx: &SharedContext, view: &View) -> Element {
         }
         return out;
     };
-    out.extend(crate::adventure_guide_art::side_tabs(view.page));
     if view.page == Page::Model {
         let title = view
             .model_creature()
@@ -1055,46 +1126,12 @@ fn difficulty_menu(_ctx: &SharedContext, view: &View, instance: &Instance) -> El
 }
 fn loot_page(ctx: &SharedContext, view: &View) -> Element {
     let mut out = loot_filter_buttons(view);
-    let items = view.loot();
-    let content = items
-        .iter()
-        .enumerate()
-        .flat_map(|(index, item)| {
-            let y = index as f32 * 45.;
-            let mut row = texture(
-                format!("JournalLoot{}Icon", item.id),
-                item.icon,
-                (2., y + 2., 42., 42.),
-                WHITE,
-            );
-            row.extend(crate::adventure_guide_art::art(
-                format!("JournalLoot{}Border", item.id),
-                crate::adventure_guide_art::Art::LootFrame,
-                (0., y, 321., 45.),
-            ));
-            row.extend(label(
-                format!("JournalLoot{}Name", item.id),
-                &item.name,
-                (51., y + 9., 250., 12.),
-                (
-                    14.,
-                    crate::merchant_data::quality_color(item.quality as u8),
-                    "LEFT",
-                ),
-            ));
-            row.extend(paper_text(
-                &format!("JournalLoot{}Slot", item.id),
-                &format!("Item level {} · {}", item.level, slot_name(item.slot)),
-                (51., y + 27., 250., 12.),
-            ));
-            row
-        })
-        .collect();
+    let (content, content_height) = crate::adventure_loot::rows(view);
     let list = scroll(
         ctx,
         content,
         (-20., -1., 345., 382.),
-        (items.len() as f32 * 45.).max(382.),
+        content_height.max(382.),
     );
     out.extend(rsx! {r#frame {name:"EncounterJournalLootContainer",left:442.0,top:106.0,width:345.0,height:382.0,pos_type:"absolute",{list}}});
     if let Some(menu) = view.filter_menu {

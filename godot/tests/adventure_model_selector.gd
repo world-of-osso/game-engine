@@ -148,7 +148,7 @@ func run() -> void:
 		return
 	if not await move_to("EncounterJournalModelTitle") or not await shot("model-selector-oaf"):
 		return
-	if not await click("EncounterJournalPage1") or not await click("EncounterJournalPage3") or not await expect_model(359, 33002, "Helix Gearbreaker"):
+	if not await click("EncounterJournalPage0") or not await click("EncounterJournalPage3") or not await expect_model(359, 33002, "Helix Gearbreaker"):
 		return
 	if not await open_instance("EncounterJournalRaidTab", 74) or not await click("JournalBoss154") or not await click("EncounterJournalPage3"):
 		return
