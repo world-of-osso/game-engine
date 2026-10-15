@@ -1,3 +1,7 @@
+## 2026-10-15 — Bounded native Baron kill and loot
+
+[Private party proof](../headless-live-run.md#bounded-baron-party-proof--2026-10-15) records genuine Normal encounter1070 success, delivered6321 inventory delta, five survivors and measured time dilation. Both-skin combat observations do not erase the native post-kill Pass lookup/final-capture failure; full dungeon clear, real-time balance and canonical asset publication remain excluded.
+
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.

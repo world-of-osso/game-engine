@@ -179,6 +179,18 @@ Do not enter four independent dungeon copies concurrently: source-map constructi
 
 The combat driver must own final capture and exact-PID cleanup in the same bounded execution: either keep driving through the encounter outcome, or terminate the owned clients/server immediately at its deadline. Do not return from a bounded input loop while leaving its actors fighting during later analysis. Both-skin combat images alone do not prove death, credit, loot or an instance clear.
 
+## Bounded Baron party proof — 2026-10-15
+
+Private `native-shadowfang-20261015/party-live-u/bounded-party-proof.json` records engine `d4da58121`, server `852ec57f`, protocol `62865c2` and the five binary hashes in `party-build-pair-s-proof.json`:
+
+- One rendered mage and four real peers, ordinary tank invitation/native Accept, source level30 and normally equipped items. Authored entrance/room teleports are setup, not travel proof. No combat/stat/credit overrides.
+- Baron Silverlaine3887 died after1680.02 wall seconds, all five alive. All four peers received encounter1070/Normal1/group5/success. Combat healing:78545 raw,25257 overheal,53288 effective; continuous native combat sampling retained overlap continuity.
+- GroupLoot delivered6321, Silverlaine's Family Seal, to priest34 (Greed65). Authoritative InventoryDelta adds itemGUID239, Retail/soulbound, bag0slot8. Native timed out to Pass; explicit native Pass automation did **not** succeed.
+- Whole-runtime measured rate:3.73350 ticks/s across190 windows. Both-skin late-combat PNGs exist. This proves functional encounter success and delivered loot, not real-time balance or the full dungeon clear.
+- Native post-kill semantic Pass-button lookup succeeded, but the physical-control lookup failed and the renderer exited. Final corpse capture then timed out: the driver was **not all-green**. The server still completed normal loot delivery. Owned units stopped, UDP5798 freed and exact overlay links restored.
+
+Earlier `party-live-s` independently proved the kill and captured the corpse, but its85-wall-second loot wait ended before the server's60-simulation-second timeout. Do not combine different runs into an all-green fixture. Normal DONE progress survived restart and correctly suppressed that owner's boss in `party-live-t`; `party-live-u` used ordinary admission under the fresh tank leader without editing locks or spawning a replacement boss.
+
 ## Sources
 
 - `data/diagnostics/castrow-2026-10-05/attempt4/{proof-ledger.txt,setup.json,*-argv.json,live-capture.gd,admin-setup.log}` — private account/admin setup, Weston, Vulkan environment, script-driven live capture and exact-PID cleanup.
