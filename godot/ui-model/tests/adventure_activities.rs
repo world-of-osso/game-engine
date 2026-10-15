@@ -544,3 +544,80 @@ fn suggestions_display_only_authored_eligible_records_without_actions() {
         );
     }
 }
+
+#[test]
+fn suggestions_partial_records_preserve_literal_initial_lower_geometry() {
+    use ui_toolkit::{frame::Dimension, layout_values::Val};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut ctx = context(skin);
+        let mut data = snapshot();
+        // Authored records are rendering inputs, not fabricated live realm eligibility.
+        data.suggestions = vec![AdventureSuggestion {
+            id: 227,
+            name: "Brewfest".into(),
+            description: String::new(),
+            reward_description: String::new(),
+            texture_fdid: 133201,
+            button_text: String::new(),
+        }];
+        ctx.insert(data.clone());
+        let mut registry = FrameRegistry::new(800., 496.);
+        let mut screen = Screen::new(|ctx| suggested(ctx, ctx.get()));
+        screen.sync(&ctx, &mut registry);
+        let assert_initial = |registry: &FrameRegistry| {
+            let block = frame(registry, "JournalSuggestion227Text");
+            assert_eq!(block.position.top, Val::Px(3.5));
+            assert_eq!(block.height, Dimension::Fixed(152.));
+            assert_eq!(
+                frame(registry, "JournalSuggestion227TitleFrame").height,
+                Dimension::Fixed(1.)
+            );
+            let description = frame(registry, "JournalSuggestion227DescriptionFrame");
+            assert_eq!(description.position.top, Val::Px(5.));
+            assert_eq!(description.height, Dimension::Fixed(1.));
+        };
+        let size = |registry: &FrameRegistry, name: &str| match &frame(registry, name).widget_data {
+            Some(WidgetData::FontString(font)) => font.font_size,
+            _ => panic!("Expected title font"),
+        };
+        assert_initial(&registry);
+        assert_eq!(size(&registry, "JournalSuggestion227Name"), 18.);
+
+        // Lua's first pass shrinks the upper title, but the skipped lower frame keeps18.
+        data.suggestions.push(AdventureSuggestion {
+            id: 823,
+            name: "The Ghosts of K'aresh: A Shadowy Invitation".into(),
+            description: String::new(),
+            reward_description: String::new(),
+            texture_fdid: 6937965,
+            button_text: String::new(),
+        });
+        ctx.insert(data.clone());
+        screen.sync(&ctx, &mut registry);
+        assert_initial(&registry);
+        assert_eq!(size(&registry, "JournalSuggestion227Name"), 18.);
+        assert_eq!(size(&registry, "JournalSuggestion823Name"), 16.);
+
+        // Three records finally run the second pass on both small frames.
+        data.suggestions.push(AdventureSuggestion {
+            id: 642,
+            name: "Trading Post, Open for Business".into(),
+            description: String::new(),
+            reward_description: String::new(),
+            texture_fdid: 4696085,
+            button_text: String::new(),
+        });
+        ctx.insert(data);
+        screen.sync(&ctx, &mut registry);
+        assert_eq!(size(&registry, "JournalSuggestion227Name"), 16.);
+        assert_eq!(size(&registry, "JournalSuggestion823Name"), 16.);
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227Text").position.top,
+            Val::Px(63.5)
+        );
+        assert_eq!(
+            frame(&registry, "JournalSuggestion227TitleFrame").height,
+            Dimension::Fixed(16.)
+        );
+    }
+}
