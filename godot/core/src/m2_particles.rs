@@ -11,6 +11,9 @@ use glam::{Mat3, Mat4, Vec2, Vec3, Vec4};
 use crate::asset::m2_format::m2_anim;
 use crate::m2::{AnimTime, ParticleEmitter};
 
+#[path = "m2_particle_spline.rs"]
+mod spline;
+
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
 const FLAG_INHERIT_SCALE: u32 = 0x20;
@@ -127,14 +130,15 @@ impl Rng {
 pub enum ParticleShape {
     Plane,
     Sphere,
+    Spline,
 }
 
-/// `CPlaneGenerator` for type 1, `CSphereGenerator` for 2; spline (3) and others are
-/// not simulated (`particleEmitter.cpp:128-149`).
+/// Authored generator type; spline admission requires complete cubic controls.
 pub fn shape(emitter: &ParticleEmitter) -> Option<ParticleShape> {
     match emitter.emitter_type {
         1 => Some(ParticleShape::Plane),
         2 => Some(ParticleShape::Sphere),
+        3 if spline::valid_controls(&emitter.spline_points) => Some(ParticleShape::Spline),
         _ => None,
     }
 }
@@ -405,6 +409,7 @@ pub struct EmitterSim {
     props: GeneratorProps,
     /// `enabledIn` at that time.
     enabled: bool,
+    spline: Option<spline::Spline>,
 }
 
 /// The generator's animated values (`CGeneratorAniProp`); gravity in WoW axes.
@@ -486,6 +491,7 @@ impl EmitterSim {
             emitter_to_world: Mat4::IDENTITY,
             props: GeneratorProps::authored(emitter),
             enabled: true,
+            spline: spline::Spline::new(&emitter.spline_points),
         }
     }
 
@@ -655,6 +661,11 @@ impl EmitterSim {
         let seed = rng.next_u32() as u16;
         let (position, velocity) = match shape(emitter) {
             Some(ParticleShape::Plane) => spawn_plane(props, rng),
+            Some(ParticleShape::Spline) => self
+                .spline
+                .as_mut()
+                .expect("admitted spline controls")
+                .spawn(props, rng),
             _ => spawn_sphere(emitter, props, rng),
         };
         let (position, velocity) = if emitter.flags & FLAG_MODEL_SPACE == 0 {

@@ -9,7 +9,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [x] With an EXP2 chunk, take zSource, colorMult, alphaMult and the alpha-cutoff ramp from the emitter's EXP2 record; the portal's MD20 zSource 255 reads 0.
 
 ### Simulation
-- [x] Spawn per WWV `CPlaneGenerator` (type 1) and `CSphereGenerator` (type 2), in the WWV random-stream order; other types are not simulated.
+- [x] Spawn per WWV plane (1), sphere (2) and cubic Bézier spline (3) generators; spline controls must form complete 3n+1 finite points. Types beyond these are not simulated.
 - [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000. Each placement captures the current density at registration. An Options density change updates only the default: existing placements retain their captured rate and future registrations use the new default, without recreating pools.
 - [x] Advance ballistically with drag, gravity and wind (while age < windTime). Model-space emitters (0x10) simulate in the emitter frame; others in world axes, with WoW gravity converted.
 - [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
@@ -60,7 +60,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 ## Known gaps (current cycle)
 
 - [ ] Animated emitter tracks: `set_animation` keys emission rate, speed and `enabledIn` per sequence, but skips global-sequence tracks and tracks with at most one key per sequence; the other tracks use their first key.
-- [ ] Tail native real-asset pixel acceptance (CPU geometry implemented), spline emitters (type 3), model particles, burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
+- [ ] Tail native real-asset pixel acceptance (CPU geometry implemented), spline rate-per-unit semantics (type 3), model particles, burst/inherit velocity (0x40), randomized atlas mask (0x8000), ground snap (0x2000), TXAC UV shader variants, the actual refraction pass, alpha-cutoff discard and lit particles (no 0x1 flag).
 - [ ] Emitters of attached item models (weapons, held torches, enchants) and player models; display state spell kits (the HD kobold candle flame is not a model emitter).
 - [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
 
@@ -76,3 +76,7 @@ Behaviour provenance: user-supplied particle clean-room spec and WebWowViewerCpp
 ### Clean-room P2 (2026-10-15)
 
 Follow-position 0x4000 applies clamped authored speed/scale interpolation to emitter displacement, only when the already-advanced particle age exceeds twice the step. Replay slices receive their proportional displacement, not the entire frame displacement repeatedly. Provenance: supplied clean-room spec and allowed WebWowViewerCpp Update/UpdateParticle. Duplicate speed points produce zero carry as in WWV. Modern asset applicability remains unproven; combined model-space/follow semantics require target observation. Tests isolate old/young, flag off, clamped speed and multi-step carry. RED 0/2; GREEN pending.
+
+### Clean-room P4 (2026-10-15)
+
+Layout established from allowed WWV `M2ParticleOld::splinePoints` and real local MD21 6316199: emitter 0 has M2Array count4/MD20-offset264608 at 0x1C0/0x1C4, float3 payload [(0,0,0),(0,0.002777778,0),(0,0.005555556,0),(0,0,0)]. Parser preserves controls; the native admission predicate now admits type3 only with complete cubic controls. WWV C3Spline supplies four-point Bézier evaluation, twenty-interval segment-length weighting, and CSplineGenerator supplies clamped width/length parameter bounds, endpoint-on-width-change, tangent-axis launch and zSource rules. Synthetic bent controls are substituted only in a disposable in-memory real asset. RED: no particles/admission; GREEN pending. **Named gap P4-density:** allowed WWV uses ordinary rate; the supplied spec does not state the rate-per-unit convention. No density multiplier invented; exact target per-length semantics and native bent-spline pixels remain open.

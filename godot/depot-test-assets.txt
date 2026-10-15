@@ -4885,3 +4885,7 @@ db2/active/Mount.csv
 
 data/models/4061989.m2
 data/models/406198900.skin
+
+# Clean-room spline payload fixture (real type 3).
+data/models/6316199.m2
+data/models/631619900.skin
