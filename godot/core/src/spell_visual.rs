@@ -28,7 +28,7 @@ pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 13;
+const CACHE_FORMAT: u32 = 14;
 
 const SOURCE_TABLES: [&str; 25] = [
     "ChrSpecialization",
@@ -138,6 +138,8 @@ impl KitTarget {
 /// What a caster's `PlayerCondition` is evaluated against.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CasterContext {
+    /// Replicated PlayerCondition encoding: 0 unknown, 1 Horde, 2 Alliance.
+    pub current_pvp_faction: u8,
     pub race: u8,
     pub class: u8,
     pub gender: u8,
@@ -163,6 +165,7 @@ struct PlayerCondition {
     aura_spell: u32,
     aura_stacks: u32,
     aura_inverted: bool,
+    current_pvp_faction: u8,
     /// Some other requirement the client cannot evaluate here is set.
     unsupported: bool,
 }
@@ -198,6 +201,7 @@ impl PlayerCondition {
                     .main_hand_subclass
                     .is_some_and(|subclass| self.weapon_subclass_mask & (1 << subclass) != 0),
             self.meets_aura(caster),
+            self.current_pvp_faction == 0 || self.current_pvp_faction == caster.current_pvp_faction,
         ];
         checks.into_iter().all(|check| check)
     }
@@ -679,6 +683,14 @@ impl SpellVisualCatalog {
     pub fn display_state_kit(&self, display_id: u32) -> Option<VisualKit> {
         let kit_id = self.display_state_kit_id(display_id)?;
         Some(self.resolve_kit(kit_id, KitTarget::Caster, VisualEvent::DisplayEnd))
+    }
+
+    /// Mount rider AnimKits are scheduled in full by MountSpecialCatalog, not the
+    /// legacy first-segment spell animation resolver. Return remaining supported effects.
+    pub fn mount_special_kit(&self, kit_id: u32) -> VisualKit {
+        let mut kit = self.resolve_kit(kit_id, KitTarget::Caster, VisualEvent::OneShot);
+        kit.animation = None;
+        kit
     }
 
     fn resolve_kit(&self, kit_id: u32, target: KitTarget, end: VisualEvent) -> VisualKit {

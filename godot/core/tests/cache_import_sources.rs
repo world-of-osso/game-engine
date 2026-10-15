@@ -34,7 +34,7 @@ fn creature_import_follows_active_export_after_patch() {
     for (build, display, fdid) in [("12.1.0.69933", 4, 9001), ("12.1.5.70340", 5, 9002)] {
         let source = base.join(build);
         std::fs::create_dir_all(&source).unwrap();
-        std::fs::write(source.join("CreatureDisplayInfo.csv"), format!("ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n{display},7,1,1,0,0,0,0\n")).unwrap();
+        std::fs::write(source.join("CreatureDisplayInfo.csv"), format!("ID,ModelID,CreatureModelScale,PetInstanceScale,CreatureModelAlpha,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n{display},7,1,1,255,0,0,0,0\n")).unwrap();
         std::fs::write(
             source.join("CreatureModelData.csv"),
             format!("ID,FileDataID,ModelScale,CreatureGeosetDataID\n7,{fdid},1,0\n"),
@@ -85,11 +85,11 @@ fn outfit_import_uses_active_gear_without_a_legacy_starter_table() {
 #[test]
 fn creature_import_uses_pinned_rows_and_invalidates_root_source_receipts() {
     let fixture = Fixture::new();
-    let header = "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n";
+    let header = "ID,ModelID,CreatureModelScale,PetInstanceScale,CreatureModelAlpha,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n";
     fixture.write(
         "CreatureDisplayInfo.csv",
-        &format!("{header}4,7,1,1,11,0,0,0\n"),
-        &format!("{header}145204,7,2,0.7,22,0,0,0\n145205,7,1,1,23,0,0,0\n"),
+        &format!("{header}4,7,1,1,255,11,0,0,0\n"),
+        &format!("{header}145204,7,2,0.7,255,22,0,0,0\n145205,7,1,1,255,23,0,0,0\n"),
     );
     fixture.write(
         "CreatureModelData.csv",
