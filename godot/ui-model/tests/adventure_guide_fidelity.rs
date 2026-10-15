@@ -431,6 +431,7 @@ fn adventure_guide_instance_loot_has_source_tabs_without_boss_selection() {
         assert_eq!(v.encounter, None);
         let r = render(&v, skin);
         assert_eq!(rect(&r, "JournalLoot2169"), [0., 0., 321., 64.]);
+        assert_eq!(rect(&r, "JournalLoot2169Border"), [0., 0., 369., 64.]);
         assert_eq!(text(&r, "JournalLoot2169Boss"), "Boss: Glubtok");
         assert_eq!(text(&r, "JournalLoot2169Slot"), "One-Hand");
     }
@@ -465,6 +466,32 @@ fn adventure_guide_instance_loot_uses_selected_instance_and_difficulty() {
     v.apply("journal:slot:10").unwrap();
     assert!(v.loot().iter().any(|item| item.id == 5195));
     assert!(v.loot().iter().all(|item| item.slot == 10));
+}
+
+#[test]
+fn adventure_guide_instance_loot_legacy_first_tab_keeps_real_abilities() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut v = view();
+        v.apply("journal:encounter:112").unwrap();
+        assert!(
+            v.sections()
+                .unwrap()
+                .iter()
+                .any(|(section, _)| section.id == 2409 && section.title == "Shatter")
+        );
+        let r = render(&v, skin);
+        assert!(r.get_by_name("JournalSection2409").is_some());
+        assert!(r.get_by_name("EncounterJournalPage1").is_none());
+        assert_eq!(rect(&r, "EncounterJournalPage3")[1], 209.);
+        v.apply("journal:encounter:2364").unwrap();
+        v.apply("journal:page:abilities").unwrap();
+        let r = render(&v, skin);
+        assert_ne!(
+            button(&r, "EncounterJournalPage1").state,
+            ButtonState::Disabled
+        );
+        assert_eq!(rect(&r, "EncounterJournalPage3")[1], 264.);
+    }
 }
 
 #[test]
