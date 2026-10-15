@@ -18,6 +18,14 @@ Private real player characters exercise the native controller path and measure c
 - [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once. Own private Ret32 fixture retains actual submitted20271 request1792056099829 without a success, three real successes and899 damage.
 - [x] Merge overlapping combat polls without double counting or collapsing real duplicate events; identify overflow using observed ring retention.
 
+## Native race fixture
+
+Northshire Shaman bots use source-valid Draenei11 up front, not a retry-based alternative after Dwarf rejection. Other classes use the lowest source-valid Alliance race. Missing authored source pairs block provisioning. This fixture choice does not close the server's separately tracked Dwarf/Shaman eligibility gap.
+
+## Comparable equipment budget
+
+Every stat-bearing armor slot and preferred weapon uses authentic Item/ItemSparse at the same raw item-level30, quality2 and squish-era0, within the character's level requirement. Armor follows ChrClasses.ArmorTypeMask (cloaks use their native cloth class); positive primary-stat allocation follows ChrSpecialization.PrimaryStatPriority. Record item IDs, raw ilvl, quality, native owner GUIDs and visible native primary stats per spec in fixture-receipt.json. Comparison keys include observed character level, native dummy level/max-health/difficulty, source world.db SHA-256 and duration; roster comparison withholds medians when any expected DPS repetition is absent/incomplete or fewer than three DPS specs qualify. Neck, both rings and both trinkets must be empty for every bot, removed through ordinary paperdoll-to-empty-bag input and confirmed by authoritative equipment/bag snapshots. Storage bags remain equipped and are recorded separately from the combat budget. Missing source slots, mismatched native equipment or unbudgeted stat-bearing equipment block comparison; no changed item/stat definitions or alternate budget.
+
 ## How it works
 
 - [Evidence and detection boundaries](../wiki/systems/bot-harness.md)
@@ -41,7 +49,7 @@ Private real player characters exercise the native controller path and measure c
 ## Known gaps (current cycle)
 
 - [ ] Complete three-DPS sustained dummy MVP before all-spec/Stockade phase expansion. Native provisioning/spec selection/dummy casts work, but source evaluator stops Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67. No fallback and no sustained-DPS claim.
-- [ ] Comparable spec-correct gear/stat receipts. Sourced native talent purchase and Ret fresh-login12/12-rank persistence are verified; source weapon-plan execution remains a separate gate. Fury's dual-two-hand kit is blocked by unmodelled Titan's Grip; no gear fallback.
+- [ ] Comparable spec-correct gear/stat receipts. Sourced native talent purchase and Ret fresh-login12/12-rank persistence are verified. Ret/Arms ordinary native2361 equip is verified; Arms has two complete60s windows, while source-geared Ret again stops6425. Other weapon plans remain unverified. Fury's dual-two-hand kit is blocked by unmodelled Titan's Grip; no gear fallback.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] Three-spec and all-spec comparable damage receipts.
 
