@@ -114,7 +114,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 31] = [
+        const SOURCES: [Source; 32] = [
+            GameClient::journal_creature_tooltip,
             GameClient::journal_monthly_tooltip,
             GameClient::journal_journey_tooltip,
             GameClient::journal_set_tooltip,
@@ -232,6 +233,19 @@ impl GameClient {
             },
             None,
         ))
+    }
+
+    fn journal_creature_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, tooltip) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            game_engine_ui_model::adventure_creatures::tooltip(
+                &self.adventure_guide.view,
+                frame.name.as_deref()?,
+            )
+        })?;
+        drop(ui);
+        let rect = self.owner_rect(&hit.ui, owner)?;
+        Some(HoveredTooltip::text(tooltip.owned(rect, OwnerSide::Right)))
     }
 
     fn journal_monthly_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

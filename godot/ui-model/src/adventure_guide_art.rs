@@ -155,6 +155,14 @@ fn apply_button_art(view: &View, registry: &mut ui_toolkit::registry::FrameRegis
             Art::BossDown,
         );
     }
+    for creature in view.model_creatures() {
+        apply_button_state(
+            registry,
+            &format!("JournalCreature{}", creature.id),
+            Art::InstanceRing,
+            Art::InstanceRing,
+        );
+    }
     for (index, page) in [
         (0, Page::Overview),
         (1, Page::Abilities),

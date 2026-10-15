@@ -537,8 +537,8 @@ impl GameClient {
         let display = self
             .adventure_guide
             .view
-            .encounter
-            .and_then(|id| self.adventure_guide.view.catalog.display(id));
+            .model_creature()
+            .map(|creature| creature.display);
         let current = self
             .adventure_guide
             .pending
@@ -627,6 +627,11 @@ impl GameClient {
         state.set("tier", view.tier);
         state.set("instance", view.instance.map(i64::from).unwrap_or(-1));
         state.set("encounter", view.encounter.map(i64::from).unwrap_or(-1));
+        state.set("creature", view.creature.map(i64::from).unwrap_or(-1));
+        state.set(
+            "model_display",
+            self.adventure_guide.shown.map(i64::from).unwrap_or(-1),
+        );
         state.set("difficulty", view.difficulty);
         state.set("role", view.role);
         state.set("class", view.class);

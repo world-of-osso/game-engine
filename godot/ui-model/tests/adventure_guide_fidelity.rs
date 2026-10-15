@@ -386,3 +386,15 @@ fn adventure_guide_model_creature_buttons_follow_authored_order_and_selection() 
         );
     }
 }
+
+#[test]
+fn adventure_guide_model_tooltip_retains_authored_creature_description() {
+    let mut v = view();
+    v.apply("journal:encounter:154").unwrap();
+    v.apply("journal:page:model").unwrap();
+    let tooltip =
+        game_engine_ui_model::adventure_creatures::tooltip(&v, "JournalCreature555").unwrap();
+    assert_eq!(tooltip.content.title, "Nezir");
+    assert_eq!(tooltip.content.lines[0].left_text, "Lord of the North Wind");
+    assert!(game_engine_ui_model::adventure_creatures::tooltip(&v, "JournalCreature359").is_none());
+}
