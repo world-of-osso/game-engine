@@ -1,5 +1,5 @@
-use super::npc_pose_tests::{human_male_hd, pose_distance};
 use super::AnimationState;
+use super::npc_pose_tests::{human_male_hd, pose_distance};
 use game_engine_core::mount_special::MountSpecialCatalog;
 use std::{collections::HashMap, path::Path};
 
@@ -14,16 +14,33 @@ fn mount_special_rider_upper_body_keeps_the_seated_legs_and_finishes() {
     rider.update_locomotion(91, false, false).unwrap();
     seated.update_locomotion(91, false, false).unwrap();
     let catalog = kit_catalog();
-    rider.play_mount_kits(&[catalog.kit(19345).unwrap()], 5000.0, &HashMap::new()).unwrap();
+    rider
+        .play_mount_kits(&[catalog.kit(19345).unwrap()], 5000.0, &HashMap::new())
+        .unwrap();
     rider.advance(599.0).unwrap();
     seated.advance(599.0).unwrap();
     assert!(pose_distance(&rider.poses(), &seated.poses()) < 1e-4);
     rider.advance(301.0).unwrap();
     seated.advance(301.0).unwrap();
-    let (upper, lower) = rider.poses().iter().zip(seated.poses()).zip(&rider.upper_body).fold((0.0_f32, 0.0_f32), |(upper, lower), ((actual, expected), is_upper)| {
-        let distance = pose_distance(std::slice::from_ref(actual), std::slice::from_ref(&expected));
-        if *is_upper { (upper.max(distance), lower) } else { (upper, lower.max(distance)) }
-    });
+    let (upper, lower) = rider
+        .poses()
+        .iter()
+        .zip(seated.poses())
+        .zip(&rider.upper_body)
+        .fold(
+            (0.0_f32, 0.0_f32),
+            |(upper, lower), ((actual, expected), is_upper)| {
+                let distance = pose_distance(
+                    std::slice::from_ref(actual),
+                    std::slice::from_ref(&expected),
+                );
+                if *is_upper {
+                    (upper.max(distance), lower)
+                } else {
+                    (upper, lower.max(distance))
+                }
+            },
+        );
     assert!(upper > 0.01, "rider upper body did not animate: {upper}");
     assert!(lower < 1e-4, "rider legs left saddle pose: {lower}");
     rider.advance(6000.0).unwrap();
