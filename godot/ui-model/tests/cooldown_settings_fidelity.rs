@@ -36,6 +36,28 @@ fn retail_cooldown_settings_shell_and_side_tabs_use_source_rects_in_both_skins()
             (shell.position.left, shell.position.top),
             (Val::Px(16.0), Val::Px(116.0))
         );
+        let background = registry
+            .get(
+                registry
+                    .get_by_name("CooldownSettingsInsetBackground")
+                    .expect("Settings XML background"),
+            )
+            .unwrap();
+        assert_eq!(
+            (background.width.value(), background.height.value()),
+            (389.0, 523.0)
+        );
+        assert_eq!(
+            (background.position.left, background.position.top),
+            (Val::Px(4.0), Val::Px(60.0))
+        );
+        let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &background.widget_data else {
+            panic!("Settings background texture");
+        };
+        assert_eq!(
+            texture.source,
+            ui_toolkit::widgets::texture::TextureSource::Atlas("character-panel-background".into())
+        );
         for (index, name) in ["Spells", "Auras", "GroupBuffs"].iter().enumerate() {
             let tab = registry
                 .get(
@@ -76,6 +98,54 @@ fn retail_cooldown_settings_shell_and_side_tabs_use_source_rects_in_both_skins()
         );
         assert!(registry.get_by_name("CooldownSettingsPrevious").is_none());
         assert!(registry.get_by_name("CooldownSettingsNext").is_none());
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn retail_cooldown_settings_bar_uses_default_color_in_both_skins() {
+    use game_engine_ui_model::cooldown_settings_component::CooldownSettingEntry;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(CooldownViewerView {
+            settings: CooldownSettingsView {
+                open: true,
+                category: 2,
+                entries: vec![CooldownSettingEntry {
+                    id: 68661,
+                    category: 3,
+                    label: "Avenging Wrath".into(),
+                    icon_fdid: 135875,
+                    selected: true,
+                }],
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(cooldown_viewer_screen).sync(&shared, &mut registry);
+        let bar = registry
+            .get(
+                registry
+                    .get_by_name("CooldownSettingsItem68661Bar")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert_eq!((bar.width.value(), bar.height.value()), (274.0, 19.0));
+        let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &bar.widget_data else {
+            panic!("Settings status-bar texture");
+        };
+        assert_eq!(
+            texture.vertex_color,
+            [1.0, 0.5, 0.25, 1.0],
+            "CooldownViewerSettings.lua COOLDOWN_BAR_DEFAULT_COLOR"
+        );
     }
     set_thread_skin(ActiveSkin::Modern);
 }

@@ -815,6 +815,7 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
         return Err("unexpected fixture authentication request".into());
     }
     let equipped = CharacterListEntry {
+        tabard: None,
         character_id: 17,
         name: NAME.into(),
         level: 10,

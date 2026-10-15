@@ -42,8 +42,12 @@ func run_test() -> void:
 	if not await record_editor("cleanup-hover"): return
 	push_mouse_motion(housing_control("HouseEditorBasicDecorModeButton").get_global_rect().get_center())
 	if not await wait_housing(func(): return housing_control("HouseEditorCleanupTooltip") == null and highlighted_meshes() == 0, "hover leaves target and restores original material"): return
+	print_cleanup_hover_probe("before-return", hit.point)
 	push_mouse_motion(hit.point)
-	if not await wait_housing(func(): return highlighted_meshes() > 0, "hover returns"): return
+	print_cleanup_hover_probe("after-return", hit.point)
+	if not await wait_housing(func(): return highlighted_meshes() > 0, "hover returns"):
+		print_cleanup_hover_probe("return-timeout", hit.point)
+		return
 	await click(hit.point, MOUSE_BUTTON_LEFT)
 	if cleanup_role == "owner":
 		if not await prove_cleanup_owner(before): return
@@ -52,6 +56,9 @@ func run_test() -> void:
 	print("PASS: private5870 Cleanup ", cleanup_role, " ", housing_skin)
 	client.free()
 	quit(0)
+
+func print_cleanup_hover_probe(phase: String, point: Vector2) -> void:
+	print("CLEANUP_HOVER_PROBE phase=", phase, " point=", point, " actual_mouse=", root.get_mouse_position(), " picked=", UnitPicker.pick(camera(), point), " camera=", camera().global_transform, " highlighted=", highlighted_meshes(), " tooltip=", housing_control("HouseEditorCleanupTooltip") != null, " hovered_control=", root.gui_get_hovered_control(), " pending=", client.housing_state().get("pending", true), " house=", client.housing_state().get("house_id", 0))
 
 func push_mouse_motion(point: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
@@ -92,7 +99,23 @@ func open_cleanup_house() -> bool:
 func enter_cleanup() -> bool:
 	await frames(5)
 	if not await click_exposed_control(housing_control("HouseEditorCleanupModeButton")): return false
-	return await wait_housing(func(): return housing_control("HouseEditorStorageFrame") == null and housing_text("HouseEditorInstructions") == "Left-click decor to return it to storage.", "Cleanup hides storage")
+	if not await wait_housing(func(): return housing_control("HouseEditorStorageFrame") == null and housing_text("HouseEditorSelectInstructionText") == "Remove Decor", "Cleanup source instructions hide storage"): return false
+	var button: Control = housing_control("HouseEditorCleanupModeButton")
+	var scale: float = button.get_global_rect().size.x / 64.0
+	var bar: Rect2 = housing_control("HouseEditorModeBar").get_global_rect()
+	var row: Rect2 = housing_control("HouseEditorSelectInstruction").get_global_rect()
+	var instructions: Rect2 = housing_control("HouseEditorInstructions").get_global_rect()
+	var customize: BaseButton = housing_control("HouseEditorCustomizeModeButton") as BaseButton
+	if absf(bar.size.x-266.0*scale)>1.0 or absf(bar.get_center().x-root.size.x/2.0)>1.0 or absf(bar.end.y-root.size.y)>1.0:
+		fail("Cleanup source mode bar bounds/anchor drifted")
+		return false
+	if absf(row.size.y-45.0*scale)>0.1 or absf(instructions.end.x-(root.size.x-30.0*scale))>1.0 or housing_control("HouseEditorSelectInstructionControlIcon")==null:
+		fail("Cleanup source instruction row/glyph drifted")
+		return false
+	if customize==null or not customize.disabled or housing_control("HouseEditorBasicSubmodeBar")!=null or housing_control("HouseEditorExpertSubmodeBar")!=null:
+		fail("Cleanup invented an available unsupported mode/submode")
+		return false
+	return true
 
 func highlighted_meshes() -> int:
 	var node: Node3D = placed_node()

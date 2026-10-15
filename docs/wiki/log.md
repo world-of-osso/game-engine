@@ -1,6 +1,35 @@
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
 [Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
+## 2026-10-14 — Shared Cleanup controls
+
+[Cleanup source controls](systems/housing.md#cleanup-shared-source-controls--implementation2026-10-14): removed separate three-button chrome; shared mode art/bound labels and source45px Remove Decor row. Two behavioral REDs; scoped housing registry GREEN24. Installed70391 both-skin source bounds/captures and paid-owner store/relog/replant plus actual readonly visitor refusal/relog PASS. Existing authority/tooltip behavior preserved; an earlier non-reproduced Forever return-hover timeout remains documented, not claimed fixed.
+
+## 2026-10-14 — Installed-source Expert native matrix
+
+[Bound icon proof](systems/housing.md#bound-icon-control-text--implementation2026-10-14): both skins pass paid1693/2330 transforms, cancel/commit/relog/conservation, readonly visitors and native assigned/unbound icon keys on70391. Repaired fixture waits for revealed/hit-testable character controls instead of clicking hidden roster nodes. Actual7508739 bytes match current localCASC; full pixel parity stays separate. Owned processes stopped; PSI/swap receipts retained. Full housing remains open.
+
+## 2026-10-14 — Assigned housing icon keys
+
+[Bound icon control text](systems/housing.md#bound-icon-control-text--implementation2026-10-14): source mode/submode font strings now show assigned abbreviated keys and disappear on unbind. Missing-label behavioral RED; both-skin binding lifecycle plus housing registry GREEN24. Native Options/render acceptance, tooltips and active-glow remain open.
+
+## 2026-10-14 — Housing installed-source qualification
+
+[Housing source boundary](systems/housing.md#catalog-and-actual-acquisition): published70391 cache/GlobalStrings/atlas metadata are available; fourteen Expert enUS binding labels match. Private housing catalog/world snapshots refreshed without changing paid property state. Earlier source/runtime proof remains historical; both-skin installed-source native and hotkey pixel acceptance still pending. No export request or obsolete payload publication.
+## 2026-10-14 — Guild tabard final focused acceptance
+
+[Guild tabards](systems/guilds.md#guild-tabard-data-flow): approved catalog-valid arrows skip real missing border combinations without changing the other four fields; four model tests pass. Requested three source-verified goldens pass with only tab Button rows and fractional clear-button anchors changed. Final merged all-target checks/formatting and both native scripts pass; fourteen refreshed full-HD PNGs inspected. Server durability and offline rendering remain separate proofs; lead owns the full protocol landing gate.
+
+## 2026-10-14 — Tabard pixels exposed BGRA palette reversal
+
+[BLP palette normalization](formats/blp-format.md#palettized-bgra-correction-2026-10-14): native vendor/worn/character-select fixtures completed in both skins, but inspected red tabard backgrounds rendered blue. Authenticated180071 RED decoded `[0,9,129,255]` instead of `[129,9,0,255]`; normalize `image-blp` Raw1 palette input. Twelve focused decoder tests pass. Corrected vendor/three worn tiers/Communities and production character-selection native fixtures pass in both skins; fourteen1920×1080 PNGs inspected. No live-network proof inferred.
+
+## 2026-10-14 — Guild tabard authority and roster appearance
+
+[Guild tabards](systems/guilds.md#guild-tabard-data-flow): additive durable design/payment, live vendor validation, optional profile/replica/roster wire and source torso tiers have focused CPU proofs. Actual character-selection preparation retains registered layers after lead publication of all7274 authenticated body receipts. Arrow hover RED erased the normal icon; source base plus ADD overlay GREEN. Physical native fixture uses production screen/reducer/loader with simulated replies; both-skin pixels and live networking are not inferred from these tests.
+## 2026-10-14 — Close-camera observation
+
+[Read-only framing73/74](systems/character-rendering.md#close-camera-observation--2026-10-14) identifies the actual visible mailbox collider pulling in the Goldshire camera. Post-AV fresh login is dead; standing-body acceptance remains open. Both-skin front/rear originals and loaded portraits are observations only; no camera/material/gameplay change or retrospective old-capture cause claim.
 ## 2026-10-14 — Journeys player-facing progress header
 
 [Header correction](systems/adventure-guide.md#player-facing-renown-header-correction--2026-10-14):056 removes developer unlock text and restores received level/progress without inventing lock state. Lead accepted ordinary-renown no-fill source distinction. Behavioral RED→UI20/20, both-skin native18 inspected full-HD recaptures, native builds/check/fmt pass; real async CharacterSelect readiness wait and missing published-cache slot link recorded separately.
@@ -16,6 +45,10 @@
 ## 2026-10-14 — Trading Post checkout lifetime and native cart acceptance
 
 [Cart acceptance](systems/trading-post.md#cart-acceptance--2026-10-14): stable hidden-owner instance identities fix the controlled free→replacement checkout panic. Modern/Forever checkout→new-client relog→individual refunds pass with zero panic/script-error markers, seventy1920×1080 PNGs and memory/swap boundaries.21 UI/8 native and12 server/1 admin gates pass after current-master integration; protocol3 unchanged. Mount player-preview/rotate widgets remain unchecked.
+
+## 2026-10-14 — Cooldown Settings source inset
+
+[Settings art](investigations/cooldown-assist-data.md#settings-template-art--2026-10-14): retain already-repaired399×609 shell/tabs/row geometry; restore character-panel inset background/shared border and source orange preview tint. Two source-art REDs→13 focused tests GREEN, build/check/fmt pass, four inspected both-skin full-HD Spells/Auras captures. No new authority or Settings behavior.
 
 ## 2026-10-14 — Header-aware DB2 CSV catalogs
 

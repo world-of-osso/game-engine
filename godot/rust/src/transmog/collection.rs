@@ -41,11 +41,12 @@ impl GameClient {
     }
 
     fn transmog_collection_appearances(&self) -> Result<Desired, String> {
-        let Some(UnitAppearance::Player(player, _)) = self.world.local_player_appearance() else {
+        let Some(UnitAppearance::Player(player, _, tabard)) = self.world.local_player_appearance()
+        else {
             return Ok(BTreeMap::new());
         };
         let book = &self.transmog.book;
-        let dress = |equipment| UnitAppearance::Player(player.clone(), equipment);
+        let dress = |equipment| UnitAppearance::Player(player.clone(), equipment, *tabard);
         let mut desired = Desired::new();
         match book.tab {
             WardrobeTab::Items => {
