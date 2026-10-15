@@ -59,6 +59,7 @@ Players stand on WMO floors (building interiors, paving, ramps), not only on ADT
 ## Tests asserting this spec
 
 - shared-protocol `src/ground_tests.rs`
+- `godot/rust/src/ground_step_tests.rs`, `godot/tests/ramp_lip_walk.gd` — exact Stockade lip, wall/landing and retained-corridor regressions; [bounded native proof](../wiki/systems/player-ground.md#bounded-native-proof).
 - `godot/rust/src/wmo/collision_tests.rs`, `godot/core/tests/camera_data.rs`, `godot/core/tests/player_physics_data.rs`, `godot/tests/world_wmo_camera_collision.gd`, `godot/tests/world_wmo_wall_walk.gd`, `godot/tests/world_entry_camera.gd`
 - `src/rendering/terrain/terrain_objects_wmo_tests/floor_collision.rs`
 - game-server `crates/server/src/ground_tests.rs`

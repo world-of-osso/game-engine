@@ -1,6 +1,6 @@
 ## 2026-10-15 — Stockade ramp lip movement
 
-[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap; native acceptance tracked by the movement owner.
+[Player ground](systems/player-ground.md#native-grounded-steps--2026-10-15): captured face3153 lip blocks before reachable face3041 support; floor-first order with unchanged low-ray movement corridor and step/wall constants. Exact-face RED and thin-wall counterexample RED recorded; lead explicitly excluded full-height body clearance after authored-route regressions. Full-body clearance is a named gap. [Bounded native proof](systems/player-ground.md#bounded-native-proof): Godot old-ray contact0.04996484yd, held-W rise0.65576yd with matching client/server positions, inspected before/after PNGs;10+4 focused regressions pass. Authoritative private pose setup is recorded; no server source changes.
 
 ## 2026-10-15 — MountSpecial authored playback continuation
 

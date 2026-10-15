@@ -24,6 +24,16 @@ A raised ray alone can miss a thin wall up to0.6yd above the landing. A wall-blo
 
 Server `networking_movement::land_height` already samples the destination ground from current Y before applying its land envelope; it has no earlier client-style wall ray. No server change accompanies this fix. Regression fixtures: `godot/rust/src/ground_step_tests.rs`, full-WMO `wmo/collision_tests.rs::ramp_lip_full_stockade_walks_from_captured_feet_onto_landing`, native `godot/tests/ramp_lip_walk.gd`.
 
+### Bounded native proof
+
+Verified2026-10-15: exact-face RED stops at captured feet; final focused Rust gates pass10 ramp-lip/guard cases and4 existing Stockade/Jasperlode routes (including2FPS) on movement revision`505b5efb8`. Normal native extension build`3dcb5dadf`, fixture`1e41990bc`, pinned Godot4.7.2 and private UDP5921 peer server`3a982777`/shared`62865c2` produced the native proof.
+
+Normal `--screen inworld --char Ramplip` startup enters Stockade at its entrance. The existing online admin command `set-position Ramplip 108.2204 -3.454892 -26.26199` then establishes the captured pose server-authoritatively in that private instance; afterward the fixture only sends native turn/W input. The level80 test character avoids making dungeon combat completion a prerequisite; it still takes trash damage, remains alive, and reports server speed7 at both measured endpoints.
+
+Before movement, the actual Godot WMO-layer ray at feet+0.6 hits `(108.2684,-25.66199,3.441165)` at0.04996484yd, inside the unchanged0.05 wall margin. Held W then advances from `(108.2204,-26.26199,3.454892)` to `(108.8964,-25.60623,3.27322)` on the upper floor; client/server positions agree at both ends and the movement epoch stays unchanged during the walk. No client position writes or server source changes occur.
+
+Inspected1280×720 PNGs: `/syncthing/AgentShared/2026-10-15/ramp-lip/{before,after}.png`. Durable receipts and full logs: `/home/osso/.worktrees/logs/movement-ramp-lip-success-{native-receipt.json,runtime-receipt.json,native-client.log,server.log}`. The runtime receipt records the authoritative setup command and actual extension/server SHA-256s; the compiled runtime uses the supplied62865c2 peer even though the unrelated shared checkout later advances. Owned client/server processes are stopped after capture. This proves the captured direct lip traversal, not whole-dungeon completion or full-body clearance.
+
 ## WMO group collision
 
 `WmoGroupCollision::parse` reads the group file itself (MOGP header flags and bbox, MOPY, MOVI, MOVT, MOBN, MOBR). The file keeps the file's coordinates (Z up).
