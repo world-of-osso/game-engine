@@ -25,12 +25,16 @@ Mounted players perform their mount's authored special, not an ordinary jump whi
 
 ## Tests asserting this spec
 
-- Protocol `tests/mount_special.rs` — emote and mounted-identity wire round trips (RED pending).
-- `godot/ui-model/src/ui/chat_frame_tests.rs::mount_special_slash_uses_the_emote_action` — slash input reaches an emote (RED pending).
+- Protocol `tests/mount_special.rs` — actual emote and mounted-identity wire round trips, RED→GREEN2.
+- `godot/ui-model/src/ui/chat_frame_tests.rs::mount_special_slash_uses_the_emote_action` — slash input reaches the unified emote, RED→GREEN1.
+- Core `mount_special::{tests,kit_tests}` — stationary/moving/air selection; installed Grrloc600ms delay/2000ms offset/upper-body mask; all four Spelltome segments with reverse/overlap; simultaneous DND masks and visual19705 loop; explicit missing-clip error. GREEN6.
+- Native `animation::mount_special_tests` — actual HumanMale HD rider bone poses and mount sequence ownership against per-frame locomotion. Final native proof remains pending.
 
 ## Known gaps (current cycle)
 
-- [ ] New behavior and native proof are not implemented/verified yet.
+- [ ] Native both-skin three-mount/observer proof and final integration remain open.
+- [ ] AnimKit condition enums are not published in the allowed sources. Scheduling is explicitly inferred: Start0=kit start,1=referenced start,2=referenced end; End0=clip completion,1=held,4=referenced start+delay. Reverse speed starts at the clip end minus authored offset; zero blend times are immediate. Installed-row timeline tests establish this implementation, not parity with unavailable client C code. Segment/config flags are retained; their unpublished bit semantics are not independently established.
+- [ ] Installed additional mount visuals also reference effect type12; existing supported model/sound/animation dispatch does not implement that discriminant. No all-VFX claim.
 - [ ] Retail `Bindings_Standard.xml:53-59` calls `JumpOrAscendStart` on key-down and `AscendStop` on release; the native C implementation is unavailable. The user-confirmed stationary/moving distinction governs this client; do not invent a hold timer.
 - [ ] Current installed70391 has three distinct rider kits across six mount rows:19345 (Grrloc),23323 (Soaring Spelltome),3012 (DND test). Grrloc segment37708 starts600ms late at clip offset2000ms;23323 includes dependent/overlapping segments and reverse speed. Existing first-segment-only spell animation resolution does not establish full authored kit playback.
 - [ ] Grrloc visual124416 includes SpellProceduralEffect10/34/17 and RopeEffect4. Lead source lookup2026-10-15T00:17 found no implementation defining these procedural/rope semantics in allowed sources. Explicit decision: retain these named gaps, implement animation and supported kit types only; do not fabricate procedural/rope rendering or claim full VFX fidelity. Rider segment condition/flag interpretation must also retain its actual source/proof boundary.
