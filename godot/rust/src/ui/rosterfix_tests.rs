@@ -171,6 +171,7 @@ fn rosterfix_twelve_selection_visible() {
 fn rosterfix_protocol_names_render_as_text() {
     use shared::protocol::CharacterListEntry;
     let characters = [CharacterListEntry {
+        tabard: None,
         character_id: 30,
         name: "Skywinddru".into(),
         level: 1,

@@ -9,6 +9,19 @@ fn texture(fdid: u32) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
+/// Authenticated70391 GuildTabardBackground color5, torso upper: palette BGRA
+/// at (64,10) is [0,9,129,0], with separately stored alpha255.
+#[test]
+fn guild_tabard_palette_keeps_authored_red_and_separate_alpha() {
+    let bytes = texture(180071);
+    let rgba = decode_rgba(&bytes).unwrap();
+    let offset = (10 * 128 + 64) * 4;
+    assert_eq!(&rgba.pixels[offset..offset + 4], &[129, 9, 0, 255]);
+    let uploaded = decode_gpu(&bytes).unwrap();
+    assert_eq!(uploaded.format, GpuFormat::Rgba8);
+    assert_eq!(&uploaded.data[offset..offset + 4], &[129, 9, 0, 255]);
+}
+
 fn compressed(fdid: u32) -> GpuImage {
     let image = decode_gpu(&texture(fdid)).unwrap();
     assert_ne!(image.format, GpuFormat::Rgba8, "{fdid} decoded to RGBA8");
