@@ -69,7 +69,7 @@ func run() -> void:
 	if not await open_instance("EncounterJournalDungeonTab", 63):
 		return
 	if client.adventure_guide_state().difficulty != 1:
-		if not await click("EncounterJournalDifficultyDropdown") or not await click("JournalDifficulty1"):
+		if not await click("JournalDifficultyDropdown") or not await click("JournalDifficulty1"):
 			return
 	if not await click("JournalBoss90") or not await click("EncounterJournalPage3"):
 		return
