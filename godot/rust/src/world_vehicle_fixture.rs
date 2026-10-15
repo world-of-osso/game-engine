@@ -34,7 +34,7 @@ impl VehicleAttachmentFixture {
     fn initialize(&mut self, npc: bool) -> GString {
         self.create_units(npc)
             .err()
-            .map_or_else(GString::new, |error| error.into())
+            .map_or_else(GString::new, |error| GString::from(error.as_str()))
     }
 
     #[func]
@@ -50,14 +50,14 @@ impl VehicleAttachmentFixture {
         let rider = self.world.units.get_mut(&RIDER).expect("Fixture rider");
         mount::sync_passenger(rider, None, &self.world.data_root)
             .err()
-            .map_or_else(GString::new, |error| error.into())
+            .map_or_else(GString::new, |error| GString::from(error.as_str()))
     }
 }
 
 impl VehicleAttachmentFixture {
     fn create_units(&mut self, npc: bool) -> Result<(), String> {
         self.world.reset();
-        let mut parent = self.base().to_gd();
+        let mut parent = self.base().clone();
         let mut host = spawn_unit(
             &mut self.world.root,
             &mut parent,
