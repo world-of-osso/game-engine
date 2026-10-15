@@ -201,7 +201,7 @@ func capture_spelltome_diagnostic() -> void:
 	for child in model.find_children("Batch*", "MeshInstance3D", false, false):
 		var mesh := child as MeshInstance3D
 		var material := mesh.material_override as ShaderMaterial
-		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null})
+		materials.append({"name": mesh.name, "visible": mesh.visible, "shader": material.get_shader_parameter("pixel_shader") if material != null else null, "opacity": material.get_shader_parameter("transparency") if material != null else null, "mesh_color": material.get_shader_parameter("mesh_color") if material != null else null, "gx_blend": material.get_shader_parameter("gx_blend") if material != null else null})
 	write_record("spelltome-materials", materials)
 	# Single-batch diagnostic isolation; every visibility edit is restored immediately.
 	for batch in ["Batch0", "Batch1", "Batch8", "Batch9", "Batch10"]:
