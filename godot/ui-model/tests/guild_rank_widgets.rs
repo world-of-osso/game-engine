@@ -930,6 +930,8 @@ fn guild_communities_metadata_columns_sort_numeric_values_and_preserve_member_id
                 rank_name: "Member".into(),
                 is_online: true,
                 officer_note: "Private".into(),
+                public_note: String::new(),
+                is_self: false,
                 last_online: String::new(),
             })
             .collect(),
