@@ -31,6 +31,14 @@ def parse_combat(text):
     return sorted(events, key=lambda event: event["at_ms"])
 
 
+def merge_polls(polls):
+    """Union overlapping ring-buffer snapshots while retaining true multiplicity."""
+    counts = Counter()
+    for poll in polls:
+        counts |= Counter(event["text"] for event in parse_combat(poll))
+    return parse_combat("\n".join(counts.elements()))
+
+
 def missing_casts(attempts, successes):
     """Consume one server success per submitted request, not per spell identity."""
     unmatched = list(successes)

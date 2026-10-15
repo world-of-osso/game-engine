@@ -7,5 +7,6 @@
     "spell": 44425,
     "requested_ms": 1791992756000,
     "note": "Test request added after real log end; no matching cast exists in capture. Combat lines themselves unmodified."
-  }
+  },
+  "db2": "Unmodified row slices for spells 116,133,30451,44425,137018 from data/db2/active (12.1.5.70391); SpellCastTimes retains full small table."
 }
