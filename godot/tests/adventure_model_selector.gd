@@ -43,6 +43,33 @@ func verify_selection_sizes(selected: String, other: String) -> bool:
 		return false
 	return true
 
+func verify_rendered_portrait(name: String, display: int) -> bool:
+	var deadline := Time.get_ticks_msec() + 30000
+	var state: Dictionary = client.unit_portrait_state(name)
+	while not state.get("model_shown", false) and Time.get_ticks_msec() < deadline:
+		await process_frame
+		state = client.unit_portrait_state(name)
+	if not state.get("model_shown", false) or not state.get("mask_loaded", false) or state.get("mask_fdid", 0) != 130924 or state.get("appearance", "") != "creature display %s items 0" % display:
+		stop("Authored display portrait/mask missing for %s: %s" % [name, state])
+		return false
+	await RenderingServer.frame_post_draw
+	state = client.unit_portrait_state(name)
+	var image: Image = state.get("image")
+	if image == null or image.is_empty():
+		stop("Rendered portrait image absent: " + name)
+		return false
+	var painted := 0
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x,y)
+			if maxf(pixel.r,maxf(pixel.g,pixel.b)) > 0.08 and pixel.a > 0.5:
+				painted += 1
+	if painted < 20:
+		stop("Rendered portrait image is blank: " + name)
+		return false
+	print("MODEL_RENDERED_PORTRAIT %s display=%s painted=%s" % [name,display,painted])
+	return true
+
 func verify_portrait_corners(name: String) -> bool:
 	# Compare actual framebuffer against the same frame without this portrait.
 	# Circle mask must clear corners while retaining visible central art.
@@ -108,6 +135,8 @@ func run() -> void:
 		return
 	if not await move_to("JournalCreature630") or not await shot("model-selector-helix"):
 		return
+	if not await verify_rendered_portrait("JournalCreature359Portrait", 33002) or not await verify_rendered_portrait("JournalCreature630Portrait", 33003):
+		return
 	if not await verify_portrait_corners("JournalCreature359Portrait") or not await verify_portrait_corners("JournalCreature630Portrait"):
 		return
 	if not await move_to("JournalCreature630"):
@@ -131,7 +160,7 @@ func run() -> void:
 		return
 	if not await shot("model-selector-authored-tooltip"):
 		return
-	if not await verify_portrait_corners("JournalCreature555Portrait"):
+	if not await verify_rendered_portrait("JournalCreature555Portrait", 35232) or not await verify_portrait_corners("JournalCreature555Portrait"):
 		return
 	print("MODEL_SELECTOR_PASS skin=%s physicalHelix/Oaf/reset/Nezir-tooltip" % client.account_state().ui_skin)
 	quit(0)
