@@ -139,6 +139,73 @@ fn assert_tooltip_text_runs(
     }
 }
 
+#[test]
+fn housing_control_hover_hides_while_pressed_and_restores_on_release_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        for mode in [EditorMode::Basic, EditorMode::Expert, EditorMode::Cleanup] {
+            let mut view = view(mode);
+            view.authority.state = Some(shared::protocol::HousingState {
+                layout: Some(shared::protocol::HouseLayout {
+                    house_id: 1,
+                    can_edit: true,
+                    decor: vec![],
+                }),
+                ..Default::default()
+            });
+            let mut shared = SharedContext::new();
+            shared.insert(view.clone());
+            let mut registry = FrameRegistry::new(1280.0, 720.0);
+            Screen::new(housing_screen).sync(&shared, &mut registry);
+            assert_editor_hover_states(&view, &mut registry);
+        }
+    }
+}
+
+fn assert_editor_hover_states(view: &HousingView, registry: &mut FrameRegistry) {
+    use game_engine_ui_model::housing_component::apply_housing_postsetup;
+    use ui_toolkit::widgets::button::ButtonState;
+    for name in [
+        "HouseEditorBasicDecorModeButton",
+        "HouseEditorExpertDecorModeButton",
+        "HouseEditorCleanupModeButton",
+        "TranslateSubmodeButton",
+        "RotateSubmodeButton",
+        "ScaleSubmodeButton",
+    ] {
+        let Some(id) = registry.get_by_name(name) else {
+            continue;
+        };
+        for (state, hovered, expected_alpha) in [
+            (ButtonState::Normal, true, 0.5),
+            (ButtonState::Pushed, true, 0.0),
+            (ButtonState::Normal, true, 0.5),
+            (ButtonState::Normal, false, 0.0),
+            (ButtonState::Disabled, true, 0.0),
+        ] {
+            let Some(WidgetData::Button(button)) =
+                registry.get_mut(id).unwrap().widget_data.as_mut()
+            else {
+                panic!("Editor controls require real button state")
+            };
+            button.state = state;
+            button.hovered = hovered;
+            apply_housing_postsetup(view, registry);
+            let hover = registry
+                .get(registry.get_by_name(&format!("{name}Hover")).unwrap())
+                .unwrap();
+            assert_eq!(
+                hover.alpha, expected_alpha,
+                "{name} {state:?} hover={hovered}"
+            );
+        }
+    }
+}
+
 fn assert_key_label(registry: &FrameRegistry, name: &str, expected: &str, submode: bool) {
     let id = registry
         .get_by_name(name)
