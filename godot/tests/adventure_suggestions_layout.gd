@@ -6,9 +6,6 @@ func check_suggestions_layout() -> bool:
 	if pane == null:
 		stop("Source Suggested pane missing")
 		return false
-	if not pane.clip_contents:
-		stop("Suggested native pane must clip source art")
-		return false
 	var scale := pane.get_global_rect().size.x / 784.0
 	var expected := [Rect2(393,194,344,161), Rect2(393,22,344,161), Rect2(28,18,335,337)]
 	for index in range(3):
@@ -37,6 +34,9 @@ func check_suggestions_layout() -> bool:
 	for icon in icons:
 		if not masked_icon(icon.name, false):
 			return false
+	if not pane.clip_contents:
+		stop("Suggested native pane must clip source art")
+		return false
 	if control("EncounterJournalContent") != null:
 		stop("Generic scrolling groups remain in Suggested")
 		return false
