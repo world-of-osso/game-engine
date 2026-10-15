@@ -28,6 +28,7 @@ pub struct TalentEditor {
     pub(super) loadout_export: Option<String>,
     pub loadout_busy: bool,
     pub loadout_focus_requested: bool,
+    starter_deviation_confirmed: bool,
     loadout_request: Option<TraitLoadoutRequest>,
     pub search_text: String,
     pub search_filter: String,
@@ -47,6 +48,7 @@ impl TalentEditor {
             self.loadouts = None;
         }
         self.loadout_dialog = None;
+        self.starter_deviation_confirmed = false;
         self.loadout_focus_requested = false;
         snapshot
             .entries
@@ -107,6 +109,7 @@ impl TalentEditor {
             .is_some_and(|snapshot| snapshot.entries != self.pending)
     }
     pub fn undo(&mut self) {
+        self.starter_deviation_confirmed = false;
         self.pending = self
             .snapshot
             .as_ref()
@@ -496,6 +499,27 @@ impl TalentEditor {
         Ok(())
     }
     pub fn action(
+        &mut self,
+        view: &TalentView,
+        level: u8,
+        action: &str,
+    ) -> Result<Option<CommitTraitConfig>, String> {
+        if self.starter_active()
+            && !self.starter_deviation_confirmed
+            && (action.starts_with("talent:node:") || action.starts_with("talent:choice:"))
+        {
+            let mut staged = self.clone();
+            let result = staged.action_internal(view, level, action)?;
+            if staged.pending != self.pending {
+                self.loadout_dialog = Some(LoadoutDialog::StarterDeviation(action.into()));
+                return Ok(None);
+            }
+            *self = staged;
+            return Ok(result);
+        }
+        self.action_internal(view, level, action)
+    }
+    fn action_internal(
         &mut self,
         view: &TalentView,
         level: u8,

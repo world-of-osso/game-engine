@@ -1,3 +1,7 @@
+## 2026-10-15 — Authored talent Starter selection
+
+[Starter Build](systems/talents.md#starter-build--2026-10-15): server-advertised built-in row, authoritative selection and shared-skin deviation confirmation. Server RED→GREEN2 covers actual level-up/relog and authored Paladin/Mage ranks; native acceptance pending.
+
 ## 2026-10-15 — MountSpecial authored playback continuation
 
 [MountSpecial](systems/mounts.md#mountspecial-continuation--2026-10-15): unified input/identity/emote routing and deterministic complete-segment scheduler. Core6/server3 GREEN; mount sequence ownership native PASS. Actual rider FishingCast1000ms versus AnimStartTime2000 exposes unresolved offset semantics; both-skin three-mount/observer rendering not yet proven.

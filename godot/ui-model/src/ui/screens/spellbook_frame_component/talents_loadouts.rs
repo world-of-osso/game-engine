@@ -38,6 +38,10 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
                 pos_type:"absolute",left:0.0,top:0.0}
         } });
     }
+    let starter_count = usize::from(list.is_some_and(|list| list.starter_available));
+    if starter_count != 0 {
+        rows.extend(starter_row(view, configs.len(), enabled, scale));
+    }
     for (offset, name, label, action, available) in [
         (
             0,
@@ -66,16 +70,40 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
             label,
             action,
             available,
-            configs.len() + offset,
+            configs.len() + starter_count + offset,
             scale,
         ));
     }
-    let height = 8.0 + (configs.len() + 3) as f32 * 20.0 + 15.0;
+    let height = 8.0 + (configs.len() + starter_count + 3) as f32 * 20.0 + 15.0;
     menu(
         "TalentLoadoutMenu",
         [48.0, y + 2.5 - height, 200.0, height],
         rows,
         scale,
+    )
+}
+
+fn starter_row(view: &TalentView, index: usize, enabled: bool, scale: f32) -> Element {
+    let top = (8.0 + index as f32 * 20.0) * scale;
+    let action = format!(
+        "talent:loadout_select:{}",
+        shared::protocol::STARTER_BUILD_LOADOUT_ID
+    );
+    let check = if view.editor.starter_active() && !view.editor.dirty() {
+        rsx! { texture {name:FrameName("TalentStarterBuildCheck"),texture_fdid:130751,width:{20.0*scale},height:{20.0*scale},
+        pos_type:"absolute",left:{(8.0+ui_toolkit::text_measure::measure_text("Starter Build",GameFont::FrizQuadrata,12.0).expect("loadout font loaded").0)*scale},top:0.0} }
+    } else {
+        Vec::new()
+    };
+    let content = rsx! {fontstring {name:FrameName("TalentStarterBuildText"),text:"Starter Build",width:{164.0*scale},height:{20.0*scale},
+    font_size:{12.0*scale},font_color:"0.53,0.67,1.0,1.0",justify_h:"LEFT",mouse_enabled:false} {check}};
+    crate::selection_list::row(
+        "TalentStarterBuild".into(),
+        &action,
+        enabled,
+        (8.0 * scale, top, 184.0 * scale, 20.0 * scale),
+        (&crate::selection_list::MENU, false),
+        content,
     )
 }
 
@@ -96,12 +124,16 @@ pub(super) fn loadout_dialog(view: &TalentView, viewport: [f32; 2]) -> Element {
     let Some(dialog) = &view.editor.loadout_dialog else {
         return Vec::new();
     };
+    if matches!(dialog, LoadoutDialog::StarterDeviation(_)) {
+        return starter_deviation_popup(viewport);
+    }
     let (title, height, confirm) = match dialog {
         LoadoutDialog::Create => ("New Loadout", 150.0, false),
         LoadoutDialog::Import => ("Import Loadout", 275.0, false),
         LoadoutDialog::Edit(_) => ("Edit Loadout", 200.0, false),
         LoadoutDialog::Delete(_) => ("Delete Loadout?", 150.0, true),
         LoadoutDialog::Switch(_) => ("Discard pending talent changes?", 150.0, true),
+        LoadoutDialog::StarterDeviation(_) => unreachable!("Starter uses StaticPopup"),
     };
     let importing = matches!(dialog, LoadoutDialog::Import);
     let mut contents = dialog_border(height, scale);
@@ -281,6 +313,24 @@ fn import_control(text: &str) -> Element {
         nine_slice {edge_size:8,textures:textures}
     } });
     elements
+}
+
+fn starter_deviation_popup(viewport: [f32; 2]) -> Element {
+    // ClassTalentsFrame::CheckConfirmStarterBuildDeviation uses GENERIC_CONFIRMATION.
+    // Geometry/art match static_popup_component (Shared StaticPopup), not loadout dialogs.
+    let text = "Choosing this talent will remove you from the Starter Build guided experience.";
+    let text_height = 36.0;
+    let height = 70.0 + text_height;
+    rsx! {r#frame {name:"TalentLoadoutBlocker",width:{viewport[0]},height:{viewport[1]},strata:FrameStrata::FullscreenDialog,pos_type:"absolute",left:0.0,top:0.0}
+    r#frame {name:"TalentLoadoutDialog",width:320.0,height:height,pos_type:"absolute",left:{(viewport[0]-320.0)/2.0},top:135.0,
+        strata:FrameStrata::FullscreenDialog,frame_level:2200,style:crate::static_popup_component::STATIC_POPUP_PANEL_STYLE,
+        texture {name:"TalentStarterDeviationBackground",texture_fdid:6839810,width:306.0,height:{height-14.0},pos_type:"absolute",left:7.0,top:7.0}
+        fontstring {name:"TalentStarterDeviationText",text:text,width:290.0,height:text_height,pos_type:"absolute",left:15.0,top:16.0,font_size:14.0,font_color:"1.0,1.0,1.0,1.0",justify_h:"CENTER"}
+        button {name:"TalentLoadoutSave",text:"Continue",onclick:"talent:loadout_confirm",width:128.0,height:26.0,pos_type:"absolute",left:26.0,top:{28.0+text_height},
+            button_default_skin:false,button_atlas_up:"defaultbutton-nineslice-up",button_atlas_pressed:"defaultbutton-nineslice-pressed",button_atlas_highlight:"defaultbutton-nineslice-highlight"}
+        button {name:"TalentLoadoutCancel",text:"Cancel",onclick:"talent:loadout_cancel",width:128.0,height:26.0,pos_type:"absolute",left:166.0,top:{28.0+text_height},
+            button_default_skin:false,button_atlas_up:"defaultbutton-nineslice-up",button_atlas_pressed:"defaultbutton-nineslice-pressed",button_atlas_highlight:"defaultbutton-nineslice-highlight"}
+    }}
 }
 
 fn import_error(error: Option<&str>, viewport: [f32; 2]) -> Element {
