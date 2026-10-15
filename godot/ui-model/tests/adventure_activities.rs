@@ -793,3 +793,21 @@ fn suggestions_partial_records_preserve_literal_initial_lower_geometry() {
         );
     }
 }
+
+// EncounterJournal.lua2860–2861: only Dungeons/Raids/LootJournal show search.
+#[test]
+fn monthly_source_hides_encounter_search() {
+    use game_engine_ui_model::adventure_guide::{Tab, View, adventure_guide_screen};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut ctx = context(skin);
+        ctx.insert(View {
+            visible: true,
+            loading: true,
+            tab: Tab::Monthly,
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(800., 496.);
+        Screen::new(adventure_guide_screen).sync(&ctx, &mut registry);
+        assert!(registry.get_by_name("EncounterJournalSearchBox").is_none());
+    }
+}
