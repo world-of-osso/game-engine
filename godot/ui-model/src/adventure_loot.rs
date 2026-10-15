@@ -1,6 +1,6 @@
 //! EncounterItemTemplate XML1220–1271 and EncounterJournalItemMixin Lua189–233.
 use game_engine_core::adventure_guide::Item;
-use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
+use ui_toolkit::{rsx, widget_def::Element};
 
 use crate::{
     adventure_guide::{View, paper_text},
@@ -110,21 +110,26 @@ fn read_quality_border(item: &Item, name: &str) -> Element {
 
 fn item_type_labels(item: &Item, name: &str) -> Element {
     let armor = read_armor_type(item.id);
-    let armor_width = ui_toolkit::text_measure::measure_text(armor, GameFont::FrizQuadrata, 12.)
-        .expect("Retail loot font is loaded")
-        .0;
-    let armor_left = 315. - armor_width;
-    let slot_width = armor_left - 15. - 51.;
     let slot = crate::item_tooltip::inventory_type_label(item.slot as u8).unwrap_or_default();
-    let mut content = paper_text(&format!("{name}Slot"), slot, (51., 27., slot_width, 12.));
-    content.extend(rsx! {
-        fontstring {
-            name: {DynName(format!("{name}ArmorClass"))}, text: armor,
-            left: armor_left, top: 27., width: armor_width, height: 12.,
-            pos_type: "absolute", font_size: 12., font_color: INK, justify_h: "RIGHT"
+    // XML: Slot LEFT51, ArmorClass RIGHT315,15px between; ArmorClass has intrinsic x0.
+    // Native font metrics, not a second backend's fixed width, resolve these constraints.
+    rsx! {
+        frame {
+            name: {DynName(format!("{name}TypeLine"))},
+            left: 51., top: 27., width: 264., height: 12., pos_type: "absolute",
+            layout: "flex-row", align: "start", gap: 15.,
+            fontstring {
+                name: {DynName(format!("{name}Slot"))}, text: slot,
+                width: "fill", height: 12., pos_type: "relative",
+                font_size: 12., font_color: INK, justify_h: "LEFT"
+            }
+            fontstring {
+                name: {DynName(format!("{name}ArmorClass"))}, text: armor,
+                width: "auto", height: 12., pos_type: "relative",
+                font_size: 12., font_color: INK, justify_h: "RIGHT"
+            }
         }
-    });
-    content
+    }
 }
 
 fn read_armor_type(item: u32) -> &'static str {
