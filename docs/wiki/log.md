@@ -1,6 +1,13 @@
 ## 2026-10-14 — Trading Post post-landing native acceptance
 
 [Compatible-binary proof](systems/trading-post.md#post-landing-compatible-binary-proof): both-skin held controls and checkout/relog/individual refunds pass after stats/Renown wire integration. Registry-owned pressed-icon offsets survive projection; Modern receipts additionally survive a server restart.22 UI/11 native/12 server/1 admin/3 protocol targeted tests, checks/format and86 inspected1920×1080 PNGs recorded. Private setup waits for admin Update readiness, not UDP binding; no checkout replay or deadline extension.
+## 2026-10-14 — Cleanup cursor tooltip
+
+[Central tooltip](systems/housing.md#cleanup-central-tooltip--implementation2026-10-14): removed fixed bespoke panel/invented visitor line; source white GameTooltip title/ANCHOR_CURSOR and normal central lifetime. Native missing-tooltip RED, scoped GREEN24 and both-skin owner/readonly title/anchor/leave/mode-exit proof. Event-time diagnostics classified stale-pixel rehover failure; fixture re-picks currently visible decor, without changing gameplay picking. Pet/lock/removability/exterior metadata, audio and complete appearance remain gaps.
+## 2026-10-14 — Tutorials source presentation implementation
+
+[Adventure Guide](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) records Retail art/anchors, shared Morpheus and disabled Start Experience authority boundary; focused layout4/4 and four inspected both-skin native captures. Registered native check/format pass; shared ui-toolkit3a715d9 must land first. RPE authority remains missing.
+
 ## 2026-10-14 — Shared Cleanup controls
 
 [Cleanup source controls](systems/housing.md#cleanup-shared-source-controls--implementation2026-10-14): removed separate three-button chrome; shared mode art/bound labels and source45px Remove Decor row. Two behavioral REDs; scoped housing registry GREEN24. Installed70391 both-skin source bounds/captures and paid-owner store/relog/replant plus actual readonly visitor refusal/relog PASS. Existing authority/tooltip behavior preserved; an earlier non-reproduced Forever return-hover timeout remains documented, not claimed fixed.
