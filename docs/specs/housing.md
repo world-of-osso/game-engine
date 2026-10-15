@@ -28,6 +28,12 @@ Source: `Blizzard_HouseEditorBasicDecorMode.xml`, `Blizzard_HouseEditorTemplates
 
 Installed70391 source qualification now includes both-skin native Expert proofs and current atlas metadata. Hotkey7508739 bytes used by those runs match a fresh active-build local-CASC extraction (SHA256778ae560d08253c0ad1cfb709ec31a9d4a9105690c4e5b6d86787e3da0f7eaae). Full hotkey pixel parity remains a separate visual acceptance claim; current captures are available, not a claim of complete UI fidelity. No export request is needed. F3 proof retains its historical runtime boundary. Do not publish/use obsolete payloads, pin the resolver or guess replacement UV coordinates.
 
+## Active mode activation
+
+Clicking an already-active editor mode or invoking its assigned mode binding is a no-op for editing state. Preserve actual selection, owned placement preview, Expert draft/render and open placed list; do not run different-mode teardown or restore saved transforms. Escape still cancels local work without changing paid quantities. Actual different-mode transitions retain their existing behavior. No new keys, availability predicates or transform tuning.
+
+Source: BaseHousingModeButton.SetModeActive, HouseEditorModeButton.LeaveMode (not toggled off), HousingFramesUtil.ActivateHouseEditorMode's explicit active-mode return and Bindings_Standard's mode bindings. Native baseline reproduced active Basic pointer activation clearing a selected paid bookcase; updated both-skin acceptance remains pending.
+
 ## Housing editor bindings
 
 Supported Basic/Expert/Cleanup mode switches, Basic rotate-left/right and selected-decor removal use Retail `HOUSING_*` binding names in the native Housing keybinding section. Actions remain unbound until the player assigns a key: local addon binding declarations establish action/context names, not default key data. Saved `InputAction` variants roundtrip to the same Retail lookup strings exposed by `key()`/`from_key()`; instruction controls show source `[UNBOUND]` for missing assignments. Escape cancels only active selection/placement; otherwise it leaves normal menu handling intact. An open native Options menu owns pointer/key capture ahead of housing world editing. No invented Q/E/Delete defaults. Grid/snap/free-place actions remain unavailable until their semantics are sourced.
