@@ -1,10 +1,16 @@
 //! Mainline LoadSystem/Create/Edit dialogs. Only snapshots select a saved row.
 use super::TalentEditor;
+use crate::talents::TalentView;
+use game_engine_core::talent_data::{
+    loadout_string::{self, LoadoutError},
+    rules::{ConfigEntry, TraitContext, granted_entries},
+};
 use shared::protocol::{TraitLoadoutOperation, TraitLoadoutRequest, TraitLoadoutsSnapshot};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LoadoutDialog {
     Create,
+    Import,
     Edit(u32),
     Delete(u32),
     Switch(u32),
@@ -59,21 +65,44 @@ impl TalentEditor {
         self.error_text = None;
         Ok(())
     }
-    pub(super) fn loadout_action(&mut self, command: &str) -> Result<(), String> {
+    pub fn take_loadout_export(&mut self) -> Option<String> {
+        self.loadout_export.take()
+    }
+    pub(super) fn loadout_action(
+        &mut self,
+        view: &TalentView,
+        level: u8,
+        command: &str,
+    ) -> Result<(), String> {
         if self.loadout_busy {
             return Ok(());
         }
         match command {
+            "_export" => {
+                self.loadout_export = Some(self.export_loadout(view, level)?);
+                self.loadout_menu = false;
+            }
+            "_import" => {
+                self.loadout_dialog = Some(LoadoutDialog::Import);
+                self.loadout_name.clear();
+                self.loadout_code.clear();
+                self.error_text = None;
+                self.loadout_focus_requested = true;
+                self.loadout_menu = false;
+            }
             "_new" => {
                 self.loadout_dialog = Some(LoadoutDialog::Create);
                 self.loadout_name.clear();
                 self.loadout_focus_requested = true;
                 self.loadout_menu = false;
             }
+            "_error_ok" => {
+                self.error_text = None;
+            }
             "_cancel" => {
                 self.cancel_loadout_dialog();
             }
-            "_save" => return self.save_loadout_name(),
+            "_save" => return self.save_loadout_name(view, level),
             "_delete" => {
                 if let Some(LoadoutDialog::Edit(id)) = self.loadout_dialog {
                     self.loadout_dialog = Some(LoadoutDialog::Delete(id));
@@ -92,7 +121,74 @@ impl TalentEditor {
         }
         Ok(())
     }
-    fn save_loadout_name(&mut self) -> Result<(), String> {
+    fn export_loadout(&self, view: &TalentView, level: u8) -> Result<String, String> {
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or("Export requires a talent snapshot")?;
+        let tree = view.rules.as_ref().ok_or("Export requires talent rules")?;
+        if !self.valid(view, level, &self.pending) {
+            return Err(LoadoutError::InvalidNodes.text().into());
+        }
+        let grants = granted_entries(
+            tree,
+            TraitContext {
+                spec_id: snapshot.spec_id,
+                level,
+            },
+        );
+        let entries: Vec<_> = self
+            .pending
+            .iter()
+            .map(|entry| {
+                let granted = grants
+                    .iter()
+                    .find(|grant| {
+                        grant.node_id == entry.node_id && grant.entry_id == entry.entry_id
+                    })
+                    .map_or(0, |grant| grant.granted);
+                ConfigEntry {
+                    node_id: entry.node_id,
+                    entry_id: entry.entry_id,
+                    ranks: u32::from(entry.rank).saturating_sub(granted),
+                    granted,
+                }
+            })
+            .collect();
+        loadout_string::encode(tree, snapshot.spec_id, &entries)
+            .map_err(|error| error.text().into())
+    }
+    fn import_entries(
+        &self,
+        view: &TalentView,
+        level: u8,
+    ) -> Result<Vec<shared::protocol::TraitEntrySelection>, LoadoutError> {
+        let snapshot = self.snapshot.as_ref().ok_or(LoadoutError::InvalidNodes)?;
+        let tree = view
+            .rules
+            .as_ref()
+            .filter(|tree| tree.tree_id == snapshot.tree_id)
+            .ok_or(LoadoutError::InvalidNodes)?;
+        let entries = loadout_string::decode(
+            tree,
+            TraitContext {
+                spec_id: snapshot.spec_id,
+                level,
+            },
+            &self.loadout_code,
+        )?;
+        entries
+            .into_iter()
+            .map(|entry| {
+                Ok(shared::protocol::TraitEntrySelection {
+                    node_id: entry.node_id,
+                    entry_id: entry.entry_id,
+                    rank: u8::try_from(entry.total()).map_err(|_| LoadoutError::InvalidNodes)?,
+                })
+            })
+            .collect()
+    }
+    fn save_loadout_name(&mut self, view: &TalentView, level: u8) -> Result<(), String> {
         let name = self.loadout_name.clone();
         if name.trim().is_empty() || name.chars().count() > 30 || name.chars().any(char::is_control)
         {
@@ -100,6 +196,17 @@ impl TalentEditor {
             return Ok(());
         }
         let operation = match self.loadout_dialog {
+            Some(LoadoutDialog::Import) => {
+                let mut entries = match self.import_entries(view, level) {
+                    Ok(entries) => entries,
+                    Err(error) => {
+                        self.error_text = Some(error.text().into());
+                        return Ok(());
+                    }
+                };
+                entries.sort_by_key(|entry| (entry.node_id, entry.entry_id));
+                TraitLoadoutOperation::Create { name, entries }
+            }
             Some(LoadoutDialog::Create) => TraitLoadoutOperation::Create {
                 name,
                 entries: self.pending.clone(),
