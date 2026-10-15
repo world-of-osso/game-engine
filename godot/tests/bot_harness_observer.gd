@@ -5,7 +5,7 @@ extends SceneTree
 var client: Node
 var output: String
 var spec_requested := false
-var target_requested := false
+var target_attempts := 0
 
 func _initialize() -> void:
     output = OS.get_environment("BOT_HARNESS_OUTPUT")
@@ -28,12 +28,13 @@ func sample() -> void:
     if not spec_requested and account.get("gameplay_input_allowed", false):
         error = client.set_specialization(int(OS.get_environment("BOT_HARNESS_SPEC")))
         spec_requested = true
-    if not target_requested and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
-        target_requested = true
+    var target: Dictionary = client.target_state()
+    if target_attempts < 32 and target.get("target_name", "") != "Training Dummy" and spells.get("spec", 0) == int(OS.get_environment("BOT_HARNESS_SPEC")) and account.get("gameplay_input_allowed", false):
+        target_attempts += 1
         select_nearest()
     var snapshot := {"at_ms": int(Time.get_unix_time_from_system() * 1000.0),
         "account": account, "spells": spells, "spec_request_error": error,
-        "target": client.target_state(), "auras": client.aura_state(),
+        "target": target, "target_attempts": target_attempts, "auras": client.aura_state(),
         "assisted": client.assisted_combat_state(), "cooldowns": client.cooldown_viewer_state()}
     var destination := output.path_join("native-state.json")
     var temporary := destination + ".writing"
