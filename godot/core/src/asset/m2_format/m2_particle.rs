@@ -108,8 +108,8 @@ pub struct M2ParticleEmitter {
     pub tracks: EmitterTracks,
     /// Scale applied when inheriting parent particle velocity.
     ///
-    /// Local runtime references default this to 1.0, but the local M2 file
-    /// layout references do not expose a persisted header field yet.
+    /// WWV M2ParticleOld::BurstMultiplier / ivelScale, persisted at 0x170.
+    /// Retains the authored value, including zero; not ordinary yd/s.
     pub inherit_velocity_scale: f32,
     /// Color over lifetime: start, mid, end (RGB 0–255).
     pub colors: [[f32; 3]; 3],
@@ -594,6 +594,7 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.tail_cell_track = read_u16_values(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
     em.head_cell_keys = read_cell_keys(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
     em.tail_cell_keys = read_cell_keys(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
+    em.inherit_velocity_scale = read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0);
     em.burst_multiplier = match read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0) {
         value if value > 0.0 => value,
         _ => 1.0,

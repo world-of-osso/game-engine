@@ -749,3 +749,11 @@ fn particle_cleanroom_spline_width_length_bound_curve_parameter() {
         assert!(p.position.x >= 0.75 && p.position.x <= 2.25);
     }
 }
+
+#[test]
+fn particle_cleanroom_inherited_scale_reads_authored_modern_field() {
+    let emitter = &model(2994778).particle_emitters[3];
+    assert_ne!(emitter.flags & 0x40, 0);
+    // WWV names this persisted float BurstMultiplier / ivelScale; real bytes = 3.
+    assert_eq!(emitter.inherit_velocity_scale, 3.0);
+}
