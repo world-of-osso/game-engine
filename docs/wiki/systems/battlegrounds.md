@@ -2,6 +2,10 @@
 
 Native Warsong queue, invitation, objective HUD, scoreboard/results and origin return share one Retail layout across Modern and Forever. Server content/policy authority is the [server contract](../../../../game-server/docs/specs/battleground-lifecycle.md); the [client contract](../../specs/battleground-lifecycle.md) owns UI acceptance. Verified: 2026-10-11.
 
+## IoC NPC attachment — implementation2026-10-15
+
+`WorldUnits::advance` previously offered only `unit.mount.node` to passenger placement, so an NPC VehiclePassenger remained at its logical point. Native scene regression `vehicle_attachment.gd` runs real advance against synthetic Godot nodes with installed source seat5766/2764 rows: player-owned mount passes, NPC seat fails at two translated/turned poses (`isle-vehicle-client-attachment-red4-scene.log`,c38e7f56a/extension496132584,exit1). The attachment map now selects NPC `unit.visual`, while player-owned vehicles still select their mount node. The existing seat transform code is unchanged. GREEN pending. This proves only scene attachment/follow/release, not actual model loading, networking, animation clips, pixels or driving/fire. Protocol semantic epoch2 remains local pending both consumer gates.
+
 ## State and input
 
 `PvpStateUpdate.snapshot.battleground` carries match identity, phase, acceptance, flags, team scores, roster and outcome. `AccountEvent::Pvp` delivers it to `PvpView`; `BattlegroundUi` mounts one RegistryUi canvas. Queue-window visibility is independent of invitations and the in-match HUD. Requests stay pending until server response; stale buttons echo their match identity rather than acting on another match.

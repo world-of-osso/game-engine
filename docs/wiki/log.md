@@ -1,3 +1,7 @@
+## 2026-10-15 — IoC NPC passenger scene attachment
+
+[Native scene regression](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15): actual WorldUnits.advance retains player-owned mount seating but fails NPC seat5766 at two moved/turned poses. Select NPC visual separately from player mount host; GREEN pending. No model/network/pixel/control/fire or epoch2 landing claim.
+
 ## 2026-10-15 — Both-skin native bomb chain, bounded
 
 [Forever88](systems/battlegrounds.md#forever88-functional-bomb-chain--2026-10-15) completes the same four physical normal/huge phases as Modern83: typed117284/281481 damage, exact native-picker disarm with no later hit, all20 normal return ACKs/save. All23 newPNG originals inspected; normal bomb/removal visible, huge/banner overlap and camera clipping remain.2650 nonfinite/three NPC25292 errors and PSI1.85/0.73 prevent whole-render/framing/timing acceptance. Admission failures84–87 retained; one shared capacity reservation fixes the harness admission path, not gameplay. Vehicles/siege/victory remain open; MR171 palette fixtures fixed separately by lead9de485b3c.
