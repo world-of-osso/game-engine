@@ -22,6 +22,9 @@ func run_test() -> void:
 	root.add_child(client)
 	if not await until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
 	print("MOUNT_SPECIAL_ASSETS_READY ", client.account_state())
+	# One admitted run starts server and clients together; login waits for the real
+	# server ping and offline character setup, not an assumed startup duration.
+	if not await until(func(): return FileAccess.file_exists(path("server-ready")), "private server readiness", 180000): return
 	var error: String = client.connect_account(server, OS.get_environment("EMOTE_ACCOUNT"), PASSWORD, false)
 	if not error.is_empty(): fail(error); return
 	print("MOUNT_SPECIAL_CONNECT ", error)
