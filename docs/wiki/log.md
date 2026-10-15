@@ -1,6 +1,6 @@
-## 2026-10-15 — Suggested literal partial-record source proof
+## 2026-10-15 — Suggested joint provider and three-pane native proof
 
-[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) preserve Lua's count-dependent geometry, including initial lower1px text frames and first-pass font at one/two records. Corrected engine628 native captures pass both skins with genuine record852; source line limits now reach native Labels. UI8/8, check/fmt pass; exact source/binary/PNG receipt retained. Lead rejected the one-record pixels. Installed-CSV/bonus provider correction is now under joint verification; require a populated primary and both small cards. No new native acceptance claim.
+[Suggested panes](systems/adventure-guide.md#suggested-fixed-source-panes--2026-10-15) now use installed702-row CSV and evaluated authored priority bonuses. Both-skin native330/816 shows genuine881/852/27; a pixel-found91px title overflow is RED→GREEN at the unchanged source66px frame/8px gap, with both lines visible. Server12/UI8, checks/fmt pass; exact executable/input/PNG hashes retained. Unknown predicates and opaque selection/rotation remain explicit gaps; earlier one-record pictures were not acceptance.
 ## 2026-10-15 — Housing pressed hover
 
 [Shared controls](systems/housing.md#control-pressed-hover-lifecycle--implementation2026-10-15): source hover overlay hides while pressed, restores on inside release and stays hidden outside/disabled. Behavioral0.5-versus0.0 RED, both-skin registry GREEN and actual six-control press/release/conservation proof; inspected paired hover/pressed captures. Existing atlas/authority policy unchanged, no timing or full-art claim.
