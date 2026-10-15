@@ -52,7 +52,8 @@ pub struct GuildRanksSession {
     pub rank_menu_open: bool,
     pub member_menu: Option<String>,
     pub member_detail: Option<String>,
-    pub note_editor: Option<bool>,
+    /// StaticPopup data captures the target identity independently of roster selection.
+    pub note_editor: Option<(String, bool)>,
     pub error: Option<String>,
     pub invitation: Option<GuildInvitation>,
     pub invitation_waiting: bool,
@@ -267,7 +268,7 @@ impl GuildRanksSession {
             "guild:note_public" | "guild:note_officer" => {
                 let officer = action == "guild:note_officer";
                 if self.can_edit_note(officer) && !self.awaiting_state && !self.profile_waiting {
-                    self.note_editor = Some(officer);
+                    self.note_editor = self.member_detail.clone().map(|name| (name, officer));
                 }
                 None
             }
@@ -301,6 +302,10 @@ impl GuildRanksSession {
         let Some(member) = self.detail_member() else {
             return false;
         };
+        self.can_edit_member_note(member, officer)
+    }
+
+    fn can_edit_member_note(&self, member: &GuildMemberSnapshot, officer: bool) -> bool {
         if officer {
             self.can(GUILD_RIGHT_EDIT_OFFICER_NOTE) && self.can(GUILD_RIGHT_VIEW_OFFICER_NOTE)
         } else {
@@ -308,16 +313,24 @@ impl GuildRanksSession {
         }
     }
 
+    pub fn note_member(&self) -> Option<&GuildMemberSnapshot> {
+        let (name, _) = self.note_editor.as_ref()?;
+        self.profile
+            .as_ref()?
+            .members
+            .iter()
+            .find(|member| &member.character_name == name)
+    }
+
     fn submit_note(&mut self, note: &str) -> Option<GuildRankRequest> {
-        let officer = self.note_editor?;
+        let (character_name, officer) = self.note_editor.clone()?;
         if self.awaiting_state
             || self.profile_waiting
-            || !self.can_edit_note(officer)
+            || !self.can_edit_member_note(self.note_member()?, officer)
             || !valid_guild_member_note(note)
         {
             return None;
         }
-        let character_name = self.member_detail.clone()?;
         self.note_editor = None;
         self.profile_waiting = true;
         Some(GuildRankRequest::SetMemberNote {

@@ -264,18 +264,18 @@ pub fn apply_note_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
 }
 
 pub fn editor(session: &GuildRanksSession) -> Element {
-    let Some(officer) = session.note_editor else {
+    let Some((_, officer)) = session.note_editor.as_ref() else {
         return vec![];
     };
-    let Some(member) = session.detail_member() else {
+    let Some(member) = session.note_member() else {
         return vec![];
     };
-    let title = if officer {
+    let title = if *officer {
         "Set Officer Note:"
     } else {
         "Set Player Note:"
     };
-    let text = if officer {
+    let text = if *officer {
         &member.officer_note
     } else {
         &member.public_note
