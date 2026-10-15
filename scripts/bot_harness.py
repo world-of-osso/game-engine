@@ -88,6 +88,9 @@ def analyze(run, events):
             findings.append({"kind": "death", "actor": event["dst"], "at_ms": event["at_ms"]})
     for error in run.get("server_errors", []):
         findings.append({"kind": "server_error", "error": error})
+    for sample in run.get("native_errors", []):
+        for error in sample["errors"]:
+            findings.append({"kind": "native_cast_error", "at_ms": sample["at_ms"], "error": error, "spell": None})
     report = {
         "schema": 1, "scenario": run["scenario"], "spec": run["spec"],
         "actor": run["actor"], "target": run["target"], "duration_ms": duration,

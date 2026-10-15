@@ -87,7 +87,8 @@ def collect(args, output):
             last_sequence = current["combat_log_seq"]
             errors = current["errors"]
             if errors != observed_errors:
-                run.setdefault("native_errors", []).append({"at_ms": state["at_ms"], "errors": errors})
+                new_errors = errors[len(observed_errors):] if errors[:len(observed_errors)] == observed_errors else errors
+                run.setdefault("native_errors", []).append({"at_ms": state["at_ms"], "errors": new_errors})
                 observed_errors = list(errors)
             with (output / "native-samples.jsonl").open("a") as samples:
                 samples.write(json.dumps(state) + "\n")
