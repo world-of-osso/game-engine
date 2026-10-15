@@ -757,3 +757,14 @@ fn particle_cleanroom_inherited_scale_reads_authored_modern_field() {
     // WWV names this persisted float BurstMultiplier / ivelScale; real bytes = 3.
     assert_eq!(emitter.inherit_velocity_scale, 3.0);
 }
+
+#[test]
+fn particle_cleanroom_tail_width_is_independent_of_head_velocity_orientation() {
+    let mut emitter = still_emitter(0x4);
+    emitter.flags = 0x40000 | 0x4;
+    emitter.emission_speed = 2.0;
+    emitter.tail_length = 0.5;
+    let quad = one_quad(&emitter, Mat4::IDENTITY);
+    assert_eq!(quad.axis_x, Vec3::X * 0.5 * 0.05);
+    assert_eq!(quad.axis_y, Vec3::Y * 0.25 * 0.05);
+}

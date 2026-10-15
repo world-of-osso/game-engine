@@ -698,14 +698,14 @@ impl EmitterSim {
     pub fn quads(&self, emitter: &ParticleEmitter, view: &ViewBasis, out: &mut Vec<Quad>) {
         let max_life = max_lifespan(emitter, self.props.lifespan);
         for particle in self.particles.iter().filter(|p| p.age <= max_life) {
-            let Some(head) = self.quad(emitter, particle, view) else {
+            let Some((head, scale)) = self.quad(emitter, particle, view) else {
                 continue;
             };
             if emitter.flags & FLAG_HEAD != 0 {
                 out.push(head);
             }
             if emitter.flags & FLAG_TAIL != 0 {
-                out.push(self.tail_quad(emitter, particle, view, head));
+                out.push(self.tail_quad(emitter, particle, view, (head, scale)));
             }
         }
     }
@@ -716,8 +716,9 @@ impl EmitterSim {
         emitter: &ParticleEmitter,
         particle: &Particle,
         view: &ViewBasis,
-        mut quad: Quad,
+        geometry: (Quad, Vec2),
     ) -> Quad {
+        let (mut quad, scale) = geometry;
         let velocity = if emitter.flags & FLAG_MODEL_SPACE != 0 {
             self.emitter_to_world.transform_vector3(particle.velocity)
         } else {
@@ -728,7 +729,6 @@ impl EmitterSim {
         } else {
             emitter.tail_length
         };
-        let scale = Vec2::new(quad.axis_x.length(), quad.axis_y.length());
         let (offset, width) = tail_axes(-velocity * duration, scale, view);
         let projected = Vec2::new(velocity.dot(view.right), velocity.dot(view.up)) * duration;
         if projected.length_squared() > TAIL_PROJECTED_LENGTH_SQUARED {
@@ -758,7 +758,7 @@ impl EmitterSim {
         emitter: &ParticleEmitter,
         particle: &Particle,
         view: &ViewBasis,
-    ) -> Option<Quad> {
+    ) -> Option<(Quad, Vec2)> {
         let twinkle = twinkle_scale(emitter, particle.age, particle.seed)?;
         let matrix = self.emitter_to_world;
         let look = appearance(emitter, self.props.lifespan, particle.age, particle.seed);
@@ -777,17 +777,20 @@ impl EmitterSim {
         let (axis_x, axis_y) = quad_axes(emitter, particle, matrix, velocity, scale, view);
         let cols = u32::from(emitter.tile_cols.max(1));
         let rows = u32::from(emitter.tile_rows.max(1));
-        Some(Quad {
-            center,
-            axis_x,
-            axis_y,
-            color: look.color.extend(look.alpha),
-            cell_offset: Vec2::new(
-                (look.head_cell % cols) as f32 / cols as f32,
-                (look.head_cell / cols % rows) as f32 / rows as f32,
-            ),
-            tex_pos: particle.tex_pos,
-        })
+        Some((
+            Quad {
+                center,
+                axis_x,
+                axis_y,
+                color: look.color.extend(look.alpha),
+                cell_offset: Vec2::new(
+                    (look.head_cell % cols) as f32 / cols as f32,
+                    (look.head_cell / cols % rows) as f32 / rows as f32,
+                ),
+                tex_pos: particle.tex_pos,
+            },
+            scale,
+        ))
     }
 }
 
