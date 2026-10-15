@@ -60,6 +60,9 @@ pub struct View {
     /// Monotonic seconds since observing the current authoritative snapshot.
     pub refund_elapsed: u32,
     pub confirm: Option<String>,
+    /// Slot previews the dragged product; snapshot remains authoritative until reply.
+    pub freeze_candidate: Option<u32>,
+    pub freeze_delay: u8,
     /// Captured price/count survive source clear-on-accept cart lifecycle.
     pub cart_confirmation: Option<(u64, usize)>,
     pub error: String,
@@ -120,7 +123,7 @@ impl View {
         self.snapshot = Some(snapshot);
         self.pending = false;
         self.refund_elapsed = 0;
-        self.confirm = None;
+        self.cancel_confirmation();
         self.cart_confirmation = None;
         self.reselect();
     }
@@ -232,7 +235,7 @@ impl View {
                 self.reselect();
             }
             "perks:sort:ascending" => self.ascending = !self.ascending,
-            "perks:cancel" => self.confirm = None,
+            "perks:cancel" => self.cancel_confirmation(),
             "perks:purchase" if self.can_purchase() => self.confirm = Some("purchase".into()),
             "perks:refund" if self.can_refund() => self.confirm = Some("refund".into()),
             "perks:confirm" => return self.confirm_request(),
@@ -262,13 +265,34 @@ impl View {
             return None;
         };
         if on_frozen {
+            let replacing = snapshot.frozen_item_id.is_some();
             self.selected = Some(id);
+            self.freeze_candidate = Some(id);
+            if replacing {
+                self.confirm = Some("freeze".into());
+                self.freeze_delay = 5;
+                return None;
+            }
+            self.remove_from_cart(id);
         }
         self.pending = true;
         Some(Action::Request(TradingPostRequest::Freeze {
             vendor_item_id,
         }))
     }
+    pub fn cancel_confirmation(&mut self) {
+        self.confirm = None;
+        self.freeze_candidate = None;
+        self.freeze_delay = 0;
+    }
+
+    /// Elapsed monotonic seconds since this replacement popup opened.
+    pub fn update_freeze_confirmation(&mut self, elapsed: f64) {
+        if self.confirm.as_deref() == Some("freeze") {
+            self.freeze_delay = (5. - elapsed).clamp(0., 5.).ceil() as u8;
+        }
+    }
+
     fn sort_by(&mut self, sort: Sort) {
         self.ascending = if self.sort == sort {
             !self.ascending
@@ -308,6 +332,18 @@ impl View {
         Err(format!("Unknown Trading Post action: {action}"))
     }
     fn confirm_request(&mut self) -> Result<Option<Action>, String> {
+        if self.confirm.as_deref() == Some("freeze") {
+            if self.freeze_delay > 0 {
+                return Ok(None);
+            }
+            let id = self.freeze_candidate.expect("Frozen replacement candidate");
+            self.remove_from_cart(id);
+            self.confirm = None;
+            self.pending = true;
+            return Ok(Some(Action::Request(TradingPostRequest::Freeze {
+                vendor_item_id: Some(id),
+            })));
+        }
         if self.confirm.as_deref() == Some("clear-cart") {
             self.clear_cart();
             self.confirm = None;
@@ -443,7 +479,7 @@ fn catalog_controls(ctx: &SharedContext, view: &View, snapshot: &TradingPostSnap
         (30., 51., 527. - 60., 3.),
     ));
     inner.extend(sort_headers(view));
-    inner.extend(frozen_row(snapshot, view.selected));
+    inner.extend(frozen_row(snapshot, view.selected, view.freeze_candidate));
     let mut out = rsx! {r#frame{name:"PerksProgramProductsScrollBoxContainer",left:CONTAINER_X,top:CONTAINER_Y,width:527.0,height:751.0,pos_type:"absolute",frame_level:1000.0,{inner}}};
     out.extend(retail_filter(view));
     if view.dropdown {
@@ -638,11 +674,15 @@ fn row_price(prefix: &str, row: &TradingPostItem, center_y: f32) -> Element {
     out
 }
 
-fn frozen_row(snapshot: &TradingPostSnapshot, selected: Option<u32>) -> Element {
+fn frozen_row(
+    snapshot: &TradingPostSnapshot,
+    selected: Option<u32>,
+    candidate: Option<u32>,
+) -> Element {
     let frozen = snapshot
         .items
         .iter()
-        .find(|row| Some(row.id) == snapshot.frozen_item_id);
+        .find(|row| Some(row.id) == candidate.or(snapshot.frozen_item_id));
     // HoldFrame spans ScrollBox.BOTTOM to container.BOTTOM (120px); row centered at84px.
     let mut children = named_atlas_texture(
         "PerksProgramFrozenSlotArt".into(),
@@ -1066,6 +1106,35 @@ fn toy_overlay(row: &TradingPostItem) -> Element {
 }
 fn confirm_popup(view: &View, kind: &str) -> Element {
     use crate::static_popup_component::{ItemConfirmation, item_confirmation};
+    if kind == "freeze" {
+        let Some(row) = view.snapshot.as_ref().and_then(|snapshot| {
+            snapshot
+                .items
+                .iter()
+                .find(|row| Some(row.id) == snapshot.frozen_item_id)
+        }) else {
+            return vec![];
+        };
+        let accept = if view.freeze_delay > 0 {
+            view.freeze_delay.to_string()
+        } else {
+            "Confirm".into()
+        };
+        return item_confirmation(ItemConfirmation {
+            name: "PerksProgramConfirm",
+            pending: false,
+            accept_enabled: view.freeze_delay == 0,
+            prompt: (
+                "Are you sure you want to replace your current frozen item? The existing frozen item may no longer be available.",
+                "",
+            ),
+            currency_icon: None,
+            item: Some((&row.name, row.icon_fdid, row.quality)),
+            accept: (&accept, "perks:confirm"),
+            cancel_action: "perks:cancel",
+            screen: (WIDTH, HEIGHT),
+        });
+    }
     if kind == "cart-checkout" {
         let (price, count) = view.cart_confirmation.expect("Captured cart confirmation");
         let noun = if count == 1 { "item" } else { "items" };
@@ -1074,6 +1143,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         return item_confirmation(ItemConfirmation {
             name: "PerksProgramConfirm",
             pending: view.pending,
+            accept_enabled: true,
             prompt: (&before, &after),
             currency_icon: Some(TENDER_ICON),
             item: None,
@@ -1089,6 +1159,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
         return item_confirmation(ItemConfirmation {
             name: "PerksProgramConfirm",
             pending: false,
+            accept_enabled: true,
             prompt: (&prompt, ""),
             currency_icon: None,
             item: None,
@@ -1110,6 +1181,7 @@ fn confirm_popup(view: &View, kind: &str) -> Element {
     item_confirmation(ItemConfirmation {
         name: "PerksProgramConfirm",
         pending: false,
+        accept_enabled: true,
         prompt: (
             &before,
             if refund {

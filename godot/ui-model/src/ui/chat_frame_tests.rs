@@ -105,6 +105,17 @@ fn whisper_and_reply_target_the_named_player() {
 }
 
 #[test]
+fn mount_special_slash_uses_the_emote_action() {
+    for text in ["/mountspecial", "/MOUNTSPECIAL"] {
+        assert_eq!(
+            parse_chat_input(text, None),
+            ChatCommand::Emote(EmoteKind::MountSpecial),
+            "{text}"
+        );
+    }
+}
+
+#[test]
 fn emote_who_invite_help_and_unknown_commands() {
     assert_eq!(
         parse_chat_input("/dance", None),

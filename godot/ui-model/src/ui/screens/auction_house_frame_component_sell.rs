@@ -2,6 +2,11 @@
 //! `ItemSellList` on its right.
 
 use super::*;
+use crate::menu_primitives::{
+    ContextMenuItem, DropdownButton, DropdownState, MenuElementKind, context_menu_description,
+    dropdown_button_with_state,
+};
+use ui_toolkit::widget_def::{Attr, WidgetChild};
 
 /// `Interface\Buttons\UI-CheckBox-Up` / `-Check` (`UICheckButtonArtTemplate`).
 const CHECKBOX_UP: u32 = 130_755;
@@ -289,119 +294,99 @@ fn price_input(key: &str, text: &str, boxes: MoneyBoxes, y: f32, h: f32) -> Elem
     out
 }
 
+const DURATION_WIDTH: f32 = 115.0;
+const DURATION_HEIGHT: f32 = 25.0;
+
+fn duration_top(y: f32) -> f32 {
+    y + (CONTROL_H - DURATION_HEIGHT) / 2.0 + 2.0
+}
+
 /// `AuctionHouseAlignedDurationTemplate`: the dropdown 19 right of the label (y -2).
+/// SellFrame.lua:159-170 overrides width, Number12Font and closed-caption alignment.
 fn duration_control(sell: &SellView, y: f32) -> Element {
     let prefix = "AuctionHouseFrameItemSellFrameDuration";
     let mut out = control_label(&format!("{prefix}Label"), "Duration", y, CONTROL_H);
-    // Blizzard_Menu/Mainline/MenuTemplates.xml:3-28, WowStyle1DropdownTemplate.
-    let (x, w, h) = (CONTROL_X + 1.0, 120.0, 25.0);
-    let top = y + (CONTROL_H - h) / 2.0 + 2.0;
-    let mut art = crate::quest_art::named_atlas_texture(
-        format!("{prefix}DropdownBackground"),
-        "common-dropdown-textholder",
-        (-8.0, -7.0, w + 16.0, h + 16.0),
+    let mut dropdown = dropdown_button_with_state(
+        DropdownButton {
+            frame_name: &format!("{prefix}Dropdown"),
+            label_name: &format!("{prefix}DropdownText"),
+            arrow_name: &format!("{prefix}DropdownArrow"),
+            text: duration_label(sell.duration),
+            width: DURATION_WIDTH,
+            height: DURATION_HEIGHT,
+            x: CONTROL_X + 1.0,
+            y: -duration_top(y),
+            background_color: "",
+            text_color: HIGHLIGHT_FONT_COLOR,
+            arrow_color: "",
+            onclick: Some(ACTION_DURATION_MENU),
+        },
+        DropdownState {
+            resize_to_text: false,
+            open: sell.duration_menu_open,
+            ..Default::default()
+        },
     );
-    art.extend(crate::quest_art::named_atlas_texture(
-        format!("{prefix}DropdownArrow"),
-        "common-dropdown-a-button",
-        (w - 26.0, 2.0, 27.0, 27.0),
-    ));
-    out.extend(rsx! {
-        button {
-            name: {DynName(format!("{prefix}Dropdown"))},
-            width: w,
-            height: h,
-            onclick: ACTION_DURATION_MENU,
-            button_default_skin: false,
-            pos_type: "absolute",
-            left: x,
-            top,
-            {art}
-            fontstring {
-                name: {DynName(format!("{prefix}DropdownText"))},
-                width: {w - 34.0},
-                height: 10.0,
-                text: {duration_label(sell.duration)},
-                font: GameFont::FrizQuadrata,
-                font_size: 12.0,
-                font_color: HIGHLIGHT_FONT_COLOR,
-                justify_h: "LEFT",
-                pos_type: "absolute",
-                left: 8.0,
-                top: 8.0,
-            }
-        }
-    });
+    apply_duration_font(&mut dropdown, "RIGHT");
+    out.extend(dropdown);
     out
 }
 
 /// The open duration menu: one line per `AUCTION_DURATION_*`, the current one marked.
 fn duration_menu(current: AuctionDuration, y: f32) -> Element {
-    let (x, w) = (CONTROL_X + 1.0, 150.0);
-    let top = y + CONTROL_H + 2.0;
+    let x = CONTROL_X + 1.0;
+    // DropdownButton.xml anchors menu TOPLEFT to owner BOTTOMLEFT without an offset.
+    let top = duration_top(y) + DURATION_HEIGHT;
     let durations = [
         AuctionDuration::Short,
         AuctionDuration::Medium,
         AuctionDuration::Long,
     ];
-    let lines: Element = durations
-        .into_iter()
-        .enumerate()
-        .flat_map(|(index, duration)| {
-            let color = if duration == current {
-                NORMAL_FONT_COLOR
-            } else {
-                HIGHLIGHT_FONT_COLOR
-            };
-            let action = format!("{ACTION_DURATION_PREFIX}{}", duration_token(duration));
-            rsx! {
-                button {
-                    name: {DynName(format!("AuctionHouseFrameDurationMenuOption{}", index + 1))},
-                    width: {w - 8.0},
-                    height: 20.0,
-                    onclick: {action.as_str()},
-                    button_default_skin: false,
-                    pos_type: "absolute",
-                    left: 4.0,
-                    top: {4.0 + index as f32 * 20.0},
-                    fontstring {
-                        name: {DynName(format!("AuctionHouseFrameDurationMenuOption{}Text", index + 1))},
-                        width: {w - 16.0},
-                        height: 20.0,
-                        text: {duration_label(duration)},
-                        font: GameFont::FrizQuadrata,
-                        font_size: 12.0,
-                        font_color: color,
-                        justify_h: "LEFT",
-                        pos_type: "absolute",
-                        left: 6.0,
-                        top: 0.0,
-                    }
+    let names = [1, 2, 3].map(|index| format!("AuctionHouseFrameDurationMenuOption{index}"));
+    let actions =
+        durations.map(|duration| format!("{ACTION_DURATION_PREFIX}{}", duration_token(duration)));
+    let entries = std::array::from_fn::<_, 3, _>(|index| {
+        (
+            ContextMenuItem {
+                name: &names[index],
+                label: duration_label(durations[index]),
+                action: &actions[index],
+            },
+            MenuElementKind::Radio {
+                checked: durations[index] == current,
+            },
+            true,
+        )
+    });
+    let mut menu = context_menu_description(
+        "AuctionHouseFrameDurationMenu",
+        (x, top),
+        DURATION_WIDTH,
+        &entries,
+    );
+    apply_duration_font(&mut menu, "LEFT");
+    menu
+}
+
+/// Local Lua SetFontObject overrides; shared menu defaults and other callers stay unchanged.
+fn apply_duration_font(children: &mut [WidgetChild], alignment: &str) {
+    for child in children {
+        match child {
+            WidgetChild::Widget(widget) => {
+                if widget.effective_tag() == "FontString" {
+                    widget.attrs.retain(|attr| {
+                        !matches!(attr.effective_name(), "font" | "font_size" | "justify_h")
+                    });
+                    widget.attrs.extend([
+                        Attr::new_static("font", GameFont::ArialNarrow.to_string()),
+                        Attr::new_static("font_size", "12".into()),
+                        Attr::new_static("justify_h", alignment.into()),
+                    ]);
                 }
+                apply_duration_font(&mut widget.children, alignment);
             }
-        })
-        .collect();
-    rsx! {
-        r#frame {
-            name: "AuctionHouseFrameDurationMenu",
-            width: w,
-            height: 68.0,
-            strata: FrameStrata::Dialog,
-            frame_level: 200.0,
-            style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
-            pos_type: "absolute",
-            left: x,
-            top,
-            r#frame {
-                name: "AuctionHouseFrameDurationMenuBg",
-                width: {w - 2.0 * 4.0},
-                height: {68.0 - 2.0 * 4.0},
-                background_color: "0.0,0.0,0.0,0.9",
-                pos_type: "absolute",
-                left: 4.0,
-                top: 4.0,
-            }
-            {lines}
+            WidgetChild::Fragment(fragment) => apply_duration_font(fragment, alignment),
+            WidgetChild::Dynamic => {}
         }
     }
 }

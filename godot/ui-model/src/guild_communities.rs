@@ -5,6 +5,7 @@ use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, 
 use crate::quest_art::{DynName, panel_button, window_chrome};
 use crate::selection_list::row;
 use shared::protocol::*;
+use std::collections::HashMap;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SCROLL_BOX: &str = "CommunitiesMemberListScrollBox";
@@ -179,11 +180,28 @@ fn sorted_members(session: &GuildRanksSession) -> Vec<&GuildRankMember> {
         .into_iter()
         .flat_map(|s| &s.members)
         .collect();
+    let profiles: HashMap<_, _> = session
+        .profile
+        .iter()
+        .flat_map(|profile| &profile.members)
+        .map(|member| (member.character_name.as_str(), member))
+        .collect();
     match session.roster_sort {
         Some(GuildRosterSort::Name) => {
             members.sort_by(|a, b| a.character_name.cmp(&b.character_name))
         }
         Some(GuildRosterSort::Rank) => members.sort_by_key(|m| m.rank),
+        Some(GuildRosterSort::Level) => members.sort_by_key(|member| {
+            profiles
+                .get(member.character_name.as_str())
+                .map(|profile| profile.level)
+        }),
+        Some(GuildRosterSort::Class) => members.sort_by_key(|member| {
+            profiles
+                .get(member.character_name.as_str())
+                .and_then(|profile| class_icon(&profile.class_name))
+                .map(|(id, _)| id)
+        }),
         None => {}
     }
     if session.roster_sort_descending {
@@ -305,8 +323,8 @@ fn columns() -> Element {
     );
     let mut left = 195.0;
     for (index, (title, width, action)) in [
-        ("Lvl", 40.0, ""),
-        ("Class", 45.0, ""),
+        ("Lvl", 40.0, "guild:roster-sort:level"),
+        ("Class", 45.0, "guild:roster-sort:class"),
         ("Name", 100.0, "guild:roster-sort:name"),
         ("Zone", 100.0, ""),
         ("Rank", 85.0, "guild:roster-sort:rank"),

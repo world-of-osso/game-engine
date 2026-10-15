@@ -154,6 +154,31 @@ systemctl --user stop "agents-$AGENT.slice"
 
 Do not use `pkill godot`, stop `agents.slice`, or touch another run's slice. Verify every owned PID exited, the private UDP port is free, and the slice is inactive. Retain evidence, private data and warm caches. Forced cleanup proves isolation/termination, not normal Godot shutdown. The protected shared instance must remain untouched throughout.
 
+## Four headless Normal-party peers
+
+`native_dungeon_party_peers` owns four independent `game-engine-network` connections on private loopback5798, beside the one rendered proof camera. Build it with the Depot helper's `--fixture native_dungeon_party_peers`. Run through `agent-run` with `GODOT_TEST_SERVER=127.0.0.1:5798`, `ENCOUNTER_PARTY_DIRECTORY` pointing to a new owned evidence directory, and `ENCOUNTER_PARTY_LOS` naming the private server's authenticated LOS bake directory.
+
+`peers.json` contains exactly four distinct disposable accounts, character names and class IDs:
+
+```json
+[
+  {"account":"fb_encounter_sfk_guard","name":"Sfkguard","class":2},
+  {"account":"fb_encounter_sfk_heal","name":"Sfkheal","class":5},
+  {"account":"fb_encounter_sfk_fire","name":"Sfkfire","class":8},
+  {"account":"fb_encounter_sfk_arcane","name":"Sfkarcane","class":8}
+]
+```
+
+Atomically replace `peerN-command.json` with a monotonically sequenced command, e.g. `{"sequence":1,"action":"Register"}`. Wait for `last_sequence` acknowledgment in `peerN-state.json` before the next command. `Login`, `Create` and `Enter` use normal authentication/character messages; registration approval remains the private server's ordinary approval flow. `RegisterResponse { success: false, pending_approval: true }` is an accepted pending request, not rejection; approve it before `Login`. Source-derived level/real-item setup requires the lead's explicit fixture approval; combat never uses admin stat/damage calls. Equip/swap/use, targeting, attacks, casts, movement and loot commands carry their ordinary shared-protocol intent types.
+
+`Cast` derives its witness from actual replicated positions, display/stand-state eye rows and the same `shared::los` baked search used by the rendered client (`godot/rust/src/line_of_sight.rs`). Caller-supplied witness coordinates are replaced, not trusted. A blocked body has no witness and remains subject to the server's strict rejection. `wire_cast` records the actual outgoing intent; `known_spells` records the authoritative learned IDs for choosing valid rotations.
+
+`peerN-events.jsonl` preserves registration/create, group/spec, actual combat, inventory and loot receipts without authentication tokens. State files expose observed replica levels/health/positions/equipment; inventory/equipment snapshots are received snapshots, not a locally merged current inventory. Replay the recorded deltas when deriving current items. A `stop` file or20-minute deadline ends all four connections. Request failure is recorded, not treated as a successful cast/equip.
+
+Do not enter four independent dungeon copies concurrently: source-map construction can exceed the real netcode timeout. Admit the native camera first, connect peers at their authored creation location, form the real group, then admit them into that group's existing copy. Check peer-process liveness as well as state-file freshness; a saved replica is not proof of a live connection.
+
+The combat driver must own final capture and exact-PID cleanup in the same bounded execution: either keep driving through the encounter outcome, or terminate the owned clients/server immediately at its deadline. Do not return from a bounded input loop while leaving its actors fighting during later analysis. Both-skin combat images alone do not prove death, credit, loot or an instance clear.
+
 ## Sources
 
 - `data/diagnostics/castrow-2026-10-05/attempt4/{proof-ledger.txt,setup.json,*-argv.json,live-capture.gd,admin-setup.log}` — private account/admin setup, Weston, Vulkan environment, script-driven live capture and exact-PID cleanup.
