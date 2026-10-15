@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) — source inset/art, shared Morpheus and disabled Start Experience; four inspected both-skin native captures, final check pending.
+- [Tutorials source presentation](systems/adventure-guide.md#tutorials-source-presentation--2026-10-14) — source inset/art, shared Morpheus and disabled Start Experience; four inspected both-skin native captures, focused layout4/4 and native check/format pass.
 
 - [Close-camera observation](systems/character-rendering.md#close-camera-observation--2026-10-14) — actual Goldshire mailbox collision; post-AV dead login prevents standing-body acceptance, no camera/material change.
 
