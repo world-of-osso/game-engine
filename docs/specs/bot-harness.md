@@ -13,7 +13,7 @@ Private real player characters exercise the native controller path and measure c
 - [x] Compute DPS over the full specified dummy window, excluding follower damage and other targets; incomplete collections cannot qualify as balance evidence.
 - [ ] Compare DPS specs only with recorded comparable stats, level, dummy and duration. Report median-relative spread without pass/fail until lead/user chooses tolerance. Never use external DPS numbers.
 - [ ] Write JSON and short Markdown per run beneath `data/diagnostics/bot-harness-<date>/`.
-- [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once.
+- [x] Behavioral detection tests feed actual native combat records and a known missing request; distinguish zero damage from no cast and consume each server success once. Own private Ret32 fixture retains actual submitted20271 request1792056099829 without a success, three real successes and899 damage.
 - [x] Merge overlapping combat polls without double counting or collapsing real duplicate events; identify overflow using observed ring retention.
 
 ## How it works
@@ -28,7 +28,8 @@ Private real player characters exercise the native controller path and measure c
 - `scripts/bot_rotation.py`: sourced metadata, absent-order generic rule and fail-closed native authored selection.
 - `scripts/run_dummy_bots.py`: repeated explicit-socket fixed-duration collection and raw receipts.
 - `godot/tests/bot_harness_observer.gd`: existing native account/spell/aura/charge/assisted observation and private spec selection.
-- `scripts/tests/fixtures/bot_harness/`: authentic native Stockade combat with provenance. The missing request is a labeled test injection, not a production failure claim.
+- `scripts/tests/fixtures/bot_harness/`: authentic native Stockade and own private dummy combat with provenance. Stockade's absent request is a labeled injection; Ret's missing request is an actual captured submission.
+- `scripts/bot_roster.py` / `scripts/run_bot_roster.py`: source40-spec census and isolated private provisioning/client lifecycle.
 
 ## Tests asserting this spec
 
@@ -37,7 +38,8 @@ Private real player characters exercise the native controller path and measure c
 
 ## Known gaps (current cycle)
 
-- [ ] Native bot provisioning, sourced spec rotations, dummy execution and Stockade repetition.
+- [ ] Complete three-DPS sustained dummy MVP before all-spec/Stockade phase expansion. Native provisioning/spec selection/dummy casts work, but source evaluator stops Arcane12408/20, Ret6425/equality, Elemental38530/17 and Frost33686/67. No fallback and no sustained-DPS claim.
+- [ ] Purchased sourced talent loadouts and comparable gear/stat receipts; current live kits have only normal default/granted talents.
 - [ ] Aura-effect, cooldown reset, charge and resource-spending observability; combat-log aura presence alone proves none of these.
 - [ ] Three-spec and all-spec comparable damage receipts.
 

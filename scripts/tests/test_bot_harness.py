@@ -1,4 +1,5 @@
 """Behavioral tests use actual native IPC combat, never fabricated damage values."""
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -19,6 +20,16 @@ class BotHarnessTests(unittest.TestCase):
             "spells": [{"id": 30451, "damage": True}, {"id": 44425, "damage": True}],
             "attempts": [{"spell": 44425, "at_ms": 1791992756000, "deadline_ms": 1791992758500}],
         }
+
+    def test_actual_native_request_without_cast_success_is_flagged(self):
+        directory = FIXTURE.parent
+        run = json.loads((directory / "native-ret-run.json").read_text())
+        events = harness.parse_combat((directory / "native-ret-combat.log").read_text())
+        report = harness.analyze(run, events)
+        self.assertIn({"kind": "cast_never_fired", "spell": 20271, "at_ms": 1792056099829}, report["findings"])
+        self.assertEqual(report["casts"], {20271: 3})
+        self.assertEqual(report["damage"], 899)
+        self.assertIsNone(report["dps"])
 
     def test_known_missing_cast_in_real_log_is_reported(self):
         report = harness.analyze(self.run, self.events)
