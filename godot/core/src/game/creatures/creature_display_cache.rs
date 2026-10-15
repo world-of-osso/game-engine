@@ -29,6 +29,7 @@ struct DisplayInfoColumns {
     model: usize,
     scale: usize,
     pet_instance_scale: usize,
+    alpha: usize,
     tex_var: [usize; 4],
 }
 
@@ -108,7 +109,7 @@ fn cache_is_fresh(
     };
     // A cache with the old three-slot schema must be rebuilt even at unchanged mtimes.
     if conn
-        .prepare("SELECT d.skin_fdid_3, d.source_product, d.pet_instance_scale_milli, d.uses_display_geosets, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
+        .prepare("SELECT d.skin_fdid_3, d.source_product, d.pet_instance_scale_milli, d.uses_display_geosets, d.model_alpha, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
         .is_err()
     {
         return Ok(false);
@@ -193,6 +194,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              scale_milli INTEGER NOT NULL,
              pet_instance_scale_milli INTEGER NOT NULL,
              uses_display_geosets INTEGER NOT NULL,
+             model_alpha INTEGER NOT NULL CHECK(model_alpha BETWEEN 0 AND 255),
              source_product TEXT NOT NULL CHECK(source_product IN ('wow', 'wow_classic_beta'))
          );
          CREATE INDEX idx_creature_displays_model_fdid
@@ -272,8 +274,8 @@ fn read_display_columns(
 fn prepare_display_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
         "INSERT OR IGNORE INTO creature_displays
-         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli, uses_display_geosets)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product, pet_instance_scale_milli, uses_display_geosets, model_alpha)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
     )
     .map_err(|err| format!("prepare creature_displays insert: {err}"))
 }
@@ -303,6 +305,7 @@ fn insert_display_row(
             entry.source_product.as_str(),
             entry.pet_instance_scale_milli,
             entry.uses_display_geosets,
+            entry.model_alpha,
         ))
         .map_err(|err| format!("insert creature display row {display_id}: {err}"))?;
     Ok(())
@@ -388,6 +391,7 @@ fn find_display_info_columns(header: &str) -> Option<DisplayInfoColumns> {
         model: find("ModelID")?,
         scale: find("CreatureModelScale")?,
         pet_instance_scale: find("PetInstanceScale")?,
+        alpha: find("CreatureModelAlpha")?,
         tex_var: [
             find("TextureVariationFileDataID_0")?,
             find("TextureVariationFileDataID_1")?,
@@ -423,6 +427,7 @@ fn parse_display_entry(
         CreatureDisplay {
             source_product: model.source_product,
             model_fdid: model.fdid,
+            model_alpha: crate::csv_util::parse_field::<u8>(&values, cols.alpha)?,
             uses_display_geosets: model.uses_display_geosets,
             skin_fdids,
             scale_milli: combine_scale_milli(display_scale_milli, model.scale_milli),
@@ -502,12 +507,41 @@ mod tests {
     }
 
     #[test]
+    fn import_rejects_missing_or_invalid_authored_alpha() {
+        for (index, alpha) in [None, Some(""), Some("-1"), Some("256"), Some("bad")]
+            .into_iter()
+            .enumerate()
+        {
+            let dir = std::env::temp_dir().join(format!(
+                "creature-invalid-alpha-{}-{index}",
+                std::process::id()
+            ));
+            let csv = dir.join(crate::player_model_data::RETAIL_DB2_DIR);
+            std::fs::create_dir_all(&csv).unwrap();
+            let (column, value) = alpha.map_or((String::new(), String::new()), |value| {
+                (",CreatureModelAlpha".to_owned(), format!(",{value}"))
+            });
+            std::fs::write(csv.join("CreatureDisplayInfo.csv"), format!(
+                "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3{column}\n60051,141,1.2,1,4559680,0,0,0{value}\n"
+            )).unwrap();
+            std::fs::write(
+                csv.join("CreatureModelData.csv"),
+                "ID,FileDataID,ModelScale,CreatureGeosetDataID\n141,4559662,1,768\n",
+            )
+            .unwrap();
+            let error = import_creature_display_cache(&dir).unwrap_err();
+            assert!(error.contains("CreatureDisplayInfo.csv"), "{error}");
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
     fn import_ordinary_geoset_gate_and_rebuild_older_catalog() {
         let dir = std::env::temp_dir().join(format!("creature-geoset-gate-{}", std::process::id()));
         let csv = dir.join(crate::player_model_data::RETAIL_DB2_DIR);
         std::fs::create_dir_all(&csv).unwrap();
         std::fs::write(csv.join("CreatureDisplayInfo.csv"),
-            "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n1105,10253,1,1,0,0,0,0\n4213,7369,1.2,1,0,0,0,0\n").unwrap();
+            "ID,ModelID,CreatureModelScale,PetInstanceScale,CreatureModelAlpha,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n1105,10253,1,1,255,0,0,0,0\n4213,7369,1.2,1,255,0,0,0,0\n").unwrap();
         std::fs::write(
             csv.join("CreatureModelData.csv"),
             "ID,FileDataID,ModelScale,CreatureGeosetDataID\n10253,1661349,1,343\n7369,974343,1,0\n",
@@ -547,7 +581,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("creature-pet-scale-{}", std::process::id()));
         std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         std::fs::write(dir.join(crate::player_model_data::RETAIL_DB2_DIR).join("CreatureDisplayInfo.csv"),
-            "ID,ModelID,CreatureModelScale,PetInstanceScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n62217,7,0.25,0.7,11,12,0,0\n328,7,1,1,11,12,0,0\n").unwrap();
+            "ID,ModelID,CreatureModelScale,PetInstanceScale,CreatureModelAlpha,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n62217,7,0.25,0.7,255,11,12,0,0\n328,7,1,1,255,11,12,0,0\n").unwrap();
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
                 .join("CreatureModelData.csv"),
@@ -587,7 +621,7 @@ mod tests {
         std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR).join("CreatureDisplayInfo.csv"),
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n35297,2780,3,4237053,4237050,4237060,4237057,1\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale,CreatureModelAlpha\n35297,2780,3,4237053,4237050,4237060,4237057,1,255\n",
         ).unwrap();
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
@@ -639,7 +673,7 @@ mod tests {
         std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR).join("CreatureDisplayInfo.csv"),
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale,CreatureModelAlpha\n4,7,1,11,12,0,0,1,255\n",
         )
         .unwrap();
         std::fs::write(
@@ -670,11 +704,11 @@ mod tests {
         let forever = dir.join("db2/1.60.1.70205");
         std::fs::create_dir_all(&forever).unwrap();
         std::fs::create_dir_all(dir.join(crate::player_model_data::RETAIL_DB2_DIR)).unwrap();
-        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n";
+        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale,CreatureModelAlpha\n";
         std::fs::write(
             dir.join(crate::player_model_data::RETAIL_DB2_DIR)
                 .join("CreatureDisplayInfo.csv"),
-            format!("{header}10,1,1,11,0,0,0,1\n"),
+            format!("{header}10,1,1,11,0,0,0,1,255\n"),
         )
         .unwrap();
         std::fs::write(
@@ -685,7 +719,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             forever.join("CreatureDisplayInfo.csv"),
-            format!("{header}10,1,2,999,0,0,0,1\n136968,1,1,0,0,0,0,1\n139694,1,1,0,0,0,0,1\n"),
+            format!("{header}10,1,2,999,0,0,0,1,255\n136968,1,1,0,0,0,0,1,255\n139694,1,1,0,0,0,0,1,255\n"),
         )
         .unwrap();
         std::fs::write(
@@ -757,7 +791,7 @@ mod tests {
             .join("CreatureModelData.csv");
         std::fs::write(
             &display_path,
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale\n4,7,1,11,12,0,0,1\n5,7,1,21,22,23,24,1\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3,PetInstanceScale,CreatureModelAlpha\n4,7,1,11,12,0,0,1,255\n5,7,1,21,22,23,24,1,255\n",
         )
         .unwrap();
         std::fs::write(
@@ -782,6 +816,7 @@ mod tests {
             CreatureDisplay {
                 source_product: AssetProduct::Retail,
                 model_fdid: 9001,
+                model_alpha: 255,
                 uses_display_geosets: false,
                 skin_fdids: [11, 12, 0, 0],
                 scale_milli: 1250,

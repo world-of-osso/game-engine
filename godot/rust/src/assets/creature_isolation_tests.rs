@@ -157,6 +157,7 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
             uses_display_geosets: false,
             skin_fdids: [0; 4],
             scale_milli: 1000,
+            model_alpha: 255,
             pet_instance_scale_milli: 1000,
         };
         let parsed = load_display_model_files(&root, &display).unwrap();
