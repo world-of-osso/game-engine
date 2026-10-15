@@ -56,9 +56,28 @@ fn round_decimal(value: f32) -> f32 {
 /// MathUtil.RoundToSignificantDigits(value, 1) rounds decimal places; angles round
 /// in degrees before Model.lua converts them back to radians.
 pub fn read_perks_camera(root: &Path, scene_id: u32) -> Result<ModelSceneCamera, String> {
+    let mut camera = read_camera(root, scene_id, None)?;
+    camera.target = camera.target.map(round_decimal);
+    camera.yaw = round_decimal(camera.yaw.to_degrees()).to_radians();
+    camera.pitch = round_decimal(camera.pitch.to_degrees()).to_radians();
+    camera.roll = round_decimal(camera.roll.to_degrees()).to_radians();
+    Ok(camera)
+}
+
+/// A category transition without displayData keeps the raw primary camera values.
+pub fn read_primary_camera(root: &Path, scene_id: u32) -> Result<ModelSceneCamera, String> {
+    read_camera(root, scene_id, Some("primary"))
+}
+
+fn read_camera(root: &Path, scene_id: u32, tag: Option<&str>) -> Result<ModelSceneCamera, String> {
     let mut camera = None;
     read_db2_rows(&root.join("db2/active/UiModelSceneCamera.csv"), |row| {
         if row.parse::<u32>("UiModelSceneID")? != scene_id || camera.is_some() {
+            return Ok(());
+        }
+        if let Some(tag) = tag
+            && row.field("ScriptTag")? != tag
+        {
             return Ok(());
         }
         let camera_type = row.parse::<u32>("CameraType")?;
@@ -71,13 +90,13 @@ pub fn read_perks_camera(root: &Path, scene_id: u32) -> Result<ModelSceneCamera,
             id: row.parse("ID")?,
             scene_id,
             target: [
-                round_decimal(row.parse("Target_0")?),
-                round_decimal(row.parse("Target_1")?),
-                round_decimal(row.parse("Target_2")?),
+                row.parse("Target_0")?,
+                row.parse("Target_1")?,
+                row.parse("Target_2")?,
             ],
-            yaw: round_decimal(row.parse::<f32>("Yaw")?.to_degrees()).to_radians(),
-            pitch: round_decimal(row.parse::<f32>("Pitch")?.to_degrees()).to_radians(),
-            roll: round_decimal(row.parse::<f32>("Roll")?.to_degrees()).to_radians(),
+            yaw: row.parse("Yaw")?,
+            pitch: row.parse("Pitch")?,
+            roll: row.parse("Roll")?,
             zoom_distance: row.parse("ZoomDistance")?,
             min_zoom_distance: row.parse("MinZoomDistance")?,
             max_zoom_distance: row.parse("MaxZoomDistance")?,

@@ -21,6 +21,14 @@ Retail Mainline Blizzard_PerksProgram and the local C_PerksProgram/PerksActiviti
 - Lead October15 authorized base-camera/orbit acceptance separately from inherited two-point native zoom splines and ModelScene default-FOV equivalence. Existing project FOV remains unchanged; neither gap may be represented as exact Retail framing or replaced with a guessed formula.
 - [x] Installed-data4 tests and compatible generic-camera native RED→both-skin GREEN at engine57d522994/server50fcd1c5/protocol7313ec4. Actual authored619 base pose, camera-only held/drag orbit, wheel zoom and rider/category/HUD lifetimes pass.24 inspected full-HD PNGs: `/syncthing/AgentShared/2026-10-15/trading-post-camera/`; exact artifact hashes/revisions and six PSI/swap boundaries in diagnostic `camera-proof-manifest.json`. Dedicated pet/player comparison remains separate.
 
+## Pet/player comparison scenes
+
+- Pet previews have independent MainModelScene and PlayerModelScene worlds/cameras, not a mounted rider or incidental world player. Both occupy the source full canvas; player frame level100 is behind main500. The pet retains the category actor roster and receives the product's translated position/orientation.
+- Comparison player uses the Transmog category scene's race/sex actor, dressed current appearance and visible sheathed weapons. Preserve authored position/rotation/scale, then add source relative position(-2,+2.2,0). Set its primary camera yaw150 degrees; nil player displayData retains raw category camera values rather than translated/rounded product camera values. Pet orbit must not move this independent camera or either authored actor.
+- Product/category changes, cart composite selection and Leave cancel pending comparison requests and free obsolete scenes; no late player actor after close. Sources: Model.lua675–720,820–861; PerksProgram.xml617–643; ModelSceneActorMixin74–82,128–135.
+- [ ] Native comparison scene implementation and inspected both-skin proof.
+- [ ] Full Rank3 remains incomplete: native pet desiredScale provider and animation kit23877 cross-segment loop are named gaps (lead October15 decisionA). Do not invent a scale mapping, substitute a permanent idle and call it kit parity, or force availability flags. Accepted inherited zoom-spline/default-FOV gaps remain separate; native view-inset projection equivalence is not certified.
+
 ## Frozen replacement consent
 
 - Occupied-slot drops preview the candidate in the slot while a Retail GameDialog identifies the old frozen product and warns: “Are you sure you want to replace your current frozen item? The existing frozen item may no longer be available.”
