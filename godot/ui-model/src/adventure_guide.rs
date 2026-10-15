@@ -626,7 +626,9 @@ pub fn adventure_guide_screen(ctx: &SharedContext) -> Element {
         "journal:close",
     );
     body.extend(crate::adventure_guide_art::portrait(view));
-    body.extend(crate::adventure_guide_art::navigation(view));
+    if matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::Journeys) {
+        body.extend(crate::adventure_guide_art::navigation(view));
+    }
     if matches!(view.tab, Tab::Dungeons | Tab::Raids | Tab::ItemSets) {
         body.extend(crate::adventure_guide_art::search_box(&view.search));
     }
