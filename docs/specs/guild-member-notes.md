@@ -5,9 +5,10 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 ## What it must do
 
 - [x] Member details show authoritative name, class/level, rank, public note and permitted officer note. Unknown zone and exact last-online times must not be invented. Public notes populate the roster Note column independently of officer text.
-- [ ] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
+- [x] Mainline permits own-public-note editing without the general public-edit right. Other public writes require that right. Officer writes require edit-officer permission; the native editor additionally requires view permission. Officer payloads are stripped from unauthorized recipients.
 - [ ] Authenticated actor and same-guild target are validated server-side;31 Unicode characters maximum, no control characters. Cancel writes nothing. Popup target remains the member selected when editing began even if roster selection subsequently changes. Enter/Accept waits for authoritative profile replacement, including the interval between rank ACK and profile reply.
-- [ ] Both note types survive server restart/relog, preserving existing officer records. Leave/removal deletes both before rejoin. Group Invite uses the actual group service and Remove uses existing hierarchy authority.
+- [x] Both note types survive durable database close/reopen, preserving existing officer records. Leave/removal deletes both before rejoin. Native relog remains a separate acceptance boundary below.
+- [ ] Group Invite uses the actual group service and Remove uses existing hierarchy authority, with physical native proof.
 
 ## How it works
 
@@ -32,7 +33,7 @@ Retail Mainline member details and public/officer notes in Modern and Forever. S
 
 ## Known gaps (current cycle)
 
-- [ ] Server/network/native checks and both-skin private5891 live/relog PNG acceptance. Current UI guild_rank_widgets subset passes21/21 at889142b41, including immutable popup target RED→GREEN; model proof only. Server --lib selected0 guild tests and is not proof.
+- [ ] Network/native checks and both-skin private5891 live/relog PNG acceptance. UI guild_rank_widgets passes21/21 at889142b41, including immutable-target RED→GREEN. Server main-binary guild subset passes11/11 at10c5d019, including durable reopen/privacy/rank rights. Earlier server --lib0-test invocation is not proof.
 - [ ] Source direct rank-assignment dropdown, online zone and elapsed-last-online metadata.
 
 ## Out of scope

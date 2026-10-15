@@ -122,6 +122,60 @@ fn guild_invitation_and_decline_cross_real_udp() {
 }
 
 #[test]
+fn guild_member_note_profile_fields_cross_real_udp() {
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(|_| {});
+    let mut bridge = NetworkBridge::connect(address, 8265).unwrap();
+    connect(&mut server, &mut bridge);
+    let reply = GuildStateUpdate {
+        guild: Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: [("Cara", "Alchemy", true), ("Dora", "Cooking", false)]
+                .into_iter()
+                .map(|(name, note, is_self)| GuildMemberSnapshot {
+                    character_name: name.into(),
+                    level: 80,
+                    class_name: "Priest".into(),
+                    rank_name: "Member".into(),
+                    is_online: true,
+                    public_note: note.into(),
+                    officer_note: String::new(),
+                    is_self,
+                    last_online: "Online".into(),
+                })
+                .collect(),
+        }),
+        message: None,
+        error: None,
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<GuildStateUpdate>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<GuildChannel>(reply.clone());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut received = None;
+    while received.is_none() && Instant::now() < deadline {
+        server.update();
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Message(message) = event {
+                if message.is::<GuildStateUpdate>() {
+                    received = Some(message.downcast::<GuildStateUpdate>().ok().unwrap());
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().unwrap();
+    assert_eq!(received, Some(reply));
+}
+
+#[test]
 fn guild_ranks_wire_sends_exact_requests_and_receives_ordered_authority() {
     let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
     let mut bridge = NetworkBridge::connect(address, 8261).unwrap();
