@@ -23,6 +23,8 @@ func run_test() -> void:
 	var error: String = client.connect_account(server, OS.get_environment("EMOTE_ACCOUNT"), PASSWORD, false)
 	if not error.is_empty(): fail(error); return
 	if not await enter_world(): return
+	var skin_error: String = client.preview_world_skin(proof_skin == "forever")
+	if not skin_error.is_empty(): fail(skin_error); return
 	var expected_skin := "Modern" if proof_skin == "modern" else "Forever"
 	if client.account_state().ui_skin != expected_skin: fail("Unexpected skin"); return
 	client.set_world_minutes(720.0)
