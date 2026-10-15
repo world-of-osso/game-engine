@@ -111,13 +111,13 @@ fn ramp_lip_full_stockade_walks_from_captured_feet_onto_landing() {
         game_object_floor: &|_| None,
     };
     let mut movement = crate::gameplay::PlayerMovement::default();
-    let frame = crate::gameplay::MovementFrame {
-        direction: [0.96152194, 0.0, -0.27472818],
-        speed: 7.0,
-        vertical: 0.0,
-    };
     let mut feet = start;
     for _ in 0..7 {
+        let frame = crate::gameplay::MovementFrame {
+            direction: [0.96152194, 0.0, -0.27472818],
+            speed: 7.0,
+            vertical: 0.0,
+        };
         feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
     }
     assert!(feet.x > 108.8, "authored WMO stopped walk at {feet}");
