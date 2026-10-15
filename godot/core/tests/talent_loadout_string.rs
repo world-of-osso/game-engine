@@ -79,6 +79,21 @@ fn talent_string_rejects_bad_alphabet_short_version_and_wrong_spec() {
         ),
         Err(LoadoutError::WrongSpec)
     );
+    // A real Warrior Arms71 string pasted into Mage Arcane62 uses the same
+    // Retail WRONG_SPEC error; no separate class field exists in the header.
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let arms = game_engine_core::talent_data::load_talent_page(&data, 1, 71).unwrap();
+    let warrior = load_trait_rules(&data, arms.tree_id).unwrap();
+    let warrior_context = TraitContext {
+        spec_id: 71,
+        ..CONTEXT
+    };
+    let grants = build_config(&warrior, warrior_context, &[]).unwrap();
+    let warrior_text = encode(&warrior, 71, &grants).unwrap();
+    assert_eq!(
+        decode(&tree, CONTEXT, &warrior_text),
+        Err(LoadoutError::WrongSpec)
+    );
     assert_eq!(
         decode(&tree, CONTEXT, &text[..text.len() - 2]),
         Err(LoadoutError::BadString)
