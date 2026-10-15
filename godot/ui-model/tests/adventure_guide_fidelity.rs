@@ -388,6 +388,23 @@ fn adventure_guide_model_creature_buttons_follow_authored_order_and_selection() 
 }
 
 #[test]
+fn adventure_guide_model_limits_authored_choices_to_nine() {
+    let mut v = view();
+    v.apply("journal:encounter:1621").unwrap();
+    v.apply("journal:page:model").unwrap();
+    let ids: Vec<_> = v
+        .model_creatures()
+        .iter()
+        .map(|creature| creature.id)
+        .collect();
+    assert_eq!(ids, [3907, 3908, 3897, 3900, 3902, 3906, 3901, 3898, 3909]);
+    assert!(v.apply("journal:creature:3905").is_err());
+    assert_eq!(v.creature, Some(3907));
+    v.apply("journal:creature:3909").unwrap();
+    assert_eq!(v.model_creature().unwrap().name, "Ruj'kah");
+}
+
+#[test]
 fn adventure_guide_model_tooltip_retains_authored_creature_description() {
     let mut v = view();
     v.apply("journal:encounter:154").unwrap();
