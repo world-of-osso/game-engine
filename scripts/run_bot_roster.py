@@ -18,10 +18,11 @@ from types import SimpleNamespace
 
 from bot_roster import build_roster
 from bot_harness import balance
+from bot_health import qualify_report_health, require_living_player
 from bot_gear import equipment_receipt, load_plan as load_gear_plan, required_grants
 from bot_rotation import authored_order
 from bot_talents import load_plan
-from run_dummy_bots import collect, read_state, require_living_player
+from run_dummy_bots import collect, read_state
 
 
 def command(output, argv, env=None):
@@ -182,7 +183,8 @@ def read_roster_reports(output, specs, repeat):
             if not path.exists():
                 missing.append(str(relative))
                 continue
-            row = json.loads(path.read_text())
+            row = qualify_report_health(path.parent, json.loads(path.read_text()))
+            row["source_report"] = str(relative)
             rows.append(row)
             if not row.get("measurement_complete"):
                 missing.append(str(relative))
@@ -204,7 +206,9 @@ def write_roster_comparison(output, bots, repeat):
     specs = [bot["spec"] for bot in bots if bot["role"] == 2]
     rows, missing = read_roster_reports(output, specs, repeat)
     result = compare_roster_reports(rows, specs, missing)
-    result.update(expected_specs=specs, missing_runs=missing)
+    health_failures = [{"report": row["source_report"], "error": row["health_qualification"]["error"]}
+                       for row in rows if not row["health_qualification"]["valid"]]
+    result.update(expected_specs=specs, missing_runs=missing, health_failures=health_failures)
     (output / "balance.json").write_text(json.dumps(result, indent=2) + "\n")
     if result["available"]:
         summary = (f"Median {result['median_dps']:.2f} DPS; "

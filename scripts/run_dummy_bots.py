@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from bot_harness import analyze, merge_polls, poll_has_gap, write_report
+from bot_health import require_living_player
 from bot_rotation import authored_next, authored_order, choose, load_spells, read_rows
 
 
@@ -20,14 +21,6 @@ def invoke(cli, socket, output, sequence, *args):
     if result.returncode:
         raise RuntimeError(f"Native IPC {args}: {result.stderr or result.stdout}")
     return result.stdout
-
-
-def require_living_player(account):
-    health = account.get("local_player_health")
-    if health is None:
-        raise RuntimeError("Native player health was not observed")
-    if health <= 0:
-        raise RuntimeError("Native player is dead (observed health <= 0); no live DPS measurement")
 
 
 def read_state(path):
