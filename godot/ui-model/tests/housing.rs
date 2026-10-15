@@ -1877,6 +1877,60 @@ fn housing_cleanup_hides_storage_and_shows_hover_name_and_readonly_error_in_both
             assert!(registry.get_by_name("HouseEditorStorageFrame").is_none());
             assert!(registry.get_by_name("HouseEditorStored1693").is_none());
             assert!(registry.get_by_name("HouseEditorRemove").is_none());
+            let mode_bar = registry
+                .get(registry.get_by_name("HouseEditorModeBar").unwrap())
+                .unwrap();
+            assert_eq!(mode_bar.width, Dimension::Fixed(266.0));
+            assert_eq!(mode_bar.height, Dimension::Fixed(64.0));
+            assert_eq!(
+                mode_bar.position.left,
+                ui_toolkit::layout_values::Val::Px(507.0)
+            );
+            assert_eq!(
+                mode_bar.position.top,
+                ui_toolkit::layout_values::Val::Px(656.0)
+            );
+            assert!(
+                registry
+                    .get_by_name("HouseEditorCustomizeModeButton")
+                    .is_some()
+            );
+            assert!(registry.get_by_name("HouseEditorBasicSubmodeBar").is_none());
+            assert!(
+                registry
+                    .get_by_name("HouseEditorExpertSubmodeBar")
+                    .is_none()
+            );
+            let instruction = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorSelectInstruction")
+                        .expect("Source Cleanup SelectInstruction"),
+                )
+                .unwrap();
+            assert_eq!(instruction.height, Dimension::Fixed(45.0));
+            let instruction_text = registry
+                .get(
+                    registry
+                        .get_by_name("HouseEditorSelectInstructionText")
+                        .unwrap(),
+                )
+                .unwrap();
+            assert!(
+                matches!(&instruction_text.widget_data, Some(WidgetData::FontString(font)) if font.text == "Remove Decor" && font.font_size == 16.0)
+            );
+            assert!(
+                registry
+                    .get_by_name("HouseEditorSelectInstructionControlIcon")
+                    .is_some()
+            );
+            let instructions = registry
+                .get(registry.get_by_name("HouseEditorInstructions").unwrap())
+                .unwrap();
+            assert_eq!(
+                instructions.position.left,
+                ui_toolkit::layout_values::Val::Px(1250.0 - instructions.width.value())
+            );
             let name = registry
                 .get(registry.get_by_name("HouseEditorCleanupHoverName").unwrap())
                 .unwrap();
