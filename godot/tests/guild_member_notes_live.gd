@@ -64,6 +64,12 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func capture(name: String) -> void:
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	assert(image.get_size() == Vector2i(1920, 1080), "Full-HD guild acceptance requires actual1920x1080 pixels")
+	assert(image.save_png("%s/%s-%s.png" % [shots, role, name]) == OK)
+
 func write_note(officer: bool, value: String) -> bool:
 	await press("GuildMemberDetailOfficerNote" if officer else "GuildMemberDetailNote")
 	if not await wait_until(func(): return shown("GuildMemberNoteEditBox"), "note popup"):
