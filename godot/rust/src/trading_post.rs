@@ -48,6 +48,7 @@ pub(crate) struct TradingPost {
     preview_failed: bool,
     snapshot_observed_at: Option<std::time::Instant>,
     spinner_started_at: Option<std::time::Instant>,
+    freeze_started_at: Option<std::time::Instant>,
 }
 
 /// The tooltip stays usable over the vendor, like Retail's own PerksProgramTooltip.
@@ -77,6 +78,8 @@ impl GameClient {
     pub(super) fn close_trading_post(&mut self) -> bool {
         let visible = self.trading_post.view.visible;
         self.trading_post.view.visible = false;
+        self.trading_post.view.cancel_confirmation();
+        self.trading_post.freeze_started_at = None;
         self.trading_post.view.clear_cart();
         self.clear_trading_model();
         for id in std::mem::take(&mut self.trading_post.hidden_layers) {
@@ -94,8 +97,11 @@ impl GameClient {
     }
     pub(super) fn close_trading_post_window(&mut self) -> Result<bool, FrameError> {
         if self.trading_post.view.confirm.is_some() {
-            if !self.trading_post.view.pending {
-                self.trading_post.view.confirm = None;
+            // Frozen override has no hideOnEscape; its keyboard cover consumes it.
+            if !self.trading_post.view.pending
+                && self.trading_post.view.confirm.as_deref() != Some("freeze")
+            {
+                self.trading_post.view.cancel_confirmation();
             }
             return Ok(true);
         }
@@ -146,6 +152,7 @@ impl GameClient {
                 observed_at.elapsed().as_secs().min(u64::from(u32::MAX)) as u32;
         }
         self.trading_post.view.horde = self.player_is_horde();
+        self.update_trading_freeze_delay();
         self.poll_trading_inputs()?;
         if self.trading_post.view.visible {
             self.hide_ui_parent();
@@ -195,6 +202,20 @@ impl GameClient {
             }
         }
     }
+    fn update_trading_freeze_delay(&mut self) {
+        if self.trading_post.view.confirm.as_deref() != Some("freeze") {
+            self.trading_post.freeze_started_at = None;
+            return;
+        }
+        let started = self
+            .trading_post
+            .freeze_started_at
+            .get_or_insert_with(std::time::Instant::now);
+        self.trading_post
+            .view
+            .update_freeze_confirmation(started.elapsed().as_secs_f64());
+    }
+
     fn poll_trading_inputs(&mut self) -> Result<(), String> {
         let Some(mut ui) = self.trading_post.ui.clone() else {
             return Ok(());
@@ -674,6 +695,19 @@ impl GameClient {
         if !self.trading_post.view.visible {
             return false;
         }
+        if self.trading_post.view.confirm.as_deref() == Some("freeze")
+            && let Ok(button) = event
+                .clone()
+                .try_cast::<godot::classes::InputEventMouseButton>()
+            && button.is_pressed()
+            && button.get_button_index() == godot::global::MouseButton::RIGHT
+        {
+            // PerksProgram OnGlobalMouseDown cancels even outside the popup.
+            self.trading_post.view.cancel_confirmation();
+            self.trading_post.freeze_started_at = None;
+            self.mark_viewport_input_handled();
+            return true;
+        }
         self.close_trading_filter_on_outside_press(event);
         if let Some(ui) = &mut self.trading_post.ui {
             let scrolled = ui.bind_mut().scroll_list_input(event);
@@ -809,6 +843,9 @@ impl GameClient {
                 self.trading_post.view.pending = false;
                 self.trading_post.view.error = error.to_string();
             }
+        }
+        if self.trading_post.view.confirm.as_deref() == Some("freeze") {
+            self.trading_post.freeze_started_at = Some(std::time::Instant::now());
         }
         true
     }

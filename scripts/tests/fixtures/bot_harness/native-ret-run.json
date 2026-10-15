@@ -1,0 +1,120 @@
+{
+  "actor": "4294739513",
+  "target": "4294959692",
+  "start_ms": 1792056087626,
+  "end_ms": 1792056147626,
+  "observed_until_ms": 1792056146532,
+  "scenario": "dummy",
+  "spec": 70,
+  "attempts": [
+    {
+      "spell": 20271,
+      "at_ms": 1792056087694,
+      "deadline_ms": 1792056091194,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056099829,
+      "deadline_ms": 1792056103329,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056101476,
+      "deadline_ms": 1792056104976,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056103014,
+      "deadline_ms": 1792056106514,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056104638,
+      "deadline_ms": 1792056108138,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056106275,
+      "deadline_ms": 1792056109775,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056107885,
+      "deadline_ms": 1792056111385,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056109403,
+      "deadline_ms": 1792056112903,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056121310,
+      "deadline_ms": 1792056124810,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056122999,
+      "deadline_ms": 1792056126499,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056124573,
+      "deadline_ms": 1792056128073,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056126242,
+      "deadline_ms": 1792056129742,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056127877,
+      "deadline_ms": 1792056131377,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056129615,
+      "deadline_ms": 1792056133115,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056131178,
+      "deadline_ms": 1792056134678,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056132755,
+      "deadline_ms": 1792056136255,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    },
+    {
+      "spell": 20271,
+      "at_ms": 1792056134255,
+      "deadline_ms": 1792056137755,
+      "response": "spell cast submitted spell=20271 target=4294959692 witness=[-8985.001, 81.450386, 178.851]->[-8969.405, 84.4516, 159.34814]\n"
+    }
+  ],
+  "measurement_complete": false,
+  "spells": [
+    {
+      "id": 20271,
+      "damage": true
+    }
+  ]
+}
